@@ -1,0 +1,159 @@
+Source URL: https://firebase.google.com/docs/firestore/query-data/multiple-range-fields?hl=ko
+Title: 여러 필드에 범위 및 불일치 필터가 있는 쿼리 개요
+
+의견 보내기
+
+여러 필드에 범위 및 불일치 필터가 있는 쿼리 개요
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Cloud Firestore는 단일 쿼리에서 여러 필드에 범위 및 불일치 필터 사용을 지원합니다. 여러 필드에 범위 및 불일치 조건을 적용할 수 있고, 사후 필터링 로직 구현을 Cloud Firestore에 위임하여 애플리케이션 개발을 간소화할 수 있습니다.
+
+여러 필드의 범위 및 불일치 필터
+
+다음 쿼리는 인구 및 밀도에 범위 필터를 사용하여 인구가 100만 명 이상이고 인구 밀도가 단위 면적당 10,000명 미만인 모든 도시를 반환합니다.
+
+웹 버전 9 모듈식const q = query(
+collection(db, "cities"),
+where('population', '>', 1000000),
+where('density', '<', 10000),
+
+Swiftlet query = db.collection("cities")
+.whereField("population", isGreaterThan: 1000000)
+.whereField("density", isLessThan: 10000)
+
+Objective-CFIRQuery *query =
+[[[[self.db collectionWithPath:@"cities"]
+queryWhereField:@"population" isGreaterThan:@1000000]
+Java AndroidQuery query = db.collection("cities")
+.whereGreaterThan("population", 1000000)
+.whereLessThan("density", 10000);
+
+Kotlin+KTX Androidval query = db.collection("cities")
+.whereGreaterThan("population", 1000000)
+.whereLessThan("density", 10000)
+
+Go   query := client.Collection("cities").
+Where("population", ">", 1000000).
+Where("density", "<", 10000)
+
+자바db.collection("cities")
+.whereGreaterThan("population", 1000000)
+.whereLessThan("density", 10000);
+
+Node.jsdb.collection("cities")
+.where('population', '>', 1000000),
+.where('density', '<', 10000)
+
+Pythonfrom google.cloud import firestore
+
+db = firestore.Client()
+query = db.collection("cities")
+.where("population", ">", 1000000)
+.where("density", "<", 10000)
+
+PHP
+
+$collection = $db->collection('samples/php/cities');
+$chainedQuery = $collection
+->where('population', '>', 1000000)
+->where('density', '<', 10000);
+query_filter_compound_multi_ineq.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/fb4e5fc6398145491c6197344849d9caeac33811/firestore/src/query_filter_compound_multi_ineq.php#L42-L46]
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+Query query = citiesRef
+.WhereGreaterThan("Population", 1000000)
+.WhereLessThan("Density", 10000);
+QuerySnapshot querySnapshot = await query.GetSnapshotAsync();
+foreach (DocumentSnapshot documentSnapshot in querySnapshot)
+Rubyquery = cities_ref.where("population", ">", "1000000")
+.where("density", "<", 10000)
+
+C++CollectionReference cities_ref = db->Collection("cities");
+Query query = cities_ref.WhereGreaterThan("population", FieldValue::Integer(1000000))
+.WhereLessThan("density", FieldValue::Integer(10000));
+
+UnityCollectionReference citiesRef = db.Collection("cities");
+Query query = citiesRef.WhereGreaterThan("population", 1000000)
+.WhereLessThan("density", 10000);
+
+Dartfinal citiesRef = FirebaseFirestore.instance.collection('cities')
+final query = citiesRef.where("population", isGreaterThan: 1000000)
+.where("density", isLessThan: 10000);
+
+색인 생성 고려사항
+
+쿼리를 실행하기 전에 쿼리 [https://firebase.google.com/docs/firestore/query-data/get-data?hl=ko] 및 Cloud Firestore 데이터 모델 [https://firebase.google.com/docs/firestore/data-model?hl=ko]에 대해 알아봅니다.
+
+Cloud Firestore에서는 쿼리의 ORDER BY 절에 따라 쿼리를 제공하는 데 사용할 색인이 결정됩니다. 예를 들어 ORDER BY a ASC, b ASC 쿼리는 a ASC, b ASC 필드에 대한 복합 색인이 필요합니다.
+
+Cloud Firestore 쿼리의 성능과 비용을 최적화하려면 색인의 필드 순서를 최적화해야 합니다. 이렇게 하려면 쿼리가 불필요한 색인 항목의 스캔을 방지하는 데이터 세트로 정리되도록 색인을 왼쪽에서 오른쪽으로 정렬해야 합니다.
+
+직원 컬렉션을 검색하여 급여가 100,000달러를 초과하고 경력 연수가 0년을 넘는 미국 직원을 찾는다고 가정해 보겠습니다. 데이터 세트에 대한 이해를 바탕으로 급여 제약조건이 경력 제약조건보다 더 선택적이라는 것을 알 수 있습니다. 색인 스캔 횟수를 줄일 수 있는 이상적인 색인은 (salary [...], experience [...])입니다. 따라서 빠르고 비용 효율적인 쿼리는 experience보다 salary를 먼저 정렬하며 다음과 같이 표시됩니다.
+
+Javadb.collection("employees")
+.whereGreaterThan("salary", 100000)
+.whereGreaterThan("experience", 0)
+.orderBy("salary")
+.orderBy("experience");
+
+Node.jsdb.collection("employees")
+.where("salary", ">", 100000)
+.where("experience", ">", 0)
+.orderBy("salary")
+.orderBy("experience");
+
+Pythondb.collection("employees")
+.where("salary", ">", 100000)
+.where("experience", ">", 0)
+.order_by("salary")
+.order_by("experience");
+
+색인 최적화를 위한 권장사항
+
+색인을 최적화하는 경우 다음 권장사항을 따르세요.
+
+가장 선택적인 범위 또는 불일치 필드가 이어서 오는 일치 여부를 기준으로 색인 필드 순서 지정
+
+Cloud Firestore는 복합 색인의 가장 왼쪽 필드를 사용하여 orderBy() 쿼리의 첫 번째 필드에서 일치 제약조건과 범위 또는 불일치 제약조건(있는 경우)을 충족합니다. 이러한 제약조건을 통해 Cloud Firestore가 스캔하는 색인 항목 수를 줄일 수 있습니다. Cloud Firestore는 색인의 나머지 필드를 사용하여 쿼리의 다른 범위 또는 불일치 제약조건을 충족합니다. 이러한 제약조건은 Cloud Firestore가 스캔하는 색인 항목 수를 줄이진 않지만 일치하지 않는 문서를 필터링하여 클라이언트에 반환되는 문서 수를 줄입니다.
+
+효율적인 색인을 만드는 방법에 대한 자세한 내용은 색인 속성 [https://firebase.google.com/docs/firestore/concepts/index-overview?hl=ko#index_properties]을 참wh하세요.
+
+쿼리 제약조건 선택성의 내림차순으로 필드 순서 지정
+
+Cloud Firestore가 쿼리에 가장 적합한 색인을 선택하도록 하려면 쿼리 제약조건 선택성의 내림차순으로 필드 순서를 지정하는 orderBy() 절을 지정합니다. 선택성이 높을수록 작은 문서의 하위 집합과 일치하고 선택성이 낮을수록 큰 문서의 하위 집합과 일치합니다. 색인 순서에서 선택성이 낮은 필드보다 선택성이 높은 범위 또는 불일치 필드를 먼저 선택해야 합니다.
+
+Cloud Firestore가 네트워크를 통해 스캔하여 반환하는 문서 수를 최소화하려면 항상 쿼리 제약조건 선택성의 내림차순으로 필드 순서를 지정해야 합니다. 결과 집합이 필요한 순서가 아니며 결과 집합이 작을 것으로 예상되는 경우 클라이언트 측 로직을 구현하여 예상되는 순서에 따라 순서를 다시 지정할 수 있습니다.
+
+예를 들어 직원 컬렉션을 검색하여 급여가 100,000달러를 초과하는 미국 직원을 찾아 이러한 직원의 경력 연수를 기준으로 결과를 정렬한다고 가정해 보겠습니다. 급여가 100,000달러를 초과할 것으로 예상되는 직원 수가 많지 않을 경우 쿼리를 작성하는 효율적인 방법은 다음과 같습니다.
+
+Javadb.collection("employees")
+.whereGreaterThan("salary", 100000)
+.orderBy("salary")
+.get()
+.addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+@Override
+public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+Node.jsconst querySnapshot = await db.collection('employees')
+.where("salary", ">", 100000)
+.orderBy("salary")
+.get();
+
+Pythonresults = db.collection("employees")
+.where("salary", ">", 100000)
+.order_by("salary")
+.stream()
+
+Cloud Firestore는 범위 또는 불일치 필드의 수를 10개로 제한합니다. 이는 쿼리 실행 비용이 너무 많이 드는 것을 방지하기 위한 것입니다.
+
+다음 단계
+
+쿼리 최적화 [https://firebase.google.com/docs/firestore/query-data/multiple-range-optimize-indexes?hl=ko]에 대해 자세히 알아보기
+단순 쿼리 및 복합 쿼리 실행 [https://firebase.google.com/docs/firestore/query-data/queries?hl=ko]에 대해 자세히 알아보기
+Cloud Firestore에서 색인을 사용하는 방법 [https://firebase.google.com/docs/firestore/concepts/index-overview?hl=ko] 알아보기
+
+의견 보내기

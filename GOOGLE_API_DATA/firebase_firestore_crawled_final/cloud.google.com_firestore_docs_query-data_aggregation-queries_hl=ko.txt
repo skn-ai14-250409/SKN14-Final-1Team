@@ -1,0 +1,602 @@
+Source URL: https://cloud.google.com/firestore/docs/query-data/aggregation-queries?hl=ko
+Title: 집계 쿼리로 데이터 요약
+
+의견 보내기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+집계 쿼리로 데이터 요약
+
+집계 쿼리는 여러 색인 항목의 데이터를 처리하여 단일 요약 값을 반환합니다.
+
+Firestore는 다음 집계 쿼리를 지원합니다.
+
+count()
+sum()
+average()
+
+Firestore는 집계를 계산하고 결과만 애플리케이션으로 다시 전송합니다. 앱에서 전체 쿼리를 실행하고 집계를 계산하는 것에 비해 집계 쿼리를 사용하면 요금이 청구되는 문서 읽기와 전송된 바이트 수 모두를 절약할 수 있습니다.
+
+집계 쿼리는 쿼리에서 이미 사용되는 기존 색인 구성을 기반으로 하며 스캔되는 색인 항목 수에 비례하여 확장됩니다. 지연 시간은 집계 항목 개수에 따라 증가합니다.참고: 코드 샘플에서는 여러 언어를 다루지만 샘플을 설명하는 텍스트는 웹 메서드 이름을 참조합니다.count() 집계 사용
+
+count() 집계 쿼리를 사용하면 컬렉션이나 쿼리의 문서 수를 결정할 수 있습니다.
+
+예시 데이터에 관한 자세한 내용은 데이터 가져오기 [https://cloud.google.com/firestore/native/docs/query-data/get-data?hl=ko]를 참조하세요.
+
+다음 count() 집계는 cities 컬렉션의 총 도시 수를 반환합니다.
+
+웹 버전 9
+
+트리 쉐이킹 작업이 가능한 웹 v9 모듈형 SDK에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 버전 8에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRCollectionReference *query = [self.db collectionWithPath:@"cities"];
+[query.count aggregationWithSource:FIRAggregateSourceServer
+completion:^(FIRAggregateQuerySnapshot *snapshot,
+NSError *error) {
+if (error != nil) {
+NSLog(@"Error fetching count: %@", error);
+NSLog(@"Cities count: %@", snapshot.count);
+Query query = db.collection("cities");
+AggregateQuery countQuery = query.count();
+countQuery.get(AggregateSource.SERVER).addOnCompleteListener(new OnCompleteListener<AggregateQuerySnapshot>() {
+@Override
+public void onComplete(@NonNull Task<AggregateQuerySnapshot> task) {
+if (task.isSuccessful()) {
+AggregateQuerySnapshot snapshot = task.getResult();
+Log.d(TAG, "Count: " + snapshot.getCount());
+Log.d(TAG, "Count failed: ", task.getException());
+KotlinAndroid
+val query = db.collection("cities")
+val countQuery = query.count()
+countQuery.get(AggregateSource.SERVER).addOnCompleteListener { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "Count: ${snapshot.count}")
+(res) => print(res.count),
+onError: (e) => print("Error completing: $e"),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L870-L874]
+
+Go
+
+package firestore
+
+import (
+"context"
+"errors"
+"fmt"
+"io"
+
+"cloud.google.com/go/firestore"
+firestorepb "cloud.google.com/go/firestore/apiv1/firestorepb"
+
+func createCountQuery(w io.Writer, projectID string) error {
+
+collection := client.Collection("users")
+query := collection.Where [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_Query_Where]("born", ">", 1850)
+
+CollectionReference collection = db.collection("cities");
+AggregateQuerySnapshot snapshot = collection.count().get().get();
+System.out.println("Count: " + snapshot.getCount());
+
+Node.js
+
+from google.cloud import firestore
+from google.cloud.firestore_v1 import aggregation [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.aggregation.html?hl=ko]
+from google.cloud.firestore_v1.base_query import FieldFilter
+
+def create_count_query(project_id: str) -> None:
+"""Builds an aggregate query that returns the number of results in the query.
+
+Arguments:
+project_id: your Google Cloud Project ID
+"""
+client = firestore.Client [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.client.Client.html?hl=ko](project=project_id)
+
+collection_ref = client.collection [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.client.Client.html?hl=ko#google_cloud_firestore_v1_client_Client_collection]("users")
+query = collection_ref.where(filter=FieldFilter("born", ">", 1800))
+aggregate_query = aggregation [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.aggregation.html?hl=ko].AggregationQuery [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.aggregation.AggregationQuery.html?hl=ko](query)
+
+# `alias` to provides a key for accessing the aggregate query results
+aggregate_query.count(alias="all")
+
+results = aggregate_query.get [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.aggregation.AggregationQuery.html?hl=ko#google_cloud_firestore_v1_aggregation_AggregationQuery_get]()
+for result in results:
+print(f"Alias of results from query: {result[0].alias}")
+print(f"Number of results from query: {result[0].value}")
+
+aggregate_query_count.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/ef29ddd43c1e15bf25703c7991fe95392e951425/firestore/cloud-client/aggregate_query_count.py#L22-L47]
+
+count() 집계에서는 쿼리의 모든 필터와 limit 절을 고려합니다.
+
+웹 버전 9
+
+트리 쉐이킹 작업이 가능한 웹 v9 모듈형 SDK에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 버전 8에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRQuery *query =
+[[self.db collectionWithPath:@"cities"]
+queryWhereField:@"state"
+NSLog(@"Error fetching count: %@", error);
+NSLog(@"Cities count: %@", snapshot.count);
+Query query = db.collection("cities").whereEqualTo("state", "CA");
+AggregateQuery countQuery = query.count();
+countQuery.get(AggregateSource.SERVER).addOnCompleteListener(new OnCompleteListener<AggregateQuerySnapshot>() {
+@Override
+public void onComplete(@NonNull Task<AggregateQuerySnapshot> task) {
+if (task.isSuccessful()) {
+AggregateQuerySnapshot snapshot = task.getResult();
+Log.d(TAG, "Count: " + snapshot.getCount());
+Log.d(TAG, "Count failed: ", task.getException());
+KotlinAndroid
+val query = db.collection("cities").whereEqualTo("state", "CA")
+val countQuery = query.count()
+countQuery.get(AggregateSource.SERVER).addOnCompleteListener { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "Count: ${snapshot.count}")
+
+package firestore
+
+import (
+"context"
+"errors"
+"fmt"
+"io"
+
+"cloud.google.com/go/firestore"
+firestorepb "cloud.google.com/go/firestore/apiv1/firestorepb"
+
+func createCountQuery(w io.Writer, projectID string) error {
+
+collection := client.Collection("users")
+query := collection.Where [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_Query_Where]("born", ">", 1850)
+
+CollectionReference collection = db.collection("cities");
+Query query = collection.whereEqualTo("state", "CA");
+AggregateQuerySnapshot snapshot = query.count().get().get();
+System.out.println("Count: " + snapshot.getCount());
+
+Node.js
+
+from google.cloud import firestore
+from google.cloud.firestore_v1 import aggregation [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.aggregation.html?hl=ko]
+from google.cloud.firestore_v1.base_query import FieldFilter
+
+def create_count_query(project_id: str) -> None:
+"""Builds an aggregate query that returns the number of results in the query.
+
+Arguments:
+project_id: your Google Cloud Project ID
+"""
+client = firestore.Client [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.client.Client.html?hl=ko](project=project_id)
+
+collection_ref = client.collection [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.client.Client.html?hl=ko#google_cloud_firestore_v1_client_Client_collection]("users")
+query = collection_ref.where(filter=FieldFilter("born", ">", 1800))
+aggregate_query = aggregation [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.aggregation.html?hl=ko].AggregationQuery [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.aggregation.AggregationQuery.html?hl=ko](query)
+
+# `alias` to provides a key for accessing the aggregate query results
+aggregate_query.count(alias="all")
+
+results = aggregate_query.get [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.aggregation.AggregationQuery.html?hl=ko#google_cloud_firestore_v1_aggregation_AggregationQuery_get]()
+for result in results:
+print(f"Alias of results from query: {result[0].alias}")
+print(f"Number of results from query: {result[0].value}")
+
+aggregate_query_count.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/ef29ddd43c1e15bf25703c7991fe95392e951425/firestore/cloud-client/aggregate_query_count.py#L22-L47]
+
+sum() 집계 사용
+
+sum() 집계를 사용하여 지정된 쿼리와 일치하는 숫자 값의 총 합계를 반환합니다. 예를 들면 다음과 같습니다.
+
+웹 버전 9
+
+트리 쉐이킹 작업이 가능한 웹 v9 모듈형 SDK에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 버전 8에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRQuery *query = [self.db collectionWithPath:@"cities"];
+FIRAggregateQuery *aggregateQuery = [query aggregate:@[
+[FIRAggregateField aggregateFieldForSumOfField:@"population"]]];
+[aggregateQuery aggregationWithSource:FIRAggregateSourceServer
+completion:^(FIRAggregateQuerySnapshot *snapshot,
+NSError *error) {
+if (error != nil) {
+NSLog(@"Error fetching aggregate: %@", error);
+NSLog(@"Sum: %@", [snapshot valueForAggregateField:[FIRAggregateField aggregateFieldForSumOfField:@"population"]]);
+Query query = db.collection("cities");
+AggregateQuery aggregateQuery = query.aggregate(AggregateField.sum("population"));
+aggregateQuery.get(AggregateSource.SERVER).addOnCompleteListener(new OnCompleteListener<AggregateQuerySnapshot>() {
+@Override
+public void onComplete(@NonNull Task<AggregateQuerySnapshot> task) {
+if (task.isSuccessful()) {
+AggregateQuerySnapshot snapshot = task.getResult();
+Log.d(TAG, "Sum: " + snapshot.get(AggregateField.sum("population")));
+Log.d(TAG, "Aggregation failed: ", task.getException());
+KotlinAndroid
+val query = db.collection("cities")
+val aggregateQuery = query.aggregate(AggregateField.sum("population"))
+aggregateQuery.get(AggregateSource.SERVER).addOnCompleteListener { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "Sum: ${snapshot.get(AggregateField.sum("population"))}")
+db.collection("cities").aggregate(sum("population")).get().then(
+(res) => print(res.getAverage("population")),
+onError: (e) => print("Error completing: $e"),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L890-L893]
+
+자바
+collection = db.collection("cities");
+snapshot = collection.aggregate(sum("population")).get().get();
+System.out.println("Sum: " + snapshot.get(sum("population")));
+
+Node.js
+collection_ref = client.collection("users")
+aggregate_query = aggregation.AggregationQuery(collection_ref)
+
+aggregate_query.sum("coins", alias="sum")
+
+results = aggregate_query.get()
+for result in results:
+print(f"Alias of results from query: {result[0].alias}")
+print(f"Sum of results from query: {result[0].value}")
+
+Go
+func createSumQuery(w io.Writer, projectID string) error {
+ctx := context.Background()
+client, err := firestore.NewClient(ctx, projectID)
+if err != nil {
+return err
+
+collection := client.Collection("users")
+query := collection.Where("born", ">", 1850)
+
+aggregationQuery := query.NewAggregationQuery().WithSum("coins", "sum_coins")
+results, err := aggregationQuery.Get(ctx)
+if err != nil {
+return err
+
+웹 버전 9
+
+트리 쉐이킹 작업이 가능한 웹 v9 모듈형 SDK에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 버전 8에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRQuery *query = [[self.db collectionWithPath:@"cities"]
+[aggregateQuery aggregationWithSource:FIRAggregateSourceServer
+completion:^(FIRAggregateQuerySnapshot *snapshot,
+NSError *error) {
+if (error != nil) {
+NSLog(@"Error fetching aggregate: %@", error);
+NSLog(@"Sum: %@", [snapshot valueForAggregateField:[FIRAggregateField aggregateFieldForSumOfField:@"population"]]);
+Query query = db.collection("cities").whereEqualTo("capital", true);
+AggregateQuery aggregateQuery = query.aggregate(AggregateField.sum("population"));
+aggregateQuery.get(AggregateSource.SERVER).addOnCompleteListener(new OnCompleteListener<AggregateQuerySnapshot>() {
+@Override
+public void onComplete(@NonNull Task<AggregateQuerySnapshot> task) {
+if (task.isSuccessful()) {
+AggregateQuerySnapshot snapshot = task.getResult();
+Log.d(TAG, "Sum: " + snapshot.get(AggregateField.sum("population")));
+Log.d(TAG, "Aggregation failed: ", task.getException());
+KotlinAndroid
+val query = db.collection("cities").whereEqualTo("capital", true)
+val aggregateQuery = query.aggregate(AggregateField.sum("population"))
+aggregateQuery.get(AggregateSource.SERVER).addOnCompleteListener { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "Sum: ${snapshot.get(AggregateField.sum("population"))}")
+db
+.collection("cities")
+.where("capital", isEqualTo: true)
+.aggregate(sum("population"))
+.get()
+.then(
+(res) => print(res.getAverage("population")),
+onError: (e) => print("Error completing: $e"),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L899-L907]
+
+자바
+collection = db.collection("cities");
+query = collection.whereEqualTo("state", "CA");
+snapshot = query.aggregate(sum("population")).get().get();
+System.out.println("Sum: " + snapshot.get(sum("population")));
+
+Node.js
+collection_ref = client.collection("users")
+query = collection_ref.where(filter=FieldFilter("people", "==", "Matthew"))
+aggregate_query = aggregation.AggregationQuery(query)
+
+aggregate_query.sum("coins", alias="sum")
+
+results = aggregate_query.get()
+for result in results:
+print(f"Alias of results from query: {result[0].alias}")
+print(f"Sum of results from query: {result[0].value}")
+
+Go
+func createSumQuery(w io.Writer, projectID string) error {
+ctx := context.Background()
+client, err := firestore.NewClient(ctx, projectID)
+if err != nil {
+return err
+
+collection := client.Collection("users")
+query := collection.Where("born", ">", 1850).Limit(5)
+
+aggregationQuery := query.NewAggregationQuery().WithSum("coins", "sum_coins")
+results, err := aggregationQuery.Get(ctx)
+if err != nil {
+return err
+
+average() 집계를 사용하여 특정 쿼리와 일치하는 숫자 값의 평균을 반환합니다. 예를 들면 다음과 같습니다.
+
+웹 버전 9
+
+트리 쉐이킹 작업이 가능한 웹 v9 모듈형 SDK에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 버전 8에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRQuery *query = [self.db collectionWithPath:@"cities"];
+FIRAggregateQuery *aggregateQuery = [query aggregate:@[
+[FIRAggregateField aggregateFieldForAverageOfField:@"population"]]];
+[aggregateQuery aggregationWithSource:FIRAggregateSourceServer
+completion:^(FIRAggregateQuerySnapshot *snapshot,
+NSError *error) {
+if (error != nil) {
+NSLog(@"Error fetching aggregate: %@", error);
+NSLog(@"Avg: %@", [snapshot valueForAggregateField:[FIRAggregateField aggregateFieldForAverageOfField:@"population"]]);
+Query query = db.collection("cities");
+AggregateQuery aggregateQuery = query.aggregate(AggregateField.average("population"));
+aggregateQuery.get(AggregateSource.SERVER).addOnCompleteListener(new OnCompleteListener<AggregateQuerySnapshot>() {
+@Override
+public void onComplete(@NonNull Task<AggregateQuerySnapshot> task) {
+if (task.isSuccessful()) {
+AggregateQuerySnapshot snapshot = task.getResult();
+Log.d(TAG, "Average: " + snapshot.get(AggregateField.average("population")));
+Log.d(TAG, "Aggregation failed: ", task.getException());
+KotlinAndroid
+val query = db.collection("cities")
+val aggregateQuery = query.aggregate(AggregateField.average("population"))
+aggregateQuery.get(AggregateSource.SERVER).addOnCompleteListener { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "Average: ${snapshot.get(AggregateField.average("population"))}")
+db.collection("cities").aggregate(average("population")).get().then(
+(res) => print(res.getAverage("population")),
+onError: (e) => print("Error completing: $e"),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L913-L916]
+
+자바
+collection = db.collection("cities");
+snapshot = collection.aggregate(average("population")).get().get();
+System.out.println("Average: " + snapshot.get(average("population")));
+
+Node.js
+collection_ref = client.collection("users")
+aggregate_query = aggregation.AggregationQuery(collection_ref)
+
+aggregate_query.avg("coins", alias="avg")
+
+results = aggregate_query.get()
+for result in results:
+print(f"Alias of results from query: {result[0].alias}")
+print(f"Average of results from query: {result[0].value}")
+
+Go
+func createAvgQuery(w io.Writer, projectID string) error {
+ctx := context.Background()
+client, err := firestore.NewClient(ctx, projectID)
+if err != nil {
+return err
+
+collection := client.Collection("users")
+query := collection.Where("born", ">", 1850)
+
+aggregationQuery := query.NewAggregationQuery().WithAvg("coins", "avg_coins")
+results, err := aggregationQuery.Get(ctx)
+if err != nil {
+return err
+
+웹 버전 9
+
+트리 쉐이킹 작업이 가능한 웹 v9 모듈형 SDK에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 버전 8에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRQuery *query = [[self.db collectionWithPath:@"cities"]
+[aggregateQuery aggregationWithSource:FIRAggregateSourceServer
+completion:^(FIRAggregateQuerySnapshot *snapshot,
+NSError *error) {
+if (error != nil) {
+NSLog(@"Error fetching aggregate: %@", error);
+NSLog(@"Avg: %@", [snapshot valueForAggregateField:[FIRAggregateField aggregateFieldForAverageOfField:@"population"]]);
+Query query = db.collection("cities").whereEqualTo("capital", true);
+AggregateQuery aggregateQuery = query.aggregate(AggregateField.average("population"));
+aggregateQuery.get(AggregateSource.SERVER).addOnCompleteListener(new OnCompleteListener<AggregateQuerySnapshot>() {
+@Override
+public void onComplete(@NonNull Task<AggregateQuerySnapshot> task) {
+if (task.isSuccessful()) {
+AggregateQuerySnapshot snapshot = task.getResult();
+Log.d(TAG, "Average: " + snapshot.get(AggregateField.average("population")));
+Log.d(TAG, "Aggregation failed: ", task.getException());
+KotlinAndroid
+val query = db.collection("cities").whereEqualTo("capital", true)
+val aggregateQuery = query.aggregate(AggregateField.average("population"))
+aggregateQuery.get(AggregateSource.SERVER).addOnCompleteListener { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "Average: ${snapshot.get(AggregateField.average("population"))}")
+db
+.collection("cities")
+.where("capital", isEqualTo: true)
+.aggregate(average("population"))
+.get()
+.then(
+(res) => print(res.getAverage("population")),
+onError: (e) => print("Error completing: $e"),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L922-L930]
+
+자바
+collection = db.collection("cities");
+query = collection.whereEqualTo("state", "CA");
+snapshot = query.aggregate(average("population")).get().get();
+System.out.println("Average: " + snapshot.get(average("population")));
+
+Node.js
+collection_ref = client.collection("users")
+query = collection_ref.where(filter=FieldFilter("people", "==", "Matthew"))
+aggregate_query = aggregation.AggregationQuery(query)
+
+aggregate_query.avg("coins", alias="avg")
+
+results = aggregate_query.get()
+for result in results:
+print(f"Alias of results from query: {result[0].alias}")
+print(f"Average of results from query: {result[0].value}")
+
+Go
+func createAvgQuery(w io.Writer, projectID string) error {
+ctx := context.Background()
+client, err := firestore.NewClient(ctx, projectID)
+if err != nil {
+return err
+
+collection := client.Collection("users")
+query := collection.Where("born", ">", 1850).Limit(5)
+
+aggregationQuery := query.NewAggregationQuery().WithAvg("coins", "avg_coins")
+results, err := aggregationQuery.Get(ctx)
+if err != nil {
+return err
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+AggregateField.count(),
+AggregateField.sum("population"),
+AggregateField.average("population")])
+do {
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRQuery *query = [self.db collectionWithPath:@"cities"];
+FIRAggregateQuery *aggregateQuery = [query aggregate:@[
+[FIRAggregateField aggregateFieldForCount],
+[FIRAggregateField aggregateFieldForSumOfField:@"population"],
+[FIRAggregateField aggregateFieldForAverageOfField:@"population"]]];
+[aggregateQuery aggregationWithSource:FIRAggregateSourceServer
+completion:^(FIRAggregateQuerySnapshot *snapshot,
+NSError *error) {
+if (error != nil) {
+NSLog(@"Error fetching aggregate: %@", error);
+NSLog(@"Count: %@", [snapshot valueForAggregateField:[FIRAggregateField aggregateFieldForCount]]);
+NSLog(@"Sum: %@", [snapshot valueForAggregateField:[FIRAggregateField aggregateFieldForSumOfField:@"population"]]);
+NSLog(@"Avg: %@", [snapshot valueForAggregateField:[FIRAggregateField aggregateFieldForAverageOfField:@"population"]]);
+Query query = db.collection("cities");
+AggregateQuery aggregateQuery = query.aggregate(
+AggregateField.count(),
+AggregateField.sum("population"),
+AggregateField.average("population"));
+aggregateQuery.get(AggregateSource.SERVER).addOnCompleteListener(new OnCompleteListener<AggregateQuerySnapshot>() {
+@Override
+public void onComplete(@NonNull Task<AggregateQuerySnapshot> task) {
+if (task.isSuccessful()) {
+AggregateQuerySnapshot snapshot = task.getResult();
+Log.d(TAG, "Count: " + snapshot.get(AggregateField.count()));
+Log.d(TAG, "Sum: " + snapshot.get(AggregateField.sum("population")));
+Log.d(TAG, "Average: " + snapshot.get(AggregateField.average("population")));
+Log.d(TAG, "Aggregation failed: ", task.getException());
+KotlinAndroid
+val query = db.collection("cities")
+val aggregateQuery = query.aggregate(
+AggregateField.count(),
+AggregateField.sum("population"),
+AggregateField.average("population")
+aggregateQuery.get(AggregateSource.SERVER).addOnCompleteListener { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "Count: ${snapshot.get(AggregateField.count())}")
+Log.d(TAG, "Sum: ${snapshot.get(AggregateField.sum("population"))}")
+Log.d(TAG, "Average: ${snapshot.get(AggregateField.average("population"))}")
+db
+.collection("cities")
+.aggregate(
+count(),
+sum("population"),
+average("population"),
+.get()
+.then(
+(res) {
+print(res.count);
+print(res.getSum("population"));
+print(res.getAverage("population"));
+query = collection.whereEqualTo("state", "CA");
+AggregateQuery aggregateQuery = query.aggregate(count(), sum("population"), average("population"));
+snapshot = aggregateQuery.get().get();
+System.out.println("Count: " + snapshot.getCount());
+System.out.println("Sum: " + snapshot.get(sum("population")));
+System.out.println("Average: " + snapshot.get(average("population")));
+
+Node.js
+collection_ref = client.collection("users")
+query = collection_ref.where(filter=FieldFilter("people", "==", "Matthew"))
+aggregate_query = aggregation.AggregationQuery(query)
+
+aggregate_query.sum("coins", alias="sum").avg("coins", alias="avg")
+
+results = aggregate_query.get()
+for result in results:
+print(f"Alias of results from query: {result[0].alias}")
+print(f"Aggregation of results from query: {result[0].value}")
+
+Go
+func createMultiAggregationQuery(w io.Writer, projectID string) error {
+ctx := context.Background()
+client, err := firestore.NewClient(ctx, projectID)
+if err != nil {
+return err
+
+collection := client.Collection("users")
+query := collection.Where("born", ">", 1850)
+
+aggregationQuery := query.NewAggregationQuery().WithCount("count").WithSum("coins", "sum_coins").WithAvg("coins", "avg_coins")
+results, err := aggregationQuery.Get(ctx)
+if err != nil {
+return err
+sum() 및 average() 집계는 정수 값과 부동 소수점 숫자 값만 고려합니다.
+단일 쿼리에서 여러 집계를 결합하는 경우 sum() 및 average()는 숫자가 아닌 값을 무시하는 반면 count()에는 숫자가 아닌 값이 포함됩니다.
+서로 다른 필드에 있는 집계를 결합하면 해당 필드가 모두 포함된 문서만 계산에 포함됩니다.
+
+가격 책정
+
+집계 쿼리의 가격 책정은 쿼리와 일치하는 색인 항목 수에 따라 다릅니다. 일치하는 항목의 수가 많으면 소량의 읽기 요금이 부과됩니다. 최대 1,000개의 색인 항목을 읽을 때마다 1회의 읽기 작업 요금이 부과됩니다.
+
+집계 쿼리 가격 책정에 대한 자세한 내용은 집계 쿼리 [https://cloud.google.com/firestore/native/pricing?hl=ko#aggregation_queries]를 참조하세요.
+
+다음 단계
+
+데이터 쿼리 및 필터링 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko] 방법 알아보기
+결과를 계산 [https://cloud.google.com/firestore/native/docs/query-data/aggregation-queries?hl=ko]하려는 경우에만 읽기 저장
+
+의견 보내기
