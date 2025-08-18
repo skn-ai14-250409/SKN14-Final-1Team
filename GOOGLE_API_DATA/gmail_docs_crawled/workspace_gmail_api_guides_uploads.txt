@@ -1,0 +1,311 @@
+Source URL: https://developers.google.com/workspace/gmail/api/guides/uploads
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+Google Workspace [https://developers.google.com/workspace?hl=ko]
+Gmail [https://developers.google.com/workspace/gmail?hl=ko]
+가이드 [https://developers.google.com/workspace/gmail/api/guides?hl=ko]
+도움이 되었나요?
+의견 보내기
+첨부파일 업로드
+bookmark_border
+이 페이지의 내용
+업로드 옵션
+간단한 업로드
+멀티파트 업로드
+재개 가능한 업로드
+권장사항
+지수 백오프
+API 클라이언트 라이브러리 가이드
+Gmail API를 사용하면 초안 [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.drafts?hl=ko]을 생성 [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.drafts/create?hl=ko]하거나 업데이트 [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.drafts/update?hl=ko]할 때 또는 메시지 [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages?hl=ko]를 삽입 [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/insert?hl=ko]하거나 전송 [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/send?hl=ko]할 때 파일 데이터를 업로드할 수 있습니다.
+업로드 옵션
+Gmail API를 사용하면 특정 유형의 바이너리 데이터 또는 미디어를 업로드할 수 있습니다. 업로드할 수 있는 데이터의 구체적인 특성은 미디어 업로드를 지원하는 메서드의 참조 페이지에 지정되어 있습니다.
+최대 업로드 파일 크기: 이 메서드로 저장할 수 있는 최대 데이터 양입니다.
+허용되는 미디어 MIME 유형: 이 메서드로 저장할 수 있는 바이너리 데이터 유형입니다.
+업로드 요청은 다음과 같은 방법으로 실행할 수 있습니다. uploadType 요청 매개변수에 사용할 메서드를 지정합니다.
+간단한 업로드 [https://developers.google.com/workspace/gmail/api/guides/uploads?hl=ko#simple]: uploadType=media. 작은 파일(예: 5MB 이하)의 빠른 전송에 적합합니다.
+멀티파트 업로드 [https://developers.google.com/workspace/gmail/api/guides/uploads?hl=ko#multipart]: uploadType=multipart. 작은 파일과 메타데이터를 신속하게 전송할 수 있습니다. 단일 요청으로 파일을 설명하는 메타데이터와 함께 파일을 전송합니다.
+재개 가능한 업로드 [https://developers.google.com/workspace/gmail/api/guides/uploads?hl=ko#resumable]: uploadType=resumable. 크기가 큰 파일에서 특히 중요한 안정적인 전송이 가능합니다. 이 메서드를 통해 메타데이터를 선택적으로 포함할 수 있는 세션 시작 요청을 사용할 수 있습니다. 업로드당 하나의 추가 HTTP 요청을 대가로 작은 파일에서도 작동하므로 대부분의 애플리케이션에서 사용할 수 있는 효과적인 전략입니다.
+미디어를 업로드할 때는 특수 URI를 사용합니다. 사실 미디어 업로드를 지원하는 메서드에는 두 개의 URI 엔드포인트가 있습니다.
+미디어용 /upload URI: 업로드 엔드포인트 형식은 '/upload' 프리픽스가 포함된 표준 리소스 URI입니다. 미디어 데이터 자체를 전송할 때 이 URI를 사용합니다.
+예: POST /upload/gmail/v1/users/userId/messages/send
+메타데이터용 표준 리소스 URI: 리소스에 데이터 필드가 포함된 경우 업로드된 파일을 설명하는 메타데이터를 저장하는 데 사용됩니다. 메타데이터 값을 만들거나 업데이트할 때 이 URI를 사용할 수 있습니다.
+예: POST /gmail/v1/users/userId/messages/send
+간단한 업로드
+파일을 업로드하는 가장 쉬운 방법은 간단한 업로드를 요청하는 것입니다. 이 옵션은 다음과 같은 경우에 적합합니다.
+연결이 실패해도 파일 전체를 다시 업로드할 수 있을 정도로 파일이 작습니다.
+전송할 메타데이터가 없습니다. 별도의 요청으로 이 리소스의 메타데이터를 전송하려는 경우 또는 지원되거나 사용할 수 있는 메타데이터가 없는 경우에 해당될 수 있습니다.
+간단한 업로드를 사용하려면 메서드의 /upload URI에 POST 또는 PUT 요청을 실행하고 쿼리 매개변수 uploadType=media를 추가합니다. 예를 들면 다음과 같습니다.
+POST https://www.googleapis.com/upload/gmail/v1/users/userId/messages/send?uploadType=media
+간단한 업로드 요청을 실행할 때 사용하는 HTTP 헤더에는 다음이 포함됩니다.
+Content-Type: 메서드에서 허용되는 업로드 미디어 데이터 유형 중 하나로 설정하며 이러한 유형은 API 참조 [https://developers.google.com/gmail/api/reference/rest?hl=ko]에 명시되어 있습니다.
+Content-Length: 업로드하는 바이트 수로 설정합니다. 단위 분할된 전송 인코딩 [https://datatracker.ietf.org/doc/html/rfc7230#section-4.1]을 사용하는 경우에는 설정할 필요가 없습니다.
+예: 간단한 업로드
+다음 예에서는 Gmail API로 간단한 업로드를 요청하는 방법을 보여줍니다.
+POST /upload/gmail/v1/users/userId/messages/send?uploadType=media HTTP/1.1
+Host: www.googleapis.com
+Content-Type: message/rfc822
+Content-Length: number_of_bytes_in_file
+Authorization: Bearer your_auth_token
+
+Email Message data
+요청이 성공하면 서버에서 HTTP 200 OK 상태 코드와 메타데이터를 반환합니다.
+HTTP/1.1 200
+Content-Type: application/json
+
+{
+  "id": string,
+  "threadId": string,
+  "labelIds": [
+    string
+  ],
+  "snippet": string,
+  "historyId": unsigned long,
+  "payload": {
+    "partId": string,
+    "mimeType": string,
+    "filename": string,
+    "headers": [
+      {
+        "name": string,
+        "value": string
+      }
+    ],
+    "body": users.messages.attachments Resource [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages.attachments?hl=ko],
+    "parts": [
+      (MessagePart)
+    ]
+  },
+  "sizeEstimate": integer,
+  "raw": bytes
+}
+멀티파트 업로드
+메타데이터를 업로드할 데이터와 함께 전송하려면 multipart/related 요청을 1회 실행하면 됩니다. 이 옵션은 전송할 데이터가 연결 실패 시 전체를 다시 업로드해도 될 만큼 작은 경우에 효과적입니다.
+멀티파트 업로드를 사용하려면 메서드의 /upload URI에 POST 또는 PUT 요청을 실행하고 쿼리 매개변수 uploadType=multipart를 추가합니다. 예를 들면 다음과 같습니다.
+POST https://www.googleapis.com/upload/gmail/v1/users/userId/messages/send?uploadType=multipart
+멀티파트 업로드 요청을 실행할 때 사용하는 최상위 HTTP 헤더에는 다음 항목이 포함됩니다.
+Content-Type: multipart/related로 설정하고 요청에서 관련 파트를 식별하는 데 사용되는 경계 문자열을 포함합니다.
+Content-Length: 요청 본문의 총 바이트 수로 설정합니다. 요청의 미디어 부분이 이 메서드에 지정된 최대 파일 크기보다 작아야 합니다.
+요청 본문 형식은 multipart/related 콘텐츠 유형 [RFC2387 [https://datatracker.ietf.org/doc/html/rfc2387]]이며 정확히 두 파트로 구성됩니다. 파트는 경계 문자열로 식별되며 최종 경계 문자열 뒤에는 하이픈 2개가 나옵니다.
+멀티파트 요청의 각 파트에는 추가 Content-Type 헤더가 필요합니다.
+메타데이터 파트: 첫 번째 위치에 있어야 하며 Content-Type은 허용되는 메타데이터 형식 중 하나와 일치해야 합니다.
+미디어 파트: 두 번째 위치에 있어야 하며 Content-Type은 메서드에서 허용되는 미디어 MIME 유형과 일치해야 합니다.
+파일 업로드와 관련된 각 메서드에서 허용되는 미디어 MIME 유형 및 크기 제한 목록은 API 참조 [https://developers.google.com/gmail/api/reference/rest?hl=ko]를 확인하세요.
+참고: 관련 데이터를 업로드하지 않고 메타데이터 부분만 만들거나 업데이트하려면 POST 또는 PUT 요청을 표준 리소스 엔드포인트(https://www.googleapis.com/gmail/v1/users/userId/messages/send)에 전송하면 됩니다.
+예: 멀티파트 업로드
+아래 예는 Gmail API의 멀티파트 업로드 요청을 보여줍니다.
+POST /upload/gmail/v1/users/userId/messages/send?uploadType=multipart HTTP/1.1
+Host: www.googleapis.com
+Authorization: Bearer your_auth_token
+Content-Type: multipart/related; boundary=foo_bar_baz
+Content-Length: number_of_bytes_in_entire_request_body
+
+--foo_bar_baz
+Content-Type: application/json; charset=UTF-8
+
+{
+  "id": string,
+  "threadId": string,
+  "labelIds": [
+    string
+  ],
+  "snippet": string,
+  "historyId": unsigned long,
+  "payload": {
+    "partId": string,
+    "mimeType": string,
+    "filename": string,
+    "headers": [
+      {
+        "name": string,
+        "value": string
+      }
+    ],
+    "body": users.messages.attachments Resource [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages.attachments?hl=ko],
+    "parts": [
+      (MessagePart)
+    ]
+  },
+  "sizeEstimate": integer,
+  "raw": bytes
+}
+
+--foo_bar_baz
+Content-Type: message/rfc822
+
+Email Message data
+--foo_bar_baz--
+요청이 성공하면 서버에서 HTTP 200 OK 상태 코드와 메타데이터를 반환합니다.
+HTTP/1.1 200
+Content-Type: application/json
+
+{
+  "id": string,
+  "threadId": string,
+  "labelIds": [
+    string
+  ],
+  "snippet": string,
+  "historyId": unsigned long,
+  "payload": {
+    "partId": string,
+    "mimeType": string,
+    "filename": string,
+    "headers": [
+      {
+        "name": string,
+        "value": string
+      }
+    ],
+    "body": users.messages.attachments Resource [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages.attachments?hl=ko],
+    "parts": [
+      (MessagePart)
+    ]
+  },
+  "sizeEstimate": integer,
+  "raw": bytes
+}
+재개 가능한 업로드
+데이터 파일을 보다 안정적으로 업로드하려면 재개 가능한 업로드 프로토콜을 사용하면 됩니다. 이 프로토콜을 사용하면 통신 실패로 데이터 흐름이 중단된 이후 업로드 작업을 재개할 수 있습니다. 대용량 파일을 전송하거나 모바일 클라이언트 앱에서 업로드하는 등 네트워크 중단 또는 기타 전송 실패가 발생할 가능성이 높을 때 특히 유용합니다. 대용량 파일을 처음부터 다시 업로드할 필요가 없으므로 네트워크 실패 시 대역폭 사용량도 줄일 수 있습니다.
+재개 가능한 업로드를 사용하는 방법은 다음과 같습니다.
+재개 가능한 세션 시작 [https://developers.google.com/workspace/gmail/api/guides/uploads?hl=ko#start-resumable]. 메타데이터가 있으면 이를 포함한 업로드 URI에 대해 시작 요청을 실행합니다.
+재개 가능한 세션 URI 저장 [https://developers.google.com/workspace/gmail/api/guides/uploads?hl=ko#save-session-uri]. 시작 요청 응답에서 반환된 세션 URI를 저장합니다. 이 URI는 이 세션의 나머지 요청에 사용됩니다.
+파일 업로드 [https://developers.google.com/workspace/gmail/api/guides/uploads?hl=ko#upload-resumable]: 미디어 파일을 재개 가능한 세션 URI에 전송합니다.
+또한 재개 가능한 업로드를 사용하는 앱에는 중단된 업로드를 다시 시작 [https://developers.google.com/workspace/gmail/api/guides/uploads?hl=ko#resume-upload]하는 코드가 있어야 합니다. 업로드가 중단되면 성공적으로 수신된 데이터 양을 확인한 후 중단된 지점부터 업로드를 계속합니다.
+참고: 업로드 URI는 일주일 후에 만료됩니다.
+1단계: 재개 가능한 세션 시작
+재개 가능한 업로드를 시작하려면 메서드의 /upload URI에 POST 또는 PUT 요청을 실행하고 쿼리 매개변수 uploadType=resumable을 추가합니다. 예를 들면 다음과 같습니다.
+POST https://www.googleapis.com/upload/gmail/v1/users/userId/messages/send?uploadType=resumable
+시작 요청의 경우 본문이 비어 있거나 메타데이터만 포함되어 있습니다. 이후 요청에서 업로드할 실제 파일 콘텐츠를 전송합니다.
+시작 요청에는 다음 HTTP 헤더를 사용합니다.
+X-Upload-Content-Type: 이후 요청에서 전송할 업로드 데이터의 미디어 MIME 유형으로 설정합니다.
+X-Upload-Content-Length: 이후 요청에서 전송할 업로드 데이터의 바이트 수로 설정합니다. 이 요청 시점의 길이를 모르면 이 헤더를 생략해도 됩니다.
+Content-Type(메타데이터를 제공하는 경우): 메타데이터의 데이터 유형에 따라 설정합니다.
+Content-Length: 이 시작 요청 본문에 제공된 바이트 수로 설정합니다. 단위 분할된 전송 인코딩 [https://datatracker.ietf.org/doc/html/rfc7230#section-4.1]을 사용하는 경우에는 설정할 필요가 없습니다.
+파일 업로드와 관련된 각 메서드에서 허용되는 미디어 MIME 유형 및 크기 제한 목록은 API 참조 [https://developers.google.com/gmail/api/reference/rest?hl=ko]를 확인하세요.
+예: 재개 가능한 세션 시작 요청
+다음 예에서는 Gmail API로 재개 가능한 세션을 시작하는 방법을 보여줍니다.
+POST /upload/gmail/v1/users/userId/messages/send?uploadType=resumable HTTP/1.1
+Host: www.googleapis.com
+Authorization: Bearer your_auth_token
+Content-Length: 38
+Content-Type: application/json; charset=UTF-8
+X-Upload-Content-Type: message/rfc822
+X-Upload-Content-Length: 2000000
+
+{
+  "id": string,
+  "threadId": string,
+  "labelIds": [
+    string
+  ],
+  "snippet": string,
+  "historyId": unsigned long,
+  "payload": {
+    "partId": string,
+    "mimeType": string,
+    "filename": string,
+    "headers": [
+      {
+        "name": string,
+        "value": string
+      }
+    ],
+    "body": users.messages.attachments Resource [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages.attachments?hl=ko],
+    "parts": [
+      (MessagePart)
+    ]
+  },
+  "sizeEstimate": integer,
+  "raw": bytes
+}
+참고: 메타데이터가 없는 재개 가능한 업데이트 시작 요청의 경우 요청 본문을 비워 두고 Content-Length 헤더를 0으로 설정하세요.
+다음 섹션에서는 응답을 처리하는 방법을 설명합니다.
+2단계: 재개 가능한 세션 URI 저장
+세션 시작 요청이 성공하면 API 서버에서 200 OK HTTP 상태 코드를 응답으로 반환합니다. 또한 재개 가능한 세션 URI가 지정된 Location 헤더를 제공합니다. 아래 예시와 같이 Location 헤더에는 이 세션에서 사용할 고유한 업로드 ID를 제공하는 upload_id 쿼리 매개변수가 포함되어 있습니다.
+예: 재개 가능한 세션 시작 응답
+1단계의 요청에 대한 응답은 다음과 같습니다.
+HTTP/1.1 200 OK
+Location: https://www.googleapis.com/upload/gmail/v1/users/userId/messages/send?uploadType=resumable&upload_id=xa298sd_sdlkj2
+Content-Length: 0
+위 예시의 응답에 있는 Location 헤더 값이 실제 파일 업로드 또는 업로드 상태를 쿼리할 때 HTTP 엔드포인트로 사용할 세션 URI입니다.
+이후 요청에서 사용할 수 있도록 세션 URI를 복사 및 저장합니다.
+3단계: 파일 업로드
+파일을 업로드하려면 PUT 요청을 이전 단계에서 가져온 업로드 URI에 전송합니다. 업로드 요청 형식은 다음과 같습니다.
+PUT session_uri
+재개 가능한 파일 업로드 요청을 실행할 때 사용되는 HTTP 헤더에는 Content-Length가 포함됩니다. 이는 이 요청에서 업로드하는 바이트 수로 설정되며 일반적으로 업로드 파일 크기입니다.
+예: 재개 가능한 파일 업로드 요청
+다음은 현재 예에서 전체 2,000,000바이트의 이메일 메시지 파일을 업로드하기 위한 재개 가능한 요청입니다.
+PUT https://www.googleapis.com/upload/gmail/v1/users/userId/messages/send?uploadType=resumable&upload_id=xa298sd_sdlkj2 HTTP/1.1
+Content-Length: 2000000
+Content-Type: message/rfc822
+
+bytes 0-1999999
+요청이 성공하면 서버에서 HTTP 201 Created 및 이 리소스와 관련된 메타데이터를 응답으로 반환합니다. 재개 가능한 세션의 시작 요청이 PUT이었다면 기존 리소스를 업데이트하기 위해 성공 응답은 200 OK가 되며 이 리소스와 관련된 메타데이터도 반환됩니다.
+업로드 요청이 중단되거나 서버로부터 HTTP 503 Service Unavailable 또는 기타 5xx 응답을 받으면 중단된 업로드 재개 [https://developers.google.com/workspace/gmail/api/guides/uploads?hl=ko#resume-upload]에 설명된 절차를 따릅니다.
+파일의 단위별 업로드
+재개 가능한 업로드를 사용하면 한 파일을 여러 단위로 나누어 각 단위를 순서대로 업로드하는 일련의 요청을 전송할 수 있습니다. 추가 요청으로 성능에 영향을 미칠 수 있고 일반적으로 필요한 방법이 아니므로 선호되는 방식은 아닙니다. 하지만 단일 요청으로 전송되는 데이터 양을 줄이기 위해 파일을 단위별로 분할해야 할 수도 있습니다. Google App Engine 요청의 특정 클래스처럼 개별 요청에 고정된 시간 제한이 적용되는 경우 유용합니다. 또한 업로드 진행률이 기본 제공되지 않는 기존 브라우저에서 업로드 진행률을 표시하는 등의 작업도 가능합니다.
+추가 정보 표시
+중단된 업로드 재개
+응답을 받기 전에 업로드 요청이 종료되거나 서버로부터 HTTP 503 Service Unavailable 응답을 받은 경우에는 중단된 업로드를 재개해야 합니다. 방법은 다음과 같습니다.
+상태 요청: 업로드 URI에 대해 빈 PUT 요청을 실행하여 현재 업로드 상태를 쿼리합니다. 이 요청의 HTTP 헤더에는 파일에서의 현재 위치를 알 수 없음을 나타내는 Content-Range 헤더가 포함되어야 합니다. 예를 들어 총 파일 길이가 2,000,000이라면 Content-Range를 */2000000으로 설정합니다. 파일의 전체 크기를 모르는 경우 Content-Range를 */*로 설정합니다.
+참고: 업로드가 중단된 경우가 아니라도 각 단위 사이의 상태를 요청할 수 있습니다. 이러한 요청은 기존 브라우저에서 업로드 진행률을 표시하려는 경우에 유용합니다.
+업로드된 바이트 수 가져오기: 상태 쿼리의 응답을 처리합니다. 서버에서 응답의 Range 헤더를 사용해 지금까지 수신한 바이트를 지정합니다. 예를 들어 Range 헤더 값이 0-299999이면 파일의 처음 300,000바이트가 수신되었음을 나타냅니다.
+남은 데이터 업로드: 마지막으로 요청을 재개할 위치를 결정했다면 나머지 데이터 또는 현재 단위를 전송합니다. 어떤 경우든 남은 데이터를 별도의 단위로 다루어야 하므로 업로드를 재개할 때 Content-Range 헤더를 전송해야 합니다.
+예: 중단된 업로드 재개
+1) 업로드 상태 요청
+다음 요청에서는 Content-Range 헤더를 사용해 2,000,000바이트 크기의 파일에서 현재 위치를 알 수 없음을 나타냅니다.
+PUT {session_uri} HTTP/1.1
+Content-Length: 0
+Content-Range: bytes */2000000
+2) 응답에서 지금까지 업로드된 바이트 수 추출
+서버의 응답에서는 Range 헤더를 사용해 지금까지 파일의 처음 43바이트를 수신했음을 나타냅니다. Range 헤더의 범위 중 큰 값을 사용해 업로드를 재개할 위치를 결정합니다.
+HTTP/1.1 308 Resume Incomplete
+Content-Length: 0
+Range: 0-42
+참고: 업로드가 완료되면 상태 응답은 201 Created 또는 200 OK일 수 있습니다. 모든 바이트가 업로드되었으나 클라이언트가 서버 응답을 수신하기 전에 연결이 끊기면 이러한 상황이 발생할 수 있습니다.
+3) 중단된 지점부터 업로드 재개
+다음 요청에서는 43바이트부터 파일의 나머지 바이트를 전송해 업로드를 재개합니다.
+PUT {session_uri} HTTP/1.1
+Content-Length: 1999957
+Content-Range: bytes 43-1999999/2000000
+
+bytes 43-1999999
+권장사항
+미디어를 업로드할 때는 오류 처리와 관련된 일부 권장사항을 알면 도움이 됩니다.
+연결 중단 또는 기타 5xx 오류로 인해 실패한 업로드를 재개하거나 재시도합니다.
+500 Internal Server Error
+502 Bad Gateway
+503 Service Unavailable
+504 Gateway Timeout
+업로드 요청을 재개하거나 재시도할 때 5xx 서버 오류가 반환되면 지수 백오프 [https://developers.google.com/workspace/gmail/api/guides/uploads?hl=ko#exp-backoff] 전략을 사용합니다. 서버가 과부하되면 이러한 오류가 발생할 수 있습니다. 요청량 또는 네트워크 트래픽이 많은 기간에 지수 백오프를 사용하면 이러한 문제가 완화될 수 있습니다.
+다른 종류의 요청을 지수 백오프로 처리하면 안 되지만 그 중 상당수를 여전히 재시도할 수 있습니다. 요청을 재시도할 때는 재시도 횟수를 제한합니다. 예를 들어 오류가 보고되기 전에 10회 이하로 재시도하도록 코드를 제한할 수 있습니다.
+재개 가능한 업로드를 수행할 때 처음부터 전체 업로드를 재개하여 404 Not Found 및 410 Gone 오류를 처리합니다.
+지수 백오프
+지수 백오프는 클라이언트에서 시간 간격을 늘려 실패한 요청을 주기적으로 다시 시도하는 네트워크 애플리케이션용 표준 오류 처리 전략입니다. 많은 양의 요청 또는 네트워크 트래픽으로 인해 서버에서 오류를 반환하는 경우 지수 백오프는 이러한 오류를 처리하는 데 효과적인 전략일 수 있습니다. 반대로 잘못된 승인 사용자 인증 정보 또는 파일을 찾을 수 없는 오류 등 네트워크 트래픽 양이나 응답 시간과 무관한 오류를 처리할 때는 적절한 전략이 아닙니다.
+지수 백오프를 적절하게 사용하면 대역폭 사용량의 효율성을 높이고, 성공적인 응답을 가져오는 데 필요한 요청 수를 줄이며, 동시 환경에서의 요청 처리량을 극대화할 수 있습니다.
+간단한 지수 백오프 구현 흐름은 다음과 같습니다.
+API에 요청을 전송합니다.
+요청을 재시도해야 함을 알리는 HTTP 503 응답을 수신합니다.
+1초 + random_number_milliseconds를 대기한 후 요청을 재시도합니다.
+요청을 재시도해야 함을 알리는 HTTP 503 응답을 수신합니다.
+2초 + random_number_milliseconds를 대기한 후 요청을 재시도합니다.
+요청을 재시도해야 함을 알리는 HTTP 503 응답을 수신합니다.
+4초 + random_number_milliseconds를 대기한 후 요청을 재시도합니다.
+요청을 재시도해야 함을 알리는 HTTP 503 응답을 수신합니다.
+8초 + random_number_milliseconds를 대기한 후 요청을 재시도합니다.
+요청을 재시도해야 함을 알리는 HTTP 503 응답을 수신합니다.
+16초 + random_number_milliseconds를 대기한 후 요청을 재시도합니다.
+중지합니다. 오류를 보고하거나 로깅합니다.
+위 흐름에서 random_number_milliseconds는 1,000밀리초 이하의 임의 숫자입니다. 보다 균일하게 부하를 분산하고 서버 과부하 가능성을 방지하므로 이와 같은 임의의 작은 지연이 필요합니다. random_number_milliseconds 값은 대기 후 매번 재정의해야 합니다.
+참고: 대기 시간은 항상 (2 ^ n) + random_number_milliseconds이며, 여기서 n은 단순 증가 정수로서 처음에는 0으로 정의됩니다. 정수 n은 반복(요청)할 때마다 1씩 증가합니다.
+n이 5일 때 종료하도록 알고리즘이 설정되어 있습니다. 이러한 제한은 클라이언트의 무제한 재시도를 방지하고 요청이 '복구 불가능한 오류'로 간주되기 전에 약 32초의 총 지연 시간을 발생시킵니다. 특히 긴 업로드가 진행 중인 경우에는 최대 재시도 횟수를 늘리는 것이 좋습니다. 단, 재시도 지연 시간을 합리적인 시간(1분 미만)으로 제한해야 합니다.
+API 클라이언트 라이브러리 가이드
+.NET [https://developers.google.com/api-client-library/dotnet/guide/media_upload?hl=ko]
+자바 [https://developers.google.com/api-client-library/java/google-api-java-client/media-upload?hl=ko]
+PHP [https://github.com/googleapis/google-api-php-client/blob/master/docs/media.md]
+Python [https://github.com/googleapis/google-api-python-client/blob/master/docs/media.md]
+Ruby [https://github.com/googleapis/google-api-ruby-client/blob/master/docs/usage-guide.md#media]
+도움이 되었나요?
+의견 보내기
