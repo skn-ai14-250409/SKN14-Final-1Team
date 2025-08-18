@@ -1,0 +1,125 @@
+Source URL: https://developers.google.com/youtube/v3/quickstart/ruby
+
+YouTube에서 Shorts 동영상의 조회수를 집계하는 방식에 맞게 Data API를 업데이트하고 있습니다. 자세히 알아보기 [https://developers.google.com/youtube/v3/revision_history?hl=ko#march-26,-2025]
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+YouTube [https://developers.google.com/youtube?hl=ko]
+Data API [https://developers.google.com/youtube/v3?hl=ko]
+가이드 [https://developers.google.com/youtube/v3/getting-started?hl=ko]
+Ruby 빠른 시작
+bookmark_border
+이 페이지의 내용
+기본 요건
+1단계: YouTube Data API 사용 설정하기
+2단계: Google 클라이언트 라이브러리 설치하기
+3단계: 샘플 설정
+4단계: 샘플 실행
+메모
+추가 자료
+이 페이지의 나머지 부분에 설명된 단계를 완료하면 약 5분 후에 YouTube Data API에 요청을 수행하는 간단한 Ruby 명령줄 애플리케이션을 사용할 수 있습니다.
+이 가이드에 사용된 샘플 코드는 GoogleDevelopers YouTube 채널의 channel 리소스를 검색하고 이 리소스에서 기본 정보를 출력합니다.
+기본 요건
+이 빠른 시작을 실행하려면 다음이 필요합니다.
+Ruby 2.0 이상
+인터넷 및 웹브라우저 액세스
+Google 계정
+1단계: YouTube Data API 사용 설정하기
+이 마법사 [https://console.developers.google.com/start/api?id=youtube&hl=ko]를 사용하여 Google Developers Console에서 프로젝트를 만들거나 선택하고 API를 자동으로 사용 설정하세요. 계속을 클릭한 다음 사용자 인증 정보로 이동을 클릭합니다.
+사용자 인증 정보 만들기 페이지에서 취소 버튼을 클릭합니다.
+페이지 상단에서 OAuth 동의 화면 탭을 선택합니다. 이메일 주소를 선택하고 아직 설정되지 않은 경우 제품 이름을 입력한 후 저장 버튼을 클릭합니다.
+사용자 인증 정보 탭을 선택하고 사용자 인증 정보 만들기 버튼을 클릭한 후 OAuth 클라이언트 ID를 선택합니다.
+애플리케이션 유형을 Other로 선택하고 'YouTube Data API quickstart'를 입력한 후 만들기 버튼을 클릭합니다.
+확인을 클릭하여 표시되는 대화상자를 닫습니다.
+클라이언트 ID 오른쪽에 있는 file_download(JSON 다운로드) 버튼을 클릭합니다.
+다운로드한 파일을 작업 디렉터리로 이동하고 이름을 client_secret.json로 변경합니다.
+2단계: Google 클라이언트 라이브러리 설치하기
+다음 명령어를 실행하여 라이브러리를 설치합니다.
+gem install google-api-client
+대체 설치 옵션은 라이브러리의 설치 페이지 [https://developers.google.com/api-client-library/ruby/start/installation?hl=ko]를 참고하세요.
+3단계: 샘플 설정
+작업 디렉터리에 quickstart.rb이라는 파일을 만들고 다음 코드를 복사합니다.
+# Sample Ruby code for user authorization
+
+require 'rubygems'
+gem 'google-api-client', '>0.7'
+require 'google/apis'
+require 'google/apis/youtube_v3'
+require 'googleauth'
+require 'googleauth/stores/file_token_store'
+
+require 'fileutils'
+require 'json'
+
+# REPLACE WITH VALID REDIRECT_URI FOR YOUR CLIENT
+REDIRECT_URI = 'http://localhost'
+APPLICATION_NAME = 'YouTube Data API Ruby Tests'
+
+# REPLACE WITH NAME/LOCATION OF YOUR client_secrets.json FILE
+CLIENT_SECRETS_PATH = 'client_secret.json'
+
+# REPLACE FINAL ARGUMENT WITH FILE WHERE CREDENTIALS WILL BE STORED
+CREDENTIALS_PATH = File.join(Dir.home, '.credentials',
+                             "youtube-quickstart-ruby-credentials.yaml")
+
+# SCOPE FOR WHICH THIS SCRIPT REQUESTS AUTHORIZATION
+SCOPE = Google::Apis::YoutubeV3::AUTH_YOUTUBE_READONLY
+
+def authorize
+  FileUtils.mkdir_p(File.dirname(CREDENTIALS_PATH))
+
+  client_id = Google::Auth::ClientId.from_file(CLIENT_SECRETS_PATH)
+  token_store = Google::Auth::Stores::FileTokenStore.new(file: CREDENTIALS_PATH)
+  authorizer = Google::Auth::UserAuthorizer.new(
+    client_id, SCOPE, token_store)
+  user_id = 'default'
+  credentials = authorizer.get_credentials(user_id)
+  if credentials.nil?
+    url = authorizer.get_authorization_url(base_url: REDIRECT_URI)
+    puts "Open the following URL in the browser and enter the " +
+         "resulting code after authorization"
+    puts url
+    code = gets
+    credentials = authorizer.get_and_store_credentials_from_code(
+      user_id: user_id, code: code, base_url: REDIRECT_URI)
+  end
+  credentials
+end
+
+# Initialize the API
+service = Google::Apis::YoutubeV3::YouTubeService.new
+service.client_options.application_name = APPLICATION_NAME
+service.authorization = authorize
+
+# Sample ruby code for channels.list
+
+def channels_list_by_username(service, part, **params)
+  response = service.list_channels(part, params).to_json
+  item = JSON.parse(response).fetch("items")[0]
+
+  puts ("This channel's ID is #{item.fetch("id")}. " +
+        "Its title is '#{item.fetch("snippet").fetch("title")}', and it has " +
+        "#{item.fetch("statistics").fetch("viewCount")} views.")
+end
+
+channels_list_by_username(service, 'snippet,contentDetails,statistics', for_username: 'GoogleDevelopers')
+quickstart.rb [https://github.com/youtube/api-samples/blob/07263305b59a7c3275bc7e925f9ce6cabf774022/ruby/quickstart.rb]
+4단계: 샘플 실행
+다음 명령어를 사용하여 샘플을 실행합니다.
+ruby quickstart.rb
+샘플을 처음 실행하면 액세스를 승인하라는 메시지가 표시됩니다.
+샘플에서는 기본 브라우저에서 새 창 또는 탭을 열려고 시도합니다. 이 코드가 실패하면 Console에서 URL을 복사하여 브라우저에서 수동으로 엽니다.
+아직 Google 계정에 로그인하지 않은 경우 로그인하라는 메시지가 표시됩니다. 여러 Google 계정에 로그인되어 있으면 승인에 사용할 계정 하나를 선택하라는 메시지가 표시됩니다.
+수락 버튼을 클릭합니다.
+제공된 코드를 복사하여 명령줄 프롬프트에 붙여넣고 Enter 키를 누릅니다. 승인을 부여한 후 리디렉션되는 페이지의 URL에 코드가 표시될 수 있습니다.
+http://localhost/?code=4/nr_1TspmmQPFyifh7nz...OFo#
+완료
+오류가 발생했습니다.
+메모
+승인 정보는 파일 시스템에 저장되므로 이후의 실행 시 승인 메시지가 표시되지 않습니다.
+이 예시의 승인 흐름은 명령줄 애플리케이션용으로 고안되었습니다. 웹 애플리케이션에서 승인을 수행하는 방법에 대한 자세한 내용은 웹 서버 애플리케이션용 OAuth 2.0 사용 [https://developers.google.com/youtube/v3/guides/auth/server-side-web-apps?hl=ko]을 참조하세요.
+추가 자료
+Google Developers Console 도움말 문서 [https://developers.google.com/console/help/new?hl=ko]
+Ruby용 Google API 클라이언트 문서 [https://developers.google.com/api-client-library/ruby?hl=ko]
+YouTube Data API 참조 문서 [https://developers.google.com/youtube/v3/docs?hl=ko]
