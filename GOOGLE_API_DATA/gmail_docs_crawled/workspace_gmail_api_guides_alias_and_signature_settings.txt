@@ -1,0 +1,215 @@
+Source URL: https://developers.google.com/workspace/gmail/api/guides/alias_and_signature_settings
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+Google Workspace [https://developers.google.com/workspace?hl=ko]
+Gmail [https://developers.google.com/workspace/gmail?hl=ko]
+가이드 [https://developers.google.com/workspace/gmail/api/guides?hl=ko]
+의견 보내기
+별칭 관리
+bookmark_border
+이 페이지의 내용
+별칭 만들기 및 확인
+SMTP 설정
+서명 관리
+'보내기 권한이 있는 별칭'은 계정에서 메일을 보낼 수 있는 이메일 주소를 나타냅니다. 각 계정에는 항상 계정의 기본 이메일 주소를 나타내는 별칭이 하나 이상 있습니다.
+'다른 주소에서 메일 보내기' 별칭은 웹 인터페이스의 '다른 주소에서 메일 보내기' 기능 [https://support.google.com/mail/answer/22370?hl=ko]에 해당합니다.
+별칭은 계정의 서명을 관리하는 데도 사용됩니다. 이메일 서명을 변경하려면 다른 주소로 보내기 별칭에 대한 기본적인 이해가 필요합니다. 위 동영상에서는 send-as 별칭을 반복하고 사용자의 기본 이메일 주소의 서명을 수정하는 방법을 보여줍니다.
+별칭을 만들기 [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/create?hl=ko], 나열 [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/list?hl=ko], 가져오기 [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/get?hl=ko], 업데이트 [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/update?hl=ko] 또는 삭제 [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/delete?hl=ko]하는 방법에 관한 자세한 내용은 SendAs 참조 [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.settings.sendAs?hl=ko]를 참고하세요.
+별칭 만들기 및 확인
+사용하기 전에 별칭을 만들어야 [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/create?hl=ko] 합니다. 경우에 따라 사용자는 별칭의 소유권도 확인해야 합니다.
+Gmail에서 별칭에 사용자 인증이 필요한 경우 별칭이 pending 상태로 반환됩니다. 인증 메시지가 타겟 이메일 주소로 자동 전송됩니다. 이메일 주소 소유자가 인증 절차를 완료해야 사용할 수 있습니다.
+확인이 필요하지 않은 별칭의 확인 상태는 accepted입니다.
+필요한 경우 verify [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/verify?hl=ko] 메서드를 사용하여 인증 요청을 다시 보냅니다.
+SMTP 설정
+외부 주소의 별칭은 원격 SMTP 메일 전송 에이전트 (MSA)를 통해 메일을 전송해야 합니다. 별칭의 SMTP MSA를 구성하려면 smtpMsa 필드를 사용하여 연결 세부정보를 제공하세요.
+서명 관리
+각 별칭에 대한 이메일 서명을 구성할 수도 있습니다. 예를 들어 사용자의 기본 주소에 서명을 설정하려면 다음을 실행합니다.
+--- 탭: 자바 ---
+.filepath {
+    color: #fff;
+    margin: 6px;
+    max-width: calc(100% - 160px); /* Give at least 160px for the "View on GitHub" button. */
+    text-overflow: ellipsis;
+    text-shadow: rgba(0,0,0,0.1) 1px 1px;
+    overflow: hidden;
+  }
+  .github-docwidget-gitinclude-code .prettyprint {
+    margin: 0;
+  }
+  .view-on-github {
+    text-shadow: rgba(12,12,12,0.1) 1px 1px;
+  }
+
+
+
+  
+  gmail/snippets/src/main/java/UpdateSignature.java
+  
+    
+    GitHub에서 보기 [https://github.com/googleworkspace/java-samples/blob/main/gmail/snippets/src/main/java/UpdateSignature.java]
+  
+  
+  
+
+  
+    
+  
+  
+  import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.gmail.Gmail;
+import com.google.api.services.gmail.GmailScopes;
+import com.google.api.services.gmail.model.ListSendAsResponse;
+import com.google.api.services.gmail.model.SendAs;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import java.io.IOException;
+
+/* Class to demonstrate the use of Gmail Update Signature API */
+public class UpdateSignature {
+  /**
+   * Update the gmail signature.
+   *
+   * @return the updated signature id , {@code null} otherwise.
+   * @throws IOException - if service account credentials file not found.
+   */
+  public static String updateGmailSignature() throws IOException {
+        /* Load pre-authorized user credentials from the environment.
+           TODO(developer) - See https://developers.google.com/identity for
+            guides on implementing OAuth2 for your application. */
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
+        .createScoped(GmailScopes.GMAIL_SETTINGS_BASIC);
+    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
+
+    // Create the gmail API client
+    Gmail service = new Gmail.Builder(new NetHttpTransport(),
+        GsonFactory.getDefaultInstance(),
+        requestInitializer)
+        .setApplicationName("Gmail samples")
+        .build();
+
+    try {
+      SendAs primaryAlias = null;
+      ListSendAsResponse aliases = service.users().settings().sendAs().list("me").execute();
+      for (SendAs alias : aliases.getSendAs()) {
+        if (alias.getIsPrimary()) {
+          primaryAlias = alias;
+          break;
+        }
+      }
+      // Updating a new signature
+      SendAs aliasSettings = new SendAs().setSignature("Automated Signature");
+      SendAs result = service.users().settings().sendAs().patch(
+              "me",
+              primaryAlias.getSendAsEmail(),
+              aliasSettings)
+          .execute();
+      //Prints the updated signature
+      System.out.println("Updated signature - " + result.getSignature());
+      return result.getSignature();
+    } catch (GoogleJsonResponseException e) {
+      // TODO(developer) - handle error appropriately
+      GoogleJsonError error = e.getDetails();
+      if (error.getCode() == 403) {
+        System.err.println("Unable to update signature: " + e.getDetails());
+      } else {
+        throw e;
+      }
+    }
+    return null;
+  }
+}
+
+--- 탭: Python ---
+.filepath {
+    color: #fff;
+    margin: 6px;
+    max-width: calc(100% - 160px); /* Give at least 160px for the "View on GitHub" button. */
+    text-overflow: ellipsis;
+    text-shadow: rgba(0,0,0,0.1) 1px 1px;
+    overflow: hidden;
+  }
+  .github-docwidget-gitinclude-code .prettyprint {
+    margin: 0;
+  }
+  .view-on-github {
+    text-shadow: rgba(12,12,12,0.1) 1px 1px;
+  }
+
+
+
+  
+  gmail/snippet/settings snippets/update_signature.py
+  
+    
+    GitHub에서 보기 [https://github.com/googleworkspace/python-samples/blob/main/gmail/snippet/settings%20snippets/update_signature.py]
+  
+  
+  
+
+  
+    
+  
+  
+  import google.auth
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+
+def update_signature():
+  """Create and update signature in gmail.
+  Returns:Draft object, including updated signature.
+
+  Load pre-authorized user credentials from the environment.
+  TODO(developer) - See https://developers.google.com/identity
+  for guides on implementing OAuth2 for the application.
+  """
+  creds, _ = google.auth.default()
+
+  try:
+    # create gmail api client
+    service = build("gmail", "v1", credentials=creds)
+
+    primary_alias = None
+
+    # pylint: disable=E1101
+    aliases = service.users().settings().sendAs().list(userId="me").execute()
+    for alias in aliases.get("sendAs"):
+      if alias.get("isPrimary"):
+        primary_alias = alias
+        break
+
+    send_as_configuration = {
+        "displayName": primary_alias.get("sendAsEmail"),
+        "signature": "Automated Signature",
+    }
+
+    # pylint: disable=E1101
+    result = (
+        service.users()
+        .settings()
+        .sendAs()
+        .patch(
+            userId="me",
+            sendAsEmail=primary_alias.get("sendAsEmail"),
+            body=send_as_configuration,
+        )
+        .execute()
+    )
+    print(f'Updated signature for: {result.get("displayName")}')
+
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    result = None
+
+  return result.get("signature")
+
+
+if __name__ == "__main__":
+  update_signature()
+의견 보내기
