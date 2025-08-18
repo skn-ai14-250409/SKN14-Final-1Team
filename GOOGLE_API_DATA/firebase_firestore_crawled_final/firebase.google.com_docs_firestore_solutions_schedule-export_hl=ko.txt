@@ -1,0 +1,162 @@
+Source URL: https://firebase.google.com/docs/firestore/solutions/schedule-export?hl=ko
+Title: 데이터 내보내기 예약
+
+의견 보내기
+
+데이터 내보내기 예약
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지에서는 Cloud Firestore 데이터 내보내기를 예약하는 방법을 설명합니다. 일정에 따라 내보내기를 실행하려면 Cloud Functions 및 Cloud Scheduler를 사용하는 것이 좋습니다.
+주의: Cloud Firestore에서 데이터를 내보내면 내보낸 문서당 하나의 읽기 작업이 수행됩니다. 그러나 이러한 읽기는 Console의 사용량 섹션에 표시되지 않습니다. 예상치 못한 요금이 청구되지 않도록 반복 내보내기를 설정하기 전에 이 사항을 이해해야 합니다.
+시작하기 전에
+
+관리형 데이터 내보내기를 예약하려면 먼저 다음 작업을 완료해야 합니다.
+
+Google Cloud 프로젝트에 결제를 사용 설정합니다. [https://cloud.google.com/billing/docs/how-to/modify-project?hl=ko] 결제가 사용 설정된 Google Cloud 프로젝트에만 내보내기 및 가져오기 기능을 사용할 수 있습니다.
+
+참고: 관리형 내보내기 및 가져오기 기능을 사용하려면 Firebase 프로젝트를 Blaze 요금제 [https://firebase.google.com/pricing/?authuser=0&hl=ko]로 사용해야 합니다. Google Cloud에 결제를 사용 설정하면 자동으로 Firebase 프로젝트가 Blaze 요금제로 업그레이드됩니다.
+
+내보내기 작업에는 대상 Cloud Storage 버킷이 필요합니다.
+Cloud Firestore 데이터베이스 위치 [https://firebase.google.com/docs/firestore/locations?hl=ko#view-settings]와 가까운 위치에 Cloud Storage 버킷을 만듭니다 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko]. 내보내기 작업에는 요청자 지불 버킷을 사용할 수 없습니다.
+
+Cloud 함수 및 Cloud Scheduler 작업 만들기
+
+Cloud Firestore 데이터 내보내기를 시작하는 Node.js Cloud 함수와 이 함수를 호출하는 Cloud Scheduler 작업을 만들려면 다음 안내를 따르세요.
+
+Firebase CLI
+
+Firebase CLI 설치 [https://firebase.google.com/docs/cli?hl=ko].
+새 디렉터리에서 Cloud Functions용 CLI를 초기화합니다.
+firebase init functions --project PROJECT_ID
+
+언어에 JavaScript를 선택합니다.
+원할 경우 ESLint를 사용 설정합니다.
+y를 눌러 종속 항목을 설치합니다.
+
+functions/index.js 파일의 코드를 다음으로 바꿉니다.
+.schedule('every 24 hours')
+.onRun((context) => {
+
+return client.exportDocuments({
+name: databaseName,
+outputUriPrefix: bucket,
+여기서 YOUR_PROJECT_ID를 프로젝트 ID로 바꿉니다.
+every 24 hours를 수정하여 내보내기 일정을 설정합니다.
+AppEngine cron.yaml 구문 [https://cloud.google.com/appengine/docs/standard/python/config/cronref?hl=ko#schedule_format] 또는 unix-cron 형식 [https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules?hl=ko](* * * * *)을 사용합니다.
+
+지정된 컬렉션 그룹만 내보내도록 collectionIds: []를 수정합니다. 컬렉션을 모두 내보내려면 그대로 두세요.
+
+참고: 컬렉션을 모두 내보내는 경우 후속 가져오기 작업 시 내보내기 데이터 파일의 모든 컬렉션을 가져와야 합니다.
+
+예약된 함수를 배포합니다.
+firebase deploy --only functions
+
+Google Cloud Console
+Cloud 함수 만들기
+
+Google Cloud 콘솔에서 Cloud Functions 페이지로 이동합니다.
+Cloud Functions로 이동 [https://console.cloud.google.com/functions/list?hl=ko]
+
+함수 작성을 클릭합니다.
+함수 이름을 입력합니다(예: firestore-export).
+트리거에서 Cloud Pub/Sub를 선택합니다.
+주제에서 새 주제 만들기를 선택합니다. Pub/Sub 주제의 이름을 입력합니다(예: initiateFirestoreExport). 주제 이름은 Cloud Scheduler 작업을 만들 때 필요하므로 기록해 둡니다.
+소스 코드에서 인라인 편집기를 선택합니다. index.js에 다음 코드를 입력합니다.
+'(default)'
+
+return client
+.exportDocuments({
+name: databaseName,
+outputUriPrefix: bucket,
+
+지정된 컬렉션 그룹만 내보내도록 collectionIds: []를 수정합니다. 컬렉션을 모두 내보내려면 그대로 두세요.
+
+참고: 컬렉션을 모두 내보내는 경우 후속 가져오기 작업 시 내보내기 데이터 파일의 모든 컬렉션을 가져와야 합니다.
+
+package.json에 다음 종속 항목을 추가합니다.{
+"dependencies": {
+"@google-cloud/firestore": "^1.3.0"
+Cloud Scheduler 작업 만들기
+
+다음으로 Cloud 함수를 호출하는 Cloud Scheduler 작업을 만듭니다.
+
+Google Cloud 콘솔의 Cloud Scheduler 페이지로 이동합니다.
+Cloud Scheduler로 이동 [https://console.cloud.google.com/cloudscheduler?hl=ko]
+
+작업 만들기를 클릭합니다.
+작업의 이름을 입력합니다(예: scheduledFirestoreExport).
+빈도를 입력합니다(예: every 24 hours).시간대를 선택합니다.
+대상에서 Pub/Sub를 선택합니다. 주제 필드에 Cloud 함수와 함께 정의한 Pub/Sub 주제의 이름을 입력합니다(예: initiateFirestoreExport).
+페이로드 필드에 start export을 입력합니다.
+작업에는 정의된 페이로드가 필요하지만 위의 Cloud 함수에서는 이 값을 실제로 사용하지는 않습니다.
+만들기를 클릭합니다.
+
+지금까지 Cloud 함수와 Cloud Scheduler 작업을 배포했습니다. 단, Cloud 함수에는 내보내기 작업을 실행하는 데 필요한 액세스 권한이 있어야 합니다.
+
+액세스 권한 구성
+
+다음으로 Cloud 함수에 내보내기 작업을 시작하고 GCS 버킷에 쓸 수 있는 권한을 부여합니다.
+
+이 Cloud 함수는 프로젝트의 기본 서비스 계정을 사용하여 내보내기 작업을 인증하고 승인합니다. 프로젝트를 만들면 다음과 같은 이름의 기본 서비스 계정이 생성됩니다.
+
+PROJECT_ID@appspot.gserviceaccount.com
+
+이 서비스 계정에는 내보내기 작업을 시작하고 Cloud Storage 버킷에 쓸 수 있는 권한이 필요합니다. 이러한 권한을 부여하려면 다음 IAM 역할을 기본 서비스 계정에 할당합니다.
+
+Cloud Datastore Import Export Admin
+참고: 이 Datastore 역할은
+Cloud Firestore에 대한 권한도 부여합니다.
+
+버킷에 대한 Owner 또는 Storage Admin 역할
+
+이러한 역할은 gcloud 및 gsutil 명령줄 도구를 사용하여 할당할 수 있습니다.
+이 도구를 아직 설치하지 않았으면 Google Cloud 콘솔의 Cloud Shell [https://cloud.google.com/shell/?hl=ko]에서 이 도구에 액세스할 수 있습니다.
+Cloud Shell 시작 [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+
+Cloud Datastore 가져오기 내보내기 관리자 역할을 할당합니다. PROJECT_ID를 바꾸고 다음 명령어를 실행합니다.
+gcloud projects add-iam-policy-binding PROJECT_ID \
+--member serviceAccount:PROJECT_ID@appspot.gserviceaccount.com \
+--role roles/datastore.importExportAdmin
+
+버킷에 대한 스토리지 관리자 역할을 할당합니다. PROJECT_ID 및 BUCKET_NAME을 바꾸고 다음 명령어를 실행합니다.
+gsutil iam ch serviceAccount:PROJECT_ID@appspot.gserviceaccount.com:admin \
+gs://BUCKET_NAME
+
+App Engine 기본 서비스 계정을 사용 중지하거나 삭제하면 App Engine 앱은 Cloud Firestore 데이터베이스에 대한 액세스 권한을 상실합니다.
+App Engine 서비스 계정을 사용 중지한 경우 다시 사용 설정할 수 있습니다. 서비스 계정 사용 설정 [https://cloud.google.com/iam/docs/creating-managing-service-accounts?hl=ko#enabling]을 참조하세요.
+지난 30일 내에 App Engine 서비스 계정을 삭제한 경우, 서비스 계정을 복원할 수 있습니다. 서비스 계정 삭제 취소 [https://cloud.google.com/iam/docs/creating-managing-service-accounts?hl=ko#undeleting]를 참조하세요.
+
+Cloud Scheduler 작업 및 Cloud 함수 테스트
+
+Google Cloud 콘솔의 Cloud Scheduler 페이지에서 Cloud Scheduler 작업을 테스트할 수 있습니다.
+
+Google Cloud 콘솔의 Cloud Scheduler 페이지로 이동합니다.Cloud Scheduler로 이동 [https://console.cloud.google.com/cloudscheduler?hl=ko]
+새 Cloud Scheduler 작업의 행에서 지금 실행을 클릭합니다.
+
+몇 초 후 Cloud Scheduler 작업의 결과 열이 성공으로, 최종 실행이 현재 시간으로 업데이트됩니다. 새로고침을 클릭해야 할 수도 있습니다.
+
+Cloud Scheduler 페이지에서는 작업이 Cloud 함수를 호출한 것만 확인할 수 있습니다. 함수의 로그를 확인하려면 Cloud 함수 페이지를 엽니다.
+
+Cloud 함수 로그 보기
+
+Cloud 함수가 내보내기 작업을 성공적으로 시작했는지 확인하려면 함수의 로그를 엽니다.
+
+Firebase ConsoleFirebase Console의 Cloud Functions 페이지로 이동합니다.
+
+함수 로그로 이동 [https://console.firebase.google.com/project/_/functions/logs?hl=ko]
+GCP ConsoleGoogle Cloud 콘솔의 Cloud Functions 페이지로 이동합니다.
+
+로그 뷰어로 이동 [https://console.cloud.google.com/logs/viewer?resource=cloud_function&hl=ko]
+
+내보내기 진행률 보기
+
+gcloud firestore operations list 명령어를 사용하면 내보내기 작업의 진행률을 볼 수 있습니다. 내보내기 및 가져오기 작업 관리 [https://firebase.google.com/docs/firestore/manage-data/export-import?hl=ko#managing_export_and_import_operations]를 참조하세요.
+
+내보내기 작업이 완료된 후에는 Cloud Storage 버킷에서 출력 파일을 볼 수 있습니다.
+
+Cloud Storage 브라우저 열기 [https://console.cloud.google.com/storage/browser?hl=ko]
+
+의견 보내기

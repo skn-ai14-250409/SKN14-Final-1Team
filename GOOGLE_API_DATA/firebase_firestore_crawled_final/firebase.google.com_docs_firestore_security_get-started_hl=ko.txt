@@ -1,0 +1,66 @@
+Source URL: https://firebase.google.com/docs/firestore/security/get-started?hl=ko
+Title: Cloud Firestore 보안 규칙 시작하기
+
+의견 보내기
+
+Cloud Firestore 보안 규칙 시작하기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Cloud Firestore Security Rules를 사용하면 인프라를 관리하거나 서버 측 인증 및 승인 코드를 작성할 필요 없이 사용자를 위한 앱 개발에만 집중할 수 있습니다.
+
+보안 규칙은 간단하지만 표현력 있는 형식으로 액세스 제어 및 데이터 검증을 제공합니다. 사용자의 데이터를 안전하게 유지하는 사용자 기반 및 역할 기반 액세스 시스템을 구축하려면 Cloud Firestore Security Rules과 함께 Firebase 인증 [https://firebase.google.com/docs/auth/?hl=ko]을 사용해야 합니다.
+
+참고: 서버 클라이언트 라이브러리는 모든 Cloud Firestore Security Rules를 우회하고 대신 Google 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/production?hl=ko]를 통해 인증합니다.
+서버 클라이언트 라이브러리, REST 또는 RPC API를 사용하는 경우 Cloud Firestore용 Identity and Access Management(IAM) [https://cloud.google.com/firestore/docs/security/iam?hl=ko]를 설정해야 합니다.
+
+보안 규칙 버전 2
+
+2019년 5월부터 Cloud Firestore 보안 규칙 버전 2를 사용할 수 있습니다. 규칙 버전 2는 재귀 와일드 카드 [https://firebase.google.com/docs/firestore/security/rules-structure?hl=ko#recursive_wildcards] {name=**}의 동작을 변경합니다. 컬렉션 그룹 쿼리 [https://firebase.google.com/docs/firestore/query-data/queries?hl=ko#collection-group-query]를 사용하려면 버전 2를 사용해야 합니다. 보안 규칙의 첫 번째 줄에 rules_version = '2';를 추가하여 버전 2를 선택해야 합니다.
+rules_version = '2';
+service cloud.firestore {
+match /databases/{database}/documents {
+
+규칙 작성
+
+프로젝트의 기본 데이터베이스 및 각 추가 데이터베이스에 대해 만드는 데이터 모델에 맞는 Cloud Firestore Security Rules를 작성하고 관리합니다.
+
+모든 Cloud Firestore Security Rules는 데이터베이스의 문서를 식별하는 match 구문과 이러한 문서에 대한 액세스를 제어하는 allow 표현식으로 구성됩니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /<some_path>/ {
+allow read, write: if <some_condition>;
+Cloud Firestore 모바일 또는 웹 클라이언트 라이브러리의 모든 데이터베이스 요청은 데이터를 읽거나 쓰기 전에 보안 규칙에 따라 평가됩니다. 규칙이 지정된 문서 경로 중 일부라도 액세스를 거부하면 전체 요청이 실패합니다.
+
+아래는 기본 규칙 세트의 몇 가지 예입니다. 유효한 규칙이지만 프로덕션 애플리케이션에는 권장되지 않습니다.
+
+인증 필요// Allow read/write access on all documents to any user signed in to the application
+service cloud.firestore {
+match /databases/{database}/documents {
+match /{document=**} {
+allow read, write: if request.auth != null;
+Cloud Firestore Security Rules 업데이트가 새 쿼리와 리스너에 영향을 미치는 데 최대 1분이 소요될 수 있습니다. 하지만 변경사항이 완전히 전파되어 모든 활성 리스너에 반영되는 데 최대 10분이 소요될 수 있습니다.
+참고: Firebase CLI를 사용하여 보안 규칙을 배포 [https://firebase.google.com/docs/cli/?hl=ko#deployment]하면 프로젝트 디렉터리에 정의된 규칙이 Firebase Console에 있는 기존 규칙을 덮어씁니다. 따라서 Firebase Console로 보안 규칙을 정의하거나 수정하는 경우에는 프로젝트 디렉터리에 정의된 규칙도 업데이트해야 합니다.
+Firebase Console 사용
+
+첫 번째 규칙 세트를 설정하고 배포하려면 프로젝트의 기본 데이터베이스에 대해 Firebase Console의 Cloud Firestore 섹션에서 규칙 탭 [https://console.firebase.google.com/project/_/firestore/rules?hl=ko]을 엽니다.
+
+온라인 편집기로 규칙을 작성한 다음 게시를 클릭합니다.
+참고: 현재 Firebase Console에서는 프로젝트의 기본 데이터베이스에 Cloud Firestore Security Rules 배포를 지원합니다. 향후 업데이트를 통해 프로젝트의 추가 데이터베이스에 규칙을 배포할 수 있도록 지원할 예정입니다. Firebase CLI [https://firebase.google.com/docs/firestore/security/get-started?hl=ko#use_the_cli]를 사용하여 멀티 데이터베이스 프로젝트의 규칙 작업을 할 수 있습니다.
+Firebase CLI 사용
+
+Firebase CLI [https://firebase.google.com/docs/cli?hl=ko]를 사용해도 규칙을 배포할 수 있습니다. CLI를 사용하면 애플리케이션 코드로 규칙의 버전을 계속 제어하면서 기존 배포 프로세스의 일부로 규칙을 배포할 수 있습니다.
+
+Cloud Storage 보안 강화
+
+앱은 Cloud Firestore의 강력한 데이터베이스 기능과 Cloud Storage의 파일 스토리지 및 관리 기능을 활용할 수 있습니다. Cloud Firestore는 Firebase 보안 규칙에서 두 제품 모두에 사용할 수 있는 승인 요구사항을 캡처할 수 있으므로 이러한 제품은 함께 사용되는 앱 보안도 강화합니다. 자세한 내용은 Cloud Storage 가이드 [https://firebase.google.com/docs/storage/security/rules-conditions?hl=ko#enhance_with_firestore]를 참조하세요.
+
+다음 단계
+
+보안 규칙 구조화 [https://firebase.google.com/docs/firestore/security/rules-structure?hl=ko] 방법 알아보기
+맞춤 보안 규칙 조건 [https://firebase.google.com/docs/firestore/security/rules-conditions?hl=ko] 작성
+보안 규칙 참조 [https://firebase.google.com/docs/reference/rules/rules?hl=ko] 읽어보기
+
+의견 보내기
