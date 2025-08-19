@@ -1,496 +1,325 @@
-
-# ============================================
-# 1. 라이브러리 임포트
-# ============================================
 import os
+import re
 import time
-import json
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from urllib.parse import urljoin, urlparse
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, TimeoutException
 
-# BigQuery
-from google.cloud import bigquery
-from google.cloud.exceptions import GoogleCloudError
+# 시작 URL
+BASE_URL = "https://cloud.google.com"
+START_URL = "/bigquery/docs/reference/rest"
 
-# 크롤링
-import requests
-from bs4 import BeautifulSoup
+# 저장할 폴더 이름
+OUTPUT_DIR = "../GOOGLE_API_DATA/bigquery_docs_crawled"
 
-# 데이터 처리
-import pandas as pd
-import numpy as np
+# 결과 저장 폴더 생성
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
+    print(f"📁 '{OUTPUT_DIR}' 폴더를 생성했습니다.")
 
-# Selenium (동적 크롤링이 필요한 경우)
-try:
-    from selenium import webdriver
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.webdriver.chrome.service import Service
-    from webdriver_manager.chrome import ChromeDriverManager
+# 셀레니움 옵션 설정
+chrome_options = Options()
+chrome_options.add_argument("--headless")  # 백그라운드 실행
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--window-size=1920,1080")
+chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 
-    SELENIUM_AVAILABLE = True
-except ImportError:
-    SELENIUM_AVAILABLE = False
-    print("⚠️ Selenium이 설치되지 않았습니다. 정적 크롤링만 가능합니다.")
-    print("   설치: pip install selenium webdriver-manager")
-
-# ============================================
-# 2. BigQuery 설정
-# ============================================
-
-# 서비스 계정 키 파일 설정 (실제 파일명으로 변경!)
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = './final-project-469006-c461232b0730.json'
-
-try:
-    client = bigquery.Client()
-    print(f"✅ BigQuery 연결 성공! 프로젝트: {client.project}")
-except Exception as e:
-    print(f"❌ BigQuery 연결 실패: {e}")
-    print("키 파일 경로를 확인하세요!")
+# 웹 드라이버 서비스 설정 및 실행
+print("🚀 Chrome 드라이버를 시작합니다...")
+service = ChromeService()
+driver = webdriver.Chrome(service=service, options=chrome_options)
 
 
-# ============================================
-# 3. 크롤링 클래스
-# ============================================
+def clean_filename(url):
+    """URL을 파일명으로 변환"""
+    path = url.replace(BASE_URL, "").replace("https://", "").replace("http://", "")
+    # 특수 문자를 언더스코어로 치환
+    filename = re.sub(r'[/\\?%*:|"<>]', "_", path).strip("_")
+    # 파일명이 너무 길면 자르기
+    if len(filename) > 200:
+        filename = filename[:200]
+    return filename + ".txt"
 
-class WebCrawler:
-    """다양한 웹사이트 크롤링을 위한 통합 클래스"""
 
-    def __init__(self, use_selenium=False):
-        self.use_selenium = use_selenium and SELENIUM_AVAILABLE
-        self.driver = None
+def extract_page_content(driver, url):
+    """페이지 내용을 추출하는 함수"""
+    try:
+        # 페이지 로드 대기
+        wait = WebDriverWait(driver, 15)
 
-        if self.use_selenium:
-            self.setup_selenium()
+        # main 또는 article 태그 찾기 (Google Cloud 문서 구조)
+        content_element = None
 
-    def setup_selenium(self):
-        """Selenium 웹드라이버 설정"""
-        if not SELENIUM_AVAILABLE:
-            print("Selenium이 설치되지 않았습니다.")
-            return
+        # 여러 가능한 콘텐츠 컨테이너를 시도
+        content_selectors = [
+            "article",
+            "main",
+            "[role='main']",
+            ".devsite-article",
+            ".devsite-main-content",
+            "#gc-wrapper"
+        ]
 
-        options = webdriver.ChromeOptions()
-        options.add_argument('--headless')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--disable-gpu')
-        options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
-
-        service = Service(ChromeDriverManager().install())
-        self.driver = webdriver.Chrome(service=service, options=options)
-
-    def crawl_static_page(self, url: str) -> BeautifulSoup:
-        """정적 웹페이지 크롤링"""
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.content, 'html.parser')
-            return soup
-        except Exception as e:
-            print(f"크롤링 오류: {e}")
-            return None
-
-    def crawl_dynamic_page(self, url: str, wait_selector: str = None) -> BeautifulSoup:
-        """동적 웹페이지 크롤링"""
-        if not self.driver:
-            print("Selenium 드라이버가 초기화되지 않았습니다.")
-            return None
-
-        try:
-            self.driver.get(url)
-
-            if wait_selector:
-                WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, wait_selector))
+        for selector in content_selectors:
+            try:
+                content_element = wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, selector))
                 )
-            else:
-                time.sleep(3)
+                if content_element:
+                    print(f"  ✓ 콘텐츠 영역 발견: {selector}")
+                    break
+            except TimeoutException:
+                continue
 
-            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-            return soup
-        except Exception as e:
-            print(f"동적 크롤링 오류: {e}")
-            return None
+        if not content_element:
+            print("  ⚠️ 콘텐츠 영역을 찾을 수 없습니다. 전체 body를 사용합니다.")
+            content_element = driver.find_element(By.TAG_NAME, "body")
 
-    def close(self):
-        """Selenium 드라이버 종료"""
-        if self.driver:
-            self.driver.quit()
-
-
-# ============================================
-# 4. 크롤링 함수들 (실제 동작하는 예제)
-# ============================================
-
-def crawl_news_articles():
-    """네이버 뉴스 IT/과학 섹션 크롤링"""
-    print("📰 뉴스 크롤링 시작...")
-
-    crawler = WebCrawler(use_selenium=False)
-    articles = []
-
-    # 네이버 뉴스 IT 섹션
-    url = "https://news.naver.com/section/105"
-
-    soup = crawler.crawl_static_page(url)
-    if not soup:
-        print("뉴스 페이지 로드 실패")
-        return pd.DataFrame()
-
-    # 뉴스 기사 추출
-    news_items = soup.select('div.section_article')[:10]
-
-    if not news_items:
-        # 셀렉터가 변경된 경우 대체 방법
-        news_items = soup.select('ul.type06_headline li')[:10]
-
-    for idx, item in enumerate(news_items, 1):
+        # 링크에 URL 주소 추가 (YouTube 크롤러와 동일한 방식)
         try:
-            # 다양한 셀렉터 시도
-            title_elem = (item.select_one('a.sa_text_title') or
-                          item.select_one('dt a') or
-                          item.select_one('a'))
-
-            article = {
-                'article_id': f"news_{datetime.now().strftime('%Y%m%d')}_{idx}",
-                'title': title_elem.text.strip() if title_elem else f"뉴스 제목 {idx}",
-                'summary': item.select_one('div.sa_text_lede').text.strip() if item.select_one(
-                    'div.sa_text_lede') else '',
-                'press': item.select_one('div.sa_text_press').text.strip() if item.select_one(
-                    'div.sa_text_press') else '언론사',
-                'url': title_elem.get('href', '') if title_elem else '',
-                'crawled_at': datetime.now()
-            }
-            articles.append(article)
-
+            links_in_content = content_element.find_elements(By.TAG_NAME, "a")
+            for link in links_in_content:
+                href = link.get_attribute("href")
+                if href and "javascript:void(0)" not in href and "#" not in href:
+                    # JavaScript를 사용해 링크 텍스트 뒤에 URL 추가
+                    driver.execute_script(
+                        "if (arguments[0].textContent && !arguments[0].textContent.includes('[http')) {"
+                        "arguments[0].textContent = arguments[0].textContent.trim() + ' [' + arguments[0].href + ']';"
+                        "}",
+                        link
+                    )
         except Exception as e:
-            print(f"기사 파싱 오류: {e}")
+            print(f"  ⚠️ 링크 처리 중 오류: {e}")
+
+        # 수정된 텍스트 가져오기
+        final_page_text = content_element.text
+
+        # 코드 블록 특별 처리 (Google Cloud 문서는 코드 예제가 많음)
+        try:
+            code_blocks = content_element.find_elements(By.CSS_SELECTOR,
+                                                        "pre, code.devsite-code-highlight, .prettyprint")
+            for code_block in code_blocks:
+                code_text = code_block.get_attribute("textContent")
+                if code_text and len(code_text.strip()) > 0:
+                    # 코드 블록을 명확하게 표시
+                    formatted_code = f"\n```\n{code_text.strip()}\n```\n"
+                    # 원본 텍스트에서 해당 부분 교체
+                    if code_block.text in final_page_text:
+                        final_page_text = final_page_text.replace(code_block.text, formatted_code, 1)
+        except Exception as e:
+            print(f"  ⚠️ 코드 블록 처리 중 오류: {e}")
+
+        # 탭 콘텐츠 처리 (Google Cloud 문서의 탭 구조)
+        try:
+            tab_groups = content_element.find_elements(By.CSS_SELECTOR, ".devsite-tabs, [role='tablist']")
+
+            for tab_group in tab_groups:
+                tab_contents = []
+
+                # 탭 버튼 찾기
+                tab_buttons = tab_group.find_elements(By.CSS_SELECTOR, "[role='tab'], .tab-button, button[data-tab]")
+
+                for btn in tab_buttons:
+                    try:
+                        tab_name = btn.text.strip() or btn.get_attribute("aria-label") or "탭"
+
+                        # 탭 클릭하여 활성화
+                        driver.execute_script("arguments[0].click();", btn)
+                        time.sleep(0.3)
+
+                        # 해당 탭의 패널 찾기
+                        panel_id = btn.get_attribute("aria-controls") or btn.get_attribute("data-tab")
+                        if panel_id:
+                            panel = driver.find_element(By.ID, panel_id)
+                        else:
+                            # 다음 형제 요소에서 패널 찾기
+                            panel = driver.find_element(By.XPATH, "following-sibling::*[@role='tabpanel'][1]")
+
+                        panel_text = panel.get_attribute("textContent").strip()
+                        tab_contents.append(f"\n--- 탭: {tab_name} ---\n{panel_text}")
+                    except Exception:
+                        continue
+
+                if tab_contents:
+                    formatted_tabs = "\n".join(tab_contents)
+                    # 기존 탭 그룹 텍스트를 포맷된 버전으로 교체
+                    if tab_group.text:
+                        final_page_text = final_page_text.replace(tab_group.text, formatted_tabs, 1)
+        except Exception as e:
+            print(f"  ⚠️ 탭 처리 중 오류: {e}")
+
+        return final_page_text
+
+    except Exception as e:
+        print(f"  ❌ 페이지 콘텐츠 추출 실패: {e}")
+        return None
+
+
+def collect_sidebar_links(driver, wait):
+    """사이드바에서 모든 링크 수집"""
+    links = set()
+
+    # Google Cloud 문서 사이드바 셀렉터들
+    sidebar_selectors = [
+        "devsite-book-nav",  # 기본
+        ".devsite-nav",
+        "nav.devsite-book-nav",
+        "[role='navigation']",
+        ".devsite-section-nav",
+        "#gc-sidebar"
+    ]
+
+    sidebar_found = False
+
+    for selector in sidebar_selectors:
+        try:
+            sidebar = wait.until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+            )
+            if sidebar:
+                print(f"✓ 사이드바 발견: {selector}")
+                sidebar_found = True
+
+                # 사이드바 내의 모든 링크 수집
+                link_elements = sidebar.find_elements(By.TAG_NAME, "a")
+
+                for elem in link_elements:
+                    href = elem.get_attribute("href")
+                    if href:
+                        # BigQuery REST API 관련 링크만 필터링
+                        if "/bigquery/docs/reference/rest" in href:
+                            full_url = urljoin(BASE_URL, href)
+                            # URL 파라미터 제거 (중복 방지)
+                            clean_url = full_url.split("?")[0].split("#")[0]
+                            links.add(clean_url)
+
+                if links:
+                    break
+
+        except TimeoutException:
             continue
 
-    df = pd.DataFrame(articles)
-    print(f"✅ {len(df)}개 뉴스 기사 크롤링 완료")
-    return df
+    if not sidebar_found:
+        print("⚠️ 사이드바를 찾을 수 없습니다. 현재 페이지의 링크만 수집합니다.")
+
+        # 페이지 전체에서 BigQuery REST API 링크 찾기
+        all_links = driver.find_elements(By.TAG_NAME, "a")
+        for elem in all_links:
+            href = elem.get_attribute("href")
+            if href and "/bigquery/docs/reference/rest" in href:
+                full_url = urljoin(BASE_URL, href)
+                clean_url = full_url.split("?")[0].split("#")[0]
+                links.add(clean_url)
+
+    return list(links)
 
 
-def crawl_github_trending():
-    """GitHub Trending 레포지토리 크롤링"""
-    print("🐙 GitHub 트렌딩 크롤링 시작...")
+# 메인 크롤링 로직
+try:
+    # 시작 페이지로 이동
+    full_start_url = urljoin(BASE_URL, START_URL)
+    print(f"\n📍 시작 URL: {full_start_url}")
+    driver.get(full_start_url)
 
-    crawler = WebCrawler(use_selenium=False)
-    repos = []
+    # 페이지 로드 대기
+    time.sleep(3)
 
-    url = "https://github.com/trending"
-    soup = crawler.crawl_static_page(url)
+    # 쿠키 동의 팝업 처리 (있을 경우)
+    try:
+        cookie_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Accept') or contains(text(), '동의')]")
+        cookie_button.click()
+        print("쿠키 동의 팝업을 처리했습니다.")
+        time.sleep(1)
+    except:
+        pass
 
-    if not soup:
-        print("GitHub 페이지 로드 실패")
-        return pd.DataFrame()
+    # 사이드바 링크 수집
+    print("\n🔍 사이드바에서 링크를 수집 중...")
+    wait = WebDriverWait(driver, 15)
 
-    articles = soup.select('article.Box-row')[:10]
+    urls_to_crawl = collect_sidebar_links(driver, wait)
 
-    if not articles:
-        # 데이터가 없는 경우 샘플 데이터 생성
-        print("GitHub 트렌딩 데이터를 찾을 수 없어 샘플 데이터를 생성합니다.")
-        for i in range(5):
-            repos.append({
-                'repo_id': f"repo_{i + 1}",
-                'name': f"awesome-project-{i + 1}",
-                'description': f"This is an awesome project number {i + 1}",
-                'language': ['Python', 'JavaScript', 'TypeScript', 'Go', 'Rust'][i % 5],
-                'stars_today': np.random.randint(10, 500),
-                'url': f"https://github.com/user/repo{i + 1}",
-                'crawled_at': datetime.now()
-            })
-    else:
-        for idx, article in enumerate(articles, 1):
-            try:
-                name_elem = article.select_one('h2 a')
-                repo = {
-                    'repo_id': f"gh_{datetime.now().strftime('%Y%m%d')}_{idx}",
-                    'name': name_elem.text.strip().replace('\n', '').replace(' ', '') if name_elem else f"repo_{idx}",
-                    'description': article.select_one('p').text.strip() if article.select_one('p') else '',
-                    'language': article.select_one(
-                        'span[itemprop="programmingLanguage"]').text.strip() if article.select_one(
-                        'span[itemprop="programmingLanguage"]') else 'Unknown',
-                    'stars_today': article.select_one(
-                        'span.d-inline-block.float-sm-right').text.strip() if article.select_one(
-                        'span.d-inline-block.float-sm-right') else '0',
-                    'url': 'https://github.com' + name_elem['href'] if name_elem else '',
-                    'crawled_at': datetime.now()
-                }
-                repos.append(repo)
-            except Exception as e:
-                print(f"레포 파싱 오류: {e}")
+    # 시작 URL도 포함
+    if full_start_url not in urls_to_crawl:
+        urls_to_crawl.insert(0, full_start_url)
 
-    df = pd.DataFrame(repos)
-    print(f"✅ {len(df)}개 GitHub 레포지토리 크롤링 완료")
-    return df
+    # 중복 제거 및 정렬
+    urls_to_crawl = sorted(list(set(urls_to_crawl)))
 
+    print(f"\n✅ 총 {len(urls_to_crawl)}개의 페이지를 발견했습니다.")
 
-def crawl_stock_prices(symbols: List[str] = None):
-    """네이버 금융에서 주식 정보 크롤링"""
-    print("📈 주식 정보 크롤링 시작...")
+    # 크롤링할 URL 목록 출력
+    print("\n📋 크롤링할 페이지 목록:")
+    for i, url in enumerate(urls_to_crawl[:10], 1):  # 처음 10개만 표시
+        print(f"  {i}. {url}")
+    if len(urls_to_crawl) > 10:
+        print(f"  ... 외 {len(urls_to_crawl) - 10}개")
 
-    if symbols is None:
-        symbols = ['005930', '035720', '000660']  # 삼성전자, 카카오, SK하이닉스
+    # 각 페이지 크롤링
+    successful_count = 0
+    failed_urls = []
 
-    crawler = WebCrawler(use_selenium=False)
-    stock_data = []
-
-    for symbol in symbols:
-        url = f"https://finance.naver.com/item/main.naver?code={symbol}"
-        soup = crawler.crawl_static_page(url)
-
-        if soup:
-            try:
-                stock = {
-                    'stock_id': f"stock_{symbol}_{datetime.now().strftime('%Y%m%d')}",
-                    'symbol': symbol,
-                    'name': soup.select_one('div.wrap_company h2 a').text.strip() if soup.select_one(
-                        'div.wrap_company h2 a') else symbol,
-                    'current_price': soup.select_one('p.no_today span.blind').text.strip() if soup.select_one(
-                        'p.no_today span.blind') else '0',
-                    'change': soup.select_one('p.no_exday span.blind').text.strip() if soup.select_one(
-                        'p.no_exday span.blind') else '0',
-                    'volume': soup.select_one('td.first span.blind').text.strip() if soup.select_one(
-                        'td.first span.blind') else '0',
-                    'crawled_at': datetime.now()
-                }
-
-                # 숫자 정제
-                try:
-                    stock['current_price'] = int(stock['current_price'].replace(',', ''))
-                    stock['volume'] = int(stock['volume'].replace(',', ''))
-                except:
-                    pass
-
-                stock_data.append(stock)
-                time.sleep(0.5)  # 서버 부하 방지
-
-            except Exception as e:
-                print(f"주식 정보 파싱 오류 ({symbol}): {e}")
-                # 오류 시 샘플 데이터
-                stock_data.append({
-                    'stock_id': f"stock_{symbol}_{datetime.now().strftime('%Y%m%d')}",
-                    'symbol': symbol,
-                    'name': f"주식_{symbol}",
-                    'current_price': np.random.randint(10000, 100000),
-                    'change': np.random.randint(-5000, 5000),
-                    'volume': np.random.randint(100000, 1000000),
-                    'crawled_at': datetime.now()
-                })
-
-    df = pd.DataFrame(stock_data)
-    print(f"✅ {len(df)}개 주식 정보 크롤링 완료")
-    return df
-
-
-# ============================================
-# 5. BigQuery 통합 파이프라인 클래스
-# ============================================
-
-class CrawlingPipeline:
-    """크롤링 + BigQuery 저장 통합 파이프라인"""
-
-    def __init__(self, dataset_id: str):
-        self.client = bigquery.Client()
-        self.dataset_id = dataset_id
-        self.ensure_dataset_exists()
-
-    def ensure_dataset_exists(self):
-        """데이터셋이 없으면 생성"""
-        dataset = bigquery.Dataset(f"{self.client.project}.{self.dataset_id}")
-        dataset.location = "asia-northeast3"  # 서울
-
+    for i, url in enumerate(urls_to_crawl, 1):
         try:
-            self.client.create_dataset(dataset, timeout=30)
-            print(f"✅ 데이터셋 생성: {self.dataset_id}")
-        except:
-            print(f"📁 데이터셋 확인: {self.dataset_id}")
+            print(f"\n📄 ({i}/{len(urls_to_crawl)}) 크롤링 중: {url}")
+            driver.get(url)
+            time.sleep(2)  # 페이지 로드 대기
 
-    def save_to_bigquery(self, df: pd.DataFrame, table_id: str, if_exists: str = 'append'):
-        """DataFrame을 BigQuery에 저장"""
+            # 페이지 내용 추출
+            content = extract_page_content(driver, url)
 
-        if df.empty:
-            print("⚠️ 빈 데이터프레임입니다.")
-            return
+            if content and len(content.strip()) > 100:  # 최소 100자 이상의 내용이 있을 때만 저장
+                # 파일명 생성
+                filename = clean_filename(url)
+                filepath = os.path.join(OUTPUT_DIR, filename)
 
-        # datetime 컬럼을 문자열로 변환 (BigQuery 호환성)
-        for col in df.columns:
-            if df[col].dtype == 'datetime64[ns]':
-                df[col] = df[col].astype(str)
+                # 저장할 내용 구성
+                content_to_save = f"Source URL: {url}\n" + "=" * 80 + f"\n\n{content}"
 
-        table_ref = self.client.dataset(self.dataset_id).table(table_id)
+                # 파일로 저장
+                with open(filepath, "w", encoding="utf-8") as f:
+                    f.write(content_to_save)
 
-        job_config = bigquery.LoadJobConfig()
-        if if_exists == 'replace':
-            job_config.write_disposition = bigquery.WriteDisposition.WRITE_TRUNCATE
-        else:
-            job_config.write_disposition = bigquery.WriteDisposition.WRITE_APPEND
-
-        # 스키마 자동 감지
-        job_config.autodetect = True
-
-        try:
-            job = self.client.load_table_from_dataframe(df, table_ref, job_config=job_config)
-            job.result()
-
-            table = self.client.get_table(table_ref)
-            print(f"✅ {len(df)}개 행이 {self.dataset_id}.{table_id}에 저장됨")
-            print(f"   총 행 수: {table.num_rows:,}")
+                print(f"  ✅ 저장 완료: {filename} ({len(content)} 문자)")
+                successful_count += 1
+            else:
+                print(f"  ⚠️ 콘텐츠가 너무 짧거나 비어있음")
+                failed_urls.append(url)
 
         except Exception as e:
-            print(f"❌ 저장 실패: {e}")
-            print(f"   데이터 타입 확인: {df.dtypes}")
+            print(f"  ❌ 페이지 처리 실패: {e}")
+            failed_urls.append(url)
 
-    def crawl_and_save(self, crawl_function, table_id: str, if_exists: str = 'append'):
-        """크롤링 후 바로 BigQuery에 저장"""
+        # 서버 부하 방지를 위한 대기
+        time.sleep(1)
 
-        print(f"\n🕷️ 크롤링 시작: {crawl_function.__name__}")
-        df = crawl_function()
-
-        if not df.empty:
-            print(f"📊 크롤링 완료: {len(df)}개 데이터")
-            self.save_to_bigquery(df, table_id, if_exists)
-        else:
-            print("⚠️ 크롤링 결과가 없습니다.")
-
-        return df
-
-    def query_data(self, query: str) -> pd.DataFrame:
-        """BigQuery에서 데이터 조회"""
-        try:
-            return self.client.query(query).to_dataframe()
-        except Exception as e:
-            print(f"조회 오류: {e}")
-            return pd.DataFrame()
-
-
-# ============================================
-# 6. 메인 실행 함수
-# ============================================
-
-def main():
-    """통합 실행 함수"""
-
-    print("=" * 60)
-    print("🚀 BigQuery + 크롤링 파이프라인 시작")
-    print("=" * 60)
-
-    # 1. 파이프라인 초기화
-    pipeline = CrawlingPipeline(dataset_id='crawled_data')
-
-    # 2. 각종 데이터 크롤링 및 저장
-
-    # 뉴스 크롤링
-    news_df = pipeline.crawl_and_save(
-        crawl_news_articles,
-        'news_articles',
-        'replace'  # 첫 실행시 replace, 이후 append
-    )
-
-    if not news_df.empty:
-        print("\n📰 뉴스 샘플:")
-        print(news_df[['title']].head(3))
-
-    # GitHub 트렌딩 크롤링
-    github_df = pipeline.crawl_and_save(
-        crawl_github_trending,
-        'github_trending',
-        'replace'
-    )
-
-    if not github_df.empty:
-        print("\n🐙 GitHub 트렌딩 샘플:")
-        print(github_df[['name', 'language']].head(3))
-
-    # 주식 정보 크롤링
-    stock_df = pipeline.crawl_and_save(
-        crawl_stock_prices,
-        'stock_prices',
-        'append'
-    )
-
-    if not stock_df.empty:
-        print("\n📈 주식 정보:")
-        print(stock_df[['name', 'current_price']].head())
-
-    # 3. BigQuery에서 데이터 조회 및 분석
+    # 크롤링 결과 요약
     print("\n" + "=" * 60)
-    print("📊 저장된 데이터 분석")
+    print("📊 크롤링 완료 요약")
     print("=" * 60)
+    print(f"✅ 성공: {successful_count}개 페이지")
+    print(f"❌ 실패: {len(failed_urls)}개 페이지")
 
-    # 뉴스 통계
-    news_query = f"""
-    SELECT 
-        COUNT(*) as total_articles,
-        COUNT(DISTINCT title) as unique_articles
-    FROM `{pipeline.client.project}.{pipeline.dataset_id}.news_articles`
-    """
+    if failed_urls:
+        print("\n실패한 URL 목록:")
+        for url in failed_urls[:5]:
+            print(f"  - {url}")
+        if len(failed_urls) > 5:
+            print(f"  ... 외 {len(failed_urls) - 5}개")
 
-    news_stats = pipeline.query_data(news_query)
-    if not news_stats.empty:
-        print("\n📰 뉴스 통계:")
-        print(news_stats)
+    print(f"\n📁 모든 파일이 '{OUTPUT_DIR}' 폴더에 저장되었습니다.")
 
-    # GitHub 언어별 통계
-    github_query = f"""
-    SELECT 
-        language,
-        COUNT(*) as repo_count
-    FROM `{pipeline.client.project}.{pipeline.dataset_id}.github_trending`
-    GROUP BY language
-    ORDER BY repo_count DESC
-    """
+except Exception as e:
+    print(f"\n❌ 크롤링 중 치명적 오류 발생: {e}")
 
-    github_stats = pipeline.query_data(github_query)
-    if not github_stats.empty:
-        print("\n🐙 GitHub 언어별 분포:")
-        print(github_stats)
-
-    # 주식 정보
-    stock_query = f"""
-    SELECT 
-        name,
-        symbol,
-        current_price,
-        change
-    FROM `{pipeline.client.project}.{pipeline.dataset_id}.stock_prices`
-    ORDER BY crawled_at DESC
-    LIMIT 5
-    """
-
-    stock_latest = pipeline.query_data(stock_query)
-    if not stock_latest.empty:
-        print("\n📈 최신 주식 정보:")
-        print(stock_latest)
-
-    print("\n" + "=" * 60)
-    print("✅ 모든 작업 완료!")
-    print("=" * 60)
-
-    return {
-        'news': news_df,
-        'github': github_df,
-        'stocks': stock_df
-    }
-
-
-# ============================================
-# 7. 실행
-# ============================================
-
-if __name__ == "__main__":
-    # 메인 함수 실행
-    results = main()
-
-    # 결과 요약
-    print("\n📋 크롤링 결과 요약:")
-    for name, df in results.items():
-        if not df.empty:
-            print(f"  - {name}: {len(df)}개 데이터 수집")
+finally:
+    driver.quit()
+    print("\n🔌 브라우저를 종료했습니다.")
+    print("✨ 크롤링 작업이 완료되었습니다!")
