@@ -223,7 +223,7 @@ def process_files_and_generate_jsonl():
                 print(f"  -> AI 응답 실패: {filename}")
 
     # JSONL 파일로 저장
-    jsonl_filename = 'firebase_generated_qa.jsonl'
+    jsonl_filename = 'generate_firebase_firestore_qa.jsonl'
     with open(jsonl_filename, 'w', encoding='utf-8') as jsonl_file:
         for item in jsonl_data:
             jsonl_file.write(json.dumps(item, ensure_ascii=False) + '\n')
