@@ -1,0 +1,136 @@
+Tab: 기본
+Source URL: https://developers.google.com/maps/documentation/javascript/webgl/webgl-overlay-view?hl=ko
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Web [https://developers.google.com/maps/web?hl=ko]
+Maps JavaScript API [https://developers.google.com/maps/documentation/javascript?hl=ko]
+의견 보내기
+WebGL 오버레이 뷰
+샘플 보기 [https://developers.google.com/maps/documentation/javascript/examples/webgl/webgl-overlay-simple?hl=ko]
+WebGL 오버레이 뷰를 사용하면 WebGL을 직접 사용하거나 Three.js와 같은 인기 그래픽 라이브러리를 사용하여 지도에 콘텐츠를 추가할 수 있습니다. WebGL 오버레이 뷰를 사용하면 Google Maps Platform에서 벡터 기본 지도를 렌더링하는 데 사용하는 동일한 WebGL 렌더링 컨텍스트에 직접 액세스할 수 있습니다. 이와 같이 공유된 렌더링 컨텍스트를 사용하면 3D 빌딩 도형의 깊이 오클루전 및 2D/3D 콘텐츠를 기본 지도 렌더링과 동기화할 수 있는 기능과 같은 이점이 있습니다. WebGL 오버레이 뷰로 렌더링된 객체는 위도/경도 좌표에 연결할 수도 있으며, 그러면 지도에서 드래그, 확대/축소, 화면 이동하거나 기울일 때 객체가 그에 따라 움직입니다.
+요구사항
+WebGL 오버레이 뷰를 사용하려면 벡터 지도를 사용 설정한 상태에서 지도 ID를 사용하여 지도를 로드해야 합니다. 완전한 3D 카메라 관리가 가능하도록 지도 ID를 만들 때 기울기 및 회전을 사용 설정하는 것이 좋습니다. 자세한 내용은 개요를 참고하세요 [https://developers.google.com/maps/documentation/javascript/webgl?hl=ko].
+WebGL 오버레이 뷰 추가
+지도에 오버레이를 추가하려면 google.maps.WebGLOverlayView를 구현한 다음 setMap을 사용하여 지도 인스턴스에 전달하세요.
+// Create a map instance.
+const map = new google.maps.Map(mapDiv, mapOptions);
+
+// Create a WebGL Overlay View instance.
+const webglOverlayView = new google.maps.WebGLOverlayView();
+
+// Add the overlay to the map.
+webglOverlayView.setMap(map);
+수명 주기 후크
+WebGL 오버레이 뷰는 벡터 기본 지도의 WebGL 렌더링 컨텍스트의 수명 주기에서 여러 시점에 호출되는 후크 집합을 제공합니다. 이러한 수명 주기 후크를 통해 오버레이에서 렌더링하려는 모든 항목을 설정하고, 그리고, 해체합니다.
+onAdd()는 오버레이가 생성될 때 호출됩니다. 이를 사용하여 오버레이가 그려지기 전에 WebGL 렌더링 컨텍스트에 즉시 액세스할 필요가 없는 중간 데이터 구조를 가져오거나 만들 수 있습니다.
+렌더링 컨텍스트를 사용할 수 있게 되면 onContextRestored({gl})가 호출됩니다. 이를 사용하여 셰이더, GL 버퍼 객체 등의 WebGL 상태를 초기화하거나 바인딩할 수 있습니다. onContextRestored()는 필드가 하나인 WebGLStateOptions 인스턴스를 사용합니다.
+gl은 기본 지도에서 사용하는 WebGLRenderingContext의 핸들입니다.
+onDraw({gl, transformer})는 기본 지도에 장면을 렌더링합니다. onDraw()의 매개변수는 다음 두 필드가 포함된 WebGLDrawOptions 객체입니다.
+gl은 기본 지도에서 사용하는 WebGLRenderingContext의 핸들입니다.
+transformer는 지도 좌표에서 모델 뷰 투영 행렬로 변환하는 도우미 함수를 제공하며, 이를 사용하여 지도 좌표를 세계 공간, 카메라 공간, 화면 공간으로 변환할 수 있습니다.
+onContextLost()는 어떤 이유로든 렌더링 컨텍스트가 손실될 때 호출되며 기존 GL 상태는 더 이상 필요하지 않으므로 여기에서 삭제해야 합니다.
+onStateUpdate({gl})는 렌더링 루프 외부의 GL 상태를 업데이트하고 requestStateUpdate가 호출될 때 호출되며, 필드가 하나인 WebGLStateOptions 인스턴스를 사용합니다.
+gl은 기본 지도에서 사용하는 WebGLRenderingContext의 핸들입니다.
+onRemove()는 오버레이가 WebGLOverlayView.setMap(null)을 사용하여 지도에서 삭제될 때 호출되며 여기에서 모든 중간 객체를 삭제해야 합니다.
+다음 예에서는 모든 수명 주기 후크가 기본적으로 구현됩니다.
+const webglOverlayView = new google.maps.WebGLOverlayView();
+
+webglOverlayView.onAdd = () => {
+  // Do setup that does not require access to rendering context.
+}
+
+webglOverlayView.onContextRestored = ({gl}) => {
+  // Do setup that requires access to rendering context before onDraw call.
+}
+
+webglOverlayView.onStateUpdate = ({gl}) => {
+  // Do GL state setup or updates outside of the render loop.
+}
+
+webglOverlayView.onDraw = ({gl, transformer}) => {
+  // Render objects.
+}
+
+webglOverlayView.onContextLost = () => {
+  // Clean up pre-existing GL state.
+}
+
+webglOverlayView.onRemove = () => {
+  // Remove all intermediate objects.
+}
+
+webglOverlayView.setMap(map);
+GL 상태 재설정
+WebGL 오버레이 뷰는 기본 지도의 WebGL 렌더링 컨텍스트를 노출합니다. 따라서 객체 렌더링을 완료하면 GL 상태를 원래 상태로 재설정하는 것이 매우 중요합니다. GL 상태를 재설정하지 않으면 GL 상태 충돌이 발생하여 지도와 지정한 객체가 모두 렌더링되지 않을 수도 있습니다.
+GL 상태 재설정은 일반적으로 onDraw() 후크에서 처리됩니다. 예를 들어 Three.js는 GL 상태의 변경사항을 지우는 도우미 함수를 제공합니다.
+webglOverlayView.onDraw = ({gl, transformer}) => {
+  // Specify an object to render.
+  renderer.render(scene, camera);
+  renderer.resetState();
+}
+지도 또는 객체가 렌더링되지 않으면 GL 상태가 재설정되지 않았을 가능성이 매우 큽니다.
+좌표 변환
+벡터 지도에서 객체의 위치는 위도 및 경도 좌표와 고도의 조합을 제공하여 지정됩니다. 하지만 3D 그래픽은 세계 공간, 카메라 공간 또는 화면 공간에서 지정됩니다. 지도 좌표를 이렇게 흔히 사용되는 공간으로 쉽게 변환할 수 있도록 WebGL 오버레이 뷰는 onDraw() 후크에 다음을 가져와 Float64Array를 반환하는 coordinateTransformer.fromLatLngAltitude(latLngAltitude, rotationArr, scalarArr) 도우미 함수를 제공합니다.
+latLngAltitude: 위도/경도/고도 좌표(LatLngAltitude 또는 LatLngAltitudeLiteral)
+rotationArr: 도 단위로 지정된 오일러 회전 각도의 Float32Array
+scalarArr: 기본 축에 적용할 스칼라의 Float32Array
+다음 예에서는 fromLatLngAltitude()를 사용하여 Three.js에서 카메라 투영 행렬을 만듭니다.
+const camera = new THREE.PerspectiveCamera();
+const matrix = coordinateTransformer.fromLatLngAltitude({
+    lat: mapOptions.center.lat,
+    lng: mapOptions.center.lng,
+    altitude: 120,
+});
+camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix);
+예
+다음은 인기 있는 오픈소스 WebGL 라이브러리 Three.js [https://threejs.org/]를 사용하여 지도에 3D 객체를 배치하는 간단한 예입니다. WebGL 오버레이 뷰를 사용하여 이 페이지의 상단에서 실행되는 예를 빌드하는 방법을 자세히 알아보려면 WebGL 가속 지도 환경 Codelab 빌드 [http://goo.gle/maps-platform-webgl-codelab]를 참고하세요.
+const webglOverlayView = new google.maps.WebGLOverlayView();
+let scene, renderer, camera, loader;
+
+webglOverlayView.onAdd = () => {
+  // Set up the Three.js scene.
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera();
+  const ambientLight = new THREE.AmbientLight( 0xffffff, 0.75 ); // Soft white light.
+  scene.add(ambientLight);
+
+  // Load the 3D model with GLTF Loader from Three.js.
+  loader = new GLTFLoader();
+  loader.load("pin.gltf");
+}
+
+webglOverlayView.onContextRestored = ({gl}) => {
+  // Create the Three.js renderer, using the
+  // maps's WebGL rendering context.
+  renderer = new THREE.WebGLRenderer({
+    canvas: gl.canvas,
+    context: gl,
+    ...gl.getContextAttributes(),
+  });
+  renderer.autoClear = false;
+}
+
+webglOverlayView.onDraw = ({gl, transformer}) => {
+  // Update camera matrix to ensure the model is georeferenced correctly on the map.
+  const matrix = transformer.fromLatLngAltitude({
+      lat: mapOptions.center.lat,
+      lng: mapOptions.center.lng,
+      altitude: 120,
+  });
+camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix);
+
+  // Request a redraw and render the scene.
+  webglOverlayView.requestRedraw();
+  renderer.render(scene, camera);
+
+  // Always reset the GL state.
+  renderer.resetState();
+}
+
+// Add the overlay to the map.
+webglOverlayView.setMap(map);
+의견 보내기

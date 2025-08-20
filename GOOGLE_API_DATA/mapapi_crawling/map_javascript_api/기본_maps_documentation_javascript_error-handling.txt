@@ -1,0 +1,60 @@
+Tab: 기본
+Source URL: https://developers.google.com/maps/documentation/javascript/error-handling?hl=ko
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Web [https://developers.google.com/maps/web?hl=ko]
+Maps JavaScript API [https://developers.google.com/maps/documentation/javascript?hl=ko]
+의견 보내기
+오류 처리
+이 페이지에서는 Maps JavaScript API 및 Place 클래스를 사용할 때 오류를 처리하는 방법을 설명합니다.
+Google Maps JavaScript API는 오류에 다음 클래스를 사용합니다.
+MapsNetworkError [https://developers.google.com/maps/documentation/javascript/reference/errors?hl=ko#MapsNetworkError]은 웹 서비스의 네트워크 오류를 나타냅니다 (RPCStatus [https://developers.google.com/maps/documentation/javascript/reference/errors?hl=ko#RPCStatus] 오류 포함 가능).
+MapsRequestError [https://developers.google.com/maps/documentation/javascript/reference/errors?hl=ko#MapsRequestError]은 웹 서비스의 요청 오류를 나타냅니다 (즉, HTTP의 4xx 코드와 동일).
+MapsServerError [https://developers.google.com/maps/documentation/javascript/reference/errors?hl=ko#MapsServerError]은 웹 서비스의 서버 측 오류를 나타냅니다 (즉, HTTP의 5xx 코드와 동일).
+MapsNetworkError, MapsRequestError, MapsServerError 클래스는 지도 핵심 라이브러리 [https://developers.google.com/maps/documentation/javascript/reference/library-interfaces?hl=ko#CoreLibrary]에 속합니다. 라이브러리 [https://developers.google.com/maps/documentation/javascript/libraries?hl=ko]에 대해 자세히 알아보세요.
+참고: 위에 나열된 클래스에서 반환된 오류는 가능한 오류의 한 종류일 뿐입니다. 이러한 클래스로 표현되지 않는 오류(예: 클라이언트 측 검증 오류, API 키 또는 할당량과 관련된 오류, 기타 예상치 못한 오류)가 발생할 수 있습니다.
+이러한 각 클래스에는 다음 속성이 포함됩니다.
+code [https://developers.google.com/maps/documentation/javascript/reference/errors?hl=ko#MapsNetworkError.code]
+endpoint [https://developers.google.com/maps/documentation/javascript/reference/errors?hl=ko#MapsNetworkError.endpoint]
+code 속성은 오류 유형을 식별하고 endpoint 속성은 오류를 반환한 엔드포인트를 식별합니다 (예: PLACES_DETAILS). MapsNetworkError는 Error의 하위 클래스이므로 name 및 message를 비롯한 다른 속성도 사용할 수 있습니다.
+다음 스니펫은 지도 오류 메시지의 구조를 보여줍니다.
+  MapsRequestError: PLACES_GET_PLACE: INVALID_ARGUMENT: Error fetching fields: The provided Place ID: ChIJN5Nz71W3j4ARhx5bwpTQEGg**** is not valid.
+  [error.name     ] [error.endpoint ] [error.code     ]
+                    [error.message --->                ... ]
+  
+원시 오류에는 오류 문자열의 모든 내용이 포함됩니다. error.message에는 error.name를 제외한 전체 오류 문자열이 포함됩니다.
+다음 스니펫은 장소 클래스를 사용할 때 오류 처리를 보여줍니다. 이 예에서는 try/catch 블록을 사용하여 세 가지 오류 유형을 각각 처리합니다. 유사한 코드를 사용하여 모든 Maps JavaScript API 클래스의 오류를 처리할 수 있습니다.
+async function getPlaceDetails() {
+    const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+    const { MapsNetworkError, MapsRequestError, MapsServerError } = await google.maps.importLibrary("core") as google.maps.CoreLibrary;
+
+    // Use place ID to create a new Place instance.
+    const place = new Place({
+        id: 'ChIJN5Nz71W3j4ARhx5bwpTQEGg****', // Pass a bad Place ID to trigger an error.
+    });
+
+    // Error handling for fetchFields.
+    try {
+        // Call fetchFields, passing the desired data fields.
+        await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] });
+    } catch (error: any) {
+        if (error && error instanceof google.maps.MapsRequestError) {
+            // HTTP 4xx request error.
+            console.error('fetchFields failed: MapsRequestError - check the request parameters', error);
+        } else if (error && error instanceof google.maps.MapsServerError) {
+            // HTTP 5xx server-side error.
+            console.error('fetchFields failed: MapsServerError', error);
+        } else if (error && error instanceof google.maps.MapsNetworkError) {
+            // Network error.
+            console.error('fetchFields failed: MapsNetworkError', error);
+        }  else {
+            console.error('fetchFields failed: An unknown error occurred', error);
+        }
+    }
+    // ...
+}
+의견 보내기

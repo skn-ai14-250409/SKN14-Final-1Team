@@ -1,0 +1,85 @@
+Source URL: https://developers.google.com/maps/documentation/places/android-sdk/place-photos?hl=ko
+
+이 페이지는 Cloud Translation API를 통해 번역되었습니다.
+홈
+제품
+Google Maps Platform
+문서
+Android
+Places SDK for Android
+가이드
+의견 보내기
+장소 사진 (신규)
+플랫폼 선택: Android iOS 웹 서비스
+유럽 경제 지역 (EEA) 개발자
+장소 사진 (신규)을 사용하면 고품질 사진 콘텐츠를 애플리케이션에 추가할 수 있습니다. 장소 사진을 사용하면 장소 데이터베이스에 저장된 수백만 장의 사진에 액세스할 수 있습니다. Place Photos는 비트맵 이미지의 URI를 반환합니다. 비트맵 이미지의 최대 크기는 4800x4800픽셀입니다.
+참고: 장소 사진 (신규)은 Android용 Places SDK 버전 3.4.0 이상에서 사용할 수 있습니다. 자세한 내용은 SDK 버전 선택을 참고하세요. 버전 4.0.0에 추가된 Kotlin API 사용에 관한 자세한 내용은 참조 개요를 참고하세요.
+장소 사진 요청
+장소의 이미지를 가져오려면 다음 단계를 따르세요.
+Place Details (New)를 사용하여 fetchPlace()를 통해 Place 객체를 가져옵니다. 응답 Place 객체에 포함할 필드 목록에 Place.Field PHOTO_METADATAS 필드를 포함해야 합니다.
+FetchPlaceResponse의 OnSuccessListener에서 Place.getPhotoMetadas()을 호출하여 응답 Place 객체에서 PhotoMetadata 유형의 사진 메타데이터 객체를 가져옵니다.
+FetchResolvedPhotoUriRequest 객체를 만들어 요청하고 사진 메타데이터 객체와 최대 높이, 최대 너비 또는 둘 다의 값을 전달합니다.
+PlacesClient.fetchResolvedPhotoUri()를 사용하여 사진 URI를 요청합니다.
+OnSuccessListener를 추가하고 FetchResolvedPhotoUriResponse 객체에서 사진 URI를 가져옵니다.
+참고: PlacesClient 초기화에 관한 자세한 내용은 Places API 클라이언트 초기화를 참고하세요.
+CancellationToken을 사용하여 요청 클래스 (예: FetchPlaceRequest)에 대한 요청을 취소할 수 있습니다. 취소는 최선의 방식으로 이루어집니다. 취소 요청이 발행되면 응답이 반환되지 않습니다. 취소 토큰을 발급해도 특정 요청이 취소된다고 보장할 수 없으며, 응답이 반환되지 않더라도 요청에 대한 요금이 청구될 수 있습니다.
+필수 매개변수
+FetchResolvedPhotoUriRequest에 필요한 매개변수는 다음과 같습니다.
+사진 메타데이터
+반환할 사진의 메타데이터 객체입니다.
+최대 높이 또는 최대 너비
+반환할 이미지의 최대 높이와 너비를 픽셀 단위로 지정합니다. 이미지가 지정된 값보다 작은 경우 원래 이미지가 반환됩니다. 이미지가 두 측정기준 중 하나에서 더 큰 경우 원래 가로세로 비율로 제한된 두 측정기준 중 더 작은 측정기준에 맞게 조정됩니다. 최대 높이와 최대 너비 속성은 모두 1~4800 사이의 정수를 허용합니다. 최대 높이, 최대 너비 또는 둘 다를 지정해야 합니다.
+최대 높이 매개변수를 설정하려면 FetchResolvedPhotoUriRequest 객체를 빌드할 때 setMaxHeight() 메서드를 호출합니다.
+최대 너비 매개변수를 설정하려면 FetchResolvedPhotoUriRequest 객체를 빌드할 때 setMaxWidth() 메서드를 호출합니다.
+장소 사진 예시
+다음 예에서는 장소 사진 URI를 가져오는 방법을 보여줍니다.
+// Define a Place ID.
+final String placeId = "INSERT_PLACE_ID_HERE";
+
+// Specify fields. Requests for photos must always have the PHOTO_METADATAS field.
+final List<Place.Field> fields = Collections.singletonList(Place.Field.PHOTO_METADATAS);
+
+// Get a Place object (this example uses fetchPlace(), but you can also use findCurrentPlace())
+final FetchPlaceRequest placeRequest = FetchPlaceRequest.newInstance(placeId, fields);
+
+placesClient.fetchPlace(placeRequest).addOnSuccessListener((response) -> {
+    final Place place = response.getPlace();
+
+    // Get the photo metadata.
+    final List<PhotoMetadata> metadata = place.getPhotoMetadatas();
+    if (metadata == null || metadata.isEmpty()) {
+        Log.w(TAG, "No photo metadata.");
+        return;
+    }
+    final PhotoMetadata photoMetadata = metadata.get(0);
+
+    // Get the attribution text and author attributions.
+    final String attributions = photoMetadata.getAttributions();
+    final AuthorAttributions authorAttributions = photoMetadata.getAuthorAttributions();
+
+    // Create a FetchResolvedPhotoUriRequest.
+    final FetchResolvedPhotoUriRequest photoRequest = FetchResolvedPhotoUriRequest.builder(photoMetadata)
+        .setMaxWidth(500)
+        .setMaxHeight(300)
+        .build();
+
+    // Request the photo URI
+    placesClient.fetchResolvedPhotoUri(photoRequest).addOnSuccessListener((fetchResolvedPhotoUriResponse) -> {
+        Uri uri = fetchResolvedPhotoUriResponse.getUri();
+        RequestOptions requestOptions = new RequestOptions().override(Target.SIZE_ORIGINAL);
+        Glide.with(this).load(uri).apply(requestOptions).into(imageView);
+    }).addOnFailureListener((exception) -> {
+        if (exception instanceof ApiException) {
+            final ApiException apiException = (ApiException) exception;
+            Log.e(TAG, "Place not found: " + exception.getMessage());
+            final int statusCode = apiException.getStatusCode();
+            // TODO: Handle error with given status code.
+        }
+    });
+});
+기여 분석
+대부분의 경우 장소 사진은 저작자 표시 없이 사용할 수 있거나 필수 저작권 표시가 이미지의 일부로 포함되어 있습니다. 하지만 PhotoMetadata 유형의 사진 메타데이터 객체에는 다음 두 가지 유형의 추가 저작자 표시가 포함될 수 있습니다.
+저작자 표시: PhotoMetadata.getAttributions()로 액세스하는 저작자 표시 문자열입니다.
+AuthorAttributions: PhotoMetadata.getAuthorAttributions()로 액세스하는 AuthorAttributions 객체입니다.
+반환된 PhotoMetadata 객체에 두 유형의 저작자 표시 중 하나가 포함된 경우 이미지를 표시할 때마다 애플리케이션에 저작자 표시를 포함해야 합니다. 자세한 내용은 저작자 표시를 참고하세요.
+의견 보내기
