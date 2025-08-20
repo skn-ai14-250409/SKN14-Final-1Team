@@ -1,0 +1,115 @@
+Source URL: https://developers.google.com/maps/documentation/navigation/android-sdk/events?hl=ko
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Android [https://developers.google.com/maps/android?hl=ko]
+Navigation SDK for Android [https://developers.google.com/maps/documentation/navigation/android-sdk?hl=ko]
+도움이 되었나요?
+의견 보내기
+탐색 이벤트 리슨
+bookmark_border
+이 페이지의 내용
+개요 [https://developers.google.com/maps/documentation/navigation/android-sdk/events?hl=ko#overview]
+코드 보기 [https://developers.google.com/maps/documentation/navigation/android-sdk/events?hl=ko#see_the_code]
+목적지 도착 감지 [https://developers.google.com/maps/documentation/navigation/android-sdk/events?hl=ko#detect_arrival_at_a_destination]
+위치 업데이트 받기 [https://developers.google.com/maps/documentation/navigation/android-sdk/events?hl=ko#receive_location_updates]
+시간 및 거리 업데이트 받기 [https://developers.google.com/maps/documentation/navigation/android-sdk/events?hl=ko#receive_time_and_distance_updates]
+경로 업데이트 받기 [https://developers.google.com/maps/documentation/navigation/android-sdk/events?hl=ko#receive_route_updates]
+야간 모드 변경 감지 [https://developers.google.com/maps/documentation/navigation/android-sdk/events?hl=ko#detect_when_night_mode_changes]
+앱은 사용자가 경로를 따라 이동할 때 발생하는 이벤트를 수신할 수 있습니다.
+개요
+다음 인터페이스를 사용하여 탐색 이벤트를 수신합니다.
+Navigator.ArrivalListener [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator.ArrivalListener?hl=ko]는 기기가 목적지에 도착할 때 트리거되는 onArrival() 콜백을 제공합니다.
+RoadSnappedLocationProvider.LocationListener [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/RoadSnappedLocationProvider.LocationListener?hl=ko]은 기기의 위치가 변경될 때 트리거되는 onLocationChanged() 콜백을 제공합니다.
+Navigator.RemainingTimeOrDistanceChangedListener [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator.RemainingTimeOrDistanceChangedListener?hl=ko]은 다음 목적지까지의 시간 또는 거리가 지정된 양 이상으로 변경될 때 트리거되는 onRemainingTimeOrDistanceChanged() 콜백을 제공합니다.
+Navigator.RouteChangedListener [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator.RouteChangedListener?hl=ko]는 경로가 변경될 때 트리거되는 onRouteChanged() 콜백을 제공합니다.
+코드 보기
+탐색 활동의 Java 코드를 표시하거나 숨깁니다.
+목적지 도착 감지
+여기서 목적지는 최종 목적지 또는 경유지를 의미합니다. 도착을 감지하려면 기기가 목적지에 도달할 때 콜백을 등록하는 Navigator.addArrivalListener() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#addArrivalListener(com.google.android.libraries.navigation.Navigator.ArrivalListener)]를 호출하세요.
+도착하면 Android용 Navigation SDK가 onArrival() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator.ArrivalListener?hl=ko] 콜백을 실행합니다. 이 콜백은 Navigator.stopGuidance() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#stopGuidance()]를 사용하여 단계별 안내를 중지하거나 Navigator.continueToNextDestination() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#continueToNextDestination()]를 사용하여 다음 경유지로 이동하는 데 사용할 수 있습니다. 탐색 세션에 목적지가 하나만 포함되었거나 목적지 목록에 남은 목적지가 없는 경우 Navigator.continueToNextDestination() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#continueToNextDestination()]를 호출하면 안내가 자동으로 중지됩니다.
+continueToNextDestination()를 호출하면 탐색기에서 이전 대상에 관한 모든 정보를 삭제합니다. 이전 경로 세그먼트에 관한 정보를 분석하려면 continueToNextDestination()를 호출하기 전에 내비게이터에서 정보를 가져와야 합니다.
+메모리 누수를 방지하려면 리스너가 더 이상 필요하지 않을 때 removeArrivalListener(listener) [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#removeArrivalListener(com.google.android.libraries.navigation.Navigator.ArrivalListener)]를 호출해야 합니다.
+mNavigator.addArrivalListener(new Navigator.ArrivalListener() {
+    @Override
+    public void onArrival(ArrivalEvent arrivalEvent) {
+        displayMessage("onArrival: You've arrived at a waypoint: "
+                +   mNavigator.getCurrentRouteSegment().getDestinationWaypoint().getTitle(),
+                DISPLAY_BOTH);
+        // Start turn-by-turn guidance for the next leg of the route.
+        if (arrivalEvent.isFinalDestination()) {
+            displayMessage("onArrival: You've arrived at the final destination.",
+                    DISPLAY_BOTH);
+        } else {
+            mNavigator.continueToNextDestination();
+            mNavigator.startGuidance();
+        }
+    }
+});
+위치 업데이트 받기
+NavigationApi에서 RoadSnappedLocationProvider [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/RoadSnappedLocationProvider?hl=ko]을 가져온 다음 RoadSnappedLocationProvider.addLocationListener() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/RoadSnappedLocationProvider?hl=ko#addLocationListener(com.google.android.libraries.navigation.RoadSnappedLocationProvider.LocationListener)]을 호출하여 기기의 위치나 방향이 변경될 때 콜백을 등록합니다. 이 위치는 도로에 스냅되므로 Google Play 서비스 위치 API의 통합 위치 정보 제공자 [https://developers.google.com/android/reference/com/google/android/gms/location/FusedLocationProviderApi?hl=ko]에서 반환하는 위치와 다를 수 있습니다.
+Navigation SDK는 가능한 한 자주 위치 업데이트를 제공합니다. 위치 업데이트가 제공되면 Navigation SDK는 onLocationChanged() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/RoadSnappedLocationProvider.LocationListener?hl=ko#onLocationChanged(com.google.android.libraries.navigation.LocationEvent)] 콜백을 실행합니다.
+도로에 스냅된 위치 업데이트는 탐색과 독립적이며 탐색이 중지된 후에도 계속될 수 있습니다. 위치 업데이트를 백그라운드에서 실행한 상태로 두면 위치 업데이트를 구독하여 배터리 소모, 메모리 누수 또는 의도치 않은 기기 위치 데이터 수집이 발생할 수 있습니다. 리스너가 더 이상 필요하지 않으면 RoadSnappedLocationProvider.removeLocationListener [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/RoadSnappedLocationProvider?hl=ko#removeLocationListener(com.google.android.libraries.navigation.RoadSnappedLocationProvider.LocationListener)]을 호출합니다.
+mRoadSnappedLocationProvider =
+        NavigationApi.getRoadSnappedLocationProvider(getApplication());
+if (mRoadSnappedLocationProvider != null) {
+    mRoadSnappedLocationProvider.addLocationListener(
+            new RoadSnappedLocationProvider.LocationListener() {
+                @Override
+                public void onLocationChanged(Location location) {
+                    displayMessage("onLocationUpdated: Navigation engine has provided a new"
+                                    +   " road-snapped location: "
+                                    +   location.toString(),
+                            DISPLAY_LOG);
+                }
+            });
+} else {
+    displayMessage("ERROR: Failed to get a location provider", DISPLAY_LOG);
+}
+시간 및 거리 업데이트 받기
+남은 시간 (초) 또는 거리(미터)가 지정된 기준을 초과하여 변경될 때 콜백을 등록하려면 Navigator.addRemainingTimeOrDistanceChangedListener() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#addRemainingTimeOrDistanceChangedListener(int,%20int,%20com.google.android.libraries.navigation.Navigator.RemainingTimeOrDistanceChangedListener)]를 호출하세요.
+시간 또는 거리의 변화가 지정된 양을 초과하면 Navigation SDK가 onRemainingTimeOrDistanceChanged() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator.RemainingTimeOrDistanceChangedListener?hl=ko] 콜백을 실행합니다.
+남은 시간과 거리를 확인하려면 Navigator.getTimeAndDistanceList() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#getTimeAndDistanceList()]를 호출하세요. 목록의 시간과 거리는 누적됩니다. 즉, 한 경유지에서 다른 경유지까지가 아니라 현재 위치에서 각 경유지까지의 시간과 거리를 보여줍니다. 이제 TimeAndDistance 객체도 delaySeverity을 반환합니다. 이 열거형은 heavy, medium, light 또는 unknown 중 하나입니다. 이는 지도 UI의 예상 도착 시간에 표시되는 색상에 해당합니다 (심각 = 빨간색, 보통 = 노란색, 경미 = 녹색). 이 기능은 자체 eta 바닥글을 만들어야 하는 경우에 유용합니다.
+메모리 누수를 방지하려면 더 이상 리스너가 필요하지 않을 때 Navigator.removeRemainingTimeOrDistanceChangedListener(listener) [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#removeRemainingTimeOrDistanceChangedListener(com.google.android.libraries.navigation.Navigator.RemainingTimeOrDistanceChangedListener)]를 호출해야 합니다.
+아래 샘플은 남은 시간이 60초 이상 변경되거나 남은 거리가 100미터 이상 변경되는 경우 콜백을 요청합니다.
+mNavigator.addRemainingTimeOrDistanceChangedListener(60, 100,
+        new Navigator.RemainingTimeOrDistanceChangedListener() {
+            @Override
+            public void onRemainingTimeOrDistanceChanged() {
+                displayMessage("onRemainingTimeOrDistanceChanged: Time or distance estimate"
+                        +   " has changed.",
+                        DISPLAY_LOG);
+            }
+        });
+setEtaCardEnabled() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/SupportNavigationFragment?hl=ko#setEtaCardEnabled(boolean)] 메서드를 사용하고 TRUE 값이 있는 매개변수를 전달하여 내장 디스플레이를 사용하여 남은 시간과 거리 정보를 표시할 수 있습니다. 시간 및 거리 표시를 억제하려면 이 값을 FALSE로 설정합니다.
+getTimeAndDistanceList() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#getTimeAndDistanceList()] 메서드를 사용하여 여러 경유지의 예상 도착 시간을 노출할 수도 있습니다.
+경로 업데이트 받기
+경로가 변경될 때 콜백을 등록하려면 Navigator.addRouteChangedListener() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#addRouteChangedListener(com.google.android.libraries.navigation.Navigator.RouteChangedListener)]을 호출하세요.
+경로가 변경되면 Navigation SDK가 onRouteChanged() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator.RouteChangedListener?hl=ko] 콜백을 실행합니다. Navigator.getRouteSegments [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#getRouteSegments()] 및 Navigator.getCurrentRouteSegment() [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#getCurrentRouteSegment()]를 호출하여 새 경로를 찾을 수 있습니다.
+메모리 누수를 방지하려면 더 이상 리스너가 필요하지 않을 때 removeRouteChangedListener(listener) [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/Navigator?hl=ko#removeRouteChangedListener(com.google.android.libraries.navigation.Navigator.RouteChangedListener)]를 호출해야 합니다.
+mNavigator.addRouteChangedListener(new Navigator.RouteChangedListener() {
+    @Override
+    public void onRouteChanged() {
+        displayMessage("onRouteChanged: The driver's route has changed. Current waypoint: "
+                +   mNavigator.getCurrentRouteSegment().getDestinationWaypoint().getTitle(),
+                DISPLAY_LOG);
+    }
+});
+야간 모드 변경 감지
+야간 모드가 변경될 때 콜백을 등록하려면 NavigationView.addOnNightModeChangedListener [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/NavigationView?hl=ko#addOnNightModeChangedListener(com.google.android.libraries.navigation.NavigationView.OnNightModeChangedListener)] 또는 SupportNavigationFragment.addOnNightModeChangedListener [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/SupportNavigationFragment?hl=ko#addOnNightModeChangedListener(com.google.android.libraries.navigation.NavigationView.OnNightModeChangedListener)]을 호출하세요.
+참고: 대부분의 경우 NavigationView과 직접 상호작용하는 대신 NavigationView [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/NavigationView?hl=ko]의 래퍼인 SupportNavigationFragment [https://developers.google.com/maps/documentation/navigation/android-sdk/reference/com/google/android/libraries/navigation/SupportNavigationFragment?hl=ko]를 사용하는 것이 좋습니다. 자세한 내용은 탐색 지도 상호작용 권장사항 [https://developers.google.com/maps/documentation/navigation/android-sdk/nav-map-interactions-best-practices?hl=ko]을 참고하세요.
+다음 예에서는 탐색 프래그먼트에서 야간 모드 변경사항을 수신 대기하는 방법을 보여줍니다.
+mNavFragment.addOnNightModeChangedListener(new NavigationView.OnNightModeChangedListener() {
+    @Override
+    public void onNightModeChanged(NightModeChangedEvent nightModeChangedEvent) {
+        displayMessage("Night mode is active: " + nightModeChangedEvent.inNightMode(),
+        DISPLAY_LOG);
+    }
+});
+프로그래매틱 방식으로 야간 모드를 설정할 수도 있습니다. 자세한 내용은 야간 모드 설정 [https://developers.google.com/maps/documentation/navigation/android-sdk/controls?hl=ko#set_night_mode]을 참고하세요.
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,114 @@
+Source URL: https://developers.google.com/people/v1/directory
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Workspace [https://developers.google.com/workspace?hl=ko]
+People API [https://developers.google.com/people?hl=ko]
+도메인 연락처 및 프로필 읽기
+bookmark_border
+이 페이지의 내용
+디렉터리 사용자 목록
+변경된 디렉터리 사용자를 나열합니다.
+디렉터리 사용자 검색
+People API 사용 준비하기 [https://developers.google.com/people/v1/getting-started?hl=ko]의 단계를 완료하면 디렉터리 연락처 및 프로필을 읽을 수 있습니다.
+다음 코드 샘플은 몇 가지 간단한 요청을 보내는 방법을 보여줍니다. 메서드의 전체 목록은 참조 문서 [https://developers.google.com/people/api/rest?hl=ko]를 참고하세요.
+중요: 도메인 데이터를 읽으려면 도메인 관리자가 도메인에 대해 도메인 범위 데이터의 외부 연락처 및 프로필 공유를 사용 설정 [https://support.google.com/a/answer/6343701?hl=ko]해야 합니다.
+디렉터리 사용자 목록
+사용자의 도메인 디렉터리에서 연락처 및 프로필 목록을 가져오려면 [https://developers.google.com/people/api/rest/v1/people/listDirectoryPeople?hl=ko] 다음 코드를 사용하세요.
+--- 탭: 프로토콜 ---
+GET /v1/people:listDirectoryPeople?sources=DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE&readMask=names,emailAddresses HTTP/1.1
+Host: people.googleapis.com
+
+--- 탭: 자바 ---
+List<String> sources = new ArrayList<>();
+sources.add("DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT");
+sources.add("DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE");
+
+ListDirectoryPeopleResponse response = peopleService.people().listDirectoryPeople()
+    .setSources(sources)
+    .setReadMask("metadata,names,emailAddresses")
+    .execute();
+
+List<Person> people = response.getPeople();
+변경된 디렉터리 사용자를 나열합니다.
+--- 탭: 자바 ---
+// Initial request
+List<String> sources = new ArrayList<>();
+sources.add("DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT");
+sources.add("DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE");
+
+ListDirectoryPeopleResponse fullSyncResponse = peopleService.people().listDirectoryPeople()
+    .setSources(sources)
+    .setReadMask("metadata,names,emailAddresses")
+    .setRequestSyncToken(true)
+    .execute();
+// Fetch all the pages
+while (fullSyncResponse.getNextPageToken() != null) {
+  fullSyncResponse = peopleService.people().listDirectoryPeople()
+      .setSources(sources)
+      .setReadMask("metadata,names,emailAddresses")
+      .setRequestSyncToken(true)
+      .setPageToken(fullSyncResponse.getNextPageToken())
+      .execute();
+}
+
+// Some time passes
+
+// Fetch incremental changes using the sync token returned in the last fullSyncResponse.
+try {
+  ListDirectoryPeopleResponse incrementalSyncResponse = peopleService.people().listDirectoryPeople()
+      .setSources(sources)
+      .setReadMask("metadata,names,emailAddresses")
+      .setSyncToken(fullSyncResponse.getNextSyncToken())
+      .execute();
+  for (Person person : incrementalSyncResponse.getDirectoryPeople()) {
+    handlePerson(person);
+  }
+  
+  // Fetch all the pages
+  while (incrementalSyncResponse.getNextPageToken() != null) {
+    incrementalSyncResponse = peopleService.people().listDirectoryPeople
+        .setSources(sources)
+        .setReadMask("metadata,names,emailAddresses")
+        .setSyncToken(fullSyncResponse.getNextSyncToken())
+        .setPageToken(incrementalSyncResponse.getNextPageToken())
+        .execute();
+    for (Person person : incrementalSyncResponse.getDirectoryPeople()) {
+      handlePerson(person);
+    }
+  }
+} catch (GoogleJsonResponseException e) {
+  if (e.getStatusCode() == 410) {
+    // Sync token expired. Make full sync request.
+  }
+}
+
+void handlePerson(Person person) {
+  if (person.getMetadata().getDeleted()) {
+    // Handle deleted person
+  } else {
+    // Handle changed person
+  }
+}
+참고: 동기화 요청의 경우 쓰기에 몇 분의 전파 지연이 발생할 수 있습니다. 증분 동기화는 쓰기 후 읽기 사용 사례에 적합하지 않습니다.
+동기화 동작에 관한 자세한 내용은 ListDirectory [https://developers.google.com/people/api/rest/v1/people/listDirectoryPeople?hl=ko]를 참고하세요.
+디렉터리 사용자 검색
+사용자의 도메인 디렉터리에서 접두사 쿼리와 일치하는 연락처 및 프로필 목록을 가져오려면 [https://developers.google.com/people/api/rest/v1/people/searchDirectoryPeople?hl=ko] 다음 코드를 사용하세요.
+--- 탭: 프로토콜 ---
+POST /v1/people:searchDirectoryPeople?query=John&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE&readMask=names,emailAddresses HTTP/1.1
+Host: people.googleapis.com
+
+--- 탭: 자바 ---
+List sources = new ArrayList<>();
+sources.add("DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT");
+sources.add("DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE");
+
+SearchDirectoryPeopleResponse response = peopleService.people().searchDirectoryPeople()
+    .setQuery("John")
+    .setSources(sources)
+    .setReadMask("metadata,names,emailAddresses")
+    .execute();
+
+List<Person> people = response.getPeople();
