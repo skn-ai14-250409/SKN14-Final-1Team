@@ -1,0 +1,89 @@
+Source URL: https://firebase.google.com/docs/auth/ios/account-linking?hl=ko
+Title: Apple 플랫폼의 계정에 여러 인증 제공업체 연결
+
+의견 보내기
+
+Apple 플랫폼의 계정에 여러 인증 제공업체 연결
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+중요: 일부 프로젝트에서 linkWithCredentials()가 제대로 작동하지 않는 알려진 문제 [https://github.com/firebase/firebase-js-sdk/issues/7675]가 있습니다. 해결 방법과 수정 상태는 문제 보고서에서 확인하세요.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+사용자가 로그인할 때 어떤 인증 제공업체를 사용하든 동일한 Firebase 사용자 ID로 본인 확인이 가능합니다. 예를 들어 비밀번호로 로그인한 사용자가 Google 계정을 연결하면 나중에 비밀번호와 Google 계정 중 어느 방법으로든 로그인할 수 있습니다. 또는 익명 사용자가 Facebook 계정을 연결하면 나중에 Facebook으로 로그인해서 앱을 계속 사용할 수 있습니다.
+
+시작하기 전에
+
+앱에 2개 이상의 인증 제공업체(익명 인증 포함)에 대한 지원을 추가하세요.
+
+사용자 계정에 인증 제공업체의 사용자 인증 정보 연결하기
+
+다음과 같이 기존 사용자 계정에 인증 제공업체의 사용자 인증 정보를 연결합니다.
+
+인증 제공업체 또는 인증 방법을 사용해 사용자를 로그인 처리합니다.
+새로운 인증 제공업체의 로그인 과정을 진행하되 FIRAuth.signInWith [https://firebase.google.com/docs/reference/ios/firebaseauth/interface_f_i_r_auth?hl=ko] 메서드 호출 전까지만 진행합니다. 예를 들면 사용자의 Google ID 토큰, Facebook 액세스 토큰, 또는 이메일 주소와 비밀번호를 가져옵니다.
+
+다음과 같이 새로운 인증 제공업체의 FIRAuthCredential을 가져옵니다.
+
+Google 로그인
+
+Swift
+guard
+Objective-C
+FIRAuthCredential *credential =
+[FIRGoogleAuthProvider credentialWithIDToken:result.user.idToken.tokenString
+Facebook 로그인
+
+Swift
+Objective-C
+FIRAuthCredential *credential = [FIRFacebookAuthProvider
+Objective-C
+FIRAuthCredential *credential =
+[FIREmailAuthProvider credentialWithEmail:email
+user.link(with: credential) { authResult, error in
+Objective-C
+[[FIRAuth auth].currentUser linkWithCredential:credential
+completion:^(FIRAuthDataResult *result, NSError *_Nullable error) {
+displayNameString += " "
+withMessage: "Select factor to sign in\n\(displayNameString)",
+completionBlock: { userPressedOK, displayName in
+PhoneAuthProvider.provider()
+.verifyPhoneNumber(with: selectedHint!, uiDelegate: nil,
+multiFactorSession: resolver
+.session) { verificationID, error in
+if error != nil {
+print(
+"Multi factor start sign in failed. Error: \(error.debugDescription)"
+withMessage: "Verification code for \(selectedHint?.displayName ?? "")",
+completionBlock: { userPressedOK, verificationCode in
+"Multi factor finanlize sign in failed. Error: \(error.debugDescription)"
+return
+Objective-C
+FIRUser *prevUser = [FIRAuth auth].currentUser;
+[[FIRAuth auth] signInWithCredential:credential
+completion:^(FIRAuthDataResult * _Nullable authResult,
+NSError * _Nullable error) {
+if (isMFAEnabled && error && error.code == FIRAuthErrorCodeSecondFactorRequired) {
+FIRMultiFactorResolver *resolver = error.userInfo[FIRAuthErrorUserInfoMultiFactorResolverKey];
+NSMutableString *displayNameString = [NSMutableString string];
+for (FIRMultiFactorInfo *tmpFactorInfo in resolver.hints) {
+[displayNameString appendString:tmpFactorInfo.displayName];
+[displayNameString appendString:@" "];
+FIRPhoneMultiFactorInfo* selectedHint;
+for (FIRMultiFactorInfo *tmpFactorInfo in resolver.hints) {
+if ([displayName isEqualToString:tmpFactorInfo.displayName]) {
+selectedHint = (FIRPhoneMultiFactorInfo *)tmpFactorInfo;
+FIRPhoneAuthCredential *credential =
+[[FIRPhoneAuthProvider provider] credentialWithVerificationID:verificationID
+FIRMultiFactorAssertion *assertion = [FIRPhoneMultiFactorGenerator assertionWithCredential:credential];
+[resolver resolveSignInWithAssertion:assertion completion:^(FIRAuthDataResult * _Nullable authResult, NSError * _Nullable error) {
+if (error) {
+[self showMessagePrompt:error.localizedDescription];
+NSLog(@"Multi factor finanlize sign in succeeded.");
+FIRUser *user = authResult.user;
+Auth.auth().currentUser?.unlink(fromProvider: providerID!) { user, error in
+Objective-C
+[[FIRAuth auth].currentUser unlinkFromProvider:providerID
+completion:^(FIRUser *_Nullable user, NSError *_Nullable error) {

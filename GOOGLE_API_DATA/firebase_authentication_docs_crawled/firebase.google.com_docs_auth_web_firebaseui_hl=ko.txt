@@ -1,0 +1,124 @@
+Source URL: https://firebase.google.com/docs/auth/web/firebaseui?hl=ko
+Title: FirebaseUI로 손쉽게 웹 앱에 로그인 추가
+bookmark_border
+
+의견 보내기
+
+FirebaseUI로 손쉽게 웹 앱에 로그인 추가
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#before_you_begin]FirebaseUI 초기화 [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#initialize_firebaseui]로그인 방법 설정 [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#set_up_sign-in_methods]이메일 주소 및 비밀번호 [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#email_address_and_password]이메일 링크 인증 [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#email_link_authentication]OAuth 제공업체(Google, Facebook, Twitter, GitHub) [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#oauth_providers_google_facebook_twitter_and_github]전화번호 [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#phone_number]로그인 [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#sign_in]익명 사용자 업그레이드 [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#upgrading_anonymous_users]익명 사용자 업그레이드 사용 설정 [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#enabling_anonymous_user_upgrade]익명 사용자 업그레이드 병합 충돌 처리 [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#handling_anonymous_user_upgrade_merge_conflicts]다음 단계 [https://firebase.google.com/docs/auth/web/firebaseui?hl=ko#next_steps]
+
+FirebaseUI [https://github.com/firebase/firebaseui-web]는 Firebase 인증 SDK를 바탕으로 빌드된 라이브러리로, 앱에서 사용할 수 있는 삽입형 UI 흐름을 제공합니다. FirebaseUI의 이점은 다음과 같습니다.
+
+여러 제공업체: 이메일/비밀번호, 이메일 링크, 휴대전화 인증, Google, Facebook, Twitter, GitHub 로그인에 사용되는 로그인 흐름을 제공합니다.
+계정 연결: 여러 ID 공급업체에서 사용자 계정을 안전하게 연결하는 흐름을 제공합니다.
+맞춤설정 - 앱의 요구사항에 맞게 FirebaseUI의 CSS 스타일을
+재정의합니다. 또한 FirebaseUI는 오픈소스이므로 프로젝트를 포크하여 요구사항에 정확히 맞게 맞춤설정할 수 있습니다.
+원탭 가입 및 자동 로그인: 빠르게 교차 기기 로그인을 할 수 있도록 원탭 가입 [https://developers.google.com/identity/one-tap/web/?hl=ko]과 자동 통합됩니다.
+현지화된 UI: 40개 이상 언어 [https://github.com/firebase/firebaseui-web/blob/master/LANGUAGES.md]로 국제화됩니다.
+익명 사용자 업그레이드 - 로그인/가입을 통해 익명 사용자를 업그레이드할 수 있습니다. 자세한 내용은 익명 사용자 업그레이드 섹션 [https://github.com/firebase/firebaseui-web/blob/master/README.md#upgrading-anonymous-users]을 참조하세요.
+
+경고: FirebaseUI는 모듈식 API [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version]와 호환되지 않습니다.
+네임스페이스화된 API [https://firebase.google.com/docs/web/modular-upgrade?hl=ko#about_the_namespaced_compat_libraries](특히 app-compat 및 auth-compat 패키지)에서는 JavaScript SDK와 함께 FirebaseUI 사용을 허용하지만 앱 크기 감소 등 모듈식 API의 이점을 누릴 수 없습니다.
+시작하기 전에
+
+웹 애플리케이션에 Firebase 인증을 추가 [https://firebase.google.com/docs/web/setup?hl=ko]하고 v9 이상 네임스페이스화된 API(모듈식 API 아님, 위 사이드바 참고)를 사용해야 합니다.
+다음 방법 중 하나를 통해 FirebaseUI를 포함합니다.
+
+CDN
+
+Firebase Console에서 페이지의 <head> 태그의 초기화 스니펫 밑에
+다음 스크립트와 CSS 파일을 포함합니다.
+<script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.js"></script>
+<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.css" />
+
+npm 모듈
+
+다음 명령어를 사용하여 npm을 통해 FirebaseUI와 종속 항목을 설치합니다.
+$ npm install firebaseui --save
+
+소스 파일 내에서 다음 모듈을 require 처리합니다.
+
+다음 명령어를 사용하여 Bower를 통해 FirebaseUI와 종속 항목을 설치합니다.
+
+$ bower install firebaseui --save
+
+HTTP 서버가 bower_components/ 안의 파일을 제공하는 경우 필요한 파일을 HTML에 포함합니다.
+<script src="bower_components/firebaseui/dist/firebaseui.js"></script>
+<link type="text/css" rel="stylesheet" href="bower_components/firebaseui/dist/firebaseui.css" />
+
+FirebaseUI 초기화
+
+SDK를 가져온 후 인증 UI를 초기화합니다.
+FirebaseUI signInOptions 목록에 이메일 제공업체 ID를 추가합니다.
+
+ui.start('#firebaseui-auth-container', {
+signInOptions: [
+firebase.auth.EmailAuthProvider.PROVIDER_ID
+],
+FirebaseUI signInOptions 목록에 이메일 제공업체 ID와 이메일 링크 signInMethod를 추가합니다.
+
+ui.start('#firebaseui-auth-container', {
+signInOptions: [
+provider: firebase.auth.EmailAuthProvider.PROVIDER_ID,
+signInMethod: firebase.auth.EmailAuthProvider.EMAIL_LINK_SIGN_IN_METHOD
+OAuth 제공업체(Google, Facebook, Twitter, GitHub)
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 열고 지정된 OAuth 제공업체 로그인을 사용 설정합니다. 해당 OAuth 클라이언트 ID와 보안 비밀도 지정해야 합니다.
+인증 섹션에서 로그인 페이지를 렌더링할 도메인이 승인된 도메인 목록에 추가되었는지도 확인합니다.
+FirebaseUI signInOptions 목록에 OAuth 제공업체 ID를 추가합니다.
+
+ui.start('#firebaseui-auth-container', {
+signInOptions: [
+firebase.auth.FacebookAuthProvider.PROVIDER_ID,
+firebase.auth.TwitterAuthProvider.PROVIDER_ID,
+firebase.auth.GithubAuthProvider.PROVIDER_ID
+],
+firebase.auth.EmailAuthProvider.PROVIDER_ID // Other providers don't need to be given as object.
+]
+FirebaseUI signInOptions 목록에 전화번호 제공업체 ID를 추가합니다.
+
+ui.start('#firebaseui-auth-container', {
+signInOptions: [
+firebase.auth.PhoneAuthProvider.PROVIDER_ID
+],
+FirebaseUI 로그인 흐름을 시작하려면 기본 Auth 인스턴스를 전달하여 FirebaseUI 인스턴스를 초기화합니다.
+FirebaseUI 로그인 위젯을 렌더링할 HTML 요소를 정의합니다.
+<!-- The surrounding HTML is left untouched by FirebaseUI.
+Your app may use that space for branding, controls and other customizations.-->
+<h1>Welcome to My Awesome App</h1>
+<div id="firebaseui-auth-container"></div>
+<div id="loader">Loading...</div>
+
+지원되는 제공업체, UI 맞춤설정, 성공 콜백 등의 FirebaseUI 구성을
+지정합니다.
+firebase.auth.FacebookAuthProvider.PROVIDER_ID,
+firebase.auth.TwitterAuthProvider.PROVIDER_ID,
+firebase.auth.GithubAuthProvider.PROVIDER_ID,
+firebase.auth.EmailAuthProvider.PROVIDER_ID,
+firebase.auth.PhoneAuthProvider.PROVIDER_ID
+],
+
+익명 사용자 업그레이드
+
+익명 사용자 업그레이드 사용 설정
+
+익명 사용자가 영구 계정을 사용하여 로그인하거나 가입하는 경우 이 사용자가 가입 전에 수행했던 작업을 계속 수행할 수 있게 하려 합니다.
+이렇게 하려면 로그인 UI를 구성할 때 autoUpgradeAnonymousUsers를 true로 설정하면 됩니다. 이 옵션은 기본적으로 중지되어 있습니다.
+
+익명 사용자 업그레이드 병합 충돌 처리
+
+처음에 익명으로 로그인한 사용자가 기존 Firebase 사용자로 업그레이드하려는 경우가 있습니다. 기존 사용자는 다른 기존 사용자에 연결될 수 없으므로 위와 같은 경우 FirebaseUI가 firebaseui/anonymous-upgrade-merge-conflict 오류 코드와 함께 signInFailure 콜백을 트리거합니다.
+이 오류 객체는 영구 사용자 인증 정보도 포함합니다. 로그인을 완료하려면 영구 사용자 인증 정보를 사용한 로그인이 콜백에서 트리거되어야 합니다.
+auth.signInWithCredential(error.credential)을 통해 로그인을 완료하려면 먼저 익명 사용자의 데이터를 저장하고 익명 사용자를 삭제해야 합니다. 그런 다음 로그인이 완료되면 익명이 아닌 사용자에게 데이터를 다시 복사합니다. 아래 예는 이러한 흐름의 작동 방식을 보여줍니다.
+firebase.auth.FacebookAuthProvider.PROVIDER_ID,
+firebase.auth.EmailAuthProvider.PROVIDER_ID,
+firebase.auth.PhoneAuthProvider.PROVIDER_ID
+],
+callbacks: {

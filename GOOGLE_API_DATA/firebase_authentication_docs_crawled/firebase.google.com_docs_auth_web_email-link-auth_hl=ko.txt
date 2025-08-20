@@ -1,0 +1,103 @@
+Source URL: https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko
+Title: 자바스크립트에서 이메일 링크를 사용하여 Firebase에 인증하기
+
+의견 보내기
+
+자바스크립트에서 이메일 링크를 사용하여 Firebase에 인증하기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Firebase 인증을 사용하면 로그인 링크를 이메일로 전송해서 사용자가 바로 로그인하게 할 수 있습니다. 이 과정에서 사용자의
+이메일 주소도 확인됩니다.
+
+이메일로 로그인하는 경우 다음과 같은 많은 이점이 있습니다.
+
+편리한 가입 및 로그인
+여러 애플리케이션에서 비밀번호 재사용에 따른 위험이 적음(재사용하면 아무리 보안등급이 높은 비밀번호라 해도 보안이 취약해질 수 있음)
+사용자를 인증하는 동시에 사용자가 이메일 주소의 합법적인
+소유자인지 확인 가능
+액세스 가능한 이메일 계정만 있으면 로그인 가능 전화번호 또는
+소셜 미디어 계정 소유를 필요로 하지 않음
+사용자가 모바일 기기에서 번거롭게 비밀번호를 입력하거나
+기억할 필요 없이 안전하게 로그인 가능
+이전에 이메일 식별자(비밀번호 또는 제휴)로 로그인한 기존 사용자는 이메일만 사용하여 로그인하도록 업그레이드 가능. 일례로 사용자가
+비밀번호를 기억하지 못하더라도 비밀번호를 재설정하지 않고 계속
+로그인할 수 있습니다.
+
+시작하기 전에
+
+아직 복사하지 않았다면 JavaScript 프로젝트에 Firebase 추가 [https://firebase.google.com/docs/web/setup?hl=ko]의 설명대로 Firebase Console [https://console.firebase.google.com/?hl=ko]의 초기화 스니펫을 프로젝트에 복사합니다.
+
+Firebase 프로젝트에서 이메일 링크 로그인 사용 설정
+
+이메일 링크로 사용자를 로그인 처리하려면 우선 Firebase 프로젝트에서 이메일 제공업체 및 이메일 링크 로그인 방법을 사용 설정해야 합니다.
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다.
+로그인 방법 탭에서 이메일/비밀번호 제공업체를 사용 설정합니다. 이메일
+링크 로그인을 사용하려면 이메일/비밀번호 로그인이 사용 설정되어야 합니다.
+같은 섹션에서 이메일 링크(비밀번호가 없는 로그인) 로그인을
+사용 설정합니다.
+저장을 클릭합니다.
+
+사용자의 이메일 주소로 인증 링크 전송
+
+이 인증 과정을 시작하려면 사용자에게 이메일 주소를 제공하도록 요청하는 인터페이스를 제시하고 sendSignInLinkToEmail을 호출하여 Firebase가 사용자의 이메일에 인증 링크를 전송하도록 요청합니다.
+
+Firebase에 이메일 링크를 만드는 방법에 대한 지침을 제시하는 ActionCodeSettings 객체를 만듭니다. 다음 필드를 설정합니다.
+
+url: 삽입할 딥 링크 및 함께 전달할 추가 상태입니다.
+승인된 도메인의 Firebase Console 목록에 링크의 도메인을 추가해야 하며 로그인 방법 탭(인증 -> 설정)으로 이동하여 확인할 수 있습니다.
+
+중요: 2025년 4월 28일 이후에 생성된 프로젝트에서는 Firebase Authentication에 더 이상 기본적으로 localhost가 승인된 도메인으로 포함되지 않습니다. 프로덕션 프로젝트에서는 localhost를 사용하지 않는 것이 좋습니다. localhost를 승인하는 경우 설정 페이지의 승인된 도메인에서 도메인 추가를 클릭하여 수동으로 추가할 수 있습니다.
+
+android 및 ios: Firebase Authentication이 Android 또는 Apple 기기에서 열리는 웹 전용 링크 또는 모바일 링크를 만들어야 하는지 결정하는 데 도움이 됩니다.
+handleCodeInApp: true로 설정합니다. 다른 대역 외 이메일 작업(비밀번호 재설정 및 이메일 인증)과 달리 이 로그인 작업은 항상 앱에서 완료해야 합니다. 그 이유는 인증 과정 마지막에 사용자가 로그인하고 사용자의 인증 상태를 앱에서 유지해야 하기 때문입니다.
+linkDomain: 프로젝트에 대해 커스텀 Hosting 링크 도메인이 정의된 경우 지정된 모바일 앱에서 링크를 열 때 사용할 도메인을 지정합니다. 그러지 않으면 기본 도메인이 자동으로 선택됩니다(예: PROJECT_ID.firebaseapp.com).
+dynamicLinkDomain: 지원 중단되었습니다. 이 파라미터를 지정하지 마세요.
+
+Web
+import { getAuth, sendSignInLinkToEmail } from "firebase/auth";
+
+.then(() => {
+firebase.auth().sendSignInLinkToEmail(email, actionCodeSettings)
+.then(() => {
+Firebase 인증에서는 이메일 링크를 사용한 로그인 링크인지 간편하게 확인할 수 있도록 isSignInWithEmailLink API를 제공합니다.
+
+방문 페이지에서 로그인을 완료하려면 사용자의 이메일과 1회용 코드가 포함된
+실제 이메일 링크를 사용하여 signInWithEmailLink를 호출합니다.
+
+Web
+import { getAuth, isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
+
+.then((result) => {
+.then((result) => {
+Firebase Authentication에서는 Firebase Hosting을 사용하여 모바일 기기로 이메일 링크를 보냅니다. 모바일 애플리케이션을 통해 로그인을 완료하는 경우, 웹 과정에서처럼 애플리케이션에서 수신 애플리케이션 링크를 감지하고 기본 딥 링크를 파싱한 다음 로그인을 완료하도록 구성해야 합니다.
+
+Android 애플리케이션에서 이메일 링크를 사용한 로그인 처리 방법을 자세히 알아보려면 Android 가이드 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko]를 참조하세요.
+
+Apple 애플리케이션에서 이메일 링크를 사용한 로그인 처리 방법을 자세히 알아보려면 Apple 플랫폼 가이드 [https://firebase.google.com/docs/auth/ios/email-link-auth?hl=ko]를 참조하세요.
+
+이메일 링크를 사용하여 연결/재인증
+
+기존 사용자에게도 이 인증 방법을 연결할 수 있습니다. 예를 들어
+이전에 전화번호 등 다른 제공업체로 인증된 사용자의 경우
+기존 사용자 계정에 이 로그인 방법을 추가할 수 있습니다.
+
+이 경우 작업 뒷부분이 달라집니다.
+
+Web
+import { getAuth, linkWithCredential, EmailAuthProvider } from "firebase/auth";
+
+.then((usercred) => {
+
+.then((usercred) => {
+import { getAuth, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+
+.then((usercred) => {
+
+.then((usercred) => {
+import { getAuth, signOut } from "firebase/auth";
+
+firebase.auth().signOut().then(() => {

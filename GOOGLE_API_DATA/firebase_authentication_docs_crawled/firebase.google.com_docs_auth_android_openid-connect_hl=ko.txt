@@ -1,0 +1,117 @@
+Source URL: https://firebase.google.com/docs/auth/android/openid-connect?hl=ko
+Title: Android에서 OpenID Connect를 사용하여 인증
+bookmark_border
+
+의견 보내기
+
+Android에서 OpenID Connect를 사용하여 인증
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/android/openid-connect?hl=ko#before_you_begin]Firebase SDK로 로그인 과정 처리 [https://firebase.google.com/docs/auth/android/openid-connect?hl=ko#handle_the_sign-in_flow_with_the_firebase_sdk]수동으로 로그인 과정 처리 [https://firebase.google.com/docs/auth/android/openid-connect?hl=ko#manual]다음 단계 [https://firebase.google.com/docs/auth/android/openid-connect?hl=ko#next_steps]
+
+Firebase Authentication with Identity Platform으로 업그레이드한 경우 원하는 OpenID Connect(OIDC) 규정 준수 제공업체를 사용하여 Firebase에 사용자를 인증할 수 있습니다. 이렇게 하면 Firebase가 기본적으로 지원하지 않는 ID 제공업체를 사용할 수 있습니다.
+
+시작하기 전에
+
+OIDC 제공업체를 사용하여 사용자를 로그인하도록 하려면 우선 제공업체에서 일부 정보를 수집해야 합니다.
+
+클라이언트 ID: 앱을 식별하는 제공업체의 고유한 문자열입니다. 지원하는 플랫폼별로 다른 클라이언트 ID를 할당할 수 있습니다.
+이 값은 제공업체에서 발급한 ID 토큰의 aud 클레임 값 중 하나입니다.
+클라이언트 보안 비밀번호: 제공업체가 클라이언트 ID의 소유권을 확인하는 데 사용하는 보안 비밀 문자열입니다. 모든 클라이언트 ID에 대해 일치하는 클라이언트 보안 비밀번호가 필요합니다.
+이 값은 인증 코드 흐름을 사용하는 경우에만 필요하며 Google에서는 적극 권장합니다.
+발급기관: 제공업체를 식별하는 문자열입니다. 이 값은 /.well-known/openid-configuration이 추가될 때 제공업체의 OIDC 탐색 문서가 위치하는 URL이어야 합니다. 예를 들어 발급기관이 https://auth.example.com인 경우 탐색 문서를 https://auth.example.com/.well-known/openid-configuration에서 사용할 수 있어야 합니다.
+
+위 정보가 있으면 Firebase 프로젝트의 로그인 제공업체로 OpenID Connect를 사용 설정합니다.
+
+Android 프로젝트에 Firebase를 추가합니다 [https://firebase.google.com/docs/android/setup?hl=ko].
+Firebase Authentication with Identity Platform으로 업그레이드하지 않은 경우 업그레이드합니다. OpenID Connect 인증은 업그레이드된 프로젝트에서만 사용할 수 있습니다.
+Firebase Console의 로그인 제공업체 [https://console.firebase.google.com/project/_/authentication/providers?hl=ko] 페이지에서 새 제공업체 추가를 클릭한 다음 OpenID Connect를 클릭합니다.
+승인 코드 흐름을 사용할지 또는 암시적 권한 부여 흐름을 사용할지 선택합니다.
+
+제공업체가 지원하는 경우 항상 코드 흐름을 사용해야 합니다. 암시적 흐름은 보안 수준이 낮으므로 사용하지 않는 것이 좋습니다.
+이 제공업체에 이름을 지정합니다. 생성된 제공업체 ID를 기록해 둡니다(예: oidc.example-provider). 앱에 로그인 코드를 추가할 때 이 ID가 필요합니다.
+클라이언트 ID와 클라이언트 보안 비밀번호, 제공업체의 발급기관 문자열을 지정합니다.
+이 값은 제공업체에서 할당한 값과 정확하게 일치해야 합니다.
+변경사항을 저장합니다.
+
+Firebase SDK로 로그인 과정 처리
+
+Android 앱을 개발하는 경우 Firebase Android SDK로 전체 로그인 과정을 처리하면 가장 손쉽게 OIDC 제공업체를 통해 Firebase로 사용자를 인증할 수 있습니다.
+
+Firebase Android SDK로 로그인 과정을 처리하려면 다음 단계를 따릅니다.
+
+제공업체 ID를 사용하여 OAuthProvider로 OAuthProvider의 인스턴스를 생성합니다.
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/openid-connect?hl=ko#kotlin-android] ---
+val providerBuilder = OAuthProvider.newBuilder("oidc.example-provider")GenericIdpActivity.kt [https://github.com/firebase/snippets-android/blob/268a3858585da19107220dbad9ceb8a5fd23241a/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/GenericIdpActivity.kt#L101-L101]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/openid-connect?hl=ko#java-android] ---
+OAuthProvider.Builder providerBuilder = OAuthProvider.newBuilder("oidc.example-provider");GenericIdpActivity.java [https://github.com/firebase/snippets-android/blob/268a3858585da19107220dbad9ceb8a5fd23241a/auth/app/src/main/java/com/google/firebase/quickstart/auth/GenericIdpActivity.java#L125-L125]
+선택사항: OAuth 요청과 함께 전송하고자 하는 커스텀 OAuth 매개변수를 추가로 지정합니다.
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/openid-connect?hl=ko#kotlin-android] ---
+Firebase에서 요구하는 매개변수는 setCustomParameters()와 함께 전달할 수 없습니다. 이러한 매개변수에는 client_id, response_type, redirect_uri, state, scope, response_mode가 있습니다.
+선택사항: 인증 제공업체에서 요청하고자 하는 기본 프로필 범위를 넘는 OAuth 2.0 범위를 추가로 지정합니다.
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/openid-connect?hl=ko#kotlin-android] ---
+List<String> scopes =
+new ArrayList<String>() {
+add("mail.read");
+add("calendars.read");
+OAuth 제공업체 객체를 사용해 Firebase로 인증합니다. 다른 FirebaseAuth 작업과 달리 이 작업은 커스텀 Chrome 탭 [https://developer.chrome.com/multidevice/android/customtabs?hl=ko]을 팝업으로 표시하여 UI를 제어합니다.
+이로 인해 작업에서 UI를 시작할 때, 연결한 OnSuccessListener 및 OnFailureListener가 즉각 분리되므로 이들 리스너에서 활동을 참조하면 안 됩니다.
+
+우선 이미 응답을 수신했는지를 확인해야 합니다. 이 방법으로 로그인하면 활동이 백그라운드에서 진행되므로, 로그인 과정 중에 시스템에서 다시 확보할 수 있습니다. 이 경우 사용자가 다시 시도하지 않도록 하려면 결과가 이미 존재하는지 확인해야 합니다.
+
+대기 중인 결과가 있는지 확인하려면 다음과 같이 getPendingAuthResult를 호출합니다.
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/openid-connect?hl=ko#kotlin-android] ---
+val pendingResultTask = firebaseAuth.pendingAuthResult
+if (pendingResultTask != null) {
+Task<AuthResult> pendingResultTask = firebaseAuth.getPendingAuthResult();
+if (pendingResultTask != null) {
+.addOnSuccessListener(
+new OnSuccessListener<AuthResult>() {
+@Override
+public void onSuccess(AuthResult authResult) {
+.startActivityForSignInWithProvider(activity, provider.build())
+.startActivityForSignInWithProvider(/* activity= */ this, provider.build())
+.addOnSuccessListener(
+new OnSuccessListener<AuthResult>() {
+@Override
+public void onSuccess(AuthResult authResult) {
+firebaseUser
+.startActivityForLinkWithProvider(activity, provider.build())
+FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
+
+firebaseUser
+.startActivityForLinkWithProvider(/* activity= */ this, provider.build())
+.addOnSuccessListener(
+new OnSuccessListener<AuthResult>() {
+@Override
+public void onSuccess(AuthResult authResult) {
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/openid-connect?hl=ko#kotlin-android] ---
+firebaseUser
+.startActivityForReauthenticateWithProvider(activity, provider.build())
+FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
+
+firebaseUser
+.startActivityForReauthenticateWithProvider(/* activity= */ this, provider.build())
+.addOnSuccessListener(
+new OnSuccessListener<AuthResult>() {
+@Override
+public void onSuccess(AuthResult authResult) {
+val credential = oAuthCredential(providerId) {
+setIdToken(idToken) // ID token from OpenID Connect flow.
+Firebase.auth
+.signInWithCredential(credential)
+AuthCredential credential = OAuthProvider
+.newCredentialBuilder("oidc.example-provider")  // As registered in Firebase console.
+.setIdToken(idToken)  // ID token from OpenID Connect flow.
+.build();
+FirebaseAuth.getInstance()
+.signInWithCredential(credential)
+.addOnSuccessListener(new OnSuccessListener<AuthResult>() {
+@Override
+public void onSuccess(AuthResult authResult) {

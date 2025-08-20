@@ -1,0 +1,87 @@
+Source URL: https://firebase.google.com/docs/auth/unity/account-linking?hl=ko
+Title: Unity에서 계정에 여러 인증 제공업체 연결
+bookmark_border
+
+의견 보내기
+
+Unity에서 계정에 여러 인증 제공업체 연결
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/unity/account-linking?hl=ko#before-you-begin]사용자 계정에 인증 제공업체의 사용자 인증 정보 연결하기 [https://firebase.google.com/docs/auth/unity/account-linking?hl=ko#link-auth-provider-credentials-to-a-user-account]인증 제공업체와 사용자 계정의 연결 해제하기 [https://firebase.google.com/docs/auth/unity/account-linking?hl=ko#unlink-an-auth-provider-from-a-user-account]
+
+중요: 일부 프로젝트에서 linkWithCredentials()가 제대로 작동하지 않는 알려진 문제 [https://github.com/firebase/firebase-js-sdk/issues/7675]가 있습니다. 해결 방법과 수정 상태는 문제 보고서에서 확인하세요.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+사용자가 로그인할 때 어떤 인증 제공업체를 사용하든 동일한 Firebase 사용자 ID로 본인 확인이 가능합니다. 예를 들어 비밀번호로 로그인한 사용자가 Google 계정을 연결하면 나중에 비밀번호와 Google 계정 중 어느 방법으로든 로그인할 수 있습니다. 또는 익명 사용자가 Facebook 계정을 연결하면 나중에 Facebook으로 로그인해서 앱을 계속 사용할 수 있습니다.
+
+시작하기 전에
+
+앱에 두 가지 이상의 인증 제공업체(익명 인증 포함)에 대한 지원을 추가하세요.
+
+FirebaseAuth 클래스는 모든 API 호출을 위한 게이트웨이입니다.
+
+FirebaseAuth.DefaultInstance [https://firebase.google.com/docs/reference/unity/class/firebase/auth/firebase-auth?hl=ko#defaultinstance]를 통해 액세스할 수 있습니다.
+Firebase.Auth.FirebaseAuth auth = Firebase.Auth.FirebaseAuth.DefaultInstance;
+
+사용자 계정에 인증 제공업체의 사용자 인증 정보 연결하기
+
+다음과 같이 기존 사용자 계정에 인증 제공업체의 사용자 인증 정보를 연결합니다.
+
+인증 제공업체 또는 인증 방법을 사용해 사용자를 로그인 처리합니다.
+새로운 인증 제공업체의 로그인 과정을 진행하되 Firebase.Auth.FirebaseAuth.SignInAndRetrieveDataWithCredentialAsync [https://firebase.google.com/docs/reference/unity/class/firebase/auth/firebase-auth?hl=ko#signinandretrievedatawithcredentialasync] 메서드 호출 전까지만 진행합니다. 예를 들면 사용자의 Google ID 토큰, Facebook 액세스 토큰, 또는 이메일 주소와 비밀번호를 가져옵니다.
+
+다음과 같이 새로운 인증 제공업체의 Firebase.Auth.Credential을 가져옵니다.
+
+Google 로그인
+Firebase.Auth.Credential credential =
+Firebase.Auth.GoogleAuthProvider.GetCredential(googleIdToken, googleAccessToken);
+Facebook 로그이
+Firebase.Auth.Credential credential =
+Firebase.Auth.FacebookAuthProvider.GetCredential(accessToken);
+이메일-비밀번호 로그인
+Firebase.Auth.Credential credential =
+Firebase.Auth.EmailAuthProvider.GetCredential(email, password);
+
+다음과 같이 Firebase.Auth.Credential 객체를 로그인한 사용자의 LinkWithCredentialAsync 메서드에 전달합니다.
+
+auth.CurrentUser.LinkWithCredentialAsync(credential).ContinueWith(task => {
+if (task.IsCanceled) {
+Debug.LogError("LinkWithCredentialAsync was canceled.");
+return;
+Debug.LogError("LinkWithCredentialAsync encountered an error: " + task.Exception);
+return;
+Firebase.Auth.AuthResult result = task.Result;
+Debug.LogFormat("Credentials successfully linked to Firebase user: {0} ({1})",
+result.User.DisplayName, result.User.UserId);
+string currentEmail = auth.CurrentUser.Email;
+string currentDisplayName = auth.CurrentUser.DisplayName;
+System.Uri currentPhotoUrl = auth.CurrentUser.PhotoUrl;
+
+Debug.LogError("SignInAndRetrieveDataWithCredentialAsync was canceled.");
+return;
+Debug.LogError("SignInAndRetrieveDataWithCredentialAsync encountered an error: " + task.Exception);
+return;
+Firebase.Auth.AuthResult result = task.Result;
+Debug.LogFormat("User signed in successfully: {0} ({1})",
+result.User.DisplayName, result.User.UserId);
+
+LinkWithCredentialAsync 호출이 성공하면 사용자가 연결된 인증 제공업체를 사용해 동일한 Firebase 데이터에 액세스할 수 있습니다.
+
+인증 제공업체와 사용자 계정의 연결 해제하기
+
+특정 인증 제공업체와 계정의 연결을 해제할 수 있습니다. 그러면 사용자가 더 이상 해당 제공업체로 로그인할 수 없게 됩니다.
+
+인증 제공업체와 사용자 계정의 연결을 해제하려면 제공업체 ID를 UnlinkAsync 메서드에 전달합니다. ProviderData [https://firebase.google.com/docs/reference/unity/class/firebase/auth/firebase-user?hl=ko#providerdata]를 호출하면 사용자 계정에 연결된 인증 제공업체의 ID를 가져올 수 있습니다.
+
+Debug.LogError("UnlinkAsync was canceled.");
+return;
+Debug.LogError("UnlinkAsync encountered an error: " + task.Exception);
+return;
+Firebase.Auth.AuthResult result = task.Result;
+Debug.LogFormat("Credentials successfully unlinked from user: {0} ({1})",
+result.User.DisplayName, result.User.UserId);
