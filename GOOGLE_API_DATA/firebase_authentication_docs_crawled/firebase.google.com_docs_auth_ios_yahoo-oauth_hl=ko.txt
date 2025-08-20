@@ -1,0 +1,103 @@
+Source URL: https://firebase.google.com/docs/auth/ios/yahoo-oauth?hl=ko
+Title: Apple 플랫폼에서 Yahoo를 사용하여 인증
+
+의견 보내기
+
+Apple 플랫폼에서 Yahoo를 사용하여 인증
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Firebase SDK를 사용하면 엔드 투 엔드 로그인 과정을 실행하는 앱에 일반 OAuth 로그인을 통합할 수 있어 사용자가 Yahoo와 같은 OAuth 제공업체를 통해 Firebase로 인증할 수 있습니다.
+
+시작하기 전에
+
+사용자가 Yahoo 계정을 통해 로그인하도록 하려면 우선 Firebase 프로젝트에서 Yahoo를 로그인 제공업체로 사용 설정해야 합니다.
+
+Apple 프로젝트에 Firebase를 추가합니다 [https://firebase.google.com/docs/ios/setup?hl=ko].
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다.
+로그인 방법 탭에서 Yahoo 제공업체를 사용 설정합니다.
+해당 제공업체의 개발자 콘솔에서 제공되는 클라이언트 ID 및 클라이언트 보안 비밀번호를 제공업체 구성에 추가합니다.
+
+Yahoo OAuth 클라이언트를 등록하려면 Yahoo에 웹 애플리케이션을 등록하는 방법 [https://developer.yahoo.com/oauth2/guide/openid_connect/getting_started.html]에 대한 Yahoo 개발자 문서를 따릅니다.
+OpenID Connect API 권한 2개(profile 및 email)를 선택해야 합니다.
+이러한 제공업체에 앱을 등록할 때 프로젝트의 *.firebaseapp.com 도메인을 앱의 리디렉션 도메인으로 등록해야 합니다.
+
+저장을 클릭합니다.
+
+Firebase SDK로 로그인 과정 처리
+
+Firebase Apple 플랫폼 SDK로 로그인 과정을 처리하려면 다음 단계를 따르세요.
+
+다음과 같이 Xcode 프로젝트에 커스텀 URL 스킴을 추가합니다.
+왼쪽 트리 보기에서 프로젝트 이름을 더블클릭하여 프로젝트 구성을 엽니다. 대상 섹션에서 앱을 선택하고 정보 탭을 선택한 후 URL 유형 섹션을 펼칩니다.
+
++ 버튼을 클릭하고 인코딩된 앱 ID를 URL 스키마로 추가합니다. 인코딩된 앱 ID는 Firebase Console의 일반 설정 [https://console.firebase.google.com/project/_/settings/general/?hl=ko] 페이지에 있는 iOS 앱 섹션에서 찾을 수 있습니다. 다른 필드는 비워 둡니다.
+완성된 구성은 다음과 같은 형태이며 애플리케이션별 값이 적용됩니다.
+
+제공업체 ID OAuthProvider을 사용하여 OAuthProvider의 인스턴스를 만듭니다.
+
+Swift
+Objective-C
+FIROAuthProvider *provider = [FIROAuthProvider providerWithProviderID:@"yahoo.com"];
+
+선택사항: OAuth 요청과 함께 전송하고자 하는 맞춤 OAuth 매개변수를 추가로 지정합니다.
+
+Swift
+provider.customParameters = [
+"prompt": "login",
+"language": "fr"
+]
+
+Objective-C
+[provider setCustomParameters:@{@"prompt": @"login", @"language": @"fr"}];
+
+Yahoo가 지원하는 매개변수 정보는 Yahoo OAuth 문서 [https://developer.yahoo.com/oauth2/guide/openid_connect/getting_started.html]를 참조하세요.
+Firebase에서 요구하는 매개변수는 setCustomParameters와 함께 전달할 수 없습니다. 이러한 매개변수에는 client_id, redirect_uri, response_type, scope, state가 있습니다.
+선택사항: 인증 제공업체에서 요청하고자 하는 profile 및 email 범위를 넘는 OAuth 2.0 범위를 추가로 지정합니다. 애플리케이션에서 Yahoo API의 비공개 사용자 데이터에 대한 액세스가 필요한 경우 Yahoo 개발자 콘솔의 API 권한에서 Yahoo API에 대한 권한을 요청해야 합니다. 요청받은 OAuth 범위는 앱의 API 권한에서 사전 구성된 범위와 정확하게 일치해야 합니다. 예를 들어 사용자 연락처에 읽기/쓰기 액세스 권한이 요청되고 앱의 API 권한에서 사전 구성되었다면 읽기 전용 OAuth 범위 sdct-r 대신 sdct-w를 전달해야 합니다. 그렇지 않으면 과정이 실패하고 최종 사용자에게 오류가 표시됩니다.
+
+Swift
+
+Objective-C
+
+자세한 내용은 Yahoo 범위 문서 [https://developer.yahoo.com/oauth2/guide/yahoo_scopes/]를 참조하세요.
+선택사항: 사용자에게 reCAPTCHA를 제시할 때 앱에서 SFSafariViewController 또는 UIWebView를 표시하는 방식을 맞춤설정하려면 AuthUIDelegate 프로토콜을 준수하는 커스텀 클래스를 만들어 credentialWithUIDelegate에 전달합니다.
+OAuth 제공업체 객체를 사용해 Firebase에 인증합니다.
+
+Swift
+provider.getCredentialWith(nil) { credential, error in
+if error != nil {
+Objective-C
+[provider getCredentialWithUIDelegate:nil
+completion:^(FIRAuthCredential *_Nullable credential, NSError *_Nullable error) {
+if (error) {
+Auth().currentUser.link(withCredential: credential) { authResult, error in
+if error != nil {
+Objective-C
+[[FIRAuth auth].currentUser
+linkWithCredential:credential
+completion:^(FIRAuthDataResult * _Nullable authResult, NSError * _Nullable error) {
+if (error) {
+
+Swift
+Auth().currentUser.reauthenticateWithCredential(withCredential: credential) { authResult, error in
+if error != nil {
+Objective-C
+[[FIRAuth auth].currentUser
+reauthenticateWithCredential:credential
+completion:^(FIRAuthDataResult * _Nullable authResult, NSError * _Nullable error) {
+if (error) {
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 이메일 주소당 계정 1개를 사용 설정한 경우 다른 Firebase 사용자의 제공업체(예: Google)에 이미 존재하는 이메일을 사용하여 Yahoo와 같은 제공업체에 로그인을 시도하면 FIRAuthCredential 객체(Yahoo 사용자 인증 정보)와 함께 FIRAuthErrorCodeAccountExistsWithDifferentCredential 오류가 발생합니다. 사용자가 원하는 제공업체에 로그인하려면 먼저 기존 제공업체(예: Google)에 로그인한 다음 신규 제공업체의 FIRAuthCredential(Yahoo 사용자 인증 정보)에 연결해야 합니다. 그 방법은 아래와 같습니다.
+
+Swift
+Objective-C
+NSString *existingAcctEmail = error.userInfo[FIRAuthErrorUserInfoEmailKey];
+FIRAuthCredential *pendingCred = error.userInfo[FIRAuthErrorUserInfoUpdatedCredentialKey];
+Objective-C
+NSError *signOutError;
+BOOL status = [[FIRAuth auth] signOut:&signOutError];
+if (!status) {
+NSLog(@"Error signing out: %@", signOutError);
+return;

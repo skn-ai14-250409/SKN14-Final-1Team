@@ -1,0 +1,171 @@
+Source URL: https://firebase.google.com/docs/auth/ios/google-signin?hl=ko
+Title: Apple 플랫폼에서 Google 로그인을 사용하여 인증
+
+의견 보내기
+
+Apple 플랫폼에서 Google 로그인을 사용하여 인증
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Google 로그인을 앱에 통합하여 사용자가 Google 계정으로 Firebase
+인증을 받도록 설정할 수 있습니다.
+
+시작하기 전에
+
+Swift Package Manager를 사용해 Firebase 종속 항목을 설치하고 관리하세요.
+
+설치 가이드 [https://firebase.google.com/docs/ios/installation-methods?hl=ko]를 참조하여 직접 프레임워크 가져오기, CocoaPods 사용 등 Firebase SDK를 Apple 프로젝트에 추가하는 다양한 방법을 알아보세요.
+
+앱 프로젝트를 연 상태로 Xcode에서 File(파일) > Add Packages(패키지 추가)로 이동합니다.
+
+메시지가 표시되면 Firebase Apple 플랫폼 SDK 저장소를 추가합니다.
+
+https://github.com/firebase/firebase-ios-sdk.git
+
+참고: 새 프로젝트에서 기본(최신) SDK 버전을 사용해야 하지만, 필요하면 이전 버전을 선택할 수도 있습니다.
+
+Firebase Authentication 라이브러리를 선택합니다.
+
+타겟 빌드 설정의 Other Linker Flags(기타 링커 플래그) 섹션에 -ObjC 플래그를 추가합니다.
+
+완료되면 Xcode가 백그라운드에서 자동으로 종속 항목을 확인하고 다운로드하기 시작합니다.
+
+프로젝트에 Google 로그인 SDK 추가
+
+앱 프로젝트를 연 상태로 Xcode에서 File(파일) > Add Packages(패키지 추가)로 이동합니다.
+메시지가 표시되면 Google 로그인 SDK 저장소를 추가합니다.
+https://github.com/google/GoogleSignIn-iOS
+
+완료되면 Xcode가 백그라운드에서 자동으로 종속 항목을 확인하고 다운로드하기 시작합니다.
+
+Firebase 프로젝트에서 Google 로그인 사용 설정
+
+사용자가 Google 로그인을 사용하여 로그인할 수 있게 하려면 먼저 Firebase 프로젝트에서 Google 로그인 제공업체를 사용 설정해야 합니다.
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다.
+로그인 방법 탭에서 Google 제공업체를 사용 설정합니다.
+저장을 클릭합니다.
+프로젝트의 GoogleService-Info.plist 파일의 새 사본을 다운로드하여 Xcode 프로젝트에 복사합니다. 기존 버전을 새 버전으로 덮어씁니다. (iOS 프로젝트에 Firebase 추가 [https://firebase.google.com/docs/ios/setup?hl=ko#add-config-file]를 참조하세요.)
+
+필수 헤더 파일 가져오기
+
+먼저 Firebase SDK와 Google 로그인 SDK의 헤더 파일을 앱으로
+가져와야 합니다.
+
+Swift
+import FirebaseCore
+import FirebaseAuth
+import GoogleSignIn
+
+Objective-C
+@import FirebaseCore;
+@import GoogleSignIn;
+
+Google 로그인 구현
+
+다음 단계를 진행하여 Google 로그인을 구현합니다. iOS에서
+Google 로그인을 사용하는 방법은 Google 로그인 개발자 문서 [https://developers.google.com/identity/sign-in/ios?hl=ko]에서
+자세히 볼 수 있습니다.
+
+다음과 같이 Xcode 프로젝트에 커스텀 URL 스킴을 추가합니다.
+
+왼쪽 트리 보기에서 프로젝트 이름을 클릭하여 프로젝트 구성을 엽니다. 대상 섹션에서 앱을 선택하고 정보 탭을 선택한 후 URL 유형 섹션을 펼칩니다.
+
++ 버튼을 클릭하고 반전된 클라이언트 ID의 URL 스키마를 추가합니다. 이 값을 찾으려면 GoogleService-Info.plist 구성 파일을 열고 REVERSED_CLIENT_ID 키를 찾습니다. 이 키의 값을 복사하여 구성 페이지의 URL 스킴 상자에 붙여넣습니다.
+다른 필드는 그대로 둡니다.
+완성된 구성은 다음과 같은 형태이며 애플리케이션별 값이 적용됩니다.
+
+앱 대리자의 application:didFinishLaunchingWithOptions: 메서드에서 FirebaseApp 객체를 구성합니다.
+
+Swift
+FirebaseApp.configure()
+
+Objective-C
+
+앱 대리자의 application:openURL:options: 메서드를 구현합니다. 이 메서드는 GIDSignIn 인스턴스의 handleURL 메서드를 호출하여 인증 프로세스가 끝날 때 애플리케이션이 수신하는 URL을 적절히 처리합니다.
+
+Swift
+func application(_ app: UIApplication,
+open url: URL,
+options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+return GIDSignIn.sharedInstance.handle(url)
+Objective-C
+- (BOOL)application:(nonnull UIApplication *)application
+openURL:(nonnull NSURL *)url
+options:(nonnull NSDictionary<NSString *, id> *)options {
+return [[GIDSignIn sharedInstance] handleURL:url];
+guard let clientID = FirebaseApp.app()?.options.clientID else { return }
+
+GIDSignIn.sharedInstance.configuration = config
+
+Objective-C
+GIDConfiguration *config = [[GIDConfiguration alloc] initWithClientID:[FIRApp defaultApp].options.clientID];
+[GIDSignIn.sharedInstance setConfiguration:config];
+
+__weak __auto_type weakSelf = self;
+[GIDSignIn.sharedInstance signInWithPresentingViewController:self
+completion:^(GIDSignInResult * _Nullable result, NSError * _Nullable error) {
+__auto_type strongSelf = weakSelf;
+if (strongSelf == nil) { return; }
+
+if (error == nil) {
+FIRAuthCredential *credential =
+[FIRGoogleAuthProvider credentialWithIDToken:result.user.idToken.tokenString
+GIDSignInButton 뷰를 스토리보드에 추가하면 인터페이스 빌더에서 로그인 버튼이 렌더링되지 않습니다. 로그인 버튼을 보려면 앱을 실행합니다.
+
+선택: 버튼을 맞춤설정하려면 다음 절차를
+진행합니다.
+
+Swift
+
+뷰 컨트롤러에서 로그인 버튼을 속성으로 선언합니다.
+@IBOutlet weak var signInButton: GIDSignInButton!
+
+버튼을 방금 선언한 signInButton 속성에 연결합니다.
+GIDSignInButton [https://developers.google.com/identity/sign-in/ios/api/interface_g_i_d_sign_in_button?hl=ko#property-summary] 객체의 속성을 설정하여 버튼을 맞춤설정합니다.
+
+Objective-C
+
+뷰 컨트롤러의 헤더 파일에서 로그인 버튼을 속성으로 선언합니다.
+@property(weak, nonatomic) IBOutlet GIDSignInButton *signInButton;
+
+버튼을 방금 선언한 signInButton 속성에 연결합니다.
+GIDSignInButton [https://developers.google.com/identity/sign-in/ios/api/interface_g_i_d_sign_in_button?hl=ko#property-summary] 객체의 속성을 설정하여 버튼을 맞춤설정합니다.
+
+Firebase에 인증
+
+마지막으로 이전 단계에서 만든 인증 사용자 인증 정보를 사용하여 Firebase 로그인 프로세스를 완료합니다.
+
+Swift
+Auth.auth().signIn(with: credential) { result, error in
+
+Objective-C
+[[FIRAuth auth] signInWithCredential:credential
+completion:^(FIRAuthDataResult * _Nullable authResult,
+NSError * _Nullable error) {
+if (isMFAEnabled && error && error.code == FIRAuthErrorCodeSecondFactorRequired) {
+FIRMultiFactorResolver *resolver = error.userInfo[FIRAuthErrorUserInfoMultiFactorResolverKey];
+NSMutableString *displayNameString = [NSMutableString string];
+for (FIRMultiFactorInfo *tmpFactorInfo in resolver.hints) {
+[displayNameString appendString:tmpFactorInfo.displayName];
+[displayNameString appendString:@" "];
+FIRPhoneMultiFactorInfo* selectedHint;
+for (FIRMultiFactorInfo *tmpFactorInfo in resolver.hints) {
+if ([displayName isEqualToString:tmpFactorInfo.displayName]) {
+selectedHint = (FIRPhoneMultiFactorInfo *)tmpFactorInfo;
+FIRPhoneAuthCredential *credential =
+[[FIRPhoneAuthProvider provider] credentialWithVerificationID:verificationID
+FIRMultiFactorAssertion *assertion = [FIRPhoneMultiFactorGenerator assertionWithCredential:credential];
+[resolver resolveSignInWithAssertion:assertion completion:^(FIRAuthDataResult * _Nullable authResult, NSError * _Nullable error) {
+if (error) {
+[self showMessagePrompt:error.localizedDescription];
+NSLog(@"Multi factor finanlize sign in succeeded.");
+FIRUser *user = authResult.user;
+Objective-C
+NSError *signOutError;
+BOOL status = [[FIRAuth auth] signOut:&signOutError];
+if (!status) {
+NSLog(@"Error signing out: %@", signOutError);
+return;

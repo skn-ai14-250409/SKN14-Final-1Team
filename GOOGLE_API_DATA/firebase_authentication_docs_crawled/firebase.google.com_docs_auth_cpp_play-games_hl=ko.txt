@@ -1,0 +1,158 @@
+Source URL: https://firebase.google.com/docs/auth/cpp/play-games?hl=ko
+Title: C++로 Google Play 게임즈 서비스를 사용하여 인증하기
+
+의견 보내기
+
+C++로 Google Play 게임즈 서비스를 사용하여 인증하기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Firebase를 기반으로 C++로 개발된 Android 게임에서 플레이어가 Google Play 게임즈 서비스를 사용하여 로그인하도록 할 수 있습니다. Firebase에서 Google Play 게임즈 서비스 로그인을 사용하려면 우선 Google Play 게임즈에 플레이어를 로그인 처리하면서 OAuth 2.0 인증 코드를 요청합니다. 그런 다음 PlayGamesAuthProvider에 인증 코드를 전달하여 Firebase 사용자 인증 정보를 생성합니다. 이 인증 정보를 사용하여 Firebase에 인증할 수 있습니다.
+중요: Google Play 게임즈 서비스 로그인은 Android에서만 사용할 수 있습니다.
+시작하기 전에
+
+Firebase Authentication [https://firebase.google.com/docs/reference/unity/namespace/firebase/auth?hl=ko]을 사용하려면 먼저 다음 작업을 해야 합니다.
+
+C++ 프로젝트를 등록하고 Firebase를 사용하도록 구성합니다.
+
+C++ 프로젝트에서 현재 Firebase를 사용하고 있다면 이미 등록되어 Firebase용으로 구성된 상태입니다.
+C++ 프로젝트에 Firebase C++ SDK [https://firebase.google.com/download/cpp?hl=ko]를 추가합니다.
+
+초기 설정 작업에 관한 자세한 안내는 C++ 프로젝트에 Firebase 추가 [https://firebase.google.com/docs/cpp/setup?hl=ko#note-select-platform]를 참조하세요.
+
+C++ 프로젝트에 Firebase를 추가할 때 Firebase Console [https://console.firebase.google.com/?hl=ko] 및 열려 있는 C++ 프로젝트 모두에서 작업을 수행해야 합니다. 예를 들어 Console에서 Firebase 구성 파일을 다운로드한 후 이 파일을 C++ 프로젝트로 옮기는 작업이 필요합니다.
+
+Firebase 프로젝트 설정
+
+아직 설정하지 않았다면 Firebase Console의 설정 [https://console.firebase.google.com/project/_/settings/general/?hl=ko] 페이지에서 게임의 SHA-1 디지털 지문을 설정합니다.
+
+Gradle signingReport 명령어를 사용하여 서명 인증서의 SHA 해시를 가져올 수 있습니다.
+./gradlew signingReport
+Google Play Games를 로그인 제공업체로 사용 설정합니다.
+
+Firebase Console에서 Authentication 섹션 [https://console.firebase.google.com/project/_/authentication/providers?hl=ko]을 엽니다.
+프로젝트의 웹 서버 클라이언트 ID와 클라이언트 보안 비밀번호를 생성하고 가져옵니다.
+
+로그인 방법 탭에서 Google 로그인 제공업체를 사용 설정합니다.
+Google 로그인 제공업체의 웹 서버 클라이언트 ID와 보안 비밀번호를 복사합니다.
+
+로그인 방법 탭에서 Play Games 로그인 제공업체를 사용 설정하고 앞선 단계에서 얻은 프로젝트의 웹 서버 클라이언트 ID와 클라이언트 보안 비밀번호를 지정합니다.
+
+Firebase 앱 정보로 Play Games services 구성
+
+Google Play Console [https://play.google.com/console/developers?hl=ko]에서 Google Play 앱을 열거나 만듭니다.
+성장 섹션에서 Play Games services > 설정 및 관리 > 구성을 클릭합니다.
+예, 게임에서 이미 Google API를 사용하고 있습니다를 클릭하고 목록에서 Firebase 프로젝트를 선택한 후 사용을 클릭합니다.
+Play Games services 구성 페이지에서 사용자 인증 정보 추가를 클릭합니다.
+
+게임 서버 유형을 선택합니다.
+OAuth 클라이언트 입력란에서 프로젝트의 웹 클라이언트 ID를 선택합니다. 이 ID는 Play Games 로그인을 사용 설정할 때 지정한 클라이언트 ID와 일치해야 합니다.
+변경사항을 저장합니다.
+
+Play Games services 구성 페이지에서 다시 사용자 인증 정보 추가를 클릭합니다.
+
+Android 유형을 선택합니다.
+OAuth 클라이언트 입력란에서 프로젝트의 Android 클라이언트 ID를 선택합니다.
+(Android 클라이언트 ID가 표시되지 않는 경우 Firebase Console에서 게임의 SHA-1 디지털 지문을 설정해야 합니다.)
+변경사항을 저장합니다.
+
+테스터 페이지에서 Play Store에 게임을 출시하기 전에 게임에 로그인할 수 있어야 하는 사용자의 이메일 주소를 추가합니다.
+
+게임에 Play 게임즈 로그인 통합
+
+Google Play 게임즈 로그인을 통합해야 플레이어가 게임에 로그인할 수
+있습니다.
+
+Google 로그인 C++ SDK [https://github.com/googlesamples/google-signin-unity/tree/master/staging/native]를 사용하면 C++ Android 프로젝트에 Play 게임즈 로그인 지원을 간편하게 추가할 수 있으며 이 방법이 권장됩니다.
+
+Google 로그인 C++ SDK를 사용하여 게임에 Play 게임즈 로그인을 추가하려면 다음을
+진행합니다.
+
+C++ SDK도 포함된 Google 로그인 Unity 플러그인 저장소 [https://github.com/googlesamples/google-signin-unity]를 클론하거나 다운로드합니다.
+Android 스튜디오나 gradlew build를 사용하여 staging/native/ 디렉터리에 포함된 프로젝트를 빌드합니다.
+
+빌드가 google-signin-cpp라는 디렉터리에 출력을 복사합니다.
+게임의 네이티브 코드 작성 파일에 Google 로그인 C++ SDK를 포함합니다.
+
+CMake
+최상위 CMakeLists.txt 파일에서
+set(GSI_PACKAGE_DIR "/path/to/google-signin-cpp")
+add_library(lib-google-signin-cpp STATIC IMPORTED)
+set_target_properties(lib-google-signin-cpp PROPERTIES IMPORTED_LOCATION
+${GSI_PACKAGE_DIR}/lib/${ANDROID_ABI}/libgoogle-signin-cpp.a )
+...
+target_link_libraries(
+...
+lib-google-signin-cpp)
+
+ndk-build
+Android.mk 파일에서
+include $(CLEAR_VARS)
+LOCAL_MODULE := google-signin-cpp
+GSI_SDK_DIR := /path/to/google-signin-cpp
+LOCAL_SRC_FILES := $(GSI_SDK_DIR)/lib/$(TARGET_ARCH_ABI)/libgoogle-signin-cpp.a
+LOCAL_EXPORT_C_INCLUDES := $(GSI_SDK_DIR)/include
+include $(PREBUILT_STATIC_LIBRARY)
+
+다음으로 C++ SDK에 필요한 자바 도우미 구성요소를 포함합니다.
+
+이렇게 하려면 프로젝트 수준의 build.gradle 파일에 로컬 저장소로 SDK 빌드 출력 디렉터리를 추가합니다.
+allprojects {
+repositories {
+
+config.request_id_token = false;
+config.use_game_signin = true;
+config.request_auth_code = true;
+
+GoogleSignIn gsi = GoogleSignIn(GetActivity(), GetJavaVM());
+gsi.Configure(config);
+
+마지막으로 SignIn()을 호출하여 Play 게임즈에서 사용자를 로그인 처리합니다.
+Future<GoogleSignIn::SignInResult> &future = gsi.SignIn();
+
+SignIn()으로 반환된 Future가 확인되면 결과에서 서버 인증 코드를 가져올 수 있습니다.
+if (!future.Pending()) {
+if (status == GoogleSignIn::kStatusCodeSuccess) {
+Firebase 인증
+
+플레이어가 Play 게임즈에 로그인하면 인증 코드를 사용하여 Firebase에 인증할 수 있습니다.
+
+플레이어가 Play 게임즈로 로그인하면 플레이어 계정의 인증 코드를 가져옵니다.
+그런 다음 Play 게임즈 서비스의 인증 코드를 Firebase 사용자 인증 정보로 교환하고, Firebase 사용자 인증 정보를 사용하여 플레이어를 인증합니다.
+firebase::auth::Credential credential =
+
+프로그램에 정기적으로 실행되는 업데이트 루프(예: 초당 30회 또는 60회)가 있는 경우 다음과 같이 Auth::SignInAndRetrieveDataWithCredentialLastResult를 사용해 업데이트 시마다 한 번씩 결과를 확인할 수 있습니다.firebase::Future<firebase::auth::AuthResult> result =
+auth->SignInAndRetrieveDataWithCredentialLastResult();
+if (result.status() == firebase::kFutureStatusComplete) {
+if (result.error() == firebase::auth::kAuthErrorNone) {
+auth_result.user.display_name().c_str());
+Future에 콜백 등록하기
+
+일부 프로그램에는 초당 30회 또는 60회 호출되는 Update 함수가 있습니다.
+예를 들면 상당수의 게임들이 이 모델을 따릅니다. 이런 프로그램은 LastResult 함수를 호출하여 비동기 호출을 폴링할 수 있습니다.
+
+하지만 프로그램이 이벤트 기반일 경우 콜백 함수를 등록하는 것이 나을 수도 있습니다.
+콜백 함수는 Future 완료 시에 호출됩니다.
+
+void OnCreateCallback(const firebase::Future<firebase::auth::User*>& result,
+void* user_data) {
+
+MyProgramContext* program_context = static_cast<MyProgramContext*>(user_data);
+
+user->UpdateUserProfile(profile);
+
+[](const firebase::Future<firebase::auth::User*>& result,
+void* user_data) {
+MyProgramContext* program_context =
+static_cast<MyProgramContext*>(user_data);
+
+Firebase 실시간 데이터베이스와 Cloud Storage 보안 규칙의 auth 변수에서 로그인한 사용자의 고유 사용자 ID를 가져온 후 이 ID를 사용해 사용자가 액세스할 수 있는 데이터를 관리할 수 있습니다.
+
+사용자의 Play 게임즈 플레이어 정보를 가져오거나 Play 게임즈 서비스에 액세스하려면 Google Play 게임즈 서비스 C++ SDK [https://developers.google.com/games/services/cpp/GettingStartedNativeClient?hl=ko]에서 제공하는 API를 사용하세요.
+
+사용자를 로그아웃시키려면 SignOut()을 호출합니다.
+auth->SignOut();
+
+의견 보내기

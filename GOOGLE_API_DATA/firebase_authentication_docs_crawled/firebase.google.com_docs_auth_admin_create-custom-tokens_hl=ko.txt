@@ -1,0 +1,270 @@
+Source URL: https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko
+Title: 커스텀 토큰 만들기
+bookmark_border
+
+의견 보내기
+
+커스텀 토큰 만들기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#before_you_begin]서비스 계정 JSON 파일 사용 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#using_a_service_account_json_file]Admin SDK의 서비스 계정 탐색 허용 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#letting_the_admin_sdk_discover_a_service_account]서비스 계정 ID 사용 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#using_a_service_account_id]Firebase Admin SDK를 사용하여 커스텀 토큰 만들기 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#create_custom_tokens_using_the_firebase_admin_sdk]예약된 커스텀 토큰 이름 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#reserved_custom_token_names]클라이언트에서 커스텀 토큰으로 로그인 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#sign_in_using_custom_tokens_on_clients]서드 파티 JWT 라이브러리로 커스텀 토큰 만들기 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#create_custom_tokens_using_a_third-party_jwt_library]문제 해결 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#troubleshooting]IAM API가 사용 설정되지 않음 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#iam_api_not_enabled]서비스 계정에 필수 권한이 없음 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#service_account_does_not_have_required_permissions]서비스 계정 확인 실패 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#failed_to_determine_service_account]
+
+Firebase는 보안 JSON 웹 토큰(JWT)으로 사용자나 기기 인증이 가능해 전체 인증 과정을 철저히 제어할 수 있습니다. 토큰을 서버에서 생성하고 클라이언트 기기에 전달한 다음 signInWithCustomToken() 메서드에서 이 토큰을 사용하여 인증하면 됩니다.
+
+이를 위해서는 사용자 이름과 비밀번호 등 로그인 사용자 인증 정보를 수신하는 서버 엔드포인트를 만들어야 합니다. 서버 엔드포인트는 사용자 인증 정보가 올바르면 커스텀 JWT를 반환합니다. 클라이언트 기기는 서버에서 반환된 커스텀 JWT를 사용하여 Firebase(iOS+ [https://firebase.google.com/docs/auth/ios/custom-auth?hl=ko], Android [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko], 웹 [https://firebase.google.com/docs/auth/web/custom-auth?hl=ko])에 인증할 수 있습니다. 인증되면 이 ID는 Firebase Realtime Database, Cloud Storage 등의 다른 Firebase 서비스에 액세스하는 데 사용됩니다. Realtime Database Security Rules [https://firebase.google.com/docs/database/security?hl=ko]의 auth 객체 및 Cloud Storage Security Rules [https://firebase.google.com/docs/storage/security?hl=ko]의 request.auth 객체에서 JWT의 내용을 확인할 수 있습니다.
+
+Firebase Admin SDK로 커스텀 토큰을 만들거나, Firebase가
+지원하는 않는 언어로 서버가 작성된 경우에는 서드 파티 JWT 라이브러리를 사용할 수도 있습니다.
+
+시작하기 전에
+
+커스텀 토큰은 서명에 사용되는 비공개 키가 Google 서비스 계정에 속해 있는 서명된 JWT입니다. Firebase Admin SDK가 커스텀 토큰에 서명하는 데 특정 Google 서비스 계정을 사용하도록 지정하는 방법은 다음과 같습니다.
+
+서비스 계정 JSON 파일 사용 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#using_a_service_account_json_file] -- 이 방법은 어느 환경에서나 사용할 수 있지만 반드시 서비스 계정 JSON 파일을 코드와 함께 패키징해야 합니다. 서비스 계정 JSON 파일이 외부에 공개되지 않도록 각별히 주의해야 합니다.
+Admin SDK의 서비스 계정 탐색 허용 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#letting_the_admin_sdk_discover_a_service_account] -- 이 방법은 Google Cloud Functions 및 App Engine과 같은 Google에서 관리하는 환경에서 사용할 수 있습니다. Google Cloud 콘솔을 통해 일부 권한을 추가적으로 구성해야 할 수 있습니다.
+서비스 계정 ID 사용 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#using_a_service_account_id] -- 이 방법은 Google이 관리하는 환경에서 사용할 경우 지정된 서비스 계정의 키로 토큰에 서명하지만
+원격 웹 서비스를 사용하며, 사용자가 Google Cloud 콘솔을 통해 이 서비스 계정의 권한을 추가적으로 구성해야 할 수 있습니다.
+
+서비스 계정 JSON 파일 사용
+
+서비스 계정 JSON 파일에는 서비스 계정과 관련된 모든 정보가 포함되어 있으며(RSA 비공개 키 포함), Firebase 콘솔에서 다운로드할 수 있습니다. 서비스 계정 JSON 파일을 통해 Admin SDK를 초기화하는 방법은 Admin SDK 설정 안내 [https://firebase.google.com/docs/admin/setup?hl=ko#initialize-sdk]를 참조하세요.
+
+이 초기화 방법은 광범위한 Admin SDK 배포에 적합합니다. 또한, 이 방법을 사용하면 Admin SDK로 원격 API 호출 없이 로컬에서 커스텀 토큰을 만들고 서명할 수 있습니다. 이 접근법의 큰 단점은 서비스 계정 JSON 파일과 코드를 함께 패키징해야 한다는 점입니다. 또한, 서비스 계정 JSON 파일의 비공개 키는 민감한 정보이므로 기밀 유지를 위해 각별히 주의해야 합니다. 특히, 서비스 계정 JSON 파일을 공개 버전 제어에 추가하지 말아야 합니다.
+
+Admin SDK의 서비스 계정 탐색 허용
+
+코드가 Google에서 관리하는 환경에 배포되면 Admin SDK가 커스텀 토큰에 서명할 수단을 자동으로 탐색하려고 시도합니다.
+
+코드가 Java, Python 또는 Go용 App Engine 표준 환경에서 배포되는 경우 Admin SDK는 해당 환경에 있는 앱 ID 서비스 [https://cloud.google.com/appengine/docs/standard/java/appidentity/?hl=ko]를 사용하여 커스텀 토큰에 서명할 수 있습니다. 앱 ID 서비스는 Google App Engine을 통해 앱에 프로비저닝된 서비스 계정을 사용하여 데이터에 서명합니다.
+코드가 기타 관리형 환경에서 배포되는 경우(예: Google Cloud Functions, Google Compute Engine) Firebase Admin SDK가 로컬 메타데이터 서버 [https://cloud.google.com/compute/docs/storing-retrieving-metadata?hl=ko]에서 서비스 계정 ID 문자열을 자동으로 탐색할 수 있습니다.
+탐색된 서비스 계정 ID는 이후 IAM 서비스와 함께 원격으로 토큰을 서명하는 데 사용됩니다.
+
+이 서명 방식을 사용하려면 Google 애플리케이션 기본 사용자 인증 정보를 통해 SDK를 초기화하고, 서비스 계정 ID 문자열은 지정하지 마세요.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#node.js] ---
+```
+initializeApp();
+```
+
+--- 탭: Java [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#java] ---
+```
+FirebaseApp.initializeApp();
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#python] ---
+```
+default_app = firebase_admin.initialize_app()
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#go] ---
+```
+app, err := firebase.NewApp(context.Background(), nil)
+if err != nil {
+log.Fatalf("error initializing app: %v\n", err)
+FirebaseApp.Create();
+```
+로컬에서 동일한 코드를 테스트하려면 서비스 계정 JSON 파일을 다운로드하고 GOOGLE_APPLICATION_CREDENTIALS 환경 변수가 이 파일을 가리키도록 설정합니다.
+
+Firebase Admin SDK가 서비스 계정 ID 문자열을 탐색해야 하는 경우 코드가 처음으로 커스텀 토큰을 만들 때 이를 수행합니다.
+결과가 캐시되며 이후의 토큰 서명 작업에 다시 사용됩니다.
+보통 자동 탐색된 서비스 계정 ID는 Google Cloud에서 제공하는 기본 서비스 계정 중 하나입니다.
+
+기본 Compute Engine 서비스 계정 [https://cloud.google.com/compute/docs/access/service-accounts?hl=ko#google-managed_service_accounts]
+기본 Cloud Functions 서비스 계정 [https://cloud.google.com/functions/docs/concepts/iam?hl=ko#runtime_service_account]
+
+명시적으로 지정된 서비스 계정 ID와 마찬가지로 자동 탐색된 서비스 계정 ID에서 커스텀 토큰 만들기가 작동하려면 iam.serviceAccounts.signBlob 권한이 필요합니다. 기본 서비스 계정에 필수 권한을 부여하기 위해 Google Cloud 콘솔의 IAM 및 관리 [https://console.cloud.google.com/project/_/iam-admin?hl=ko] 섹션을 사용해야 할 수 있습니다. 자세한 내용은 아래의 문제 해결 섹션을 참조하세요.
+
+서비스 계정 ID 사용
+
+애플리케이션의 다양한 부분에서 일관성을 유지하기 위해 서비스 계정 ID를 지정할 수 있으며, Google이 관리하는 환경에서 실행할 때 이 ID의 키가 토큰 서명에 사용됩니다.
+이렇게 하면 IAM 정책을 보다 간단하고 안전하게 만들 수 있으며 코드에 서비스 계정 JSON 파일을 포함할 필요가 없습니다.
+
+서비스 계정 ID는 Google Cloud 콘솔 [https://console.cloud.google.com/iam-admin/serviceaccounts?consoleUI=FIREBASE&hl=ko] 또는 다운로드한 서비스 계정 JSON 파일의 client_email 필드에서 확인할 수 있습니다.
+서비스 계정 ID는 <client-id>@<project-id>.iam.gserviceaccount.com 형식의 이메일 주소이며 Firebase 및 Google Cloud 프로젝트에서 고유하게 서비스 계정을 식별합니다.
+
+별도의 서비스 계정 ID를 사용하여 커스텀 토큰을 만들려면 아래와 같이 SDK를 초기화합니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#node.js] ---
+```
+initializeApp({
+serviceAccountId: 'my-client-id@my-project-id.iam.gserviceaccount.com',
+FirebaseOptions options = FirebaseOptions.builder()
+.setCredentials(GoogleCredentials.getApplicationDefault())
+.setServiceAccountId("my-client-id@my-project-id.iam.gserviceaccount.com")
+.build();
+FirebaseApp.initializeApp(options);
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#python] ---
+```
+options = {
+'serviceAccountId': 'my-client-id@my-project-id.iam.gserviceaccount.com',
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#go] ---
+```
+conf := &firebase.Config{
+ServiceAccountID: "my-client-id@my-project-id.iam.gserviceaccount.com",
+FirebaseApp.Create(new AppOptions()
+Credential = GoogleCredential.GetApplicationDefault(),
+ServiceAccountId = "my-client-id@my-project-id.iam.gserviceaccount.com",
+Firebase Admin SDK를 사용하여 커스텀 토큰 만들기
+
+Firebase Admin SDK에는 커스텀 토큰을 만드는 메서드가 내장되어 있습니다. 가장 간단한 방법은 인증하는 사용자 또는 기기를 고유하게 식별하는 임의의 문자열인 uid를 제공하는 것입니다. 이러한 토큰은 1시간 후에
+만료됩니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#node.js] ---
+```
+.createCustomToken(uid)
+.then((customToken) => {
+String uid = "some-uid";
+
+String customToken = FirebaseAuth.getInstance().createCustomToken(uid);
+
+custom_token = auth.create_custom_token(uid)index.py [https://github.com/firebase/firebase-admin-python/blob/6555a84baaa27a4cfb0d76d2ce6c09c899573b3c/snippets/auth/index.py#L107-L109]
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#go] ---
+```
+client, err := app.Auth(context.Background())
+if err != nil {
+log.Fatalf("error getting Auth client: %v\n", err)
+.createCustomToken(userId, additionalClaims)
+.then((customToken) => {
+String uid = "some-uid";
+Map<String, Object> additionalClaims = new HashMap<String, Object>();
+additionalClaims.put("premiumAccount", true);
+
+String customToken = FirebaseAuth.getInstance()
+.createCustomToken(uid, additionalClaims);
+additional_claims = {
+'premiumAccount': True
+.CreateCustomTokenAsync(uid, additionalClaims);
+Firebase 토큰은 OpenID Connect JWT 사양을 준수하므로 다음과 같은 클레임은 예약되어 있으며 추가 클레임 내에 지정할 수 없습니다.
+| acr amr at_hash aud | auth_time azp cnf c_hash | exp iat iss jti | nbf nonce sub |
+| --- | --- | --- | --- |
+또한 Firebase에는 다음과 같은 클레임이 예약되어 있습니다.
+| firebase | user_id |
+| --- | --- |
+
+클라이언트에서 커스텀 토큰으로 로그인
+
+커스텀 토큰을 만들었으면 클라이언트 앱으로 보내야 합니다. 클라이언트 앱은 다음과 같이 signInWithCustomToken()을 호출하여 커스텀 토큰으로 인증을 진행합니다.
+--- 탭: iOS+ [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko#ios+] ---
+Objective-C
+[[FIRAuth auth] signInWithCustomToken:customToken
+completion:^(FIRAuthDataResult * _Nullable authResult,
+NSError * _Nullable error) {
+Auth.auth().signIn(withCustomToken: customToken ?? "") { user, error in
+.addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+if (task.isSuccessful()) {
+Log.d(TAG, "signInWithCustomToken:success");
+FirebaseUser user = mAuth.getCurrentUser();
+updateUI(user);
+Log.w(TAG, "signInWithCustomToken:failure", task.getException());
+Toast.makeText(CustomAuthActivity.this, "Authentication failed.",
+Toast.LENGTH_SHORT).show();
+updateUI(null);
+Debug.LogError("SignInWithCustomTokenAsync was canceled.");
+return;
+Debug.LogError("SignInWithCustomTokenAsync encountered an error: " + task.Exception);
+return;
+Firebase.Auth.AuthResult result = task.Result;
+Debug.LogFormat("User signed in successfully: {0} ({1})",
+result.User.DisplayName, result.User.UserId);
+```
+
+--- 탭: tabpanel-web-namespaced-api ---
+```
+firebase.auth().signInWithCustomToken(token)
+.then((userCredential) => {
+
+.then((userCredential) => {
+
+$private_key = "-----BEGIN PRIVATE KEY-----...";
+
+function create_custom_token($uid, $is_premium_account) {
+global $service_account_email, $private_key;
+
+$now_seconds = time();
+$payload = array(
+"iss" => $service_account_email,
+"sub" => $service_account_email,
+"aud" => "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit",
+"iat" => $now_seconds,
+"exp" => $now_seconds+(60*60),  // Maximum expiration time is one hour
+"uid" => $uid,
+"claims" => array(
+"premium_account" => $is_premium_account
+return JWT::encode($payload, $private_key, "RS256");
+
+# Get your service account's email address and private key from the JSON key file
+$service_account_email = "service-account@my-project-abc123.iam.gserviceaccount.com"
+$private_key = OpenSSL::PKey::RSA.new "-----BEGIN PRIVATE KEY-----\n..."
+
+def create_custom_token(uid, is_premium_account)
+now_seconds = Time.now.to_i
+payload = {:iss => $service_account_email,
+:sub => $service_account_email,
+:aud => "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit",
+:iat => now_seconds,
+:exp => now_seconds+(60*60), # Maximum expiration time is one hour
+:uid => uid,
+:claims => {:premium_account => is_premium_account}}
+JWT.encode payload, $private_key, "RS256"
+end
+```
+커스텀 토큰을 생성한 후에는 이 토큰을 Firebase 인증에 사용할 수 있도록 클라이언트 앱으로 전송합니다. 방법은 위 코드 샘플을 참조하세요.
+
+문제 해결
+
+이 섹션에서는 개발자가 커스텀 토큰을 만들 때 발생할 수 있는 일반적인 문제와 이에 대한 해결 방법을 간략하게 다룹니다.
+
+IAM API가 사용 설정되지 않음
+
+토큰 서명을 위해 서비스 계정 ID를 지정하는 경우 다음과 유사한 오류가 발생할 수 있습니다.
+
+Identity and Access Management (IAM) API has not been used in project
+1234567890 before or it is disabled. Enable it by visiting
+https://console.developers.google.com/apis/api/iam.googleapis.com/overview?project=1234567890
+then retry. If you enabled this API recently, wait a few minutes for the action
+to propagate to our systems and retry.
+
+Firebase Admin SDK가 IAM API [https://cloud.google.com/iam/reference/rest/v1/projects.serviceAccounts/signBlob?hl=ko]를 사용하여 토큰에 서명합니다. 이 오류는 IAM API가 현재 Firebase 프로젝트에 대해 사용 설정되지 않았음을 나타냅니다. 웹브라우저의 오류 메시지에서 링크를 열고 'API 사용 설정' 버튼을 클릭하여 프로젝트에 대해 사용 설정합니다.
+
+서비스 계정에 필수 권한이 없음
+
+Firebase Admin SDK를 실행하는 서비스 계정에 iam.serviceAccounts.signBlob 권한이 없는 경우 다음과 같은 오류 메시지가 표시될 수 있습니다.
+
+Permission iam.serviceAccounts.signBlob is required to perform this operation
+on service account projects/-/serviceAccounts/{your-service-account-id}.
+
+이 문제를 해결하는 가장 간단한 방법은 '서비스 계정 토큰 생성자' IAM 역할을 문제의 서비스 계정(대개 {project-name}@appspot.gserviceaccount.com)에 부여하는 것입니다.
+
+Google Cloud 콘솔에서 IAM 및 관리 [https://console.cloud.google.com/project/_/iam-admin?hl=ko] 페이지를 엽니다.
+프로젝트를 선택하고 '계속'을 클릭합니다.
+업데이트할 서비스 계정에 해당하는 수정 아이콘을 클릭합니다.
+'다른 역할 추가'를 클릭합니다.
+검색 필터에 '서비스 계정 토큰 생성자'를 입력하고 결과에서 이를 선택합니다.
+'저장'을 클릭하여 역할 부여를 확인합니다.
+
+이 프로세스에 대한 자세한 내용을 보거나 gcloud 명령줄 도구를 사용하여 역할을 업데이트하는 방법을 보려면 IAM 문서 [https://cloud.google.com/iam/docs/granting-roles-to-service-accounts?hl=ko]를 참조하세요.
+
+서비스 계정 확인 실패
+
+다음과 유사한 오류 메시지가 발생할 경우 Firebase Admin SDK가 올바르게 초기화되지 않은 것입니다.
+
+Failed to determine service account ID. Initialize the SDK with service account
+credentials or specify a service account ID with iam.serviceAccounts.signBlob
+permission.
+
+SDK를 통해 서비스 계정 ID를 자동 탐색하는 경우 코드가 메타데이터 서버를 통해 관리형 Google 환경에 배포되는지 확인하세요.
+그렇지 않은 경우 SDK 초기화 시 서비스 계정 JSON 파일 또는 서비스 계정 ID를 지정하세요.
+
+도움이 되었나요?
+
+의견 보내기
