@@ -1,4 +1,4 @@
-# 🚀 SK네트웍스 Family AI 과정 14기 - Final Project
+# 🚀 SK네트웍스 Family AI 과정 14기 1팀 - Final Project
 
 ## **❇️ 프로젝트명**  
 LLM 활용 내부 고객 업무 효율성 향상을 위한 구글 API 전문 개발자 지원 AI 기반 문서 검색 시스템  
