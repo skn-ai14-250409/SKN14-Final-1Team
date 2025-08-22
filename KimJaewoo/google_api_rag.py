@@ -53,72 +53,10 @@ class GoogleAPIRAGSystem:
         self.current_model: Literal["gpt4o", "qwen"] = "qwen"
 
     def load_api_documents(self) -> List[Document]:
-        """구글 API 문서들을 로드하고 Document 객체로 변환"""
+        """구글 API 원문 문서들을 로드하고 Document 객체로 변환"""
         documents = []
 
-        # 1. GOOGLE_API_DATA_QA 폴더에서 QA 형식 데이터 로드
-        if self.api_qa_dir.exists():
-            print(f"📂 QA 데이터 로드 중: {self.api_qa_dir}")
-
-            # JSON 파일 로드
-            for file_path in self.api_qa_dir.glob("*.json"):
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        qa_data = json.load(f)
-
-                    # QA 쌍을 문서로 변환
-                    if isinstance(qa_data, list):
-                        for item in qa_data:
-                            doc = Document(
-                                page_content=f"질문: {item.get('question', '')}\n답변: {item.get('answer', '')}",
-                                metadata={
-                                    'type': 'qa',
-                                    'question': item.get('question', ''),
-                                    'answer': item.get('answer', ''),
-                                    'api_category': self._extract_api_category_from_content(item.get('question', '')),
-                                    'source_file': file_path.name
-                                }
-                            )
-                            documents.append(doc)
-
-                except Exception as e:
-                    print(f"⚠️ Error loading {file_path}: {e}")
-
-            # TXT 파일 로드
-            for file_path in self.api_qa_dir.glob("*.txt"):
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-
-                    # Q&A 형식 파싱 시도
-                    if "Q:" in content or "질문:" in content:
-                        qa_pairs = self._parse_qa_format(content)
-                        for q, a in qa_pairs:
-                            doc = Document(
-                                page_content=f"질문: {q}\n답변: {a}",
-                                metadata={
-                                    'type': 'qa',
-                                    'question': q,
-                                    'answer': a,
-                                    'source_file': file_path.name
-                                }
-                            )
-                            documents.append(doc)
-                    else:
-                        # 일반 텍스트로 처리
-                        doc = Document(
-                            page_content=content,
-                            metadata={
-                                'type': 'text',
-                                'source_file': file_path.name
-                            }
-                        )
-                        documents.append(doc)
-
-                except Exception as e:
-                    print(f"⚠️ Error loading {file_path}: {e}")
-
-        # 2. GOOGLE_API_DATA 폴더에서 원본 API 문서 로드
+        # GOOGLE_API_DATA 폴더에서 원본 API 문서만 로드
         if self.api_data_dir.exists():
             print(f"📂 원본 API 데이터 로드 중: {self.api_data_dir}")
 
@@ -153,36 +91,47 @@ class GoogleAPIRAGSystem:
                     except Exception as e:
                         print(f"⚠️ Error loading {file_path}: {e}")
 
-        # 샘플 데이터 추가 (실제 데이터가 없을 경우)
+            # JSON 파일들도 로드 (원본 API 데이터인 경우)
+            for file_path in self.api_data_dir.glob("*.json"):
+                if file_path.parent == self.api_data_dir:  # 하위 폴더 제외
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            json_data = json.load(f)
+
+                        # JSON 데이터를 텍스트로 변환
+                        content = json.dumps(json_data, ensure_ascii=False, indent=2)
+
+                        # 텍스트 청킹
+                        text_splitter = RecursiveCharacterTextSplitter(
+                            chunk_size=1500,
+                            chunk_overlap=300,
+                            separators=["\n\n", "\n", "}", ","]
+                        )
+
+                        chunks = text_splitter.split_text(content)
+
+                        for i, chunk in enumerate(chunks):
+                            doc = Document(
+                                page_content=chunk,
+                                metadata={
+                                    'type': 'api_doc',
+                                    'source_file': file_path.name,
+                                    'chunk_id': i,
+                                    'api_category': self._extract_api_category(file_path.name)
+                                }
+                            )
+                            documents.append(doc)
+
+                    except Exception as e:
+                        print(f"⚠️ Error loading {file_path}: {e}")
+
+        # 샘플 원문 데이터 추가 (실제 데이터가 없을 경우)
         if not documents:
-            documents = self._create_sample_documents()
+            documents = self._create_sample_api_documents()
 
         self.documents = documents
-        print(f"✅ 총 {len(documents)}개의 문서를 로드했습니다.")
+        print(f"✅ 총 {len(documents)}개의 원문 문서를 로드했습니다.")
         return documents
-
-    def _parse_qa_format(self, content: str) -> List[Tuple[str, str]]:
-        """Q&A 형식의 텍스트를 파싱"""
-        qa_pairs = []
-
-        # 다양한 Q&A 패턴 처리
-        import re
-
-        # 패턴 1: Q: ... A: ...
-        pattern1 = r'Q[:\.]?\s*(.*?)\s*A[:\.]?\s*(.*?)(?=Q[:\.]?|\Z)'
-        matches1 = re.findall(pattern1, content, re.DOTALL)
-
-        # 패턴 2: 질문: ... 답변: ...
-        pattern2 = r'질문[:\.]?\s*(.*?)\s*답변[:\.]?\s*(.*?)(?=질문[:\.]?|\Z)'
-        matches2 = re.findall(pattern2, content, re.DOTALL)
-
-        qa_pairs.extend(matches1)
-        qa_pairs.extend(matches2)
-
-        # 정리
-        qa_pairs = [(q.strip(), a.strip()) for q, a in qa_pairs if q.strip() and a.strip()]
-
-        return qa_pairs
 
     def _extract_api_category(self, filename: str) -> str:
         """파일명에서 API 카테고리 추출"""
@@ -228,87 +177,82 @@ class GoogleAPIRAGSystem:
 
         return 'general'
 
-    def _create_sample_documents(self) -> List[Document]:
-        """샘플 구글 API QA 데이터 생성"""
-        sample_qa_data = [
-            {
-                "question": "Gmail API로 이메일을 보내려면 어떻게 해야 하나요?",
-                "answer": """Gmail API로 이메일을 보내려면 다음 단계를 따르세요:
+    def _create_sample_api_documents(self) -> List[Document]:
+        """샘플 구글 API 원문 데이터 생성"""
+        sample_api_data = [
+            """Gmail API Reference
 
-1. OAuth 2.0 인증 설정 (gmail.send 스코프 필요)
-2. MIME 메시지 생성
-3. base64url 인코딩
-4. messages.send() 메서드 호출
+messages.send
+Sends the specified message to the recipients in the To, Cc, and Bcc headers.
 
-예제 코드:
-```python
-from googleapiclient.discovery import build
-from email.mime.text import MIMEText
-import base64
+HTTP request:
+POST https://gmail.googleapis.com/gmail/v1/users/{userId}/messages/send
 
-# 메시지 생성
-message = MIMEText('안녕하세요!')
-message['to'] = 'recipient@example.com'
-message['subject'] = '테스트 이메일'
+Parameters:
+- userId: The user's email address. The special value 'me' can be used.
 
-# base64 인코딩
-raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+Request body:
+The request body contains an instance of Message.
 
-# 전송
-service.users().messages().send(userId='me', body={'raw': raw}).execute()
-```"""
-            },
-            {
-                "question": "Google Drive에서 특정 파일 타입만 검색하는 방법은?",
-                "answer": """Drive API의 files.list() 메서드에서 q 파라미터를 사용하세요:
+Required OAuth scope:
+https://www.googleapis.com/auth/gmail.send
 
-1. PDF 파일만: q="mimeType='application/pdf'"
-2. 이미지 파일: q="mimeType contains 'image/'"
-3. 특정 폴더 내: q="'FOLDER_ID' in parents"
-4. 이름 포함: q="name contains 'report'"
+Example:
+service.users().messages().send(userId='me', body=message).execute()""",
 
-예제:
-```python
-results = service.files().list(
-    q="mimeType='application/pdf' and name contains '2024'",
-    pageSize=10,
-    fields="files(id, name, mimeType)"
-).execute()
-```"""
-            },
-            {
-                "question": "Calendar API로 반복 이벤트를 만들려면?",
-                "answer": """반복 이벤트는 recurrence 필드를 사용해요:
+            """Google Drive API Reference
 
-```python
-event = {
-    'summary': '주간 회의',
-    'start': {'dateTime': '2024-01-15T10:00:00', 'timeZone': 'Asia/Seoul'},
-    'end': {'dateTime': '2024-01-15T11:00:00', 'timeZone': 'Asia/Seoul'},
-    'recurrence': [
-        'RRULE:FREQ=WEEKLY;COUNT=10'  # 10주간 매주 반복
-    ]
+files.list
+Lists or searches files.
+
+HTTP request:
+GET https://www.googleapis.com/drive/v3/files
+
+Query parameters:
+- q: A query for filtering the file results
+- pageSize: The maximum number of files to return
+- fields: The paths of the fields you want included in the response
+
+Common search queries:
+- mimeType='application/pdf' : PDF files only
+- 'folder_id' in parents : Files in specific folder
+- name contains 'report' : Files with 'report' in name
+
+Example:
+service.files().list(q="mimeType='application/pdf'", pageSize=10).execute()""",
+
+            """Google Calendar API Reference
+
+events.insert
+Creates an event.
+
+HTTP request:
+POST https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events
+
+Parameters:
+- calendarId: Calendar identifier. To retrieve calendar IDs use calendarList.list()
+
+Request body:
+{
+  "summary": "Event title",
+  "start": {"dateTime": "2024-01-15T10:00:00", "timeZone": "Asia/Seoul"},
+  "end": {"dateTime": "2024-01-15T11:00:00", "timeZone": "Asia/Seoul"},
+  "recurrence": ["RRULE:FREQ=WEEKLY;COUNT=10"]
 }
 
-service.events().insert(calendarId='primary', body=event).execute()
-```
-
-RRULE 예시:
-- 매일: FREQ=DAILY
-- 매주 월,수,금: FREQ=WEEKLY;BYDAY=MO,WE,FR
-- 매월 15일: FREQ=MONTHLY;BYMONTHDAY=15"""
-            }
+Example:
+service.events().insert(calendarId='primary', body=event).execute()"""
         ]
 
         documents = []
-        for item in sample_qa_data:
+        for i, content in enumerate(sample_api_data):
             doc = Document(
-                page_content=f"질문: {item['question']}\n답변: {item['answer']}",
+                page_content=content,
                 metadata={
-                    'type': 'qa',
-                    'question': item['question'],
-                    'answer': item['answer'],
-                    'api_category': self._extract_api_category_from_content(item['question'])
+                    'type': 'api_doc',
+                    'source_file': f'sample_api_{i}.txt',
+                    'chunk_id': 0,
+                    'api_category': self._extract_api_category_from_content(content)
                 }
             )
             documents.append(doc)
@@ -345,7 +289,6 @@ RRULE 예시:
             search_kwargs={"k": 5, "score_threshold": 0.3}
         )
         print(f"✅ 벡터 저장소 준비 완료 ({self.db_dir})")
-
 
     def initialize_models(self, use_gpt4o: bool = False, openai_api_key: Optional[str] = None):
         """LLM 모델 초기화"""
@@ -404,16 +347,11 @@ RRULE 예시:
         formatted = []
 
         for i, doc in enumerate(docs, 1):
-            if doc.metadata.get('type') == 'qa':
-                # QA 형식 문서
-                formatted.append(f"[참고 {i}]\n{doc.page_content}")
-            else:
-                # 일반 문서
-                content = f"[참고 {i}]\n"
-                content += f"내용: {doc.page_content[:500]}..."  # 길이 제한
-                if 'api_category' in doc.metadata:
-                    content += f"\n카테고리: {doc.metadata['api_category']}"
-                formatted.append(content)
+            content = f"[참고 {i}]\n"
+            content += f"내용: {doc.page_content}"
+            if 'api_category' in doc.metadata:
+                content += f"\n카테고리: {doc.metadata['api_category']}"
+            formatted.append(content)
 
         return "\n\n---\n\n".join(formatted)
 
@@ -542,7 +480,7 @@ Answer in Korean:"""
         print("=" * 60)
 
         # 1. 문서 로드
-        print("\n📚 [1/3] API 문서 로드 중...")
+        print("\n📚 [1/3] API 원문 문서 로드 중...")
         self.load_api_documents()
 
         # 2. 벡터 저장소 초기화
@@ -570,14 +508,9 @@ Answer in Korean:"""
 
             print("\n📚 검색된 관련 문서:")
             for i, (doc, score) in enumerate(zip(docs[:3], scores[:3]), 1):  # 상위 3개만 표시
-                doc_type = doc.metadata.get('type', 'unknown')
-                if doc_type == 'qa':
-                    print(f"\n  [{i}] QA 문서 (유사도: {score:.4f})")
-                    print(f"      질문: {doc.metadata.get('question', 'N/A')[:50]}...")
-                else:
-                    category = doc.metadata.get('api_category', 'general')
-                    print(f"\n  [{i}] API 문서 - {category} (유사도: {score:.4f})")
-                    print(f"      내용: {doc.page_content[:80]}...")
+                category = doc.metadata.get('api_category', 'general')
+                print(f"\n  [{i}] API 문서 - {category} (유사도: {score:.4f})")
+                print(f"      내용: {doc.page_content[:80]}...")
 
             print("\n" + "-" * 60)
             print("💡 답변:")
