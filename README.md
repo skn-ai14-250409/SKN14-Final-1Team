@@ -161,6 +161,32 @@ LLM 활용 내부 고객 업무 효율성 향상을 위한 구글 API 전문 사
     - **수집 데이터 양**: 직급별로 10개씩 총 50개 문서 (txt 형식)
 
 
+---
+
+## 🔀 ERD
+> 아래 **ERD (Entity-Relationship Diagram)**는 **사용자 관리**, **채팅 세션**, **카드 관리**, **메시지 기록** 등을 포함한 주요 테이블 구조를 보여줍니다. 각 테이블은 다음과 같이 연결됩니다:
+
+![img.png](image/img.png)
+
+
+- **User**: 시스템의 사용자 정보를 관리하며, **API Key**, **Card**, **Chat Session**, **Approval Log**와 연결됩니다.
+  - **user_id**를 기준으로 여러 엔티티와 관계를 형성합니다.
+  
+- **API Key**: 사용자의 **API 키** 정보를 저장합니다.
+  - **user_id**를 통해 **User**와 연결됩니다.
+
+- **Card**: 사용자 카드 정보를 저장하며, **Card Message**와 연결되어 카드 내 메시지를 관리합니다.
+  - **user_id**와 **session_id**를 통해 사용자 및 세션과 연결됩니다.
+
+- **Chat Session**: 각 사용자별로 생성되는 **채팅 세션**을 저장하며, **Chat Message**와 연결됩니다.
+  - **user_id**와 **session_id**로 **User**와 **Card** 테이블과 연관됩니다.
+
+- **Chat Message**: **채팅 메시지**를 저장하며, **Chat Session**과 연결됩니다.
+
+- **Card Message**: 각 카드 내에서 발생하는 메시지 정보를 관리하며, **Card**와 연결됩니다.
+
+- **Approval Log**: 시스템 내 **승인 로그**를 기록하며, **User**와 연결됩니다.
+
 
 ---
 
