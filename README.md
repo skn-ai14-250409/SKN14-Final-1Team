@@ -166,7 +166,7 @@ LLM 활용 내부 고객 업무 효율성 향상을 위한 구글 API 전문 사
 ## 🔀 ERD
 > 아래 **ERD (Entity-Relationship Diagram)**는 **사용자 관리**, **채팅 세션**, **카드 관리**, **메시지 기록** 등을 포함한 주요 테이블 구조를 보여줍니다. 각 테이블은 다음과 같이 연결됩니다:
 
-![img.png](image/img.png)
+![img.png](image/erd.png)
 
 
 - **User**: 시스템의 사용자 정보를 관리하며, **API Key**, **Card**, **Chat Session**, **Approval Log**와 연결됩니다.
