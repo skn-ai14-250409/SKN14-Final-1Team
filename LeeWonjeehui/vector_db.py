@@ -49,10 +49,8 @@ with open(JSONL_PATH, "r", encoding="utf-8") as f:
         a = obj.get("answer", "")
         _id = obj.get("id") or str(uuid.uuid4())
 
-        # ⚠️ 여기서 metadata 값들을 전부 to_meta_value로 변환
+        # ⚠️ 메타데이터에서는 Q/A를 제외
         raw_meta = {
-            "question": q,
-            "answer": a,
             "sources": obj.get("sources"),          # 리스트여도 OK (문자열로 직렬화됨)
             "tags": obj.get("tags"),                # 리스트/문자열 어느 쪽이든 OK
             "last_verified": obj.get("last_verified"),
@@ -60,6 +58,7 @@ with open(JSONL_PATH, "r", encoding="utf-8") as f:
         }
         meta = {k: to_meta_value(v) for k, v in raw_meta.items()}
 
+        # 문서는 그대로 Q/A를 포함해 저장
         docs.append(f"Q: {q}\nA: {a}")
         ids.append(_id)
         metadatas.append(meta)
@@ -83,9 +82,8 @@ for i, (doc, meta, _id, dist) in enumerate(zip(
     similarity = max(0.0, min(1.0, 1 - dist))
     sim_pct = round(similarity * 100, 1)
     print(f"\n[{i}] id={_id}  similarity={sim_pct}%  (distance={dist:.4f})")
-    print(doc)
-    print("-> Q:", meta.get("question"))
-    print("-> A:", meta.get("answer"))
+    print(doc)  # 문서에 포함된 Q/A를 그대로 출력
+    # 메타데이터에는 Q/A가 없으므로 관련 출력 제거
     print("-> sources:", meta.get("sources"))   # 직렬화된 문자열
     print("-> tags:", meta.get("tags"))
     print("-> last_verified:", meta.get("last_verified"))
