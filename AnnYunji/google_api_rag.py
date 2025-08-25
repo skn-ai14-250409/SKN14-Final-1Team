@@ -52,7 +52,7 @@ class GoogleAPIRAGSystem:
             chunk_size=900,            # 토큰 기준
             chunk_overlap=120,         # 토큰 기준
             length_function=token_len, # 토큰 단위 길이 함수
-            separators=["\n\n--- 탭: ", "\n\n", "\n", ".\n", ".", " ", ""] # 큰 구조 → 문단 → 문장 → 단어
+            separators=["\n\n", "\n", ". ", " "]  # 현실적인 구분자
         )
 
         MAX_TOKENS = 8192  # bge-m3 입력 한도
@@ -74,8 +74,9 @@ class GoogleAPIRAGSystem:
                 chunks = text_splitter.split_text(cleaned_content)
 
                 for i, chunk in enumerate(chunks):
+                    # ✅ 토큰 길이 초과 방지
                     if token_len(chunk) > MAX_TOKENS:
-                        print(f"청크가 {token_len(chunk)} 토큰으로 너무 큽니다. 잘라냅니다...")
+                        print(f"⚠️ 청크가 {token_len(chunk)} 토큰으로 너무 큽니다. 잘라냅니다...")
                         sub_chunks = text_splitter.split_text(chunk)
                         for j, sub in enumerate(sub_chunks):
                             if token_len(sub) <= MAX_TOKENS:
@@ -110,6 +111,7 @@ class GoogleAPIRAGSystem:
         return documents
 
     def initialize_vectorstore(self):
+        """벡터 저장소 초기화 및 문서 임베딩"""
         print("임베딩 모델 초기화 중... (BAAI/bge-m3)")
         self.embedding_model = HuggingFaceEmbeddings(
             # model_name="BAAI/bge-m3",
