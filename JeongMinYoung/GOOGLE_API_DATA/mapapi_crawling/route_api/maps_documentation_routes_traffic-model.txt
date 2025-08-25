@@ -1,0 +1,56 @@
+Source URL: https://developers.google.com/maps/documentation/routes/traffic-model?hl=ko
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Web Services [https://developers.google.com/maps/web-services?hl=ko]
+Routes API [https://developers.google.com/maps/documentation/routes?hl=ko]
+의견 보내기
+사용할 트래픽 모델 유형 지정
+유럽 경제 지역 (EEA) 개발자
+이 제품 또는 기능은 실험용(GA 이전) 버전입니다. GA 이전 제품과 기능에 대한 지원이 제한될 수 있으며 GA 이전 제품과 기능의 변경사항이 다른 GA 이전 버전과 호환되지 않을 수 있습니다. GA 이전 버전 제품 또는 서비스에는 Google Maps Platform 서비스별 약관 [https://cloud.google.com/maps-platform/terms/maps-service-terms?hl=ko]이 적용됩니다. 자세한 내용은 출시 단계 설명 [https://developers.google.com/maps/launch-stages?hl=ko]을 참고하세요.
+교통 모델은 특정 알고리즘과 요인을 사용하여 교통 상황이 특정 경로의 총 이동 시간에 미치는 영향을 예측합니다. Routes API는 트래픽에서 시간을 계산하는 데 사용되는 다양한 요소를 우선시하기 위해 다양한 트래픽 모델 유형을 제공합니다. 경로 또는 경로 매트릭스의 시간을 계산할 때 경로에서 사용할 교통 모델 유형을 지정할 수 있습니다. 트래픽 모델 유형을 설정하면 duration 필드에 반환되는 값이 선택한 트래픽 모델에 따라 달라집니다.
+Routes API Compute Routes 및 Compute Route Matrix 메서드는 모두 교통 모델 유형을 지원합니다.
+기본적으로 두 메서드 모두 BEST_GUESS 트래픽 모델 유형을 사용합니다.
+트래픽 유형을 지정하려면 다음 단계를 따르세요.
+출발지와 목적지를 설정합니다.
+출발 시간이 미래인 경우 departure_time 매개변수를 사용하여 시간을 포함합니다. 출발 시간을 지정하지 않으면 현재 시간이 기본값으로 설정됩니다.
+routingPreference 매개변수를 TRAFFIC_AWARE_OPTIMAL로 설정합니다. routingPreference을 TRAFFIC_UNAWARE 또는 TRAFFIC_AWARE로 설정하는 것은 trafficModel 매개변수와 호환되지 않습니다.
+trafficModel 매개변수 및 다음 유형 중 하나와 함께 사용할 트래픽 모델을 선택합니다.
+BEST_GUESS (기본값): 이전 교통상황과 실시간 교통정보에 대해 알려진 정보를 기준으로 할 때 반환된 duration_in_traffic이 최적의 예상 이동 시간임을 요청합니다. departure_time이 현재에 가까울수록 실시간 교통정보가 더 중요합니다. 기본 유형의 BEST_GUESS를 사용하면 대부분의 사용 사례에 가장 유용한 예측을 얻을 수 있습니다.
+PESSIMISTIC을 사용하여 반환된 duration_in_traffic이 교통상황이 나쁜 날의 이전 교통상황을 기반으로 시간을 모델링하도록 요청합니다. 이 유형은 대부분의 날에 실제 이동 시간보다 긴 예상 시간을 제공합니다. 특히 조건이 나쁜 날은 이 추정치를 초과할 수도 있습니다.
+OPTIMISTIC를 사용하여 반환된 duration_in_traffic이 교통 상황이 좋은 날의 이전 교통 상황을 기반으로 시간을 모델링하도록 요청합니다. 이 유형은 대부분의 날에 실제 이동 시간보다 짧을 가능성이 가장 높은 예상 시간을 제공합니다. 특히 조건이 좋은 날은 이 추정치보다 빠를 수도 있습니다.
+예를 들면 다음과 같습니다.
+"trafficModel": "OPTIMISTIC"
+참고: BEST_GUESS에서 실시간 교통 정보를 통합하는 방식에 따라 BEST_GUESS 이동 시간 예측이 OPTIMISTIC보다 짧거나 PESSIMISTIC보다 길 수 있습니다.
+필드 마스크에서 routes.duration 필드를 지정합니다.
+REST
+-H X-Goog-FieldMask: routes.duration
+RPC
+const (fieldMask = "routes.duration")
+Routes API는 교통 상황을 고려하여 시간을 추정할 때 요청한 교통 모델 유형을 사용합니다.
+예: 트래픽 모델 요청
+예를 들어 이 요청은 특정 출발 시간에 OPTIMISTIC 교통 모델 유형을 사용하여 기간을 추정하도록 지정합니다.
+curl -X POST -H 'content-type: application/json' -d ' {
+"origin": {
+  "address": "Kyoto, Japan"
+  },
+"destination": {
+  "placeId": "ChIJrYtcv-urAWAR3XzWvXv8n_s"
+  },
+"travelMode": "DRIVE",
+"routingPreference": "TRAFFIC_AWARE_OPTIMAL",
+"trafficModel": "OPTIMISTIC"
+}' \
+-H 'Content-Type: application/json' \
+-H 'X-Goog-Api-Key: YOUR_API_KEY' \
+-H 'X-Goog-FieldMask: routes.duration' \
+'https://routes.googleapis.com/directions/v2:computeRoutes'
+이 요청은 이동에 OPTIMISTIC 교통 모델 유형을 사용하여 예상 기간을 반환합니다.
+"duration": "1238s"
+트래픽 모델 유형을 PESSIMISTIC로 변경하면 반환되는 기간이 더 길어집니다.
+"duration": "2436s"
+참고: departureTime을 지정하지 않으면 암시된 출발은 요청 시간입니다. 따라서 요청이 전송되는 시점에 따라 다른 값을 받을 수 있습니다.
+의견 보내기

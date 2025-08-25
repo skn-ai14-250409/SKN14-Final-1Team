@@ -1,0 +1,132 @@
+Source URL: https://firebase.google.com/docs/auth/web/microsoft-oauth?hl=ko
+Title: JavaScript에서 Microsoft를 통해 인증
+
+의견 보내기
+
+JavaScript에서 Microsoft를 통해 인증
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Firebase SDK를 통해 전체 로그인 과정을 수행하는 앱에 일반 OAuth 로그인을 통합하여 사용자가 Microsoft Azure Active Directory와 같은 OAuth 제공업체를 통해 Firebase로 인증하도록 할 수 있습니다.
+
+시작하기 전에
+
+사용자가 Microsoft 계정(Azure Active Directory 및 개인 Microsoft 계정)을 통해 로그인하도록 하려면 우선 Firebase 프로젝트에서 Microsoft를 로그인 제공업체로 사용 설정해야 합니다.
+
+JavaScript 프로젝트에 Firebase를 추가합니다 [https://firebase.google.com/docs/web/setup?hl=ko].
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다.
+로그인 방법 탭에서 Microsoft 제공업체를 사용 설정합니다.
+해당 제공업체의 개발자 콘솔에서 제공되는 클라이언트 ID 및 클라이언트 보안 비밀번호를 제공업체 구성에 추가합니다.
+
+Microsoft OAuth 클라이언트를 등록하려면 빠른 시작: Azure Active Directory v2.0 엔드포인트를 사용하여 앱 등록 [https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-v2-register-an-app]의 안내를 따릅니다.
+이 엔드포인트는 Microsoft 개인 계정과 Azure Active Directory 계정을 사용하는 로그인을 지원합니다.
+Azure Active Directory v2.0 자세히 알아보기 [https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-overview]
+이러한 제공업체에 앱을 등록할 때 프로젝트의 *.firebaseapp.com 도메인을 앱의 리디렉션 도메인으로 등록해야 합니다.
+
+저장을 클릭합니다.
+
+Firebase SDK로 로그인 과정 처리
+
+웹 앱을 빌드하는 경우 Firebase JavaScript SDK로 전체 로그인 과정을 처리하면 가장 손쉽게 Microsoft 계정을 통해 Firebase로 사용자를 인증할 수 있습니다.
+
+Firebase JavaScript SDK로 로그인 과정을 처리하려면 다음 단계를 따르세요.
+
+제공업체 ID OAuthProvider을 사용하여 OAuthProvider의 인스턴스를 생성합니다.
+
+Web
+import { OAuthProvider } from "firebase/auth";
+
+provider.setCustomParameters({
+provider.setCustomParameters({
+Firebase에서 요구하는 매개변수는 setCustomParameters()와 함께 전달할 수 없습니다. 이러한 매개변수에는 client_id, response_type, redirect_uri, state, scope, response_mode가 있습니다.
+
+특정 Azure AD 테넌트의 사용자만 애플리케이션에 로그인하도록 허용하려면 Azure AD 테넌트의 도메인 이름 또는 테넌트의 GUID 식별자를 사용하면 됩니다. 이렇게 하려면 커스텀 매개변수 객체의 '테넌트' 필드를 지정합니다.
+
+Web
+provider.setCustomParameters({
+provider.setCustomParameters({
+provider.addScope('calendars.read');
+
+자세한 내용은 Microsoft 권한 및 동의 문서 [https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-permissions-and-consent]를 참조하세요.
+OAuth 제공업체 객체를 사용해 Firebase로 인증합니다. 팝업 창을 띄우거나 로그인 페이지로 리디렉션하여 사용자가 Microsoft 계정으로 로그인하도록 유도할 수 있습니다. 휴대기기의 경우 리디렉션을 사용할 것을 권장합니다.
+
+팝업 창을 사용해 로그인하려면 다음과 같이 signInWithPopup을 호출합니다.
+
+Web
+import { getAuth, signInWithPopup, OAuthProvider } from "firebase/auth";
+
+.then((result) => {
+firebase.auth().signInWithPopup(provider)
+.then((result) => {
+import { getAuth, signInWithRedirect } from "firebase/auth";
+
+firebase.auth().signInWithRedirect(provider);microsoft-oauth.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/microsoft-oauth.js#L61-L61]
+
+사용자가 로그인을 완료하고 페이지로 돌아간 후에 getRedirectResult를 호출하여 로그인 결과를 가져올 수 있습니다.
+
+Web
+import { getAuth, getRedirectResult, OAuthProvider } from "firebase/auth";
+
+.then((result) => {
+firebase.auth().getRedirectResult()
+.then((result) => {
+Azure AD 테넌트를 사용하여 로그인할 때는 oid 클레임이 정확히 일치합니다.
+하지만 테넌트 외의 케이스에서는 oid 필드가 패딩됩니다. 제휴 ID 4b2eabcdefghijkl의 경우 oid에 00000000-0000-0000-4b2e-abcdefghijkl 양식이 사용됩니다.
+위의 예시는 로그인 과정에 중점을 두고 있지만 linkWithPopup/linkWithRedirect를 사용하여 Microsoft 제공업체를 기존 사용자에 연결할 수도 있습니다. 예를 들어 여러 제공업체를 동일한 사용자에 연결하여 그 중 하나로 로그인하도록 허용할 수 있습니다.
+
+Web
+import { getAuth, linkWithPopup, OAuthProvider } from "firebase/auth";
+
+.then((result) => {
+.then((result) => {
+import { getAuth, reauthenticateWithPopup, OAuthProvider } from "firebase/auth";
+
+.then((result) => {
+.then((result) => {
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 이메일 주소당 계정 1개를 사용 설정한 경우 다른 Firebase 사용자의 제공업체(예: Google)에 이미 존재하는 이메일을 사용하여 Microsoft와 같은 제공업체에 로그인을 시도하면 AuthCredential 객체(Microsoft 사용자 인증 정보)와 함께 auth/account-exists-with-different-credential 오류가 발생합니다. 사용자가 원하는 제공업체에 로그인하려면 먼저 기존 제공업체(예: Google)에 로그인한 다음 신규 제공업체의 AuthCredential(Microsoft 사용자 인증 정보)에 연결해야 합니다.
+
+팝업 모드
+
+signInWithPopup을 사용하는 경우 다음 예시와 같은 코드를 사용해 auth/account-exists-with-different-credential 오류를 처리할 수 있습니다.
+
+import {
+getAuth,
+linkWithCredential,
+signInWithPopup,
+OAuthProvider,
+Chrome 확장 프로그램에서 Firebase로 인증
+
+Chrome 확장 프로그램 앱을 빌드하는 경우에는 오프스크린 문서 가이드 [https://firebase.google.com/docs/auth/web/chrome-extension?hl=ko#use_offscreen_documents]를 참조하세요.
+
+Microsoft 로그인을 위한 리디렉션 도메인 맞춤설정
+
+프로젝트를 만들 때 Firebase에서는 프로젝트의 고유한 하위 도메인(https://my-app-12345.firebaseapp.com)을 프로비저닝합니다.
+
+이 도메인은 OAuth 로그인을 위한 리디렉션 메커니즘으로도 사용됩니다. 이 도메인은 지원되는 모든 OAuth 제공업체에 대해 허용되어야 합니다. 하지만 이로 인해 사용자는 애플리케이션으로 다시 리디렉션되기 전에 Microsoft에 로그인하는 과정에서 이 도메인을 볼 수 있습니다(예: 다음으로 이동: https://my-app-12345.firebaseapp.com).
+
+하위 도메인이 표시되지 않게 하려면 Firebase Hosting으로 커스텀 도메인을 설정하면 됩니다.
+
+Hosting용 도메인 설정 [https://firebase.google.com/docs/hosting/custom-domain?hl=ko]의 1~3단계를 따릅니다. 도메인 소유권을 확인하면 Hosting에서 커스텀 도메인의 SSL 인증서를 프로비저닝합니다.
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 승인된 도메인 목록에 커스텀 도메인 auth.custom.domain.com을 추가합니다.
+Microsoft 개발자 콘솔 또는 OAuth 설정 페이지에서 커스텀 도메인 https://auth.custom.domain.com/__/auth/handler에서 액세스할 수 있는 리디렉션 페이지의 URL을 허용 목록에 추가합니다.
+JavaScript 라이브러리를 초기화할 때는 authDomain 필드를 사용하여 커스텀 도메인을 지정합니다.
+
+다음 단계
+
+사용자가 처음으로 로그인하면 신규 사용자 계정이 생성되고 사용자가 로그인할 때 사용한 사용자 인증 정보(사용자 이름과 비밀번호, 전화번호 또는 인증 제공업체 정보)에 연결됩니다. 이 신규 계정은 Firebase 프로젝트에 저장되며 사용자의 로그인 방법과 무관하게 프로젝트 내의 모든 앱에서 사용자 본인 확인에 사용할 수 있습니다.
+
+앱에서 사용자의 인증 상태를 파악할 때 권장하는 방법은 Auth 객체에 관찰자를 설정하는 것입니다. 그러면 User 객체로부터 사용자의 기본 프로필 정보를 가져올 수 있습니다. 사용자 관리 [https://firebase.google.com/docs/auth/web/manage-users?hl=ko]를 참조하세요.
+
+Firebase Realtime Database와 Cloud Storage 보안 규칙 [https://firebase.google.com/docs/database/security/user-security?hl=ko]의 auth 변수에서 로그인한 사용자의 고유 사용자 ID를 가져온 후 이 ID를 통해 사용자가 액세스할 수 있는 데이터를 관리할 수 있습니다.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결 [https://firebase.google.com/docs/auth/web/account-linking?hl=ko]하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+
+사용자를 로그아웃시키려면 signOut [https://firebase.google.com/docs/reference/js/auth?hl=ko#signout]을 호출합니다.
+
+Web
+import { getAuth, signOut } from "firebase/auth";
+
+firebase.auth().signOut().then(() => {

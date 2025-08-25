@@ -1,0 +1,185 @@
+Source URL: https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko
+Title: 커스텀 클레임 및 보안 규칙으로 액세스 제어
+bookmark_border
+
+의견 보내기
+
+커스텀 클레임 및 보안 규칙으로 액세스 제어
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용Admin SDK로 커스텀 사용자 클레임 설정 및 검증 [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#set_and_validate_custom_user_claims_via_the_admin_sdk]클라이언트에 커스텀 클레임 전파 [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#propagate_custom_claims_to_the_client]클라이언트에서 커스텀 클레임 액세스 [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#access_custom_claims_on_the_client]커스텀 클레임 권장사항 [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#best_practices_for_custom_claims]예제 및 사용 사례 [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#examples_and_use_cases]사용자 생성 시 Firebase 함수를 통한 역할 정의 [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#defining_roles_via_firebase_functions_on_user_creation]HTTP 요청을 통한 역할 정의 [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#defining_roles_via_an_http_request]백엔드 스크립트를 통한 역할 정의 [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#defining_roles_via_backend_script]
+
+Firebase Admin SDK는 사용자 계정에 맞춤 속성을 정의하는 기능을 지원합니다.
+이를 통해 Firebase 앱에서 역할 기반 액세스 제어를 비롯하여
+다양한 액세스 제어 전략을 구사할 수 있습니다. 이러한 커스텀 속성으로
+사용자에게 애플리케이션 보안 규칙에 따라 적용되는 다양한 수준의
+액세스(역할)를 부여할 수 있습니다.
+
+사용자 역할을 정의하는 일반적인 사례는 다음과 같습니다.
+
+사용자에게 데이터 및 리소스에 액세스할 수 있는 관리자 권한을 부여합니다.
+사용자가 속하는 다양한 그룹을 정의합니다.
+다중 레벨 액세스를 제공합니다.유료/무료 구독자를 구분합니다.
+일반 사용자와 운영자를 구분합니다.
+교사/학생 애플리케이션 등에 사용합니다.
+
+사용자에게 식별자를 더 추가합니다. 예를 들어 다른 시스템에서 Firebase 사용자에 다른 UID를 매핑할 수 있습니다.
+
+'adminContent'라는 데이터베이스 노드에 대한 액세스를 제한하려는 경우를
+생각해 보겠습니다.  데이터베이스의 관리자 목록을 조회하는 방법도 가능합니다. 그러나 다음과 같은 Realtime Database 규칙으로 admin이라는 커스텀 사용자 클레임을 사용하면 같은 목표를 보다 효율적으로 달성할 수 있습니다.
+"rules": {
+"adminContent": {
+".read": "auth.token.admin === true",
+".write": "auth.token.admin === true",
+Admin SDK로 커스텀 사용자 클레임 설정 및 검증
+
+커스텀 클레임은 민감한 정보를 포함할 수 있으므로 관리자 권한 서버 환경에서
+Firebase Admin SDK를 통해서만 설정해야 합니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#node.js] ---
+```
+.setCustomUserClaims(uid, { admin: true })
+.then(() => {
+Map<String, Object> claims = new HashMap<>();
+claims.put("admin", true);
+FirebaseAuth.getInstance().setCustomUserClaims(uid, claims);
+if err != nil {
+log.Fatalf("error setting custom claims %v\n", err)
+.verifyIdToken(idToken)
+.then((claims) => {
+if (claims.admin === true) {
+FirebaseToken decoded = FirebaseAuth.getInstance().verifyIdToken(idToken);
+if (Boolean.TRUE.equals(decoded.getClaims().get("admin"))) {
+if claims['admin'] is True:
+# Allow access to requested admin resource.
+pass
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#go] ---
+```
+FirebaseToken decoded = await FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(idToken);
+object isAdmin;
+if (decoded.Claims.TryGetValue("admin", out isAdmin))
+if ((bool)isAdmin)
+.getUser(uid)
+.then((userRecord) => {
+UserRecord user = FirebaseAuth.getInstance().getUser(uid);
+System.out.println(user.getCustomClaims().get("admin"));
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#python] ---
+```
+# Lookup the user associated with the specified uid.
+user = auth.get_user(uid)
+# The claims can be accessed on the user record.
+print(user.custom_claims.get('admin'))
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#go] ---
+```
+UserRecord user = await FirebaseAuth.DefaultInstance.GetUserAsync(uid);
+
+클라이언트에 커스텀 클레임 전파
+
+Admin SDK를 통해 사용자의 새 클레임을 수정하면 클레임이 클라이언트
+측의 인증된 사용자에게 다음과 같은 방법으로 ID 토큰을 통해
+전파됩니다.
+
+커스텀 클레임이 수정된 후 사용자가 로그인하거나 다시 인증합니다. 그 결과로 발급되는 ID 토큰에 최신 클레임이 포함됩니다.
+이전 토큰이 만료된 후 기존 사용자 세션에서 해당 ID 토큰이 갱신됩니다.
+currentUser.getIdToken(true)을 호출하여 강제로 ID 토큰을 새로고칩니다.
+
+클라이언트에서 커스텀 클레임 액세스
+
+커스텀 클레임은 사용자의 ID 토큰을 통해서만 검색할 수 있습니다. 사용자의 역할이나
+액세스 수준에 따라 클라이언트 UI를 수정하려면 이러한 클레임에 액세스해야
+할 수 있습니다. 그러나 ID 토큰을 검증하고 클레임을 파싱한 후에는 항상 ID 토큰을 통해
+백엔드 액세스를 적용해야 합니다. 커스텀 클레임은 토큰의 범위를
+벗어나면 신뢰할 수 없으므로 백엔드에 직접 전송해서는 안 됩니다.
+
+최신 클레임이 사용자의 ID 토큰으로 전파되면 ID 토큰을 가져오는 방법으로 해당 클레임을 가져올 수 있습니다.
+--- 탭: JavaScript [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#javascript] ---
+```
+firebase.auth().currentUser.getIdTokenResult()
+.then((idTokenResult) => {
+if (isAdmin) {
+return
+BOOL *admin = [result.claims[@"admin"] boolValue];
+if (admin) {
+Cloud Functions를 사용하여 커스텀 클레임을 추가하고 Realtime Database로 커스텀 클레임을 즉시 전파할 수 있습니다. 이 함수는 가입 시에만 onCreate 트리거를 사용하여 호출됩니다. 커스텀 클레임이 설정되면 모든 기존 세션과 이후 세션에 커스텀 클레임이 전파됩니다. 다음 번에 사용자 인증 정보로 사용자가 로그인하면 토큰에
+커스텀 클레임이 포함됩니다.
+
+클라이언트 측 구현(자바스크립트)
+.catch(error => {
+callback = (snapshot) => {
+Cloud Functions 로직
+
+읽기/쓰기 권한이 인증된 사용자로 제한된 새 데이터베이스 노드(metadata/($uid)}가
+추가됩니다.
+const { getAuth } = require('firebase-admin/auth');
+const { getDatabase } = require('firebase-admin/database');
+
+initializeApp();
+
+user.email &&
+user.email.endsWith('@admin.example.com') &&
+user.emailVerified
+) {
+
+다음 예에서는 HTTP 요청을 통해 새로 로그인한 사용자에 커스텀 사용자 클레임을
+설정합니다.
+
+클라이언트 측 구현(자바스크립트)
+.then((result) => {
+typeof claims.email !== 'undefined' &&
+typeof claims.email_verified !== 'undefined' &&
+claims.email_verified &&
+claims.email.endsWith('@admin.example.com')
+) {
+.getUserByEmail('user@admin.example.com')
+.then((user) => {
+UserRecord user = FirebaseAuth.getInstance()
+.getUserByEmail("user@admin.example.com");
+Map<String, Object> claims = new HashMap<>();
+claims.put("admin", true);
+FirebaseAuth.getInstance().setCustomUserClaims(user.getUid(), claims);
+# Confirm user is verified
+if user.email_verified:
+# Add custom claims for additional privileges.
+# This will be picked up by the user on token refresh or next sign in on new device.
+auth.set_custom_user_claims(user.uid, {
+'admin': True
+UserRecord user = await FirebaseAuth.DefaultInstance
+.GetUserByEmailAsync("user@admin.example.com");
+Admin SDK를 통해 커스텀 클레임을 점진적으로 수정할 수도 있습니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#node.js] ---
+```
+getAuth()
+.getUserByEmail('user@admin.example.com')
+.then((user) => {
+UserRecord user = FirebaseAuth.getInstance()
+.getUserByEmail("user@admin.example.com");
+Map<String, Object> currentClaims = user.getCustomClaims();
+if (Boolean.TRUE.equals(currentClaims.get("admin"))) {
+FirebaseAuth.getInstance().setCustomUserClaims(user.getUid(), currentClaims);
+# Add incremental custom claim without overwriting existing claims.
+current_custom_claims = user.custom_claims
+if current_custom_claims.get('admin'):
+# Add level.
+current_custom_claims['accessLevel'] = 10
+# Add custom claims for additional privileges.
+auth.set_custom_user_claims(user.uid, current_custom_claims)
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko#go] ---
+```
+user, err := client.GetUserByEmail(ctx, "user@admin.example.com")
+if err != nil {
+log.Fatal(err)
+UserRecord user = await FirebaseAuth.DefaultInstance
+.GetUserByEmailAsync("user@admin.example.com");
+if (user.CustomClaims.TryGetValue("admin", out isAdmin) && (bool)isAdmin)

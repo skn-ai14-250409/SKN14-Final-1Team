@@ -1,0 +1,173 @@
+Tab: 기본
+Source URL: https://developers.google.com/maps/documentation/address-validation/confirm-address-example?hl=ko
+
+이 페이지는 Cloud Translation API를 통해 번역되었습니다.
+Switch to English
+홈
+제품
+Google Maps Platform
+문서
+Web Services
+Address Validation API
+도움이 되었나요?
+의견 보내기
+주소 확인 - 예시
+bookmark_border
+이 페이지의 내용
+일반적인 예: 확인
+바뀐 데이터에 대한 결과
+특이 사례 예: 확인
+확인된 사소한 추론
+확인되지 않은 예상치 못한 주소 구성요소
+확인된 예상치 못한 주소 구성요소
+이 문서에서는 Address Validation API가 시스템에서 확인 동작을 보증할 수 있는 주소에 대한 응답 신호를 제공하는 여러 실제 시나리오를 설명합니다. 컨텍스트는 유효성 검사 로직 빌드의 워크플로 예시를 참고하세요.
+참고: 여기에 나온 예는 설명용이며 모든 시나리오를 다루지는 않습니다.
+일반적인 예: 확인
+다음 예는 비슷한 거리 이름을 가진 대도시 지역의 사례를 보여줍니다. 사용자가 미국 워싱턴주 커클랜드의 Google Building D 주소를 입력하려고 한다고 가정해 보겠습니다. 하지만 도시로 커클랜드를 입력하는 대신 실수로 시애틀을 입력합니다.
+주소 입력됨 지역
+Building D, 451 7th Avenue South, Seattle, WA 98033 미국
+바뀐 데이터에 대한 결과
+아래 예시에서는 응답의 중요한 신호를 강조합니다.
+{
+  "inputGranularity": "SUB_PREMISE",
+  "validationGranularity": "PREMISE_PROXIMITY",
+  "geocodeGranularity": "PREMISE_PROXIMITY",
+  "addressComplete": true,
+  "hasUnconfirmedComponents": true
+  "hasReplacedComponents": true,
+  "possibleNextAction": "CONFIRM"
+}
+possibleNextAction는 고객에게 주소를 확인하는 것이 좋을 수 있다는 초기 표시를 제공합니다. 평결의 다른 신호는 주소에 어떤 문제가 있는지에 관한 자세한 내용을 제공합니다. PREMISE_PROXIMITY는 건물 수준 주소의 근사치를 나타내지만 입력 시 제공되는 세부사항인 SUB_PREMISE만큼 자세하지는 않습니다. 또한 응답에는 확인되지 않은 구성요소와 교체된 구성요소가 모두 포함됩니다.
+주소 구성요소를 쿼리하면 다음과 같은 우려사항이 표시됩니다.
+{
+  "componentName": {
+    "text": "451",
+  },
+  "componentType": "street_number",
+  "confirmationLevel": "UNCONFIRMED_BUT_PLAUSIBLE",
+}
+...
+{
+  "componentName": {
+    "text": "98104",
+  },
+  "componentType": "postal_code",
+  "confirmationLevel": "CONFIRMED",
+  "replaced": true
+}
+...
+{
+  "componentName": {
+    "text": "Building D",
+    "language_code": "en"
+  },
+  "componentType": "subpremise",
+  "confirmationLevel": "UNCONFIRMED_BUT_PLAUSIBLE",
+}
+.......
+
+    "unconfirmedComponentTypes": [
+      "street_number",
+      "subpremise"
+    ]
+이 경우 Address Validation API는 제공된 주소와 근사한 주소를 시애틀에서 찾았으며, 더 높은 수준의 구성요소인 우편번호를 시애틀 주소로 대체했습니다. 이는 유효한 대체일 수 있지만 구성요소가 확인되지 않았다는 사실과 함께 사용자가 커클랜드가 아닌 시애틀 주소를 입력하려고 하는지 확인하는 것이 좋습니다.
+도움말: 데모에서 올바른 주소를 확인하세요. 451 7th Avenue South, Kirkland, WA 98033을 사용하여 원래 의도한 주소의 응답을 확인하세요.
+작업: 이 주소의 경우 사용자에게 반환된 주소가 올바른지 확인하라는 메시지를 표시할 수 있습니다.
+특이 사례 예: 확인
+다음 예는 다음과 같은 특이 사례 유형을 보여줍니다.
+확인된 사소한 추론 Address Validation API는 국가, 우편번호 또는 주를 추론하지만 그 외 모든 항목은 제공되고 확인됩니다. 세부사항과 확인 수준의 조합으로 인해 확인 작업이 필요하지 않은 사소한 추론이 발생합니다.
+예상치 못한 주소 구성요소가 확인되지 않음 확인되지 않은 주소 구성요소는 주소의 위험 수준을 높입니다. 이 경우 확인이 필요할 수 있습니다.
+확인된 예상치 못한 주소 구성요소 이 구성요소는 올바른 주소에 반드시 필요한 것은 아니며 Address Validation API에서 출력에서 삭제합니다. 서식 문제는 일반적으로 확인을 보장하지 않습니다.
+확인된 사소한 추론
+더 세분화된 수준의 확인된 데이터와 결합하면 입력에 다음 유형의 구성요소 하나만 누락된 경우에도 API가 올바른 추론을 할 수 있습니다.
+도시
+주
+우편번호
+국가
+예를 들어 고객이 매사추세츠주 스프링필드에 있는 McDonald's 레스토랑의 유효한 도로 주소를 제공했지만 도시를 입력하는 것을 잊고 4자리 확장자가 없는 우편번호를 제공합니다.
+주소 입력됨 지역
+1402 Allen St, MA 01118 미국
+도시 누락에 대한 판결
+{
+  "inputGranularity": "PREMISE",
+  "validationGranularity": "PREMISE",
+  "geocodeGranularity": "PREMISE",
+  "addressComplete": true,
+  "hasInferredComponents": true,
+  "possibleNextAction": "CONFIRM"
+}
+Address Validation API가 배송 가능한 주소를 생성하기 위해 상위 수준 구성요소를 추론하는 경우 시스템의 데이터가 올바르다고 더 확신할 수 있습니다. 이는 넓은 지리적 영역을 나타내는 추론된 구성요소가 더 세부적인 확인된 주소 구성요소와 더 쉽게 일치하기 때문입니다. 미국의 스프링필드와 같이 도시 이름이 반복되는 국가에서도 다른 구성요소와 결합하면 고유한 주소를 제공할 수 있습니다.
+위의 예시를 사용하면 모든 주소 구성요소를 스캔했을 때 모든 구성요소가 확인된 것으로 표시됩니다. 이는 주소 구성요소가 Address Validation API에 저장된 데이터와 일치하며 서비스에서 두 개의 상위 수준 구성요소도 추론한다는 의미입니다.
+{
+  "componentName": {
+    "text": "Springfield",
+    "languageCode": "en"
+  },
+  "componentType": "locality",
+  "confirmationLevel": "CONFIRMED",
+  "inferred": true
+},
+{
+  "componentName": {
+    "text": "1806"
+  },
+  "componentType": "postal_code_suffix",
+  "confirmationLevel": "CONFIRMED",
+  "inferred": true
+}
+작업: 이러한 주소는 추론된 구성요소의 확인과 함께 충분한 확인된 세부사항을 제공하므로 고객에게 메시지를 표시하지 않고도 로직에서 이를 유효한 것으로 수락할 수 있습니다. 주소를 수락하기 전에 고객에게 메시지를 표시할지 여부를 결정할 때는 항상 위험 수준을 고려하세요.
+확인되지 않은 예상치 못한 주소 구성요소
+이 시나리오에서는 구성요소가 확인되지 않은 경우 확인하는 것이 얼마나 중요한지 보여줍니다. 주소 구성요소가 예상치 못한 경우 Address Validation API는 출력에서 이를 삭제합니다. 이 경우 위험 수준과 신뢰도에 따라 주소를 수락하거나 고객에게 다시 확인할 수 있습니다.
+예를 들어 고객이 우편 당국에서 무시하는 무해한 정보를 자주 입력하는 지역의 주소일 수 있습니다. 이 경우 주소를 수락합니다. 하지만 경우에 따라 확인되지 않은 구성요소가 고객이 원하는 것이 아닐 수 있습니다.
+주소 입력됨 지역
+59 Cherrydown Avenue, Chingford, London E4 8DT 영국
+예상치 못한 주소 구성요소가 확인되지 않음
+{
+  "inputGranularity": "PREMISE",
+  "validationGranularity": "PREMISE",
+  "geocodeGranularity": "PREMISE",
+  "unconfirmedComponents": true,
+  "possibleNextAction": "ACCEPT"
+}
+확인되지 않은 구성요소가 포함된 평결 외에도 Address Validation API는 다음과 같이 형식이 지정된 주소를 반환합니다.
+"formattedAddress": "59 Cherrydown Avenue, London E4 8DT, UK",
+확인되지 않은 구성요소를 스캔하면 API가 반환된 주소에서 Chingford를 삭제한 것으로 표시됩니다.
+{
+  "componentName": {
+    "text": "Chingford",
+    "languageCode": "en"
+  },
+  "componentType": "sublocality_level_1",
+  "confirmationLevel": "UNCONFIRMED_BUT_PLAUSIBLE",
+  "unexpected": true
+}
+조치: 이 경우 주거 지역이나 동네를 나타낼 수 있는 하위 지역이 올바르지만 우편 당국에서 무시할 수 있습니다. 하지만 이 정보는 Address Validation API로 확인되지 않으므로 고객에게 확인하는 것이 좋습니다. 이때 삭제를 무시하거나 확인할 수 있습니다.
+확인된 예상치 못한 주소 구성요소
+이 예에서는 제공된 주소에 영국 카운티를 포함하는 방법을 보여줍니다. 이는 일반적인 방법입니다. 하지만 이는 영국 우편 당국의 요구사항이 아니며 기본적으로 무시됩니다. postoffice.co.uk 및 영국 및 해외 우편물 주소 지정 방법을 참고하세요.
+따라서 고객이 영국 주소에 카운티를 제공하면 서비스에서 이를 예상치 못한 입력으로 평가합니다.
+주소 입력됨 지역
+33 Dunalley St, Cheltenham, Gloucestershire, GL50 4AP 영국
+확인된 예상치 못한 주소 구성요소에 대한 평결
+{
+   "inputGranularity": "PREMISE",
+   "validationGranularity": "PREMISE",
+   "geocodeGranularity": "PREMISE",
+   "possibleNextAction": "ACCEPT"
+}
+여기서 address_complete은 false로 평가되고 주소 구성요소 분석을 통해 예상치 못한 플래그가 표시됩니다.
+{
+  "componentName": {
+    "text": "Gloucestershire",
+    "languageCode": "en"
+  },
+  "componentType": "administrative_area_level_2",
+  "confirmationLevel": "CONFIRMED",
+  "unexpected": true
+}
+이 구성요소는 예상치 못했지만 확인된 구성요소로, 다음을 의미합니다.
+올바른 데이터로 확인됨 이는 구성요소가 주소를 포함하는 올바른 카운티임을 나타냅니다.
+입력으로 예상치 않음 주소의 올바른 형식에 필요하지 않은 구성요소를 나타냅니다.
+입력한 주소의 카운티는 Gloucestershire가 맞지만 주소 형식이 잘못되었습니다. Address Validation API는 적절한 형식의 정보도 평가합니다.
+조치: 이 시나리오에서는 위험 수준에 따라 추가 프롬프트 없이 주소를 수락할 수 있습니다.
+도움이 되었나요?
+의견 보내기

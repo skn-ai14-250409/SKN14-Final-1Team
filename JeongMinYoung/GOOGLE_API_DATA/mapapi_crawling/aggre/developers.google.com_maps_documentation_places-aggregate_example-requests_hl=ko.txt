@@ -1,0 +1,431 @@
+Source URL: https://developers.google.com/maps/documentation/places-aggregate/example-requests?hl=ko
+Title: 예
+bookmark_border
+
+의견 보내기
+
+예
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용원 내의 장소 반환 [https://developers.google.com/maps/documentation/places-aggregate/example-requests?hl=ko#return-places]장소 유형 제외 [https://developers.google.com/maps/documentation/places-aggregate/example-requests?hl=ko#exclude-place]기본 유형 사용 [https://developers.google.com/maps/documentation/places-aggregate/example-requests?hl=ko#use-primary]맞춤 다각형 [https://developers.google.com/maps/documentation/places-aggregate/example-requests?hl=ko#custom-polygon]지리적 지역 [https://developers.google.com/maps/documentation/places-aggregate/example-requests?hl=ko#geographical-area]
+
+이 섹션에서는 Places Aggregate API에 대한 일련의 요청 예시를 다룹니다.
+
+원 내의 장소 반환
+
+런던 트라팔가 광장에서 반경 200m 이내에 있는 모든 식당을 반환해 줘.
+
+검색 영역은 특정 위도와 경도를 중심으로 하는 원입니다.
+이 원의 반지름은 200미터이며, 이는 검색 영역의 크기를 결정합니다.
+요청된 장소 유형 [https://developers.google.com/maps/documentation/places/web-service/supported_types?hl=ko]은 레스토랑이며, 이는 typeFilters 내에서 includedTypes을 사용하여 전달됩니다.
+개수는 INSIGHTS_COUNT를 사용하여 요청되고 장소 ID [https://developers.google.com/maps/documentation/places/web-service/place-id?hl=ko]는 INSIGHTS_PLACES를 사용하여 요청됩니다.
+
+--- 탭: 휴식 [https://developers.google.com/maps/documentation/places-aggregate/example-requests?hl=ko#%ED%9C%B4%EC%8B%9D] ---
+curl --location 'https://areainsights.googleapis.com/v1:computeInsights' \
+--header 'X-Goog-Api-Key: API_KEY' \
+--header 'Content-Type: application/json' \
+--data '{
+"insights": ["INSIGHT_COUNT", "INSIGHT_PLACES"],
+"filter": {
+"locationFilter": {
+"circle": {
+"latLng": { "latitude": 51.508, "longitude": -0.128},
+"radius": 200
+from google.maps.areainsights_v1.types import (
+ComputeInsightsRequest,
+Filter,
+LocationFilter,
+TypeFilter,
+Insight
+from google.type import latlng_pb2
+from google.oauth2 import service_account
+
+def get_area_insights():
+# Initialize the client
+credentials = service_account.Credentials.from_service_account_file(
+'path/to/service_account.json',
+scopes=['https://www.googleapis.com/auth/cloud-platform']
+
+client = areainsights_v1.AreaInsightsClient(
+credentials=credentials
+
+# Create location filter with circle
+lat_lng = latlng_pb2.LatLng(
+latitude=51.508,
+longitude=-0.128
+
+location_filter = LocationFilter(
+circle=LocationFilter.Circle(
+lat_lng=lat_lng,
+radius=200
+
+# Create type filter
+type_filter = TypeFilter(
+included_types=["restaurant"]
+
+# Create the main filter
+filter = Filter(
+location_filter=location_filter,
+type_filter=type_filter
+
+# Create the request
+request = ComputeInsightsRequest(
+insights=[
+Insight.INSIGHT_COUNT,
+Insight.INSIGHT_PLACES
+],
+filter=filter
+
+try:
+# Make the request
+response = client.compute_insights(request=request)
+
+# Print results
+print(f"Total count: {response.count}")
+print("\nPlaces found:")
+for place in response.place_insights:
+print(f"Place ID: {place.place}")
+
+except Exception as e:
+print(f"Error occurred: {e}")
+
+if __name__ == "__main__":
+get_area_insights()
+
+장소 유형 제외
+
+장소 유형을 개수에서 제외할 수 있습니다.
+
+다음 요청은 첫 번째 예와 동일하지만 typeFilters에 excludedTypes를 추가합니다. includedTypes 및 excludedTypes에는 문자열 또는 문자열 배열을 사용할 수 있습니다.
+
+이 예에서는 restaurant 개수에서 cafe 및 bakery이라는 두 가지 장소 유형을 제외합니다.
+
+--- 탭: 휴식 [https://developers.google.com/maps/documentation/places-aggregate/example-requests?hl=ko#%ED%9C%B4%EC%8B%9D] ---
+curl --location 'https://areainsights.googleapis.com/v1:computeInsights' \
+--header 'X-Goog-Api-Key: API_KEY' \
+--header 'Content-Type: application/json' \
+--data '{
+"insights": ["INSIGHT_COUNT", "INSIGHT_PLACES"],
+"filter": {
+"locationFilter": {
+"circle": {
+"latLng": { "latitude": 51.508, "longitude": -0.128},
+"radius": 200
+from google.maps.areainsights_v1.types import (
+ComputeInsightsRequest,
+Filter,
+LocationFilter,
+TypeFilter,
+Insight
+from google.type import latlng_pb2
+from google.oauth2 import service_account
+
+def get_area_insights():
+# Initialize the client with service account
+credentials = service_account.Credentials.from_service_account_file(
+'path/to/service_account.json',
+scopes=['https://www.googleapis.com/auth/cloud-platform']
+
+client = areainsights_v1.AreaInsightsClient(
+credentials=credentials
+
+# Create location filter with circle
+lat_lng = latlng_pb2.LatLng(
+latitude=51.508,
+longitude=-0.128
+
+location_filter = LocationFilter(
+circle=LocationFilter.Circle(
+lat_lng=lat_lng,
+radius=200
+
+# Create type filter with both included and excluded types
+type_filter = TypeFilter(
+included_types=["restaurant"],
+excluded_types=["cafe", "bakery"]
+
+# Create the main filter
+filter = Filter(
+location_filter=location_filter,
+type_filter=type_filter
+
+# Create the request
+request = ComputeInsightsRequest(
+insights=[
+Insight.INSIGHT_COUNT,
+Insight.INSIGHT_PLACES
+],
+filter=filter
+
+try:
+# Make the request
+response = client.compute_insights(request=request)
+
+# Print results
+print(f"Total count: {response.count}")
+print("\nPlaces found:")
+for place in response.place_insights:
+print(f"Place ID: {place.place}")
+
+except Exception as e:
+print(f"Error occurred: {e}")
+
+if __name__ == "__main__":
+get_area_insights()
+
+기본 유형 사용
+
+이 예시에서는 첫 번째 예시의 요청을 수정하여 개수에 restaurant의 primaryType이 있는 장소만 포함합니다.
+
+--- 탭: 휴식 [https://developers.google.com/maps/documentation/places-aggregate/example-requests?hl=ko#%ED%9C%B4%EC%8B%9D] ---
+curl --location 'https://areainsights.googleapis.com/v1:computeInsights' \
+--header 'X-Goog-Api-Key: API_KEY' \
+--header 'Content-Type: application/json' \
+--data '{
+"insights": ["INSIGHT_COUNT", "INSIGHT_PLACES"],
+"filter": {
+"locationFilter": {
+"circle": {
+"latLng": { "latitude": 51.508, "longitude": -0.128},
+"radius": 200
+from google.maps.areainsights_v1.types import (
+ComputeInsightsRequest,
+Filter,
+LocationFilter,
+TypeFilter,
+Insight
+from google.type import latlng_pb2
+from google.oauth2 import service_account
+
+def get_area_insights():
+# Initialize the client with service account
+credentials = service_account.Credentials.from_service_account_file(
+'path/to/service_account.json',
+scopes=['https://www.googleapis.com/auth/cloud-platform']
+
+client = areainsights_v1.AreaInsightsClient(
+credentials=credentials
+
+# Create location filter with circle
+lat_lng = latlng_pb2.LatLng(
+latitude=51.508,
+longitude=-0.128
+
+location_filter = LocationFilter(
+circle=LocationFilter.Circle(
+lat_lng=lat_lng,
+radius=200
+
+# Create type filter with primary types
+type_filter = TypeFilter(
+included_primary_types=["restaurant"]
+
+# Create the main filter
+filter = Filter(
+location_filter=location_filter,
+type_filter=type_filter
+
+# Create the request
+request = ComputeInsightsRequest(
+insights=[
+Insight.INSIGHT_COUNT,
+Insight.INSIGHT_PLACES
+],
+filter=filter
+
+try:
+# Make the request
+response = client.compute_insights(request=request)
+
+# Print results
+print(f"Total count: {response.count}")
+print("\nPlaces found:")
+for place in response.place_insights:
+print(f"Place ID: {place.place}")
+
+except Exception as e:
+print(f"Error occurred: {e}")
+
+if __name__ == "__main__":
+get_area_insights()
+
+맞춤 다각형
+
+이 예에서는 맞춤 다각형을 사용하여 검색 영역을 정의하는 방법을 보여줍니다. INSIGHTS_PLACES를 지정하면 최대 100개의 장소 ID를 반환할 수 있을 만큼 작은 영역으로 검색이 제한됩니다. 더 넓은 지역의 경우 서비스에서 개별 장소 ID를 반환하지 않아도 되도록 INSIGHTS_COUNT를 사용하여 이 제한을 우회하세요.
+
+이전과 마찬가지로 사용된 장소 유형은 restaurant입니다. 이 예에서는 다음 세 가지 필터도 소개합니다.
+
+operatingStatus: 이 예에서는 운영 중인 장소만 집계합니다.
+priceLevel: 이 예에서는 저렴한 가격과 중간 가격의 장소만 집계합니다.
+ratingFilter: 이 예에서는 리뷰 점수가 4.0~5.0인 장소만 집계합니다.
+
+--- 탭: 휴식 [https://developers.google.com/maps/documentation/places-aggregate/example-requests?hl=ko#%ED%9C%B4%EC%8B%9D] ---
+curl --location 'https://areainsights.googleapis.com/v1:computeInsights' \
+--header 'X-Goog-Api-Key: API_KEY' \
+--header 'Content-Type: application/json' \
+--data '{
+"insights": [ "INSIGHT_COUNT" ],
+"filter": {
+"locationFilter": {
+"customArea": {
+"polygon": {
+"coordinates": [
+]
+from google.maps.areainsights_v1.types import (
+ComputeInsightsRequest,
+Filter,
+LocationFilter,
+TypeFilter,
+Insight,
+RatingFilter,
+OperatingStatus,
+PriceLevel
+from google.type import latlng_pb2
+from google.oauth2 import service_account
+
+def get_area_insights():
+# Initialize the client with service account
+credentials = service_account.Credentials.from_service_account_file(
+'path/to/service_account.json',
+scopes=['https://www.googleapis.com/auth/cloud-platform']
+
+client = areainsights_v1.AreaInsightsClient(
+credentials=credentials
+
+# Create coordinates for the polygon
+coordinates = [
+latlng_pb2.LatLng(latitude=37.776, longitude=-122.666),
+latlng_pb2.LatLng(latitude=37.130, longitude=-121.898),
+latlng_pb2.LatLng(latitude=37.326, longitude=-121.598),
+latlng_pb2.LatLng(latitude=37.912, longitude=-122.247),
+latlng_pb2.LatLng(latitude=37.776, longitude=-122.666)  # Closing point
+]
+
+# Create custom area with polygon using the nested structure
+location_filter = LocationFilter(
+custom_area=LocationFilter.CustomArea(
+polygon=LocationFilter.CustomArea.Polygon(coordinates=coordinates)
+
+# Create type filter
+type_filter = TypeFilter(
+included_types=["restaurant"]
+
+# Create rating filter
+rating_filter = RatingFilter(
+min_rating=4.0,
+max_rating=5.0
+
+# Create the main filter
+filter = Filter(
+location_filter=location_filter,
+type_filter=type_filter,
+operating_status=[OperatingStatus.OPERATING_STATUS_OPERATIONAL],
+price_levels=[
+PriceLevel.PRICE_LEVEL_INEXPENSIVE,
+PriceLevel.PRICE_LEVEL_MODERATE
+],
+rating_filter=rating_filter
+
+# Create the request
+request = ComputeInsightsRequest(
+insights=[Insight.INSIGHT_COUNT],
+filter=filter
+
+try:
+# Make the request
+response = client.compute_insights(request=request)
+
+# Print results
+print(f"Total count: {response.count}")
+
+except Exception as e:
+print(f"Error occurred: {e}")
+
+if __name__ == "__main__":
+get_area_insights()
+
+지리적 지역
+
+이 예에서는 지리적 영역 [https://developers.google.com/maps/documentation/places/web-service/place-types?hl=ko#geographical-areas] 장소 ID를 사용하여 검색 영역을 설정합니다.
+이러한 장소 ID에는 타운이나 도시와 같은 장소의 지오메트리가 포함됩니다. 여기에서 사용된 장소 ID는 ChIJiQHsW0m3j4ARm69rRkrUF3w이며, 이는 캘리포니아주 마운틴뷰 [https://maps.app.goo.gl/WKQkwbGrsFgi55Gn9] 도시에 해당합니다.
+
+장소 ID를 Places Aggregate API에 전달하면 검색 영역이 지리적 영역의 경계로 설정됩니다. 장소 ID는 place를 사용하여 places/place_ID 형식으로 전달됩니다.
+
+다음 방법 중 하나로 지리적 영역 장소 ID를 획득할 수 있습니다.
+
+장소 ID 찾기 [https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder?hl=ko]
+Geocoding API [https://developers.google.com/maps/documentation/geocoding/requests-geocoding?hl=ko]
+텍스트 검색 (신규) [https://developers.google.com/maps/documentation/places/web-service/text-search?hl=ko]
+주변 지역 검색 (신규) [https://developers.google.com/maps/documentation/places/web-service/nearby-search?hl=ko]
+Address Validation API [https://developers.google.com/maps/documentation/address-validation?hl=ko]
+Place Autocomplete [https://developers.google.com/maps/documentation/places/web-service/place-autocomplete?hl=ko]
+
+--- 탭: 휴식 [https://developers.google.com/maps/documentation/places-aggregate/example-requests?hl=ko#%ED%9C%B4%EC%8B%9D] ---
+curl --location 'https://areainsights.googleapis.com/v1:computeInsights' \
+--header 'X-Goog-Api-Key: API_KEY' \
+--header 'Content-Type: application/json' \
+--data '{
+"insights": [
+"INSIGHT_COUNT"
+],
+"filter": {
+"locationFilter": {
+"region": {
+"place": "places/ChIJiQHsW0m3j4ARm69rRkrUF3w"
+from google.maps.areainsights_v1.types import (
+ComputeInsightsRequest,
+Filter,
+LocationFilter,
+TypeFilter,
+Insight
+from google.oauth2 import service_account
+
+def get_area_insights():
+# Initialize the client with service account
+credentials = service_account.Credentials.from_service_account_file(
+'path/to/service_account.json',
+scopes=['https://www.googleapis.com/auth/cloud-platform']
+
+client = areainsights_v1.AreaInsightsClient(
+credentials=credentials
+
+# Create location filter with region
+location_filter = LocationFilter(
+region=LocationFilter.Region(
+place="places/ChIJiQHsW0m3j4ARm69rRkrUF3w"
+
+# Create type filter
+type_filter = TypeFilter(
+included_types=["restaurant"]
+
+# Create the main filter
+filter = Filter(
+location_filter=location_filter,
+type_filter=type_filter
+
+# Create the request
+request = ComputeInsightsRequest(
+insights=[Insight.INSIGHT_COUNT],
+filter=filter
+
+try:
+# Make the request
+response = client.compute_insights(request=request)
+
+# Print results
+print(f"Total count: {response.count}")
+
+except Exception as e:
+print(f"Error occurred: {e}")
+
+if __name__ == "__main__":
+get_area_insights()
+
+도움이 되었나요?
+
+의견 보내기

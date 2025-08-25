@@ -1,0 +1,909 @@
+Source URL: https://developers.google.com/workspace/gmail/api/guides/smime_certs
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+Google Workspace [https://developers.google.com/workspace?hl=ko]
+Gmail [https://developers.google.com/workspace/gmail?hl=ko]
+가이드 [https://developers.google.com/workspace/gmail/api/guides?hl=ko]
+의견 보내기
+S/MIME 인증서 관리
+bookmark_border
+이 페이지의 내용
+API 액세스 승인
+ACL 범위
+API 사용
+S/MIME 키 업로드
+사용자의 S/MIME 키 나열
+별칭의 S/MIME 키 가져오기
+S/MIME 키 삭제
+별칭의 기본 S/MIME 키 설정
+Gmail S/MIME API는 Google Workspace 도메인의 사용자를 위한 S/MIME 이메일 인증서를 관리할 수 있는 프로그래매틱 액세스를 제공합니다.
+인증서가 작동하려면 관리자가 도메인에 S/MIME을 사용 설정 [https://support.google.com/a/answer/6374496?hl=ko]해야 합니다.
+S/MIME 표준 [https://en.wikipedia.org/wiki/S/MIME]은 공개 키 암호화 및 MIME 데이터 서명에 관한 사양을 제공합니다. 사용자 계정에서 S/MIME 인증서를 구성하면 Gmail에서 다음과 같은 방식으로 해당 인증서를 사용합니다.
+Gmail은 사용자의 인증서와 비공개 키를 사용하여 발신 메일에 서명합니다.
+Gmail은 사용자의 비공개 키를 사용하여 수신 메일을 복호화합니다.
+Gmail은 수신자의 인증서와 공개 키를 사용하여 발신 메일을 암호화합니다.
+Gmail은 발신자의 인증서와 공개 키를 사용하여 수신 메일을 확인합니다.
+개별 S/MIME 인증서를 생성하고 API를 사용하여 업로드합니다. 각 S/MIME 인증서는 사용자 이메일 계정의 특정 별칭에 해당합니다. 별칭에는 기본 이메일 주소와 맞춤 '다른 주소에서 메일 보내기' 주소가 포함됩니다. 단일 S/MIME 인증서가 각 별칭의 기본값으로 표시됩니다.
+API 액세스 승인
+API에 대한 액세스 권한을 부여하는 방법에는 두 가지가 있습니다.
+도메인 전체 권한 위임이 있는 서비스 계정을 사용할 수 있습니다. 이러한 용어에 대한 설명은 인증 및 승인 개요 용어 [https://developers.google.com/workspace/guides/auth-overview?hl=ko#terms]를 참고하세요. 이 옵션을 사용 설정하는 방법은 도메인 전체 권한 위임으로 서비스 계정 만들기 [https://developers.google.com/workspace/guides/create-credentials?hl=ko#createsvc]를 참고하세요.
+최종 사용자 동의가 필요한 표준 OAuth2 흐름을 사용하여 OAuth2 액세스 토큰을 획득할 수 있습니다. 자세한 내용은 인증 및 승인 개요 [https://developers.google.com/workspace/guides/auth-overview?hl=ko]를 참고하세요. 이 옵션을 사용하려면 도메인 관리자가 도메인 제어판에서 'S/MIME API 최종 사용자 액세스 사용 설정' 체크박스를 사용 설정해야 합니다.
+ACL 범위
+이 API는 Gmail sendAs [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs?hl=ko] 메서드와 동일한 ACL 범위 [https://developers.google.com/workspace/gmail/api/auth/scopes?hl=ko]를 사용합니다.
+gmail.settings.basic
+이 범위는 기본 '보낸 사람' S/MIME를 업데이트하는 데 필요합니다.
+gmail.settings.sharing
+이 범위는 맞춤 from S/MIME를 업데이트하는 데 필요합니다.
+API 사용
+users.settings.sendAs.smimeInfo [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/smimeInfo?hl=ko] 리소스는 S/MIME 인증서를 관리하는 데 사용하는 메서드를 제공합니다. 각 인증서는 사용자의 하나의 보내기 권한 별칭과 연결됩니다.
+참고: 사용자에게 있는 보내기 권한이 있는 별칭을 확인하려면 sendAs.list() [https://developers.google.com/workspace/gmail/api/v1/reference/users.settings.sendAs?hl=ko] 메서드를 사용하세요.
+S/MIME 키 업로드
+smimeInfo.insert() [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/smimeInfo/insert?hl=ko] 메서드를 사용하여 사용자에 속한 별칭의 새 S/MIME 키를 업로드합니다. 다음 매개변수를 사용하여 타겟 별칭을 식별합니다.
+userId
+사용자의 이메일 주소입니다. 특수 값 me를 사용하여 현재 인증된 사용자를 나타낼 수 있습니다.
+sendAsEmail
+키를 업로드할 별칭입니다. 이 별칭을 사용하여 보낸 메일의 '보낸사람' 헤더에 표시되는 이메일 주소입니다.
+S/MIME 인증서와 비공개 키는 해당 형식의 pkcs12 필드에 있어야 합니다. 요청에 다른 필드를 설정하면 안 됩니다. PKCS12 필드에는 사용자 S/MIME 키와 서명 인증서 체인이 모두 포함되어야 합니다. API는 이 필드를 수락하기 전에 표준 유효성 검사를 실행하여 다음을 확인합니다.
+제목이 지정된 이메일 주소와 일치합니다.
+만료가 유효합니다.
+발급 인증 기관 (CA)이 신뢰할 수 있는 목록에 있습니다.
+인증서가 Gmail의 기술적 제약 조건과 일치합니다.
+키가 암호화된 경우 비밀번호는 encryptedKeyPassword 필드에 있어야 합니다. insert() 호출이 성공하면 향후 키를 참조하는 데 사용할 수 있는 smimeInfo의 ID가 반환됩니다.
+사용자의 S/MIME 키 나열
+smimeInfo.list() [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/smimeInfo/list?hl=ko] 메서드를 사용하여 지정된 별칭의 지정된 사용자에 대한 S/MIME 키 목록을 반환합니다. 다음 매개변수를 사용하여 타겟 별칭을 식별합니다.
+userId
+사용자의 이메일 주소입니다. 특수 값 me를 사용하여 현재 인증된 사용자를 나타낼 수 있습니다.
+sendAsEmail
+키를 나열할 별칭입니다. 이 별칭을 사용하여 보낸 메일의 '보낸사람' 헤더에 표시되는 이메일 주소입니다.
+키는 pem 형식으로만 반환되며 비공개 키가 아닌 S/MIME 인증서만 포함합니다.
+별칭의 S/MIME 키 가져오기
+smimeInfo.get() [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/smimeInfo/get?hl=ko] 메서드를 사용하여 사용자의 특정 전송 별칭에 대한 특정 S/MIME 키를 반환합니다. 다음 매개변수를 사용하여 타겟 별칭을 식별합니다.
+userId
+사용자의 이메일 주소입니다. 특수 값 me를 사용하여 현재 인증된 사용자를 나타낼 수 있습니다.
+sendAsEmail
+키를 가져올 별칭입니다. 이 별칭을 사용하여 보낸 메일의 '보낸사람' 헤더에 표시되는 이메일 주소입니다.
+키는 pem 형식으로만 반환되며 비공개 키가 아닌 S/MIME 인증서만 포함합니다.
+S/MIME 키 삭제
+smimeInfo.delete() [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/smimeInfo/delete?hl=ko] 메서드를 사용하여 별칭에서 지정된 S/MIME 키를 삭제합니다. 다음 매개변수를 사용하여 타겟 별칭을 식별합니다.
+userId
+사용자의 이메일 주소입니다. 특수 값 me를 사용하여 현재 인증된 사용자를 나타낼 수 있습니다.
+sendAsEmail
+키를 가져올 별칭입니다. 이 별칭을 사용하여 보낸 메일의 '보낸사람:' 헤더에 표시되는 이메일 주소입니다.
+id
+SmimeInfo의 변경 불가능한 ID입니다.
+삭제된 키는 더 이상 표시되거나 사용할 수 없으며 해당 공개 키를 사용하여 암호화된 S/MIME 이메일은 복호화할 수 없습니다. 따라서 키를 삭제하기 전에 발급 기관 (CA)을 사용하여 키를 취소하는 것이 좋습니다.
+별칭의 기본 S/MIME 키 설정
+smimeInfo.setDefault() [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/smimeInfo/setDefault?hl=ko] 메서드를 사용하여 지정된 S/MIME 키를 지정된 별칭의 기본값으로 표시합니다. 다음 매개변수를 사용하여 타겟 별칭을 식별합니다.
+userId
+사용자의 이메일 주소입니다. 특수 값 me를 사용하여 현재 인증된 사용자를 나타낼 수 있습니다.
+sendAsEmail
+키를 가져올 별칭입니다. 이 별칭을 사용하여 보낸 메일의 '보낸사람:' 헤더에 표시되는 이메일 주소입니다.
+id
+SmimeInfo의 변경 불가능한 ID입니다.
+사용자의 SendAs에는 하나의 S/MIME 키만 기본값입니다. setDefault()를 호출하면 이전 기본값이 설정 해제됩니다.
+
+특정 키로 서명된 S/MIME 메일을 수신할 때 Gmail에서는 연결된 사용자에게 전송되는 메일을 암호화할 때 가장 먼 미래의 not_before 유효 기간을 기본값으로 사용하여 키를 연결합니다. 사용자가 이미 소통한 Gmail 사용자가 새 기본 키를 사용하도록 하려면 새 기본 키의 not_before 날짜가 이전 기본 키보다 늦거나 이전 기본 키를 취소해야 합니다.
+샘플 코드
+다음 코드 샘플은 API를 사용하여 사용자가 여러 명인 조직의 S/MIME 인증서를 관리하는 방법을 보여줍니다.
+S/MIME 인증서의 SmimeInfo 리소스 만들기
+다음 코드 샘플은 파일에서 인증서를 읽고, base64url 문자열로 인코딩하고, smimeInfo 리소스의 pkcs12 필드에 할당하는 방법을 보여줍니다.
+--- 탭: 자바 ---
+.filepath {
+    color: #fff;
+    margin: 6px;
+    max-width: calc(100% - 160px); /* Give at least 160px for the "View on GitHub" button. */
+    text-overflow: ellipsis;
+    text-shadow: rgba(0,0,0,0.1) 1px 1px;
+    overflow: hidden;
+  }
+  .github-docwidget-gitinclude-code .prettyprint {
+    margin: 0;
+  }
+  .view-on-github {
+    text-shadow: rgba(12,12,12,0.1) 1px 1px;
+  }
+
+
+
+  
+  gmail/snippets/src/main/java/CreateSmimeInfo.java
+  
+    
+    GitHub에서 보기 [https://github.com/googleworkspace/java-samples/blob/main/gmail/snippets/src/main/java/CreateSmimeInfo.java]
+  
+  
+  
+
+  
+    
+  
+  
+  import com.google.api.services.gmail.model.SmimeInfo;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Base64;
+
+/* Class to demonstrate the use of Gmail Create SmimeInfo API */
+public class CreateSmimeInfo {
+  /**
+   * Create an SmimeInfo resource for a certificate from file.
+   *
+   * @param filename Name of the file containing the S/MIME certificate.
+   * @param password Password for the certificate file, or null if the file is not
+   *                 password-protected.
+   * @return An SmimeInfo object with the specified certificate.
+   */
+  public static SmimeInfo createSmimeInfo(String filename, String password) {
+    SmimeInfo smimeInfo = null;
+    InputStream in = null;
+
+    try {
+      File file = new File(filename);
+      in = new FileInputStream(file);
+      byte[] fileContent = new byte[(int) file.length()];
+      in.read(fileContent);
+
+      smimeInfo = new SmimeInfo();
+      smimeInfo.setPkcs12(Base64.getUrlEncoder().encodeToString(fileContent));
+      if (password != null && password.length() > 0) {
+        smimeInfo.setEncryptedKeyPassword(password);
+      }
+    } catch (Exception e) {
+      System.out.printf("An error occured while reading the certificate file: %s\n", e);
+    } finally {
+      try {
+        if (in != null) {
+          in.close();
+        }
+      } catch (IOException ioe) {
+        System.out.printf("An error occured while closing the input stream: %s\n", ioe);
+      }
+    }
+    return smimeInfo;
+  }
+}
+
+--- 탭: Python ---
+.filepath {
+    color: #fff;
+    margin: 6px;
+    max-width: calc(100% - 160px); /* Give at least 160px for the "View on GitHub" button. */
+    text-overflow: ellipsis;
+    text-shadow: rgba(0,0,0,0.1) 1px 1px;
+    overflow: hidden;
+  }
+  .github-docwidget-gitinclude-code .prettyprint {
+    margin: 0;
+  }
+  .view-on-github {
+    text-shadow: rgba(12,12,12,0.1) 1px 1px;
+  }
+
+
+
+  
+  gmail/snippet/smime snippets/create_smime_info.py
+  
+    
+    GitHub에서 보기 [https://github.com/googleworkspace/python-samples/blob/main/gmail/snippet/smime%20snippets/create_smime_info.py]
+  
+  
+  
+
+  
+    
+  
+  
+  import base64
+
+
+def create_smime_info(cert_filename, cert_password):
+  """Create an smimeInfo resource for a certificate from file.
+  Args:
+    cert_filename: Name of the file containing the S/MIME certificate.
+    cert_password: Password for the certificate file, or None if the file is not
+        password-protected.
+  Returns : Smime object, including smime information
+  """
+
+  smime_info = None
+  try:
+    with open(cert_filename, "rb") as cert:
+      smime_info = {}
+      data = cert.read().encode("UTF-8")
+      smime_info["pkcs12"] = base64.urlsafe_b64encode(data).decode()
+      if cert_password and len(cert_password) > 0:
+        smime_info["encryptedKeyPassword"] = cert_password
+
+  except (OSError, IOError) as error:
+    print(f"An error occurred while reading the certificate file: {error}")
+    smime_info = None
+
+  return smime_info
+
+
+if __name__ == "__main__":
+  print(create_smime_info(cert_filename="xyz", cert_password="xyz"))
+S/MIME 인증서 업로드
+인증서를 업로드하려면 smimeInfo.insert [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs/smimeInfo/insert?hl=ko]를 호출하고 요청 본문에 smimeInfo 리소스를 제공합니다.
+--- 탭: 자바 ---
+.filepath {
+    color: #fff;
+    margin: 6px;
+    max-width: calc(100% - 160px); /* Give at least 160px for the "View on GitHub" button. */
+    text-overflow: ellipsis;
+    text-shadow: rgba(0,0,0,0.1) 1px 1px;
+    overflow: hidden;
+  }
+  .github-docwidget-gitinclude-code .prettyprint {
+    margin: 0;
+  }
+  .view-on-github {
+    text-shadow: rgba(12,12,12,0.1) 1px 1px;
+  }
+
+
+
+  
+  gmail/snippets/src/main/java/InsertSmimeInfo.java
+  
+    
+    GitHub에서 보기 [https://github.com/googleworkspace/java-samples/blob/main/gmail/snippets/src/main/java/InsertSmimeInfo.java]
+  
+  
+  
+
+  
+    
+  
+  
+  import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.gmail.Gmail;
+import com.google.api.services.gmail.GmailScopes;
+import com.google.api.services.gmail.model.SmimeInfo;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import java.io.IOException;
+
+/* Class to demonstrate the use of Gmail Insert Smime Certificate API*/
+public class InsertSmimeInfo {
+  /**
+   * Upload an S/MIME certificate for the user.
+   *
+   * @param userId      User's email address.
+   * @param sendAsEmail The "send as" email address, or null if it should be the same as userId.
+   * @param smimeInfo   The SmimeInfo object containing the user's S/MIME certificate.
+   * @return An SmimeInfo object with details about the uploaded certificate, {@code null} otherwise.
+   * @throws IOException - if service account credentials file not found.
+   */
+  public static SmimeInfo insertSmimeInfo(String userId,
+                                          String sendAsEmail,
+                                          SmimeInfo smimeInfo)
+      throws IOException {
+        /* Load pre-authorized user credentials from the environment.
+           TODO(developer) - See https://developers.google.com/identity for
+            guides on implementing OAuth2 for your application. */
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
+        .createScoped(GmailScopes.GMAIL_SETTINGS_SHARING);
+    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
+        credentials);
+
+    // Create the gmail API client
+    Gmail service = new Gmail.Builder(new NetHttpTransport(),
+        GsonFactory.getDefaultInstance(),
+        requestInitializer)
+        .setApplicationName("Gmail samples")
+        .build();
+
+    if (sendAsEmail == null) {
+      sendAsEmail = userId;
+    }
+
+    try {
+      SmimeInfo results = service.users().settings().sendAs().smimeInfo()
+          .insert(userId, sendAsEmail, smimeInfo)
+          .execute();
+      System.out.printf("Inserted certificate, id: %s\n", results.getId());
+      return results;
+    } catch (IOException e) {
+      System.err.printf("An error occured: %s", e);
+    }
+    return null;
+  }
+}
+
+--- 탭: Python ---
+.filepath {
+    color: #fff;
+    margin: 6px;
+    max-width: calc(100% - 160px); /* Give at least 160px for the "View on GitHub" button. */
+    text-overflow: ellipsis;
+    text-shadow: rgba(0,0,0,0.1) 1px 1px;
+    overflow: hidden;
+  }
+  .github-docwidget-gitinclude-code .prettyprint {
+    margin: 0;
+  }
+  .view-on-github {
+    text-shadow: rgba(12,12,12,0.1) 1px 1px;
+  }
+
+
+
+  
+  gmail/snippet/smime snippets/insert_smime_info.py
+  
+    
+    GitHub에서 보기 [https://github.com/googleworkspace/python-samples/blob/main/gmail/snippet/smime%20snippets/insert_smime_info.py]
+  
+  
+  
+
+  
+    
+  
+  
+  import create_smime_info
+import google.auth
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+
+def insert_smime_info():
+  """Upload an S/MIME certificate for the user.
+  Print the inserted certificate's id
+  Returns : Result object with inserted certificate id and other meta-data
+
+  Load pre-authorized user credentials from the environment.
+  TODO(developer) - See https://developers.google.com/identity
+  for guides on implementing OAuth2 for the application.
+  """
+  creds, _ = google.auth.default()
+
+  try:
+    # create gmail api client
+    service = build("gmail", "v1", credentials=creds)
+
+    user_id = "gduser1@workspacesamples.dev"
+    smime_info = create_smime_info.create_smime_info(
+        cert_filename="xyz", cert_password="xyz"
+    )
+    send_as_email = None
+
+    if not send_as_email:
+      send_as_email = user_id
+
+    # pylint: disable=maybe-no-member
+    results = (
+        service.users()
+        .settings()
+        .sendAs()
+        .smimeInfo()
+        .insert(userId=user_id, sendAsEmail=send_as_email, body=smime_info)
+        .execute()
+    )
+    print(f'Inserted certificate; id: {results["id"]}')
+
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    results = None
+
+  return results
+
+
+if __name__ == "__main__":
+  insert_smime_info()
+여러 사용자의 인증서 관리 예
+조직의 여러 사용자에 대한 인증서를 한 번에 관리해야 할 수 있습니다. 다음 예에서는 일괄 호출 하나로 여러 사용자의 인증서를 관리하는 방법을 보여줍니다.
+CSV 파일에서 인증서 삽입
+사용자 ID와 각 사용자의 인증서 경로가 나열된 CSV 파일이 있다고 가정해 보겠습니다.
+$ cat certificates.csv
+user1@example.com,/path/to/user1_cert.p12,cert_password_1
+user2@example.com,/path/to/user2_cert.p12,cert_password_2
+user3@example.com,/path/to/user3_cert.p12,cert_password_3
+--- 탭: 자바 ---
+이전의 createSmimeInfo 및 insertSmimeInfo 호출을 사용하여 CSV 파일에 지정된 인증서를 업로드할 수 있습니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  .filepath {
+    color: #fff;
+    margin: 6px;
+    max-width: calc(100% - 160px); /* Give at least 160px for the "View on GitHub" button. */
+    text-overflow: ellipsis;
+    text-shadow: rgba(0,0,0,0.1) 1px 1px;
+    overflow: hidden;
+  }
+  .github-docwidget-gitinclude-code .prettyprint {
+    margin: 0;
+  }
+  .view-on-github {
+    text-shadow: rgba(12,12,12,0.1) 1px 1px;
+  }
+
+
+
+  
+  gmail/snippets/src/main/java/InsertCertFromCsv.java
+  
+    
+    GitHub에서 보기 [https://github.com/googleworkspace/java-samples/blob/main/gmail/snippets/src/main/java/InsertCertFromCsv.java]
+  
+  
+  
+
+  
+    
+  
+  
+  import com.google.api.services.gmail.model.SmimeInfo;
+import java.io.File;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
+
+/* Class to demonstrate the use of Gmail Insert Certificate from CSV File */
+public class InsertCertFromCsv {
+  /**
+   * Upload S/MIME certificates based on the contents of a CSV file.
+   *
+   * <p>Each row of the CSV file should contain a user ID, path to the certificate, and the
+   * certificate password.
+   *
+   * @param csvFilename Name of the CSV file.
+   */
+  public static void insertCertFromCsv(String csvFilename) {
+    try {
+      File csvFile = new File(csvFilename);
+      CSVParser parser =
+          CSVParser.parse(csvFile, java.nio.charset.StandardCharsets.UTF_8, CSVFormat.DEFAULT);
+      for (CSVRecord record : parser) {
+        String userId = record.get(0);
+        String certFilename = record.get(1);
+        String certPassword = record.get(2);
+        SmimeInfo smimeInfo = CreateSmimeInfo.createSmimeInfo(certFilename,
+            certPassword);
+        if (smimeInfo != null) {
+          InsertSmimeInfo.insertSmimeInfo(userId,
+              userId,
+              smimeInfo);
+        } else {
+          System.err.printf("Unable to read certificate file for userId: %s\n", userId);
+        }
+      }
+    } catch (Exception e) {
+      System.err.printf("An error occured while reading the CSV file: %s", e);
+    }
+  }
+}
+
+--- 탭: Python ---
+이전의 create_smime_info 및 insert_smime_info 호출을 사용하여 CSV 파일에 지정된 인증서를 업로드할 수 있습니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  .filepath {
+    color: #fff;
+    margin: 6px;
+    max-width: calc(100% - 160px); /* Give at least 160px for the "View on GitHub" button. */
+    text-overflow: ellipsis;
+    text-shadow: rgba(0,0,0,0.1) 1px 1px;
+    overflow: hidden;
+  }
+  .github-docwidget-gitinclude-code .prettyprint {
+    margin: 0;
+  }
+  .view-on-github {
+    text-shadow: rgba(12,12,12,0.1) 1px 1px;
+  }
+
+
+
+  
+  gmail/snippet/smime snippets/insert_cert_from_csv.py
+  
+    
+    GitHub에서 보기 [https://github.com/googleworkspace/python-samples/blob/main/gmail/snippet/smime%20snippets/insert_cert_from_csv.py]
+  
+  
+  
+
+  
+    
+  
+  
+  import csv
+
+import create_smime_info
+import insert_smime_info
+
+
+def insert_cert_from_csv(csv_filename):
+  """Upload S/MIME certificates based on the contents of a CSV file.
+  Each row of the CSV file should contain a user ID, path to the certificate,
+  and the certificate password.
+
+  Args:
+    csv_filename: Name of the CSV file.
+  """
+
+  try:
+    with open(csv_filename, "rb") as cert:
+      csv_reader = csv.reader(cert, delimiter=",")
+      next(csv_reader, None)  # skip CSV file header
+      for row in csv_reader:
+        user_id = row[0]
+        cert_filename = row[1]
+        cert_password = row[2]
+        smime_info = create_smime_info.create_smime_info(
+            cert_filename=cert_filename, cert_password=cert_password
+        )
+        if smime_info:
+          insert_smime_info.insert_smime_info()
+        else:
+          print(f"Unable to read certificate file for user_id: {user_id}")
+        return smime_info
+
+  except (OSError, IOError) as error:
+    print(f"An error occured while reading the CSV file: {error}")
+
+
+if __name__ == "__main__":
+  insert_cert_from_csv(csv_filename="xyz")
+인증서 관리
+이 예에서는 smimeInfo API의 여러 호출을 결합하여 조직의 인증서를 관리하는 방법을 보여줍니다. 사용자의 인증서를 나열하고 기본 인증서가 만료되었거나 설정되지 않은 경우 지정된 파일에서 찾은 인증서를 업로드합니다. 그런 다음 만료일이 가장 늦은 인증서를 기본값으로 설정합니다.
+그런 다음 이전 예와 같이 CSV 파일을 처리하는 함수에서 이를 호출합니다.
+--- 탭: 자바 ---
+.filepath {
+    color: #fff;
+    margin: 6px;
+    max-width: calc(100% - 160px); /* Give at least 160px for the "View on GitHub" button. */
+    text-overflow: ellipsis;
+    text-shadow: rgba(0,0,0,0.1) 1px 1px;
+    overflow: hidden;
+  }
+  .github-docwidget-gitinclude-code .prettyprint {
+    margin: 0;
+  }
+  .view-on-github {
+    text-shadow: rgba(12,12,12,0.1) 1px 1px;
+  }
+
+
+
+  
+  gmail/snippets/src/main/java/UpdateSmimeCerts.java
+  
+    
+    GitHub에서 보기 [https://github.com/googleworkspace/java-samples/blob/main/gmail/snippets/src/main/java/UpdateSmimeCerts.java]
+  
+  
+  
+
+  
+    
+  
+  
+  import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.gmail.Gmail;
+import com.google.api.services.gmail.GmailScopes;
+import com.google.api.services.gmail.model.ListSmimeInfoResponse;
+import com.google.api.services.gmail.model.SmimeInfo;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+
+/* Class to demonstrate the use of Gmail Update Smime Certificate API*/
+public class UpdateSmimeCerts {
+  /**
+   * Update S/MIME certificates for the user.
+   *
+   * <p>First performs a lookup of all certificates for a user. If there are no certificates, or
+   * they all expire before the specified date/time, uploads the certificate in the specified file.
+   * If the default certificate is expired or there was no default set, chooses the certificate with
+   * the expiration furthest into the future and sets it as default.
+   *
+   * @param userId       User's email address.
+   * @param sendAsEmail  The "send as" email address, or None if it should be the same as user_id.
+   * @param certFilename Name of the file containing the S/MIME certificate.
+   * @param certPassword Password for the certificate file, or None if the file is not
+   *                     password-protected.
+   * @param expireTime   DateTime object against which the certificate expiration is compared. If
+   *                     None, uses the current time. @ returns: The ID of the default certificate.
+   * @return The ID of the default certificate, {@code null} otherwise.
+   * @throws IOException - if service account credentials file not found.
+   */
+  public static String updateSmimeCerts(String userId,
+                                        String sendAsEmail,
+                                        String certFilename,
+                                        String certPassword,
+                                        LocalDateTime expireTime)
+      throws IOException {
+        /* Load pre-authorized user credentials from the environment.
+           TODO(developer) - See https://developers.google.com/identity for
+            guides on implementing OAuth2 for your application. */
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
+        .createScoped(GmailScopes.GMAIL_SETTINGS_SHARING);
+    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
+        credentials);
+
+    // Create the gmail API client
+    Gmail service = new Gmail.Builder(new NetHttpTransport(),
+        GsonFactory.getDefaultInstance(),
+        requestInitializer)
+        .setApplicationName("Gmail samples")
+        .build();
+
+    if (sendAsEmail == null) {
+      sendAsEmail = userId;
+    }
+
+    ListSmimeInfoResponse listResults;
+    try {
+      listResults =
+          service.users().settings().sendAs().smimeInfo().list(userId, sendAsEmail).execute();
+    } catch (IOException e) {
+      System.err.printf("An error occurred during list: %s\n", e);
+      return null;
+    }
+
+    String defaultCertId = null;
+    String bestCertId = null;
+    LocalDateTime bestCertExpire = LocalDateTime.MIN;
+
+    if (expireTime == null) {
+      expireTime = LocalDateTime.now();
+    }
+    if (listResults != null && listResults.getSmimeInfo() != null) {
+      for (SmimeInfo smimeInfo : listResults.getSmimeInfo()) {
+        String certId = smimeInfo.getId();
+        boolean isDefaultCert = smimeInfo.getIsDefault();
+        if (isDefaultCert) {
+          defaultCertId = certId;
+        }
+        LocalDateTime exp =
+            LocalDateTime.ofInstant(
+                Instant.ofEpochMilli(smimeInfo.getExpiration()), ZoneId.systemDefault());
+        if (exp.isAfter(expireTime)) {
+          if (exp.isAfter(bestCertExpire)) {
+            bestCertId = certId;
+            bestCertExpire = exp;
+          }
+        } else {
+          if (isDefaultCert) {
+            defaultCertId = null;
+          }
+        }
+      }
+    }
+    if (defaultCertId == null) {
+      String defaultId = bestCertId;
+      if (defaultId == null && certFilename != null) {
+        SmimeInfo smimeInfo = CreateSmimeInfo.createSmimeInfo(certFilename,
+            certPassword);
+        SmimeInfo insertResults = InsertSmimeInfo.insertSmimeInfo(userId,
+            sendAsEmail,
+            smimeInfo);
+        if (insertResults != null) {
+          defaultId = insertResults.getId();
+        }
+      }
+
+      if (defaultId != null) {
+        try {
+          service.users().settings().sendAs().smimeInfo().setDefault(userId, sendAsEmail, defaultId)
+              .execute();
+          return defaultId;
+        } catch (IOException e) {
+          System.err.printf("An error occured during setDefault: %s", e);
+        }
+      }
+    } else {
+      return defaultCertId;
+    }
+
+    return null;
+  }
+}
+
+--- 탭: Python ---
+.filepath {
+    color: #fff;
+    margin: 6px;
+    max-width: calc(100% - 160px); /* Give at least 160px for the "View on GitHub" button. */
+    text-overflow: ellipsis;
+    text-shadow: rgba(0,0,0,0.1) 1px 1px;
+    overflow: hidden;
+  }
+  .github-docwidget-gitinclude-code .prettyprint {
+    margin: 0;
+  }
+  .view-on-github {
+    text-shadow: rgba(12,12,12,0.1) 1px 1px;
+  }
+
+
+
+  
+  gmail/snippet/smime snippets/update_smime_cert.py
+  
+    
+    GitHub에서 보기 [https://github.com/googleworkspace/python-samples/blob/main/gmail/snippet/smime%20snippets/update_smime_cert.py]
+  
+  
+  
+
+  
+    
+  
+  
+  from datetime import datetime
+
+import create_smime_info
+import google.auth
+import insert_smime_info
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+
+def update_smime_cert(
+    user_id, send_as_email, cert_filename, cert_password, expire_dt
+):
+  """Update S/MIME certificates for the user.
+
+  First performs a lookup of all certificates for a user.  If there are no
+  certificates, or they all expire before the specified date/time, uploads the
+  certificate in the specified file.  If the default certificate is expired or
+  there was no default set, chooses the certificate with the expiration furthest
+  into the future and sets it as default.
+
+  Args:
+    user_id: User's email address.
+    send_as_email: The "send as" email address, or None if it should be the same
+        as user_id.
+    cert_filename: Name of the file containing the S/MIME certificate.
+    cert_password: Password for the certificate file, or None if the file is not
+        password-protected.
+    expire_dt: DateTime object against which the certificate expiration is
+      compared.  If None, uses the current time.
+
+  Returns:
+    The ID of the default certificate.
+
+  Load pre-authorized user credentials from the environment.
+  TODO(developer) - See https://developers.google.com/identity
+  for guides on implementing OAuth2 for the application.
+  """
+  if not send_as_email:
+    send_as_email = user_id
+
+  creds, _ = google.auth.default()
+
+  try:
+    # create gmail api client
+    service = build("gmail", "v1", credentials=creds)
+
+    # pylint: disable=maybe-no-member
+    results = (
+        service.users()
+        .settings()
+        .sendAs()
+        .smimeInfo()
+        .list(userId=user_id, sendAsEmail=send_as_email)
+        .execute()
+    )
+
+  except HttpError as error:
+    print(f"An error occurred during list: {error}")
+    return None
+
+  default_cert_id = None
+  best_cert_id = (None, datetime.datetime.fromtimestamp(0))
+
+  if not expire_dt:
+    expire_dt = datetime.datetime.now()
+  if results and "smimeInfo" in results:
+    for smime_info in results["smimeInfo"]:
+      cert_id = smime_info["id"]
+      is_default_cert = smime_info["isDefault"]
+      if is_default_cert:
+        default_cert_id = cert_id
+      exp = datetime.datetime.fromtimestamp(smime_info["expiration"] / 1000)
+      if exp > expire_dt:
+        if exp > best_cert_id[1]:
+          best_cert_id = (cert_id, exp)
+      else:
+        if is_default_cert:
+          default_cert_id = None
+
+  if not default_cert_id:
+    default_id = best_cert_id[0]
+    if not default_id and cert_filename:
+      create_smime_info.create_smime_info(
+          cert_filename=cert_filename, cert_password=cert_password
+      )
+      results = insert_smime_info.insert_smime_info()
+      if results:
+        default_id = results["id"]
+
+    if default_id:
+      try:
+        # pylint: disable=maybe-no-member
+        service.users().settings().sendAs().smimeInfo().setDefault(
+            userId=user_id, sendAsEmail=send_as_email, id=default_id
+        ).execute()
+        return default_id
+      except HttpError as error:
+        print(f"An error occurred during setDefault: {error}")
+  else:
+    return default_cert_id
+
+  return None
+
+
+if __name__ == "__main__":
+  update_smime_cert(
+      user_id="xyz",
+      send_as_email=None,
+      cert_filename="xyz",
+      cert_password="xyz",
+      expire_dt=None,
+  )
+의견 보내기

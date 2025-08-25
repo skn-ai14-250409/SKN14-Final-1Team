@@ -1,0 +1,77 @@
+Source URL: https://firebase.google.com/docs/firestore/security/insecure-rules?hl=ko
+Title: 안전하지 않은 규칙 수정
+
+의견 보내기
+
+안전하지 않은 규칙 수정
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 가이드를 활용하여 Cloud Firestore Security Rules 구성의 일반적인 취약점을 이해하고 자체 규칙을 검토하여 규칙의 보안을 강화한 후 변경사항을 배포하기 전에 테스트해 보세요.
+
+참고: 서버 클라이언트 라이브러리는 모든 Cloud Firestore Security Rules를 우회하고 대신 Google 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/production?hl=ko]를 통해 인증합니다.
+서버 클라이언트 라이브러리, REST 또는 RPC API를 사용하는 경우 Cloud Firestore용 Identity and Access Management(IAM) [https://cloud.google.com/firestore/docs/security/iam?hl=ko]를 설정해야 합니다.
+
+Cloud Firestore 데이터베이스가 제대로 보호되지 않는다는 알림이 표시되는 경우 Cloud Firestore Security Rules을 수정하고 테스트하여 취약점을 해결할 수 있습니다.
+
+기존 보안 규칙을 보려면 Firebase 콘솔의 규칙 탭 [https://console.firebase.google.com/project/_/firestore/_/rules?hl=ko]으로 이동하세요.
+참고: Firebase CLI에서 보안 규칙을 관리하는 경우 firebase.json 파일 [https://firebase.google.com/docs/cli/?hl=ko#the_firebasejson_file]에 언급된 규칙 파일로 이동하세요.
+
+Cloud Firestore Security Rules 이해하기
+
+Cloud Firestore Security Rules는 악의적인 사용자로부터 데이터를 보호합니다. Firebase 콘솔에서 만든 모든 Cloud Firestore 인스턴스의 기본 규칙은 모든 사용자의 액세스를 거부합니다. 앱을 개발하고 데이터베이스에 액세스하려면 이러한 규칙을 수정해야 하며, 개발 환경의 모든 사용자에게 포괄적인 액세스 권한을 부여하는 것도 고려해 볼 수 있습니다.
+하지만 프로덕션 환경에 앱을 배포하기 전에 시간을 내어 규칙을 올바르게 구성하고 데이터를 보호해야 합니다.
+
+앱을 개발하고 다양한 규칙 구성을 테스트하는 과정에서 Cloud Firestore 에뮬레이터 [https://firebase.google.com/docs/firestore/security/test-rules-emulator?hl=ko]를 사용하여 로컬 개발 환경에서 앱을 실행하세요.
+
+안전하지 않은 규칙의 일반적인 시나리오
+
+Cloud Firestore Security Rules를 기본값으로 설정했거나 Cloud Firestore로 앱을 처음에 개발할 때 상태로 둔 경우 앱을 배포하기 전에 이 규칙을 검토하고 업데이트해야 합니다. 다음과 같은 일반적인 함정에 빠지지 않고 사용자 데이터를 올바르게 보호해야 합니다.
+
+오픈 액세스
+
+Cloud Firestore를 설정할 때 개발 중에 오픈 액세스를 허용하도록 규칙을 설정했을 수 있습니다. 자신이 앱의 유일한 사용자라고 생각할 수도 있겠지만 앱을 배포했다면 인터넷에서 제공된다는 의미입니다. 사용자를 인증하고 보안 규칙을 구성하지 않으면 프로젝트 ID를 추측한 다른 사람이 데이터를 도용, 수정 또는 삭제할 수 있습니다.
+
+| 권장하지 않음: 모든 사용자에 대한 읽기 및 쓰기 액세스 권한 |
+| --- |
+
+Cloud Firestore Security Rules이 사용자가 로그인했는지 확인하지만 해당 인증을 기반으로 액세스를 더 이상 제한하지 않는 경우가 있습니다. 규칙 중 하나라도 auth != null이 포함되어 있으면 로그인한 사용자에게 데이터에 대한 액세스 권한을 부여할지 확인하세요.
+
+| 권장하지 않음: 로그인한 모든 사용자에게 전체 데이터베이스에 대한 읽기 및 쓰기 액세스 허용 |
+| --- |
+
+service cloud.firestore {
+match /databases/{database}/documents {
+match /some_collection/{document} {
+allow read, write: if request.auth != null;
+allow read: true;
+Cloud Firestore Security Rules이 사용자의 이메일이 특정 도메인에 속하는지 확인하는 경우가 있습니다. 일반적으로 이 방법이 좋지만, 사용자가 인증 이메일을 받은 후 추가 단계를 수행할 때까지 로그인 중에 이메일이 항상 확인되는 것은 아닙니다. 이메일이 실제로 사용자의 이메일인지 확인해야 합니다.
+
+| 권장하지 않음: 모든 사용자가 임의의 이메일 주소로 로그인할 수 있습니다. |
+| --- |
+
+service cloud.firestore {
+match /databases/{database}/documents {
+Firebase Admin SDK 및 Cloud Functions에서는 계속 데이터베이스에 액세스할 수 있습니다. Cloud Firestore를 Firebase Admin SDK와 함께 서버 전용 백엔드로 사용하려는 경우에 이 규칙을 사용하세요. 안전한 방식이지만 앱의 클라이언트에서 데이터를 제대로 검색할 수 있는지 테스트해야 합니다.
+
+Cloud Firestore Security Rules 시작하기 [https://firebase.google.com/docs/firestore/security/get-started?hl=ko]에서 Cloud Firestore Security Rules 및 작동 방식을 자세히 알아보세요.
+
+Cloud Firestore Security Rules을 확인하세요.
+
+앱의 동작을 확인하고 Cloud Firestore Security Rules 구성을 확인하려면 Cloud Firestore 에뮬레이터 [https://firebase.google.com/docs/firestore/security/test-rules-emulator?hl=ko]를 사용합니다. 변경사항을 배포하기 전에 로컬 환경에서 Cloud Firestore 에뮬레이터를 사용하여 단위 테스트를 실행 및 자동화합니다.
+
+Firebase Console에서 업데이트된 Cloud Firestore Security Rules 보안 규칙을 빠르게 테스트하려면 규칙 플레이그라운드 도구를 사용하세요.
+
+규칙 플레이그라운드를 열려면 규칙 탭 [https://console.firebase.google.com/project/_/firestore/_/rules?hl=ko]에서 규칙 플레이그라운드를 클릭합니다.
+규칙 플레이그라운드 설정에서 다음을 포함한 테스트 옵션을 선택합니다.
+
+읽기 또는 쓰기 테스트
+데이터베이스의 특정 위치(경로)
+인증 유형 — 인증되지 않은 사용자, 인증된 익명 사용자 또는 특정 사용자 ID
+규칙에서 구체적으로 참조하는 문서별 데이터(예: 특정 필드가 있어야 쓰기를 허용하는 규칙의 경우)
+
+실행을 클릭하고 규칙 창 위의 배너에서 결과를 확인합니다.
+
+의견 보내기

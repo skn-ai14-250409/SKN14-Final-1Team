@@ -1,0 +1,66 @@
+Source URL: https://developers.google.com/workspace/gmail/android
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+Google Workspace [https://developers.google.com/workspace?hl=ko]
+Gmail [https://developers.google.com/workspace/gmail?hl=ko]
+가이드 [https://developers.google.com/workspace/gmail/api/guides?hl=ko]
+의견 보내기
+Gmail용 Android 콘텐츠 제공업체
+bookmark_border
+이 페이지의 내용
+유효한 Gmail 계정을 찾아 쿼리합니다.
+콘텐츠 제공업체 쿼리
+예시 검토
+Android Gmail 앱에는 서드 파티 개발자가 이름, 읽지 않은 항목 수와 같은 라벨 정보를 가져오고 정보가 변경될 때 업데이트된 상태를 유지하는 데 사용할 수 있는 콘텐츠 제공자 [https://developer.android.com/guide/topics/providers/content-providers?hl=ko]가 포함되어 있습니다. 예를 들어 앱이나 위젯은 특정 계정의 받은편지함에 있는 읽지 않은 메일 수를 표시할 수 있습니다.
+참고: 이 콘텐츠 제공자는 2.3.6(Froyo/Gingerbread) 및 4.0.5 (Honeycomb/ICS) 이후 버전에서 지원됩니다.
+이 콘텐츠 제공자를 사용하기 전에 GmailContract.canReadLabels(Context) [https://developers.google.com/workspace/gmail/android/com/google/android/gm/contentprovider/GmailContract?hl=ko#public-static-boolean-canreadlabels-context-c] 메서드를 호출하여 사용자의 Gmail 앱 버전이 이러한 쿼리를 지원하는지 확인하세요.
+유효한 Gmail 계정을 찾아 쿼리합니다.
+앱은 먼저 유효한 Gmail 계정의 이메일 주소를 찾아 라벨 정보를 쿼리해야 합니다. GET_ACCOUNTS [http://developer.android.com/reference/android/Manifest.permission.html?hl=ko#GET_ACCOUNTS] 권한이 있으면 AccountManager [http://developer.android.com/reference/android/accounts/AccountManager.html?hl=ko]에서 다음 정보를 반환할 수 있습니다.
+// Get the account list, and pick the first one
+final String ACCOUNT_TYPE_GOOGLE = "com.google";
+final String[] FEATURES_MAIL = {
+        "service_mail"
+};
+AccountManager.get(this).getAccountsByTypeAndFeatures(ACCOUNT_TYPE_GOOGLE, FEATURES_MAIL,
+        new AccountManagerCallback() {
+            @Override
+            public void run(AccountManagerFuture future) {
+                Account[] accounts = null;
+                try {
+                    accounts = future.getResult();
+                    if (accounts != null &amp;&amp; accounts.length &gt; 0) {
+                        String selectedAccount = accounts[0].name;
+                        queryLabels(selectedAccount);
+                    }
+
+                } catch (OperationCanceledException oce) {
+                    // TODO: handle exception
+                } catch (IOException ioe) {
+                    // TODO: handle exception
+                } catch (AuthenticatorException ae) {
+                    // TODO: handle exception
+                }
+            }
+        }, null /* handler */);
+콘텐츠 제공업체 쿼리
+이메일 주소를 선택하면 쿼리할 ContentProvider [http://developer.android.com/guide/topics/providers/content-provider-basics.html?hl=ko] URI를 가져올 수 있습니다. URI를 구성하고 반환된 열을 정의하는 간단한 클래스 GmailContract.java [https://developers.google.com/workspace/gmail/android/com/google/android/gm/contentprovider/GmailContract?hl=ko]가 제공됩니다.
+앱은 이 URI를 직접 쿼리하거나 CursorLoader [http://developer.android.com/reference/android/content/CursorLoader.html?hl=ko]를 사용하여 계정의 모든 라벨에 관한 정보가 포함된 커서를 가져올 수 있습니다.
+Cursor labelsCursor = getContentResolver().query(GmailContract.Labels.getLabelsUri(selectedAccount), null, null, null, null);
+이 커서의 데이터를 사용하여 GmailContract.Labels.URI 열에 URI 값을 유지하여 단일 라벨의 변경사항을 쿼리하고 감시할 수 있습니다.
+사전 정의된 라벨의 NAME 값은 언어에 따라 다를 수 있으므로 GmailContract.Labels.NAME를 사용하지 마세요. 대신 GmailContract.Labels.CANONICAL_NAME 열의 문자열 값을 사용하여 받은편지함, 보낸편지함, 임시보관함과 같은 사전 정의된 라벨을 프로그래매틱 방식으로 식별할 수 있습니다.
+// loop through the cursor and find the Inbox
+if (labelsCursor != null) {
+    final String inboxCanonicalName = GmailContract.Labels.LabelCanonicalName.CANONICAL_NAME_INBOX;
+    final int canonicalNameIndex = labelsCursor.getColumnIndexOrThrow(GmailContract.Labels.CANONICAL_NAME);
+    while (labelsCursor.moveToNext()) {
+        if (inboxCanonicalName.equals(labelsCursor.getString(canonicalNameIndex))) {
+            // this row corresponds to the Inbox
+        }
+    }
+}
+자세한 내용은 콘텐츠 제공자 기본사항 [https://developer.android.com/guide/topics/providers/content-provider-basics.html?hl=ko]을 참고하세요.
+예시 검토
+이 콘텐츠 제공자가 실제로 작동하는 예를 보려면 샘플 앱을 다운로드 [https://developers.google.com/static/workspace/gmail/android/android-gmail-api-sample.tar.gz?hl=ko]하세요.
+의견 보내기

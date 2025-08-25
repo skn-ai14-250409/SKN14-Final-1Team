@@ -1,0 +1,100 @@
+Source URL: https://developers.google.com/maps/documentation/places/android-sdk/routing-summary-sar?hl=ko
+
+이 페이지는 Cloud Translation API를 통해 번역되었습니다.
+홈
+제품
+Google Maps Platform
+문서
+Android
+Places SDK for Android
+가이드
+의견 보내기
+경로 요약과 경로를 따라 검색 결합
+경로 요약 계산을 경로를 따라 검색과 결합할 수 있습니다. 이 경우 텍스트 검색 (신규)은 응답에서 각 장소까지의 이동 시간과 거리를 반환한 다음 각 장소에서 경로의 최종 목적지까지의 이동 시간과 거리를 반환합니다.
+텍스트 검색 (신규)을 사용하여 경로를 따라 검색하는 것과 함께 라우팅 요약을 계산하려면 다음 단계를 따르세요.
+Routes API를 사용하여 응답에서 경로 폴리라인을 반환하는 경로를 계산합니다.
+searchAlongRouteParameters.setPolyline()를 사용하여 경로 폴리라인을 텍스트 검색 (신규)에 전달하여 검색 결과를 경로에 바이어스합니다. 그러면 응답에 검색 기준과 일치하고 지정된 경로 근처에 있는 장소가 포함됩니다.
+요청 객체를 빌드할 때 .setRoutingSummariesIncluded(true)를 추가합니다.
+기본적으로 텍스트 검색 (신규)은 전체 경로를 따라 검색을 실행합니다.
+// Define the route polyline object using the route string.
+EncodedPolyline encodedPolyline = EncodedPolyline.newInstance("wblcFptchVIFOd@G@EVw@Ms@dHKR}ApNA`AF~@Hf@TjAb@bBb@~@n@p@^Rd@~@Vz@HVz@nDLt@?d@Kr@c@~@mD`G?`@aEfGkCnDuChDm`@bb@[`@{GhHeEdEciBnnBkC`DkC~DaClEuKjT_Z|l@Qb@iR~_@}EzJ_AdB_Und@kAfCaOjZkg@vcAqBzD_]rr@iBlEaBxEgArD}AlG}AhHsA`IeAnH{@dIq@dJgL~iBq@rHu@vGgAtHwArHaBhHkBzG_DpJ}Nbc@iBhGkA|EgC|LcIjb@oAhG_AvDgAdDkApC_BzCiBpCsFvGii@vn@scAxlAmLjNgSzUeRjT{TzWqExEmG|FuNlMmMhLaRvPqOlNmbAl}@mFlF{PlOmJfIoElE}LtMiSbU_H`I}}@jcAwl@vp@oAbBqA~BeAhCm@tBg@fCWrBQ~BI|DaB~rBO~D[bEa@`Dm@pDaAdE{@vC_BbEkB~Def@|z@sEzHKJeS~]}K`S{\\~l@cXpe@sBpDm@bAuCxDkBrBiC~BwCtByBnAcBx@}Bt@{Bn@gh@|LaOpDeFhAoDj@aE^kVrA_E^iEr@yD~@uBr@gMjF_EnAcCh@eFr@_DRsAD}@Jsu@xCWDqIV}BCeCOyDm@cBa@_DmA}JeE_CwAsBcBiBoBuAqBmOoX{CuEkB_CoDqDkVoUoD{CeE_DkEkC_FeCqB}@sDuAoDgAeCe@cCW}CK}BDaDTeOlBcuBrYaNlBq@Dyd@rGyFt@yBb@eBf@oCnAoBlAkIpGkAp@wBbAaCt@oFdAwKjBoGxA{FbByIjC_HfB_@KmNdDuC|@uFzBcH|C{@\\[?sBv@}@VaBVoA@y@EmAQcA[w@]aBkAeAkA}BuDUKs@uAqBsCwBcCgAiAiN_MyKsJsG{GkBaBiBuA{BwAwDkBcOaHiC_AiCg@}BQcCAcBHqBVkB`@qEjAu@LgCVgAHwG@sG?mABsH^eNr@mBXy@NqBt@uAt@aBlAkAlA}BtCyApBiAdB_BxB{A`B}@j@oAf@s@PeCVcIf@gAAkAQy@YiAo@_A{@_DgEgJqM_DeEaM}PoBiCzAsBw@kAdAGVk@f@q@z@C
+");
+
+// Specify the list of fields to return.
+final List<Place.Field> placeFields = Arrays.asList(Place.Field.ID, Place.Field.NAME);
+
+// Define the search along route parameters object and pass the polyline object.
+SearchAlongRouteParameters searchAlongRouteParameters = SearchAlongRouteParameters.builder()
+    .setPolyline(encodedPolyline)
+    .build();
+
+// Use the builder to create a SearchByTextRequest object and pass the search along route parameters.
+final SearchByTextRequest searchByTextRequest = SearchByTextRequest.builder("Spicy Vegetarian Food", placeFields)
+    .setMaxResultCount(10)
+    .setSearchAlongRouteParameters(searchAlongRouteParameters)
+    .setRoutingSummariesIncluded(true)
+    .build();
+
+// Call PlacesClient.searchByText() to perform the search.
+// Define a response handler to process the returned List of Place objects.
+placesClient.searchByText(searchByTextRequest)   
+    .addOnSuccessListener(response -> {
+      List<Place> places = response.getPlaces();
+      List<RoutingSummary> routingSummaries = response.getRoutingSummaries();
+      List<Leg> legs = routingSummaries.get(0).getLegs();
+      Duration duration = legs.get(0).getDuration();
+    });
+응답에는 요청된 장소 필드의 목록과 각 장소까지 이동하는 데 걸리는 시간과 거리가 포함된 경로 요약이 포함된 객체가 포함됩니다. SearchByTextResponse.getRoutingSummaries()를 호출하여 라우팅 요약 목록을 반환할 수 있습니다.
+legs 배열의 각 항목에 대해 텍스트 검색 (신규)은 2구간 이동 시간을 반환합니다.
+첫 번째 구간에는 출발지에서 장소까지의 이동 시간과 거리가 포함됩니다.
+두 번째 구간에는 장소에서 경로 목적지까지의 이동 시간과 거리가 포함됩니다.
+참고: 응답에는 이동 시간과 각 구간의 시간만 포함됩니다. 실제 경로 자체는 포함하지 않습니다. 경로를 계산하려면 출발지, 장소 위치(중간 경유지), 목적지를 Routes API에 전달합니다.
+라우팅 출발지, 이동 모드, 경로 수정자 지정
+라우팅 원점, 이동 수단, 경로 수정자, 라우팅 환경설정을 지정하여 검색 및 라우팅 요약 계산을 수정할 수 있습니다. 이동 모드와 경로 수정자는 이동 옵션 지정 주제에 표시된 대로 경로를 지정하지 않고 경로 요약을 계산하는 것과 동일하게 작동합니다.
+기본적으로 각 결과의 첫 번째 구간에는 폴리라인으로 정의된 원점에서 각 장소까지의 거리가 포함됩니다. 하지만 요청에서 라우팅 출처를 명시적으로 지정하여 기본값을 재정의할 수 있습니다. 지정된 경우 모든 응답의 첫 번째 구간은 지정된 라우팅 출발지로부터의 거리와 시간을 지정하여 폴리라인의 출발지를 재정의합니다.
+다음 예에서는 라우팅 원점을 캘리포니아주 샌마테오의 좌표로 지정하고, 통행료를 피하도록 지정하고, 결과 수를 5로 설정합니다.
+// Define the route polyline object using the route string.
+EncodedPolyline encodedPolyline = EncodedPolyline.newInstance("wblcFptchVIFOd@G@EVw@Ms@dHKR}ApNA`AF~@Hf@TjAb@bBb@~@n@p@^Rd@~@Vz@HVz@nDLt@?d@Kr@c@~@mD`G?`@aEfGkCnDuChDm`@bb@[`@{GhHeEdEciBnnBkC`DkC~DaClEuKjT_Z|l@Qb@iR~_@}EzJ_AdB_Und@kAfCaOjZkg@vcAqBzD_]rr@iBlEaBxEgArD}AlG}AhHsA`IeAnH{@dIq@dJgL~iBq@rHu@vGgAtHwArHaBhHkBzG_DpJ}Nbc@iBhGkA|EgC|LcIjb@oAhG_AvDgAdDkApC_BzCiBpCsFvGii@vn@scAxlAmLjNgSzUeRjT{TzWqExEmG|FuNlMmMhLaRvPqOlNmbAl}@mFlF{PlOmJfIoElE}LtMiSbU_H`I}}@jcAwl@vp@oAbBqA~BeAhCm@tBg@fCWrBQ~BI|DaB~rBO~D[bEa@`Dm@pDaAdE{@vC_BbEkB~Def@|z@sEzHKJeS~]}K`S{\\~l@cXpe@sBpDm@bAuCxDkBrBiC~BwCtByBnAcBx@}Bt@{Bn@gh@|LaOpDeFhAoDj@aE^kVrA_E^iEr@yD~@uBr@gMjF_EnAcCh@eFr@_DRsAD}@Jsu@xCWDqIV}BCeCOyDm@cBa@_DmA}JeE_CwAsBcBiBoBuAqBmOoX{CuEkB_CoDqDkVoUoD{CeE_DkEkC_FeCqB}@sDuAoDgAeCe@cCW}CK}BDaDTeOlBcuBrYaNlBq@Dyd@rGyFt@yBb@eBf@oCnAoBlAkIpGkAp@wBbAaCt@oFdAwKjBoGxA{FbByIjC_HfB_@KmNdDuC|@uFzBcH|C{@\\[?sBv@}@VaBVoA@y@EmAQcA[w@]aBkAeAkA}BuDUKs@uAqBsCwBcCgAiAiN_MyKsJsG{GkBaBiBuA{BwAwDkBcOaHiC_AiCg@}BQcCAcBHqBVkB`@qEjAu@LgCVgAHwG@sG?mABsH^eNr@mBXy@NqBt@uAt@aBlAkAlA}BtCyApBiAdB_BxB{A`B}@j@oAf@s@PeCVcIf@gAAkAQy@YiAo@_A{@_DgEgJqM_DeEaM}PoBiCzAsBw@kAdAGVk@f@q@z@C
+");
+
+// Specify the list of fields to return.
+final List<Place.Field> placeFields = Arrays.asList(Place.Field.ID, Place.Field.NAME);
+
+// Define the routing modifiers object.
+RouteModifiers routeModifiers = RouteModifiers.builder()
+    .setAvoidTolls(true)
+    .build();
+
+// Define the routing parameters object and pass the routing origin.
+// Set the travel mode to DRIVE.
+// Pass the routeModifiers object.
+RoutingParameters routingParameters = RoutingParameters.builder()
+    .setOrigin(toLatLng("37.56617, -122.30870"))
+    .setTravelMode(DRIVE)
+    .setRouteModifiers(routeModifiers)
+    .build();
+
+// Define the search along route parameters object and pass the polyline object.
+SearchAlongRouteParameters searchAlongRouteParameters = SearchAlongRouteParameters.builder()
+    .setPolyline(encodedPolyline)
+    .build();
+
+// Use the builder to create a SearchByTextRequest object and pass the search along route parameters.
+final SearchByTextRequest searchByTextRequest = SearchByTextRequest.builder("Spicy Vegetarian Food", placeFields)
+    .setMaxResultCount(5)
+    .setRoutingParameters(routingParameters)
+    .setSearchAlongRouteParameters(searchAlongRouteParameters)
+    .setRoutingSummariesIncluded(true)
+    .build();
+
+// Call PlacesClient.searchByText() to perform the search.
+// Define a response handler to process the returned List of Place objects.
+placesClient.searchByText(searchByTextRequest)   
+    .addOnSuccessListener(response -> {
+      List<Place> places = response.getPlaces();
+      List<RoutingSummary> routingSummaries = result.getRoutingSummaries();
+      List<Leg> legs = routingSummaries.get(0).getLegs();
+      Duration duration = legs.get(0).getDuration();
+    });
+다음 이미지는 경로 폴리라인, 새 출발지(하늘색 핀), 검색 결과의 장소 (녹색 핀)가 포함된 지도를 보여줍니다. 모든 결과가 경로를 따라 San Mateo를 지나서 표시됩니다.
+의견 보내기

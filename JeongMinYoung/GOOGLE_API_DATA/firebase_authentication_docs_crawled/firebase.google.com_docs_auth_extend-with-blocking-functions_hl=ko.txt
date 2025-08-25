@@ -1,0 +1,459 @@
+Source URL: https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko
+Title: 차단 함수로 Firebase 인증 확장
+bookmark_border
+
+의견 보내기
+
+차단 함수로 Firebase 인증 확장
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#before_you_begin]차단 함수 이해 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#understanding_blocking_functions]차단 함수 배포 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#deploy_a_blocking_function]사용자 및 컨텍스트 정보 가져오기 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#getting_user_and_context_information]등록 또는 로그인 차단 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#blocking_registration_or_sign-in]사용자 수정 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#modifying_a_user]지원되는 OAuth 사용자 인증 정보 및 데이터 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#supported_credentials]OAuth 토큰 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#oauth_tokens]일반적인 시나리오 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#common-scenarios]특정 도메인의 등록만 허용 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#only_allowing_registration_from_a_specific_domain]이메일이 확인되지 않은 사용자의 등록 차단 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#blocking_users_with_unverified_emails_from_registering]특정 ID 공급업체 이메일을 확인된 것으로 처리 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#treating_certain_identity_provider_emails_as_verified]특정 IP 주소에서의 로그인 차단 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#blocking_sign-in_from_certain_ip_addresses]커스텀 및 세션 클레임 설정 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#setting_custom_and_session_claims]IP 주소를 추적하여 의심스러운 활동 모니터링 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#tracking_ip_addresses_to_monitor_suspicious_activity]사용자 사진 선별 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#screening_user_photos]사용자의 ID 공급업체 OAuth 사용자 인증 정보 액세스 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#accessing_a_users_identity_provider_oauth_credentials]사용자 작업에 대한 reCAPTCHA Enterprise 결과 재정의 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#overriding_recaptcha_enterprise_verdict_for_user_operation]
+
+2세대
+1세대
+
+차단 함수를 사용하면 사용자가 앱에 등록하거나 로그인한 결과를 수정하는 커스텀 코드를 실행할 수 있습니다. 예를 들어 사용자가 특정 기준을 충족하지 않는 경우 인증하지 못하도록 하거나 클라이언트 앱으로 반환하기 전에 사용자 정보를 업데이트할 수 있습니다.
+참고: 차단 함수는 Firebase 및 Firebase CLI에서만 사용할 수 있습니다. Google Cloud Identity Platform에서는 지원되지 않습니다.
+시작하기 전에
+
+차단 함수를 사용하려면 Firebase 프로젝트를 Firebase Authentication with Identity Platform으로 업그레이드해야 합니다.
+아직 업그레이드하지 않았다면 먼저 업그레이드하세요.
+
+차단 함수 이해
+
+다음과 같은 이벤트에 차단 함수를 등록할 수 있습니다.
+
+사용자가 생성되기 전: 신규 사용자가 Firebase Authentication 데이터베이스에 저장되기 전 그리고 클라이언트 앱에 토큰이 반환되기 전에 트리거됩니다.
+사용자가 로그인하기 전: 사용자 인증 정보 확인 후 Firebase Authentication에서 클라이언트 앱에 ID 토큰을 반환하기 전에 트리거됩니다. 앱에서 다중 인증(MFA)을 사용하는 경우 사용자가 2단계 인증을 완료하면 함수가 트리거됩니다. 신규 사용자를 만들면 이 두 이벤트가 모두 트리거됩니다.
+이메일 전송 전(Node.js만 해당): 사용자에게 이메일(예: 로그인 또는 비밀번호 재설정 이메일)이 전송되기 전에 트리거됩니다.
+SMS 메시지 전송 전(Node.js만 해당): 다중 인증(MFA)과 같은 경우에 SMS 메시지가 사용자에게 전송되기 전에 트리거됩니다.
+
+차단 함수를 사용할 때는 다음 사항에 유의하세요.
+
+함수는 7초 이내에 응답해야 합니다. 7초 후에 Firebase Authentication이 오류를 반환하고 클라이언트 작업이 실패합니다.
+200 이외의 HTTP 응답 코드가 클라이언트 앱으로 전달됩니다. 함수가 반환할 수 있는 오류를 클라이언트 코드가 처리하는지 확인합니다.
+함수는 테넌트 [https://cloud.google.com/identity-platform/docs/multi-tenancy?hl=ko]에 포함된 사용자를 포함하여 프로젝트의 모든 사용자에게 적용됩니다.
+Firebase Authentication은 사용자가 속한 테넌트를 비롯하여 사용자에 대한 정보를 함수에 제공하므로 그에 따라 응답할 수 있습니다.
+다른 ID 공급업체를 계정에 연결하면 등록된 beforeUserSignedIn 함수가 다시 트리거됩니다.
+익명 및 커스텀 인증은 차단 함수를 트리거하지 않습니다.
+
+경고: 함수를 삭제하는 경우 Firebase Authentication에서 트리거를 등록 취소해야 합니다. 그렇지 않으면 모든 사용자가 앱에서 인증할 수 없게 됩니다.
+차단 함수 배포
+
+사용자 인증 흐름에 커스텀 코드를 삽입하려면 차단 함수를 배포합니다. 차단 함수가 배포되면 인증 및 사용자를 생성하기 위해 커스텀 코드가 성공적으로 완료되어야 합니다.
+
+함수를 배포하는 것과 동일한 방식으로 차단 함수를 배포합니다.
+(자세한 내용은 Cloud Functions 시작하기 [https://firebase.google.com/docs/functions/get-started?hl=ko] 페이지를 참조하세요.) 요약하면 다음과 같습니다.
+
+타겟팅된 이벤트를 처리하는 함수를 작성합니다.
+
+예를 들어 시작하려면 소스에 다음과 같은 노옵스(no-ops) 함수를 추가할 수 있습니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+import {
+beforeUserCreated,
+```
+위 예시에서는 커스텀 인증 로직 구현이 생략되었습니다. 특정 예에 대한 차단 함수 및 일반적인 시나리오 [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#common-scenarios]를 구현하는 방법을 알아보려면 다음 섹션을 참조하세요.
+Firebase CLI를 사용한 함수 배포:
+firebase deploy --only functions
+
+함수를 업데이트할 때마다 다시 배포해야 합니다.
+
+사용자 및 컨텍스트 정보 가져오기
+
+차단 이벤트는 사용자의 로그인 정보가 포함된 AuthBlockingEvent 객체를 제공합니다. 작업 진행을 허용할지 여부를 결정하기 위해 이러한 값을 코드에서 사용합니다.
+
+객체에는 다음 속성이 포함되어 있습니다.
+
+| 이름 | 설명 | 예 |
+| --- | --- | --- |
+| locale | 애플리케이션 언어. 클라이언트 SDK를 사용하거나 REST API에서 언어 헤더를 전달하여 언어를 설정할 수 있습니다. | fr 또는 sv-SE |
+| ipAddress | 최종 사용자가 등록하거나 로그인한 기기의 IP 주소입니다. | 114.14.200.1 |
+| userAgent | 차단 함수를 트리거하는 사용자 에이전트입니다. | Mozilla/5.0 (X11; Linux x86_64) |
+| eventId | 이벤트의 고유 식별자입니다. | rWsyPtolplG2TBFoOkkgyg |
+| eventType | 이벤트 유형입니다. beforeSignIn 또는 beforeCreate와 같은 이벤트 이름, 그리고 Google이나 이메일/비밀번호 등 사용된 로그인 방법을 제공합니다. | providers/cloud.auth/eventTypes/user.beforeSignIn:password |
+| authType | 항상 USER입니다. | USER |
+| resource | Firebase Authentication 프로젝트 또는 테넌트입니다. | projects/project-id/tenants/tenant-id |
+| timestamp | 이벤트가 트리거된 시간으로 RFC 3339 문자열 형식입니다. | Tue, 23 Jul 2019 21:10:57 GMT |
+| additionalUserInfo | 사용자에 대한 정보가 포함된 객체입니다. | AdditionalUserInfo |
+| credential | 사용자의 사용자 인증 정보에 대한 정보가 포함된 객체입니다. | AuthCredential |
+
+등록 또는 로그인 차단
+
+등록 또는 로그인 시도를 차단하려면 함수에 HttpsError를 발생시킵니다. 예를 들면 다음과 같습니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+import { HttpsError } from "firebase-functions/v2/identity";
+
+throw new HttpsError('invalid-argument');
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#python] ---
+```
+raise https_fn.HttpsError(
+code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT)
+```
+커스텀 오류 메시지를 지정할 수도 있습니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+throw new HttpsError('permission-denied', 'Unauthorized request origin!');
+```
+
+--- 탭: Python(미리보기) [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#python%EB%AF%B8%EB%A6%AC%EB%B3%B4%EA%B8%B0] ---
+```
+raise https_fn.HttpsError(
+code=https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+message="Unauthorized request origin!"
+```
+다음 예시에서는 특정 도메인 내에 있지 않은 사용자가 앱에 등록하는 것을 차단하는 방법을 보여줍니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+export const beforecreated = beforeUserCreated((event) => {
+event: identity_fn.AuthBlockingEvent) -> identity_fn.BeforeCreateResponse | None:
+# User data passed in from the CloudEvent.
+user = event.data
+
+# Only users of a specific domain can sign up.
+if user.email is None or "@acme.com" not in user.email:
+# Return None so that Firebase Auth rejects the account creation.
+raise https_fn.HttpsError(code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+message="Unauthorized email")main.py [https://github.com/firebase/functions-samples/blob/c4fde45b65fab584715e786ce3264a6932d996ec/Python/quickstarts/auth-blocking-functions/functions/main.py#L38-L55]
+```
+기본 또는 커스텀 메시지 사용 여부에 관계없이 Cloud Functions는 오류를 래핑하고 내부 오류로 클라이언트에게 반환합니다. 예를 들면 다음과 같습니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+throw new HttpsError('invalid-argument', "Unauthorized email");
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#python] ---
+```
+# Only users of a specific domain can sign up.
+if user.email is None or "@acme.com" not in user.email:
+# Return None so that Firebase Auth rejects the account creation.
+raise https_fn.HttpsError(code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+message="Unauthorized email")main.py [https://github.com/firebase/functions-samples/blob/c4fde45b65fab584715e786ce3264a6932d996ec/Python/quickstarts/auth-blocking-functions/functions/main.py#L50-L54]
+```
+앱이 오류를 포착하여 적절히 처리해야 합니다. 예를 들면 다음과 같습니다.
+--- 탭: JavaScript [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#javascript] ---
+```
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+
+disabled
+emailVerified
+photoUrl
+customClaims
+sessionClaims(beforeUserSignedIn만)
+
+sessionClaims를 제외하고 모든 수정된 필드는 Firebase Authentication의 데이터베이스에 저장됩니다. 즉, 해당 필드는 응답 토큰에 포함되며 사용자 세션 간에 유지됩니다.
+
+다음 예시에서는 기본 표시 이름을 설정하는 방법을 보여줍니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+export const beforecreated = beforeUserCreated((event) => {
+return {
+# If no display name is provided, set it to "Guest".
+display_name=event.data.display_name if event.data.display_name is not None else "Guest")main.py [https://github.com/firebase/functions-samples/blob/c4fde45b65fab584715e786ce3264a6932d996ec/Python/quickstarts/auth-blocking-functions/functions/main.py#L60-L64]
+```
+beforeUserCreated와 beforeUserSignedIn 모두에 이벤트 핸들러를 등록하면 beforeUserCreated가 실행된 후 beforeUserSignedIn이 실행됩니다. beforeUserCreated에서 업데이트된 사용자 필드는 beforeUserSignedIn에 표시됩니다. 두 이벤트 핸들러에서 sessionClaims 이외의 필드를 설정하면 beforeUserSignedIn에 설정된 값이 beforeUserCreated에 설정된 값을 덮어씁니다. sessionClaims의 경우에만 현재 세션의 토큰 클레임에 전파되지만 데이터베이스에 유지되거나 저장되지는 않습니다.
+
+예를 들어 sessionClaims가 설정된 경우 beforeUserSignedIn은 beforeUserCreated 클레임과 함께 이를 반환하고 병합합니다. 병합되면 sessionClaims 키가 customClaims의 키와 일치하면 일치하는 customClaims가 sessionClaims 키에 의해 토큰 클레임에서 덮어쓰기됩니다. 그러나 향후 요청 시 덮어쓰인 customClaims 키가 데이터베이스에서 계속 유지됩니다.
+
+지원되는 OAuth 사용자 인증 정보 및 데이터
+
+OAuth 사용자 인증 정보와 데이터를 여러 ID 공급업체의 차단 함수에 전달할 수 있습니다. 다음 표에서는 각 ID 공급업체에서 지원되는 사용자 인증 정보와 데이터를 보여줍니다.
+
+| ID 공급업체 | ID 토큰 | 액세스 토큰 | 만료 시간 | 토큰 보안 비밀 | 갱신 토큰 | 로그인 클레임 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Google | 예 | 예 | 예 | 아니요 | 예 | 아니요 |
+| Facebook | 아니요 | 예 | 예 | 아니요 | 아니요 | 아니요 |
+| Twitter | 아니요 | 예 | 아니요 | 예 | 아니요 | 아니요 |
+| GitHub | 아니요 | 예 | 아니요 | 아니요 | 아니요 | 아니요 |
+| Microsoft | 예 | 예 | 예 | 아니요 | 예 | 아니요 |
+| LinkedIn | 아니요 | 예 | 예 | 아니요 | 아니요 | 아니요 |
+| Yahoo | 예 | 예 | 예 | 아니요 | 예 | 아니요 |
+| Apple | 예 | 예 | 예 | 아니요 | 예 | 아니요 |
+| SAML | 아니요 | 아니요 | 아니요 | 아니요 | 아니요 | 예 |
+| OIDC | 예 | 예 | 예 | 아니요 | 예 | 예 |
+
+OAuth 토큰
+
+차단 함수에서 ID 토큰, 액세스 토큰 또는 갱신 토큰을 사용하려면 먼저 Firebase 콘솔의 차단 함수 페이지에서 체크박스를 선택해야 합니다.
+
+ID 토큰이나 액세스 토큰과 같은 OAuth 사용자 인증 정보를 사용하여 직접 로그인하면 갱신 토큰은 ID 공급업체에 의해 반환되지 않습니다. 이 경우 동일한 클라이언트 측 OAuth 사용자 인증 정보가 차단 함수로 전달됩니다.
+
+다음 섹션에서는 각 ID 공급업체 유형과 지원되는 사용자 인증 정보 및 데이터를 설명합니다.
+
+일반 OIDC 제공업체
+
+사용자가 일반 OIDC 제공업체로 로그인하면 다음 사용자 인증 정보가 전달됩니다.
+
+ID 토큰: id_token 흐름이 선택된 경우 제공됩니다.
+액세스 토큰: 코드 흐름이 선택된 경우 제공됩니다. 코드 흐름은 현재 REST API를 통해서만 지원됩니다.
+갱신 토큰: offline_access 범위 [https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess]가 선택된 경우에 제공됩니다.
+
+예를 들면 다음과 같습니다.
+firebase.auth().signInWithPopup(provider);
+
+Google
+
+사용자가 Google 계정으로 로그인하면 다음 사용자 인증 정보가 전달됩니다.
+
+ID 토큰
+액세스 토큰
+갱신 토큰: 다음 커스텀 매개변수가 요청된 경우에만 제공됩니다.
+
+access_type=offline
+prompt=consent - 사용자가 이전에 동의하고 새 범위를 요청하지 않은 경우
+
+예를 들면 다음과 같습니다.
+import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+
+Google 갱신 토큰 [https://developers.google.com/identity/protocols/oauth2/openid-connect?hl=ko#refresh-tokens]에 대해 자세히 알아보세요.
+
+Facebook
+
+사용자가 Facebook 계정으로 로그인하면 다음 사용자 인증 정보가 전달됩니다.
+
+액세스 토큰: 다른 액세스 토큰으로 교환할 수 있는 액세스 토큰이 반환됩니다. Facebook에서 지원되는 여러 유형의 액세스 토큰 [https://developers.facebook.com/docs/facebook-login/access-tokens/]과 장기 토큰 [https://developers.facebook.com/docs/facebook-login/access-tokens/expiration-and-extension]으로 교환하는 방법에 대해 자세히 알아보세요.
+
+GitHub
+
+사용자가 GitHub 계정으로 로그인하면 다음 사용자 인증 정보가 전달됩니다.
+
+액세스 토큰: 취소하지 않는 한 만료되지 않습니다.
+
+Microsoft
+
+사용자가 Microsoft 계정으로 로그인하면 다음 사용자 인증 정보가 전달됩니다.
+
+ID 토큰
+액세스 토큰
+갱신 토큰: offline_access 범위 [https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess]가 선택된 경우 차단 함수에 전달됩니다.
+
+예를 들면 다음과 같습니다.
+import { getAuth, signInWithPopup, OAuthProvider } from 'firebase/auth';
+
+signInWithPopup(auth, provider);
+
+Yahoo
+
+사용자가 Yahoo 계정으로 로그인하면 커스텀 매개변수 또는 범위 없이 다음 사용자 인증 정보가 전달됩니다.
+
+ID 토큰
+액세스 토큰
+갱신 토큰
+
+LinkedIn
+
+사용자가 LinkedIn 계정으로 로그인하면 다음 사용자 인증 정보가 전달됩니다.
+
+액세스 토큰
+
+Apple
+
+사용자가 Apple 계정으로 로그인하면 커스텀 매개변수 또는 범위 없이 다음 사용자 인증 정보가 전달됩니다.
+
+ID 토큰
+액세스 토큰
+갱신 토큰
+
+일반적인 시나리오
+
+다음 예시는 차단 함수의 일반적인 사용 사례를 보여줍니다.
+
+특정 도메인의 등록만 허용
+
+다음 예시는 example.com 도메인에 속하지 않는 사용자가 앱에 등록하는 것을 방지하는 방법을 보여줍니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+export const beforecreated = beforeUserCreated((event) => {
+'invalid-argument', 'Unauthorized email');
+event: identity_fn.AuthBlockingEvent,
+) -> identity_fn.BeforeCreateResponse | None:
+# User data passed in from the CloudEvent.
+user = event.data
+
+# Only users of a specific domain can sign up.
+if user.email is None or "@example.com" not in user.email:
+# Return None so that Firebase Auth rejects the account creation.
+raise https_fn.HttpsError(
+code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+message="Unauthorized email",
+```
+이메일이 확인되지 않은 사용자의 등록 차단
+
+다음 예시는 이메일이 확인되지 않은 사용자가 앱에 등록하는 것을 방지하는 방법을 보여줍니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+export const beforecreated = beforeUserCreated((event) => {
+'invalid-argument', 'Unverified email');
+event: identity_fn.AuthBlockingEvent) -> identity_fn.BeforeCreateResponse | None:
+if event.data.email is not None and not event.data.email_verified:
+raise https_fn.HttpsError(code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+message="You must register using a trusted provider.")main.py [https://github.com/firebase/functions-samples/blob/c4fde45b65fab584715e786ce3264a6932d996ec/Python/quickstarts/auth-blocking-functions/functions/main.py#L69-L74]
+```
+특정 ID 공급업체 이메일을 확인된 것으로 처리
+
+다음 예시에서는 특정 ID 공급업체의 사용자 이메일을 확인된 것으로 처리하는 방법을 보여줍니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+export const beforecreated = beforeUserCreated((event) => {
+'permission-denied', 'Unauthorized access!');
+message="IP banned.")main.py [https://github.com/firebase/functions-samples/blob/c4fde45b65fab584715e786ce3264a6932d996ec/Python/quickstarts/auth-blocking-functions/functions/main.py#L116-L120]
+```
+커스텀 및 세션 클레임 설정
+
+다음 예시에서는 커스텀 및 세션 클레임을 설정하는 방법을 보여줍니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+export const beforecreated = beforeUserCreated((event) => {
+if (event.credential &&
+event.credential.claims &&
+event.credential.providerId === "saml.my-provider-id") {
+return {
+event.credential.claims &&
+event.credential.providerId === "saml.my-provider-id") {
+return {
+event.credential.provider_id == "saml.my-provider-id"):
+return identity_fn.BeforeCreateResponse(
+custom_claims={"eid": event.credential.claims["employeeid"]})
+
+@identity_fn.before_user_signed_in()
+def copyclaimstosession(
+event: identity_fn.AuthBlockingEvent) -> identity_fn.BeforeSignInResponse | None:
+if (event.credential is not None and event.credential.claims is not None and
+event.credential.provider_id == "saml.my-provider-id"):
+return identity_fn.BeforeSignInResponse(session_claims={
+"role": event.credential.claims["role"],
+"groups": event.credential.claims["groups"]
+
+사용자가 로그인한 IP 주소를 추적하고 이후 요청의 IP 주소와 비교하여 토큰 도난을 방지할 수 있습니다. 예를 들어 IP 주소가 다른 지리적 리전에서 온 경우와 같이 요청이 의심스러운 경우 사용자에게 다시 로그인하도록 요청할 수 있습니다.
+
+세션 클레임을 사용하여 사용자가 로그인하는 IP 주소를 추적합니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+export const beforesignedin = beforeUserSignedIn((event) => {
+return {
+sessionClaims: {
+signInIpAddress: event.ipAddress,
+import flask
+
+initialize_app()
+flask_app = flask.Flask(__name__)
+
+@flask_app.post()
+def get_restricted_data(req: flask.Request):
+# Get the ID token passed.
+id_token = req.json().get("idToken")
+
+# Verify the ID token, check if revoked, and decode its payload.
+try:
+claims = auth.verify_id_token(id_token, check_revoked=True)
+except:
+return flask.Response(status=500)
+
+# Get request IP address.
+request_ip = req.remote_addr
+
+# Get sign-in IP address.
+signin_ip = claims["signInIpAddress"]
+
+# Check if the request IP address origin is suspicious relative to
+# the session IP addresses. The current request timestamp and the
+# auth_time of the ID token can provide additional signals of abuse,
+# especially if the IP address suddenly changed. If there was a sudden
+# geographical change in a short period of time, then it will give
+# stronger signals of possible abuse.
+if is_suspicious_change(signin_ip, request_ip):
+# Suspicious IP address change. Require re-authentication.
+# You can also revoke all user sessions by calling:
+#   auth.revoke_refresh_tokens(claims["sub"])
+return flask.Response(status=401,
+response="Unauthorized access. Sign in again!")
+else:
+# Access is valid. Try to return data.
+return data_from_claims(claims)
+```
+
+사용자 사진 선별
+
+다음 예시는 사용자의 프로필 사진을 정리하는 방법을 보여줍니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+export const beforecreated = beforeUserCreated((event) => {
+.then((status) => {
+if (!status) {
+event: identity_fn.AuthBlockingEvent) -> identity_fn.BeforeCreateResponse | None:
+if event.data.photo_url is not None:
+score = analyze_photo_with_ml(event.data.photo_url)
+if score > THRESHOLD:
+return identity_fn.BeforeCreateResponse(photo_url=PLACEHOLDER_URL)main.py [https://github.com/firebase/functions-samples/blob/c4fde45b65fab584715e786ce3264a6932d996ec/Python/quickstarts/auth-blocking-functions/functions/main.py#L161-L167]
+```
+이미지 감지 및 정리 방법에 대한 자세한 내용은 Cloud Vision [https://cloud.google.com/vision?hl=ko] 문서를 참조하세요.
+
+사용자의 ID 공급업체 OAuth 사용자 인증 정보 액세스
+
+다음 예시에서는 Google 계정으로 로그인한 사용자의 갱신 토큰을 가져와서 Google Calendar API를 호출하는 방법을 보여줍니다. 갱신 토큰은 오프라인 액세스를 위해 저장됩니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+const {OAuth2Client} = require('google-auth-library');
+const {google} = require('googleapis');
+keys.web.client_secret
+
+export const beforecreated = beforeUserCreated((event) => {
+event.credential.providerId === 'google.com') {
+user.uid,
+event.credential.refreshToken,
+'google.com'
+.then(() => {
+event: identity_fn.AuthBlockingEvent) -> identity_fn.BeforeCreateResponse | None:
+"""During sign-up, save the Google OAuth2 access token and queue up a task
+to schedule an onboarding session on the user's Google Calendar.
+
+You will only get an access token if you enabled it in your project's blocking
+functions settings in the Firebase console:
+
+https://console.firebase.google.com/project/_/authentication/settings
+"""
+if event.credential is not None and event.credential.provider_id == "google.com":
+print(f"Signed in with {event.credential.provider_id}. Saving access token.")
+
+firestore_client: google.cloud.firestore.Client = firestore.client()
+doc_ref = firestore_client.collection("user_info").document(event.data.uid)
+doc_ref.set({"calendar_access_token": event.credential.access_token}, merge=True)
+
+tasks_client = google.cloud.tasks_v2.CloudTasksClient()
+task_queue = tasks_client.queue_path(params.PROJECT_ID.value,
+options.SupportedRegion.US_CENTRAL1,
+"scheduleonboarding")
+target_uri = get_function_url("scheduleonboarding")
+calendar_task = google.cloud.tasks_v2.Task(http_request={
+"http_method": google.cloud.tasks_v2.HttpMethod.POST,
+"url": target_uri,
+"headers": {
+"Content-type": "application/json"
+timedelta(minutes=1))
+tasks_client.create_task(parent=task_queue, task=calendar_task)main.py [https://github.com/firebase/functions-samples/blob/c4fde45b65fab584715e786ce3264a6932d996ec/Python/post-signup-event/functions/main.py#L32-L69]
+```
+사용자 작업에 대한 reCAPTCHA Enterprise 결과 재정의
+
+다음 예에서는 지원되는 사용자 흐름에 대해 reCAPTCHA Enterprise 결과를 재정의하는 방법을 보여줍니다.
+
+reCAPTCHA Enterprise를 Firebase 인증과 통합하는 방법에 대한 자세한 내용은 reCAPTCHA Enterprise 사용 설정 [https://cloud.google.com/identity-platform/docs/recaptcha-enterprise?hl=ko]을 참조하세요.
+
+차단 함수를 사용하여 맞춤 요소를 기반으로 흐름을 허용하거나 차단하여 reCAPTCHA Enterprise에서 제공한 결과를 재정의할 수 있습니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/extend-with-blocking-functions?hl=ko&gen=2nd#node.js] ---
+```
+const { beforeSmsSent } = require("firebase-functions/v2/identity");
+exports.beforesmssentv2 = beforeSmsSent((event) => {
+if (
+event.smsType === "SIGN_IN_OR_SIGN_UP" &&
+event.additionalUserInfo.phoneNumber.includes('+91')
+) {
+return {
+recaptchaActionOverride: "ALLOW",

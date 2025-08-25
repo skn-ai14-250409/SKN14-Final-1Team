@@ -1,0 +1,54 @@
+Source URL: https://firebase.google.com/docs/firestore/solutions/presence?hl=ko
+Title: Cloud Firestore에서 접속 상태 구현
+
+의견 보내기
+
+Cloud Firestore에서 접속 상태 구현
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+개발하는 앱 유형에 따라 어떠한 사용자 또는 기기가 현재 온라인
+상태인지를 확인하면 유용할 수 있습니다. 이러한 기능을 '접속 상태'
+감지라고 합니다.
+
+예를 들어 소셜 네트워크와 같은 앱을 빌드하거나 여러 IoT 기기를 배포할 경우 이 정보를 사용하여 채팅 가능한 온라인 상태인 친구 목록을 표시하거나 IoT 기기를 '최종 접속 시간' 순으로 정렬할 수 있습니다.
+
+Cloud Firestore는 기본적으로 접속 상태를 지원하지 않지만 다른 Firebase 제품을 활용하여 접속 상태 시스템을 빌드할 수 있습니다.
+
+솔루션: Cloud Functions 및 실시간 데이터베이스
+
+Firebase 실시간 데이터베이스의 기본 접속 상태 기능에 Cloud Firestore를 연결하려면 Cloud Functions를 사용합니다.
+
+실시간 데이터베이스를 사용하여 연결 상태를 보고한 후 Cloud Functions를 사용하여 이 데이터를 Cloud Firestore에 미러링합니다.
+
+실시간 데이터베이스에서 접속 상태 사용
+
+먼저 실시간 데이터베이스의 기본 접속 상태 시스템을 살펴보겠습니다.
+
+웹// Fetch the current user's ID from Firebase Authentication.
+Cloud Firestore에 연결 중
+
+Cloud Firestore에서 비슷한 솔루션을 구현하려면 동일한 실시간 데이터베이스 코드를 사용한 후 Cloud Functions를 사용하여 실시간 데이터베이스와 Cloud Firestore를 동기화합니다.
+
+프로젝트에 실시간 데이터베이스 [https://firebase.google.com/docs/database/?hl=ko]를 아직 추가하지 않았다면 지금 추가하고 위의 접속 상태 솔루션을 포함합니다.
+
+다음으로 다음 방법으로 접속 상태를 Cloud Firestore에 동기화합니다.
+
+앱에서 기기가 오프라인 상태임을 파악하도록 로컬에서 오프라인 기기의 Cloud Firestore 캐시에 동기화합니다.
+전역적으로 Cloud 함수로 사용하여 Cloud Firestore에 액세스하는 다른 모든 기기에서 이 특정한 기기가 오프라인 상태임을 파악하도록 합니다.
+
+참고: 인터넷 연결이 끊기면 데이터를 동기화할 방법이 없으므로 다음 예시와 같이 동일한 데이터를 동일한 위치에 써야 합니다. 이렇게 해야 모든 기기가 온라인 상태일 때 변경사항을 수신합니다.
+Cloud Firestore의 로컬 캐시 업데이트
+
+첫 번째 문제, 즉 Cloud Firestore의 로컬 캐시 업데이트를 해결하는 데 필요한 변경사항을 살펴보겠습니다.
+
+웹// ...
+return;
+
+Node.jsfirebase.firestore().collection('status')
+.where('state', '==', 'online')
+.onSnapshot(function(snapshot) {
+snapshot.docChanges().forEach(function(change) {
+if (change.type === 'added') {
