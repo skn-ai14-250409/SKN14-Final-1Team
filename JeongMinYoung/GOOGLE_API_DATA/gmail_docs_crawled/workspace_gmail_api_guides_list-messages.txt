@@ -1,0 +1,155 @@
+Source URL: https://developers.google.com/workspace/gmail/api/guides/list-messages
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+Google Workspace [https://developers.google.com/workspace?hl=ko]
+Gmail [https://developers.google.com/workspace/gmail?hl=ko]
+가이드 [https://developers.google.com/workspace/gmail/api/guides?hl=ko]
+의견 보내기
+Gmail 메일 나열
+bookmark_border
+이 페이지의 내용
+기본 요건
+메시지 나열
+코드 샘플
+관련 리소스
+이 페이지에서는 Gmail API의 users.messages.list [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list?hl=ko] 메서드를 호출하는 방법을 설명합니다.
+이 메서드는 메시지 id 및 threadId를 포함하는 Gmail Message 리소스의 배열을 반환합니다. 전체 메시지 세부정보를 가져오려면 users.messages.get [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/get?hl=ko] 메서드를 사용합니다.
+기본 요건
+--- 탭: Python ---
+Gmail API가 사용 설정된 Google Cloud 프로젝트 단계를 확인하려면 Gmail API Python 빠른 시작 [https://developers.google.com/workspace/gmail/api/quickstart/python?hl=ko]을 완료하세요.
+메시지 나열
+users.messages.list 메서드는 메시지를 필터링하는 여러 쿼리 매개변수를 지원합니다.
+maxResults: 반환할 최대 메시지 수입니다 (기본값은 100, 최대값은 500).
+pageToken: 결과의 특정 페이지를 가져오는 토큰입니다.
+q: 메시지를 필터링하는 쿼리 문자열입니다(예: from:someuser@example.com is:unread").
+labelIds: 지정된 모든 라벨 ID와 일치하는 라벨이 있는 메시지만 반환합니다.
+includeSpamTrash: SPAM 및 TRASH의 메시지를 결과에 포함합니다.
+코드 샘플
+--- 탭: Python ---
+다음 코드 샘플은 인증된 Gmail 사용자의 메일을 나열하는 방법을 보여줍니다. 이 코드는 페이지로 나누기를 처리하여 쿼리와 일치하는 모든 메시지를 가져옵니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  .filepath {
+    color: #fff;
+    margin: 6px;
+    max-width: calc(100% - 160px); /* Give at least 160px for the "View on GitHub" button. */
+    text-overflow: ellipsis;
+    text-shadow: rgba(0,0,0,0.1) 1px 1px;
+    overflow: hidden;
+  }
+  .github-docwidget-gitinclude-code .prettyprint {
+    margin: 0;
+  }
+  .view-on-github {
+    text-shadow: rgba(12,12,12,0.1) 1px 1px;
+  }
+
+
+
+  
+  gmail/snippet/list_messages.py
+  
+    
+    GitHub에서 보기 [https://github.com/googleworkspace/python-samples/blob/main/gmail/snippet/list_messages.py]
+  
+  
+  
+
+  
+    
+  
+  
+  import os.path
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+# If modifying these scopes, delete the file token.json.
+SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+
+
+def main():
+    """Shows basic usage of the Gmail API.
+    Lists the user's Gmail messages.
+    """
+    creds = None
+    # The file token.json stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open("token.json", "w") as token:
+            token.write(creds.to_json())
+
+    try:
+        # Call the Gmail API
+        service = build("gmail", "v1", credentials=creds)
+        results = (
+            service.users().messages().list(userId="me", labelIds=["INBOX"]).execute()
+        )
+        messages = results.get("messages", [])
+
+        if not messages:
+            print("No messages found.")
+            return
+
+        print("Messages:")
+        for message in messages:
+            print(f'Message ID: {message["id"]}')
+            msg = (
+                service.users().messages().get(userId="me", id=message["id"]).execute()
+            )
+            print(f'  Subject: {msg["snippet"]}')
+
+    except HttpError as error:
+        # TODO(developer) - Handle errors from gmail API.
+        print(f"An error occurred: {error}")
+
+
+if __name__ == "__main__":
+    main()
+users.messages.list 메서드는 다음이 포함된 응답 본문을 반환합니다.
+messages[]: Message 리소스의 배열입니다.
+nextPageToken: 결과가 여러 페이지인 요청의 경우 더 많은 메시지를 나열하는 후속 호출과 함께 사용할 수 있는 토큰입니다.
+resultSizeEstimate: 예상 총 결과 수입니다.
+전체 메시지 콘텐츠와 메타데이터를 가져오려면 message.id 필드를 사용하여 users.messages.get [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/get?hl=ko] 메서드를 호출합니다.
+관련 리소스
+users.messages.list [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list?hl=ko]
+users.messages.get [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/get?hl=ko]
+의견 보내기

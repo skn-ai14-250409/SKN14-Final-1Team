@@ -1,0 +1,1856 @@
+Source URL: https://developers.google.com/identity/protocols/oauth2/web-server
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Identity [https://developers.google.com/identity?hl=ko]
+승인 [https://developers.google.com/identity/protocols/oauth2?hl=ko]
+Authorization [https://developers.google.com/identity/authorization?hl=ko]
+의견 보내기
+웹 서버 애플리케이션용 OAuth 2.0 사용
+bookmark_border
+이 페이지의 내용
+클라이언트 라이브러리
+기본 요건
+프로젝트에 API 사용 설정
+승인 사용자 인증 정보 만들기
+액세스 범위 식별
+이 문서에서는 웹 서버 애플리케이션에서 Google API 클라이언트 라이브러리 또는 Google OAuth 2.0 엔드포인트를 사용하여 Google API에 액세스하기 위한 OAuth 2.0 승인을 구현하는 방법을 설명합니다.
+OAuth 2.0을 사용하면 사용자가 사용자 이름, 비밀번호, 기타 정보를 비공개로 유지하면서 특정 데이터를 애플리케이션과 공유할 수 있습니다. 예를 들어 애플리케이션은 OAuth 2.0을 사용하여 사용자의 Google Drive에 파일을 저장할 권한을 얻을 수 있습니다.
+이 OAuth 2.0 흐름은 사용자 승인을 위한 것입니다. 기밀 정보를 저장하고 상태를 유지할 수 있는 애플리케이션을 위해 설계되었습니다. 적절히 승인된 웹 서버 애플리케이션은 사용자가 애플리케이션과 상호작용하는 동안 또는 사용자가 애플리케이션을 종료한 후에 API에 액세스할 수 있습니다.
+웹 서버 애플리케이션은 특히 사용자별 데이터가 아닌 프로젝트 기반 데이터에 액세스하기 위해 Cloud API를 호출할 때 서비스 계정 [https://developers.google.com/identity/protocols/oauth2/service-account?hl=ko]을 사용하여 API 요청을 승인하는 경우가 많습니다. 웹 서버 애플리케이션은 사용자 승인과 함께 서비스 계정을 사용할 수 있습니다.
+참고: 구현을 올바르게 수행하는 것의 보안 관련 영향을 고려할 때 Google의 OAuth 2.0 엔드포인트와 상호작용할 때는 OAuth 2.0 라이브러리를 사용하는 것이 좋습니다. 다른 사용자가 제공하는 디버깅된 코드를 사용하는 것이 좋으며, 이는 개발자와 사용자를 보호하는 데 도움이 됩니다. 자세한 내용은 클라이언트 라이브러리 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#libraries]를 참고하세요.
+클라이언트 라이브러리
+이 페이지의 언어별 예에서는 Google API 클라이언트 라이브러리 [https://developers.google.com/api-client-library?hl=ko]를 사용하여 OAuth 2.0 승인을 구현합니다. 코드 샘플을 실행하려면 먼저 해당 언어용 클라이언트 라이브러리를 설치해야 합니다.
+Google API 클라이언트 라이브러리를 사용하여 애플리케이션의 OAuth 2.0 흐름을 처리하면 클라이언트 라이브러리에서 애플리케이션이 직접 처리해야 하는 많은 작업을 실행합니다. 예를 들어 애플리케이션이 저장된 액세스 토큰을 사용하거나 새로고침할 수 있는 시점과 애플리케이션이 동의를 다시 획득해야 하는 시점을 결정합니다. 클라이언트 라이브러리는 올바른 리디렉션 URL을 생성하고 액세스 토큰에 대한 승인 코드를 교환하는 리디렉션 핸들러를 구현하는 데도 도움이 됩니다.
+서버 측 애플리케이션용 Google API 클라이언트 라이브러리는 다음 언어로 제공됩니다.
+Go [https://github.com/googleapis/google-api-go-client]
+Java [https://developers.google.com/api-client-library/java?hl=ko]
+.NET [https://developers.google.com/api-client-library/dotnet?hl=ko]
+Node.js [https://github.com/googleapis/google-api-nodejs-client]
+Dart [https://dart.dev/googleapis/]
+PHP [https://github.com/googleapis/google-api-php-client]
+Python [https://github.com/googleapis/google-api-python-client]
+Ruby [https://github.com/googleapis/google-api-ruby-client]
+중요: JavaScript용 Google API 클라이언트 라이브러리 [https://developers.google.com/api-client-library/javascript?hl=ko]와 Google 로그인 [https://developers.google.com/identity/gsi/web/guides/overview?hl=ko]은 사용자의 브라우저에서 OAuth 2.0을 처리하기 위한 용도로만 사용됩니다. 서버 측에서 JavaScript를 사용하여 Google과의 OAuth 2.0 상호작용을 관리하려면 백엔드 플랫폼에서 Node.js [https://github.com/googleapis/google-api-nodejs-client] 라이브러리를 사용하는 것이 좋습니다.
+기본 요건
+프로젝트에 API 사용 설정
+Google API를 호출하는 애플리케이션은 API Console에서 해당 API를 사용 설정해야 합니다.
+프로젝트에서 API를 사용 설정하려면 다음 단계를 따르세요.
+Google API Console에서Open the API Library [https://console.developers.google.com/apis/library?hl=ko] 을 사용합니다.
+If prompted, select a project, or create a new one.
+API Library 에는 사용 가능한 모든 API가 제품군과 인기도를 기준으로 분류되어 있습니다. 사용 설정하려는 API가 목록에 없는 경우 검색을 사용하여 찾거나 속한 제품군에서 모두 보기를 클릭합니다.
+사용 설정하려는 API를 선택한 다음 사용 설정 버튼을 클릭합니다.
+If prompted, enable billing.
+If prompted, read and accept the API's Terms of Service.
+승인 사용자 인증 정보 만들기
+OAuth 2.0을 사용하여 Google API에 액세스하는 애플리케이션에는 Google의 OAuth 2.0 서버에 애플리케이션을 식별하는 승인 사용자 인증 정보가 있어야 합니다. 다음 단계에서는 프로젝트의 사용자 인증 정보를 만드는 방법을 설명합니다. 그러면 애플리케이션에서 사용자 인증 정보를 사용하여 해당 프로젝트에 사용 설정된 API에 액세스할 수 있습니다.
+Go to the Credentials page [https://console.developers.google.com/apis/credentials?hl=ko].
+클라이언트 만들기를 클릭합니다.
+웹 애플리케이션 애플리케이션 유형을 선택합니다.
+양식을 작성하고 만들기를 클릭합니다. PHP, Java, Python, Ruby, .NET과 같은 언어 및 프레임워크를 사용하는 애플리케이션은 승인된 리디렉션 URI를 지정해야 합니다. 리디렉션 URI는 OAuth 2.0 서버가 응답을 보낼 수 있는 엔드포인트입니다. 이러한 엔드포인트는 Google의 유효성 검사 규칙 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#uri-validation]을 준수해야 합니다.
+테스트의 경우 http://localhost:8080와 같이 로컬 머신을 참조하는 URI를 지정할 수 있습니다. 이를 염두에 두고 이 문서의 모든 예시에서는 http://localhost:8080를 리디렉션 URI로 사용합니다.
+애플리케이션이 페이지의 다른 리소스에 승인 코드를 노출하지 않도록 앱의 인증 엔드포인트를 설계 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#protectauthcode]하는 것이 좋습니다.
+사용자 인증 정보를 만든 후 API Console에서 client_secret.json 파일을 다운로드합니다. 이 애플리케이션만 액세스할 수 있는 위치에 안전하게 파일을 저장합니다.
+중요: client_secret.json 파일을 공개적으로 액세스할 수 있는 위치에 저장하지 마세요. 또한 GitHub와 같은 곳에 애플리케이션의 소스 코드를 공유하는 경우 실수로 클라이언트 사용자 인증 정보를 공유하지 않도록 소스 트리 외부에 client_secret.json 파일을 저장하세요.
+애플리케이션의 클라이언트 보안 비밀은 클라이언트를 만든 후에만 표시됩니다. 클라이언트 보안 비밀번호를 다시 보거나 다운로드할 수 없습니다. 자세히 알아보기 [https://support.google.com/cloud/answer/15549257?hl=ko#client-secret-hashing]
+액세스 범위 식별
+범위를 사용 설정하면 애플리케이션은 필요한 리소스에 대한 액세스만 요청하고 사용자는 애플리케이션에 부여하는 액세스 양을 제어할 수 있습니다. 따라서 요청된 범위 수와 사용자 동의를 얻을 가능성 간에 역관계가 있을 수 있습니다.
+OAuth 2.0 승인을 구현하기 전에 앱에서 액세스 권한이 필요한 범위를 지정하는 것이 좋습니다.
+또한 애플리케이션이 관련 맥락 안에서 사용자 데이터에 대한 액세스를 요청하는 단계별 승인 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#incrementalAuth] 프로세스를 통해 승인 범위에 대한 액세스를 요청하는 것이 좋습니다. 이 권장사항은 사용자가 애플리케이션에 요청된 액세스 권한이 필요한 이유를 더 쉽게 이해하는 데 도움이 됩니다.
+OAuth 2.0 API 범위 [https://developers.google.com/identity/protocols/oauth2/scopes?hl=ko] 문서에는 Google API에 액세스하는 데 사용할 수 있는 전체 범위 목록이 포함되어 있습니다.
+공개 애플리케이션에서 특정 사용자 데이터에 대한 액세스를 허용하는 범위를 사용하는 경우 인증 절차를 완료해야 합니다. 애플리케이션을 테스트할 때 화면에 확인되지 않은 앱이 표시되면 확인 요청을 제출하여 이를 삭제해야 합니다. 고객센터에서 인증되지 않은 앱 [https://support.google.com/cloud/answer/7454865?hl=ko]에 대해 자세히 알아보고 앱 인증에 관한 자주 묻는 질문(FAQ) [https://support.google.com/cloud/answer/9110914?hl=ko]에 대한 답변을 확인하세요.
+언어별 요구사항
+이 문서의 코드 샘플을 실행하려면 Google 계정, 인터넷 액세스, 웹브라우저가 필요합니다. API 클라이언트 라이브러리 중 하나를 사용하는 경우 아래의 언어별 요구사항도 참고하세요.
+--- 탭: PHP ---
+이 문서의 PHP 코드 샘플을 실행하려면 다음이 필요합니다.
+
+
+  명령줄 인터페이스 (CLI) 및 JSON 확장 프로그램이 설치된 PHP 8.0 이상
+  Composer [https://getcomposer.org/] 종속 항목 관리 도구
+  
+    PHP용 Google API 클라이언트 라이브러리:
+    composer require google/apiclient:^2.15.0
+  
+
+
+자세한 내용은 PHP용 Google API 클라이언트 라이브러리 [https://github.com/googleapis/google-api-php-client]를 참고하세요.
+
+--- 탭: Python ---
+이 문서의 Python 코드 샘플을 실행하려면 다음이 필요합니다.
+
+
+  Python 3.7 이상
+  pip [https://pypi.org/project/pip/] 패키지 관리 도구
+  Python용 Google API 클라이언트 라이브러리 2.0 출시:
+    pip install --upgrade google-api-python-client
+  
+  사용자 승인을 위한 google-auth, google-auth-oauthlib, google-auth-httplib2
+    pip install --upgrade google-auth google-auth-oauthlib google-auth-httplib2
+  
+  Flask Python 웹 애플리케이션 프레임워크
+    pip install --upgrade flask
+  
+  requests HTTP 라이브러리
+    pip install --upgrade requests
+  
+
+
+Python 및 관련 이전 가이드를 업그레이드할 수 없는 경우 Google API Python 클라이언트 라이브러리 출시 노트 [https://github.com/googleapis/google-api-python-client?tab=readme-ov-file#version-20-release]를 검토하세요.
+
+--- 탭: Ruby ---
+이 문서의 Ruby 코드 샘플을 실행하려면 다음이 필요합니다.
+
+
+  Ruby 2.6 이상
+  
+    Ruby용 Google 인증 라이브러리:
+    gem install googleauth
+  
+  
+  
+    Drive 및 Calendar Google API용 클라이언트 라이브러리:
+    gem install google-apis-drive_v3 google-apis-calendar_v3
+  
+  
+    Sinatra Ruby 웹 애플리케이션 프레임워크
+    gem install sinatra
+
+--- 탭: Node.js ---
+이 문서의 Node.js 코드 샘플을 실행하려면 다음이 필요합니다.
+
+
+  Node.js의 유지보수 LTS, 활성 LTS 또는 현재 출시 버전입니다.
+  
+    Google API Node.js 클라이언트는 다음을 지원합니다.
+    npm install googleapis crypto express express-session
+
+--- 탭: HTTP/REST ---
+OAuth 2.0 엔드포인트를 직접 호출하기 위해 라이브러리를 설치할 필요는 없습니다.
+OAuth 2.0 액세스 토큰 가져오기
+다음 단계에서는 애플리케이션이 Google의 OAuth 2.0 서버와 상호작용하여 사용자를 대신하여 API 요청을 실행하기 위한 사용자의 동의를 얻는 방법을 보여줍니다. 사용자 승인이 필요한 Google API 요청을 실행하려면 애플리케이션에 해당 동의가 있어야 합니다.
+아래 목록은 이러한 단계를 간략하게 요약한 것입니다.
+애플리케이션은 필요한 권한을 식별합니다.
+애플리케이션은 요청된 권한 목록과 함께 사용자를 Google로 리디렉션합니다.
+사용자가 애플리케이션에 권한을 부여할지 결정합니다.
+애플리케이션은 사용자가 결정한 내용을 파악합니다.
+사용자가 요청된 권한을 부여한 경우 애플리케이션은 사용자를 대신하여 API 요청을 하는 데 필요한 토큰을 가져옵니다.
+1단계: 승인 매개변수 설정
+첫 번째 단계는 승인 요청을 만드는 것입니다. 이 요청은 애플리케이션을 식별하고 사용자에게 애플리케이션에 부여하도록 요청할 권한을 정의하는 매개변수를 설정합니다.
+OAuth 2.0 인증 및 승인에 Google 클라이언트 라이브러리를 사용하는 경우 이러한 매개변수를 정의하는 객체를 만들고 구성합니다.
+Google OAuth 2.0 엔드포인트를 직접 호출하면 URL이 생성되고 해당 URL에 매개변수가 설정됩니다.
+아래 탭에서는 웹 서버 애플리케이션에 지원되는 승인 매개변수를 정의합니다. 언어별 예시에서는 클라이언트 라이브러리나 승인 라이브러리를 사용하여 이러한 매개변수를 설정하는 객체를 구성하는 방법도 보여줍니다.
+--- 탭: PHP ---
+다음 코드 스니펫은 승인 요청의 매개변수를 정의하는 Google\Client() 객체를 만듭니다.
+
+이 객체는 client_secret.json 파일의 정보를 사용하여 애플리케이션을 식별합니다. (이 파일에 대한 자세한 내용은 승인 사용자 인증 정보 만들기 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#creatingcred]를 참고하세요.) 이 객체는 애플리케이션이 액세스 권한을 요청하는 범위와 Google OAuth 2.0 서버의 응답을 처리하는 애플리케이션 인증 엔드포인트의 URL도 식별합니다. 마지막으로 코드는 선택적 access_type 및 include_granted_scopes 매개변수를 설정합니다.
+
+
+예를 들어 다음 코드는 사용자의 Google Drive 메타데이터 및 Calendar 이벤트에 대한 읽기 전용 오프라인 액세스를 요청합니다.
+
+
+use Google\Client;
+
+$client = new Client();
+
+// Required, call the setAuthConfig function to load authorization credentials from
+// client_secret.json file.
+$client->setAuthConfig('client_secret.json');
+
+// Required, to set the scope value, call the addScope function
+$client->addScope([Google\Service\Drive::DRIVE_METADATA_READONLY, Google\Service\Calendar::CALENDAR_READONLY]);
+
+// Required, call the setRedirectUri function to specify a valid redirect URI for the
+// provided client_id
+$client->setRedirectUri('http://' . $_SERVER['HTTP_HOST'] . '/oauth2callback.php');
+
+// Recommended, offline access will give you both an access and refresh token so that
+// your app can refresh the access token without user interaction.
+$client->setAccessType('offline');
+
+// Recommended, call the setState function. Using a state value can increase your assurance that
+// an incoming connection is the result of an authentication request.
+$client->setState($sample_passthrough_value);
+
+// Optional, if your application knows which user is trying to authenticate, it can use this
+// parameter to provide a hint to the Google Authentication Server.
+$client->setLoginHint('hint@example.com');
+
+// Optional, call the setPrompt function to set "consent" will prompt the user for consent
+$client->setPrompt('consent');
+
+// Optional, call the setIncludeGrantedScopes function with true to enable incremental
+// authorization
+$client->setIncludeGrantedScopes(true);
+
+--- 탭: Python ---
+다음 코드 스니펫은 google-auth-oauthlib.flow 모듈을 사용하여 승인 요청을 구성합니다.
+
+이 코드는 인증 사용자 인증 정보를 만든 후 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#creatingcred] 다운로드한 client_secret.json 파일의 정보를 사용하여 애플리케이션을 식별하는 Flow 객체를 생성합니다. 이 객체는 애플리케이션이 액세스 권한을 요청하는 범위와 Google OAuth 2.0 서버의 응답을 처리하는 애플리케이션의 인증 엔드포인트 URL도 식별합니다. 마지막으로 코드는 선택적 access_type 및 include_granted_scopes 매개변수를 설정합니다.
+
+
+예를 들어 다음 코드는 사용자의 Google Drive 메타데이터 및 Calendar 이벤트에 대한 읽기 전용 오프라인 액세스를 요청합니다.
+
+
+import google.oauth2.credentials
+import google_auth_oauthlib.flow
+
+# Required, call the from_client_secrets_file method to retrieve the client ID from a
+# client_secret.json file. The client ID (from that file) and access scopes are required. (You can
+# also use the from_client_config method, which passes the client configuration as it originally
+# appeared in a client secrets file but doesn't access the file itself.)
+flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file('client_secret.json',
+    scopes=['https://www.googleapis.com/auth/drive.metadata.readonly',
+            'https://www.googleapis.com/auth/calendar.readonly'])
+
+# Required, indicate where the API server will redirect the user after the user completes
+# the authorization flow. The redirect URI is required. The value must exactly
+# match one of the authorized redirect URIs for the OAuth 2.0 client, which you
+# configured in the API Console. If this value doesn't match an authorized URI,
+# you will get a 'redirect_uri_mismatch' error.
+flow.redirect_uri = 'https://www.example.com/oauth2callback'
+
+# Generate URL for request to Google's OAuth 2.0 server.
+# Use kwargs to set optional request parameters.
+authorization_url, state = flow.authorization_url(
+    # Recommended, enable offline access so that you can refresh an access token without
+    # re-prompting the user for permission. Recommended for web server apps.
+    access_type='offline',
+    # Optional, enable incremental authorization. Recommended as a best practice.
+    include_granted_scopes='true',
+    # Optional, if your application knows which user is trying to authenticate, it can use this
+    # parameter to provide a hint to the Google Authentication Server.
+    login_hint='hint@example.com',
+    # Optional, set prompt to 'consent' will prompt the user for consent
+    prompt='consent')
+
+--- 탭: Ruby ---
+만든 client_secrets.json 파일을 사용하여 애플리케이션에서 클라이언트 객체를 구성합니다. 클라이언트 객체를 구성할 때 애플리케이션이 액세스해야 하는 범위와 OAuth 2.0 서버의 응답을 처리할 애플리케이션의 인증 엔드포인트 URL을 지정합니다.
+
+
+예를 들어 다음 코드는 사용자의 Google Drive 메타데이터 및 Calendar 이벤트에 대한 읽기 전용 오프라인 액세스를 요청합니다.
+
+
+require 'googleauth'
+require 'googleauth/web_user_authorizer'
+require 'googleauth/stores/redis_token_store'
+
+require 'google/apis/drive_v3'
+require 'google/apis/calendar_v3'
+
+# Required, call the from_file method to retrieve the client ID from a
+# client_secret.json file.
+client_id = Google::Auth::ClientId.from_file('/path/to/client_secret.json')
+
+# Required, scope value 
+# Access scopes for two non-Sign-In scopes: Read-only Drive activity and Google Calendar.
+scope = ['Google::Apis::DriveV3::AUTH_DRIVE_METADATA_READONLY',
+         'Google::Apis::CalendarV3::AUTH_CALENDAR_READONLY']
+
+# Required, Authorizers require a storage instance to manage long term persistence of
+# access and refresh tokens.
+token_store = Google::Auth::Stores::RedisTokenStore.new(redis: Redis.new)
+
+# Required, indicate where the API server will redirect the user after the user completes
+# the authorization flow. The redirect URI is required. The value must exactly
+# match one of the authorized redirect URIs for the OAuth 2.0 client, which you
+# configured in the API Console. If this value doesn't match an authorized URI,
+# you will get a 'redirect_uri_mismatch' error.
+callback_uri = '/oauth2callback'
+
+# To use OAuth2 authentication, we need access to a CLIENT_ID, CLIENT_SECRET, AND REDIRECT_URI
+# from the client_secret.json file. To get these credentials for your application, visit
+# https://console.cloud.google.com/apis/credentials.
+authorizer = Google::Auth::WebUserAuthorizer.new(client_id, scope,
+                                                token_store, callback_uri)
+
+애플리케이션은 클라이언트 객체를 사용하여 승인 요청 URL을 생성하고 액세스 토큰을 HTTP 요청에 적용하는 등의 OAuth 2.0 작업을 실행합니다.
+
+--- 탭: Node.js ---
+다음 코드 스니펫은 승인 요청의 매개변수를 정의하는 google.auth.OAuth2 객체를 만듭니다.
+
+
+
+  이 객체는 client_secret.json 파일의 정보를 사용하여 애플리케이션을 식별합니다. 사용자에게 액세스 토큰을 가져올 권한을 요청하려면 사용자를 동의 페이지로 리디렉션합니다.
+  동의 페이지 URL을 만들려면 다음 단계를 따르세요.
+
+
+const {google} = require('googleapis');
+const crypto = require('crypto');
+const express = require('express');
+const session = require('express-session');
+
+/**
+ * To use OAuth2 authentication, we need access to a CLIENT_ID, CLIENT_SECRET, AND REDIRECT_URI
+ * from the client_secret.json file. To get these credentials for your application, visit
+ * https://console.cloud.google.com/apis/credentials.
+ */
+const oauth2Client = new google.auth.OAuth2(
+  YOUR_CLIENT_ID,
+  YOUR_CLIENT_SECRET,
+  YOUR_REDIRECT_URL
+);
+
+// Access scopes for two non-Sign-In scopes: Read-only Drive activity and Google Calendar.
+const scopes = [
+  'https://www.googleapis.com/auth/drive.metadata.readonly',
+  'https://www.googleapis.com/auth/calendar.readonly'
+];
+
+// Generate a secure random state value.
+const state = crypto.randomBytes(32).toString('hex');
+
+// Store state in the session
+req.session.state = state;
+
+// Generate a url that asks permissions for the Drive activity and Google Calendar scope
+const authorizationUrl = oauth2Client.generateAuthUrl({
+  // 'online' (default) or 'offline' (gets refresh_token)
+  access_type: 'offline',
+  /** Pass in the scopes array defined above.
+    * Alternatively, if only one scope is needed, you can pass a scope URL as a string */
+  scope: scopes,
+  // Enable incremental authorization. Recommended as a best practice.
+  include_granted_scopes: true,
+  // Include the state parameter to reduce the risk of CSRF attacks.
+  state: state
+});
+
+
+  중요 - refresh_token는 첫 번째 승인에서만 반환됩니다. 자세한 내용은 여기 [https://github.com/googleapis/google-api-nodejs-client/issues/750#issuecomment-304521450]를 참고하세요.
+
+--- 탭: HTTP/REST ---
+Google의 OAuth 2.0 엔드포인트는 https://accounts.google.com/o/oauth2/v2/auth에 있습니다. 이 엔드포인트는 HTTPS를 통해서만 액세스할 수 있습니다. 일반 HTTP 연결은 거부됩니다.
+Google 승인 서버는 웹 서버 애플리케이션에 다음 쿼리 문자열 매개변수를 지원합니다.
+매개변수
+client_id 필수
+애플리케이션의 클라이언트 ID입니다. 이 값은 에서 확인할 수 있습니다.
+redirect_uri 필수
+사용자가 승인 흐름을 완료한 후 API 서버가 사용자를 리디렉션하는 위치를 결정합니다. 이 값은 클라이언트의 에 구성된 OAuth 2.0 클라이언트의 승인된 리디렉션 URI 중 하나와 정확히 일치해야 합니다. 이 값이 제공된 client_id의 승인된 리디렉션 URI와 일치하지 않으면 redirect_uri_mismatch 오류가 발생합니다.
+http 또는 https 스키마, 케이스, 후행 슬래시('/')는 모두 일치해야 합니다.
+response_type 필수
+Google OAuth 2.0 엔드포인트가 승인 코드를 반환하는지 여부를 결정합니다.
+웹 서버 애플리케이션의 경우 매개변수 값을 code로 설정합니다.
+scope 필수
+애플리케이션이 사용자를 대신하여 액세스할 수 있는 리소스를 식별하는 공백으로 구분된 범위 목록입니다. 이러한 값은 Google이 사용자에게 표시하는 동의 화면에 정보를 제공합니다.
+범위를 사용 설정하면 애플리케이션은 필요한 리소스에 대한 액세스만 요청하고 사용자는 애플리케이션에 부여하는 액세스 양을 제어할 수 있습니다. 따라서 요청된 범위의 수와 사용자 동의를 얻을 가능성 사이에는 역관계가 있습니다.
+가능한 경우 애플리케이션이 컨텍스트에서 승인 범위에 대한 액세스를 요청하는 것이 좋습니다. 점진적 승인 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#incrementalAuth]을 통해 관련 맥락 안에서 사용자 데이터에 대한 액세스를 요청하면 사용자가 애플리케이션에서 요청하는 액세스가 필요한 이유를 더 쉽게 이해할 수 있습니다.
+access_type 권장
+사용자가 브라우저에 없을 때 애플리케이션이 액세스 토큰을 갱신할 수 있는지 여부를 나타냅니다. 유효한 매개변수 값은 online(기본값) 및 offline입니다.
+사용자가 브라우저에 없을 때 애플리케이션이 액세스 토큰을 새로고침해야 하는 경우 값을 offline로 설정합니다. 이는 이 문서의 뒷부분에 설명된 액세스 토큰을 갱신하는 방법입니다. 이 값은 애플리케이션이 처음으로 승인 코드를 토큰으로 교환할 때 Google 승인 서버가 갱신 토큰과 액세스 토큰을 반환하도록 지시합니다.
+state 권장
+애플리케이션이 승인 요청과 승인 서버의 응답 간에 상태를 유지하는 데 사용하는 문자열 값을 지정합니다. 사용자가 애플리케이션의 액세스 요청에 동의하거나 거부하면 서버는 redirect_uri의 URL 쿼리 구성요소 (?)에서 name=value 쌍으로 전송한 정확한 값을 반환합니다.
+이 매개변수는 사용자를 애플리케이션의 올바른 리소스로 안내하고, nonce를 전송하고, 크로스 사이트 요청 위조를 완화하는 등 여러 용도로 사용할 수 있습니다. redirect_uri는 추측할 수 있으므로 state 값을 사용하면 수신 연결이 인증 요청의 결과임을 더 확실하게 알 수 있습니다. 무작위 문자열을 생성하거나 쿠키 또는 클라이언트의 상태를 캡처하는 다른 값의 해시를 인코딩하는 경우 응답을 검증하여 요청과 응답이 동일한 브라우저에서 시작되었는지 추가로 확인할 수 있으므로 크로스 사이트 요청 위조 [https://datatracker.ietf.org/doc/html/rfc6749#section-10.12]와 같은 공격으로부터 보호할 수 있습니다. state 토큰을 만들고 확인하는 방법의 예는 OpenID Connect [https://developers.google.com/identity/protocols/oauth2/openid-connect?hl=ko#createxsrftoken] 문서를 참고하세요.
+중요: OAuth 클라이언트는 OAuth2 사양 [https://datatracker.ietf.org/doc/html/rfc6749#section-10.12]에 명시된 대로 CSRF를 방지해야 합니다. 이를 달성하는 한 가지 방법은 state 매개변수를 사용하여 승인 요청과 승인 서버의 응답 간에 상태를 유지하는 것입니다.
+include_granted_scopes 선택사항
+애플리케이션이 단계적 승인을 사용하여 컨텍스트에서 추가 범위에 대한 액세스를 요청할 수 있도록 지원합니다. 이 매개변수의 값을 true로 설정하고 승인 요청이 승인되면 새 액세스 토큰은 사용자가 이전에 애플리케이션 액세스를 승인한 범위도 포함합니다. 예시는 증분 승인 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#incrementalAuth] 섹션을 참고하세요.
+enable_granular_consent 선택사항
+기본값은 true입니다. false로 설정하면 2019년 이전에 생성된 OAuth 클라이언트 ID에 대해 더 세부적인 Google 계정 권한 [https://developers.google.com/identity/protocols/oauth2/resources/granular-permissions?hl=ko]이 사용 중지됩니다. 더 세분화된 권한이 항상 사용 설정되어 있으므로 최신 OAuth 클라이언트 ID에는 영향을 미치지 않습니다.
+Google에서 애플리케이션의 세부 권한을 사용 설정하면 이 매개변수는 더 이상 영향을 미치지 않습니다.
+login_hint 선택사항
+애플리케이션이 인증을 시도하는 사용자를 알고 있는 경우 이 매개변수를 사용하여 Google 인증 서버에 힌트를 제공할 수 있습니다. 서버는 힌트를 사용하여 로그인 양식의 이메일 필드를 미리 입력하거나 적절한 다중 로그인 세션을 선택하여 로그인 흐름을 간소화합니다.
+매개변수 값을 이메일 주소 또는 sub 식별자로 설정합니다. 이는 사용자의 Google ID와 동일합니다.
+prompt 선택사항
+사용자에게 표시할 프롬프트의 공백으로 구분된 대소문자 구분 목록입니다. 이 매개변수를 지정하지 않으면 프로젝트에서 액세스를 요청할 때만 사용자에게 메시지가 표시됩니다. 자세한 내용은 재동의 요청 [https://developers.google.com/identity/protocols/oauth2/openid-connect?hl=ko#re-consent]을 참고하세요.
+가능한 값은 다음과 같습니다.
+none 인증 또는 동의 화면을 표시하지 않습니다. 다른 값과 함께 지정하면 안 됩니다.
+consent 사용자에게 동의를 요청합니다.
+select_account 사용자에게 계정을 선택하라는 메시지를 표시합니다.
+2단계: Google의 OAuth 2.0 서버로 리디렉션
+사용자를 Google의 OAuth 2.0 서버로 리디렉션하여 인증 및 승인 프로세스를 시작합니다. 일반적으로 이 문제는 애플리케이션에서 사용자의 데이터에 처음 액세스해야 할 때 발생합니다. 증분 승인 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#incrementalAuth]의 경우 이 단계는 애플리케이션이 아직 액세스 권한이 없는 추가 리소스에 처음 액세스해야 할 때도 발생합니다.
+--- 탭: PHP ---
+Google의 OAuth 2.0 서버에서 액세스를 요청하는 URL을 생성합니다.
+    $auth_url = $client->createAuthUrl();
+  
+  사용자를 $auth_url로 리디렉션합니다.
+    header('Location: ' . filter_var($auth_url, FILTER_SANITIZE_URL));
+
+--- 탭: Python ---
+이 예시에서는 Flask 웹 애플리케이션 프레임워크를 사용하여 사용자를 승인 URL로 리디렉션하는 방법을 보여줍니다.
+
+return flask.redirect(authorization_url)
+
+--- 탭: Ruby ---
+Google의 OAuth 2.0 서버에서 액세스를 요청하는 URL을 생성합니다.
+    auth_uri = authorizer.get_authorization_url(request: request)
+  사용자를 auth_uri로 리디렉션합니다.
+
+--- 탭: Node.js ---
+1단계 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#creatingclient]의 generateAuthUrl 메서드에서 생성된 URL authorizationUrl을 사용하여 Google의 OAuth 2.0 서버에서 액세스를 요청합니다.
+  
+  
+    사용자를 authorizationUrl로 리디렉션합니다.
+    res.redirect(authorizationUrl);
+
+--- 탭: HTTP/REST ---
+Google 승인 서버로 리디렉션하는 샘플
+
+        
+아래에는 가독성을 위해 줄바꿈과 공백이 있는 URL의 예가 나와 있습니다.
+
+
+        https://accounts.google.com/o/oauth2/v2/auth?
+ scope=https%3A//www.googleapis.com/auth/drive.metadata.readonly%20https%3A//www.googleapis.com/auth/calendar.readonly&
+ access_type=offline&
+ include_granted_scopes=true&
+ response_type=code&
+ state=state_parameter_passthrough_value&
+ redirect_uri=https%3A//oauth2.example.com/code&
+ client_id=client_id
+
+        요청 URL을 만든 후 사용자를 해당 URL로 리디렉션합니다.
+Google의 OAuth 2.0 서버는 사용자를 인증하고 애플리케이션이 요청된 범위에 액세스할 수 있도록 사용자 동의를 얻습니다. 지정한 리디렉션 URL을 사용하여 응답이 애플리케이션으로 다시 전송됩니다.
+3단계: Google에서 사용자에게 동의를 요청함
+이 단계에서 사용자는 애플리케이션에 요청된 액세스 권한을 부여할지 결정합니다. 이 단계에서 Google은 애플리케이션의 이름과 사용자의 승인 사용자 인증 정보에 대한 액세스 권한을 요청하는 Google API 서비스, 부여될 액세스 범위의 요약을 표시하는 동의 창을 표시합니다. 그러면 사용자는 애플리케이션에서 요청한 하나 이상의 범위에 대한 액세스 권한을 부여하는 데 동의하거나 요청을 거부할 수 있습니다.
+이 단계에서는 액세스 권한이 부여되었는지 여부를 나타내는 Google의 OAuth 2.0 서버의 응답을 기다리므로 애플리케이션에서 아무것도 하지 않아도 됩니다. 이 응답은 다음 단계에서 설명합니다.
+오류
+Google의 OAuth 2.0 승인 엔드포인트에 대한 요청에 예상되는 인증 및 승인 흐름 대신 사용자 대상 오류 메시지가 표시될 수 있습니다. 일반적인 오류 코드와 권장 해결 방법은 아래에 나열되어 있습니다.
+admin_policy_enforced
+Google Workspace 관리자의 정책으로 인해 Google 계정에서 요청된 하나 이상의 범위를 승인할 수 없습니다. 관리자가 OAuth 클라이언트 ID에 대한 액세스 권한이 명시적으로 부여될 때까지 모든 범위 또는 민감하고 제한된 범위에 대한 액세스를 제한하는 방법에 대한 자세한 내용은 Google Workspace 관리자 도움말 Google Workspace 데이터에 액세스할 수 있는 서드 파티 및 내부 앱 제어하기 [https://support.google.com/a/answer/7281227?hl=ko]를 참고하세요.
+disallowed_useragent
+승인 엔드포인트가 Google의 OAuth 2.0 정책 [https://developers.google.com/identity/protocols/oauth2/policies?hl=ko#browsers]에 의해 허용되지 않는 삽입된 사용자 에이전트 내에 표시됩니다.
+--- 탭: Android ---
+Android 개발자는 android.webkit.WebView [https://developer.android.com/reference/android/webkit/WebView?hl=ko]에서 승인 요청을 열 때 이 오류 메시지가 표시될 수 있습니다.
+      개발자는 대신 Google Sign-In for Android [https://developers.google.com/identity/sign-in/android?hl=ko] 또는 OpenID Foundation의 AppAuth for Android [https://openid.github.io/AppAuth-Android/]와 같은 Android 라이브러리를 사용해야 합니다.
+    Android 앱이 삽입된 사용자 에이전트에서 일반 웹 링크를 열고 사용자가 사이트에서 Google의 OAuth 2.0 승인 엔드포인트로 이동하면 웹 개발자에게 이 오류가 발생할 수 있습니다. 개발자는 일반 링크가 운영체제의 기본 링크 핸들러에서 열리도록 허용해야 합니다. 여기에는 Android 앱 링크 [https://developer.android.com/training/app-links?hl=ko] 핸들러와 기본 브라우저 앱이 모두 포함됩니다. Android 맞춤 탭 [https://developer.chrome.com/docs/android/custom-tabs/overview/?hl=ko] 라이브러리도 지원되는 옵션입니다.
+
+--- 탭: iOS ---
+iOS 및 macOS 개발자는 WKWebView [https://developer.apple.com/documentation/webkit/wkwebview]에서 승인 요청을 열 때 이 오류가 발생할 수 있습니다.
+      대신 개발자는 Google Sign-In for iOS [https://developers.google.com/identity/sign-in/ios?hl=ko] 또는 OpenID Foundation의 AppAuth for iOS [https://openid.github.io/AppAuth-iOS/]와 같은 iOS 라이브러리를 사용해야 합니다.
+    iOS 또는 macOS 앱이 삽입된 사용자 에이전트에서 일반 웹 링크를 열고 사용자가 사이트에서 Google의 OAuth 2.0 승인 엔드포인트로 이동하면 웹 개발자에게 이 오류가 발생할 수 있습니다. 개발자는 일반 링크가 운영체제의 기본 링크 핸들러에서 열리도록 허용해야 합니다. 여기에는 범용 링크 [https://developer.apple.com/ios/universal-links/] 핸들러와 기본 브라우저 앱이 모두 포함됩니다. SFSafariViewController [https://developer.apple.com/documentation/safariservices/sfsafariviewcontroller] 라이브러리도 지원되는 옵션입니다.
+org_internal
+요청의 OAuth 클라이언트 ID는 특정 Google Cloud 조직 [https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy?hl=ko#organizations]의 Google 계정에 대한 액세스를 제한하는 프로젝트에 속합니다. 이 구성 옵션에 대한 자세한 내용은 OAuth 동의 화면 설정 도움말의 사용자 유형 [https://support.google.com/cloud/answer/10311615?hl=ko#user-type] 섹션을 참고하세요.
+invalid_client
+OAuth 클라이언트 보안 비밀번호가 잘못되었습니다. 이 요청에 사용된 클라이언트 ID 및 보안 비밀을 비롯한 OAuth 클라이언트 구성 [https://developers.google.com/identity/protocols/oauth2/javascript-implicit-flow?hl=ko#creatingcred]을 검토합니다.
+deleted_client
+요청을 만드는 데 사용된 OAuth 클라이언트가 삭제되었습니다. 삭제는 수동으로 이루어질 수도 있고 사용하지 않는 클라이언트 [https://support.google.com/cloud/answer/15549257?hl=ko#unused-client-deletion]의 경우 자동으로 이루어질 수도 있습니다. 삭제된 클라이언트는 삭제 후 30일 이내에 복원할 수 있습니다. 자세히 알아보기 [https://support.google.com/cloud/answer/15549257?hl=ko#delete-oauth-clients]
+invalid_grant
+액세스 토큰을 갱신할 때 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#offline] 또는 점진적 승인 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#incrementalAuth]을 사용하는 경우 토큰이 만료되었거나 무효화되었을 수 있습니다. 사용자를 다시 인증하고 사용자 동의를 요청하여 새 토큰을 획득합니다. 이 오류가 계속 표시되면 애플리케이션이 올바르게 구성되었는지, 요청에 올바른 토큰과 매개변수를 사용하고 있는지 확인하세요. 그렇지 않으면 사용자 계정이 삭제되었거나 사용 중지되었을 수 있습니다.
+redirect_uri_mismatch
+승인 요청에 전달된 redirect_uri이 OAuth 클라이언트 ID의 승인된 리디렉션 URI와 일치하지 않습니다. 에서 승인된 리디렉션 URI를 검토합니다.
+redirect_uri 매개변수는 지원 중단되어 더 이상 지원되지 않는 OAuth 대역 외 (OOB) 흐름을 참조할 수 있습니다. 이전 가이드 [https://developers.google.com/identity/protocols/oauth2/resources/oob-migration?hl=ko]를 참고하여 통합을 업데이트하세요.
+invalid_request
+요청에 문제가 있습니다. 이 문제는 다음과 같은 여러 이유로 발생할 수 있습니다.
+요청의 형식이 올바르지 않습니다.
+요청에 필수 매개변수가 누락되었습니다.
+요청에서 Google이 지원하지 않는 승인 방법을 사용합니다. OAuth 통합이 권장 통합 방법을 사용하는지 확인
+4단계: OAuth 2.0 서버 응답 처리
+중요: 서버에서 OAuth 2.0 응답을 처리하기 전에 Google에서 수신한 state가 승인 요청에서 전송된 state와 일치하는지 확인해야 합니다. 이 확인을 통해 악의적인 스크립트가 아닌 사용자가 요청을 하고 있는지 확인할 수 있으며 CSRF 공격 [https://datatracker.ietf.org/doc/html/rfc6749#section-10.12]의 위험을 줄일 수 있습니다.
+OAuth 2.0 서버는 요청에 지정된 URL을 사용하여 애플리케이션의 액세스 요청에 응답합니다.
+사용자가 액세스 요청을 승인하면 응답에 승인 코드가 포함됩니다. 사용자가 요청을 승인하지 않으면 응답에 오류 메시지가 포함됩니다. 웹 서버에 반환되는 승인 코드 또는 오류 메시지는 아래와 같이 쿼리 문자열에 표시됩니다.
+오류 응답:
+https://oauth2.example.com/auth?error=access_denied
+승인 코드 응답:
+https://oauth2.example.com/auth?code=4/P7q7W91a-oMsCeLvIaQm6bTrgtp7
+중요: 응답 엔드포인트가 HTML 페이지를 렌더링하는 경우 해당 페이지의 모든 리소스가 URL의 승인 코드를 볼 수 있습니다. 스크립트는 URL을 직접 읽을 수 있으며 Referer HTTP 헤더의 URL은 페이지의 일부 또는 모든 리소스로 전송될 수 있습니다.
+해당 페이지의 모든 리소스 (특히 소셜 플러그인 및 분석과 같은 서드 파티 스크립트)에 승인 사용자 인증 정보를 전송할지 신중하게 고려하세요. 이 문제를 방지하려면 서버에서 먼저 요청을 처리한 다음 응답 매개변수가 포함되지 않은 다른 URL로 리디렉션하는 것이 좋습니다.
+샘플 OAuth 2.0 서버 응답
+Google Drive의 파일 메타데이터를 보기 위한 읽기 전용 액세스 권한과 Google Calendar 일정을 보기 위한 읽기 전용 액세스 권한을 요청하는 다음 샘플 URL을 클릭하여 이 흐름을 테스트할 수 있습니다.
+https://accounts.google.com/o/oauth2/v2/auth?
+ scope=https%3A//www.googleapis.com/auth/drive.metadata.readonly%20https%3A//www.googleapis.com/auth/calendar.readonly&
+ access_type=offline&
+ include_granted_scopes=true&
+ response_type=code&
+ state=state_parameter_passthrough_value&
+ redirect_uri=https%3A//oauth2.example.com/code&
+ client_id=client_id [https://accounts.google.com/o/oauth2/v2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.metadata.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.readonly&%3Bstate=state_parameter_passthrough_value&%3Bredirect_uri=https%3A%2F%2Foauth2.example.com%2Fcode&%3Baccess_type=offline&%3Bresponse_type=code&%3Bclient_id=583306224539-atbcaa8ne8g85e8kc006o6vmq99qiid0.apps.googleusercontent.com&hl=ko]
+OAuth 2.0 흐름을 완료하면 http://localhost/oauth2callback로 리디렉션됩니다. 로컬 머신이 해당 주소에서 파일을 제공하지 않는 한 404 NOT FOUND 오류가 발생할 수 있습니다. 다음 단계에서는 사용자가 애플리케이션으로 다시 리디렉션될 때 URI에 반환되는 정보에 관해 자세히 설명합니다.
+5단계: 갱신 및 액세스 토큰의 승인 코드 교환
+웹 서버는 승인 코드를 받은 후 승인 코드를 액세스 토큰으로 교환할 수 있습니다.
+--- 탭: PHP ---
+승인 코드를 액세스 토큰으로 교환하려면 fetchAccessTokenWithAuthCode 메서드를 사용합니다.
+
+$access_token = $client->fetchAccessTokenWithAuthCode($_GET['code']);
+
+--- 탭: Python ---
+콜백 페이지에서 google-auth 라이브러리를 사용하여 승인 서버 응답을 확인합니다. 그런 다음 flow.fetch_token 메서드를 사용하여 해당 응답의 승인 코드를 액세스 토큰으로 교환합니다.
+
+state = flask.session['state']
+flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+    'client_secret.json',
+    scopes=['https://www.googleapis.com/auth/drive.metadata.readonly'],
+    state=state)
+flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
+
+authorization_response = flask.request.url
+flow.fetch_token(authorization_response=authorization_response)
+
+# Store the credentials in the session.
+# ACTION ITEM for developers:
+#     Store user's access and refresh tokens in your data store if
+#     incorporating this code into your real app.
+credentials = flow.credentials
+flask.session['credentials'] = {
+    'token': credentials.token,
+    'refresh_token': credentials.refresh_token,
+    'token_uri': credentials.token_uri,
+    'client_id': credentials.client_id,
+    'client_secret': credentials.client_secret,
+    'granted_scopes': credentials.granted_scopes}
+
+--- 탭: Ruby ---
+콜백 페이지에서 googleauth 라이브러리를 사용하여 승인 서버 응답을 확인합니다. authorizer.handle_auth_callback_deferred 메서드를 사용하여 승인 코드를 저장하고 원래 승인을 요청한 URL로 다시 리디렉션합니다. 이렇게 하면 사용자의 세션에 결과를 일시적으로 저장하여 코드 교환이 지연됩니다.
+
+  target_url = Google::Auth::WebUserAuthorizer.handle_auth_callback_deferred(request)
+  redirect target_url
+
+--- 탭: Node.js ---
+승인 코드를 액세스 토큰으로 교환하려면 getToken 메서드를 사용합니다.
+
+const url = require('url');
+
+// Receive the callback from Google's OAuth 2.0 server.
+app.get('/oauth2callback', async (req, res) => {
+  let q = url.parse(req.url, true).query;
+
+  if (q.error) { // An error response e.g. error=access_denied
+    console.log('Error:' + q.error);
+  } else if (q.state !== req.session.state) { //check state value
+    console.log('State mismatch. Possible CSRF attack');
+    res.end('State mismatch. Possible CSRF attack');
+  } else { // Get access and refresh tokens (if access_type is offline)
+
+    let { tokens } = await oauth2Client.getToken(q.code);
+    oauth2Client.setCredentials(tokens);
+});
+
+--- 탭: HTTP/REST ---
+승인 코드를 액세스 토큰으로 교환하려면 https://oauth2.googleapis.com/token 엔드포인트를 호출하고 다음 매개변수를 설정합니다.
+
+
+  
+    
+      필드
+    
+  
+  
+    
+      client_id
+       
+       에서 가져온 클라이언트 ID입니다.
+    
+
+    
+      client_secret
+       
+       에서 가져온 클라이언트 보안 비밀번호입니다.
+    
+
+    
+      code
+      초기 요청에서 반환된 승인 코드입니다.
+    
+
+    
+
+    
+      grant_type
+      OAuth 2.0 사양에 정의된 대로 [https://tools.ietf.org/html/rfc6749#section-4.1.3] 이 필드의 값은 authorization_code로 설정해야 합니다.
+    
+    
+      redirect_uri
+      지정된 client_id의 
+        에 프로젝트에 대해 나열된 리디렉션 URI 중 하나입니다.
+    
+  
+
+
+다음 스니펫은 샘플 요청을 보여줍니다.
+
+POST /token HTTP/1.1
+Host: oauth2.googleapis.com
+Content-Type: application/x-www-form-urlencoded
+
+code=4/P7q7W91a-oMsCeLvIaQm6bTrgtp7&
+client_id=your_client_id&
+client_secret=your_client_secret&
+redirect_uri=https%3A//oauth2.example.com/code&
+grant_type=authorization_code
+
+Google은 이 요청에 단기 액세스 토큰과 새로고침 토큰이 포함된 JSON 객체를 반환하여 응답합니다.
+
+  갱신 토큰은 애플리케이션이 Google 승인 서버에 대한 초기 요청 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#creatingclient]에서 access_type 매개변수를 offline로 설정한 경우에만 반환됩니다.
+
+
+
+응답에는 다음 필드가 포함됩니다.
+
+
+  
+    
+      필드
+    
+  
+  
+    
+      access_token
+      Google API 요청을 승인하기 위해 애플리케이션에서 전송하는 토큰입니다.
+    
+    
+      expires_in
+      액세스 토큰의 남은 수명(초)입니다.
+    
+
+    
+    
+      refresh_token
+      새 액세스 토큰을 획득하는 데 사용할 수 있는 토큰입니다. 갱신 토큰은 사용자가 액세스 권한을 취소하거나 갱신 토큰이 만료될 때까지 유효합니다.
+    
+        다시 말하지만 이 필드는 Google 승인 서버에 대한 초기 요청에서 access_type 매개변수를 offline로 설정한 경우에만 이 응답에 표시됩니다.
+    
+      
+    
+    
+      refresh_token_expires_in
+      새로고침 토큰의 남은 수명(초)입니다. 이 값은 사용자가 시간 기반 액세스 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#time-based-access]를 부여한 경우에만 설정됩니다.
+      
+    
+    
+      scope
+      access_token에 의해 부여된 액세스 범위로, 공백으로 구분되고 대소문자를 구분하는 문자열 목록으로 표현됩니다.
+    
+    
+      token_type
+      반환된 토큰의 유형입니다. 이때 이 필드의 값은 항상 Bearer로 설정됩니다.
+    
+  
+
+
+중요: 애플리케이션은 애플리케이션의 여러 호출 간에 액세스할 수 있는 안전한 장기 저장 위치에 두 토큰을 모두 저장해야 합니다. 갱신 토큰을 사용하면 만료된 액세스 토큰이 있는 경우 애플리케이션에서 새 액세스 토큰을 가져올 수 있습니다. 따라서 애플리케이션에서 갱신 토큰을 잃으면 애플리케이션이 새 갱신 토큰을 획득할 수 있도록 사용자가 OAuth 2.0 동의 흐름을 반복해야 합니다.
+
+
+
+다음 스니펫은 샘플 응답을 보여줍니다.
+
+{
+  "access_token": "1/fFAGRNJru1FTz70BzhT3Zg",
+  "expires_in": 3920,
+  "token_type": "Bearer",
+  "scope": "https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/calendar.readonly",
+  "refresh_token": "1//xEoDL4iW3cxlI7yDbSRFYNG01kVKM2C-259HOF2aQbI"
+}
+
+참고: 애플리케이션은 응답에 포함된 인식할 수 없는 필드를 무시해야 합니다.
+오류
+승인 코드를 액세스 토큰으로 교환할 때 예상되는 응답 대신 다음 오류가 발생할 수 있습니다. 일반적인 오류 코드와 권장 해결 방법은 아래에 나열되어 있습니다.
+invalid_grant
+제공된 승인 코드가 잘못되었거나 형식이 잘못되었습니다. OAuth 프로세스를 다시 시작 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#creatingclient]하여 사용자에게 다시 동의를 요청함으로써 새 코드를 요청합니다.
+6단계: 사용자가 부여한 범위 확인
+여러 권한 (범위)을 요청할 때 사용자가 앱에 모든 권한을 부여하지 않을 수 있습니다. 앱은 실제로 부여된 범위를 확인하고 일부 권한이 거부된 상황을 적절하게 처리해야 합니다. 일반적으로 거부된 범위를 사용하는 기능을 사용 중지하여 처리합니다.
+하지만 예외도 있습니다. 도메인 전체 권한 위임 [https://support.google.com/a/answer/162106?hl=ko]이 있는 Google Workspace Enterprise 앱 또는 신뢰할 수 있음 [https://support.google.com/a/answer/7281227?hl=ko#zippy=,change-access-from-the-app-list]으로 표시된 앱은 세부 권한 동의 화면을 우회합니다. 이러한 앱의 경우 사용자에게 세부 권한 동의 화면이 표시되지 않습니다. 대신 앱은 요청된 범위를 모두 수신하거나 전혀 수신하지 않습니다.
+자세한 내용은 세부 권한 처리 방법 [https://developers.google.com/identity/protocols/oauth2/resources/granular-permissions?hl=ko]을 참고하세요.
+--- 탭: PHP ---
+사용자가 부여한 범위를 확인하려면 getGrantedScope() 메서드를 사용하세요.
+
+// Space-separated string of granted scopes if it exists, otherwise null.
+$granted_scopes = $client->getOAuth2Service()->getGrantedScope();
+
+// Determine which scopes user granted and build a dictionary
+$granted_scopes_dict = [
+  'Drive' => str_contains($granted_scopes, Google\Service\Drive::DRIVE_METADATA_READONLY),
+  'Calendar' => str_contains($granted_scopes, Google\Service\Calendar::CALENDAR_READONLY)
+];
+
+--- 탭: Python ---
+반환된 credentials 객체에는 사용자가 앱에 부여한 범위 목록인 granted_scopes 속성이 있습니다.
+
+credentials = flow.credentials
+flask.session['credentials'] = {
+    'token': credentials.token,
+    'refresh_token': credentials.refresh_token,
+    'token_uri': credentials.token_uri,
+    'client_id': credentials.client_id,
+    'client_secret': credentials.client_secret,
+    'granted_scopes': credentials.granted_scopes}
+
+다음 함수는 사용자가 앱에 부여한 범위를 확인합니다.
+
+def check_granted_scopes(credentials):
+  features = {}
+  if 'https://www.googleapis.com/auth/drive.metadata.readonly' in credentials['granted_scopes']:
+    features['drive'] = True
+  else:
+    features['drive'] = False
+
+  if 'https://www.googleapis.com/auth/calendar.readonly' in credentials['granted_scopes']:
+    features['calendar'] = True
+  else:
+    features['calendar'] = False
+
+  return features
+
+--- 탭: Ruby ---
+한 번에 여러 범위를 요청할 때는 credentials 객체의 scope 속성을 통해 어떤 범위가 부여되었는지 확인하세요.
+
+# User authorized the request. Now, check which scopes were granted.
+if credentials.scope.include?(Google::Apis::DriveV3::AUTH_DRIVE_METADATA_READONLY)
+  # User authorized read-only Drive activity permission.
+  # Calling the APIs, etc
+else
+  # User didn't authorize read-only Drive activity permission.
+  # Update UX and application accordingly
+end
+
+# Check if user authorized Calendar read permission.
+if credentials.scope.include?(Google::Apis::CalendarV3::AUTH_CALENDAR_READONLY)
+  # User authorized Calendar read permission.
+  # Calling the APIs, etc.
+else
+  # User didn't authorize Calendar read permission.
+  # Update UX and application accordingly
+end
+
+--- 탭: Node.js ---
+한 번에 여러 범위를 요청할 때는 tokens 객체의 scope 속성을 통해 어떤 범위가 부여되었는지 확인하세요.
+
+// User authorized the request. Now, check which scopes were granted.
+if (tokens.scope.includes('https://www.googleapis.com/auth/drive.metadata.readonly'))
+{
+  // User authorized read-only Drive activity permission.
+  // Calling the APIs, etc.
+}
+else
+{
+  // User didn't authorize read-only Drive activity permission.
+  // Update UX and application accordingly
+}
+
+// Check if user authorized Calendar read permission.
+if (tokens.scope.includes('https://www.googleapis.com/auth/calendar.readonly'))
+{
+  // User authorized Calendar read permission.
+  // Calling the APIs, etc.
+}
+else
+{
+  // User didn't authorize Calendar read permission.
+  // Update UX and application accordingly
+}
+
+--- 탭: HTTP/REST ---
+사용자가 특정 범위에 대한 액세스 권한을 애플리케이션에 부여했는지 확인하려면 액세스 토큰 응답의 scope 필드를 검사합니다. access_token에 의해 부여된 액세스 범위입니다. 공백으로 구분되고 대소문자를 구분하는 문자열 목록으로 표현됩니다.
+
+
+
+  예를 들어 다음 샘플 액세스 토큰 응답은 사용자가 읽기 전용 드라이브 활동 및 캘린더 일정 권한에 대한 액세스 권한을 애플리케이션에 부여했음을 나타냅니다.
+
+
+  {
+    "access_token": "1/fFAGRNJru1FTz70BzhT3Zg",
+    "expires_in": 3920,
+    "token_type": "Bearer",
+    "scope": "https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/calendar.readonly",
+    "refresh_token": "1//xEoDL4iW3cxlI7yDbSRFYNG01kVKM2C-259HOF2aQbI"
+  }
+Google API 호출
+--- 탭: PHP ---
+다음 단계를 완료하여 액세스 토큰을 사용하여 Google API를 호출합니다.
+
+
+  액세스 토큰을 새 Google\Client 객체에 적용해야 하는 경우(예: 사용자 세션에 액세스 토큰을 저장한 경우) setAccessToken 메서드를 사용합니다.
+
+    $client->setAccessToken($access_token);
+  
+  호출하려는 API의 서비스 객체를 빌드합니다. 호출하려는 API의 생성자에 승인된 Google\Client 객체를 제공하여 서비스 객체를 빌드합니다. 
+예를 들어 Drive API를 호출하려면 다음을 실행합니다.
+
+    $drive = new Google\Service\Drive($client);
+  
+  서비스 객체에서 제공하는 인터페이스 [https://github.com/googleapis/google-api-php-client/blob/master/docs/start.md]를 사용하여 API 서비스에 요청합니다.
+    
+예를 들어 인증된 사용자의 Google Drive에 있는 파일을 나열하려면 다음을 실행합니다.
+
+    $files = $drive->files->listFiles(array());
+
+--- 탭: Python ---
+액세스 토큰을 획득한 후 애플리케이션은 해당 토큰을 사용하여 지정된 사용자 계정 또는 서비스 계정을 대신하여 API 요청을 승인할 수 있습니다. 사용자별 승인 사용자 인증 정보를 사용하여 호출하려는 API의 서비스 객체를 빌드한 다음 해당 객체를 사용하여 승인된 API 요청을 만듭니다.
+
+
+  호출하려는 API의 서비스 객체를 빌드합니다. API의 이름과 버전, 사용자 인증 정보로 googleapiclient.discovery 라이브러리의 build 메서드를 호출하여 서비스 객체를 빌드합니다. 예를 들어 Drive API 버전 3을 호출하려면 다음을 실행합니다.
+
+    from googleapiclient.discovery import build
+
+drive = build('drive', 'v2', credentials=credentials)
+  
+  서비스 객체에서 제공하는 인터페이스 [https://github.com/googleapis/google-api-python-client/blob/master/docs/start.md#building-and-calling-a-service]를 사용하여 API 서비스에 요청합니다.
+    
+예를 들어 인증된 사용자의 Google Drive에 있는 파일을 나열하려면 다음을 실행합니다.
+
+    files = drive.files().list().execute()
+
+--- 탭: Ruby ---
+액세스 토큰을 획득한 후 애플리케이션은 해당 토큰을 사용하여 특정 사용자 계정 또는 서비스 계정을 대신하여 API 요청을 할 수 있습니다. 사용자별 승인 사용자 인증 정보를 사용하여 호출하려는 API의 서비스 객체를 빌드한 다음 해당 객체를 사용하여 승인된 API 요청을 만듭니다.
+
+
+  호출하려는 API의 서비스 객체를 빌드합니다.
+    
+예를 들어 Drive API 버전 3을 호출하려면 다음을 실행합니다.
+
+    drive = Google::Apis::DriveV3::DriveService.new
+  
+  서비스에서 사용자 인증 정보를 설정합니다.
+    drive.authorization = credentials
+  
+  서비스 객체에서 제공하는 인터페이스 [https://github.com/googleapis/google-api-ruby-client]를 사용하여 API 서비스에 요청합니다.
+    
+예를 들어 인증된 사용자의 Google Drive에 있는 파일을 나열하려면 다음을 실행합니다.
+
+    
+    files = drive.list_files
+    
+  
+
+
+또는 메서드에 options 매개변수를 제공하여 메서드별로 승인을 제공할 수 있습니다.
+
+
+files = drive.list_files(options: { authorization: credentials })
+
+--- 탭: Node.js ---
+액세스 토큰을 획득하고 OAuth2 객체에 설정한 후 객체를 사용하여 Google API를 호출합니다. 애플리케이션은 이 토큰을 사용하여 특정 사용자 계정 또는 서비스 계정을 대신하여 API 요청을 승인할 수 있습니다. 호출하려는 API의 서비스 객체를 빌드합니다.
+  예를 들어 다음 코드는 Google Drive API를 사용하여 사용자의 Drive에 있는 파일 이름을 나열합니다.
+
+
+const { google } = require('googleapis');
+
+// Example of using Google Drive API to list filenames in user's Drive.
+const drive = google.drive('v3');
+drive.files.list({
+  auth: oauth2Client,
+  pageSize: 10,
+  fields: 'nextPageToken, files(id, name)',
+}, (err1, res1) => {
+  if (err1) return console.log('The API returned an error: ' + err1);
+  const files = res1.data.files;
+  if (files.length) {
+    console.log('Files:');
+    files.map((file) => {
+      console.log(`${file.name} (${file.id})`);
+    });
+  } else {
+    console.log('No files found.');
+  }
+});
+
+--- 탭: HTTP/REST ---
+애플리케이션이 액세스 토큰을 획득한 후 API에 필요한 액세스 범위가 부여된 경우 토큰을 사용하여 지정된 사용자 계정을 대신하여 Google API를 호출할 수 있습니다. 이렇게 하려면 access_token 쿼리 매개변수 또는 Authorization HTTP 헤더 Bearer 값을 포함하여 API에 대한 요청에 액세스 토큰을 포함합니다. 가능한 경우 HTTP 헤더를 사용하는 것이 좋습니다. 쿼리 문자열은 서버 로그에 표시되는 경향이 있기 때문입니다. 대부분의 경우 클라이언트 라이브러리를 사용하여 Google API 호출을 설정할 수 있습니다 (예: Drive Files API 호출 [https://developers.google.com/drive/api/v2/reference?hl=ko#Files]).
+
+
+
+OAuth 2.0 Playground [https://developers.google.com/oauthplayground/?hl=ko]에서 모든 Google API를 사용해 보고 범위를 확인할 수 있습니다.
+
+HTTP GET 예
+
+Authorization: Bearer HTTP 헤더를 사용하여 drive.files [https://developers.google.com/drive/v2/reference/files/list?hl=ko] 엔드포인트 (Drive Files API)를 호출하는 것은 다음과 같습니다. 자체 액세스 토큰을 지정해야 합니다.
+
+GET /drive/v2/files HTTP/1.1
+Host: www.googleapis.com
+Authorization: Bearer access_token
+
+다음은 access_token 쿼리 문자열 매개변수를 사용하여 인증된 사용자에 대해 동일한 API를 호출하는 것입니다.
+
+GET https://www.googleapis.com/drive/v2/files?access_token=access_token
+
+curl 예
+
+curl 명령줄 애플리케이션으로 이러한 명령어를 테스트할 수 있습니다. 다음은 HTTP 헤더 옵션을 사용하는 예입니다 (권장).
+
+curl -H "Authorization: Bearer access_token" https://www.googleapis.com/drive/v2/files
+
+또는 쿼리 문자열 매개변수 옵션:
+
+curl https://www.googleapis.com/drive/v2/files?access_token=access_token
+전체 예시
+다음 예에서는 사용자가 인증하고 애플리케이션이 사용자의 Drive 메타데이터에 액세스하도록 동의한 후 사용자의 Google Drive에 있는 파일의 JSON 형식 목록을 출력합니다.
+--- 탭: PHP ---
+이 예시를 실행하려면 다음 안내를 따르세요.
+
+
+   API Console에서 로컬 머신의 URL을 리디렉션 URL 목록에 추가합니다. 예를 들어 http://localhost:8080을 추가합니다.
+  새 디렉터리를 만들고 디렉터리를 변경합니다. 예를 들면 다음과 같습니다.
+    mkdir ~/php-oauth2-example
+cd ~/php-oauth2-example
+  Composer [https://getcomposer.org/]를 사용하여 PHP용 Google API 클라이언트 라이브러리 [https://github.com/googleapis/google-api-php-client]를 설치합니다.
+      composer require google/apiclient:^2.15.0
+  다음 콘텐츠로 index.php 및 oauth2callback.php 파일을 만듭니다.
+  PHP의 내장 테스트 웹 서버를 사용하여 예시를 실행합니다.
+      php -S localhost:8080 ~/php-oauth2-example
+
+
+index.php
+
+<?php
+require_once __DIR__.'/vendor/autoload.php';
+
+session_start();
+
+$client = new Google\Client();
+$client->setAuthConfig('client_secret.json');
+
+// User granted permission as an access token is in the session.
+if (isset($_SESSION['access_token']) && $_SESSION['access_token'])
+{
+  $client->setAccessToken($_SESSION['access_token']);
+  
+  // Check if user granted Drive permission
+  if ($_SESSION['granted_scopes_dict']['Drive']) {
+    echo "Drive feature is enabled.";
+    echo "</br>";
+    $drive = new Drive($client);
+    $files = array();
+    $response = $drive->files->listFiles(array());
+    foreach ($response->files as $file) {
+        echo "File: " . $file->name . " (" . $file->id . ")";
+        echo "</br>";
+    }
+  } else {
+    echo "Drive feature is NOT enabled.";
+    echo "</br>";
+  }
+
+   // Check if user granted Calendar permission
+  if ($_SESSION['granted_scopes_dict']['Calendar']) {
+    echo "Calendar feature is enabled.";
+    echo "</br>";
+  } else {
+    echo "Calendar feature is NOT enabled.";
+    echo "</br>";
+  }
+}
+else
+{
+  // Redirect users to outh2call.php which redirects users to Google OAuth 2.0
+  $redirect_uri = 'http://' . $_SERVER['HTTP_HOST'] . '/oauth2callback.php';
+  header('Location: ' . filter_var($redirect_uri, FILTER_SANITIZE_URL));
+}
+?>
+
+oauth2callback.php
+
+<?php
+require_once __DIR__.'/vendor/autoload.php';
+
+session_start();
+
+$client = new Google\Client();
+
+// Required, call the setAuthConfig function to load authorization credentials from
+// client_secret.json file.
+$client->setAuthConfigFile('client_secret.json');
+$client->setRedirectUri('http://' . $_SERVER['HTTP_HOST']. $_SERVER['PHP_SELF']);
+
+// Required, to set the scope value, call the addScope function.
+$client->addScope([Google\Service\Drive::DRIVE_METADATA_READONLY, Google\Service\Calendar::CALENDAR_READONLY]);
+
+// Enable incremental authorization. Recommended as a best practice.
+$client->setIncludeGrantedScopes(true);
+
+// Recommended, offline access will give you both an access and refresh token so that
+// your app can refresh the access token without user interaction.
+$client->setAccessType("offline");
+
+// Generate a URL for authorization as it doesn't contain code and error
+if (!isset($_GET['code']) && !isset($_GET['error']))
+{
+  // Generate and set state value
+  $state = bin2hex(random_bytes(16));
+  $client->setState($state);
+  $_SESSION['state'] = $state;
+
+  // Generate a url that asks permissions.
+  $auth_url = $client->createAuthUrl();
+  header('Location: ' . filter_var($auth_url, FILTER_SANITIZE_URL));
+}
+
+// User authorized the request and authorization code is returned to exchange access and
+// refresh tokens.
+if (isset($_GET['code']))
+{
+  // Check the state value
+  if (!isset($_GET['state']) || $_GET['state'] !== $_SESSION['state']) {
+    die('State mismatch. Possible CSRF attack.');
+  }
+
+  // Get access and refresh tokens (if access_type is offline)
+  $token = $client->fetchAccessTokenWithAuthCode($_GET['code']);
+
+  /** Save access and refresh token to the session variables.
+    * ACTION ITEM: In a production app, you likely want to save the
+    *              refresh token in a secure persistent storage instead. */
+  $_SESSION['access_token'] = $token;
+  $_SESSION['refresh_token'] = $client->getRefreshToken();
+  
+  // Space-separated string of granted scopes if it exists, otherwise null.
+  $granted_scopes = $client->getOAuth2Service()->getGrantedScope();
+
+  // Determine which scopes user granted and build a dictionary
+  $granted_scopes_dict = [
+    'Drive' => str_contains($granted_scopes, Google\Service\Drive::DRIVE_METADATA_READONLY),
+    'Calendar' => str_contains($granted_scopes, Google\Service\Calendar::CALENDAR_READONLY)
+  ];
+  $_SESSION['granted_scopes_dict'] = $granted_scopes_dict;
+  
+  $redirect_uri = 'http://' . $_SERVER['HTTP_HOST'] . '/';
+  header('Location: ' . filter_var($redirect_uri, FILTER_SANITIZE_URL));
+}
+
+// An error response e.g. error=access_denied
+if (isset($_GET['error']))
+{
+  echo "Error: ". $_GET['error'];
+}
+?>
+
+--- 탭: Python ---
+이 예시에서는 Flask [https://palletsprojects.com/p/flask/] 프레임워크를 사용합니다. OAuth 2.0 흐름을 테스트할 수 있는 웹 애플리케이션을 http://localhost:8080에서 실행합니다. 해당 URL로 이동하면 다음 5개의 링크가 표시됩니다.
+
+
+  
+  Drive API 호출: 이 링크는 사용자가 권한을 부여한 경우 샘플 API 요청을 실행하려고 시도하는 페이지를 가리킵니다. 필요한 경우 승인 흐름을 시작합니다.
+    성공하면 페이지에 API 응답이 표시됩니다.
+  Calendar API를 호출하는 모의 페이지: 이 링크는 사용자가 권한을 부여한 경우 샘플 Calendar API 요청을 실행하려고 하는 모의 페이지를 가리킵니다. 필요한 경우 승인 흐름을 시작합니다. 성공하면 페이지에 API 응답이 표시됩니다.
+  
+  인증 흐름 직접 테스트: 이 링크는 사용자를 인증 흐름 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#redirecting]으로 안내하려고 시도하는 페이지로 연결됩니다. 앱이 사용자를 대신하여 승인된 API 요청을 제출할 권한을 요청합니다.
+  현재 사용자 인증 정보 취소: 이 링크는 사용자가 이미 애플리케이션에 부여한 권한을 취소 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#tokenrevoke]하는 페이지로 연결됩니다.
+  Flask 세션 사용자 인증 정보 지우기: 이 링크는 Flask 세션에 저장된 승인 사용자 인증 정보를 지웁니다. 이렇게 하면 이미 앱에 권한을 부여한 사용자가 새 세션에서 API 요청을 실행하려고 할 때 어떤 일이 발생하는지 확인할 수 있습니다. 또한 사용자가 앱에 부여된 권한을 취소하고 앱이 여전히 취소된 액세스 토큰으로 요청을 승인하려고 하는 경우 앱이 수신할 API 응답을 확인할 수 있습니다.
+
+
+참고: 이 코드를 로컬로 실행하려면 기본 요건 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#prerequisites] 섹션의 안내를 따라야 합니다. 여기에는 http://localhost:8080을 사용자 인증 정보의 유효한 리디렉션 URI로 설정하고 해당 사용자 인증 정보의 client_secret.json 파일을 작업 디렉터리에 다운로드하는 작업이 포함됩니다.
+
+# -*- coding: utf-8 -*-
+
+import os
+import flask
+import requests
+
+import google.oauth2.credentials
+import google_auth_oauthlib.flow
+import googleapiclient.discovery
+
+# This variable specifies the name of a file that contains the OAuth 2.0
+# information for this application, including its client_id and client_secret.
+CLIENT_SECRETS_FILE = "client_secret.json"
+
+# The OAuth 2.0 access scope allows for access to the
+# authenticated user's account and requires requests to use an SSL connection.
+SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly',
+          'https://www.googleapis.com/auth/calendar.readonly']
+API_SERVICE_NAME = 'drive'
+API_VERSION = 'v2'
+
+app = flask.Flask(__name__)
+# Note: A secret key is included in the sample so that it works.
+# If you use this code in your application, replace this with a truly secret
+# key. See https://flask.palletsprojects.com/quickstart/#sessions.
+app.secret_key = 'REPLACE ME - this value is here as a placeholder.'
+
+@app.route('/')
+def index():
+  return print_index_table()
+
+@app.route('/drive')
+def drive_api_request():
+  if 'credentials' not in flask.session:
+    return flask.redirect('authorize')
+
+  features = flask.session['features']
+
+  if features['drive']:
+    # Load credentials from the session.
+    credentials = google.oauth2.credentials.Credentials(
+        **flask.session['credentials'])
+
+    drive = googleapiclient.discovery.build(
+        API_SERVICE_NAME, API_VERSION, credentials=credentials)
+
+    files = drive.files().list().execute()
+
+    # Save credentials back to session in case access token was refreshed.
+    # ACTION ITEM: In a production app, you likely want to save these
+    #              credentials in a persistent database instead.
+    flask.session['credentials'] = credentials_to_dict(credentials)
+
+    return flask.jsonify(**files)
+  else:
+    # User didn't authorize read-only Drive activity permission.
+    # Update UX and application accordingly
+    return '<p>Drive feature is not enabled.</p>'
+
+@app.route('/calendar')
+    def calendar_api_request():
+      if 'credentials' not in flask.session:
+        return flask.redirect('authorize')
+
+      features = flask.session['features']
+
+      if features['calendar']:
+        # User authorized Calendar read permission.
+        # Calling the APIs, etc.
+        return ('<p>User granted the Google Calendar read permission. '+
+                'This sample code does not include code to call Calendar</p>')
+      else:
+        # User didn't authorize Calendar read permission.
+        # Update UX and application accordingly
+        return '<p>Calendar feature is not enabled.</p>'
+
+@app.route('/authorize')
+def authorize():
+  # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps.
+  flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+      CLIENT_SECRETS_FILE, scopes=SCOPES)
+
+  # The URI created here must exactly match one of the authorized redirect URIs
+  # for the OAuth 2.0 client, which you configured in the API Console. If this
+  # value doesn't match an authorized URI, you will get a 'redirect_uri_mismatch'
+  # error.
+  flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
+
+  authorization_url, state = flow.authorization_url(
+      # Enable offline access so that you can refresh an access token without
+      # re-prompting the user for permission. Recommended for web server apps.
+      access_type='offline',
+      # Enable incremental authorization. Recommended as a best practice.
+      include_granted_scopes='true')
+
+  # Store the state so the callback can verify the auth server response.
+  flask.session['state'] = state
+
+  return flask.redirect(authorization_url)
+
+@app.route('/oauth2callback')
+def oauth2callback():
+  # Specify the state when creating the flow in the callback so that it can
+  # verified in the authorization server response.
+  state = flask.session['state']
+
+  flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+      CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
+  flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
+
+  # Use the authorization server's response to fetch the OAuth 2.0 tokens.
+  authorization_response = flask.request.url
+  flow.fetch_token(authorization_response=authorization_response)
+
+  # Store credentials in the session.
+  # ACTION ITEM: In a production app, you likely want to save these
+  #              credentials in a persistent database instead.
+  credentials = flow.credentials
+  
+  credentials = credentials_to_dict(credentials)
+  flask.session['credentials'] = credentials
+
+  # Check which scopes user granted
+  features = check_granted_scopes(credentials)
+  flask.session['features'] = features
+  return flask.redirect('/')
+  
+
+@app.route('/revoke')
+def revoke():
+  if 'credentials' not in flask.session:
+    return ('You need to <a href="/authorize">authorize</a> before ' +
+            'testing the code to revoke credentials.')
+
+  credentials = google.oauth2.credentials.Credentials(
+    **flask.session['credentials'])
+
+  revoke = requests.post('https://oauth2.googleapis.com/revoke',
+      params={'token': credentials.token},
+      headers = {'content-type': 'application/x-www-form-urlencoded'})
+
+  status_code = getattr(revoke, 'status_code')
+  if status_code == 200:
+    return('Credentials successfully revoked.' + print_index_table())
+  else:
+    return('An error occurred.' + print_index_table())
+
+@app.route('/clear')
+def clear_credentials():
+  if 'credentials' in flask.session:
+    del flask.session['credentials']
+  return ('Credentials have been cleared.<br><br>' +
+          print_index_table())
+
+def credentials_to_dict(credentials):
+  return {'token': credentials.token,
+          'refresh_token': credentials.refresh_token,
+          'token_uri': credentials.token_uri,
+          'client_id': credentials.client_id,
+          'client_secret': credentials.client_secret,
+          'granted_scopes': credentials.granted_scopes}
+
+def check_granted_scopes(credentials):
+  features = {}
+  if 'https://www.googleapis.com/auth/drive.metadata.readonly' in credentials['granted_scopes']:
+    features['drive'] = True
+  else:
+    features['drive'] = False
+
+  if 'https://www.googleapis.com/auth/calendar.readonly' in credentials['granted_scopes']:
+    features['calendar'] = True
+  else:
+    features['calendar'] = False
+
+  return features
+
+def print_index_table():
+  return ('<table>' +
+          '<tr><td><a href="/test">Test an API request</a></td>' +
+          '<td>Submit an API request and see a formatted JSON response. ' +
+          '    Go through the authorization flow if there are no stored ' +
+          '    credentials for the user.</td></tr>' +
+          '<tr><td><a href="/authorize">Test the auth flow directly</a></td>' +
+          '<td>Go directly to the authorization flow. If there are stored ' +
+          '    credentials, you still might not be prompted to reauthorize ' +
+          '    the application.</td></tr>' +
+          '<tr><td><a href="/revoke">Revoke current credentials</a></td>' +
+          '<td>Revoke the access token associated with the current user ' +
+          '    session. After revoking credentials, if you go to the test ' +
+          '    page, you should see an <code>invalid_grant</code> error.' +
+          '</td></tr>' +
+          '<tr><td><a href="/clear">Clear Flask session credentials</a></td>' +
+          '<td>Clear the access token currently stored in the user session. ' +
+          '    After clearing the token, if you <a href="/test">test the ' +
+          '    API request</a> again, you should go back to the auth flow.' +
+          '</td></tr></table>')
+
+if __name__ == '__main__':
+  # When running locally, disable OAuthlib's HTTPs verification.
+  # ACTION ITEM for developers:
+  #     When running in production *do not* leave this option enabled.
+  os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
+  # This disables the requested scopes and granted scopes check.
+  # If users only grant partial request, the warning would not be thrown.
+  os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
+
+  # Specify a hostname and port that are set as a valid redirect URI
+  # for your API project in the Google API Console.
+  app.run('localhost', 8080, debug=True)
+
+--- 탭: Ruby ---
+이 예시에서는 Sinatra [http://www.sinatrarb.com/] 프레임워크를 사용합니다.
+
+require 'googleauth'
+require 'googleauth/web_user_authorizer'
+require 'googleauth/stores/redis_token_store'
+
+require 'google/apis/drive_v3'
+require 'google/apis/calendar_v3'
+
+require 'sinatra'
+
+configure do
+  enable :sessions
+
+  # Required, call the from_file method to retrieve the client ID from a
+  # client_secret.json file.
+  set :client_id, Google::Auth::ClientId.from_file('/path/to/client_secret.json')
+
+  # Required, scope value
+  # Access scopes for two non-Sign-In scopes: Read-only Drive activity and Google Calendar.
+  scope = ['Google::Apis::DriveV3::AUTH_DRIVE_METADATA_READONLY',
+           'Google::Apis::CalendarV3::AUTH_CALENDAR_READONLY']
+
+  # Required, Authorizers require a storage instance to manage long term persistence of
+  # access and refresh tokens.
+  set :token_store, Google::Auth::Stores::RedisTokenStore.new(redis: Redis.new)
+
+  # Required, indicate where the API server will redirect the user after the user completes
+  # the authorization flow. The redirect URI is required. The value must exactly
+  # match one of the authorized redirect URIs for the OAuth 2.0 client, which you
+  # configured in the API Console. If this value doesn't match an authorized URI,
+  # you will get a 'redirect_uri_mismatch' error.
+  set :callback_uri, '/oauth2callback'
+
+  # To use OAuth2 authentication, we need access to a CLIENT_ID, CLIENT_SECRET, AND REDIRECT_URI
+  # from the client_secret.json file. To get these credentials for your application, visit
+  # https://console.cloud.google.com/apis/credentials.
+  set :authorizer, Google::Auth::WebUserAuthorizer.new(settings.client_id, settings.scope,
+                          settings.token_store, callback_uri: settings.callback_uri)
+end
+
+get '/' do
+  # NOTE: Assumes the user is already authenticated to the app
+  user_id = request.session['user_id']
+
+  # Fetch stored credentials for the user from the given request session.
+  # nil if none present
+  credentials = settings.authorizer.get_credentials(user_id, request)
+
+  if credentials.nil?
+    # Generate a url that asks the user to authorize requested scope(s).
+    # Then, redirect user to the url.
+    redirect settings.authorizer.get_authorization_url(request: request)
+  end
+  
+  # User authorized the request. Now, check which scopes were granted.
+  if credentials.scope.include?(Google::Apis::DriveV3::AUTH_DRIVE_METADATA_READONLY)
+    # User authorized read-only Drive activity permission.
+    # Example of using Google Drive API to list filenames in user's Drive.
+    drive = Google::Apis::DriveV3::DriveService.new
+    files = drive.list_files(options: { authorization: credentials })
+    "<pre>#{JSON.pretty_generate(files.to_h)}</pre>"
+  else
+    # User didn't authorize read-only Drive activity permission.
+    # Update UX and application accordingly
+  end
+
+  # Check if user authorized Calendar read permission.
+  if credentials.scope.include?(Google::Apis::CalendarV3::AUTH_CALENDAR_READONLY)
+    # User authorized Calendar read permission.
+    # Calling the APIs, etc.
+  else
+    # User didn't authorize Calendar read permission.
+    # Update UX and application accordingly
+  end
+end
+
+# Receive the callback from Google's OAuth 2.0 server.
+get '/oauth2callback' do
+  # Handle the result of the oauth callback. Defers the exchange of the code by
+  # temporarily stashing the results in the user's session.
+  target_url = Google::Auth::WebUserAuthorizer.handle_auth_callback_deferred(request)
+  redirect target_url
+end
+
+--- 탭: Node.js ---
+이 예시를 실행하려면 다음 안내를 따르세요.
+
+
+  
+    API Console에서 로컬 머신의 URL을 리디렉션 URL 목록에 추가합니다. 예를 들어 http://localhost을 추가합니다.
+  
+  
+    Node.js의 유지관리 LTS, 활성 LTS 또는 현재 출시 버전이 설치되어 있는지 확인합니다.
+  
+  
+    새 디렉터리를 만들고 디렉터리를 변경합니다. 예를 들면 다음과 같습니다.
+    mkdir ~/nodejs-oauth2-example
+cd ~/nodejs-oauth2-example
+  
+  
+    npm [https://www.npmjs.com/]을 사용하여 Node.js용 Google API 클라이언트 라이브러리 [https://github.com/googleapis/google-api-nodejs-client]를 설치합니다.
+    npm install googleapis
+  
+  
+    다음 콘텐츠로 main.js 파일을 만듭니다.
+  
+  
+    예시를 실행합니다.
+    node .\main.js
+  
+
+main.js
+const http = require('http');
+const https = require('https');
+const url = require('url');
+const { google } = require('googleapis');
+const crypto = require('crypto');
+const express = require('express');
+const session = require('express-session');
+
+/**
+ * To use OAuth2 authentication, we need access to a CLIENT_ID, CLIENT_SECRET, AND REDIRECT_URI.
+ * To get these credentials for your application, visit
+ * https://console.cloud.google.com/apis/credentials.
+ */
+const oauth2Client = new google.auth.OAuth2(
+  YOUR_CLIENT_ID,
+  YOUR_CLIENT_SECRET,
+  YOUR_REDIRECT_URL
+);
+
+// Access scopes for two non-Sign-In scopes: Read-only Drive activity and Google Calendar.
+const scopes = [
+  'https://www.googleapis.com/auth/drive.metadata.readonly',
+  'https://www.googleapis.com/auth/calendar.readonly'
+];
+
+/* Global variable that stores user credential in this code example.
+ * ACTION ITEM for developers:
+ *   Store user's refresh token in your data store if
+ *   incorporating this code into your real app.
+ *   For more information on handling refresh tokens,
+ *   see https://github.com/googleapis/google-api-nodejs-client#handling-refresh-tokens
+ */
+let userCredential = null;
+
+async function main() {
+  const app = express();
+
+  app.use(session({
+    secret: 'your_secure_secret_key', // Replace with a strong secret
+    resave: false,
+    saveUninitialized: false,
+  }));
+
+  // Example on redirecting user to Google's OAuth 2.0 server.
+  app.get('/', async (req, res) => {
+    // Generate a secure random state value.
+    const state = crypto.randomBytes(32).toString('hex');
+    // Store state in the session
+    req.session.state = state;
+
+    // Generate a url that asks permissions for the Drive activity and Google Calendar scope
+    const authorizationUrl = oauth2Client.generateAuthUrl({
+      // 'online' (default) or 'offline' (gets refresh_token)
+      access_type: 'offline',
+      /** Pass in the scopes array defined above.
+        * Alternatively, if only one scope is needed, you can pass a scope URL as a string */
+      scope: scopes,
+      // Enable incremental authorization. Recommended as a best practice.
+      include_granted_scopes: true,
+      // Include the state parameter to reduce the risk of CSRF attacks.
+      state: state
+    });
+
+    res.redirect(authorizationUrl);
+  });
+
+  // Receive the callback from Google's OAuth 2.0 server.
+  app.get('/oauth2callback', async (req, res) => {
+    // Handle the OAuth 2.0 server response
+    let q = url.parse(req.url, true).query;
+
+    if (q.error) { // An error response e.g. error=access_denied
+      console.log('Error:' + q.error);
+    } else if (q.state !== req.session.state) { //check state value
+      console.log('State mismatch. Possible CSRF attack');
+      res.end('State mismatch. Possible CSRF attack');
+    } else { // Get access and refresh tokens (if access_type is offline)
+      let { tokens } = await oauth2Client.getToken(q.code);
+      oauth2Client.setCredentials(tokens);
+
+      /** Save credential to the global variable in case access token was refreshed.
+        * ACTION ITEM: In a production app, you likely want to save the refresh token
+        *              in a secure persistent database instead. */
+      userCredential = tokens;
+      
+      // User authorized the request. Now, check which scopes were granted.
+      if (tokens.scope.includes('https://www.googleapis.com/auth/drive.metadata.readonly'))
+      {
+        // User authorized read-only Drive activity permission.
+        // Example of using Google Drive API to list filenames in user's Drive.
+        const drive = google.drive('v3');
+        drive.files.list({
+          auth: oauth2Client,
+          pageSize: 10,
+          fields: 'nextPageToken, files(id, name)',
+        }, (err1, res1) => {
+          if (err1) return console.log('The API returned an error: ' + err1);
+          const files = res1.data.files;
+          if (files.length) {
+            console.log('Files:');
+            files.map((file) => {
+              console.log(`${file.name} (${file.id})`);
+            });
+          } else {
+            console.log('No files found.');
+          }
+        });
+      }
+      else
+      {
+        // User didn't authorize read-only Drive activity permission.
+        // Update UX and application accordingly
+      }
+
+      // Check if user authorized Calendar read permission.
+      if (tokens.scope.includes('https://www.googleapis.com/auth/calendar.readonly'))
+      {
+        // User authorized Calendar read permission.
+        // Calling the APIs, etc.
+      }
+      else
+      {
+        // User didn't authorize Calendar read permission.
+        // Update UX and application accordingly
+      }
+    }
+  });
+
+  // Example on revoking a token
+  app.get('/revoke', async (req, res) => {
+    // Build the string for the POST request
+    let postData = "token=" + userCredential.access_token;
+
+    // Options for POST request to Google's OAuth 2.0 server to revoke a token
+    let postOptions = {
+      host: 'oauth2.googleapis.com',
+      port: '443',
+      path: '/revoke',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
+    // Set up the request
+    const postReq = https.request(postOptions, function (res) {
+      res.setEncoding('utf8');
+      res.on('data', d => {
+        console.log('Response: ' + d);
+      });
+    });
+
+    postReq.on('error', error => {
+      console.log(error)
+    });
+
+    // Post the request with data
+    postReq.write(postData);
+    postReq.end();
+  });
+
+
+  const server = http.createServer(app);
+  server.listen(8080);
+}
+main().catch(console.error);
+
+--- 탭: HTTP/REST ---
+이 Python 예시에서는 Flask [https://palletsprojects.com/p/flask/] 프레임워크와 Requests [https://requests.readthedocs.io/] 라이브러리를 사용하여 OAuth 2.0 웹 흐름을 보여줍니다. 이 흐름에는 Python용 Google API 클라이언트 라이브러리를 사용하는 것이 좋습니다. (Python 탭의 예시에서는 클라이언트 라이브러리를 사용합니다.)
+
+import json
+import flask
+import requests
+
+app = flask.Flask(__name__)
+
+# To get these credentials (CLIENT_ID CLIENT_SECRET) and for your application, visit
+# https://console.cloud.google.com/apis/credentials.
+CLIENT_ID = '123456789.apps.googleusercontent.com'
+CLIENT_SECRET = 'abc123'  # Read from a file or environmental variable in a real app
+
+# Access scopes for two non-Sign-In scopes: Read-only Drive activity and Google Calendar.
+SCOPE = 'https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/calendar.readonly'
+
+# Indicate where the API server will redirect the user after the user completes
+# the authorization flow. The redirect URI is required. The value must exactly
+# match one of the authorized redirect URIs for the OAuth 2.0 client, which you
+# configured in the API Console. If this value doesn't match an authorized URI,
+# you will get a 'redirect_uri_mismatch' error.
+REDIRECT_URI = 'http://example.com/oauth2callback'
+
+@app.route('/')
+def index():
+  if 'credentials' not in flask.session:
+    return flask.redirect(flask.url_for('oauth2callback'))
+
+  credentials = json.loads(flask.session['credentials'])
+
+  if credentials['expires_in'] <= 0:
+    return flask.redirect(flask.url_for('oauth2callback'))
+  else: 
+    # User authorized the request. Now, check which scopes were granted.
+    if 'https://www.googleapis.com/auth/drive.metadata.readonly' in credentials['scope']:
+      # User authorized read-only Drive activity permission.
+      # Example of using Google Drive API to list filenames in user's Drive.
+      headers = {'Authorization': 'Bearer {}'.format(credentials['access_token'])}
+      req_uri = 'https://www.googleapis.com/drive/v2/files'
+      r = requests.get(req_uri, headers=headers).text
+    else:
+      # User didn't authorize read-only Drive activity permission.
+      # Update UX and application accordingly
+      r = 'User did not authorize Drive permission.'
+
+    # Check if user authorized Calendar read permission.
+    if 'https://www.googleapis.com/auth/calendar.readonly' in credentials['scope']:
+      # User authorized Calendar read permission.
+      # Calling the APIs, etc.
+      r += 'User authorized Calendar permission.'
+    else:
+      # User didn't authorize Calendar read permission.
+      # Update UX and application accordingly
+      r += 'User did not authorize Calendar permission.'
+
+  return r
+
+@app.route('/oauth2callback')
+def oauth2callback():
+  if 'code' not in flask.request.args:
+    state = str(uuid.uuid4())
+    flask.session['state'] = state
+    # Generate a url that asks permissions for the Drive activity
+    # and Google Calendar scope. Then, redirect user to the url.
+    auth_uri = ('https://accounts.google.com/o/oauth2/v2/auth?response_type=code'
+                '&client_id={}&redirect_uri={}&scope={}&state={}').format(CLIENT_ID, REDIRECT_URI,
+                                                                          SCOPE, state)
+    return flask.redirect(auth_uri)
+  else:
+    if 'state' not in flask.request.args or flask.request.args['state'] != flask.session['state']:
+      return 'State mismatch. Possible CSRF attack.', 400
+
+    auth_code = flask.request.args.get('code')
+    data = {'code': auth_code,
+            'client_id': CLIENT_ID,
+            'client_secret': CLIENT_SECRET,
+            'redirect_uri': REDIRECT_URI,
+            'grant_type': 'authorization_code'}
+
+    # Exchange authorization code for access and refresh tokens (if access_type is offline)
+    r = requests.post('https://oauth2.googleapis.com/token', data=data)
+    flask.session['credentials'] = r.text
+    return flask.redirect(flask.url_for('index'))
+
+if __name__ == '__main__':
+  import uuid
+  app.secret_key = str(uuid.uuid4())
+  app.debug = False
+  app.run()
+리디렉션 URI 유효성 검사 규칙
+Google에서는 개발자가 애플리케이션을 안전하게 유지할 수 있도록 리디렉션 URI에 다음 유효성 검사 규칙을 적용합니다. 리디렉션 URI는 다음 규칙을 준수해야 합니다. 아래에 언급된 도메인, 호스트, 경로, 쿼리, 스킴, 사용자 정보의 정의는 RFC 3986 섹션 3 [https://tools.ietf.org/html/rfc3986#section-3]을 참고하세요.
+유효성 검사 규칙
+스키마 [https://tools.ietf.org/html/rfc3986#section-3.1]
+리디렉션 URI는 일반 HTTP가 아닌 HTTPS 체계를 사용해야 합니다. 로컬 호스트 URI (로컬 호스트 IP 주소 URI 포함)는 이 규칙에서 제외됩니다.
+호스트 [https://tools.ietf.org/html/rfc3986#section-3.2.2]
+호스트는 원시 IP 주소일 수 없습니다. 로컬 호스트 IP 주소는 이 규칙에서 제외됩니다.
+도메인 [https://tools.ietf.org/html/rfc1034]
+호스트 TLD(최상위 도메인 [https://tools.ietf.org/id/draft-liman-tld-names-00.html])는 공개 접미사 목록 [https://publicsuffix.org/list/]에 속해야 합니다.
+호스트 도메인은 “googleusercontent.com”일 수 없습니다.
+앱이 도메인을 소유하지 않는 한 리디렉션 URI는 URL 단축기 도메인 (예: goo.gl)을 포함할 수 없습니다. 또한 단축기 도메인을 소유한 앱이 해당 도메인으로 리디렉션하도록 선택하는 경우 해당 리디렉션 URI는 경로에 “/google-callback/”를 포함하거나 “/google-callback”로 끝나야 합니다.
+Userinfo [https://tools.ietf.org/html/rfc3986#section-3.2.1]
+리디렉션 URI에는 userinfo 하위 구성요소가 포함될 수 없습니다.
+경로 [https://tools.ietf.org/html/rfc3986#section-3.3]
+리디렉션 URI에는 “/..” 또는 “\..” 또는 해당 URL 인코딩으로 표시되는 경로 순회 (디렉터리 백트래킹이라고도 함)가 포함될 수 없습니다.
+쿼리 [https://tools.ietf.org/html/rfc3986#section-3.4]
+리디렉션 URI는 오픈 리디렉션 [https://tools.ietf.org/html/rfc6749#section-10.15]을 포함할 수 없습니다.
+Fragment [https://tools.ietf.org/html/rfc3986#section-3.5]
+리디렉션 URI는 프래그먼트 구성요소를 포함할 수 없습니다.
+문자 리디렉션 URI에는 다음을 비롯한 특정 문자를 포함할 수 없습니다.
+와일드 카드 문자 ('*')
+인쇄 불가능한 ASCII 문자
+잘못된 퍼센트 인코딩 (퍼센트 기호 뒤에 2자리 16진수가 오는 URL 인코딩 형식을 따르지 않는 퍼센트 인코딩)
+Null 문자 (인코딩된 NULL 문자, 예: %00, %C0%80)
+점진적 승인
+OAuth 2.0 프로토콜에서 앱은 범위로 식별되는 리소스에 액세스할 수 있는 승인을 요청합니다. 필요한 시점에 리소스에 대한 승인을 요청하는 것이 최고의 사용자 환경을 위한 권장사항입니다. 이 방법을 사용 설정하기 위해 Google의 승인 서버는 점진적 승인을 지원합니다. 이 기능을 사용하면 필요에 따라 범위를 요청할 수 있으며, 사용자가 새 범위에 대한 권한을 부여하면 사용자가 프로젝트에 부여한 모든 범위를 포함하는 토큰으로 교환할 수 있는 승인 코드를 반환합니다.
+예를 들어 사용자가 음악 트랙을 샘플링하고 믹스를 만들 수 있는 앱은 로그인 시 리소스가 거의 필요하지 않을 수 있습니다. 로그인하는 사용자의 이름만 필요할 수도 있습니다. 하지만 완성된 믹스를 저장하려면 Google Drive에 액세스해야 합니다. 대부분의 사용자는 앱이 실제로 필요할 때만 Google Drive에 대한 액세스 권한을 요청받는 것이 자연스럽다고 생각합니다.
+이 경우 로그인 시 앱은 openid 및 profile 범위에 기본 로그인을 실행하도록 요청한 후 나중에 믹스를 저장하는 첫 번째 요청 시 https://www.googleapis.com/auth/drive.file 범위에 요청할 수 있습니다.
+점진적 승인을 구현하려면 액세스 토큰을 요청하는 일반적인 흐름을 완료하되 승인 요청에 이전에 부여된 범위가 포함되어 있는지 확인합니다. 이 접근 방식을 사용하면 앱에서 여러 액세스 토큰을 관리하지 않아도 됩니다.
+증분 승인에서 획득한 액세스 토큰에는 다음 규칙이 적용됩니다.
+이 토큰은 새 결합 승인에 포함된 범위에 해당하는 리소스에 액세스하는 데 사용할 수 있습니다.
+결합된 승인에 갱신 토큰을 사용하여 액세스 토큰을 획득하면 액세스 토큰은 결합된 승인을 나타내며 응답에 포함된 scope 값에 사용할 수 있습니다.
+결합된 승인에는 승인이 서로 다른 클라이언트에서 요청된 경우에도 사용자가 API 프로젝트에 부여한 모든 범위가 포함됩니다. 예를 들어 사용자가 애플리케이션의 데스크톱 클라이언트를 사용하여 하나의 범위에 대한 액세스 권한을 부여한 다음 모바일 클라이언트를 통해 동일한 애플리케이션에 다른 범위를 부여한 경우 결합된 승인에는 두 범위가 모두 포함됩니다.
+결합된 승인을 나타내는 토큰을 취소하면 연결된 사용자를 대신하여 해당 승인의 모든 범위에 대한 액세스 권한이 동시에 취소됩니다.
+주의: 부여된 범위를 포함하도록 선택하면 이전에 사용자가 부여한 범위가 승인 요청에 자동으로 추가됩니다. 앱이 현재 응답에서 반환될 수 있는 모든 범위를 요청하도록 승인되지 않은 경우 경고 또는 오류 페이지가 표시될 수 있습니다. 자세한 내용은 인증되지 않은 앱 [https://support.google.com/cloud/answer/7454865?hl=ko]을 참고하세요.
+1단계: 승인 매개변수 설정 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#creatingclient]의 언어별 코드 샘플과 2단계: Google의 OAuth 2.0 서버로 리디렉션 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#redirecting]의 샘플 HTTP/REST 리디렉션 URL은 모두 증분 승인을 사용합니다. 아래 코드 샘플은 점진적 승인을 사용하는 데 필요한 코드도 보여줍니다.
+--- 탭: PHP ---
+$client->setIncludeGrantedScopes(true);
+
+--- 탭: Python ---
+authorization_url, state = flow.authorization_url(
+    # Enable offline access so that you can refresh an access token without
+    # re-prompting the user for permission. Recommended for web server apps.
+    access_type='offline',
+    # Enable incremental authorization. Recommended as a best practice.
+    include_granted_scopes='true')
+
+--- 탭: Ruby ---
+auth_client.update!(
+  :additional_parameters => {"include_granted_scopes" => "true"}
+)
+
+--- 탭: Node.js ---
+const authorizationUrl = oauth2Client.generateAuthUrl({
+  // 'online' (default) or 'offline' (gets refresh_token)
+  access_type: 'offline',
+  /** Pass in the scopes array defined above.
+    * Alternatively, if only one scope is needed, you can pass a scope URL as a string */
+  scope: scopes,
+  // Enable incremental authorization. Recommended as a best practice.
+  include_granted_scopes: true
+});
+
+--- 탭: HTTP/REST ---
+GET https://accounts.google.com/o/oauth2/v2/auth?
+  client_id=your_client_id&
+  response_type=code&
+  state=state_parameter_passthrough_value&
+  scope=https%3A//www.googleapis.com/auth/drive.metadata.readonly%20https%3A//www.googleapis.com/auth/calendar.readonly&
+  redirect_uri=https%3A//oauth2.example.com/code&
+  prompt=consent&
+  include_granted_scopes=true
+액세스 토큰 갱신 (오프라인 액세스)
+액세스 토큰은 주기적으로 만료되어 관련 API 요청에 대한 잘못된 사용자 인증 정보가 됩니다. 토큰과 연결된 범위의 오프라인 액세스를 요청한 경우에는 사용자에게 권한을 요청하지 않고 액세스 토큰을 갱신할 수 있습니다 (사용자가 없는 경우 포함).
+Google API 클라이언트 라이브러리를 사용하는 경우 오프라인 액세스를 위해 객체를 구성하면 클라이언트 객체 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#creatingclient]가 필요에 따라 액세스 토큰을 새로고침합니다.
+클라이언트 라이브러리를 사용하지 않는 경우 사용자를 Google의 OAuth 2.0 서버로 리디렉션 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#redirecting]할 때 access_type HTTP 쿼리 매개변수를 offline로 설정해야 합니다. 이 경우 액세스 토큰에 대해 승인 코드를 교환 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#exchange-authorization-code]하면 Google의 승인 서버에서 갱신 토큰을 반환합니다. 그런 다음 액세스 토큰이 만료되면 (또는 언제든지) 갱신 토큰을 사용하여 새 액세스 토큰을 가져올 수 있습니다.
+오프라인 액세스 요청은 사용자가 없을 때 Google API에 액세스해야 하는 모든 애플리케이션의 요구사항입니다. 예를 들어 백업 서비스를 실행하거나 미리 정해진 시간에 작업을 실행하는 앱은 사용자가 없을 때 액세스 토큰을 새로고침할 수 있어야 합니다. 액세스의 기본 스타일은 online입니다.
+서버 측 웹 애플리케이션, 설치된 애플리케이션, 기기는 모두 승인 프로세스 중에 새로고침 토큰을 획득합니다. 갱신 토큰은 일반적으로 클라이언트 측(JavaScript) 웹 애플리케이션에서 사용되지 않습니다.
+--- 탭: PHP ---
+애플리케이션에 Google API에 대한 오프라인 액세스가 필요한 경우 API 클라이언트의 액세스 유형을 offline로 설정합니다.
+
+$client->setAccessType("offline");
+
+사용자가 요청된 범위에 오프라인 액세스 권한을 부여하면 사용자가 오프라인 상태일 때 API 클라이언트를 계속 사용하여 사용자를 대신하여 Google API에 액세스할 수 있습니다. 클라이언트 객체는 필요에 따라 액세스 토큰을 새로고침합니다.
+
+--- 탭: Python ---
+authorization_url, state = flow.authorization_url(
+    # Enable offline access so that you can refresh an access token without
+    # re-prompting the user for permission. Recommended for web server apps.
+    access_type='offline',
+    # Enable incremental authorization. Recommended as a best practice.
+    include_granted_scopes='true')
+
+--- 탭: Ruby ---
+애플리케이션에 Google API에 대한 오프라인 액세스가 필요한 경우 API 클라이언트의 액세스 유형을 offline로 설정합니다.
+
+auth_client.update!(
+  :additional_parameters => {"access_type" => "offline"}
+)
+
+사용자가 요청된 범위에 오프라인 액세스 권한을 부여하면 사용자가 오프라인 상태일 때 API 클라이언트를 계속 사용하여 사용자를 대신하여 Google API에 액세스할 수 있습니다. 클라이언트 객체는 필요에 따라 액세스 토큰을 새로고침합니다.
+
+--- 탭: Node.js ---
+const authorizationUrl = oauth2Client.generateAuthUrl({
+  // 'online' (default) or 'offline' (gets refresh_token)
+  access_type: 'offline',
+  /** Pass in the scopes array defined above.
+    * Alternatively, if only one scope is needed, you can pass a scope URL as a string */
+  scope: scopes,
+  // Enable incremental authorization. Recommended as a best practice.
+  include_granted_scopes: true
+});
+
+--- 탭: HTTP/REST ---
+액세스 토큰을 새로고침하려면 애플리케이션에서 다음 매개변수가 포함된 HTTPS POST 요청을 Google의 승인 서버 (https://oauth2.googleapis.com/token)로 전송합니다.
+
+
+  
+    
+      필드
+    
+  
+  
+    
+      client_id
+       API Console [https://console.developers.google.com/?hl=ko]에서 가져온 클라이언트 ID입니다.
+    
+    
+      client_secret
+       API Console [https://console.developers.google.com/?hl=ko]에서 가져온 클라이언트 보안 비밀번호입니다.
+        
+      
+    
+    
+      grant_type
+      OAuth 2.0 사양에 정의된 대로 [https://tools.ietf.org/html/rfc6749#section-6] 이 필드의 값은 refresh_token로 설정해야 합니다.
+    
+    
+      refresh_token
+      승인 코드 교환에서 반환된 갱신 토큰입니다.
+    
+  
+
+
+다음 스니펫은 샘플 요청을 보여줍니다.
+
+POST /token HTTP/1.1
+Host: oauth2.googleapis.com
+Content-Type: application/x-www-form-urlencoded
+
+client_id=your_client_id&
+client_secret=your_client_secret&
+refresh_token=refresh_token&
+grant_type=refresh_token
+
+사용자가 애플리케이션에 부여된 액세스 권한을 취소하지 않는 한 토큰 서버는 새 액세스 토큰이 포함된 JSON 객체를 반환합니다. 다음 스니펫은 샘플 응답을 보여줍니다.
+
+{
+  "access_token": "1/fFAGRNJru1FTz70BzhT3Zg",
+  "expires_in": 3920,
+  "scope": "https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/calendar.readonly",
+  "token_type": "Bearer"
+}
+
+발급되는 갱신 토큰 수에는 제한이 있습니다. 클라이언트/사용자 조합당 하나의 제한이 있고 모든 클라이언트에서 사용자당 하나의 제한이 있습니다. 갱신 토큰은 장기 스토리지에 저장하고 유효한 동안 계속 사용해야 합니다. 애플리케이션에서 너무 많은 갱신 토큰을 요청하면 이러한 한도에 도달할 수 있으며, 이 경우 이전 갱신 토큰이 작동하지 않습니다.
+토큰 취소
+사용자가 애플리케이션에 부여된 액세스 권한을 취소하고 싶어 하는 경우도 있습니다. 사용자는 계정 설정 [https://myaccount.google.com/permissions?hl=ko]을 방문하여 액세스 권한을 취소할 수 있습니다. 자세한 내용은 내 계정에 액세스할 수 있는 서드 파티 사이트 및 앱의 사이트 또는 앱 액세스 권한 삭제 섹션 [https://support.google.com/accounts/answer/3466521?hl=ko#remove-access] 지원 문서를 참고하세요.
+애플리케이션이 자신에게 부여된 액세스 권한을 프로그래매틱 방식으로 취소할 수도 있습니다. 프로그래매틱 취소는 사용자가 구독을 취소하거나 애플리케이션을 삭제하거나 앱에 필요한 API 리소스가 크게 변경된 경우에 중요합니다. 즉, 삭제 프로세스의 일부에는 이전에 애플리케이션에 부여된 권한이 삭제되도록 하는 API 요청이 포함될 수 있습니다.
+--- 탭: PHP ---
+프로그래매틱 방식으로 토큰을 취소하려면 revokeToken()를 호출합니다.
+
+$client->revokeToken();
+
+--- 탭: Python ---
+프로그래매틱 방식으로 토큰을 취소하려면 토큰을 매개변수로 포함하고 Content-Type 헤더를 설정하는 https://oauth2.googleapis.com/revoke에 요청을 전송합니다.
+
+requests.post('https://oauth2.googleapis.com/revoke',
+    params={'token': credentials.token},
+    headers = {'content-type': 'application/x-www-form-urlencoded'})
+
+--- 탭: Ruby ---
+프로그래매틱 방식으로 토큰을 취소하려면 oauth2.revoke 엔드포인트에 HTTP 요청을 실행하세요.
+
+uri = URI('https://oauth2.googleapis.com/revoke')
+response = Net::HTTP.post_form(uri, 'token' => auth_client.access_token)
+
+토큰은 액세스 토큰 또는 갱신 토큰일 수 있습니다. 토큰이 액세스 토큰이고 해당 갱신 토큰이 있는 경우 갱신 토큰도 취소됩니다.
+
+취소가 성공적으로 처리되면 응답의 상태 코드는 200입니다. 오류 조건의 경우 오류 코드와 함께 상태 코드 400가 반환됩니다.
+
+--- 탭: Node.js ---
+프로그래매틱 방식으로 토큰을 취소하려면 /revoke 엔드포인트에 HTTPS POST 요청을 실행합니다.
+
+const https = require('https');
+
+// Build the string for the POST request
+let postData = "token=" + userCredential.access_token;
+
+// Options for POST request to Google's OAuth 2.0 server to revoke a token
+let postOptions = {
+  host: 'oauth2.googleapis.com',
+  port: '443',
+  path: '/revoke',
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'Content-Length': Buffer.byteLength(postData)
+  }
+};
+
+// Set up the request
+const postReq = https.request(postOptions, function (res) {
+  res.setEncoding('utf8');
+  res.on('data', d => {
+    console.log('Response: ' + d);
+  });
+});
+
+postReq.on('error', error => {
+  console.log(error)
+});
+
+// Post the request with data
+postReq.write(postData);
+postReq.end();
+
+토큰 매개변수는 액세스 토큰 또는 갱신 토큰일 수 있습니다. 토큰이 액세스 토큰이고 해당 갱신 토큰이 있는 경우 갱신 토큰도 취소됩니다.
+
+취소가 성공적으로 처리되면 응답의 상태 코드는 200입니다. 오류 조건의 경우 오류 코드와 함께 상태 코드 400가 반환됩니다.
+
+--- 탭: HTTP/REST ---
+프로그래매틱 방식으로 토큰을 취소하려면 애플리케이션이 https://oauth2.googleapis.com/revoke에 요청을 보내고 토큰을 매개변수로 포함합니다.
+
+curl -d -X -POST --header "Content-type:application/x-www-form-urlencoded" \
+        https://oauth2.googleapis.com/revoke?token={token}
+
+토큰은 액세스 토큰 또는 갱신 토큰일 수 있습니다. 토큰이 액세스 토큰이고 해당 갱신 토큰이 있는 경우 갱신 토큰도 취소됩니다.
+
+
+
+취소가 성공적으로 처리되면 응답의 HTTP 상태 코드는 200입니다. 오류 조건의 경우 오류 코드와 함께 HTTP 상태 코드 400가 반환됩니다.
+참고: 취소 응답이 성공한 후 취소가 완전히 적용되기까지 시간이 걸릴 수 있습니다.
+시간 기반 액세스
+시간 기반 액세스를 사용하면 사용자가 특정 작업을 완료하기 위해 제한된 기간 동안 앱에 데이터 액세스 권한을 부여할 수 있습니다. 동의 흐름 중에 일부 Google 제품에서 시간 기반 액세스를 사용할 수 있으며, 사용자는 제한된 기간 동안 액세스 권한을 부여할 수 있습니다. 예를 들어 일회성 데이터 전송을 지원하는 Data Portability API [https://developers.google.com/data-portability?hl=ko]가 있습니다.
+사용자가 애플리케이션에 시간 기반 액세스 권한을 부여하면 지정된 기간이 지난 후 갱신 토큰이 만료됩니다. 특정 상황에서는 갱신 토큰이 더 일찍 무효화될 수 있습니다. 자세한 내용은 이 사례 [https://developers.google.com/identity/protocols/oauth2?hl=ko#expiration]를 참고하세요. 승인 코드 교환 [https://developers.google.com/identity/protocols/oauth2/web-server?hl=ko#httprest_3] 응답에서 반환되는 refresh_token_expires_in 필드는 이러한 경우 갱신 토큰이 만료될 때까지 남은 시간을 나타냅니다.
+계정 간 보안 구현
+사용자 계정을 보호하기 위해 취해야 하는 추가 단계는 Google의 교차 계정 보호 서비스를 활용하여 교차 계정 보호를 구현하는 것입니다. 이 서비스를 사용하면 사용자 계정의 주요 변경사항에 관한 정보를 애플리케이션에 제공하는 보안 이벤트 알림을 구독할 수 있습니다. 그런 다음 이 정보를 사용하여 이벤트에 어떻게 대응할지 결정한 후 조치를 취할 수 있습니다.
+Google의 교차 계정 보호 서비스에서 앱으로 전송하는 이벤트 유형의 예는 다음과 같습니다.
+https://schemas.openid.net/secevent/risc/event-type/sessions-revoked
+https://schemas.openid.net/secevent/oauth/event-type/token-revoked
+https://schemas.openid.net/secevent/risc/event-type/account-disabled
+교차 계정 보호를 구현하는 방법과 사용 가능한 이벤트의 전체 목록은 교차 계정 보호로 사용자 계정 보호 페이지 [https://developers.google.com/identity/protocols/risc?hl=ko]를 참고하세요.
+의견 보내기

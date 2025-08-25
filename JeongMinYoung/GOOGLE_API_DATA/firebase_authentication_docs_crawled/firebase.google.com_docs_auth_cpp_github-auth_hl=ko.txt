@@ -1,0 +1,66 @@
+Source URL: https://firebase.google.com/docs/auth/cpp/github-auth?hl=ko
+Title: GitHub와 C++를 사용하여 인증
+
+의견 보내기
+
+GitHub와 C++를 사용하여 인증
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+앱에 GitHub 인증을 통합하여 사용자가 GitHub 계정을 통해 Firebase에 인증하도록 할 수 있습니다.
+
+시작하기 전에
+
+C++ 프로젝트에 Firebase를 추가합니다. [https://firebase.google.com/docs/cpp/setup?hl=ko#note_select_platform]
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다.
+로그인 방법 탭에서 GitHub 제공업체를 사용 설정합니다.
+해당 제공업체의 개발자 콘솔에서 제공되는 클라이언트 ID 및 클라이언트 보안 비밀번호를 제공업체 구성에 추가합니다.
+
+GitHub에서 개발자 애플리케이션으로 앱을 등록 [https://github.com/settings/applications/new]하고 앱의 OAuth 2.0 클라이언트 ID와 클라이언트 보안 비밀번호를 가져옵니다.
+GitHub 앱 구성 [https://github.com/settings/developers]의 앱 설정 페이지에서 Firebase OAuth 리디렉션 URI(예: my-app-12345.firebaseapp.com/__/auth/handler)가 승인 콜백 URL로 설정되어 있는지 확인합니다.
+
+저장을 클릭합니다.
+
+firebase::auth::Auth 클래스 액세스Auth 클래스는 모든 API 호출에 대한 게이트웨이입니다.
+Auth 및 App 헤더 파일을 추가합니다.
+#include "firebase/app.h"
+#include "firebase/auth.h"
+
+초기화 코드에서 firebase::App [https://firebase.google.com/docs/reference/cpp/class/firebase/app?hl=ko] 클래스를 만듭니다.#if defined(__ANDROID__)
+firebase::App* app =
+App과 Auth는 일대일 매핑 관계입니다.
+Firebase 인증
+
+Android [https://firebase.google.com/docs/auth/android/github-auth?hl=ko#authenticate_with_firebase] 및 iOS+ [https://firebase.google.com/docs/auth/ios/github-auth?hl=ko#authenticate_with_firebase] 안내에 따라 로그인한 GitHub 사용자의 토큰을 가져옵니다.
+
+사용자가 정상적으로 로그인한 후에 토큰을 Firebase 사용자 인증 정보로 교환하고 Firebase 사용자 인증 정보를 사용해 Firebase에 인증합니다.
+firebase::auth::Credential credential =
+
+프로그램에 정기적으로 실행되는 업데이트 루프(예: 초당 30회 또는 60회)가 있는 경우 다음과 같이 Auth::SignInAndRetrieveDataWithCredentialLastResult를 사용해 업데이트 시마다 한 번씩 결과를 확인할 수 있습니다.firebase::Future<firebase::auth::AuthResult> result =
+auth->SignInAndRetrieveDataWithCredentialLastResult();
+if (result.status() == firebase::kFutureStatusComplete) {
+if (result.error() == firebase::auth::kAuthErrorNone) {
+auth_result.user.display_name().c_str());
+Future에 콜백 등록하기
+
+일부 프로그램에는 초당 30회 또는 60회 호출되는 Update 함수가 있습니다.
+예를 들면 상당수의 게임들이 이 모델을 따릅니다. 이런 프로그램은 LastResult 함수를 호출하여 비동기 호출을 폴링할 수 있습니다.
+
+하지만 프로그램이 이벤트 기반일 경우 콜백 함수를 등록하는 것이 나을 수도 있습니다.
+콜백 함수는 Future 완료 시에 호출됩니다.
+
+void OnCreateCallback(const firebase::Future<firebase::auth::User*>& result,
+void* user_data) {
+
+MyProgramContext* program_context = static_cast<MyProgramContext*>(user_data);
+
+user->UpdateUserProfile(profile);
+
+[](const firebase::Future<firebase::auth::User*>& result,
+void* user_data) {
+MyProgramContext* program_context =
+static_cast<MyProgramContext*>(user_data);
+
+의견 보내기

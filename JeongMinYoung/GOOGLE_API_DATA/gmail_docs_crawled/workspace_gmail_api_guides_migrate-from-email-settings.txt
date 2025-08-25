@@ -1,0 +1,147 @@
+Source URL: https://developers.google.com/workspace/gmail/api/guides/migrate-from-email-settings
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+Google Workspace [https://developers.google.com/workspace?hl=ko]
+Gmail [https://developers.google.com/workspace/gmail?hl=ko]
+가이드 [https://developers.google.com/workspace/gmail/api/guides?hl=ko]
+의견 보내기
+Email Settings API에서 이전
+bookmark_border
+이 페이지의 내용
+요청 승인
+프로토콜 변경사항
+라벨 관리
+필터 관리
+'보내기' 별칭 관리
+이 문서에서는 Email Settings API [https://developers.google.com/workspace/admin/email-settings?hl=ko]와 Gmail API의 주요 차이점을 설명합니다. 이 가이드를 사용하여 앱을 Gmail API로 이전할 수 있습니다.
+요청 승인
+Email Settings API와 마찬가지로 Gmail API는 OAuth 2.0 프로토콜을 사용하여 요청을 승인합니다. 한 가지 중요한 차이점은 Gmail API 권한이 전체 도메인이 아닌 개별 사용자에게 범위가 지정된다는 것입니다. 즉, 도메인 관리자 계정을 승인해도 도메인의 다른 사용자의 메일을 이전할 수는 없습니다. 대신 관리 콘솔 [https://admin.google.com/?hl=ko]에서 허용 목록에 추가된 도메인 전체 권한이 있는 표준 서비스 계정 [https://developers.google.com/accounts/docs/OAuth2ServiceAccount?hl=ko]을 사용하여 적절한 인증 토큰을 생성해야 합니다.
+이메일 설정 API는 다음 범위를 사용했습니다.
+https://apps-apis.google.com/a/feeds/emailsettings/2.0/
+Gmail API의 해당 범위는 다음과 같습니다.
+https://www.googleapis.com/auth/gmail.settings.basic
+https://www.googleapis.com/auth/gmail.settings.sharing
+프로토콜 변경사항
+이메일 설정 API는 XML 기반 GDATA 프로토콜을 사용합니다. Gmail API는 JSON을 사용합니다. 설정은 대부분 키/값 쌍으로 구성되므로 페이로드는 버전 간에 개념적으로 유사합니다.
+라벨을 만드는 예:
+--- 탭: Email Settings API ---
+POST https://apps-apis.google.com/a/feeds/emailsettings/2.0/{domain name}/{username}/label
+<?xml version="1.0" encoding="utf-8"?>
+<atom:entry xmlns:atom="http://www.w3.org/2005/Atom" xmlns:apps="http://schemas.google.com/apps/2006">
+  <apps:property name="label" value="status updates" />
+</atom:entry>
+
+--- 탭: Gmail API ---
+POST https://www.googleapis.com/gmail/v1/users/{username}/labels
+{
+   "name": "status updates"
+}
+프로토콜을 직접 구현하는 대신 제공된 클라이언트 라이브러리 [https://developers.google.com/workspace/gmail/api/downloads?hl=ko]를 사용하세요.
+라벨 관리
+Gmail API에서 라벨을 관리하려면 Labels [https://developers.google.com/workspace/gmail/api/v1/reference/users/labels?hl=ko] 리소스를 사용하세요.
+이전 설정 새 설정 참고
+labelId id
+라벨 이름
+unreadCount messagesUnread
+공개 상태 labelListVisibility SHOW가 이제 labelShow로 바뀌었습니다.
+HIDE가 이제 labelHide로 바뀌었습니다.
+기타 변경사항:
+라벨을 업데이트하거나 삭제할 때 Gmail API는 이름 대신 ID로 라벨을 참조합니다.
+필터 관리
+Gmail API에서 필터를 관리하려면 Filters [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/filters?hl=ko] 리소스를 사용하세요.
+이전 설정 새 설정 참고
+소스: criteria.from
+to criteria.to
+제목 criteria.subject
+hasTheWord criteria.query
+doesNotHaveTheWord criteria.negatedQuery
+hasAttachment criteria.hasAttachment
+shouldArchive action.removeLabelIds INBOX을 라벨 ID로 사용
+shouldMarkAsRead action.removeLabelIds UNREAD을 라벨 ID로 사용
+shouldStar action.addLabelIds STARRED을 라벨 ID로 사용
+라벨 action.addLabelIds 라벨의 ID를 사용하여 추가
+forwardTo action.forward
+shouldTrash action.addLabelIds TRASH을 라벨 ID로 사용
+neverSpam action.removeLabelIds SPAM을 라벨 ID로 사용
+기타 변경사항:
+사용자 라벨 추가가 아직 존재하지 않는 경우 labels.create [https://developers.google.com/workspace/gmail/api/v1/reference/users/labels/create?hl=ko] 메서드를 사용하여 명시적으로 만들어야 합니다.
+'보내기' 별칭 관리
+Gmail API에서 다른 주소로 보내기 별칭을 관리하려면 SendAs [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs?hl=ko] 리소스를 사용하세요.
+이전 설정 새 설정
+이름 displayName
+주소 sendAsEmail
+replyTo replyToAddress
+makeDefault isDefault
+웹 클립 관리
+API를 통해 더 이상 웹 클립 설정을 사용할 수 없습니다.
+자동 전달 설정 관리
+Gmail API에서 자동 전달을 관리하려면 Settings [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings?hl=ko] 리소스를 사용하세요.
+이전 설정 새 설정 참고
+사용 설정 사용 설정됨
+forwardTo emailAddress
+action disposition KEEP가 이제 leaveInInbox로 바뀌었습니다.
+ARCHIVE가 이제 archive로 바뀌었습니다.
+DELETE가 이제 trash로 바뀌었습니다.
+MARK_READ가 이제 markRead로 바뀌었습니다.
+기타 변경사항:
+전달 주소는 사용 전에 생성하고 확인해야 합니다.
+전달 주소는 ForwardingAddresses [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/forwardingAddresses?hl=ko] 리소스를 통해 관리할 수 있습니다.
+POP 설정 관리
+Gmail API에서 POP 액세스를 관리하려면 설정 [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings?hl=ko] 리소스를 사용하세요.
+이전 설정 새 설정 참고
+사용 설정 accessWindow disabled로 설정하면 사용 중지됨
+enableFor accessWindow ALL_MAIL가 이제 allMail로 바뀌었습니다.
+MAIL_FROM_NOW_ON가 이제 fromNowOn로 바뀌었습니다.
+action disposition KEEP가 이제 leaveInInbox로 바뀌었습니다.
+ARCHIVE가 이제 archive로 바뀌었습니다.
+DELETE가 이제 trash로 바뀌었습니다.
+MARK_READ가 이제 markRead로 바뀌었습니다.
+IMAP 설정 관리
+Gmail API에서 IMAP 액세스를 관리하려면 설정 [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings?hl=ko] 리소스를 사용하세요.
+이전 설정 새 설정
+사용 설정 사용 설정됨
+부재중 자동 답장 설정 관리
+Gmail API에서 부재중 자동응답을 관리하려면 Settings [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings?hl=ko] 리소스를 사용하세요.
+이전 설정 새 설정
+contactsOnly restrictToContacts
+domainOnly restrictToDomain
+사용 설정 enableAutoReply
+endDate endTime
+메시지 responseBodyHtml
+responseBodyPlainText
+startDate startTime
+제목 responseSubject
+서명 설정 관리
+Gmail API에서 이메일 서명을 관리하려면 SendAs [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/sendAs?hl=ko] 리소스를 사용하세요.
+이전 설정 새 설정
+서명 서명
+기타 변경사항:
+이제 서명이 별칭별로 관리됩니다.
+언어 설정 관리
+Gmail API에서 언어 설정을 관리하려면 Settings [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings?hl=ko] 리소스를 사용하세요.
+이전 설정 새 설정
+language displayLanguage
+자세한 내용은 언어 설정 관리 가이드 [https://developers.google.com/workspace/gmail/api/guides/language_settings?hl=ko]를 참고하세요.
+위임 설정 관리
+Gmail API에서 위임을 관리하려면 Delegates [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/delegates?hl=ko] 리소스를 사용하세요.
+이전 설정 새 설정
+주소 delegateEmail
+상태 verificationStatus
+기타 변경사항:
+일반
+delegates.create [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/delegates/create?hl=ko]를 비롯한 위임 방법을 사용하려면 위임자 사용자가 Gmail을 사용 설정해야 합니다. 즉, 예를 들어 위임자 사용자는Google Workspace에서 정지될 수 없습니다.
+이메일 별칭은 새 메서드의 위임 이메일 입력으로 사용할 수 없습니다. 위임된 사용자는 기본 이메일 주소로 참조해야 합니다.
+delegates.create [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/delegates/create?hl=ko]
+이제 이 메서드를 사용하여 동일한 Google Workspace 조직에 속한 여러 도메인 간에 위임 관계를 만들 수 있습니다.
+이제 이 메서드를 사용하여 다음 로그인 시 비밀번호 변경이 필요한 사용자를 처리할 수 있습니다.
+이 메서드는 성공할 경우 빈 응답 본문이 아닌 응답 본문에 Users.settings.delegates 리소스 [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/delegates?hl=ko#resource]를 반환합니다.
+위임자 또는 위임된 사용자 중 한 명이 사용 중지된 경우 (예: Google Workspace에서 정지됨) 이 메서드는 HTTP 500 오류 대신 HTTP 4XX 오류와 함께 실패합니다.
+delegates.delete [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/delegates/delete?hl=ko]
+이제 이 메서드를 사용하여 accepted 또는 expired인 위임자뿐만 아니라 모든 verificationStatus [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/delegates?hl=ko#resource-representations]를 가진 위임자를 삭제할 수 있습니다.
+delegates.get [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/delegates/get?hl=ko]
+이 메서드는 필요에 따라 delegates.list [https://developers.google.com/workspace/gmail/api/v1/reference/users/settings/delegates/list?hl=ko] 메서드보다 선호될 수 있는 새로운 메서드입니다.
+일반 설정 관리
+API를 통해 일반 설정을 더 이상 사용할 수 없습니다.
+의견 보내기
