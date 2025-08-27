@@ -1,0 +1,114 @@
+Source URL: https://firebase.google.com/docs/auth/ios/microsoft-oauth?hl=ko
+Title: Apple 플랫폼에서 Microsoft를 사용하여 인증
+
+의견 보내기
+
+Apple 플랫폼에서 Microsoft를 사용하여 인증
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Firebase SDK를 통해 엔드 투 엔드 로그인 과정을 실행하는 앱에 웹 기반의 일반 OAuth 로그인을 통합하여 사용자가 Microsoft Azure Active Directory와 같은 OAuth 제공업체를 통해 Firebase에 인증하도록 할 수 있습니다.
+
+시작하기 전에
+
+사용자가 Microsoft 계정(Azure Active Directory 및 개인 Microsoft 계정)을 통해 로그인하도록 하려면 우선 Firebase 프로젝트에서 Microsoft를 로그인 제공업체로 사용 설정해야 합니다.
+
+Apple 프로젝트에 Firebase를 추가합니다 [https://firebase.google.com/docs/ios/setup?hl=ko].
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다.
+로그인 방법 탭에서 Microsoft 제공업체를 사용 설정합니다.
+해당 제공업체의 개발자 콘솔에서 제공되는 클라이언트 ID 및 클라이언트 보안 비밀번호를 제공업체 구성에 추가합니다.
+
+Microsoft OAuth 클라이언트를 등록하려면 빠른 시작: Azure Active Directory v2.0 엔드포인트를 사용하여 앱 등록 [https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-v2-register-an-app]의 안내를 따릅니다.
+이 엔드포인트는 Microsoft 개인 계정과 Azure Active Directory 계정을 사용하는 로그인을 지원합니다.
+Azure Active Directory v2.0 자세히 알아보기 [https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-overview]
+이러한 제공업체에 앱을 등록할 때 프로젝트의 *.firebaseapp.com 도메인을 앱의 리디렉션 도메인으로 등록해야 합니다.
+
+저장을 클릭합니다.
+
+Firebase SDK로 로그인 과정 처리
+
+Firebase Apple 플랫폼 SDK로 로그인 과정을 처리하려면 다음 단계를 따르세요.
+
+다음과 같이 Xcode 프로젝트에 커스텀 URL 스킴을 추가합니다.
+왼쪽 트리 보기에서 프로젝트 이름을 더블클릭하여 프로젝트 구성을 엽니다. 대상 섹션에서 앱을 선택하고 정보 탭을 선택한 후 URL 유형 섹션을 펼칩니다.
+
++ 버튼을 클릭하고 인코딩된 앱 ID를 URL 스키마로 추가합니다. 인코딩된 앱 ID는 Firebase Console의 일반 설정 [https://console.firebase.google.com/project/_/settings/general/?hl=ko] 페이지에 있는 iOS 앱 섹션에서 찾을 수 있습니다. 다른 필드는 비워 둡니다.
+완성된 구성은 다음과 같은 형태이며 애플리케이션별 값이 적용됩니다.
+
+제공업체 ID OAuthProvider을 사용하여 OAuthProvider의 인스턴스를 만듭니다.
+
+Swift
+Objective-C
+FIROAuthProvider *provider = [FIROAuthProvider providerWithProviderID:@"microsoft.com"];
+
+선택사항: OAuth 요청과 함께 전송하고자 하는 맞춤 OAuth 매개변수를 추가로 지정합니다.
+
+Swift
+provider.customParameters = [
+"prompt": "consent",
+"login_hint": "user@firstadd.onmicrosoft.com"
+]
+
+Objective-C
+[provider setCustomParameters:@{@"prompt": @"consent", @"login_hint": @"user@firstadd.onmicrosoft.com"}];
+
+Microsoft가 지원하는 매개변수 정보는 Microsoft OAuth 문서 [https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code]를 참조하세요.
+Firebase에서 요구하는 매개변수는 setCustomParameters와 함께 전달할 수 없습니다. 이러한 매개변수에는 client_id, response_type, redirect_uri, state, scope, response_mode가 있습니다.
+
+특정 Azure AD 테넌트의 사용자만 애플리케이션에 로그인하도록 허용하려면 Azure AD 테넌트의 도메인 이름 또는 테넌트의 GUID 식별자를 사용하면 됩니다. 맞춤 매개변수 객체의 '테넌트' 필드를 지정하여 수행합니다.
+
+Swift
+provider.customParameters = [
+Objective-C
+
+선택사항: 인증 제공업체에서 요청하고자 하는 기본 프로필 범위를 넘는 OAuth 2.0 범위를 추가로 지정합니다.
+
+Swift
+provider.scopes = ["mail.read", "calendars.read"]
+
+Objective-C
+[provider setScopes:@[@"mail.read", @"calendars.read"]];
+
+자세한 내용은 Microsoft 권한 및 동의 문서 [https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-permissions-and-consent]를 참조하세요.
+선택사항: 사용자에게 reCAPTCHA를 제시할 때 앱에서 SFSafariViewController 또는 UIWebView를 표시하는 방식을 맞춤설정하려면 AuthUIDelegate 프로토콜을 준수하는 커스텀 클래스를 만들어 credentialWithUIDelegate에 전달합니다.
+OAuth 제공업체 객체를 사용해 Firebase에 인증합니다.
+
+Swift
+Objective-C
+[provider getCredentialWithUIDelegate:nil
+completion:^(FIRAuthCredential *_Nullable credential, NSError *_Nullable error) {
+if (error) {
+Azure AD 테넌트를 사용하여 로그인할 때는 oid 클레임이 정확히 일치합니다.
+하지만 테넌트 외의 케이스에서는 oid 필드가 패딩됩니다. 제휴 ID 4b2eabcdefghijkl의 경우 oid에 00000000-0000-0000-4b2e-abcdefghijkl 양식이 사용됩니다.
+위의 예시는 로그인 과정에 중점을 두고 있지만 linkWithCredential를 사용하여 Microsoft 제공업체를 기존 사용자에 연결할 수도 있습니다. 예를 들어 여러 제공업체를 동일한 사용자에 연결하여 그 중 하나로 로그인하도록 허용할 수 있습니다.
+
+Swift
+Auth().currentUser.link(withCredential: credential) { authResult, error in
+if error != nil {
+Objective-C
+[[FIRAuth auth].currentUser
+linkWithCredential:credential
+completion:^(FIRAuthDataResult * _Nullable authResult, NSError * _Nullable error) {
+if (error) {
+Auth().currentUser.reauthenticateWithCredential(withCredential: credential) { authResult, error in
+if error != nil {
+Objective-C
+[[FIRAuth auth].currentUser
+reauthenticateWithCredential:credential
+completion:^(FIRAuthDataResult * _Nullable authResult, NSError * _Nullable error) {
+if (error) {
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 이메일 주소당 계정 1개를 사용 설정한 경우 다른 Firebase 사용자의 제공업체(예: Google)에 이미 존재하는 이메일을 사용하여 Microsoft와 같은 제공업체에 로그인을 시도하면 임시 FIRAuthCredential 객체(Microsoft 사용자 인증 정보)와 함께 FIRAuthErrorCodeAccountExistsWithDifferentCredential 오류가 발생합니다. 사용자가 원하는 제공업체에 로그인하려면 먼저 기존 제공업체(예: Google)에 로그인한 다음 신규 제공업체의 FIRAuthCredential(Microsoft 사용자 인증 정보)에 연결해야 합니다. 그 방법은 아래와 같습니다.
+
+Swift
+Objective-C
+NSString *existingAcctEmail = error.userInfo[FIRAuthErrorUserInfoEmailKey];
+FIRAuthCredential *pendingCred = error.userInfo[FIRAuthErrorUserInfoUpdatedCredentialKey];
+Objective-C
+NSError *signOutError;
+BOOL status = [[FIRAuth auth] signOut:&signOutError];
+if (!status) {
+NSLog(@"Error signing out: %@", signOutError);
+return;

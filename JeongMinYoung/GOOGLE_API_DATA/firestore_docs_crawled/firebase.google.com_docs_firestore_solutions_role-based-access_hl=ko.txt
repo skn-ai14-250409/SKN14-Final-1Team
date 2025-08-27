@@ -1,0 +1,65 @@
+Source URL: https://firebase.google.com/docs/firestore/solutions/role-based-access?hl=ko
+Title: 사용자 및 그룹의 데이터 액세스 보안 설정
+
+의견 보내기
+
+사용자 및 그룹의 데이터 액세스 보안 설정
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+권한에 따라 사용자가 서로 다른 데이터를 읽고 쓸 수 있는 공동작업 앱이 많습니다. 예를 들어 문서 수정 앱에서는 원치 않는 액세스를 차단하고 소수의 사용자만 문서를 읽고 쓸 수 있도록 허용할 수 있습니다.
+
+참고: 서버 클라이언트 라이브러리는 모든 Cloud Firestore Security Rules를 우회하고 대신 Google 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/production?hl=ko]를 통해 인증합니다.
+서버 클라이언트 라이브러리, REST 또는 RPC API를 사용하는 경우 Cloud Firestore용 Identity and Access Management(IAM) [https://cloud.google.com/firestore/docs/security/iam?hl=ko]를 설정해야 합니다.
+
+솔루션: 역할 기반 액세스 제어
+
+Cloud Firestore의 데이터 모델과 커스텀 보안 규칙 [https://firebase.google.com/docs/firestore/security/get-started?hl=ko]을 활용하면 앱에서 역할 기반의 액세스 제어가 가능합니다.
+
+다음과 같은 보안 요구사항에 따라 사용자가 '스토리'와 '댓글'을 생성할 수 있는 공동작업 쓰기 애플리케이션을 개발한다고 가정해 보겠습니다.
+
+스토리마다 한 명의 소유자가 있으며 '작성자', '댓글 작성자', '독자'와 공유할 수 있습니다.
+독자는 스토리와 댓글을 볼 수만 있으며 아무 것도 수정할 수 없습니다.
+댓글 작성자는 독자의 모든 액세스 권한을 보유하며 스토리에 댓글도 추가할 수 있습니다.
+작성자는 댓글 작성자의 모든 액세스 권한을 보유하며 스토리 콘텐츠도 수정할 수 있습니다.
+소유자는 스토리를 모두 수정하고 다른 사용자의 액세스 권한을 제어할 수 있습니다.
+
+데이터 구조
+
+각 문서가 하나의 스토리에 해당하는 stories 컬렉션이 앱에 있다고 가정해 보겠습니다. 각 스토리에는 각 문서가 스토리의 댓글에 해당하는 comments 하위 컬렉션도 포함됩니다.
+
+액세스 역할을 추적하려면 역할에 대한 사용자 ID를 매핑하는 roles 입력란을 추가합니다.
+
+/stories/{storyid}
+content: "Once upon a time ...",
+roles: {
+alice: "owner",
+bob: "reader",
+david: "writer",
+jane: "commenter"
+
+match /comments/{comment} {
+&& request.resource.data.roles[request.auth.uid] == 'owner';
+
+match /comments/{comment} {
+&& request.resource.data.roles[request.auth.uid] == 'owner';
+
+match /comments/{comment} {
+allow read: if isOneOfRoles(get(/databases/$(database)/documents/stories/$(story)),
+['owner', 'writer', 'commenter', 'reader']);
+
+&& request.resource.data.roles == resource.data.roles
+&& request.resource.data.keys() == resource.data.keys();
+allow delete: if isOneOfRoles(resource, ['owner']);
+allow update: if isOneOfRoles(resource, ['owner'])
+|| (isOneOfRoles(resource, ['writer']) && onlyContentChanged());
+allow read: if isOneOfRoles(resource, ['owner', 'writer', 'commenter', 'reader']);
+
+match /comments/{comment} {
+allow read: if isOneOfRoles(get(/databases/$(database)/documents/stories/$(story)),
+['owner', 'writer', 'commenter', 'reader']);
+allow create: if isOneOfRoles(get(/databases/$(database)/documents/stories/$(story)),
+['owner', 'writer', 'commenter'])
+&& request.resource.data.user == request.auth.uid;

@@ -1,0 +1,177 @@
+Source URL: https://developers.google.com/maps/documentation/imagery-insights/get-started?hl=ko
+
+science 이 제품 또는 기능은 미리보기 버전 (GA 이전)에 있습니다. GA 이전 제품과 기능에 대한 지원이 제한될 수 있으며 GA 이전 제품과 기능의 변경사항이 다른 GA 이전 버전과 호환되지 않을 수 있습니다. GA 이전 버전 제품 및 서비스에는 Google Maps Platform 서비스별 약관이 적용됩니다. 자세한 내용은 출시 단계 설명을 참조하세요.
+이 페이지는 Cloud Translation API를 통해 번역되었습니다.
+홈
+제품
+Google Maps Platform
+문서
+Imagery Insights API
+의견 보내기
+Vertex AI 및 BigQuery를 사용한 이미지 분류 시작하기
+이 가이드에서는 Gemini 2.5 Flash를 사용하는 Google Cloud의 Vertex AI 플랫폼을 사용하여 모델을 학습시키고 이미지 애셋을 분류하는 완전한 엔드 투 엔드 워크플로를 제공합니다. Python Colab 환경에서 데이터 검색을 위한 BigQuery, 애셋 관리를 위한 Cloud Storage, 머신러닝 추론을 위한 Vertex AI를 통합하는 방법을 알아봅니다.
+중요: 머신러닝 모델을 학습하는 데는 유휴 상태 종료 시간이 긴 Colab Enterprise를 사용하는 것이 좋습니다.
+구성
+코드 샘플을 실행하기 전에 다음 프로젝트별 변수를 설정합니다.
+PROJECT_ID = PROJECT_ID
+REGION = REGION   # e.g., "us-central1"
+CUSTOMER_ID = CUSTOMER_ID # required to subscribe to the dataset
+환경 설정
+필요한 종속 항목을 설치하고 Google Cloud 서비스에 액세스할 수 있도록 인증을 구성합니다.
+# Install compatible protobuf version to prevent dependency conflicts
+!pip install protobuf==3.20.3 -q
+
+# Install Google Cloud SDK dependencies for AI Platform integration
+!pip install google-cloud-aiplatform google-cloud-storage google-cloud-bigquery google-cloud-bigquery-data-exchange -q
+
+# Import core libraries for cloud services and machine learning operations
+import json
+import os
+from google.cloud import bigquery
+import vertexai
+from vertexai.generative_models import GenerativeModel, Part
+
+# Configure project-specific parameters for cloud resource targeting
+# Replace with your actual Google Cloud Project ID and preferred compute region
+PROJECT_ID = PROJECT_ID  # Target GCP Project ID
+REGION = REGION
+
+# Configure authentication for Google Cloud service access
+# Initiates OAuth flow in new browser tab if authentication required
+from google.colab import auth
+
+if os.environ.get("VERTEX_PRODUCT") != "COLAB_ENTERPRISE":
+  from google.colab import auth
+  auth.authenticate_user(project_id=<var label="project ID">PROJECT_ID</var>)
+
+# Initialize Vertex AI client with project configuration
+vertexai.init(project=PROJECT_ID, location=REGION)
+
+print(f"Vertex AI initialized for project: PROJECT_ID in region: REGION")
+Analytics Hub 데이터 세트 구독
+또한 Analytics Hub 데이터 세트를 구독해야 합니다.
+from google.cloud import bigquery_data_exchange_v1beta1
+
+ah_client = bigquery_data_exchange_v1beta1.AnalyticsHubServiceClient()
+
+HUB_PROJECT_ID = 'maps-platform-analytics-hub'
+DATA_EXCHANGE_ID = f"imagery_insights_exchange_REGION"
+LINKED_DATASET_NAME = f"imagery_insights___preview___REGION"
+
+
+# subscribe to the listing (create a linked dataset in your consumer project)
+destination_dataset = bigquery_data_exchange_v1beta1.DestinationDataset()
+destination_dataset.dataset_reference.dataset_id = LINKED_DATASET_NAME
+destination_dataset.dataset_reference.project_id = PROJECT_ID
+destination_dataset.location = REGION
+LISTING_ID=f"imagery_insights_{CUSTOMER_ID.replace('-', '_')}__REGION"
+
+published_listing = f"projects/{HUB_PROJECT_ID}/locations/REGION/dataExchanges/{DATA_EXCHANGE_ID}/listings/{LISTING_ID}"
+
+request = bigquery_data_exchange_v1beta1.SubscribeListingRequest(
+    destination_dataset=destination_dataset,
+    name=published_listing,
+)
+
+# request the subscription
+ah_client.subscribe_listing(request=request)
+BigQuery를 사용한 데이터 추출
+BigQuery 쿼리를 실행하여 latest_observations 테이블에서 Google Cloud Storage URI를 추출합니다. 이러한 URI는 분류를 위해 Vertex AI 모델에 직접 전달됩니다.
+참고: 모델에는 다운로드된 이미지 파일이 아닌 GCS URI가 필요합니다. 이 접근 방식은 데이터 전송 및 처리 효율성을 최적화합니다.
+# Initialize BigQuery client
+bigquery_client = bigquery.Client(project=PROJECT_ID)
+
+# Define SQL query to retrieve observation records from imagery dataset
+BIGQUERY_SQL_QUERY = """
+SELECT
+ *
+FROM
+ `PROJECT_ID.imagery_insights___preview___us.latest_observations`
+LIMIT 10;
+"""
+
+print(f"Executing BigQuery query:\n{BIGQUERY_SQL_QUERY}")
+
+# Submit query job to BigQuery service and await completion
+query_job = bigquery_client.query(BIGQUERY_SQL_QUERY)
+
+# Transform query results into structured data format for downstream processing
+# Convert BigQuery Row objects to dictionary representations for enhanced accessibility
+query_response_data = []
+for row in query_job:
+   query_response_data.append(dict(row))
+
+# Extract Cloud Storage URIs from result set, filtering null values
+gcs_uris = [item.get("gcs_uri") for item in query_response_data if item.get("gcs_uri")]
+
+print(f"BigQuery query returned {len(query_response_data)} records.")
+print(f"Extracted {len(gcs_uris)} GCS URIs:")
+for uri in gcs_uris:
+   print(uri)
+이미지 분류 기능
+이 도우미 함수는 Vertex AI의 Gemini 2.5 Flash 모델을 사용하여 이미지 분류를 처리합니다.
+def classify_image_with_gemini(gcs_uri: str, prompt: str = "What is in this image?") -> str:
+   """
+   Performs multimodal image classification using Vertex AI's Gemini 2.5 Flash model.
+
+   Leverages direct Cloud Storage integration to process image assets without local
+   download requirements, enabling scalable batch processing workflows.
+
+   Args:
+       gcs_uri (str): Fully qualified Google Cloud Storage URI 
+                     (format: gs://bucket-name/path/to/image.jpg)
+       prompt (str): Natural language instruction for classification task execution
+
+   Returns:
+       str: Generated textual description from the generative model, or error message
+            if classification pipeline fails
+
+   Raises:
+       Exception: Captures service-level errors and returns structured failure response
+   """
+   try:
+       # Instantiate Gemini 2.5 Flash model for inference operations
+       model = GenerativeModel("gemini-2.5-flash")
+
+       # Construct multimodal Part object from Cloud Storage reference
+       # Note: MIME type may need dynamic inference for mixed image formats
+       image_part = Part.from_uri(uri=gcs_uri, mime_type="image/jpeg")
+
+       # Execute multimodal inference request with combined visual and textual inputs
+       responses = model.generate_content([image_part, prompt])
+       return responses.text
+   except Exception as e:
+       print(f"Error classifying image from URI {gcs_uri}: {e}")
+       return "Classification failed."
+일괄 이미지 분류
+추출된 모든 URI를 처리하고 분류를 생성합니다.
+classification_results = []
+
+# Execute batch classification pipeline across all extracted GCS URIs
+for uri in gcs_uris:
+   print(f"\nProcessing: {uri}")
+
+   # Define comprehensive classification prompt for detailed feature extraction
+   classification_prompt = "Describe this image in detail, focusing on any objects, signs, or features visible."
+
+   # Invoke Gemini model for multimodal inference on current asset
+   result = classify_image_with_gemini(uri, classification_prompt)
+
+   # Aggregate structured results for downstream analytics and reporting
+   classification_results.append({"gcs_uri": uri, "classification": result})
+
+   print(f"Classification for {uri}:\n{result}")
+다음 단계
+이미지를 분류한 후에는 다음과 같은 고급 워크플로를 고려해 보세요.
+모델 미세 조정: 분류 결과를 사용하여 맞춤 모델을 학습시킵니다.
+자동 처리: 새 이미지를 자동으로 분류하도록 Cloud Functions를 설정합니다.
+데이터 분석: 분류 패턴에 대한 통계 분석을 수행합니다.
+통합: 결과를 다운스트림 애플리케이션에 연결합니다.
+문제 해결
+일반적인 문제 및 해결 방법:
+인증 오류: 적절한 IAM 역할과 API 사용 설정이 되어 있는지 확인합니다.
+비율 제한: 대규모 배치에 지수 백오프를 구현합니다.
+메모리 제약 조건: 대규모 데이터 세트의 경우 이미지를 더 작은 배치로 처리합니다.
+URI 형식 오류: GCS URI가 gs://bucket-name/path/to/image 형식을 따르는지 확인합니다.
+추가 지원이 필요한 경우 Vertex AI 문서 및 BigQuery 문서를 참고하세요.
+의견 보내기

@@ -1,0 +1,104 @@
+Source URL: https://firebase.google.com/docs/auth/android/account-linking?hl=ko
+Title: Android에서 계정에 여러 인증 제공업체 연결하기
+
+의견 보내기
+
+Android에서 계정에 여러 인증 제공업체 연결하기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+중요: 일부 프로젝트에서 linkWithCredentials()가 제대로 작동하지 않는 알려진 문제 [https://github.com/firebase/firebase-js-sdk/issues/7675]가 있습니다. 해결 방법과 수정 상태는 문제 보고서에서 확인하세요.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+사용자가 로그인할 때 어떤 인증 제공업체를 사용하든 동일한 Firebase 사용자 ID로 본인 확인이 가능합니다. 예를 들어 비밀번호로 로그인한 사용자가 Google 계정을 연결하면 나중에 비밀번호와 Google 계정 중 어느 방법으로든 로그인할 수 있습니다. 또는 익명 사용자가 Facebook 계정을 연결하면 나중에 Facebook으로 로그인해서 앱을 계속 사용할 수 있습니다.
+
+시작하기 전에
+
+앱에 2개 이상의 인증 제공업체(익명 인증 포함)에 대한 지원을 추가하세요.
+
+사용자 계정에 인증 제공업체의 사용자 인증 정보 연결하기
+
+다음과 같이 기존 사용자 계정에 인증 제공업체의 사용자 인증 정보를 연결합니다.
+
+인증 제공업체 또는 인증 방법을 사용해 사용자를 로그인 처리합니다.
+새로운 인증 제공업체의 로그인 과정을 진행하되 FirebaseAuth.signInWith [https://firebase.google.com/docs/reference/android/com/google/firebase/auth/FirebaseAuth?hl=ko#public-method-summary] 메서드 호출 전까지만 진행합니다. 예를 들면 사용자의 Google ID 토큰, Facebook 액세스 토큰, 또는 이메일 주소와 비밀번호를 가져옵니다.
+
+다음과 같이 새로운 인증 제공업체의 AuthCredential을 가져옵니다.
+
+Google 로그인
+
+Kotlin
+val credential = GoogleAuthProvider.getCredential(googleIdToken, null)MainActivity.kt [https://github.com/firebase/snippets-android/blob/268a3858585da19107220dbad9ceb8a5fd23241a/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L394-L394]
+
+Java
+AuthCredential credential = GoogleAuthProvider.getCredential(googleIdToken, null);MainActivity.java [https://github.com/firebase/snippets-android/blob/268a3858585da19107220dbad9ceb8a5fd23241a/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L479-L479]
+
+Facebook 로그인
+
+Kotlin
+val credential = FacebookAuthProvider.getCredential(token.token)MainActivity.kt [https://github.com/firebase/snippets-android/blob/268a3858585da19107220dbad9ceb8a5fd23241a/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L401-L401]
+
+Java
+AuthCredential credential = FacebookAuthProvider.getCredential(token.getToken());MainActivity.java [https://github.com/firebase/snippets-android/blob/268a3858585da19107220dbad9ceb8a5fd23241a/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L487-L487]
+
+이메일-비밀번호 로그인
+
+Kotlin
+val credential = EmailAuthProvider.getCredential(email, password)MainActivity.kt [https://github.com/firebase/snippets-android/blob/268a3858585da19107220dbad9ceb8a5fd23241a/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L409-L409]
+
+Java
+AuthCredential credential = EmailAuthProvider.getCredential(email, password);MainActivity.java [https://github.com/firebase/snippets-android/blob/268a3858585da19107220dbad9ceb8a5fd23241a/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L495-L495]
+
+다음과 같이 AuthCredential 객체를 로그인한 사용자의 linkWithCredential 메서드에 전달합니다.
+
+Kotlin
+auth.currentUser!!.linkWithCredential(credential)
+.addOnCompleteListener(this) { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "linkWithCredential:success")
+val user = task.result?.user
+updateUI(user)
+Toast.makeText(
+baseContext,
+"Authentication failed.",
+Toast.LENGTH_SHORT,
+).show()
+updateUI(null)
+mAuth.getCurrentUser().linkWithCredential(credential)
+.addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+if (task.isSuccessful()) {
+Log.d(TAG, "linkWithCredential:success");
+FirebaseUser user = task.getResult().getUser();
+updateUI(user);
+Log.w(TAG, "linkWithCredential:failure", task.getException());
+Toast.makeText(AnonymousAuthActivity.this, "Authentication failed.",
+Toast.LENGTH_SHORT).show();
+updateUI(null);
+val prevUser = auth.currentUser
+auth.signInWithCredential(credential)
+FirebaseUser prevUser = FirebaseAuth.getInstance().getCurrentUser();
+mAuth.signInWithCredential(credential)
+.addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+FirebaseUser currentUser = task.getResult().getUser();
+
+인증 제공업체와 사용자 계정의 연결 해제하기
+
+특정 인증 제공업체와 계정의 연결을 해제할 수 있습니다. 그러면 사용자가 더 이상 해당 제공업체로 로그인할 수 없게 됩니다.
+
+인증 제공업체와 사용자 계정의 연결을 해제하려면 제공업체 ID를 unlink 메서드에 전달합니다. 사용자 계정에 연결된 인증 제공업체의 ID를 가져오려면 getProviderData [https://firebase.google.com/docs/reference/android/com/google/firebase/auth/FirebaseUser?hl=ko#getProviderData()]를 호출합니다.
+
+Kotlin
+Firebase.auth.currentUser!!.unlink(providerId)
+.addOnCompleteListener(this) { task ->
+if (task.isSuccessful) {
+mAuth.getCurrentUser().unlink(providerId)
+.addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+if (task.isSuccessful()) {

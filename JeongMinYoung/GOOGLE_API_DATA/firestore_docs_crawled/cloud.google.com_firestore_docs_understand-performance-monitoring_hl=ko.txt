@@ -1,0 +1,153 @@
+Source URL: https://cloud.google.com/firestore/docs/understand-performance-monitoring?hl=ko
+Title: Firestore의 성능 모니터링 이해
+
+의견 보내기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Firestore의 성능 모니터링 이해
+
+Cloud Monitoring [https://cloud.google.com/monitoring/docs/?hl=ko]은 Google Cloud 제품에서 측정항목, 이벤트, 메타데이터를 수집합니다. 사용량 대시보드 [https://firebase.google.com/docs/firestore/monitor-usage?hl=ko#usage_dashboard] 및 보안 규칙 사용 [https://firebase.google.com/docs/firestore/monitor-usage?hl=ko#security_rule_usage]에 보고된 데이터는 더 자세한 분석을 위해 Cloud Monitoring을 통해 액세스할 수도 있습니다.
+Cloud Monitoring을 사용하면 커스텀 대시보드와 사용량 알림을 설정할 수도 있습니다.
+
+이 문서에서는 측정항목 사용, 커스텀 측정항목 대시보드에 대해 알아보고 알림을 설정하는 방법을 안내합니다.
+
+모니터링 리소스
+
+Cloud Monitoring의 모니터링 리소스는 가상 머신, 데이터베이스, 애플리케이션과 같은 논리적 또는 실제 항목을 나타냅니다. 모니터링 리소스에는 탐색하거나, 대시보드를 통해 보고하거나, 알림을 만드는 데 사용할 수 있는 고유한 측정항목 집합이 포함되어 있습니다. 각 리소스에는 리소스에 관한 추가 정보를 보유하는 키-값 쌍인 리소스 라벨 집합도 있습니다. 리소스 라벨은 리소스와 연결된 모든 측정항목에 사용할 수 있습니다.
+
+Cloud Monitoring API [https://cloud.google.com/monitoring/api/resources?hl=ko]를 사용하여 Firestore 성능은 다음 리소스로 모니터링됩니다.
+
+| 리소스 | Description(설명) | 지원되는 데이터베이스 모드 |
+| --- | --- | --- |
+| firestore.googleapis.com/Database(권장) | project, location*, database_id에 대한 분석을 제공하는 모니터링 리소스 유형입니다 . 특정 이름 없이 생성된 데이터베이스의 경우 database_id 라벨은 (default)가 됩니다. | 두 모드 모두에 적용됩니다. |
+| firestore_instance | Firestore 프로젝트의 모니터링 리소스 유형이며 데이터베이스에 대한 분석을 제공하지 않습니다. | Firestore Native에 적용 |
+| datastore_request | Datastore 프로젝트의 모니터링 리소스 유형이며 데이터베이스에 대한 분석을 제공하지 않습니다. | 두 모드 모두에 적용됩니다. |
+
+측정항목
+
+Firestore는 Firestore Native와 Datastore 모드의 Firestore 두 가지 모드로 제공됩니다. 이 두 모드의 기능 비교는 데이터베이스 모드 선택 [https://cloud.google.com/firestore/native/docs/firestore-or-datastore?hl=ko]을 참고하세요.
+
+두 모드의 측정항목 전체 목록은 다음 링크를 참고하세요.
+
+Firestore [https://cloud.google.com/monitoring/api/metrics_gcp_d_h?hl=ko#gcp-firestore]
+Datastore 모드의 Firestore [https://cloud.google.com/monitoring/api/metrics_gcp_d_h?hl=ko#gcp-datastore]
+
+서비스 런타임 측정항목
+
+serviceruntime [https://cloud.google.com/monitoring/api/metrics_gcp_p_z?hl=ko#gcp-serviceruntime] 측정항목은 프로젝트 트래픽에 대한 대략적인 개요를 제공합니다. 이러한 측정항목은 대부분의 Google Cloud API에서 사용할 수 있습니다. consumed_api [https://cloud.google.com/monitoring/api/resources?hl=ko#tag_consumed_api] 모니터링 리소스 유형에는 이러한 일반 측정항목이 포함됩니다. 이러한 측정항목은 30분마다 샘플링되므로 데이터가 평활화됩니다.
+
+serviceruntime 측정항목의 중요한 리소스 라벨은 method입니다. 이 라벨은 호출된 기본 RPC 메서드를 나타냅니다. 호출하는 SDK 메서드의 이름은 기본 RPC 메서드와 동일하지 않을 수 있습니다. SDK는 상위 수준 API 추상화를 제공하기 때문입니다. 하지만 애플리케이션이 Firestore와 상호작용하는 방식을 이해하려면 RPC 메서드 이름을 기반으로 한 측정항목을 이해하는 것이 중요합니다.
+
+특정 SDK 메서드의 기본 RPC 메서드를 알아야 하는 경우 API 문서 [https://cloud.google.com/firestore/native/docs/reference/rpc/google.firestore.v1?hl=ko]를 참고하세요.
+
+다음 서비스 런타임 측정항목을 사용하여 데이터베이스를 모니터링합니다.
+
+api/request_count
+
+이 측정항목은 프로토콜(http, gRPC 등의 요청 프로토콜), 응답 코드 (HTTP 응답 코드 [https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto]), response_code_class (2xx, 4xx 등 응답 코드 클래스) 전반에서 완료된 요청 수 및 grpc_status_code (숫자 gRPC 응답 코드 [https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto])를 제공합니다. 이 측정항목을 사용하여 전체 API 요청을 관찰하고 오류율을 계산합니다.
+
+[https://cloud.google.com/static/firestore/native/docs/images/cloudmon-req-count.png?hl=ko]
+그림 1. api/request_count 측정항목(확대하려면 클릭)
+
+그림 1에서는 서비스 및 메서드별로 그룹화된 2xx 코드를 반환하는 요청을 확인할 수 있습니다. 2xx 코드는 요청이 성공했음을 나타내는 HTTP 상태 코드입니다.
+
+[https://cloud.google.com/static/firestore/native/docs/images/cloudmon-req-count-1.png?hl=ko]
+그림 2. 2xx 코드를 반환하는 api/request_count 측정항목(확대하려면 클릭).
+
+그림 2에서는 response_code로 그룹화된 커밋을 확인할 수 있습니다. 이 예시에서는 데이터베이스가 정상임을 나타내는 HTTP 200 응답만 표시됩니다.
+
+api/request_latencies
+
+api/request_latencies 측정항목은 완료된 모든 요청의 지연 시간 분포를 제공합니다.
+
+Firestore는 Firestore 서비스 구성요소의 측정항목을 기록합니다. 지연 시간 측정항목에는 Firestore가 요청을 받는 시점부터 스토리지 레이어와의 상호작용을 포함하여 Firestore가 응답 전송을 완료하는 시점까지의 시간이 포함됩니다. 따라서 클라이언트와 Firestore 서비스 간의 왕복 지연 시간(rtt)은 이러한 측정항목에 포함되지 않습니다.
+
+그림 4. 지연 시간 분포를 계산하는 api/request_latencies
+
+api/request_sizes 및 api/response_sizes
+
+api/request_sizes 및 api/response_sizes 측정항목은 각각 페이로드 크기(바이트)에 대한 유용한 정보를 제공합니다. 이는 대량의 데이터를 전송하는 쓰기 워크로드를 이해하거나, 범위가 너무 넓어 대규모 페이로드를 반환하는 쿼리를 이해하는 데 유용할 수 있습니다.
+
+[https://cloud.google.com/static/firestore/native/docs/images/cloudmon-req-size.png?hl=ko]
+그림 5.  api/request_sizes 및 api/response_sizes 측정항목(확대하려면 클릭)
+
+그림 5에는 RunQuery 메서드의 응답 크기에 대한 히트맵이 표시되어 있습니다.
+크기가 안정적이고 중간값이 50바이트이며 전체적으로 10바이트와 100바이트 사이에 있음을 알 수 있습니다. 페이로드 크기는 항상 전송 제어 오버헤드를 제외한 압축되지 않은 바이트로 측정됩니다.
+
+문서 작업 측정항목
+
+Firestore는 읽기, 쓰기, 삭제 수를 제공합니다. 쓰기 측정항목은 'CREATE' 작업과 'UPDATE' 작업 간의 분류를 제공합니다. 이러한 측정항목은 CRUD 작업과 일치합니다.
+
+다음 측정항목을 사용하여 데이터베이스가 읽기 또는 쓰기 집약적인지와 새 문서 대비 삭제된 문서의 비율을 파악할 수 있습니다.
+
+document/delete_ops_count: 성공적인 문서 삭제 횟수입니다.
+document/read_ops_count: 쿼리 또는 조회를 통해 성공한 문서 읽기 횟수입니다.
+document/write_ops_count: 성공적인 문서 쓰기 횟수입니다.
+
+참고: document/delete_ops_count 측정항목에는 TTL 정책으로 인해 삭제된 문서가 포함되지 않습니다. TTL 정책으로 인해 삭제를 캡처하는 측정항목에 대한 자세한 내용은 TTL 측정항목 [https://cloud.google.com/firestore/native/docs/understand-performance-monitoring?hl=ko#ttl_metrics]을 참조하세요.
+
+[https://cloud.google.com/static/firestore/native/docs/images/cloudmon-doc-operation.png?hl=ko]
+그림 6. 읽은 문서 대비 쓴 문서의 비율 생성(확대하려면 클릭)
+
+그림 6에서 읽은 문서 대비 작성 문서 비율을 보여주는 비율을 만드는 방법을 확인할 수 있습니다. 이 예시에서 읽고 있는 문서 수는 쓰고 있는 문서 수보다 약 6% 더 많습니다.
+
+문서 작업 측정항목
+
+이러한 측정항목은 Firestore 데이터베이스에 대한 읽기 (조회 및 쿼리) 및 쓰기의 페이로드 크기 분포를 바이트 단위로 제공합니다. 값은 페이로드의 총크기를 나타냅니다. 예를 들어 쿼리에서 반환된 결과가 있습니다.
+이러한 측정항목은 api/request_sizes 및 api/response_sizes 측정항목과 비슷하지만, 문서 작업 측정항목이 더 세분화된 샘플링을 제공하지만 덜 세분화된 분류를 제공한다는 주요 차이점이 있습니다.
+
+예를 들어 문서 작업 측정항목은 datastore_request 모니터링 리소스를 사용하므로 서비스 또는 메서드 분류가 없습니다.
+
+entity/read_sizes: 읽은 문서의 크기 분포입니다.
+entity/write_sizes: 작성된 문서의 크기 분포입니다.
+
+색인 측정항목
+
+색인 팬아웃 비율 [https://cloud.google.com/datastore/docs/concepts/indexes?hl=ko#exploding_index]을 이해하기 위해 색인 쓰기 속도를 document/write_ops_count 측정항목과 대조할 수 있습니다.
+
+index/write_count: 색인 쓰기 횟수입니다.
+
+[https://cloud.google.com/static/firestore/native/docs/images/cloudmon-index-count.png?hl=ko]
+그림 7. 문서 쓰기 속도와 대조되는 색인 쓰기 속도(확대하려면 클릭)
+
+그림 7에서 색인 쓰기 속도를 문서 쓰기 속도와 대조하는 방법을 확인할 수 있습니다. 이 예시에는 모든 문서 쓰기에 약 6개의 색인 쓰기가 있으며, 이는 비교적 낮은 색인 팬아웃 속도입니다.
+
+Firebase SDK를 사용하여 데이터베이스에 직접 연결된 클라이언트
+
+두 개의 게이지 측정항목 [https://cloud.google.com/monitoring/api/v3/kinds-and-types?hl=ko#metric-kinds]을 사용하여 모바일 SDK, 웹 SDK 또는 둘 다를 통해 Firestore 데이터베이스에 직접 연결된 클라이언트의 활동을 추적할 수 있습니다. 이러한 측정항목에는 데이터베이스의 관련 변경사항이 클라이언트로 즉시 다시 스트리밍되는 실시간 스냅샷 리스너 [https://firebase.google.com/docs/firestore/query-data/listen?hl=ko]와 관련된 기능이 포함됩니다.
+
+network/active_connections: 특정 시점의 활성 연결 수입니다. 각 웹 또는 모바일 클라이언트에는 연결 1개가 있습니다.
+network/snapshot_listeners: 현재 연결된 모든 클라이언트에 등록된 스냅샷 리스너 [https://firebase.google.com/docs/firestore/query-data/listen?hl=ko]의 수입니다. 클라이언트당 연결이 여러 개 있을 수 있습니다.
+
+Firebase Console의 Firestore 데이터베이스 내 Usage 탭에서 이러한 측정항목을 볼 수 있습니다.
+
+그림 8. Firestore에 연결된 클라이언트의 활동을 추적하는 측정항목입니다.
+
+TTL 측정항목
+
+TTL 측정항목은 Firestore Native와 Datastore 모드의 Firestore 데이터베이스 모두에서 사용할 수 있습니다. 이러한 측정항목을 사용하여 적용된 TTL 정책 [https://cloud.google.com/firestore/native/docs/ttl?hl=ko]의 효과를 모니터링합니다.
+
+document/ttl_deletion_count: TTL 서비스에 의해 삭제된 총 문서 수입니다.
+
+[https://cloud.google.com/static/firestore/native/docs/images/cloudmon-firestore-ttl.png?hl=ko]
+그림 9. TTL 서비스에서 삭제한 총 문서 수(확대하려면 클릭)
+
+그림 9에서는 며칠 동안 매분 삭제된 문서의 비율을 확인할 수 있습니다.
+
+document/ttl_expiration_to_deletion_delays: TTL이 있는 문서가 만료된 시점과 실제로 삭제된 시점 사이에 경과한 시간입니다.
+
+[https://cloud.google.com/static/firestore/native/docs/images/cloudmon-firestore-ttl-delay.png?hl=ko]
+그림 10. Firestore가 TTL 정책을 사용하여 문서를 삭제하는 데 걸린 시간(초)(확대하려면 클릭)
+
+그림 10에서 이 측정항목은 Firestore가 TTL 정책이 있는 문서를 삭제하는 데 걸린 시간(초)의 분포를 제공합니다. 99번째 백분위수에서 TTL 만료 문서를 삭제하는 데 0.5초 미만이 걸립니다. 이는 시스템이 정상적으로 작동하고 있음을 의미합니다. Firestore는 일반적으로 24시간 내에 만료된 문서를 삭제하지만, 이는 보장되지 않습니다.
+24시간 이상 걸리는 경우 지원팀에 문의 [https://firebase.google.com/support/troubleshooter/contact?hl=ko]하세요.
+
+다음 단계
+
+Cloud Monitoring 대시보드를 사용 [https://cloud.google.com/firestore/native/docs/use-monitoring-dashboard?hl=ko]하여 측정항목을 확인하는 방법을 알아보세요.
+사용량을 모니터링 [https://cloud.google.com/firestore/native/docs/monitor-usage?hl=ko]하여 시간 경과에 따른 문서 읽기, 쓰기, 삭제를 파악합니다.
+
+의견 보내기

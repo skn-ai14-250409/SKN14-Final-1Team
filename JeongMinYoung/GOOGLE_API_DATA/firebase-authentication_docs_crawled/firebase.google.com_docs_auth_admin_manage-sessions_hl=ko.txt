@@ -1,0 +1,135 @@
+Source URL: https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko
+Title: 사용자 세션 관리
+bookmark_border
+
+의견 보내기
+
+사용자 세션 관리
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용갱신 토큰 취소 [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#revoke_refresh_tokens]ID 토큰 취소 감지 [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#detect_id_token_revocation]Firebase Security Rules에서 ID 토큰 취소 감지 [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#detect_id_token_revocation_in]SDK에서 ID 토큰 취소 감지 [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#detect_id_token_revocation_in_the_sdk]클라이언트에서 토큰 취소에 응답 [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#respond_to_token_revocation_on_the_client]보안 강화: IP 주소 제한사항 적용 [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#advanced_security_enforce_ip_address_restrictions]
+
+Firebase Authentication 세션은 수명이 깁니다. 사용자가 로그인할 때마다 사용자 인증 정보가 Firebase Authentication 백엔드에 전송되고 Firebase ID 토큰(JWT) 및 갱신 토큰으로 교환됩니다. Firebase ID 토큰은 수명이 짧아서 1시간 동안만 지속되며, 갱신 토큰을 사용하여 새 ID 토큰을 가져올 수 있습니다.
+갱신 토큰은 다음 중 한 가지 상황이 발생할 때만 만료됩니다.
+
+사용자가 삭제됨
+사용자가 비활성화됨
+사용자의 계정에서 중대한 변화가 감지됨. 비밀번호 또는 이메일 주소 업데이트 등의 이벤트가 여기에 해당합니다.
+
+Firebase Admin SDK는 지정된 사용자의 갱신 토큰을 취소하는 기능을 제공합니다. 또한 ID 토큰 취소 여부를 확인하는 API가
+제공됩니다. 이러한 기능을 통해 사용자 세션을 더욱 세밀하게 제어할 수
+있습니다. SDK는 의심스러운 환경에서 세션을 사용하지 못하도록 제한하는
+기능 및 잠재적인 토큰 도난을 복구하는 메커니즘을 제공합니다.
+
+갱신 토큰 취소
+
+사용자가 기기 분실이나 도난을 신고하면 사용자의 기존 갱신 토큰을 취소할 수 있습니다. 마찬가지로 일반적인 취약점이 발견되었거나 활성 토큰이 대규모로 유출된 정황이 의심되면 listUsers [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#list_all_users] API를 사용하여 지정된 프로젝트의 모든 사용자를 찾아 토큰을 취소할 수 있습니다.
+
+비밀번호를 재설정해도 사용자의 기존 토큰이 취소되지만, 이 경우 Firebase Authentication 백엔드에서 취소를 자동으로 처리합니다.
+취소하면 사용자가 로그아웃되고 다시 인증하라는 메시지가 표시됩니다.
+
+다음은 Admin SDK를 사용하여 특정 사용자의 갱신 토큰을 취소하는 구현 예시입니다. Admin SDK를 초기화하려면 설정 페이지 [https://firebase.google.com/docs/admin/setup?hl=ko#initialize-sdk]의 안내를 따르세요.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#node.js] ---
+```
+.revokeRefreshTokens(uid)
+.then(() => {
+return getAuth().getUser(uid);
+FirebaseAuth.getInstance().revokeRefreshTokens(uid);
+UserRecord user = FirebaseAuth.getInstance().getUser(uid);
+System.out.println("Tokens revoked at: " + revocationSecond);
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#python] ---
+```
+# Revoke tokens on the backend.
+auth.revoke_refresh_tokens(uid)
+user = auth.get_user(uid)
+# Convert to seconds as the auth_time in the token claims is in seconds.
+revocation_second = user.tokens_valid_after_timestamp / 1000
+print(f'Tokens revoked at: {revocation_second}')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#go] ---
+```
+client, err := app.Auth(ctx)
+if err != nil {
+log.Fatalf("error getting Auth client: %v\n", err)
+
+Firebase ID 토큰은 스테이트리스(Stateless) JWT이므로 토큰이 취소되었는지를 확인하려면 Firebase Authentication 백엔드에 토큰의 상태를 요청해야 합니다. 따라서 이 검사를 서버에서 수행하면 네트워크 왕복이
+추가로 발생하므로 경제적이지 않습니다. Admin SDK를 사용하여 검사하는 대신 취소를 확인하는 Firebase Security Rules을 설정하면 이러한 네트워크 요청을 피할 수 있습니다.
+
+Firebase Security Rules에서 ID 토큰 취소 감지
+
+보안 규칙을 사용하여 ID 토큰 취소를 감지하려면 먼저 몇 가지 사용자별 메타데이터를 저장해야 합니다.
+
+Firebase Realtime Database에서 사용자별 메타데이터 업데이트
+
+갱신 토큰이 취소된 타임스탬프를 저장합니다. 이 작업은 Firebase Security Rules을 통해 ID 토큰 취소를 추적하는 데 필요합니다. 그러면 데이터베이스 내에서 효율적으로 검사할 수 있습니다.
+아래 코드 샘플에서는 이전 섹션 [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#revoke_refresh_tokens]에서 확인한 UID 및 취소 시간을 사용합니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#node.js] ---
+```
+DatabaseReference ref = FirebaseDatabase.getInstance().getReference("metadata/" + uid);
+Map<String, Object> userData = new HashMap<>();
+userData.put("revokeTime", revocationSecond);
+ref.setValueAsync(userData);
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#python] ---
+```
+metadata_ref = firebase_admin.db.reference("metadata/" + uid)
+metadata_ref.set({'revokeTime': revocation_second})
+```
+Firebase Security Rules에 검사 추가
+
+이 검사를 수행하려면 클라이언트 쓰기 권한 없이 사용자별 취소 시간을
+저장하는 규칙을 설정합니다. 이전 예제와 같이 마지막 취소 시간의
+UTC 타임스탬프로 업데이트하면 됩니다.
+"rules": {
+"metadata": {
+"$user_id": {
+
+서버에서 갱신 토큰 취소 및 ID 토큰 검증과 관련하여 다음 로직을 구현하세요.
+
+사용자의 ID 토큰을 확인해야 할 때는 checkRevoked 불리언 플래그를 verifyIdToken에 추가로 전달해야 합니다. 사용자의 토큰이 취소되었으면 클라이언트에서 사용자를 로그아웃 처리하거나 Firebase Authentication 클라이언트 SDK가 제공하는 재인증 API를 사용하여 재인증하도록 요청해야 합니다.
+
+플랫폼의 Admin SDK를 초기화하려면 설정 페이지 [https://firebase.google.com/docs/admin/setup?hl=ko#initialize-sdk]의 안내를 따르세요. ID 토큰을 가져오는 예시는 verifyIdToken [https://firebase.google.com/docs/auth/admin/verify-id-tokens?hl=ko#retrieve_id_tokens_on_clients] 섹션에 있습니다.
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#node.js] ---
+```
+.verifyIdToken(idToken, checkRevoked)
+.then((payload) => {
+FirebaseToken decodedToken = FirebaseAuth.getInstance()
+.verifyIdToken(idToken, checkRevoked);
+String uid = decodedToken.getUid();
+# Token is valid and not revoked.
+uid = decoded_token['uid']
+except auth.RevokedIdTokenError:
+# Token revoked, inform the user to reauthenticate or signOut().
+pass
+except auth.UserDisabledError:
+# Token belongs to a disabled user record.
+pass
+except auth.InvalidIdTokenError:
+# Token is invalid
+pass
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko#go] ---
+```
+client, err := app.Auth(ctx)
+if err != nil {
+log.Fatalf("error getting Auth client: %v\n", err)
+if (ex.AuthErrorCode == AuthErrorCode.RevokedIdToken)
+Admin SDK를 통해 토큰이 취소된 경우 클라이언트에 취소 사실이
+통지되고 사용자는 재인증을 요청받거나 로그아웃 처리됩니다.
+function onIdTokenRevocation() {
+firebase.auth().currentUser.reauthenticateWithCredential(credential)
+.then(result => {
+ID 토큰을 조사하여 요청의 IP 주소가 이전의 신뢰할 수 있는 IP 주소와
+일치하거나 신뢰 가능 범위에 속하는지 확인한 후에 제한된 데이터에 대한
+액세스를 허용합니다. 예를 들면 다음과 같습니다.
+app.post('/getRestrictedData', (req, res) => {
