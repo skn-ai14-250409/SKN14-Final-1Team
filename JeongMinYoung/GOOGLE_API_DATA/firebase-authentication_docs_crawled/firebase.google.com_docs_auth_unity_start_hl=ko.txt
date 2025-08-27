@@ -1,0 +1,61 @@
+Source URL: https://firebase.google.com/docs/auth/unity/start?hl=ko
+Title: Unity에서 Firebase 인증 시작하기
+
+의견 보내기
+
+Unity에서 Firebase 인증 시작하기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Firebase Authentication을 사용하면 사용자가 게임에 로그인할 때 이메일 주소와 비밀번호를 통한 로그인 방법이나 Google 로그인, Facebook 로그인과 같은 제휴 ID 공급업체를 통한 로그인 등 1개 이상의 로그인 방법을 사용하여 로그인할 수 있습니다. 이 튜토리얼에서는 Firebase Authentication을 시작할 수 있도록 게임에 이메일 주소와 비밀번호를 통한 로그인을 추가하는 방법을 보여줍니다.
+
+시작하기 전에
+
+Firebase Authentication [https://firebase.google.com/docs/reference/unity/namespace/firebase/auth?hl=ko]을 사용하려면 먼저 다음 작업을 해야 합니다.
+
+Unity 프로젝트를 등록하고 Firebase를 사용하도록 구성합니다.
+
+Unity 프로젝트에서 현재 Firebase를 사용하고 있다면 이미 등록되어 Firebase용으로 구성된 것입니다.
+Unity 프로젝트가 없는 경우 샘플 앱 [https://github.com/google/mechahamster]을 다운로드하면 됩니다.
+
+Firebase Unity SDK [https://firebase.google.com/download/unity?hl=ko](특히 FirebaseAuth.unitypackage)를 Unity 프로젝트에 추가합니다.
+
+초기 설정 작업에 관한 자세한 안내는 Unity 프로젝트에 Firebase 추가 [https://firebase.google.com/docs/unity/setup?hl=ko#prerequisites]를 참조하세요.Unity 프로젝트에 Firebase를 추가할 때 Firebase Console [https://console.firebase.google.com/?hl=ko] 및 열려 있는 Unity 프로젝트 모두에서 작업을 수행해야 합니다. 예를 들어 Console에서 Firebase 구성 파일을 다운로드한 후 이 파일을 Unity 프로젝트로 이동하는 작업이 필요합니다.
+
+신규 사용자 가입
+
+신규 사용자가 자신의 이메일 주소와 비밀번호를 사용해 게임에 가입할 수 있는 양식을 만듭니다. 사용자가 양식을 작성하면 사용자가 입력한 이메일 주소와 비밀번호의 유효성을 검사한 후 CreateUserWithEmailAndPasswordAsync 메서드에 전달합니다.
+auth.CreateUserWithEmailAndPasswordAsync(email, password).ContinueWith(task => {
+if (task.IsCanceled) {
+Debug.LogError("CreateUserWithEmailAndPasswordAsync was canceled.");
+return;
+Debug.LogError("CreateUserWithEmailAndPasswordAsync encountered an error: " + task.Exception);
+return;
+Firebase.Auth.AuthResult result = task.Result;
+Debug.LogFormat("Firebase user created successfully: {0} ({1})",
+result.User.DisplayName, result.User.UserId);
+Debug.LogError("SignInWithEmailAndPasswordAsync was canceled.");
+return;
+Debug.LogError("SignInWithEmailAndPasswordAsync encountered an error: " + task.Exception);
+return;
+Firebase.Auth.AuthResult result = task.Result;
+Debug.LogFormat("User signed in successfully: {0} ({1})",
+result.User.DisplayName, result.User.UserId);
+FirebaseAuth 객체의 StateChanged 필드를 사용해 이벤트 핸들러를 등록합니다. 사용자가 로그인되면 이벤트 핸들러에서 사용자에 대한 정보를 가져올 수 있습니다.
+
+마지막으로 이 객체에 Destroy가 호출되면 자동으로 OnDestroy를 호출합니다. OnDestroy에서 인증 객체의 참조를 삭제합니다.
+void InitializeFirebase() {
+auth = Firebase.Auth.FirebaseAuth.DefaultInstance;
+auth.StateChanged += AuthStateChanged;
+AuthStateChanged(this, null);
+&& auth.CurrentUser.IsValid();
+if (!signedIn && user != null) {
+DebugLog("Signed out " + user.UserId);
+if (signedIn) {
+DebugLog("Signed in " + user.UserId);
+displayName = user.DisplayName ?? "";
+emailAddress = user.Email ?? "";
+photoUrl = user.PhotoUrl ?? "";
+auth = null;

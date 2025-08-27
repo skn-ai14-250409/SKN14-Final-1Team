@@ -1,0 +1,189 @@
+Source URL: https://firebase.google.com/docs/firestore/security/test-rules-emulator?hl=ko
+Title: Cloud Firestore 보안 규칙 테스트
+
+의견 보내기
+
+Cloud Firestore 보안 규칙 테스트
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+앱을 빌드하는 동안 Cloud Firestore 데이터베이스 액세스를 차단해야 할 수 있습니다. 그러나 액세스를 차단하기 전에 더 세부적인 Cloud Firestore Security Rules가 필요합니다. Cloud Firestore 에뮬레이터를 활용하면 앱의 일반 기능 및 동작 [https://firebase.google.com/docs/emulator-suite/connect_and_prototype?hl=ko]의 프로토타입을 제작하고 테스트할 수 있으며 Cloud Firestore Security Rules의 동작을 확인하는 단위 테스트를 작성할 수 있습니다.
+
+참고: 서버 클라이언트 라이브러리는 모든 Cloud Firestore Security Rules를 우회하고 대신 Google 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/production?hl=ko]를 통해 인증합니다.
+서버 클라이언트 라이브러리, REST 또는 RPC API를 사용하는 경우 Cloud Firestore용 Identity and Access Management(IAM) [https://cloud.google.com/firestore/docs/security/iam?hl=ko]를 설정해야 합니다.
+
+빠른 시작
+
+단순한 규칙이 적용된 몇 가지 기본적인 테스트 사례를 확인하려면 빠른 시작 샘플 [https://github.com/firebase/quickstart-testing]을 시도해 보세요.
+
+Cloud Firestore Security Rules 이해
+
+모바일 및 웹 클라이언트 라이브러리를 사용할 때 서버리스 인증, 승인, 데이터 검증을 위해 Firebase Authentication [https://firebase.google.com/docs/auth/?hl=ko] 및 Cloud Firestore Security Rules [https://firebase.google.com/docs/firestore/security/get-started?hl=ko]를 구현합니다.
+
+Cloud Firestore Security Rules에는 2가지가 있습니다.
+
+match 문: 데이터베이스의 문서를 식별합니다.
+allow 표현식: 이러한 문서에 대한 액세스를 관리합니다.
+
+Firebase Authentication 인증은 사용자 인증 정보를 확인하며 사용자 기반 및 역할 기반 액세스 시스템의 토대를 제공합니다.
+
+Cloud Firestore 모바일 또는 웹 클라이언트 라이브러리의 모든 데이터베이스 요청은 데이터를 읽거나 쓰기 전에 보안 규칙에 따라 평가됩니다.
+규칙에 따라 지정된 문서 경로 중 일부가 거부되면 전체 요청이 실패합니다.
+
+Cloud Firestore Security Rules 시작하기 [https://firebase.google.com/docs/firestore/security/get-started?hl=ko]에서 Cloud Firestore Security Rules에 대해 자세히 알아보세요.
+
+에뮬레이터 설치
+
+Cloud Firestore 에뮬레이터를 설치하려면 Firebase CLI [https://firebase.google.com/docs/cli/?hl=ko]를 사용하여 아래 명령어를 실행합니다.
+
+firebase setup:emulators:firestore
+
+에뮬레이터 실행
+
+작업 디렉터리에서 Firebase 프로젝트를 초기화하여 시작합니다. 이 방법은 Firebase CLI를 사용 [https://firebase.google.com/docs/cli?hl=ko#initialize_a_firebase_project]하는 일반적인 첫 단계입니다.
+firebase init
+
+다음 명령어를 사용하여 에뮬레이터를 시작합니다. 에뮬레이터는 프로세스가 중단될 때까지 실행됩니다.
+
+firebase emulators:start --only firestore
+
+대부분의 경우 에뮬레이터를 시작하려면 테스트 모음을 실행한 다음 테스트가 실행된 후에 에뮬레이터를 중단합니다.  emulators:exec 명령어를 사용하여 쉽게 수행할 수 있습니다.
+
+firebase emulators:exec --only firestore "./my-test-script.sh"
+
+시작 시 에뮬레이터는 기본 포트(8080)에서 실행을 시도합니다. firebase.json 파일의 "emulators" 섹션을 수정하여 에뮬레이터 포트를 변경할 수 있습니다.
+
+Firebase는 버전 9 JavaScript SDK 및 버전 8 SDK로 보안 규칙 단위 테스트 라이브러리를 배포합니다. 두 라이브러리 API는 상당히 다릅니다. v9 테스트 라이브러리를 사용하는 것이 좋습니다. v9 테스트 라이브러리는 더 간소하며 에뮬레이터에 연결하는 데 필요한 설정이 더 적으므로 프로덕션 리소스를 실수로 사용해버리는 일을 피할 수 있습니다. Google은 하위 호환성을 위해 v8 테스트 라이브러리도 계속 제공 [https://firebase.google.com/docs/rules/unit-tests?hl=ko#rut-v1-testing]합니다.
+
+v9 SDK의 일반적인 테스트 메서드 및 유틸리티 함수 [https://firebase.google.com/docs/firestore/security/test-rules-emulator?hl=ko#rut-v2-common-methods]
+v9 SDK의 에뮬레이터별 테스트 메서드 [https://firebase.google.com/docs/firestore/security/test-rules-emulator?hl=ko#rut-v2-specific-methods]
+
+@firebase/rules-unit-testing 모듈을 사용하여 로컬로 실행되는 에뮬레이터와 상호작용합니다. 시간 초과나 ECONNREFUSED 오류가 발생하면 에뮬레이터가 실제로 실행 중인지 다시 확인하세요.
+
+async/await 표기법을 사용하려면 최신 버전의 Node.js를 사용하는 것이 좋습니다. 테스트할 동작의 거의 대부분이 비동기 함수와 관련이 있으며 테스트 모듈은 프라미스 기반 코드로 작동하도록 설계되어 있습니다.
+
+v9 규칙 단위 테스트 라이브러리는 항상 에뮬레이터를 인식하며 프로덕션 리소스를 변경하지 않습니다.
+
+v9 모듈식 가져오기 문을 사용하여 라이브러리를 가져옵니다. 예를 들면 다음과 같습니다.
+import {
+assertFails,
+assertSucceeds,
+initializeTestEnvironment
+일시적으로 규칙을 우회할 수 있는 편리한 메서드인 RulesTestEnvironment.withSecurityRulesDisabled를 사용하여 규칙을 트리거하지 않고 테스트 데이터를 설정합니다.
+RulesTestEnvironment.cleanup() 또는 RulesTestEnvironment.clearFirestore() 등 테스트 데이터 및 환경을 삭제하는 데 사용하는 호출로 테스트 도구 모음 및 테스트 전/후 후크를 설정합니다.
+RulesTestEnvironment.authenticatedContext 및 RulesTestEnvironment.unauthenticatedContext를 사용하여 인증 상태를 모방하는 테스트 사례를 구현합니다.
+
+참고: 규칙 단위 테스트 라이브러리의 API 요약은 아래를 참조하세요.
+전체 API 참고 문서 [https://firebase.google.com/docs/reference/emulator-suite/rules-unit-testing/rules-unit-testing?hl=ko]를 검토할 수도 있습니다.
+일반적인 메서드 및 유틸리티 함수
+
+v9 SDK의 에뮬레이터별 테스트 메서드 [https://firebase.google.com/docs/firestore/security/test-rules-emulator?hl=ko#rut-v2-specific-methods]도 참조하세요.
+
+initializeTestEnvironment() => RulesTestEnvironment
+
+이 함수는 규칙 단위 테스트를 위한 테스트 환경을 초기화합니다. 테스트 설정에 이 함수를 먼저 호출하세요. 성공적으로 실행하려면 에뮬레이터를 실행해야 합니다.
+
+이 함수는 TestEnvironmentConfig를 정의하는 선택적 객체를 허용합니다. 이 객체는 프로젝트 ID와 에뮬레이터 구성 설정을 포함할 수 있습니다.
+
+RulesTestEnvironment.unauthenticatedContext() => RulesTestContext
+
+이 메서드는 인증을 통해 로그인하지 않은 클라이언트처럼 작동하는 RulesTestContext를 만듭니다. 반환된 컨텍스트를 통해 생성된 요청에는 Firebase 인증 토큰이 연결되지 않습니다.
+
+테스트에서 반환된 테스트 컨텍스트 객체를 사용하여 initializeTestEnvironment로 구성된 에뮬레이터 인스턴스를 비롯한 구성된 에뮬레이터 인스턴스에 액세스합니다.
+
+RulesTestEnvironment.withSecurityRulesDisabled()
+
+보안 규칙이 사용 중지된 것처럼 작동하는 컨텍스트에서 테스트 설정 함수를 실행합니다.
+
+이 메서드는 보안 규칙 우회 컨텍스트를 가져와 프라미스를 반환하는 콜백 함수를 사용합니다. 프라미스가 확인/거부되면 컨텍스트가 삭제됩니다
+
+RulesTestEnvironment.cleanup()
+
+이 메서드는 테스트 환경에서 만든 모든 RulesTestContexts를 삭제하고 기본 리소스를 삭제하므로 아무런 데이터를 남기지 않고 종료됩니다.
+
+이 메서드는 어떤 방식으로든 에뮬레이터의 상태를 변경하지 않습니다. 테스트 간에 데이터를 재설정하려면 애플리케이션 에뮬레이터별 데이터 삭제 메서드를 사용하세요.
+
+assertSucceeds(pr: Promise<any>)) => Promise<any>
+
+이것은 테스트 사례 유틸리티 함수입니다.
+
+이 함수는 에뮬레이터 작업을 래핑하는 제공된 프라미스가 보안 규칙 위반 없이 확인되도록 어설션을 만듭니다.
+
+await assertSucceeds(setDoc(alice.firestore(), '/users/alice'), { ... });
+
+assertFails(pr: Promise<any>)) => Promise<any>
+
+이것은 테스트 사례 유틸리티 함수입니다.
+
+이 함수는 에뮬레이터 작업을 래핑하는 제공된 프라미스가 보안 규칙 위반 없이 거부되도록 어설션을 만듭니다.
+
+await assertFails(setDoc(alice.firestore(), '/users/bob'), { ... });
+
+에뮬레이터별 메서드
+
+v9 SDK의 일반적인 테스트 메서드 및 유틸리티 함수 [https://firebase.google.com/docs/firestore/security/test-rules-emulator?hl=ko#rut-v2-common-methods]도 참조하세요.
+
+RulesTestEnvironment.clearFirestore() => Promise<void>
+
+이 메서드는 Firestore 에뮬레이터용으로 구성된 projectId에 속한 Firestore 데이터베이스의 데이터를 지웁니다.
+
+RulesTestContext.firestore(settings?: Firestore.FirestoreSettings) => Firestore;
+
+이 메서드는 이 테스트 컨텍스트의 Firestore 인스턴스를 가져옵니다. 반환된 Firebase JS 클라이언트 SDK 인스턴스는 클라이언트 SDK API(v9 모듈식 또는 v9 compat)와 함께 사용할 수 있습니다.
+
+규칙 평가 시각화
+
+Cloud Firestore 에뮬레이터를 사용하면 에뮬레이터 도구 모음 UI에서 Firebase 보안 규칙에 대한 평가 추적을 포함한 클라이언트 요청을 시각화할 수 있습니다.
+
+Firestore > 요청 탭을 열어 각 요청의 자세한 평가 순서를 확인합니다.
+
+테스트 보고서 생성
+
+일련의 테스트를 실행한 후 각 보안 규칙이 판정된 방식을 보여주는 테스트 범위 보고서에 액세스할 수 있습니다.
+
+이 보고서를 가져오려면 실행 중 에뮬레이터에서 노출된 엔드포인트를 쿼리하세요. 브라우저 버전에서는 다음 URL을 사용하세요.
+
+http://localhost:8080/emulator/v1/projects/<project_id>:ruleCoverage.html
+
+이렇게 하면 규칙이 표현식과 하위 표현식으로 구분되며, 마우스 오버하면 평가 횟수 및 반환된 값을 비롯한 자세한 정보를 얻을 수 있습니다. 이 데이터의 원시 JSON 버전을 가져오려면 쿼리에 다음 URL을 포함하세요.
+
+http://localhost:8080/emulator/v1/projects/<project_id>:ruleCoverage
+
+에뮬레이터와 프로덕션의 차이점
+
+Cloud Firestore 프로젝트를 명시적으로 만들 필요가 없습니다. 에뮬레이터는 액세스되는 모든 인스턴스를 자동으로 생성합니다.
+Cloud Firestore 에뮬레이터는 일반적인 Firebase Authentication 흐름에서 작동하지 않습니다.
+대신 Firebase Test SDK에서는 rules-unit-testing 라이브러리에 auth 필드를 사용하는 initializeTestApp() 메서드를 제공했습니다. 이 메서드로 만든 Firebase 핸들은 입력한 항목으로 인증된 것처럼 작동합니다. null을 전달하면 인증되지 않은 사용자처럼 동작합니다. 예를 들어 auth != null 규칙은 실패합니다.
+
+알려진 문제 해결
+
+Cloud Firestore 에뮬레이터를 사용할 때 다음과 같은 알려진 문제가 발생할 수 있습니다. 불규칙한 동작이 발생할 경우 아래 안내에 따라 문제를 해결하세요. 이 메모는 보안 규칙 단위 테스트를 염두에 두고 작성되었지만 일반적인 접근 방법은 모든 Firebase SDK에 적용됩니다.
+
+테스트 동작에 일관성이 없음
+
+테스트를 변경하지 않은 경우에도 테스트가 가끔씩 통과하거나 실패한다면 올바르게 시퀀싱되었는지 확인해야 할 수 있습니다.
+대부분의 에뮬레이터 상호작용은 비동기적이므로 모든 비동기 코드가 올바르게 시퀀싱되었는지 다시 확인하세요. 프라미스를 체이닝하거나 await 표기법을 자유롭게 사용하여 시퀀싱을 수정할 수 있습니다.
+
+특히 다음 비동기 작업을 살펴보세요.
+
+보안 규칙 설정(예: initializeTestEnvironment 사용)
+데이터 읽기 및 쓰기(예: db.collection("users").doc("alice").get() 사용)
+작업 어설션(assertSucceeds 및 assertFails 포함)
+
+에뮬레이터를 처음 로드할 때만 테스트 통과
+
+에뮬레이터는 스테이트풀(Stateful)입니다. 작성된 모든 데이터를 메모리에 저장하므로 에뮬레이터가 종료될 때마다 데이터가 손실됩니다. 동일한 프로젝트 ID로 여러 테스트를 실행하는 경우 각 테스트에서 후속 테스트에 영향을 미칠 수 있는 데이터를 생성할 수 있습니다. 다음 방법을 사용하여 이러한 동작을 우회할 수 있습니다.
+
+테스트마다 고유한 프로젝트 ID를 사용합니다. 이렇게 하려면 각 테스트의 일부로 initializeTestEnvironment를 호출해야 합니다. 규칙은 기본 프로젝트 ID에 대해서만 자동으로 로드됩니다.
+이전에 작성한 데이터와 상호작용하지 않도록 테스트를 다시 구성합니다. 예를 들어 테스트마다 다른 컬렉션을 사용합니다.
+테스트 중에 작성된 모든 데이터를 삭제합니다.
+
+테스트 설정이 매우 복잡함
+
+테스트를 설정할 때 Cloud Firestore Security Rules에서 실제로 허용하지 않는 방식으로 데이터를 수정하는 것이 좋습니다. 규칙으로 인해 테스트 설정이 복잡하다면 설정 단계에서 RulesTestEnvironment.withSecurityRulesDisabled를 사용하여 읽기 및 쓰기로 인해 PERMISSION_DENIED 오류가 트리거되지 않도록 하세요.
+
+이후 테스트는 각각 RulesTestEnvironment.authenticatedContext 및 unauthenticatedContext를 사용하여 인증된 사용자 또는 인증되지 않은 사용자로 작업을 실행할 수 있습니다. 이를 통해 Cloud Firestore Security Rules가 다양한 사례를 올바르게 허용/거부하는지 확인할 수 있습니다.
+
+의견 보내기

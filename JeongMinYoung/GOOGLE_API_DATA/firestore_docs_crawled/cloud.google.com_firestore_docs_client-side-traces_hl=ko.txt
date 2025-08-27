@@ -1,0 +1,244 @@
+Source URL: https://cloud.google.com/firestore/docs/client-side-traces?hl=ko
+Title: 클라이언트 측 trace로 성능 모니터링
+
+의견 보내기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+클라이언트 측 trace로 성능 모니터링
+
+프리뷰
+
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다.
+
+GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다.
+
+자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+
+Firestore 요청을 엔드 투 엔드로 모니터링하고 디버그하려면 클라이언트 라이브러리에서 trace를 사용 설정하면 됩니다. 클라이언트 측 추적은 애플리케이션에서 경험한 성능에 관한 신호와 문제 디버깅에 도움이 되는 통계를 제공할 수 있습니다.
+
+클라이언트에서 RPC를 실행하여 수집되는 클라이언트 측 trace는 다음 정보를 제공합니다.
+
+클라이언트가 RPC 요청을 보낸 시간과 클라이언트가 RPC 응답을 수신한 시간의 타임스탬프가 포함된 스팬(네트워크 및 클라이언트 시스템으로 인한 지연 시간 포함)
+클라이언트 및 구성에 관한 정보를 표시하는 속성 (키-값 쌍)
+스팬의 주요 이벤트와 연결된 로그
+클라이언트에서 비정상 종료가 발생할 경우의 스택 트레이스
+
+OpenTelemetry
+
+클라이언트 라이브러리의 trace는 OpenTelemetry [https://opentelemetry.io/docs/what-is-opentelemetry/] API를 사용하여 계측됩니다.
+OpenTelemetry는 업계 표준인 오픈소스 관측 가능성 프레임워크입니다.
+OpenTelemetry는 계측 API 및 SDK, 수집기, 백엔드별 내보내기 도구와 샘플링 제어, 스팬 제한 등의 유연한 구성 옵션과 같은 다양한 도구를 제공합니다.
+
+내보내기 도구 및 수집기로 trace 내보내기
+
+구성의 일부로 관측 가능성 백엔드로 trace를 내보낼 수 있습니다. 대부분의 관측 가능성 서비스 제공업체는 Cloud Trace [https://github.com/GoogleCloudPlatform/opentelemetry-operations-java/tree/main/exporters/trace]와 같은 내보내기 도구를 제공합니다.
+
+OpenTelemetry에서는 내보내기 도구 외에도 수집기 [https://opentelemetry.io/docs/collector/]를 설정하는 것이 좋습니다. 수집기를 사용하면 서비스가 데이터를 빠르게 오프로드하고 수집기에서 재시도, 일괄 처리, 암호화와 같은 추가 작업을 처리할 수 있습니다. 수집기는 애플리케이션과 함께 실행됩니다. 수집기는 OTLP 메시지를 수신하고 메시지를 처리한 후 관측 가능성 백엔드로 내보냅니다.
+
+제한사항
+
+클라이언트 측 트레이스에는 다음과 같은 제한사항이 있습니다.
+
+trace 스팬은 Java 및 Node.js 클라이언트 라이브러리에서 사용할 수 있습니다.
+클라이언트 라이브러리는 실시간 리스너 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko]의 추적 범위를 생성하지 않습니다.
+
+결제
+
+Firestore 사용량 외에도 클라이언트 측 추적 시 비용이 청구될 수 있습니다.
+
+트레이스 수집 또는 OpenTelemetry 프레임워크 사용에는 요금이 부과되지 않습니다.
+
+관측 가능성 백엔드로 trace 스팬을 수집하는 데 비용이 청구될 수 있습니다.
+예를 들어 Cloud Trace를 백엔드로 사용하면 Cloud Trace 가격 책정 [https://cloud.google.com/stackdriver/pricing?hl=ko#trace-costs]에 따라 요금이 청구됩니다.
+다른 관측 가능성 서비스 제공업체를 사용하는 경우 해당 제공업체의 청구 모델 및 관련 비용을 알아보세요.
+
+요금을 더 잘 이해하려면 트래픽을 기반으로 소규모 trace 샘플링 비율(RPC의 일부만 추적)로 시작합니다.
+
+시작하기 전에
+
+시작하기 전에 다음 사항을 확인하세요.
+
+앱이 관측 가능성 백엔드에 trace를 쓰는 서비스 계정을 필요한 Identity and Access Management 역할 [https://cloud.google.com/trace/docs/iam?hl=ko]로 설정해야 합니다.
+
+| trace 작업 | IAM 역할 |
+| --- | --- |
+| trace 읽기 | roles/cloudtrace.user |
+| trace 쓰기 | roles/cloudtrace.agent |
+| trace 읽기/쓰기 | roles/cloudtrace.admin |
+이 프로젝트에 Trace API가 사용 설정되어 있는지 확인합니다.
+
+클라이언트 측 trace 구성
+
+이 섹션에서는 클라이언트 측 trace의 구성 예시를 제공합니다.
+수집기로 내보내거나 관측 가능성 백엔드로 직접 내보낼 수 있습니다.
+또한 클라이언트 측 trace를 구성하는 옵션은 다음과 같습니다.
+
+OpenTelemetry API를 사용하여 trace를 구성할 수 있습니다. 이를 위해서는 애플리케이션의 코드를 변경해야 합니다. 다음 예시를 참조하세요.
+
+OpenTelemetry API를 사용하여 수집기로 내보내기 [https://cloud.google.com/firestore/native/docs/client-side-traces?hl=ko#export_to_collector]
+OpenTelemetry API를 사용하여 관측 가능성 백엔드로 직접 내보내기 [https://cloud.google.com/firestore/native/docs/client-side-traces?hl=ko#export_to_backend]
+
+제로 코드 계측 [https://cloud.google.com/firestore/native/docs/client-side-traces?hl=ko#zero-code]의 예에 따라 코드 변경 없이 트레이스를 구성할 수 있습니다.
+
+OpenTelemetry API를 사용하여 수집기로 trace 내보내기
+
+다음 코드는 10% 샘플링 비율로 스팬을 OpenTelemetry 수집기로 내보내도록 클라이언트 라이브러리를 구성합니다.
+
+자바(관리자)
+
+Resource resource = Resource
+.getDefault().merge(Resource.builder().put(SERVICE_NAME, "My App").build());
+
+OtlpGrpcSpanExporter otlpGrpcSpanExporter =
+OtlpGrpcSpanExporter
+.builder()
+.setEndpoint("http://localhost:4317") // Replace with your OTLP endpoint
+.build();
+
+BatchSpanProcessor otlpGrpcSpanProcessor =
+BatchSpanProcessor.builder(otlpGrpcSpanExporter).build();
+
+OpenTelemetrySdk otel = OpenTelemetrySdk.builder()
+.setTracerProvider(
+SdkTracerProvider.builder()
+.setResource(resource)
+.addSpanProcessor(otlpGrpcSpanProcessor)
+.setSampler(Sampler.traceIdRatioBased(0.1))
+.build())
+.build();
+
+Firestore firestore = FirestoreOptions
+.newBuilder()
+.setOpenTelemetryOptions(
+FirestoreOpenTelemetryOptions.newBuilder()
+.setTracingEnabled(true)
+.setOpenTelemetry(otel)
+.build())
+.build().getService();
+
+Node.js(관리자)
+
+import { trace } from "@opentelemetry/api";
+import {GrpcInstrumentation} from '@opentelemetry/instrumentation-grpc';
+
+import pkg1 from "@opentelemetry/sdk-trace-node";
+import pkg2 from "@opentelemetry/instrumentation";
+import pkg3 from "@opentelemetry/exporter-trace-otlp-grpc";
+
+const { NodeTracerProvider, BatchSpanProcessor, TraceIdRatioBasedSampler } = pkg1;
+const { registerInstrumentations } = pkg2;
+const { OTLPTraceExporter } =  pkg3;
+
+provider.addSpanProcessor(new BatchSpanProcessor(new OTLPTraceExporter()));
+provider.register();
+
+.shutdown()
+.catch(error => console.error('Error terminating NodeTracerProvider:', error));
+OpenTelemetry API를 사용하여 관측 가능성 백엔드로 직접 내보내기
+
+관측 가능성 서비스 제공업체에서 OTLP 수집을 지원하는 경우 해당 OpenTelemetry 내보내기 도구를 사용하여 트레이스를 백엔드로 직접 내보낼 수 있습니다. 다음 코드는 10% trace 샘플링 비율로 trace 스팬을 Cloud Trace로 직접 내보내도록 클라이언트 라이브러리를 구성합니다.
+
+자바(관리자)
+
+Resource resource = Resource
+.getDefault().merge(Resource.builder().put(SERVICE_NAME, "My App").build());
+SpanExporter gcpTraceExporter = TraceExporter.createWithDefaultConfiguration();
+
+SpanProcessor gcpBatchSpanProcessor =
+BatchSpanProcessor.builder(gcpTraceExporter).build();
+
+OpenTelemetrySdk otel = OpenTelemetrySdk.builder()
+.setTracerProvider(SdkTracerProvider.builder()
+.setResource(resource)
+.addSpanProcessor(gcpBatchSpanProcessor)
+.setSampler(Sampler.traceIdRatioBased(0.1))
+.build())
+.build();
+
+Firestore firestore = FirestoreOptions
+.newBuilder()
+.setOpenTelemetryOptions(
+FirestoreOpenTelemetryOptions.newBuilder()
+.setTracingEnabled(true)
+.setOpenTelemetry(otel)
+.build())
+.build().getService();
+
+Node.js(관리자)
+
+import { trace } from "@opentelemetry/api";
+import {GrpcInstrumentation} from '@opentelemetry/instrumentation-grpc';
+import { TraceExporter } from "@google-cloud/opentelemetry-cloud-trace-exporter";
+
+import pkg1 from "@opentelemetry/sdk-trace-node";
+import pkg2 from "@opentelemetry/instrumentation";
+
+const { NodeTracerProvider, BatchSpanProcessor, TraceIdRatioBasedSampler } = pkg1;
+const { registerInstrumentations } = pkg2;
+
+provider.addSpanProcessor(new BatchSpanProcessor(new TraceExporter()));
+provider.register();
+
+.shutdown()
+.catch(error => console.error('Error terminating NodeTracerProvider:', error));
+OTLP gRPC 수신기가 사용 설정된 상태에서 OpenTelemetry 수집기를 실행합니다. 에이전트의 내보내기 도구를 otlp로 설정하고 에이전트가 데이터를 내보내야 하는 엔드포인트를 지정합니다. 다음 예시에서는 샘플링 비율을 10%로 사용하고 localhost 포트 4317에서 리슨하는 수집기로 trace를 전송합니다.
+
+FIRESTORE_ENABLE_TRACING=ON                            \
+java                                                   \
+-javaagent:path/to/opentelemetry-javaagent.jar         \
+-Dotel.traces.exporter=otlp                            \
+-Dotel.exporter.otlp.endpoint="http://localhost:4317"  \
+-Dotel.traces.sampler=traceidratio                     \
+-Dotel.traces.sampler.arg=0.1                          \
+-Dotel.service.name="My App"                           \
+-jar myapp.jar
+
+자동 에이전트를 사용하여 관측 가능성 백엔드로 직접 내보내기
+
+환경 변수 FIRESTORE_ENABLE_TRACING=ON을 설정하는 것 외에도 특정 백엔드의 OpenTelemetry Java 에이전트 확장 프로그램을 추가해야 합니다. 다음 예시에서는 trace 내보내기 도구 확장 프로그램과 10% trace 샘플링 비율을 사용합니다.
+
+FIRESTORE_ENABLE_TRACING=ON                                                \
+java                                                                       \
+-javaagent:path/to/opentelemetry-javaagent.jar                             \
+-Dotel.javaagent.extensions=/path/to/exporter-auto-0.26.0-alpha-shaded.jar \
+-Dotel.traces.exporter=google_cloud_trace                                  \
+-Dotel.traces.sampler=traceidratio                                         \
+-Dotel.traces.sampler.arg=0.1                                              \
+
+Node.js(관리자)
+
+제로 코드 계측을 설정하려면 JavaScript 계측에 관한 OpenTelemetry 안내를 따르세요 [https://opentelemetry.io/docs/zero-code/js/].
+다음 예시 코드 스니펫은 계측을 사용 설정하고 OpenTelemetry 수집기로 트레이스를 전송합니다.
+
+npm install @opentelemetry/api
+npm install @opentelemetry/auto-instrumentations-node
+
+env \
+FIRESTORE_ENABLE_TRACING=ON \
+OTEL_TRACES_EXPORTER=otlp \
+OTEL_NODE_ENABLED_INSTRUMENTATIONS="http,grpc" \
+OTEL_NODE_RESOURCE_DETECTORS="none" \
+node --require @opentelemetry/auto-instrumentations-node/register my_app.js
+
+trace 예시
+
+다음 예시는 Cloud Trace에 trace 정보가 표시되는 방식을 보여줍니다.
+가능한 속성과 값에 대한 자세한 내용은 Trace 스팬 속성 및 이벤트 [https://cloud.google.com/firestore/native/docs/trace-span-references?hl=ko]를 참조하세요.
+
+trace 스팬 예시
+
+이벤트 로그 예시
+
+속성 값 예시
+
+스택 트레이스 및 예외 이벤트 예시
+
+다음 단계
+
+Trace 스팬 속성 및 이벤트 [https://cloud.google.com/firestore/native/docs/trace-span-references?hl=ko] 참조 보기
+서버 측 모니터링 [https://cloud.google.com/firestore/native/docs/understand-performance-monitoring?hl=ko] 알아보기
+
+의견 보내기

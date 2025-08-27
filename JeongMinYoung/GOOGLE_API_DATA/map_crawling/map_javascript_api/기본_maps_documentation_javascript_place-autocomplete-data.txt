@@ -1,0 +1,109 @@
+Tab: 기본
+Source URL: https://developers.google.com/maps/documentation/javascript/place-autocomplete-data?hl=ko
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Web [https://developers.google.com/maps/web?hl=ko]
+Maps JavaScript API [https://developers.google.com/maps/documentation/javascript?hl=ko]
+의견 보내기
+Place Autocomplete Data API
+유럽 경제 지역 (EEA) 개발자
+Place Autocomplete Data API를 사용하면 프로그래매틱 방식으로 장소 예측을 가져와 자동 완성 위젯으로 가능한 것보다 더 세밀하게 제어되는 맞춤 자동 완성 환경을 만들 수 있습니다. 이 가이드에서는 Place Autocomplete Data API를 사용하여 사용자 쿼리를 기반으로 자동 완성 요청을 하는 방법을 알아봅니다.
+다음 예는 단순화된 자동 완성 통합을 보여줍니다. '피자' 또는 '포케'와 같은 검색어를 입력한 다음 원하는 결과를 클릭하여 선택합니다.
+Autocomplete 요청
+자동 완성 요청은 쿼리 입력 문자열을 가져와 장소 예상 검색어 목록을 반환합니다. 자동 완성 요청을 하려면 fetchAutocompleteSuggestions() [https://developers.google.com/maps/documentation/javascript/reference/autocomplete-data?hl=ko#AutocompleteSuggestion.fetchAutocompleteSuggestions]를 호출하고 필요한 속성이 있는 요청을 전달합니다. input [https://developers.google.com/maps/documentation/javascript/reference/autocomplete-data?hl=ko#AutocompleteRequest.input] 속성에는 검색할 문자열이 포함됩니다. 일반적인 애플리케이션에서 이 값은 사용자가 쿼리를 입력할 때 업데이트됩니다. 요청에는 결제 목적으로 사용되는 sessionToken [https://developers.google.com/maps/documentation/javascript/reference/autocomplete-data?hl=ko#AutocompleteRequest.sessionToken]가 포함되어야 합니다.
+다음 스니펫은 요청 본문을 만들고 세션 토큰을 추가한 다음 fetchAutocompleteSuggestions()를 호출하여 PlacePrediction [https://developers.google.com/maps/documentation/javascript/reference/autocomplete-data?hl=ko#PlacePrediction] 목록을 가져오는 방법을 보여줍니다.
+// Add an initial request body.
+let request = {
+  input: "Tadi",
+  locationRestriction: {
+    west: -122.44,
+    north: 37.8,
+    east: -122.39,
+    south: 37.78,
+  },
+  origin: { lat: 37.7893, lng: -122.4039 },
+  includedPrimaryTypes: ["restaurant"],
+  language: "en-US",
+  region: "us",
+};
+// Create a session token.
+const token = new AutocompleteSessionToken();
+
+// Add the token to the request.
+// @ts-ignore
+request.sessionToken = token;
+index.js [https://github.com/googlemaps/js-samples/blob/2683f7366fb27829401945d2a7e27d77ed2df8e5/dist/samples/place-autocomplete-data-simple/docs/index.js#L15-L39]
+자동 완성 예상 검색어 제한
+기본적으로 Place Autocomplete는 사용자 위치 근처의 예상 검색어에 편중된 모든 장소 유형을 표시하며 사용자가 선택한 장소의 사용 가능한 모든 데이터 필드를 가져옵니다. 결과를 제한하거나 상세 검색하여 더 관련성 높은 예상 검색어를 표시하려면 Place Autocomplete 옵션을 설정하세요.
+결과를 제한하면 자동 완성 위젯이 제한 지역 밖의 모든 결과를 무시합니다. 일반적인 방법은 결과를 지도 경계로 제한하는 것입니다. 결과를 상세 검색하면 자동 완성 위젯이 지정된 지역 내 결과를 표시하지만 일부 일치 항목이 해당 지역을 벗어날 수 있습니다.
+origin 속성을 사용하여 목적지까지의 측지 거리를 계산할 출발점을 지정합니다. 이 값이 생략되면 거리가 반환되지 않습니다.
+includedPrimaryTypes [https://developers.google.com/maps/documentation/javascript/reference/autocomplete-data?hl=ko#AutocompleteRequest.includedPrimaryTypes] 속성을 사용하여 최대 5개의 장소 유형 [https://developers.google.com/maps/documentation/javascript/place-types?hl=ko]을 지정합니다. 유형을 지정하지 않으면 모든 유형의 장소가 반환됩니다.
+API 참조 확인하기 [https://developers.google.com/maps/documentation/javascript/reference/autocomplete-data?hl=ko]
+장소 세부정보 가져오기
+장소 예측 결과에서 Place [https://developers.google.com/maps/documentation/javascript/reference/place?hl=ko] 객체를 반환하려면 먼저 toPlace() [https://developers.google.com/maps/documentation/javascript/reference/autocomplete-data?hl=ko#PlacePrediction.toPlace]을 호출한 다음 결과 Place 객체에서 fetchFields() [https://developers.google.com/maps/documentation/javascript/reference/place?hl=ko#Place.fetchFields]을 호출합니다 (장소 예측의 세션 ID가 자동으로 포함됨). fetchFields()를 호출하면 자동 완성 세션이 종료됩니다.
+let place = suggestions[0].placePrediction.toPlace(); // Get first predicted place.
+
+await place.fetchFields({
+  fields: ["displayName", "formattedAddress"],
+});
+
+const placeInfo = document.getElementById("prediction");
+
+placeInfo.textContent =
+  "First predicted place: " +
+  place.displayName +
+  ": " +
+  place.formattedAddress;
+index.js [https://github.com/googlemaps/js-samples/blob/2683f7366fb27829401945d2a7e27d77ed2df8e5/dist/samples/place-autocomplete-data-simple/docs/index.js#L65-L79]
+세션 토큰
+세션 토큰은 사용자 자동 완성 검색의 쿼리 및 선택 단계를 결제 목적의 개별 세션으로 그룹화합니다. 세션은 사용자가 입력을 시작할 때 시작됩니다. 사용자가 장소를 선택하고 Place Details 호출이 이루어지면 세션이 종료됩니다.
+새 세션 토큰을 만들어 요청에 추가하려면 AutocompleteSessionToken [https://developers.google.com/maps/documentation/javascript/reference/autocomplete-data?hl=ko#AutocompleteSessionToken.constructor] 인스턴스를 만든 다음 다음 스니펫과 같이 토큰을 사용하도록 요청의 sessionToken [https://developers.google.com/maps/documentation/javascript/reference/autocomplete-data?hl=ko#AutocompleteRequest.sessionToken] 속성을 설정합니다.
+// Create a session token.
+const token = new AutocompleteSessionToken();
+
+// Add the token to the request.
+// @ts-ignore
+request.sessionToken = token;
+index.js [https://github.com/googlemaps/js-samples/blob/2683f7366fb27829401945d2a7e27d77ed2df8e5/dist/samples/place-autocomplete-data-simple/docs/index.js#L32-L38]
+fetchFields() [https://developers.google.com/maps/documentation/javascript/reference/place?hl=ko#Place.fetchFields]이 호출되면 세션이 종료됩니다. Place 인스턴스를 만든 후에는 세션 토큰을 fetchFields()에 전달할 필요가 없습니다. 자동으로 처리되기 때문입니다.
+await place.fetchFields({
+  fields: ["displayName", "formattedAddress"],
+});
+index.js [https://github.com/googlemaps/js-samples/blob/2683f7366fb27829401945d2a7e27d77ed2df8e5/dist/samples/place-autocomplete-data-simple/docs/index.js#L68-L71]
+AutocompleteSessionToken의 새 인스턴스를 만들어 다음 세션의 세션 토큰을 만듭니다.
+세션 토큰 권장사항:
+모든 Place Autocomplete 호출에 세션 토큰을 사용합니다.
+각 세션에 대해 새 토큰을 생성합니다.
+새 세션마다 고유한 세션 토큰을 전달합니다. 두 개 이상의 세션에 동일한 토큰을 사용하면 각 요청에 대해 개별적으로 요금이 청구됩니다.
+원하는 경우 요청에서 자동 완성 세션 토큰을 생략할 수 있습니다. 세션 토큰이 생략되면 각 요청에 대해 별도로 요금이 청구되어 Autocomplete - Per Request [https://developers.google.com/maps/documentation/javascript/usage-and-billing?hl=ko#ac-per-request] SKU가 트리거됩니다. 세션 토큰을 재사용하면 세션이 유효하지 않은 것으로 간주되어 세션 토큰이 제공되지 않은 것처럼 요청에 대해 요금이 청구됩니다.
+예
+사용자가 쿼리를 입력하면 몇 번의 키 입력마다 (문자별이 아님) 자동 완성 요청이 호출되고 가능한 결과 목록이 반환됩니다. 사용자가 결과 목록에서 선택하면 선택이 요청으로 간주되며 검색 중에 이루어진 모든 요청이 번들로 묶여 단일 요청으로 집계됩니다. 사용자가 장소를 선택하면 검색어는 무료로 제공되며 장소 데이터 요청에만 요금이 청구됩니다. 사용자가 세션 시작 후 몇 분 이내에 선택하지 않으면 검색어에 대해서만 요금이 청구됩니다.
+앱의 관점에서 이벤트 흐름은 다음과 같습니다.
+사용자가 '파리, 프랑스'를 검색하기 위해 검색어를 입력하기 시작합니다.
+사용자 입력을 감지하면 앱은 새 세션 토큰 '토큰 A'를 만듭니다.
+사용자가 입력하면 API는 몇 글자마다 자동 완성 요청을 하여 각 글자에 대한 잠재적 결과의 새 목록을 표시합니다.
+'P'
+'Par'
+'Paris'
+'Paris, Fr'
+사용자가 선택하는 경우:
+쿼리로 인해 발생하는 모든 요청은 그룹화되어 '토큰 A'로 표시되는 세션에 단일 요청으로 추가됩니다.
+사용자의 선택은 Place Detail 요청으로 집계되고 '토큰 A'로 표시되는 세션에 추가됩니다.
+세션이 종료되고 앱이 '토큰 A'를 삭제합니다.
+세션 요금 청구 방식 알아보기 [https://developers.google.com/maps/documentation/javascript/session-pricing?hl=ko]
+예시 코드 작성
+이 섹션에는 Place Autocomplete Data API를 사용하는 방법을 보여주는 완전한 예가 포함되어 있습니다 .
+장소 자동 완성 예상 검색어
+다음 예에서는 'Tadi' 입력에 대해 fetchAutocompleteSuggestions() [https://developers.google.com/maps/documentation/javascript/reference/autocomplete-data?db=gems&hl=ko#AutocompleteSuggestion.fetchAutocompleteSuggestions]를 호출한 다음 첫 번째 예측 결과에 대해 toPlace() [https://developers.google.com/maps/documentation/javascript/reference/next/autocomplete-data?hl=ko#PlacePrediction.toPlace]를 호출하고 fetchFields()를 호출하여 장소 세부정보를 가져옵니다.
+샘플 사용해 보기
+JSFiddle.net [https://jsfiddle.net/gh/get/library/pure/googlemaps/js-samples/tree/master/dist/samples/place-autocomplete-data-simple/jsfiddle]
+Google Cloud Shell [https://ssh.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fgooglemaps%2Fjs-samples&cloudshell_git_branch=sample-place-autocomplete-data-simple&cloudshell_tutorial=cloud_shell_instructions.md&cloudshell_workspace=.&hl=ko]
+세션이 있는 Place Autocomplete 예상 검색어
+이 예에서는 사용자 쿼리를 기반으로 fetchAutocompleteSuggestions() [https://developers.google.com/maps/documentation/javascript/reference/autocomplete-data?hl=ko#AutocompleteSuggestion.fetchAutocompleteSuggestions]를 호출하고, 예상 장소 목록을 응답으로 표시하고, 마지막으로 선택한 장소의 장소 세부정보를 가져오는 방법을 보여줍니다. 또한 이 예시에서는 세션 토큰을 사용하여 사용자 쿼리를 최종 장소 세부정보 요청과 그룹화하는 방법을 보여줍니다.
+샘플 사용해 보기
+JSFiddle.net [https://jsfiddle.net/gh/get/library/pure/googlemaps-samples/js-api-samples/tree/main/dist/samples/place-autocomplete-data-session/jsfiddle]
+의견 보내기
