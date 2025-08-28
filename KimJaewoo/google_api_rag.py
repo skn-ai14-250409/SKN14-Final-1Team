@@ -1,56 +1,44 @@
 import os
-import json
+import re
 import torch
 from pathlib import Path
 from typing import List, Optional
-from datetime import datetime
+from tqdm import tqdm
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.docstore.document import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 class GoogleAPIDocumentProcessor:
-    """구글 API 문서를 처리하고 벡터 데이터베이스를 구축하는 시스템"""
-
     def __init__(self,
                  api_data_dir: str = "./GOOGLE_API_DATA",
-                 db_dir: str = "./chroma_google_api_db_gpt"):
-        """
-        Args:
-            api_data_dir: 구글 API 원본 데이터 디렉토리. 하위 폴더명을 'tags' 메타데이터로 사용합니다.
-            db_dir: Chroma DB 저장 경로
-        """
+                 db_dir: str = "./chroma_google_api_db"):
         self.api_data_dir = Path(api_data_dir)
         self.db_dir = db_dir
-
-        # 컴포넌트 초기화
         self.documents: List[Document] = []
         self.vectorstore: Optional[Chroma] = None
         self.embedding_model: Optional[HuggingFaceEmbeddings] = None
 
     def _get_tag_from_path(self, file_path: Path) -> str:
-        """
-        파일 경로의 상위 폴더명을 태그(대분류)로 추출합니다.
-
-        예시:
-        - ./GOOGLE_API_DATA/gmail/send_email.txt -> 'gmail'
-        - ./GOOGLE_API_DATA/drive/list_files.txt -> 'drive'
-        - ./GOOGLE_API_DATA/some_other_doc.txt -> 'general'
-        """
         try:
             relative_path = file_path.relative_to(self.api_data_dir)
             if len(relative_path.parts) > 1:
-                return relative_path.parts[0]
+                folder_name = relative_path.parts[0]
+                return folder_name.split('_')[0]
         except ValueError:
             pass
-        return 'general'
+        return None
+
+    def _extract_source_url(self, content: str) -> str:
+        pattern = r'SourceURL:\s*(https?://[^\s\n]+)'
+        match = re.search(pattern, content)
+        if match:
+            return match.group(1)
+        return ""
 
     def load_api_documents(self) -> List[Document]:
-        """
-        구글 API 원문(.txt) 문서들을 로드하고 Document 객체로 변환합니다.
-        """
         documents = []
 
         if not self.api_data_dir.exists():
@@ -65,24 +53,28 @@ class GoogleAPIDocumentProcessor:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
 
-                # 요구사항에 맞게 청킹 방식 수정
+                source_url = self._extract_source_url(content)
+                tag = self._get_tag_from_path(file_path)
+
+                if tag is None:
+                    continue
+
                 text_splitter = RecursiveCharacterTextSplitter(
                     chunk_size=1200,
                     chunk_overlap=150,
-                    separators=["\n\n", "\n", ". ", " ", ""]  # 의미 단위 보존 시도
+                    separators=["\n\n", "\n", ". ", " ", ""]
                 )
                 chunks = text_splitter.split_text(content)
 
                 for i, chunk in enumerate(chunks):
-                    # 요구사항에 맞게 최종 메타데이터 구조 수정
                     doc = Document(
                         page_content=chunk,
                         metadata={
                             'chunk_id': i,
-                            'source': str(file_path.relative_to(self.api_data_dir)),
-                            'tags': self._get_tag_from_path(file_path),
+                            'source': source_url,
+                            'tags': tag,
                             'source_file': file_path.name,
-                            'last_verified': datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d')
+                            'last_verified': '2025-08-19'
                         }
                     )
                     documents.append(doc)
@@ -90,14 +82,11 @@ class GoogleAPIDocumentProcessor:
             except Exception as e:
                 print(f"⚠️ {file_path} 파일 로드 중 오류 발생: {e}")
 
-        self.documents = documents[:1000]
-        print(f"✅ [테스트 모드] 총 {len(documents)}개의 청크 중 1000개만 사용합니다.")
-
+        self.documents = documents
         print(f"✅ 총 {len(documents)}개의 문서 청크를 로드했습니다.")
         return documents
 
-    def initialize_vectorstore(self):
-        """벡터 저장소 초기화 및 문서 임베딩"""
+    def initialize_vectorstore_parallel(self, batch_size: int = 100, max_workers: int = 4):
         if not self.documents:
             print("⚠️ 벡터 DB를 생성할 문서가 없습니다. `load_api_documents`를 먼저 실행해주세요.")
             return
@@ -116,53 +105,53 @@ class GoogleAPIDocumentProcessor:
                 print("작업을 취소합니다.")
                 return
             else:
-                # 기존 폴더 삭제
                 import shutil
                 shutil.rmtree(self.db_dir)
                 print(f"🗑️ 기존 '{self.db_dir}' 폴더를 삭제했습니다.")
 
-        print("💾 새 벡터 저장소 생성 중... (진행률 표시)")
+        print("💾 새 벡터 저장소 생성 중...")
 
-        # 첫 번째 청크로 DB 초기화
+        # 첫 배치로 DB 생성
+        first_batch = self.documents[:batch_size]
         self.vectorstore = Chroma.from_documents(
-            documents=[self.documents[0]],  # 첫 문서 하나로만 초기화
+            documents=first_batch,
             embedding=self.embedding_model,
             persist_directory=self.db_dir,
         )
 
-        # 나머지 문서를 tqdm으로 진행률을 보며 추가
-        batch_size = 100  # 한 번에 100개씩 추가
-        for i in tqdm(range(1, len(self.documents), batch_size), desc="임베딩 및 DB 저장 중"):
-            batch = self.documents[i:i + batch_size]
+        # 나머지 배치를 병렬 처리
+        batches = [self.documents[i:i + batch_size] for i in range(batch_size, len(self.documents), batch_size)]
+
+        def add_batch(batch):
             self.vectorstore.add_documents(batch)
+            return len(batch)
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(add_batch, batch) for batch in batches]
+            for f in tqdm(as_completed(futures), total=len(futures), desc="임베딩 및 DB 저장 중"):
+                _ = f.result()
 
         print(f"✅ 벡터 저장소 생성 완료 ({self.db_dir})")
 
-    def build_database(self):
-        """전체 파이프라인 실행: 문서 로드 및 벡터 DB 구축"""
+
+if __name__ == "__main__":
+    try:
+        # 데이터가 저장된 상위 폴더 및 DB를 저장할 경로를 지정
+        processor = GoogleAPIDocumentProcessor(
+            api_data_dir='../GOOGLE_API_DATA',
+            db_dir='./chroma_google_api_db'
+        )
+        # DB 구축 실행
         print("=" * 60)
         print("🚀 API 문서 벡터 DB 구축 시작")
         print("=" * 60)
 
-        self.load_api_documents()
-        self.initialize_vectorstore()
+        processor.load_api_documents()
+        processor.initialize_vectorstore_parallel()
 
         print("\n" + "=" * 60)
         print("✅ 모든 작업이 완료되었습니다.")
         print("=" * 60 + "\n")
-
-
-# --- 메인 실행 코드 ---
-if __name__ == "__main__":
-    # 이 스크립트는 이제 문서를 처리하고 벡터 DB를 생성하는 역할만 합니다.
-    try:
-        # 데이터가 저장된 상위 폴더 및 DB를 저장할 경로를 지정합니다.
-        processor = GoogleAPIDocumentProcessor(
-            api_data_dir='../GOOGLE_API_DATA',
-            db_dir='../chroma_google_api_db_gpt'
-        )
-        # DB 구축 실행
-        processor.build_database()
 
     except Exception as e:
         print(f"💥 시스템 실행 중 심각한 오류 발생: {e}")
