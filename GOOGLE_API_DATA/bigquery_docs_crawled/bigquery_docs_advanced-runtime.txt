@@ -1,0 +1,96 @@
+Source URL: https://cloud.google.com/bigquery/docs/advanced-runtime
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+역할 및 권한 [https://cloud.google.com/bigquery/docs/advanced-runtime?hl=ko#roles_and_permissions]
+기능 [https://cloud.google.com/bigquery/docs/advanced-runtime?hl=ko#features]
+향상된 벡터화 [https://cloud.google.com/bigquery/docs/advanced-runtime?hl=ko#enhanced_vectorization]
+짧은 쿼리 최적화 [https://cloud.google.com/bigquery/docs/advanced-runtime?hl=ko#short_query_optimizations]
+고급 런타임 사용 설정 [https://cloud.google.com/bigquery/docs/advanced-runtime?hl=ko#enable-advanced-runtime]
+고급 런타임 중지 [https://cloud.google.com/bigquery/docs/advanced-runtime?hl=ko#disable-advanced-runtime]
+쿼리 성능 평가 [https://cloud.google.com/bigquery/docs/advanced-runtime?hl=ko#evaluate_query_performance]
+BigQuery 고급 런타임 사용
+bookmark_border
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 의견을 제공하거나 지원을 요청하려면 bqarfeedback@google.com [mailto:bqarfeedback@google.com]으로 이메일을 보내세요.
+이 문서에서는 BigQuery 고급 런타임을 사용 설정 및 중지하는 방법과 고급 런타임이 쿼리 성능에 미치는 영향을 평가하는 방법을 설명합니다.
+역할 및 권한
+구성 설정을 지정하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트 또는 조직에 대한 BigQuery 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.admin](roles/bigquery.admin) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+기능
+BigQuery 프로젝트에서 고급 런타임을 사용 설정하면 추가 비용 없이 쿼리 지연 시간과 슬롯 소비를 줄이는 쿼리 프로세서의 기능이 사용 설정됩니다.
+향상된 벡터화
+벡터화된 실행은 CPU 캐시 크기에 맞춰 정렬된 블록의 데이터 열에서 작동하고 단일 명령, 다중 데이터(SIMD) 명령어를 사용하는 쿼리 처리 모델입니다. 향상된 벡터화는 BigQuery의 벡터화된 쿼리 실행을 쿼리 처리의 다음 측면으로 확장합니다.
+Capacitor 스토리지 형식 내에서 특수 데이터 인코딩을 활용하면 인코딩된 데이터에서 필터 평가 작업을 실행할 수 있습니다.
+특수 인코딩은 쿼리 계획을 통해 전파되므로 인코딩된 상태에서 더 많은 데이터를 처리할 수 있습니다.
+결정론적 함수와 상수 표현식을 평가하기 위해 표현식 폴딩을 구현하면 BigQuery에서 복잡한 조건자를 상수 값으로 단순화할 수 있습니다.
+짧은 쿼리 최적화
+BigQuery는 일반적으로 셔플 중간 레이어를 사용하여 분산 환경에서 쿼리를 실행합니다. 짧은 쿼리 최적화는 단일 단계로 실행할 수 있는 쿼리를 동적으로 식별하여 지연 시간과 슬롯 소비를 줄입니다. 쿼리가 단일 단계로 실행될 때 전문화된 인코딩을 더 효과적으로 사용할 수 있습니다. 이러한 최적화는 작업 시작, 유지보수, 결과 검색 지연 시간을 최소화하는 선택적 작업 생성 모드 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#optional-job-creation]와 함께 사용할 때 가장 효과적입니다.
+짧은 쿼리 최적화 사용 자격 요건은 동적이며 다음 요인의 영향을 받습니다.
+예상 데이터 스캔 크기
+필요한 데이터 이동량
+쿼리 필터의 선택성
+스토리지에 있는 데이터의 유형 및 물리적 레이아웃
+전체 쿼리 구조
+이전 쿼리 실행의 이전 통계 [https://cloud.google.com/bigquery/docs/history-based-optimizations?hl=ko]
+고급 런타임 사용 설정
+프로젝트 또는 조직의 고급 런타임을 사용 설정하려면 ALTER PROJECT [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_project_set_options_statement] 또는 ALTER ORGANIZATION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_organization_set_options_statement] 문을 사용하여 기본 구성 [https://cloud.google.com/bigquery/docs/default-configuration?hl=ko]을 변경합니다. 문에서 query_runtime 인수를 'advanced'로 설정합니다. 예를 들면 다음과 같습니다.
+ALTER PROJECT 
+PROJECT_NAME
+SET OPTIONS (
+  `region-
+LOCATION.query_runtime` = 'advanced'
+);
+다음을 바꿉니다.
+PROJECT_NAME: 프로젝트 이름
+LOCATION: 프로젝트의 위치
+변경사항이 적용되는 데 몇 분 정도 걸릴 수 있습니다.
+고급 런타임을 사용 설정하면 쿼리 작업을 만든 사용자에 관계없이 프로젝트 또는 조직의 적격한 쿼리에서 고급 런타임을 사용합니다.
+고급 런타임 중지
+프로젝트 또는 조직의 고급 런타임을 중지하려면 ALTER PROJECT 또는 ALTER ORGANIZATION 문을 사용하여 기본 구성 [https://cloud.google.com/bigquery/docs/default-configuration?hl=ko]을 변경합니다. 문에서 query_runtime 인수를 NULL로 설정합니다. 예를 들면 다음과 같습니다.
+ALTER PROJECT 
+PROJECT_NAME
+SET OPTIONS (
+  `region-
+LOCATION.query_runtime` = NULL
+);
+다음을 바꿉니다.
+PROJECT_NAME: 프로젝트 이름
+LOCATION: 프로젝트의 위치
+변경사항이 적용되는 데 몇 분 정도 걸릴 수 있습니다.
+쿼리 성능 평가
+관리 작업 탐색기 [https://cloud.google.com/bigquery/docs/admin-jobs-explorer?hl=ko] 및 INFORMATION_SCHEMA 뷰 [https://cloud.google.com/bigquery/docs/information-schema-intro?hl=ko]를 사용하여 고급 런타임이 쿼리 실행 시간과 슬롯 사용량에 미치는 영향을 평가할 수 있습니다.
+고급 런타임이 사용 설정된 경우와 중지된 경우의 쿼리 성능을 평가하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 새 탭을 엽니다.
+해당 쿼리 탭에 대해 캐시된 쿼리 결과의 사용을 중지 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#disabling_retrieval_of_cached_results]합니다.
+쿼리 탭에 테스트 쿼리를 입력하거나 복사합니다.
+테스트 쿼리를 몇 번 실행하여 기준 성능을 설정합니다. 각 실행 후 다음과 같이 쿼리 성능 측정항목을 확인합니다.
+관리 작업 탐색기에서 쿼리 실행 세부정보를 확인 [https://cloud.google.com/bigquery/docs/admin-jobs-explorer?hl=ko#view_query_execution_details]합니다.
+새 쿼리 탭에서 다음 쿼리를 실행하여 INFORMATION_SCHEMA.JOBS_BY_USER 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs-by-user?hl=ko]에서 작업 실적 데이터를 가져옵니다.
+SELECT
+    job_id,
+    end_time - start_time AS duration,
+    total_slot_ms,
+    query
+FROM
+  `region-us`.INFORMATION_SCHEMA.JOBS_BY_USER
+WHERE
+    creation_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+    AND job_type='QUERY'
+    AND total_slot_ms IS NOT NULL
+ORDER BY
+    creation_time DESC,
+    query ASC
+LIMIT 1000;
+고급 런타임을 사용 설정 [https://cloud.google.com/bigquery/docs/advanced-runtime?hl=ko#enable-advanced-runtime]합니다.
+5단계를 반복합니다.
+고급 런타임을 사용 설정하기 전후의 테스트 쿼리에 대한 쿼리 지연 시간 및 슬롯 사용량 측정항목을 비교합니다.
+도움이 되었나요?
+의견 보내기

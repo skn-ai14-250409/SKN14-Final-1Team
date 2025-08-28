@@ -1,0 +1,326 @@
+Source URL: https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#before-you-begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#required_roles]
+Hudi 워크로드 쿼리 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#query-hudi-data]
+Hudi 외부 테이블 만들기 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#create-hudi-external-tables]
+델타 워크로드 쿼리 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#query-delta-lake-data]
+매니페스트 파일 생성 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#generate-manifest-file]
+Delta BigLake 테이블 만들기 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#create-delta-lake-biglake-tables]
+BigLake 테이블 업그레이드 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#upgrade-biglake-tables]
+매니페스트로 열린 테이블 형식 쿼리
+bookmark_border
+이 문서에서는 매니페스트 파일을 사용하여 Apache Hudi [https://github.com/apache/hudi] 및 Delta Lake [https://github.com/delta-io]와 같은 개방형 테이블 형식으로 저장된 데이터를 쿼리하는 방법을 설명합니다.
+Hudi, Delta Lake와 같은 일부 개방형 테이블 형식은 현재 상태를 하나 이상의 매니페스트 파일로 내보냅니다. 매니페스트 파일에는 테이블을 만드는 데이터 파일 목록이 포함됩니다. BigQuery의 매니페스트 지원을 통해 개방형 테이블 형식으로 저장된 데이터를 쿼리하고 로드할 수 있습니다.
+시작하기 전에
+Enable the BigQuery Connection, BigQuery Reservation, and BigLake APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigqueryconnection.googleapis.com%2C+biglake.googleapis.com%2Cbigqueryreservation.googleapis.com&hl=ko]
+BigLake 테이블을 만들려면 다음 방법 중 하나를 사용하여 Spark 명령어를 실행하면 됩니다.
+Dataproc 클러스터 만들기 [https://cloud.google.com/dataproc/docs/guides/create-cluster?hl=ko]. Hudi 테이블을 쿼리하려면 --optional-components 필드를 HUDI로 설정합니다. 델타 테이블을 쿼리하려면 --optional-components를 Presto로 설정합니다.
+BigQuery의 Spark용 저장 프로시저를 사용합니다. 단계는 다음과 같습니다.
+Spark 연결을 만듭니다 [https://cloud.google.com/bigquery/docs/connect-to-spark?hl=ko#create-spark-connection].
+해당 연결에 대해 액세스 제어를 설정합니다 [https://cloud.google.com/bigquery/docs/connect-to-spark?hl=ko#grant-access].
+매니페스트 파일을 Cloud Storage에 저장하려면 Cloud Storage 버킷을 만듭니다 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko]. 매니페스트 파일에 액세스하려면 Cloud Storage 버킷에 연결해야 합니다. 단계는 다음과 같습니다.
+클라우드 리소스 연결을 만듭니다 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection].
+해당 연결에 대한 액세스를 설정합니다 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#access-storage].
+필요한 역할
+Hudi 및 Delta Lake 데이터를 기반으로 BigLake 테이블을 쿼리하려면 다음 역할이 있어야 합니다.
+BigQuery 연결 사용자(roles/bigquery.connectionUser)
+BigQuery 데이터 뷰어(roles/bigquery.dataViewer)
+BigQuery 사용자(roles/bigquery.user)
+또한 Hudi 외부 테이블을 쿼리할 수 있습니다. 하지만 외부 테이블을 BigLake로 업그레이드 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#upgrade-external-to-biglake]하는 것이 좋습니다. Hudi 외부 테이블을 쿼리하려면 다음 역할이 있어야 합니다.
+BigQuery 데이터 뷰어(roles/bigquery.dataViewer)
+BigQuery 사용자(roles/bigquery.user)
+스토리지 객체 뷰어(roles/storage.objectViewer)
+권한에 따라 이러한 역할을 직접 부여하거나 관리자에게 부여를 요청할 수 있습니다. 역할 부여에 대한 자세한 내용은 리소스에 대해 부여할 수 있는 역할 보기 [https://cloud.google.com/iam/docs/viewing-grantable-roles?hl=ko]를 참조하세요.
+BigLake 테이블을 쿼리하는 데 필요한 정확한 권한을 보려면 필수 권한 섹션을 확장하세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko]을 사용하여 이 권한을 부여받을 수도 있습니다.
+Hudi 워크로드 쿼리
+중요: 다음 섹션에 설명된 작업을 수행하려면 Hudi-BigQuery 커넥터 [https://hudi.apache.org/docs/gcp_bigquery/] 버전 0.14.0 이상 또는 커넥터의 적절한 버전이 백포트된 Dataproc 2.1의 Hudi 구성요소를 사용해야 합니다. 이전 버전에서는 커넥터가 쿼리 성능에 적합하지 않은 매니페스트 파일에 뷰를 생성했습니다. 이전 버전의 커넥터를 사용하는 경우 스키마 불일치 오류가 방지되도록 BigQuery에서 Hudi 테이블을 나타내는 기존 뷰를 삭제해야 합니다.
+Hudi 데이터를 쿼리 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#query-biglake-external-table]하려면 다음 단계를 수행합니다.
+Hudi 데이터를 기반으로 외부 테이블을 만듭니다 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#create-hudi-external-tables].
+외부 테이블을 BigLake로 업그레이드합니다 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#upgrade-biglake-tables].
+Hudi 외부 테이블 만들기
+Hudi 및 BigQuery의 동기화 도구를 사용하여 테이블을 동기화할 때 use-bq-manifest-file 플래그를 사용 설정하여 매니페스트 파일 방식으로 전환합니다. 또한 이 플래그는 BigQuery에서 지원하는 형식으로 매니페스트 파일을 내보내고 이를 사용하여 --table 매개변수에 지정된 이름으로 외부 테이블을 만듭니다.
+Hudi 외부 테이블을 만들려면 다음 단계를 따르세요.
+Hudi 외부 테이블을 만들려면 기존 Dataproc 클러스터에 작업을 제출 [https://cloud.google.com/dataproc/docs/guides/submit-job?hl=ko]합니다. Hudi-BigQuery 커넥터를 빌드할 때 use-bq-manifest-file 플래그를 사용 설정하여 매니페스트 파일 방식으로 전환합니다. 이 플래그는 BigQuery에서 지원하는 형식으로 매니페스트 파일을 내보내고 이를 사용하여 --table 매개변수에 지정된 이름으로 외부 테이블을 만듭니다.
+spark-submit \
+   --master yarn \
+   --packages com.google.cloud:google-cloud-bigquery:2.10.4 \
+   --class org.apache.hudi.gcp.bigquery.BigQuerySyncTool  \
+   
+JAR \
+   --project-id 
+PROJECT_ID \
+   --dataset-name 
+DATASET \
+   --dataset-location 
+LOCATION \
+   --table 
+TABLE \
+   --source-uri 
+URI  \
+   --source-uri-prefix 
+URI_PREFIX \
+   --base-path 
+BASE_PATH  \
+   --partitioned-by 
+PARTITION_BY \
+   --use-bq-manifest-file
+다음을 바꿉니다.
+JAR: Hudi-BigQuery 커넥터를 사용하는 경우 hudi-gcp-bundle-0.14.0.jar을 지정합니다. Dataproc 2.1에서 Hudi 구성요소를 사용하는 경우 /usr/lib/hudi/tools/bq-sync-tool/hudi-gcp-bundle-0.12.3.1.jar을 지정합니다.
+PROJECT_ID: Hudi BigLake 테이블을 만들려는 프로젝트 ID
+DATASET: Hudi BigLake 테이블을 만들려는 데이터 세트
+LOCATION: Hudi BigLake 테이블을 만들려는 위치
+TABLE: 만들려는 테이블의 이름
+매니페스트 파일에서 뷰를 만든 이전 버전의 Hudi-BigQuery 커넥터(0.13.0 이하)에서 전환하는 경우 기존 다운스트림 파이프라인 코드를 유지할 수 있도록 동일한 테이블 이름을 사용해야 합니다.
+URI: Hudi 매니페스트 파일을 저장하기 위해 만든 Cloud Storage URI
+이 URI는 첫 번째 수준의 파티션을 가리키며, 파티션 키를 포함해야 합니다. 예를 들면 gs://mybucket/hudi/mydataset/EventDate=*입니다.
+URI_PREFIX: Cloud Storage URI 경로의 프리픽스이며, 일반적으로 Hudi 테이블 경로입니다.
+BASE_PATH: Hudi 테이블의 기본 경로
+예를 들면 gs://mybucket/hudi/mydataset/입니다.
+PARTITION_BY: 파티션 값
+예를 들면 EventDate입니다.
+커넥터 구성에 대한 자세한 내용은 Hudi-BigQuery 커넥터 [https://hudi.apache.org/docs/gcp_bigquery/]를 참조하세요.
+적절하게 세분화된 제어를 설정하거나 메타데이터 캐싱을 사용 설정하여 성능을 가속화하려면 BigLake 테이블 업그레이드 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#upgrade-biglake-tables]를 참조하세요.
+델타 워크로드 쿼리
+델타 테이블이 이제 기본 지원 [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko]됩니다. 델타 워크로드용 Delta BigLake 테이블을 만드는 것이 좋습니다. Delta Lake BigLake 테이블은 열 재매핑 및 삭제 벡터가 있는 테이블을 포함하여 고급 Delta Lake 테이블 [https://github.com/delta-io]을 지원합니다. 또한 Delta BigLake 테이블은 최신 스냅샷을 직접 읽으므로 업데이트를 즉시 사용할 수 있습니다.
+델타 워크로드를 쿼리 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#query-biglake-external-table]하려면 다음 단계를 수행합니다.
+매니페스트 파일을 생성합니다 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#generate-manifest-file].
+매니페스트 파일을 기반으로 BigLake 테이블을 만듭니다 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#create-delta-lake-biglake-tables].
+적절하게 세분화된 제어를 설정하거나 메타데이터 캐싱을 사용 설정하여 성능을 가속화하세요. 이렇게 하려면 BigLake 테이블 업그레이드 [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#upgrade-biglake-tables]를 참조하세요.
+매니페스트 파일 생성
+BigQuery는 줄바꿈으로 구분된 URI 목록인 SymLinkTextInputFormat [https://github.com/apache/hive/blob/master/ql/src/java/org/apache/hadoop/hive/ql/io/SymlinkTextInputFormat.java] 형식의 매니페스트 파일을 지원합니다. 매니페스트 파일 생성에 대한 자세한 내용은 Presto-Delta Lake 통합 설정 및 델타 테이블 쿼리 [https://docs.delta.io/latest/presto-integration.html#set-up-the-presto-trino-or-athena-to-delta-lake-integration-and-query-delta-tables]를 참조하세요.
+매니페스트 파일을 생성하려면 기존 Dataproc 클러스터에 작업을 제출 [https://cloud.google.com/dataproc/docs/guides/submit-job?hl=ko]합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#sql] ---
+Spark를 사용하여 path-to-delta-table 위치에 있는 델타 테이블에서 다음 명령어를 실행합니다.
+
+GENERATE symlink_format_manifest FOR TABLE delta.`<path-to-delta-table>`
+
+--- 탭: Scala [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#scala] ---
+Spark를 사용하여 path-to-delta-table 위치에 있는 델타 테이블에서 다음 명령어를 실행합니다.
+
+val deltaTable = DeltaTable.forPath(<path-to-delta-table>)
+deltaTable.generate("symlink_format_manifest")
+
+--- 탭: Java [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#java] ---
+Spark를 사용하여 path-to-delta-table 위치에 있는 델타 테이블에서 다음 명령어를 실행합니다.
+
+DeltaTable deltaTable = DeltaTable.forPath(<path-to-delta-table>);
+deltaTable.generate("symlink_format_manifest");
+
+--- 탭: Python [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#python] ---
+Spark를 사용하여 path-to-delta-table 위치에 있는 델타 테이블에서 다음 명령어를 실행합니다.
+
+deltaTable = DeltaTable.forPath(<path-to-delta-table>)
+deltaTable.generate("symlink_format_manifest")
+Delta BigLake 테이블 만들기
+Delta BigLake 테이블을 만들려면 file_set_spec_type 필드가 NEW_LINE_DELIMITED_MANIFEST로 설정된 CREATE EXTERNAL TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_table_statement]을 사용합니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 CREATE EXTERNAL TABLE 문을 실행합니다.
+CREATE EXTERNAL TABLE 
+PROJECT_ID.
+DATASET_NAME.
+TABLE_NAME
+WITH PARTITION COLUMNS(
+`
+PARTITION_COLUMN PARTITION_COLUMN_TYPE`,)
+WITH CONNECTION `
+PROJECT_ID
+REGION.
+CONNECTION_NAME`
+OPTIONS (
+   format = "
+DATA_FORMAT",
+   uris = ["
+URI"],
+   file_set_spec_type = 'NEW_LINE_DELIMITED_MANIFEST',
+   hive_partition_uri_prefix = "
+PATH_TO_DELTA_TABLE"
+   max_staleness = 
+STALENESS_INTERVAL,
+   metadata_cache_mode = '
+CACHE_MODE');
+다음을 바꿉니다.
+DATASET_NAME: 사용자가 만든 데이터 세트의 이름
+TABLE_NAME: 이 테이블에 지정할 이름
+REGION: 연결이 있는 위치(예: us-east1)
+CONNECTION_NAME: 사용자가 만든 연결의 이름
+DATA_FORMAT: 지원되는 모든 형식 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko](예: PARQUET)
+URI: 매니페스트 파일의 경로(예: gs://mybucket/path)
+PATH_TO_DELTA_TABLE: 파티션 키 인코딩이 시작되기 전 모든 소스 URI의 공통 프리픽스
+STALENESS_INTERVAL: 캐시된 메타데이터가 BigLake 테이블에 대한 작업에서 사용되는지 여부와 작업이 사용하기 위해 캐시된 메타데이터가 작업에서 사용되려면 얼마나 최신이어야 하는지를 지정합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#metadata_caching_for_performance]을 참조하세요.
+메타데이터 캐싱을 사용 중지하려면 0을 지정합니다. 이 값이 기본값입니다.
+메타데이터 캐싱을 사용 설정하려면 30분에서 7일 사이의 간격 리터럴 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#interval_literals] 값을 지정합니다. 예를 들어 4시간 비활성 간격의 경우 INTERVAL 4 HOUR를 지정합니다. 이 값을 사용하면 지난 4시간 이내에 새로고침된 경우 테이블에 대한 작업이 캐시된 메타데이터를 사용합니다. 캐시된 메타데이터가 이보다 오래된 경우 대신 Delta Lake에서 메타데이터를 검색합니다.
+CACHE_MODE: 메타데이터 캐시를 자동 또는 수동으로 새로고침할지 지정합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#metadata_caching_for_performance]을 참조하세요.
+시스템 정의 간격(일반적으로 30~60분)으로 메타데이터 캐시를 새로고침하려면 AUTOMATIC으로 설정합니다.
+지정한 일정에 따라 메타데이터 캐시를 새로고침하려면 MANUAL로 설정합니다. 이 경우 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 프로시져 [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache]를 호출하여 캐시를 새로고침할 수 있습니다.
+STALENESS_INTERVAL이 0보다 큰 값으로 설정된 경우 CACHE_MODE를 설정해야 합니다.
+예시:
+CREATE EXTERNAL TABLE mydataset.mytable
+WITH CONNECTION `us-east1.myconnection`
+OPTIONS (
+    format="PARQUET",
+    uris=["gs://mybucket/path/partitionpath=*"],
+    file_set_spec_type = 'NEW_LINE_DELIMITED_MANIFEST'
+    hive_partition_uri_prefix = "gs://mybucket/path/"
+    max_staleness = INTERVAL 1 DAY,
+    metadata_cache_mode = 'AUTOMATIC'
+);
+BigLake 테이블 업그레이드
+또한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance] 및 구체화된 뷰 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#biglake]를 활용하여 워크로드 성능을 가속화 [https://cloud.google.com/blog/products/data-analytics/deep-dive-on-how-biglake-accelerates-query-performance?hl=ko]할 수 있습니다. 메타데이터 캐싱을 사용하려면 이에 대한 설정을 동시에 지정하면 됩니다. 소스 형식 및 소스 URI와 같은 테이블 세부정보를 가져오려면 테이블 정보 가져오기 [https://cloud.google.com/bigquery/docs/tables?hl=ko#get_table_information]를 참조하세요.
+외부 테이블을 BigLake 테이블로 업데이트하거나 기존 BigLake를 업데이트하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#sql] ---
+CREATE OR REPLACE EXTERNAL TABLE DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_table_statement]을 사용하여 테이블을 업데이트합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE OR REPLACE EXTERNAL TABLE
+  `PROJECT_ID.DATASET.EXTERNAL_TABLE_NAME`
+  WITH CONNECTION {`REGION.CONNECTION_ID` | DEFAULT}
+  OPTIONS(
+    format ="TABLE_FORMAT",
+    uris = ['BUCKET_PATH'],
+    max_staleness = STALENESS_INTERVAL,
+    metadata_cache_mode = 'CACHE_MODE'
+    );
+
+
+다음을 바꿉니다.
+
+ PROJECT_ID: 테이블이 포함된 프로젝트 이름
+  DATASET: 테이블이 포함된 데이터 세트의 이름
+  EXTERNAL_TABLE_NAME: 테이블의 이름
+  REGION: 연결이 포함된 리전
+ CONNECTION_ID: 사용할 연결의 이름
+ 기본 연결 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko]을 사용하려면 REGION.CONNECTION_ID가 포함된 연결 문자열 대신 DEFAULT를 지정합니다.
+ 
+ TABLE_FORMAT: 테이블에 사용되는 형식
+
+테이블을 업데이트할 때는 이를 변경할 수 없습니다.
+
+
+  BUCKET_PATH: 외부 테이블의 데이터가 포함된 Cloud Storage 버킷 경로(['gs://bucket_name/[folder_name/]file_name'] 형식)
+  경로에 별표(*) 와일드 카드 문자 하나를 지정하여 버킷에서 여러 개의 파일을 선택할 수 있습니다. 예를 들면 ['gs://mybucket/file_name*']입니다. 자세한 내용은 Cloud Storage URI의 와일드 카드 지원 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#wildcard-support]을 참조하세요.
+  여러 경로를 제공하여 uris 옵션에 대해 여러 버킷을 지정할 수 있습니다.
+    다음 예시에서는 유효한 uris 값을 보여줍니다.
+    
+    ['gs://bucket/path1/myfile.csv']
+    ['gs://bucket/path1/*.csv']
+    ['gs://bucket/path1/*', 'gs://bucket/path2/file00*']
+    
+    여러 파일을 대상으로 하는 uris 값을 지정하는 경우 해당하는 모든 파일은 호환되는 스키마를 공유해야 합니다.
+    BigQuery에서 Cloud Storage URI를 사용하는 방법에 대한 자세한 내용은 Cloud Storage 리소스 경로 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#google-cloud-storage-uri]를 참조하세요.
+    
+ STALENESS_INTERVAL: 캐시된 메타데이터가 테이블에 대한 작업에서 사용되는지 여부와 작업이 사용하기 위해 캐시된 메타데이터가 작업에서 사용되려면 얼마나 최신이어야 하는지를 지정합니다.
+
+메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+  메타데이터 캐싱을 사용 중지하려면 0을 지정합니다. 이 값이 기본값입니다.
+  메타데이터 캐싱을 사용 설정하려면 30분에서 7일 사이의 간격 리터럴 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#interval_literals] 값을 지정합니다. 예를 들어 4시간 비활성 간격의 경우 INTERVAL 4 HOUR를 지정합니다.
+  이 값을 사용하면 지난 4시간 이내에 새로고침된 경우 테이블에 대한 작업이 캐시된 메타데이터를 사용합니다. 캐시된 메타데이터가 이보다 오래된 경우 작업이 대신 Cloud Storage에서 메타데이터를 검색합니다.
+  
+  CACHE_MODE: 메타데이터 캐시를 자동 또는 수동으로 새로고침할지 지정합니다.
+
+메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+  시스템 정의 간격(일반적으로 30~60분)으로 메타데이터 캐시를 새로고침하려면 AUTOMATIC으로 설정합니다.
+  지정한 일정에 따라 메타데이터 캐시를 새로고침하려면 MANUAL로 설정합니다. 이 경우 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 프로시져 [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache]를 호출하여 캐시를 새로고침할 수 있습니다.
+  STALENESS_INTERVAL이 0보다 큰 값으로 설정된 경우 CACHE_MODE를 설정해야 합니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/query-open-table-format-using-manifest-files?hl=ko#bq] ---
+bq mkdef [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mkdef] 및 bq update [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_update] 명령어를 사용하여 테이블을 업데이트합니다.
+
+
+변경할 테이블의 측면을 설명하는 외부 테이블 정의 [https://cloud.google.com/bigquery/external-table-definition?hl=ko#table-definition]를 생성합니다.
+
+bq mkdef --connection_id=PROJECT_ID.REGION.CONNECTION_ID \
+--source_format=TABLE_FORMAT \
+--metadata_cache_mode=CACHE_MODE \
+"BUCKET_PATH" > /tmp/DEFINITION_FILE
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 연결이 포함된 프로젝트 이름
+REGION: 연결이 포함된 리전
+CONNECTION_ID: 사용할 연결의 이름
+TABLE_FORMAT: 테이블에 사용되는 형식. 테이블을 업데이트할 때는 이를 변경할 수 없습니다.
+CACHE_MODE: 메타데이터 캐시를 자동 또는 수동으로 새로고침할지 지정합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+
+시스템 정의 간격(일반적으로 30~60분)으로 메타데이터 캐시를 새로고침하려면 AUTOMATIC으로 설정합니다.
+
+지정한 일정에 따라 메타데이터 캐시를 새로고침하려면 MANUAL로 설정합니다. 이 경우 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 프로시저 [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache]를 호출하여 캐시를 새로고침할 수 있습니다.
+
+STALENESS_INTERVAL이 0보다 큰 값으로 설정된 경우 CACHE_MODE를 설정해야 합니다.
+BUCKET_PATH: 외부 테이블의 데이터가 포함된 Cloud Storage 버킷 경로(gs://bucket_name/[folder_name/]file_name 형식)
+
+경로에 별표(*) 와일드카드 문자 하나를 지정하여 버킷에서 선택한 파일을 제한할 수 있습니다. 예를 들면 gs://mybucket/file_name*입니다. 자세한 내용은 Cloud Storage URI의 와일드 카드 지원 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#wildcard-support]을 참조하세요.
+
+여러 경로를 제공하여 uris 옵션에 대해 여러 버킷을 지정할 수 있습니다.
+
+다음 예시에서는 유효한 uris 값을 보여줍니다.
+
+
+gs://bucket/path1/myfile.csv
+gs://bucket/path1/*.csv
+gs://bucket/path1/*,gs://bucket/path2/file00*
+
+
+여러 파일을 대상으로 하는 uris 값을 지정하는 경우 해당하는 모든 파일은 호환되는 스키마를 공유해야 합니다.
+
+BigQuery에서 Cloud Storage URI를 사용하는 방법에 대한 자세한 내용은 Cloud Storage 리소스 경로 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#google-cloud-storage-uri]를 참조하세요.
+DEFINITION_FILE: 만들려는 테이블 정의 파일의 이름
+
+새 외부 테이블 정의를 사용하여 테이블을 업데이트합니다.
+
+bq update --max_staleness=STALENESS_INTERVAL \
+--external_table_definition=/tmp/DEFINITION_FILE \
+PROJECT_ID:DATASET.EXTERNAL_TABLE_NAME
+
+다음을 바꿉니다.
+
+
+STALENESS_INTERVAL: 캐시된 메타데이터가 테이블에 대한 작업에서 사용되는지 여부와 작업이 사용하기 위해 캐시된 메타데이터가 작업에서 사용되려면 얼마나 최신이어야 하는지를 지정합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+
+메타데이터 캐싱을 사용 중지하려면 0을 지정합니다. 이 값이 기본값입니다.
+
+메타데이터 캐싱을 사용 설정하려면 INTERVAL 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#interval_type] 문서에 설명된 Y-M D H:M:S 형식을 사용하여 30분에서 7일 사이의 간격 값을 지정합니다. 예를 들어 4시간 비활성 간격의 경우 0-0 0 4:0:0을 지정합니다.
+이 값을 사용하면 지난 4시간 이내에 새로고침된 경우 테이블에 대한 작업이 캐시된 메타데이터를 사용합니다. 캐시된 메타데이터가 이보다 오래된 경우 작업이 대신 Cloud Storage에서 메타데이터를 검색합니다.
+DEFINITION_FILE: 만들거나 업데이트한 테이블 정의 파일의 이름
+PROJECT_ID: 테이블이 포함된 프로젝트 이름
+DATASET: 테이블이 포함된 데이터 세트의 이름
+EXTERNAL_TABLE_NAME: 테이블의 이름
+BigLake 및 외부 테이블 쿼리
+BigLake 테이블을 만든 후에는 표준 BigQuery 테이블과 마찬가지로 GoogleSQL 구문을 사용하여 쿼리 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko]할 수 있습니다. 예를 들면 SELECT field1, field2 FROM mydataset.my_cloud_storage_table;입니다.
+제한사항
+BigQuery는 Delta Lake 리더 [https://github.com/delta-io/delta/blob/master/PROTOCOL.md#protocol-evolution] v1 테이블만 쿼리할 수 있습니다.
+Hudi 및 BigQuery 통합은 Hive 스타일로 파티션을 나눈 copy-on-write 테이블에서만 작동합니다.
+다음 단계
+BigQuery에서 SQL 사용 [https://cloud.google.com/bigquery/docs/introduction-sql?hl=ko] 알아보기
+BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko] 알아보기
+BigQuery 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko] 알아보기
+도움이 되었나요?
+의견 보내기

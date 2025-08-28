@@ -1,0 +1,177 @@
+Source URL: https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+할당량 및 한도 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#quotas_and_limits]
+가격 책정 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#pricing]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#required_role]
+데이터 로드 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#load-data]
+제한사항 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#limitations]
+예 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#example]
+데이터 필터링 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#filter-data]
+교차 클라우드 운영으로 데이터 로드
+bookmark_border
+BigQuery 관리자 또는 분석가는 Amazon Simple Storage Service(Amazon S3) 버킷 또는 Azure Blob Storage에서 BigQuery 테이블 [https://cloud.google.com/bigquery/docs/tables-intro?hl=ko#standard_tables]로 데이터를 로드할 수 있습니다. 전송된 데이터를Google Cloud 리전에 있는 데이터와 조인하거나 BigQuery ML [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]과 같은 BigQuery 기능을 활용할 수 있습니다.
+다음 방법으로 데이터를 BigQuery로 전송할 수 있습니다.
+LOAD DATA 문 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#load-data]을 사용하여 Amazon S3 및 Azure Blob Storage의 파일에서 BigQuery 테이블로 데이터를 전송합니다.
+결과를 BigQuery 테이블로 전송하기 전에 CREATE TABLE AS SELECT 문 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#filter-data]을 사용하여 Amazon S3 또는 Blob Storage의 파일에서 데이터를 필터링합니다. 대상 테이블에 데이터를 추가하려면 INSERT INTO SELECT 문 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#filter-data]을 사용합니다.
+데이터 조작은 Amazon S3 [https://cloud.google.com/bigquery/docs/omni-aws-create-external-table?hl=ko] 또는 Blob Storage [https://cloud.google.com/bigquery/docs/omni-azure-create-external-table?hl=ko]의 데이터를 참조하는 외부 테이블에 적용됩니다.
+참고: 정해진 일정에 따라 Amazon Simple Storage Service(Amazon S3) 버킷 또는 Azure Blob Storage에서 BigQuery 테이블로 대용량 파일을 전송하려는 경우 BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/dts-introduction?hl=ko]를 사용합니다. BigQuery 테이블로 데이터를 전송하기 전에 데이터를 읽고 처리하려면 CREATE TABLE AS SELECT 문 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#filter-data]을 사용합니다.
+할당량 및 한도
+할당량 및 한도에 대한 자세한 내용은 쿼리 작업 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#query_jobs]를 참조하세요.
+가격 책정
+LOAD 문 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#load-data]을 사용하여 클라우드 간에 전송된 바이트 수에 대한 요금이 청구됩니다. 가격 책정 정보는 BigQuery Omni 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqomni]의 Omni 교차 Cloud Data Transfer 섹션을 참조하세요.
+CREATE TABLE AS SELECT 문 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#filter-data] 또는 INSERT INTO SELECT 문 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko#filter-data]을 사용하여 클라우드 간에 전송된 바이트 수와 컴퓨팅 용량 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]에 대한 요금이 청구됩니다.
+LOAD 및 CREATE TABLE AS SELECT 문 모두 BigQuery Omni 리전의 슬롯에서 Amazon S3 및 Blob Storage 파일을 스캔하여 로드해야 합니다. 자세한 내용은 BigQuery Omni 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqomni]을 참조하세요.
+시작하기 전에
+다른 클라우드에 있는 파일에 대한 읽기 액세스 권한을 Google Cloud 에 제공하려면 관리자에게 연결 [https://cloud.google.com/bigquery/docs/connections-api-intro?hl=ko]을 만들어 공유해 달라고 요청하세요. 연결을 만드는 방법은 Amazon S3 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko] 또는 Blob Storage에 연결 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko]을 참조하세요.
+필요한 역할
+교차 클라우드 전송을 사용하여 데이터를 로드하는 데 필요한 권한을 얻으려면 관리자에게 데이터 세트에 대한 BigQuery 데이터 편집자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataEditor](roles/bigquery.dataEditor) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이 사전 정의된 역할에는 교차 클라우드 전송을 사용하여 데이터를 로드하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+BigQuery에서 IAM 역할에 대한 상세 설명은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]을 참조하세요.
+데이터 로드
+LOAD DATA [INTO|OVERWRITE] 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/load-statements?hl=ko]을 사용하여 BigQuery에 데이터를 로드할 수 있습니다.
+제한사항
+연결 및 대상 데이터 세트는 동일한 프로젝트에 속해야 합니다. 프로젝트 간 데이터 로드는 지원되지 않습니다.
+LOAD DATA는 Amazon Simple Storage Service(Amazon S3) 또는 Azure Blob Storage에서 같은 위치에 배치된 BigQuery 리전으로 데이터를 전송할 때만 지원됩니다. 자세한 내용은 위치 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#locations]를 참조하세요.
+모든 US 리전에서 US 멀티 리전으로 데이터를 전송할 수 있습니다. EU 리전에서 EU 멀티 리전으로 전송할 수도 있습니다.
+예
+예시 1
+다음 예시에서는 스키마 자동 감지를 사용해 sample.parquet라는 Parquet 파일을 Amazon S3 버킷에서 test_parquet 테이블로 로드합니다.
+LOAD DATA INTO mydataset.testparquet
+  FROM FILES (
+    uris = ['s3://test-bucket/sample.parquet'],
+    format = 'PARQUET'
+  )
+  WITH CONNECTION `aws-us-east-1.test-connection`
+예시 2
+다음 예시에서는 Blob Storage에서 시간별로 파티션을 나눈 사전 정의된 열이 있는 test_csv 테이블로 sampled* 프리픽스가 있는 CSV 파일을 로드합니다.
+LOAD DATA INTO mydataset.test_csv (Number INT64, Name STRING, Time DATE)
+  PARTITION BY Time
+  FROM FILES (
+    format = 'CSV', uris = ['azure://test.blob.core.windows.net/container/sampled*'],
+    skip_leading_rows=1
+  )
+  WITH CONNECTION `azure-eastus2.test-connection`
+예시 3
+다음 예시에서는 스키마 자동 감지를 사용해 기존 테이블 test_parquet를 sample.parquet라는 파일의 데이터로 덮어씁니다.
+LOAD DATA OVERWRITE mydataset.testparquet
+  FROM FILES (
+    uris = ['s3://test-bucket/sample.parquet'],
+    format = 'PARQUET'
+  )
+  WITH CONNECTION `aws-us-east-1.test-connection`
+데이터 필터링
+CREATE TABLE AS SELECT 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]과 INSERT INTO SELECT 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#insert_statement]을 사용하여 데이터를 BigQuery로 전송하기 전에 필터링할 수 있습니다.
+제한사항
+SELECT 쿼리 결과가 논리 바이트로 60GiB를 초과하면 쿼리가 실패합니다. 테이블이 생성되지 않으며 데이터가 전송되지 않습니다. 스캔되는 데이터의 크기를 줄이는 방법은 쿼리에서 처리되는 데이터 줄이기 [https://cloud.google.com/bigquery/docs/best-practices-performance-communication?hl=ko]를 참조하세요.
+임시 테이블은 지원되지 않습니다.
+WKB(Well-Known Binary) [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko] 지리정보 데이터 형식 전송은 지원되지 않습니다.
+INSERT INTO SELECT 문은 클러스터링된 테이블로의 데이터 전송을 지원하지 않습니다.
+INSERT INTO SELECT 문에서 대상 테이블이 SELECT 쿼리의 소스 테이블과 동일한 경우 INSERT INTO SELECT 문은 대상 테이블의 행을 수정하지 않습니다. BigQuery에서 여러 리전의 데이터를 읽을 수 없으므로 대상 테이블이 수정되지 않습니다.
+CREATE TABLE AS SELECT 및 INSERT INTO SELECT는 Amazon S3 또는 Blob Storage에서 같은 위치에 배치된 BigQuery 리전으로 데이터를 전송할 때만 지원됩니다. 자세한 내용은 위치 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#locations]를 참조하세요.
+모든 US 리전에서 US 멀티 리전으로 데이터를 전송할 수 있습니다. EU 리전에서 EU 멀티 리전으로 전송할 수도 있습니다.
+예
+예시 1
+Amazon S3 [https://cloud.google.com/bigquery/docs/omni-aws-create-external-table?hl=ko]의 데이터를 참조하는 myawsdataset.orders라는 BigLake 테이블이 있다고 가정해 보겠습니다. 해당 테이블의 데이터를 US 멀티 리전의 BigQuery 테이블 myotherdataset.shipments로 전송하려고 합니다.
+먼저 myawsdataset.orders 테이블에 대한 정보를 표시합니다.
+    bq show myawsdataset.orders;
+출력은 다음과 비슷합니다.
+  Last modified             Schema              Type     Total URIs   Expiration
+----------------- -------------------------- ---------- ------------ -----------
+  31 Oct 17:40:28   |- l_orderkey: integer     EXTERNAL   1
+                    |- l_partkey: integer
+                    |- l_suppkey: integer
+                    |- l_linenumber: integer
+                    |- l_returnflag: string
+                    |- l_linestatus: string
+                    |- l_commitdate: date
+다음으로 myotherdataset.shipments 테이블에 대한 정보를 표시합니다.
+  bq show myotherdataset.shipments
+출력은 다음과 비슷합니다. 출력을 간소화하기 위해 일부 열을 생략합니다.
+  Last modified             Schema             Total Rows   Total Bytes   Expiration   Time Partitioning   Clustered Fields   Total Logical
+ ----------------- --------------------------- ------------ ------------- ------------ ------------------- ------------------ ---------------
+  31 Oct 17:34:31   |- l_orderkey: integer      3086653      210767042                                                         210767042
+                    |- l_partkey: integer
+                    |- l_suppkey: integer
+                    |- l_commitdate: date
+                    |- l_shipdate: date
+                    |- l_receiptdate: date
+                    |- l_shipinstruct: string
+                    |- l_shipmode: string
+이제 CREATE TABLE AS SELECT 문을 사용하여 미국 멀티 리전의 myotherdataset.orders 테이블에 데이터를 선택적으로 로드할 수 있습니다.
+CREATE OR REPLACE TABLE
+  myotherdataset.orders
+  PARTITION BY DATE_TRUNC(l_commitdate, YEAR) AS
+SELECT
+  *
+FROM
+  myawsdataset.orders
+WHERE
+  EXTRACT(YEAR FROM l_commitdate) = 1992;
+참고: ResourceExhausted 오류가 발생하면 잠시 후에 다시 시도하세요. 문제가 지속되면 지원팀에 문의 [https://cloud.google.com/bigquery/docs/getting-support?hl=ko]하세요.
+그런 다음 새로 만든 테이블로 조인 작업을 수행할 수 있습니다.
+SELECT
+  orders.l_orderkey,
+  orders.l_orderkey,
+  orders.l_suppkey,
+  orders.l_commitdate,
+  orders.l_returnflag,
+  shipments.l_shipmode,
+  shipments.l_shipinstruct
+FROM
+  myotherdataset.shipments
+JOIN
+  `myotherdataset.orders` as orders
+ON
+  orders.l_orderkey = shipments.l_orderkey
+AND orders.l_partkey = shipments.l_partkey
+AND orders.l_suppkey = shipments.l_suppkey
+WHERE orders.l_returnflag = 'R'; -- 'R' means refunded.
+새 데이터를 사용할 수 있게 되면 INSERT INTO SELECT 문을 사용하여 1993년 데이터를 대상 테이블에 추가합니다.
+INSERT INTO
+   myotherdataset.orders
+ SELECT
+   *
+ FROM
+   myawsdataset.orders
+ WHERE
+   EXTRACT(YEAR FROM l_commitdate) = 1993;
+예시 2
+다음 예시에서는 수집 시간으로 파티션을 나눈 테이블에 데이터를 삽입합니다.
+CREATE TABLE
+ mydataset.orders(id String, numeric_id INT64)
+PARTITION BY _PARTITIONDATE;
+파티션을 나눈 테이블을 만든 후 수집 시간으로 파티션을 나눈 테이블에 데이터를 삽입할 수 있습니다.
+INSERT INTO
+ mydataset.orders(
+   _PARTITIONTIME,
+   id,
+   numeric_id)
+SELECT
+ TIMESTAMP("2023-01-01"),
+ id,
+ numeric_id,
+FROM
+ mydataset.ordersof23
+WHERE
+ numeric_id > 4000000;
+권장사항
+크기가 5MB 미만인 여러 개의 파일을 로드하지 마세요. 대신 파일에 대한 외부 테이블을 만들어 쿼리 결과를 Amazon S3 [https://cloud.google.com/bigquery-omni/docs/aws/export-results-to-s3?hl=ko] 또는 Blob Storage [https://cloud.google.com/bigquery-omni/docs/azure/export-results-to-azure-storage?hl=ko]로 내보내 더 큰 테이블을 만듭니다. 이 방법을 사용하면 데이터 전송 시간이 향상됩니다.
+최대 쿼리 결과 한도에 대한 자세한 내용은 BigQuery Omni 최대 쿼리 결과 크기 [https://cloud.google.com/bigquery/quotas?hl=ko#max_result_size_query_omni]를 참조하세요.
+소스 데이터가 gzip으로 압축된 파일에 있는 경우 외부 테이블을 만드는 동안 external_table_options.compression [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#external_table_option_list] 옵션을 GZIP으로 설정합니다.
+다음 단계
+BigQuery ML [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko] 알아보기
+BigQuery Omni [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko] 알아보기
+쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko] 방법 알아보기
+BigQuery Omni의 VPC 서비스 제어 설정 [https://cloud.google.com/bigquery/docs/omni-vpc-sc?hl=ko] 방법 알아보기
+Amazon S3에서 BigQuery로 [https://cloud.google.com/bigquery/docs/s3-transfer-intro?hl=ko] 및 Blob Storage에서 BigQuery로 [https://cloud.google.com/bigquery/docs/blob-storage-transfer-intro?hl=ko]의 반복 로드 작업을 예약하고 관리하는 방법 알아보기
+도움이 되었나요?
+의견 보내기

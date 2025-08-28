@@ -1,0 +1,444 @@
+Source URL: https://cloud.google.com/bigquery/docs/data-profile-scan
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#required_roles]
+데이터 스캔 역할 및 권한 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#roles-permissions]
+데이터 프로필 스캔 만들기 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#create_a_data_profile_scan]
+여러 데이터 프로필 스캔 만들기 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#multiple-scans]
+데이터 프로파일링
+bookmark_border
+이 문서에서는 데이터 프로필 스캔을 사용하여 데이터를 보다 잘 이해하는 방법을 설명합니다. BigQuery는 Dataplex Universal Catalog를 사용하여 평균값, 고유값, 최댓값과 같은 데이터의 통계 특성을 분석합니다. Dataplex Universal Catalog는 이 정보를 사용하여 데이터 품질 검사 규칙을 추천 [https://cloud.google.com/dataplex/docs/auto-data-quality-overview?hl=ko]하기도 합니다.
+데이터 프로파일링에 대한 자세한 내용은 데이터 프로파일링 정보 [https://cloud.google.com/dataplex/docs/data-profiling-overview?hl=ko]를 참조하세요.
+도움말: 이 문서의 단계에서는 프로젝트 전반에서 데이터 프로필 스캔을 관리하는 방법을 보여줍니다. 특정 테이블을 사용할 때 데이터 프로필 스캔을 만들고 관리할 수도 있습니다. 자세한 내용은 이 문서의 특정 테이블의 데이터 프로필 스캔 관리 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#start-from-table] 섹션을 참조하세요.
+시작하기 전에
+Enable the Dataplex API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=dataplex.googleapis.com&hl=ko]
+필요한 역할
+BigQuery 테이블을 프로파일링하려면 다음 권한이 필요합니다.
+BigQuery 테이블에서 데이터 프로필 스캔을 실행하려면 BigQuery 테이블을 읽을 수 있는 권한과 테이블을 스캔하는 데 사용되는 프로젝트에서 BigQuery 작업을 만들 수 있는 권한이 있어야 합니다.
+참고: Dataplex Universal Catalog는 프로젝트에 BigQuery 작업을 만들지 않습니다. 하지만 테이블의 권한을 확인하기 위해 DryRun 작업을 만들려면 이 권한이 필요합니다.
+BigQuery 테이블과 데이터 프로필 스캔이 서로 다른 프로젝트에 있는 경우 Dataplex Universal Catalog 서비스 계정에 해당 BigQuery 테이블에 대한 읽기 권한을 부여해야 합니다.
+참고: 아직 데이터 품질 또는 데이터 프로필 스캔을 만들지 않았거나 BigQuery 프로젝트에 Dataplex Universal Catalog 레이크가 없으면 gcloud beta services identity create --service=dataplex.googleapis.com을 실행하여 서비스 식별자를 만듭니다. 이 명령어는 Dataplex Universal Catalog 서비스 식별자가 있는 경우 반환합니다.
+BigQuery 데이터가 Dataplex Universal Catalog 레이크에 구성된 경우 데이터 프로필 스캔을 만들려면 Dataplex Universal Catalog 역할 roles/dataplex.metadataReader 및 roles/dataplex.viewer가 필요합니다. 그러면 다음 권한을 부여합니다.
+dataplex.lakes.list
+dataplex.lakes.get
+dataplex.zones.list
+dataplex.zones.get
+dataplex.entities.list
+dataplex.entities.get
+dataplex.operations.get
+Cloud Storage에서 BigQuery 외부 테이블을 스캔하는 경우 Dataplex Universal Catalog 서비스 계정에 버킷에 대한 스토리지 객체 뷰어(roles/storage.objectViewer) 역할 또는 다음 권한을 할당합니다.
+storage.buckets.get
+storage.objects.get
+소스 테이블의Google Cloud 콘솔에서 BigQuery 및 Dataplex Universal Catalog 페이지에 데이터 프로필 스캔 결과를 게시하려면 테이블에 대한 BigQuery 데이터 편집자(roles/bigquery.dataEditor) 역할을 부여받아야 합니다. 또는 다음 권한이 모두 필요합니다.
+bigquery.tables.get
+bigquery.tables.update
+bigquery.tables.updateData
+bigquery.tables.delete
+스캔 결과를 BigQuery 테이블로 내보내려면 Dataplex Universal Catalog 서비스 계정에 BigQuery 데이터 편집자(roles/bigquery.dataEditor) 역할이 필요합니다. 그러면 다음 권한을 부여합니다.
+bigquery.datasets.get
+bigquery.tables.create
+bigquery.tables.get
+bigquery.tables.getData
+bigquery.tables.update
+bigquery.tables.updateData
+BigQuery 열 수준 액세스 정책으로 보호되는 열에 액세스해야 하는 경우 해당 열에 Dataplex Universal Catalog 서비스 계정 권한을 할당합니다. 데이터 스캔을 만들거나 업데이트하는 사용자는 열에 대한 권한도 필요합니다.
+테이블에 BigQuery 행 수준 액세스 정책이 사용 설정되어 있으면 Dataplex Universal Catalog 서비스 계정에 표시되는 행만 스캔할 수 있습니다. 개별 사용자의 액세스 권한은 행 수준 정책에 따라 평가되지 않습니다.
+데이터 스캔 역할 및 권한
+데이터 프로파일링을 사용하려면 관리자에게 다음 IAM 역할 중 하나를 부여해 달라고 요청하세요.
+roles/dataplex.dataScanAdmin: DataScan 리소스에 대한 전체 액세스 권한입니다.
+roles/dataplex.dataScanEditor: DataScan 리소스에 대한 쓰기 액세스 권한입니다.
+roles/dataplex.dataScanViewer: 결과를 제외한 DataScan 리소스에 대한 읽기 액세스 권한입니다.
+roles/dataplex.dataScanDataViewer: 결과를 포함한 DataScan 리소스에 대한 읽기 액세스 권한입니다.
+다음 표에는 데이터 스캔 권한이 나와 있습니다.
+권한 이름 다음 작업을 수행할 수 있는 권한을 부여합니다.
+dataplex.datascans.create DataScan 만들기
+dataplex.datascans.delete DataScan 삭제
+dataplex.datascans.get 결과를 제외한 DataScan 세부정보 보기
+dataplex.datascans.getData 결과를 포함한 DataScan 세부정보 보기
+dataplex.datascans.list DataScan 나열
+dataplex.datascans.run DataScan 실행
+dataplex.datascans.update DataScan의 설명 업데이트
+dataplex.datascans.getIamPolicy 스캔에서 현재 IAM 권한 보기
+dataplex.datascans.setIamPolicy 스캔에서 IAM 권한 설정
+데이터 프로필 스캔 만들기
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 BigQuery 메타데이터 선별 페이지에서 데이터 프로파일링 및 품질 탭으로 이동합니다.
+
+
+  
+  데이터 프로파일링 및 품질로 이동 [https://console.cloud.google.com/bigquery/governance/metadata-curation/data-profiling-and-quality?hl=ko]
+
+
+
+데이터 프로필 스캔 만들기를 클릭합니다.
+선택사항: 표시 이름을 입력합니다.
+ID를 입력합니다. 리소스 이름 지정 규칙 [https://cloud.google.com/compute/docs/naming-resources?hl=ko#resource-name-format]을 참조하세요.
+선택사항: 설명을 입력합니다.
+테이블 필드에서 찾아보기를 클릭합니다. 스캔할 테이블을 선택한 다음 선택을 클릭합니다.
+
+멀티 리전 데이터 세트의 테이블에서 데이터 스캔을 생성할 리전을 선택합니다.
+
+Dataplex Universal Catalog 레이크 내에 구성된 테이블을 찾아보려면 Dataplex 레이크 내에서 찾아보기를 클릭합니다.
+범위 필드에서 증분 또는 전체 데이터를 선택합니다.
+
+
+증분 데이터를 선택한 경우: 타임스탬프 열 필드에서 새 레코드가 추가될 때 증가하고 새 레코드를 식별하는 데 사용할 수 있는 BigQuery 테이블의 DATE 또는 TIMESTAMP 유형 열을 선택합니다. DATE 또는 TIMESTAMP 유형의 열로 파티션을 나눈 테이블의 경우 파티션 열을 타임스탬프 필드로 사용하는 것이 좋습니다.
+
+선택사항: 데이터를 필터링하려면 다음 중 하나를 수행합니다.
+
+
+행별로 필터링하려면 행 필터링 체크박스를 선택합니다.
+GoogleSQL 구문의 WHERE 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#where_clause]에서 사용할 수 있는 유효한 SQL 표현식을 입력합니다.
+예를 들면 col1 >= 0입니다.
+
+필터는 여러 열에 대한 SQL 조건의 조합일 수 있습니다. 예를 들면 col1 >= 0 AND col2 < 10입니다.
+열별로 필터링하려면 열 필터링 체크박스를 선택합니다.
+
+
+프로필 스캔에 열을 포함하려면 열 포함 필드에서 찾아보기를 클릭합니다. 포함할 열을 선택한 다음 선택을 클릭합니다.
+프로필 스캔에서 열을 제외하려면 열 제외 필드에서 찾아보기를 클릭합니다. 제외할 열을 선택한 다음 선택을 클릭합니다.
+
+참고: 열 포함, 열 제외 또는 둘 다를 사용할 수 있습니다. 두 필드를 모두 사용하면 데이터 프로필 스캔이 먼저 열 포함 필드의 입력을 기반으로 열을 선택한 후 열 제외 필드의 입력을 기반으로 열을 제외합니다.
+
+데이터 프로필 스캔에 샘플링을 적용하려면 샘플링 크기 목록에서 샘플링 비율을 선택합니다. 소수점 이하 3자리까지 0.0%에서 100.0% 사이의 백분율 값을 선택합니다.
+
+
+데이터 세트가 클수록 낮은 샘플링 비율을 선택합니다. 예를 들어 1PB 테이블의 경우 0.1%에서 1.0% 사이의 값을 입력하면 데이터 프로필에서 1~10TB의 데이터를 샘플링합니다.
+결과를 반환하려면 샘플링된 데이터에 100개 이상의 레코드가 있어야 합니다.
+증분 데이터 스캔의 경우 데이터 프로필 스캔은 최신 증분에 샘플링을 적용합니다.
+
+선택사항: 소스 테이블의Google Cloud 콘솔에서 BigQuery 및 Dataplex Universal Catalog 페이지에 데이터 프로필 스캔 결과를 게시합니다. BigQuery 및 Dataplex 카탈로그 UI에 결과 게시 체크박스를 선택합니다.
+
+소스 테이블의 BigQuery 및 Dataplex Universal Catalog 페이지에 있는 데이터 프로필 탭에서 최신 스캔 결과를 확인할 수 있습니다. 사용자가 게시된 스캔 결과에 액세스할 수 있도록 하려면 이 문서의 데이터 프로필 스캔 결과에 대한 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#share-results] 섹션을 참조하세요.
+
+
+다음과 같은 경우 게시 옵션을 사용하지 못할 수 있습니다.
+
+
+테이블에 필요한 권한이 없습니다.
+결과를 게시하도록 또 다른 데이터 품질 스캔이 설정되었습니다.
+
+일정 섹션에서 다음 옵션 중 하나를 선택합니다.
+
+
+반복: 시간별, 일별, 주별, 월별 또는 커스텀 일정으로 데이터 프로필 스캔을 실행합니다. 스캔 실행 빈도와 시간을 지정합니다. 커스텀을 선택하는 경우 크론 [https://en.wikipedia.org/wiki/Cron] 형식을 사용하여 일정을 지정합니다.
+주문형: 데이터 프로필 스캔을 주문형으로 실행합니다.
+
+계속을 클릭합니다.
+선택사항: 스캔 결과를 BigQuery 표준 테이블로 내보냅니다. BigQuery 테이블로 스캔 결과 내보내기 섹션에서 다음을 실행합니다.
+
+
+BigQuery 데이터 세트 선택 필드에서 찾아보기를 클릭합니다. 데이터 프로필 스캔 결과를 저장할 BigQuery 데이터 세트를 선택합니다.
+BigQuery 테이블 필드에서 데이터 프로필 스캔 결과를 저장할 테이블을 지정합니다. 기존 테이블을 사용하는 경우 내보내기 테이블 스키마 [https://cloud.google.com/dataplex/docs/use-data-profiling?hl=ko#table-schema]와 호환되는지 확인합니다.
+지정된 테이블이 없으면 Dataplex Universal Catalog에서 테이블을 만듭니다.
+참고: 여러 데이터 프로필 스캔에 동일한 결과 테이블을 사용할 수 있습니다.
+
+선택사항: 라벨을 추가합니다. 라벨은 관련 객체를 함께 그룹화하거나 다른 Google Cloud 리소스와 그룹화할 수 있게 해주는 키-값 쌍입니다.
+만들기를 클릭하여 스캔을 만듭니다.
+
+일정을 주문형으로 설정한 경우 스캔 실행을 클릭하여 지금 스캔을 실행할 수도 있습니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#gcloud] ---
+데이터 프로필 스캔을 만들려면 gcloud dataplex datascans create data-profile 명령어 [https://cloud.google.com/sdk/gcloud/reference/dataplex/datascans/create/data-profile?hl=ko]를 사용합니다.
+
+소스 데이터가 Dataplex Universal Catalog 레이크에 구성된 경우 --data-source-entity 플래그를 포함합니다.
+
+gcloud dataplex datascans create data-profile DATASCAN \
+--location=LOCATION \
+--data-source-entity=DATA_SOURCE_ENTITY
+
+
+소스 데이터가 Dataplex Universal Catalog 레이크에 구성되지 않은 경우 --data-source-resource 플래그를 포함합니다.
+
+gcloud dataplex datascans create data-profile DATASCAN \
+--location=LOCATION \
+--data-source-resource=DATA_SOURCE_RESOURCE
+
+
+다음 변수를 바꿉니다.
+
+
+DATASCAN: 데이터 프로필 스캔의 이름입니다.
+LOCATION: 데이터 프로필 스캔을 만들 Google Cloud 리전입니다.
+DATA_SOURCE_ENTITY: 데이터 프로필 스캔의 데이터가 포함된 Dataplex Universal Catalog 항목입니다. 예를 들면 projects/test-project/locations/test-location/lakes/test-lake/zones/test-zone/entities/test-entity입니다.
+DATA_SOURCE_RESOURCE: 데이터 프로필 스캔의 데이터가 포함된 리소스의 이름입니다. 예를 들면 //bigquery.googleapis.com/projects/test-project/datasets/test-dataset/tables/test-table입니다.
+
+--- 탭: REST [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#rest] ---
+데이터 프로필 스캔을 만들려면 dataScans.create 메서드 [https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans/create?hl=ko]를 사용합니다.
+참고: BigQuery 테이블에서 Require partition filter 설정이 true로 구성된 경우 테이블의 파티션 열을 데이터 프로필 스캔의 행 필터 또는 타임스탬프 열로 사용합니다.
+여러 데이터 프로필 스캔 만들기
+Google Cloud 콘솔을 사용하여 BigQuery 데이터 세트의 여러 테이블에 대해 동시에 데이터 프로필 스캔을 구성할 수 있습니다.
+Google Cloud 콘솔의 BigQuery 메타데이터 선별 페이지에서 데이터 프로파일링 및 품질 탭으로 이동합니다.
+데이터 프로파일링 및 품질로 이동 [https://console.cloud.google.com/bigquery/governance/metadata-curation/data-profiling-and-quality?hl=ko]
+데이터 프로필 스캔 만들기를 클릭합니다.
+여러 데이터 프로필 스캔 옵션을 선택합니다.
+ID 프리픽스를 입력합니다. Dataplex Universal Catalog는 제공된 프리픽스 및 고유 서픽스를 사용하여 스캔 ID를 자동으로 생성합니다.
+모든 데이터 프로필 스캔에 설명을 입력합니다.
+데이터 세트 필드에서 찾아보기를 클릭합니다. 테이블을 선택할 데이터 세트를 선택합니다. 선택을 클릭합니다.
+데이터 세트가 멀티 리전 데이터 세트인 경우 데이터 프로필 스캔을 만들 리전을 선택합니다.
+스캔의 일반 설정을 구성합니다.
+범위 필드에서 증분 또는 전체 데이터를 선택합니다.
+참고: 증분 데이터를 선택하는 경우 DATE 또는 TIMESTAMP 유형의 열을 기준으로 파티션을 나눈 테이블만 선택할 수 있습니다.
+데이터 프로필 스캔에 샘플링을 적용하려면 샘플링 크기 목록에서 샘플링 비율을 선택합니다.
+소수점 이하 3자리까지 0.0%에서 100.0% 사이의 백분율 값을 선택합니다.
+선택사항: 소스 테이블의Google Cloud 콘솔에서 BigQuery 및 Dataplex Universal Catalog 페이지에 데이터 프로필 스캔 결과를 게시합니다. BigQuery 및 Dataplex 카탈로그 UI에 결과 게시 체크박스를 선택합니다.
+소스 테이블의 BigQuery 및 Dataplex Universal Catalog 페이지에 있는 데이터 프로필 탭에서 최신 스캔 결과를 확인할 수 있습니다. 사용자가 게시된 스캔 결과에 액세스할 수 있도록 하려면 이 문서의 데이터 프로필 스캔 결과에 대한 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#share-results] 섹션을 참조하세요.
+참고: 결과를 게시하는 기존 스캔이 없는 테이블을 선택해야 합니다.
+일정 섹션에서 다음 옵션 중 하나를 선택합니다.
+반복: 시간별, 일별, 주별, 월별 또는 커스텀 일정으로 데이터 프로필 스캔을 실행합니다. 스캔 실행 빈도와 시간을 지정합니다. 커스텀을 선택하는 경우 크론 [https://en.wikipedia.org/wiki/Cron] 형식을 사용하여 일정을 지정합니다.
+주문형: 데이터 프로필 스캔을 주문형으로 실행합니다.
+계속을 클릭합니다.
+테이블 선택 필드에서 찾아보기를 클릭합니다. 스캔할 테이블을 하나 이상 선택한 후 선택을 클릭합니다.
+계속을 클릭합니다.
+선택사항: 스캔 결과를 BigQuery 표준 테이블로 내보냅니다. BigQuery 테이블로 스캔 결과 내보내기 섹션에서 다음을 실행합니다.
+BigQuery 데이터 세트 선택 필드에서 찾아보기를 클릭합니다. 데이터 프로필 스캔 결과를 저장할 BigQuery 데이터 세트를 선택합니다.
+BigQuery 테이블 필드에서 데이터 프로필 스캔 결과를 저장할 테이블을 지정합니다. 기존 테이블을 사용하는 경우 내보내기 테이블 스키마 [https://cloud.google.com/dataplex/docs/use-data-profiling?hl=ko#table-schema]와 호환되는지 확인합니다. 지정된 테이블이 없으면 Dataplex Universal Catalog에서 테이블을 만듭니다.
+Dataplex Universal Catalog는 모든 데이터 프로필 스캔에 동일한 결과 테이블을 사용합니다.
+선택사항: 라벨을 추가합니다. 라벨은 관련 객체를 함께 그룹화하거나 다른 Google Cloud 리소스와 그룹화할 수 있게 해주는 키-값 쌍입니다.
+만들기를 클릭하여 스캔을 만듭니다.
+일정을 주문형으로 설정한 경우 스캔 실행을 클릭하여 지금 스캔을 실행할 수도 있습니다.
+데이터 프로필 스캔 실행
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 BigQuery 메타데이터 선별 페이지에서 데이터 프로파일링 및 품질 탭으로 이동합니다.
+
+
+  
+  데이터 프로파일링 및 품질로 이동 [https://console.cloud.google.com/bigquery/governance/metadata-curation/data-profiling-and-quality?hl=ko]
+
+
+
+실행할 데이터 프로필 스캔을 클릭합니다.
+지금 실행을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#gcloud] ---
+데이터 프로필 스캔을 실행하려면 gcloud dataplex datascans run 명령어 [https://cloud.google.com/sdk/gcloud/reference/dataplex/datascans/run?hl=ko]를 사용합니다.
+
+gcloud dataplex datascans run DATASCAN \
+--location=LOCATION
+
+
+다음 변수를 바꿉니다.
+
+
+DATASCAN: 데이터 프로필 스캔의 이름입니다.
+LOCATION: 데이터 프로필 스캔이 생성된 Google Cloud 리전입니다.
+
+--- 탭: REST [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#rest] ---
+데이터 프로필 스캔을 실행하려면 dataScans.run 메서드 [https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans/run?hl=ko]를 사용합니다.
+데이터 프로필 스캔 결과 보기
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 BigQuery 메타데이터 선별 페이지에서 데이터 프로파일링 및 품질 탭으로 이동합니다.
+
+
+  
+  데이터 프로파일링 및 품질로 이동 [https://console.cloud.google.com/bigquery/governance/metadata-curation/data-profiling-and-quality?hl=ko]
+
+
+
+데이터 프로필 스캔 이름을 클릭합니다.
+
+
+개요 섹션에는 스캔이 실행된 시기, 스캔된 테이블 레코드 수, 작업 상태 등 가장 최근 작업에 대한 정보가 표시됩니다.
+데이터 프로필 스캔 구성 섹션에 스캔 세부정보가 표시됩니다.
+
+스캔된 테이블의 열, 스캔에서 발견된 열에 관한 통계, 작업 로그와 같은 작업에 관한 자세한 정보를 보려면 작업 기록 탭을 클릭합니다. 그런 다음 작업 ID를 클릭합니다.
+
+참고: 스캔 결과를 BigQuery 테이블로 내보낸 경우 테이블에서 스캔 결과에 액세스할 수도 있습니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#gcloud] ---
+데이터 프로필 스캔 작업의 결과를 보려면 gcloud dataplex datascans jobs describe 명령어 [https://cloud.google.com/sdk/gcloud/reference/dataplex/datascans/jobs/describe?hl=ko]를 사용합니다.
+
+gcloud dataplex datascans jobs describe JOB \
+--location=LOCATION \
+--datascan=DATASCAN \
+--view=FULL
+
+
+다음 변수를 바꿉니다.
+
+
+JOB: 데이터 프로필 스캔 작업의 작업 ID입니다.
+LOCATION: 데이터 프로필 스캔이 생성된 Google Cloud 리전입니다.
+DATASCAN: 작업이 속한 데이터 프로필의 스캔 이름입니다.
+--view=FULL: 스캔 작업 결과를 보려면 FULL을 지정합니다.
+
+--- 탭: REST [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#rest] ---
+데이터 프로필 스캔 결과를 보려면 dataScans.get 메서드 [https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans/get?hl=ko]를 사용합니다.
+게시된 결과 보기
+데이터 프로필 스캔 결과가 Google Cloud 콘솔의 BigQuery 및 Dataplex Universal Catalog 페이지에 게시된 경우 소스 테이블의 데이터 프로필 탭에서 최신 스캔 결과를 확인할 수 있습니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 데이터 프로필 스캔 결과를 확인할 테이블을 선택합니다.
+데이터 프로필 탭을 클릭합니다.
+최근에 게시된 결과가 표시됩니다.
+참고: 스캔이 처음 실행되면 게시된 결과가 제공되지 않을 수 있습니다.
+최근 데이터 프로필 스캔 작업 보기
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 BigQuery 메타데이터 선별 페이지에서 데이터 프로파일링 및 품질 탭으로 이동합니다.
+
+
+  
+  데이터 프로파일링 및 품질로 이동 [https://console.cloud.google.com/bigquery/governance/metadata-curation/data-profiling-and-quality?hl=ko]
+
+
+
+데이터 프로필 스캔 이름을 클릭합니다.
+최신 작업 결과 탭을 클릭합니다.
+
+성공적으로 완료된 실행이 최소 하나 이상 있는 경우 최신 작업 결과 탭에서는 가장 최근 작업에 대한 정보를 제공합니다. 여기에는 스캔된 테이블의 열과 스캔에서 발견된 열에 대한 통계가 나열됩니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#gcloud] ---
+가장 최근에 성공한 데이터 프로필 스캔을 보려면 gcloud dataplex datascans describe 명령어 [https://cloud.google.com/sdk/gcloud/reference/dataplex/datascans/describe?hl=ko]를 사용합니다.
+
+gcloud dataplex datascans describe DATASCAN \
+--location=LOCATION \
+--view=FULL
+
+
+다음 변수를 바꿉니다.
+
+
+DATASCAN: 가장 최근 작업을 확인할 데이터 프로필 스캔의 이름입니다.
+LOCATION: 데이터 프로필 스캔이 생성된 Google Cloud 리전입니다.
+--view=FULL: 스캔 작업 결과를 보려면 FULL을 지정합니다.
+
+--- 탭: REST [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#rest] ---
+최근 스캔 작업을 보려면 dataScans.get 메서드 [https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans/get?hl=ko]를 사용합니다.
+이전 스캔 결과 보기
+Dataplex Universal Catalog는 지난 300개 작업 또는 지난 1년 동안의 데이터 프로필 스캔 기록 중 먼저 발생하는 작업을 저장합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 BigQuery 메타데이터 선별 페이지에서 데이터 프로파일링 및 품질 탭으로 이동합니다.
+
+
+  
+  데이터 프로파일링 및 품질로 이동 [https://console.cloud.google.com/bigquery/governance/metadata-curation/data-profiling-and-quality?hl=ko]
+
+
+
+데이터 프로필 스캔 이름을 클릭합니다.
+작업 기록 탭을 클릭합니다.
+
+작업 기록 탭에서는 각 작업에서 스캔된 레코드 수, 작업 상태, 작업이 실행된 시간 등 이전 작업에 대한 정보를 제공합니다.
+작업에 대한 자세한 정보를 보려면 작업 ID 열에서 아무 작업이나 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#gcloud] ---
+이전 데이터 프로필 스캔 작업을 보려면 gcloud dataplex datascans jobs list 명령어 [https://cloud.google.com/sdk/gcloud/reference/dataplex/datascans/jobs/list?hl=ko]를 사용합니다.
+
+gcloud dataplex datascans jobs list \
+--location=LOCATION \
+--datascan=DATASCAN
+
+
+다음 변수를 바꿉니다.
+
+
+LOCATION: 데이터 프로필 스캔이 생성된 Google Cloud 리전입니다.
+DATASCAN: 작업을 볼 데이터 프로필 스캔의 이름입니다.
+
+--- 탭: REST [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#rest] ---
+이전 데이터 프로필 스캔 작업을 보려면 dataScans.jobs.list 메서드 [https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans.jobs/list?hl=ko]를 사용합니다.
+테이블의 데이터 프로필 스캔 보기
+특정 테이블에 적용되는 데이터 프로필 스캔을 보려면 다음 단계를 따르세요.
+Google Cloud 콘솔의 BigQuery 메타데이터 선별 페이지에서 데이터 프로파일링 및 품질 탭으로 이동합니다.
+데이터 프로파일링 및 품질로 이동 [https://console.cloud.google.com/bigquery/governance/metadata-curation/data-profiling-and-quality?hl=ko]
+테이블 이름과 스캔 유형으로 목록을 필터링합니다.
+데이터 프로필 스캔 결과에 대한 액세스 권한 부여
+조직의 사용자가 스캔 결과를 볼 수 있도록 하려면 다음 단계를 따르세요.
+Google Cloud 콘솔의 BigQuery 메타데이터 선별 페이지에서 데이터 프로파일링 및 품질 탭으로 이동합니다.
+데이터 프로파일링 및 품질로 이동 [https://console.cloud.google.com/bigquery/governance/metadata-curation/data-profiling-and-quality?hl=ko]
+결과를 공유할 데이터 품질 스캔을 클릭합니다.
+권한 탭을 클릭합니다.
+다음 단계를 따르세요.
+주 구성원에게 액세스 권한을 부여하려면 person_add 액세스 권한 부여를 클릭합니다. 연결된 주 구성원에게 Dataplex DataScan DataViewer 역할을 부여합니다.
+주 구성원으로부터 액세스 권한을 삭제하려면 Dataplex DataScan DataViewer 역할을 삭제할 주 구성원을 선택합니다. person_remove 액세스 권한 삭제를 클릭한 다음 메시지가 표시되면 확인합니다.
+특정 테이블의 데이터 프로필 스캔 관리
+이 문서의 단계에서는Google Cloud 콘솔의 BigQuery 메타데이터 선별> 데이터 프로파일링 및 품질 페이지를 사용하여 프로젝트 전반에서 데이터 프로필 스캔을 관리하는 방법을 보여줍니다.
+특정 테이블을 사용할 때 데이터 프로필 스캔을 만들고 관리할 수도 있습니다. Google Cloud 콘솔에서 해당 테이블에 대한 BigQuery 페이지에 있는 데이터 프로필 탭을 사용합니다. 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 테이블을 선택합니다.
+데이터 프로필 탭을 클릭합니다.
+결과가 게시된 데이터 프로필 스캔이 테이블에 있는지에 따라 다음과 같은 방법으로 테이블의 데이터 프로필 스캔을 사용할 수 있습니다.
+데이터 프로필 스캔 결과가 게시됨: 페이지에 게시된 최신 스캔 결과가 표시됩니다.
+이 테이블의 데이터 프로필 스캔을 관리하려면 데이터 프로필 스캔을 클릭한 후 다음 옵션 중에서 선택합니다.
+새 스캔 만들기: 새 데이터 프로필 스캔을 만듭니다. 자세한 내용은 이 문서의 데이터 프로필 스캔 만들기 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#create-scan] 섹션을 참조하세요. 테이블의 세부정보 페이지에서 스캔을 만들면 테이블이 미리 선택됩니다.
+지금 실행: 스캔을 실행합니다.
+스캔 구성 수정: 표시 이름, 필터, 샘플링 크기, 일정 등의 설정을 수정합니다.
+스캔 권한 관리: 스캔 결과에 액세스할 수 있는 사용자를 관리합니다. 자세한 내용은 이 문서의 데이터 프로필 스캔 결과에 대한 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#share-results] 섹션을 참조하세요.
+이전 결과 보기: 이전 데이터 프로필 스캔 작업에 관한 세부정보를 확인합니다. 자세한 내용은 이 문서의 데이터 프로필 스캔 결과 보기 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#results] 및 이전 스캔 결과 보기 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#older-scans] 섹션을 참조하세요.
+모든 스캔 보기: 이 테이블에 적용되는 데이터 프로필 스캔 목록을 확인합니다.
+데이터 프로필 스캔 결과가 게시되지 않음: 빠른 데이터 프로필 옆에 있는 메뉴를 클릭한 후 다음 옵션 중에서 선택합니다.
+데이터 프로파일링 맞춤설정: 새 데이터 프로필 스캔을 만듭니다. 자세한 내용은 이 문서의 데이터 프로필 스캔 만들기 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#create-scan] 섹션을 참조하세요. 테이블의 세부정보 페이지에서 스캔을 만들면 테이블이 미리 선택됩니다.
+이전 프로필 보기: 이 테이블에 적용되는 데이터 프로필 스캔 목록을 확인합니다.
+데이터 프로필 스캔 업데이트
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 BigQuery 메타데이터 선별 페이지에서 데이터 프로파일링 및 품질 탭으로 이동합니다.
+
+
+  
+  데이터 프로파일링 및 품질로 이동 [https://console.cloud.google.com/bigquery/governance/metadata-curation/data-profiling-and-quality?hl=ko]
+
+
+
+데이터 프로필 스캔 이름을 클릭합니다.
+수정을 클릭한 다음 값을 수정합니다.
+저장을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#gcloud] ---
+데이터 프로필 스캔을 업데이트하려면 gcloud dataplex datascans update data-profile 명령어 [https://cloud.google.com/sdk/gcloud/reference/dataplex/datascans/update/data-profile?hl=ko]를 사용합니다.
+
+gcloud dataplex datascans update data-profile DATASCAN \
+--location=LOCATION \
+--description=DESCRIPTION
+
+
+다음 변수를 바꿉니다.
+
+
+DATASCAN: 업데이트할 데이터 프로필 스캔의 이름입니다.
+LOCATION: 데이터 프로필 스캔이 생성된 Google Cloud 리전입니다.
+DESCRIPTION: 데이터 프로필 스캔에 대한 새로운 설명입니다.
+참고: 데이터 품질 사양 파일에서 rowFilter, samplingPercent 또는 includeFields와 같은 사양 필드를 업데이트할 수 있습니다. JSON 형식 [https://cloud.google.com/dataplex/docs/reference/rest/v1/DataProfileSpec?hl=ko]을 참조하세요.
+
+--- 탭: REST [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#rest] ---
+데이터 프로필 스캔을 수정하려면 dataScans.patch 메서드 [https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans/patch?hl=ko]를 사용합니다.
+데이터 프로필 스캔 삭제
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 BigQuery 메타데이터 선별 페이지에서 데이터 프로파일링 및 품질 탭으로 이동합니다.
+
+
+  
+  데이터 프로파일링 및 품질로 이동 [https://console.cloud.google.com/bigquery/governance/metadata-curation/data-profiling-and-quality?hl=ko]
+
+
+
+삭제하려는 스캔을 클릭합니다.
+삭제를 클릭한 후 메시지가 표시되면 확인합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#gcloud] ---
+데이터 프로필 스캔을 삭제하려면 gcloud dataplex datascans delete 명령어 [https://cloud.google.com/sdk/gcloud/reference/dataplex/datascans/delete?hl=ko]를 사용합니다.
+
+gcloud dataplex datascans delete DATASCAN \
+--location=LOCATION --async
+
+
+다음 변수를 바꿉니다.
+
+
+DATASCAN: 삭제할 데이터 프로필 스캔의 이름입니다.
+LOCATION: 데이터 프로필 스캔이 생성된 Google Cloud 리전입니다.
+
+--- 탭: REST [https://cloud.google.com/bigquery/docs/data-profile-scan?hl=ko#rest] ---
+데이터 프로필 스캔을 삭제하려면 dataScans.delete 메서드 [https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans/delete?hl=ko]를 사용합니다.
+다음 단계
+데이터 인사이트를 생성하여 데이터를 탐색 [https://cloud.google.com/bigquery/docs/data-insights?hl=ko]하는 방법 알아보기
+BigQuery의 데이터 거버넌스 [https://cloud.google.com/bigquery/docs/data-governance?hl=ko] 자세히 알아보기
+도움이 되었나요?
+의견 보내기

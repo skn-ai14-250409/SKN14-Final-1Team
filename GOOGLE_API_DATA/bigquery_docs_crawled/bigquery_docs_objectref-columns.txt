@@ -1,0 +1,184 @@
+Source URL: https://cloud.google.com/bigquery/docs/objectref-columns
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+기본 요건 [https://cloud.google.com/bigquery/docs/objectref-columns?hl=ko#prerequisites]
+ObjectRef 값 유지 [https://cloud.google.com/bigquery/docs/objectref-columns?hl=ko#maintaining_objectref_values]
+ObjectRef 열 만들기 [https://cloud.google.com/bigquery/docs/objectref-columns?hl=ko#create_an_objectref_column]
+ARRAY<ObjectRef> 열 만들기 [https://cloud.google.com/bigquery/docs/objectref-columns?hl=ko#create_an_arrayobjectref_column]
+ObjectRef 열 업데이트 [https://cloud.google.com/bigquery/docs/objectref-columns?hl=ko#update_an_objectref_column]
+다음 단계 [https://cloud.google.com/bigquery/docs/objectref-columns?hl=ko#whats_next]
+테이블 스키마에서 ObjectRef 열 지정
+bookmark_border
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대해 의견을 제공하거나 지원을 요청하려면 bq-objectref-feedback@google.com [mailto:bq-objectref-feedback@google.com]으로 이메일을 보내세요.
+이 문서에서는 ObjectRef 값을 저장할 수 있는 열이 있는 BigQuery 표준 테이블 스키마를 정의하는 방법을 설명합니다.
+ObjectRef 값은 Cloud Storage의 객체에 대한 메타데이터와 연결 정보를 제공합니다. 구조화되지 않은 데이터를 표준 테이블에 통합해야 하는 경우 ObjectRef 값을 사용합니다. 예를 들어 제품 테이블에서 ObjectRef 값이 포함된 열을 추가하여 나머지 제품 정보와 동일한 행에 제품 이미지를 저장할 수 있습니다. ObjectRef 형식 [https://cloud.google.com/bigquery/docs/reference/standard-sql/objectref_functions?hl=ko#objectref]을 사용하는 STRUCT 열에 ObjectRef 값을 저장할 수 있습니다. 이 형식은 STRUCT<uri STRING, version STRING, authorizer STRING, details JSON>입니다.
+멀티모달 데이터 작업에 대한 자세한 내용은 멀티모달 데이터 분석 [https://cloud.google.com/bigquery/docs/analyze-multimodal-data?hl=ko]을 참고하세요. ObjectRef 데이터로 작업하는 방법을 보여주는 튜토리얼은 SQL로 멀티모달 데이터 분석 [https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial?hl=ko]을 참고하세요. Python에서 멀티모달 데이터를 사용하는 방법에 관한 자세한 내용은 BigQuery DataFrames로 Python에서 멀티모달 데이터 분석하기 [https://cloud.google.com/bigquery/docs/multimodal-data-dataframes-tutorial?hl=ko]를 참고하세요.
+참고: 이 문서의 예에서는 CREATE OR REPLACE TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]을 사용하여 단일 작업으로 ObjectRef 열을 만들고 채우지만 ALTER TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_statement]을 사용하여 기존 테이블에 STRUCT 열을 추가한 다음 UPDATE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#update_statement]을 사용하여 별도의 작업으로 해당 열을 채울 수도 있습니다.
+기본 요건
+표준 테이블에서 ObjectRef 값을 채우고 업데이트하려면 테이블에 관련 Cloud Storage 객체의 URI 정보가 포함된 STRING 열이 있어야 합니다.
+타겟 표준 테이블의 URI 데이터에 식별된 것과 동일한 객체가 포함된 Cloud Storage 버킷이 있어야 합니다. 객체 테이블 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko]을 사용하여 표준 테이블에서 ObjectRef 값을 유지 [https://cloud.google.com/bigquery/docs/objectref-columns?hl=ko#maintaining_objectref_values]하려면 해당 버킷의 객체를 나타내는 객체 테이블도 있어야 합니다.
+ObjectRef 값 유지
+객체 테이블을 사용하여 표준 테이블에서 ObjectRef 값을 채우고 업데이트할 수 있습니다. 미리보기 허용 목록에 있는 경우 생성하는 모든 객체 테이블에는 지정된 객체의 ObjectRef 값을 포함하는 ref 열이 있습니다. 객체 URI를 사용하여 표준 테이블을 객체 테이블에 조인하여 ObjectRef 값을 채우고 업데이트할 수 있습니다. Cloud Storage에서 객체 메타데이터를 검색할 필요가 없으므로 확장성을 위해 이 방법을 사용하는 것이 좋습니다.
+객체 테이블을 만들고 싶지 않다면 OBJ.FETCH_METADATA [https://cloud.google.com/bigquery/docs/reference/standard-sql/objectref_functions?hl=ko#objfetch_metadata] 및 OBJ.MAKE_REF [https://cloud.google.com/bigquery/docs/reference/standard-sql/objectref_functions?hl=ko#objmake_ref] 함수를 사용하여 Cloud Storage에서 직접 객체 메타데이터를 가져와 ObjectRef 값을 채우고 업데이트할 수 있습니다. 이 접근 방식은 Cloud Storage에서 객체 메타데이터를 가져와야 하므로 확장성이 떨어질 수 있습니다.
+ObjectRef 열 만들기
+표준 테이블에서 ObjectRef 열을 만들고 채우려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 객체 테이블 [https://cloud.google.com/bigquery/docs/objectref-columns?hl=ko#%EA%B0%9D%EC%B2%B4-%ED%85%8C%EC%9D%B4%EB%B8%94] ---
+객체 테이블 ref 열의 데이터를 기반으로 ObjectRef 열을 만들고 채웁니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE OR REPLACE TABLE PROJECT_ID.DATASET_ID.TABLE_NAME
+AS
+SELECT TABLE_NAME.*, OBJECT_TABLE.ref AS objectrefcolumn
+FROM DATASET_ID.TABLE_NAME
+INNER JOIN DATASET_ID.OBJECT_TABLE
+ON OBJECT_TABLE.uri = TABLE_NAME.uri;
+
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID입니다. 현재 프로젝트에서 테이블을 만드는 경우 이 인수를 건너뛸 수 있습니다.
+  DATASET_ID: 만들려는 데이터 세트의 ID입니다.
+  TABLE_NAME: 다시 만드는 표준 테이블의 이름입니다.
+  OBJECT_TABLE: 표준 테이블에 통합할 객체 데이터가 포함된 객체 테이블의 이름입니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: SQL 함수를 사용하여 작성 가능 [https://cloud.google.com/bigquery/docs/objectref-columns?hl=ko#sql-%ED%95%A8%EC%88%98%EB%A5%BC-%EC%82%AC%EC%9A%A9%ED%95%98%EC%97%AC-%EC%9E%91%EC%84%B1-%EA%B0%80%EB%8A%A5] ---
+OBJ.FETCH_METADATA 및 OBJ.MAKE_REF 함수의 출력을 기반으로 ObjectRef 열을 만들고 채웁니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE OR REPLACE TABLE PROJECT_ID.DATASET_ID.TABLE_NAME
+AS
+SELECT TABLE_NAME.*,
+OBJ.FETCH_METADATA(OBJ.MAKE_REF(uri, 'CONNECTION_ID')) AS objectrefcolumn
+FROM DATASET_ID.TABLE_NAME;
+
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID입니다. 현재 프로젝트에서 테이블을 만드는 경우 이 인수를 건너뛸 수 있습니다.
+  DATASET_ID: 만들려는 데이터 세트의 ID입니다.
+  TABLE_NAME: 다시 만드는 표준 테이블의 이름입니다.
+  CONNECTION_ID: 서비스가 Cloud Storage의 객체에 액세스하는 데 사용할 수 있는 클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]이 포함된 STRING 값입니다(location.connection_id 형식). 예를 들면 us-west1.myconnection입니다. Google Cloud 콘솔에서 연결 세부정보를 확인 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections]하고 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값을 복사하여 연결 ID를 가져올 수 있습니다. 예를 들면 다음과 같습니다.
+projects/myproject/locations/connection_location/connections/myconnection
+   객체에 액세스하는 데 사용하는 Cloud Storage 버킷에서 연결의 서비스 계정에 스토리지 객체 사용자(roles/storage.objectUser) 역할을 부여해야 합니다.
+   연결은 함수를 호출하는 쿼리와 동일한 프로젝트 및 리전에 있어야 합니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+ARRAY<ObjectRef> 열 만들기
+ObjectRef 값의 배열을 포함하는 ARRAY<STRUCT<uri STRING, version STRING, authorizer STRING, details JSON>> 열을 만들 수 있습니다. 예를 들어 동영상을 별도의 이미지로 청크한 다음 이러한 이미지를 ObjectRef 값의 배열로 저장할 수 있습니다.
+ARRAY_AGG 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#array_agg]를 사용하여 ObjectRef 값의 배열을 집계할 수 있습니다. 필요한 경우 ORDER BY 절을 사용하여 객체 순서를 유지할 수 있습니다. UNNEST 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#unnest_operator]를 사용하여 ObjectRef 값의 배열을 개별 ObjectRef 값으로 파싱할 수 있습니다. 필요한 경우 WITH OFFSET 절을 사용하여 객체 순서를 유지할 수 있습니다. URI 경로 및 객체 파일 이름과 같은 객체 메타데이터를 사용하여 객체 청크를 나타내는 ObjectRef 값을 원본 객체를 나타내는 ObjectRef 값에 매핑할 수 있습니다.
+ObjectRef 값의 배열을 사용하는 방법의 예는 SQL로 멀티모달 데이터 분석 [https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial?hl=ko] 튜토리얼의 ARRAY<ObjectRef> 값을 사용하여 순서가 지정된 멀티모달 데이터 처리 [https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial?hl=ko#process_ordered_multimodal_data_using_arrays_of_objectref_values] 섹션을 참고하세요.
+ObjectRef 열 업데이트
+표준 테이블에서 ObjectRef 열을 업데이트하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 객체 테이블 [https://cloud.google.com/bigquery/docs/objectref-columns?hl=ko#%EA%B0%9D%EC%B2%B4-%ED%85%8C%EC%9D%B4%EB%B8%94] ---
+객체 테이블 ref 열의 데이터를 사용하여 ObjectRef 열을 업데이트합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+UPDATE PROJECT_ID.DATASET_ID.TABLE_NAME
+SET objectrefcolumn = (SELECT ref FROM DATASET_ID.OBJECT_TABLE WHERE OBJECT_TABLE.uri = TABLE_NAME.uri)
+WHERE uri != "";
+
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID입니다. 현재 프로젝트에서 테이블을 만드는 경우 이 인수를 건너뛸 수 있습니다.
+  DATASET_ID: 만들려는 데이터 세트의 ID입니다.
+  TABLE_NAME: 다시 만드는 표준 테이블의 이름입니다.
+  OBJECT_TABLE: 표준 테이블 ObjectRef 열과 동일한 객체 데이터가 포함된 객체 테이블의 이름입니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: SQL 함수를 사용하여 작성 가능 [https://cloud.google.com/bigquery/docs/objectref-columns?hl=ko#sql-%ED%95%A8%EC%88%98%EB%A5%BC-%EC%82%AC%EC%9A%A9%ED%95%98%EC%97%AC-%EC%9E%91%EC%84%B1-%EA%B0%80%EB%8A%A5] ---
+OBJ.FETCH_METADATA 및 OBJ.MAKE_REF 함수의 출력을 사용하여 ObjectRef 열을 업데이트합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+UPDATE PROJECT_ID.DATASET_ID.TABLE_NAME
+SET objectrefcolumn = (SELECT OBJ.FETCH_METADATA(OBJ.MAKE_REF(uri, 'CONNECTION_ID')))
+WHERE uri != "";
+
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID입니다. 현재 프로젝트에서 테이블을 만드는 경우 이 인수를 건너뛸 수 있습니다.
+  DATASET_ID: 만들려는 데이터 세트의 ID입니다.
+  TABLE_NAME: 다시 만드는 표준 테이블의 이름입니다.
+        CONNECTION_ID: 서비스가 Cloud Storage의 객체에 액세스하는 데 사용할 수 있는 클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]이 포함된 STRING 값입니다(location.connection_id 형식). 예를 들면 us-west1.myconnection입니다. Google Cloud 콘솔에서 연결 세부정보를 확인 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections]하고 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값을 복사하여 연결 ID를 가져올 수 있습니다. 예를 들면 다음과 같습니다.
+projects/myproject/locations/connection_location/connections/myconnection
+   객체에 액세스하는 데 사용하는 Cloud Storage 버킷에서 연결의 서비스 계정에 스토리지 객체 사용자(roles/storage.objectUser) 역할을 부여해야 합니다.
+   연결은 함수를 호출하는 쿼리와 동일한 프로젝트 및 리전에 있어야 합니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+다음 단계
+멀티모달 데이터 분석 [https://cloud.google.com/bigquery/docs/analyze-multimodal-data?hl=ko]
+SQL로 멀티모달 데이터 분석 [https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial?hl=ko]
+BigQuery DataFrames를 사용하여 Python에서 멀티모달 데이터 분석 [https://cloud.google.com/bigquery/docs/multimodal-data-dataframes-tutorial?hl=ko]
+도움이 되었나요?
+의견 보내기

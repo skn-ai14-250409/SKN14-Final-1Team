@@ -1,0 +1,154 @@
+Source URL: https://cloud.google.com/bigquery/docs/merchant-center-products-schema
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+개요 [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#overview]
+스키마 [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#schema]
+쿼리 예시 [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#query_examples]
+제품 및 제품 문제 통계 [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#products_and_product_issues_statistics]
+쇼핑 광고에 승인되지 않은 제품 [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#products_disapproved_for_shopping_ads]
+승인되지 않은 문제가 있는 제품 [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#products_with_disapproved_issues]
+Google 판매자 센터 제품 테이블 스키마
+bookmark_border
+주의: 판매자 센터 커넥터는 지원이 중단되었으며 현재 사용자만 사용할 수 있습니다. Vertex AI Search for Commerce를 구현하려면 신규 고객이 Catalog API 또는 BigQuery를 사용해야 합니다.
+개요
+Google 판매자 센터 보고 데이터가 BigQuery로 전송되면 제품 및 제품 문제 데이터 형식은 주로 Content API의 Products [https://developers.google.com/shopping-content/v2/reference/v2.1/products?hl=ko] 및 Productstatuses [https://developers.google.com/shopping-content/v2/reference/v2.1/productstatuses?hl=ko] 리소스의 관련 필드 형식과 일치합니다.
+개별 판매자 ID를 사용하는 경우에는 데이터가 Products_MERCHANT_ID 테이블에 기록되고, MCA 계정을 사용하는 경우에는 Products_AGGREGATOR_ID 테이블에 기록됩니다.
+참고: 보고서가 처음 요청되면 Products and product issues 데이터를 즉시 사용할 수 없습니다. 판매자 또는 애그리게이터 ID에 대한 전송을 처음 요청하는 경우 Products_ 표를 내보낼 수 있기까지 최대 1일이 걸릴 수 있습니다.
+스키마
+Products_ 테이블에는 다음과 같은 스키마가 있습니다.
+열 BigQuery 데이터 유형 설명 예시 데이터
+product_data_timestamp TIMESTAMP 제품 데이터의 타임스탬프 2023-09-14 11:49:50 UTC
+product_id STRING 다음과 같은 형식의 Content API의 상품 REST ID: channel:content_language:feed_label:offer_id. 기본 키입니다. online:en:AU:666840730
+merchant_id INTEGER 판매자 계정 ID 1234
+aggregator_id INTEGER 멀티 클라이언트 계정의 애그리게이터 계정 ID 12345
+offer_id STRING 판매자가 제품의 ID [https://support.google.com/merchants/answer/6324405?hl=ko]를 제공했습니다. tddy123uk
+title STRING 상품 제목 TN2351 black USB
+description STRING 상품의 설명 [https://support.google.com/merchants/answer/6324468?hl=ko] TN2351 black USB는 XJS가 LLCD 환경에 미치는 영향을 재정의했습니다.
+link STRING 판매자가 제품의 방문 페이지 URL [https://support.google.com/merchants/answer/6324416?hl=ko]을 제공했습니다. https://www.example.com/tn2351-black-usb/6538811?skuId=1234
+mobile_link STRING 판매자가 방문 페이지의 모바일에 최적화된 버전의 URL [https://support.google.com/merchants/answer/6324459?hl=ko]을 제공했습니다. https://www.example.com/tn2351-black-usb/6538811?skuId=1234
+image_link STRING 판매자가 기본 제품 이미지의 URL [https://support.google.com/merchants/answer/6324350?hl=ko]을 제공했습니다. https://www.example.com/tn2351-black-usb/6538811?skuId=1234
+additional_image_links STRING, REPEATED 판매자가 상품 이미지의 추가 URL [https://support.google.com/merchants/answer/6324370?hl=ko]을 제공했습니다.
+content_language STRING 상품의 ISO 639-1 언어 코드(두 글자) en
+target_country STRING 제품이 여러 국가를 타겟팅 [https://support.google.com/merchants/answer/7448571?hl=ko]할 수 있도록 하기 위한 변경사항의 일환으로 지원 중단되었습니다(항상 NULL로 설정됨). 대신 destinations.approved_countries [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#destinations.approved_countries], destinations.pending_countries [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#destinations.pending_countries], destinations.disapproved_countries [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#destinations.disapproved_countries] 필드를 사용하여 각 대상 국가의 상태를 확인하세요. 이제 issues.applicable_countries [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#issues.applicable_countries] 필드에 표시된 대로 문제가 일부 대상 국가에만 적용되고 다른 국가에는 적용되지 않을 수 있습니다. null
+feed_label STRING 판매자가 상품에 대한 피드 라벨 [https://support.google.com/merchants/answer/12453549?hl=ko]을 제공했거나, 또는 제공하지 않은 경우 -입니다. US
+channel STRING 상품의 채널(online 또는 local) local, online
+expiration_date TIMESTAMP 판매자가 삽입 시 지정한 대로 상품이 만료되는 [https://support.google.com/merchants/answer/6324499?hl=ko] 날짜 및 시간을 제공했습니다. 제공되지 않으면 null로 설정합니다. 2023-10-14 00:00:00 UTC
+google_expiration_date TIMESTAMP Google 쇼핑에서 상품이 만료되는 날짜 및 시간. null로 설정하지 마세요. 2023-10-14 00:00:00 UTC
+adult BOOLEAN 상품이 성인 대상 [https://support.google.com/merchants/answer/6324508?hl=ko]인 경우 true로 설정합니다. true, false
+age_group STRING 판매자가 상품의 대상 연령대 [https://support.google.com/merchants/answer/6324463?hl=ko]를 제공했습니다. 제공되지 않으면 NULL입니다. newborn, infant, toddler, kids, adult
+availability STRING 판매자가 상품의 재고 [https://support.google.com/merchants/answer/6324448?hl=ko] 상태를 제공했습니다. in stock, out of stock
+availability_date TIMESTAMP 판매자가 선주문 제품을 배송할 수 있는 [https://support.google.com/merchants/answer/6324470?hl=ko] 날짜 및 시간을 제공했습니다. 제공되지 않으면 NULL입니다. 2023-10-14 00:00:00 UTC
+brand STRING 판매자가 상품의 브랜드 [https://support.google.com/merchants/answer/6324351?hl=ko]를 제공했습니다. 제공되지 않으면 NULL입니다. 브랜드 이름
+google_brand_id STRING 상품의 Google 브랜드 ID입니다. 12759524623914508053
+color STRING 판매자가 상품의 색상 [https://support.google.com/merchants/answer/6324487?hl=ko]을 제공했습니다. 제공되지 않으면 NULL입니다. 실버, 그레이, 멀티
+condition STRING 판매자가 상품의 조건 [https://support.google.com/merchants/answer/6324469?hl=ko]을 제공했습니다. new, used, refurbished
+custom_labels RECORD 판매자가 쇼핑 광고에서 상품을 맞춤 그룹화하기 위해 커스텀 라벨 [https://support.google.com/merchants/answer/6324473?hl=ko]을 제공했습니다. 제공되지 않으면 NULL입니다.
+custom_labels.label_0 STRING 커스텀 라벨 0 내 커스텀 라벨
+custom_labels.label_1 STRING 커스텀 라벨 1 내 커스텀 라벨
+custom_labels.label_2 STRING 커스텀 라벨 2 내 커스텀 라벨
+custom_labels.label_3 STRING 커스텀 라벨 3 내 커스텀 라벨
+custom_labels.label_4 STRING 커스텀 라벨 4 내 커스텀 라벨
+gender STRING 판매자가 상품의 대상 성별 [https://support.google.com/merchants/answer/6324479?hl=ko]을 제공했습니다. 제공되지 않으면 NULL입니다. unisex, male, female
+gtin STRING 판매자가 상품의 국제거래단품식별코드(GTIN) [https://support.google.com/merchants/answer/6324461?hl=ko]를 제공했습니다. 제공되지 않으면 NULL입니다. 3234567890126
+item_group_id STRING 판매자가 동일한 상품의 모든 변형에 대해 공유 식별자 [https://support.google.com/merchants/answer/6324507?hl=ko]를 제공했습니다. 제공되지 않으면 NULL입니다. AB12345
+material STRING 판매자가 상품을 만든 소재 [https://support.google.com/merchants/answer/6324410?hl=ko]를 제공했습니다. 제공되지 않으면 NULL입니다. 가죽
+mpn STRING 판매자가 상품의 제조업체 부품 번호 [https://support.google.com/merchants/answer/6324482?hl=ko](MPN)를 제공했습니다. 제공되지 않으면 NULL로 설정합니다. GO12345OOGLE
+pattern STRING 판매자가 패턴 [https://support.google.com/merchants/answer/6324483?hl=ko]을 제공했습니다. 제공되지 않으면 NULL입니다. 스트라이프
+price RECORD 판매자가 제공한 상품의 가격 [https://support.google.com/merchants/answer/6324371?hl=ko]입니다.
+price.value NUMERIC 상품의 가격 19.99
+price.currency STRING 가격의 통화 USD
+sale_price RECORD 판매자가 상품의 할인가 [https://support.google.com/merchants/answer/6324471?hl=ko]를 제공했습니다.
+sale_price.value NUMERIC 상품의 할인가. 제공되지 않으면 NULL입니다. 19.99
+sale_price.currency STRING 할인가의 통화. 제공되지 않으면 NULL입니다. USD
+sale_price_effective_start_date TIMESTAMP 상품 판매 시작 날짜 및 시간 2023-10-14 00:00:00 UTC
+sale_price_effective_end_date TIMESTAMP 상품 판매 종료 날짜 및 시간 2023-10-14 00:00:00 UTC
+google_product_category INTEGER 상품의 Google 상품 카테고리 [https://support.google.com/merchants/answer/1705911?hl=ko] ID. 제공되지 않으면 NULL입니다. 2271
+google_product_category_ids INTEGER, REPEATED 상품에 대한 Google 상품 카테고리 [https://support.google.com/merchants/answer/1705911?hl=ko] 전체 경로이며, ID 집합으로 저장됩니다. 제공되지 않으면 NULL입니다.
+google_product_category_path STRING 인간이 읽을 수 있는 전체 경로 버전. 제공되지 않으면 비워둡니다. 의류/액세서리 > 의류 > 드레스
+product_type STRING 판매자가 제공한 상품 카테고리 [https://support.google.com/merchants/answer/6324406?hl=ko] 홈 > 여성 > 드레스 > 맥시 드레스
+additional_product_types STRING, REPEATED 상품의 추가 카테고리
+promotion_ids STRING, REPEATED 제품과 연결된 프로모션 ID [https://support.google.com/merchants/answer/7050148?hl=ko] 목록입니다.
+destinations RECORD, REPEATED 상품의 의도한 대상 위치
+destinations.name STRING 대상의 이름입니다. Shopping만 지원됩니다. 이는 판매자 센터의 마케팅 방법 [https://support.google.com/merchants/answer/15130232?hl=ko] '쇼핑 광고' 및 '오프라인 판매점 인벤토리 광고'에 해당합니다. 쇼핑
+destinations.status* [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#products_and_product_issues_table_schema] STRING 제품이 여러 국가를 타겟팅 [https://support.google.com/merchants/answer/7448571?hl=ko]할 수 있도록 하기 위한 변경사항의 일환으로 지원 중단되었습니다(항상 NULL로 설정됨). 대신 destinations.approved_countries [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#destinations.approved_countries], destinations.pending_countries [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#destinations.pending_countries], destinations.disapproved_countries [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#destinations.disapproved_countries] 필드를 사용하여 각 대상 국가의 상태를 확인하세요. 이제 issues.applicable_countries [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko#issues.applicable_countries] 필드에 표시된 대로 문제가 일부 대상 국가에만 적용되고 다른 국가에는 적용되지 않을 수 있습니다. NULL
+destinations.approved_countries STRING, REPEATED 혜택이 승인된 CLDR 지역 코드 [http://www.unicode.org/repos/cldr/tags/latest/common/main/en.xml] 목록 US, CH
+destinations.pending_countries STRING, REPEATED 혜택이 대기 중인 CLDR 지역 코드 [http://www.unicode.org/repos/cldr/tags/latest/common/main/en.xml] 목록 US, CH
+destinations.disapproved_countries STRING, REPEATED 혜택이 승인되지 않은 CLDR 지역 코드 [http://www.unicode.org/repos/cldr/tags/latest/common/main/en.xml] 목록 US, CH
+issues RECORD, REPEATED 제품과 관련된 상품 수준 문제의 목록
+issues.code STRING 문제의 오류 코드 image_too_generic
+issues.servability STRING 이 문제가 혜택 제공에 미치는 영향 비승인, 영향을 받지 않음
+issues.resolution STRING 판매자가 문제를 해결할 수 있는지 여부 merchant_action, pending_processing
+issues.attribute_name STRING 문제가 단일 속성으로 인해 발생한 경우 속성의 이름. 그렇지 않으면 Null입니다. 이미지 링크
+issues.destination STRING 문제가 적용되는 대상 위치. 항상 Shopping로 설정합니다. 쇼핑
+issues.short_description STRING 간단한 문제 설명(영어) 일반 이미지
+issues.detailed_description STRING 자세한 문제 설명(영어) 제품을 나타내는 이미지 사용
+issues.documentation STRING 이 문제를 해결하는 데 도움이 되는 웹 페이지의 URL https://support.google.com/merchants/answer/6098288
+issues.applicable_countries STRING, REPEATED 문제가 적용되는 CLDR 지역 코드 [http://www.unicode.org/repos/cldr/tags/latest/common/main/en.xml] 목록 CH
+쿼리 예시
+이 섹션에서는 쿼리 예시를 보여줍니다.
+제품 및 제품 문제 통계
+다음 SQL 샘플 쿼리는 제품 수, 문제가 있는 제품, 일별 문제를 제공합니다.
+SELECT
+  _PARTITIONDATE AS date,
+  COUNT(*) AS num_products,
+  COUNTIF(ARRAY_LENGTH(issues) > 0) AS num_products_with_issues,
+  SUM(ARRAY_LENGTH(issues)) AS num_issues
+FROM
+  
+dataset.Products_
+merchant_id
+WHERE
+  _PARTITIONDATE >= '
+YYYY-MM-DD'
+GROUP BY
+  date
+ORDER BY
+  date DESC
+쇼핑 광고에 승인되지 않은 제품
+다음 SQL 샘플 쿼리는 쇼핑 광고에 표시하도록 승인되지 않은 제품 수를 국가별로 구분하여 제공합니다. 제외된 [https://support.google.com/merchants/answer/6324486?hl=ko] 대상 또는 제품 관련 문제로 인해 비승인이 발생할 수 있습니다.
+SELECT
+  _PARTITIONDATE AS date,
+  disapproved_country,
+  COUNT(*) AS num_products
+FROM
+  
+dataset.Products_
+merchant_id,
+  UNNEST(destinations) AS destination,
+  UNNEST(disapproved_countries) AS disapproved_country
+WHERE
+  _PARTITIONDATE >= '
+YYYY-MM-DD'
+GROUP BY
+  date, disapproved_country
+ORDER BY
+  date DESC
+승인되지 않은 문제가 있는 제품
+다음 SQL 샘플 쿼리는 비승인 문제가 있는 제품 수를 국가별로 구분하여 가져옵니다.
+SELECT
+  _PARTITIONDATE AS date,
+  applicable_country,
+  COUNT(DISTINCT CONCAT(CAST(merchant_id AS STRING), ':', product_id))
+      AS num_distinct_products
+FROM
+  
+dataset.Products_
+merchant_id,
+  UNNEST(issues) AS issue,
+  UNNEST(issue.applicable_countries) as applicable_country
+WHERE
+  _PARTITIONDATE >= '
+YYYY-MM-DD' AND
+  issue.servability = 'disapproved'
+GROUP BY
+  date, applicable_country
+ORDER BY
+  date DESC
+참고: 이 쿼리는 merchant_id 및 product_id를 사용하여 고유 키를 구성합니다. 이는 MCA 계정이 있는 경우에만 필요합니다. MCA 계정을 사용하면 여러 하위 계정에서 product_id 충돌이 발생할 가능성이 있습니다.
+도움이 되었나요?
+의견 보내기

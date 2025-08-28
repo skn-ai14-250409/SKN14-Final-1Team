@@ -1,0 +1,496 @@
+Source URL: https://cloud.google.com/bigquery/docs/omni-azure-create-connection
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#required_roles]
+할당량 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#quotas]
+Azure 연결 만들기 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create_an_azure_connection]
+Azure 테넌트에서 애플리케이션 만들기 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create-azure-tenant]
+연결 만들기 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create-azure-connection]
+제휴 사용자 인증 정보 추가 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#add-a-federated-credential]
+BigQuery의 Azure 애플리케이션에 역할을 할당합니다. [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#assigning-a-role]
+Blob Storage에 연결
+bookmark_border
+BigQuery 관리자는 데이터 분석가가 Azure Blob Storage에 저장된 데이터에 액세스할 수 있도록 연결 [https://cloud.google.com/bigquery/docs/connections-api-intro?hl=ko]을 만들 수 있습니다.
+BigQuery Omni [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko]는 연결을 통해 Blob Storage 데이터에 액세스합니다. BigQuery Omni는 Azure 워크로드 아이덴티티 제휴 [https://docs.microsoft.com/en-us/azure/active-directory/develop/workload-identity-federation]를 지원합니다. Azure 워크로드 아이덴티티 제휴를 지원하는 BigQuery Omni를 사용하면 테넌트의 Azure 애플리케이션에 대한 액세스 권한을 Google 서비스 계정에 부여할 수 있습니다. 사용자나 Google이 관리할 애플리케이션 클라이언트 보안 비밀이 없습니다.
+BigQuery Azure 연결을 만든 후에는 Blob Storage 데이터를 쿼리 [https://cloud.google.com/bigquery/docs/omni-azure-create-external-table?hl=ko]하거나 쿼리 결과를 Blob Storage로 내보내기 [https://cloud.google.com/bigquery/docs/omni-azure-export-results-to-azure-storage?hl=ko]할 수 있습니다.
+시작하기 전에
+다음 리소스를 만들었는지 확인합니다.
+BigQuery Connection API [https://console.cloud.google.com/apis/library/bigqueryconnection.googleapis.com?hl=ko]가 사용 설정된 Google Cloud 프로젝트 [https://cloud.google.com/docs/overview?hl=ko#projects]
+용량 기반의 가격 책정 모델을 사용하는 경우 프로젝트에 BigQuery Reservation API [https://console.cloud.google.com/apis/library/bigqueryreservation.googleapis.com?hl=ko]가 사용 설정되었는지 확인합니다. 가격 책정에 대한 자세한 내용은 BigQuery Omni 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqomni]을 참조하세요.
+Azure 구독이 포함된 Azure 테넌트입니다.
+다음 사양을 충족하는 Azure Storage 계정:
+범용 V2 계정 또는 Blob Storage 계정입니다.
+계층적 네임스페이스를 사용합니다. 자세한 내용은 Azure Data Lake Storage Gen2에 사용할 스토리지 계정 만들기 [https://docs.microsoft.com/en-us/azure/storage/blobs/create-data-lake-storage-account]를 참조하세요.
+데이터가 지원되는 형식 [https://cloud.google.com/bigquery/external-table-definition?hl=ko#table-definition] 중 하나로 채워집니다.
+데이터가 azure-eastus2 리전에 있습니다.
+필요한 역할
+연결을 만들어 Azure Blob Storage 데이터에 액세스하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트의 BigQuery 연결 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.connectionAdmin] (roles/bigquery.connectionAdmin) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+테넌트에 대한 다음 Azure IAM 권한이 있는지 확인합니다.
+Application.ReadWrite.All
+AppRoleAssignment.ReadWrite.All
+할당량
+할당량에 대한 자세한 내용은 BigQuery Connection API [https://cloud.google.com/bigquery/quotas?hl=ko#connection_api]를 참조하세요.
+Azure 연결 만들기
+Azure 연결을 만들려면 다음 단계를 수행하세요.
+Azure 테넌트에서 애플리케이션을 만듭니다 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create-azure-tenant].
+BigQuery Azure 연결 만들기 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create-azure-connection].
+제휴 사용자 인증 정보를 추가 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#add-a-federated-credential]합니다.
+BigQuery Azure AD 애플리케이션에 역할을 할당 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#assigning-a-role]합니다.
+제휴 ID 사용자 인증 정보를 사용하여 Azure의 데이터에 액세스하는 방법에 대한 자세한 내용은 워크로드 아이덴티티 제휴 [https://docs.microsoft.com/en-us/azure/active-directory/develop/workload-identity-federation]를 참조하세요.
+Azure 테넌트에서 애플리케이션 만들기
+Azure 테넌트에서 애플리케이션을 만들려면 다음 단계를 따르세요.
+--- 탭: Azure 포털 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#azure-%ED%8F%AC%ED%84%B8] ---
+Azure 포털에서 App registrations(앱 등록)로 이동한 다음 New
+registration(신규 등록)을 클릭합니다.
+Names(이름)에 애플리케이션 이름을 입력합니다.
+Supported account types(지원되는 계정 유형)에 Accounts in this organizational
+directory only(이 조직 디렉터리의 계정만)를 선택합니다.
+새 애플리케이션을 등록하려면 Register(등록)를 클릭합니다.
+애플리케이션(클라이언트) ID를 기록해 둡니다. 연결 생성 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create-azure-connection] 시 이 ID를 제공해야 합니다.
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#terraform] ---
+Terraform 구성 파일에 다음을 추가합니다.
+
+  data "azuread_client_config" "current" {}
+
+  resource "azuread_application" "example" {
+    display_name = "bigquery-omni-connector"
+    owners       = [data.azuread_client_config.current.object_id]
+  }
+
+  resource "azuread_service_principal" "example" {
+    client_id                    = azuread_application.example.client_id
+    app_role_assignment_required = false
+    owners                       = [data.azuread_client_config.current.object_id]
+  }
+자세한 내용은 Azure에서 애플리케이션을 등록 [https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app#register-an-application]하는 방법을 참조하세요.
+연결 만들기
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 add 데이터 추가를 클릭합니다.
+
+데이터 추가 대화상자가 열립니다.
+필터링 기준 창의 데이터 소스 유형 섹션에서 데이터베이스를 선택합니다.
+
+또는 데이터 소스 검색 필드에 Azure를 입력할 수 있습니다.
+추천 데이터 소스 섹션에서 Azure Blob Storage를 클릭합니다.
+Azure Blob Storage Omni: BigQuery Federation 솔루션 카드를 클릭합니다.
+표 만들기 대화상자의 연결 ID 필드에서 새 ABS 연결 만들기를 선택합니다.
+외부 데이터 소스 창에서 다음 정보를 입력합니다.
+
+
+연결 유형으로 Azure 기반 BigLake (BigQuery Omni를 통해 연결)를 선택합니다.
+연결 ID에는 연결 리소스의 식별자를 입력합니다. 문자, 숫자, 대시, 밑줄을 사용할 수 있습니다.
+연결을 만들려는 위치를 선택합니다.
+(선택사항) 별칭에 사용자 친화적인 연결 이름(예: My connection resource)을 입력합니다. 사용자 친화적인 이름으로 나중에 수정해야 하는 경우 연결 리소스를 식별하는 데 도움이 되는 모든 값을 사용할 수 있습니다.
+(선택사항) 설명에 연결 리소스에 대한 설명을 입력합니다.
+Azure 테넌트 ID에 디렉터리(테넌트) ID라고도 하는 Azure 테넌트 ID를 입력합니다.
+
+제휴 ID 사용 체크박스를 사용 설정한 후 Azure 제휴 애플리케이션(클라이언트) ID를 입력합니다.
+
+Azure ID를 가져오는 방법은 Azure 테넌트에서 애플리케이션 만들기 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create-azure-tenant]를 참조하세요.
+
+
+연결 만들기를 클릭합니다.
+연결로 이동을 클릭합니다.
+ 연결 정보 섹션에서 서비스 계정 ID인 BigQuery Google ID 값을 확인합니다. 이 ID는 애플리케이션 액세스를 승인 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#assigning-a-role]하는Google Cloud 서비스 계정의 ID입니다.
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#terraform] ---
+resource "google_bigquery_connection" "connection" {
+    connection_id = "omni-azure-connection"
+    location      = "azure-eastus2"
+    description   = "created by terraform"
+
+    azure {
+      customer_tenant_id              = "TENANT_ID"
+      federated_application_client_id = azuread_application.example.client_id
+    }
+  }
+
+TENANT_ID를 Blob Storage 계정이 포함된 Azure 디렉터리의 테넌트 ID로 바꿉니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#bq] ---
+bq mk 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mk]를 사용합니다. 출력을 JSON 형식으로 가져오려면 --format=json 매개변수를 사용합니다.
+
+
+bq mk --connection --connection_type='Azure' \
+  --tenant_id=TENANT_ID \
+  --location=AZURE_LOCATION \
+  --federated_azure=true \
+  --federated_app_client_id=APP_ID \
+  CONNECTION_ID
+
+다음을 바꿉니다.
+
+
+TENANT_ID: Azure Storage 계정이 포함된 Azure 디렉터리의 테넌트 ID
+AZURE_LOCATION: Azure Storage 데이터가 있는 Azure 리전. BigQuery Omni는 azure-eastus2 리전을 지원합니다.
+APP_ID: Azure 애플리케이션(클라이언트) ID. 이 ID를 가져오는 방법은 Azure 테넌트에서 애플리케이션 만들기 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create-azure-tenant]를 참조하세요.
+CONNECTION_ID: 연결의 이름
+
+
+출력은 다음과 비슷합니다.
+
+Connection CONNECTION_ID successfully created
+Please add the following identity to your Azure application APP_ID
+Identity: SUBJECT_ID
+
+이 출력에는 다음 값이 포함됩니다.
+
+
+APP_ID: 사용자가 만든 애플리케이션의 ID
+SUBJECT_ID: 사용자가 자신의 애플리케이션에 액세스하도록 승인한 Google Cloud서비스 계정의 ID입니다.
+Azure에서 제휴 사용자 인증 정보를 만들 때 이 값이 필요합니다.
+
+
+다음 단계에서 사용할 APP_ID 및 SUBJECT_ID 값을 기록해둡니다.
+
+
+참고: 기본 프로젝트를 재정의하려면 --project_id=PROJECT_ID 매개변수를 사용하세요. PROJECT_ID를Google Cloud 프로젝트의 ID로 바꿉니다.
+그런 다음 애플리케이션의 제휴 사용자 인증 정보를 추가합니다.
+제휴 사용자 인증 정보 추가
+제휴 사용자 인증 정보를 만들려면 다음 단계를 수행합니다.
+--- 탭: Azure 포털 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#azure-%ED%8F%AC%ED%84%B8] ---
+Azure 포털에서 App registrations(앱 등록)로 이동한 다음 애플리케이션을 클릭합니다.
+Certificates & secrets(인증서 및 보안 비밀) > Federated credentials(제휴 사용자 인증 정보) > Add credentials(사용자 인증 정보 추가)를 선택합니다. 그런 후 다음 작업을 수행합니다.
+
+
+Federated credential scenario(제휴 사용자 인증 정보 시나리오) 목록에서 Other issuer(다른 발급기관)를 선택합니다.
+Issuer(발급기관)에 https://accounts.google.com을 입력합니다.
+Subject identifier(제목 식별자)에 연결 생성 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create-azure-connection] 시 가져온 Google Cloud 서비스 계정의 BigQuery Google ID를 입력합니다.
+Name(이름)에 사용자 인증 정보의 이름을 입력합니다.
+추가를 클릭합니다.
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#terraform] ---
+Terraform 구성 파일에 다음을 추가합니다.
+
+  resource "azuread_application_federated_identity_credential" "example" {
+    application_id = azuread_application.example.id
+    display_name   = "omni-federated-credential"
+    description    = "BigQuery Omni federated credential"
+    audiences      = ["api://AzureADTokenExchange"]
+    issuer         = "https://accounts.google.com"
+    subject        = google_bigquery_connection.connection.azure[0].identity
+  }
+자세한 내용은 외부 ID 공급업체를 신뢰하도록 앱 구성 [https://docs.microsoft.com/en-us/azure/active-directory/develop/workload-identity-federation-create-trust?tabs=azure-portal]을 참조하세요.
+BigQuery의 Azure 애플리케이션에 역할을 할당합니다.
+BigQuery의 Azure 애플리케이션에 역할을 할당하려면 Azure 포털, Azure PowerShell 또는 Microsoft Management REST API를 사용합니다.
+--- 탭: Azure 포털 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#azure-%ED%8F%AC%ED%84%B8] ---
+Microsoft.Authorization/roleAssignments/write 권한이 있는 사용자로 로그인하여 Azure 포털에서 역할 할당을 수행할 수 있습니다. 역할 할당을 통해 역할 정책에 지정된 대로 BigQuery Azure 연결로 Azure Storage 데이터에 액세스할 수 있습니다.
+
+Azure 포털을 사용하여 역할 할당을 추가하려면 다음 단계를 수행합니다.
+
+
+Azure Storage 계정의 검색창에 IAM을 입력합니다.
+Access Control (IAM)(액세스 제어(IAM))을 클릭합니다.
+Add(추가)를 클릭하고 Add role assignments(역할 할당 추가)를 선택합니다.
+읽기 전용 액세스 권한을 제공하려면 Storage Blob Data Reader(스토리지 Blob 데이터 리더) 역할을 선택합니다.
+읽기-쓰기 액세스 권한을 제공하려면 Storage Blob Data
+Contributor(스토리지 Blob 데이터 참여자) 역할을 선택합니다.
+액세스 권한 지정을 사용자, 그룹 또는 서비스 주 구성원으로 설정합니다.
+Select members(구성원 선택)를 클릭합니다.
+Select(선택) 필드에 Azure 테넌트에서 애플리케이션을 만들 때 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create-azure-tenant] 지정한 Azure 애플리케이션 이름을 입력합니다.
+  
+저장을 클릭합니다.
+
+
+자세한 내용은 Azure 포털을 사용한 Azure 역할 할당 [https://docs.microsoft.com/en-us/azure/role-based-access-control/role-assignments-portal]을 참조하세요.
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#terraform] ---
+Terraform 구성 파일에 다음을 추가합니다.
+
+  resource "azurerm_role_assignment" "data_role" {
+    scope                = data.azurerm_storage_account.example.id
+    # Read permission for Omni on the storage account
+    role_definition_name = "Storage Blob Data Reader"
+    principal_id         = azuread_service_principal.example.id
+  }
+
+--- 탭: Azure PowerShell [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#azure-powershell] ---
+리소스 범위에서 서비스 주 구성원에 역할 할당을 추가하려면 New-AzRoleAssignment 명령어 [https://docs.microsoft.com/en-us/powershell/module/az.resources/new-azroleassignment?view=azps-7.5.0]를 사용하면 됩니다.
+
+  New-AzRoleAssignment`
+   -SignInName APP_NAME`
+   -RoleDefinitionName ROLE_NAME`
+   -ResourceName RESOURCE_NAME`
+   -ResourceType RESOURCE_TYPE`
+   -ParentResource PARENT_RESOURCE`
+   -ResourceGroupName RESOURCE_GROUP_NAME
+
+다음을 바꿉니다.
+
+
+APP_NAME: 애플리케이션의 이름입니다.
+ROLE_NAME: 할당하려는 역할 이름입니다.
+RESOURCE_NAME: 리소스 이름입니다.
+RESOURCE_TYPE: 리소스 유형입니다.
+PARENT_RESOURCE: 상위 리소스입니다.
+RESOURCE_GROUP_NAME: 리소스 그룹 이름입니다.
+
+
+Azure PowerShell을 사용하여 새 서비스 주 구성원을 추가하는 방법에 대한 자세한 내용은 Azure PowerShell을 사용한 Azure 역할 할당 [https://docs.microsoft.com/azure/role-based-access-control/role-assignments-powershell#add-a-role-assignment]을 참조하세요.
+
+--- 탭: Azure CLI [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#azure-cli] ---
+리소스 범위에서 서비스 주 구성원에 대해 역할 할당을 추가하려면 Azure 명령줄 도구를 사용하면 됩니다. 스토리지 계정에 역할을 부여하려면 Microsoft.Authorization/roleAssignments/write 권한이 있어야 합니다.
+
+스토리지 Blob 데이터 리더 역할과 같은 역할을 서비스 주 구성원에게 할당하려면 az role assignment create 명령어 [https://docs.microsoft.com/en-us/cli/azure/role/assignment?view=azure-cli-latest#az-role-assignment-create]를 실행합니다.
+
+  az role assignment create --role "Storage Blob Data Reader" \
+    --assignee-object-id ${SP_ID} \
+    --assignee-principal-type ServicePrincipal \
+    --scope   subscriptions/SUBSCRIPTION_ID/resourcegroups/RESOURCE_GROUP_NAME/providers/Microsoft.Storage/storageAccounts/STORAGE_ACCOUNT_NAME
+
+다음을 바꿉니다.
+
+
+SP_ID: 서비스 주 구성원 ID입니다.
+ 이 서비스 주 구성원은 생성한 애플리케이션 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create-azure-tenant]을 위한 것입니다.
+제휴 연결의 서비스 주 구성원을 가져오려면 서비스 주 구성원 객체 [https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals#service-principal-object]를 참조하세요.
+
+STORAGE_ACCOUNT_NAME: 스토리지 계정 이름입니다.
+RESOURCE_GROUP_NAME: 리소스 그룹 이름입니다.
+SUBSCRIPTION_ID: 구독 ID입니다.
+
+
+자세한 내용은 Azure CLI를 사용한 Azure 역할 할당 [https://docs.microsoft.com/en-us/azure/role-based-access-control/role-assignments-cli]을 참조하세요.
+
+--- 탭: tabpanel-microsoft-rest-api ---
+서비스 주 구성원에 대해 역할 할당을 추가하려면 Microsoft Management에 HTTP 요청을 전송하면 됩니다.
+
+Microsoft Graph REST API를 호출하려면 애플리케이션의 OAuth 토큰을 검색합니다. 자세한 내용은 사용자 없이 액세스 권한 가져오기 [https://docs.microsoft.com/graph/auth-v2-service]를 참조하세요.
+Microsoft Graph REST API를 호출한 애플리케이션에는 Application.ReadWrite.All 애플리케이션 권한이 있어야 합니다.
+
+OAuth 토큰을 생성하려면 다음 명령어를 실행합니다.
+
+  export TOKEN=$(curl -X POST \
+    https://login.microsoftonline.com/TENANT_ID/oauth2/token \
+    -H 'cache-control: no-cache' \
+    -H 'content-type: application/x-www-form-urlencoded' \
+    --data-urlencode "grant_type=client_credentials" \
+    --data-urlencode "resource=https://graph.microsoft.com/" \
+    --data-urlencode "client_id=CLIENT_ID" \
+    --data-urlencode "client_secret=CLIENT_SECRET" \
+  | jq --raw-output '.access_token')
+
+다음을 바꿉니다.
+
+
+TENANT_ID: Azure Storage 계정이 포함된 Azure 디렉터리의 ID와 일치하는 테넌트 ID
+CLIENT_ID: Azure 클라이언트 ID
+CLIENT_SECRET: Azure 클라이언트 보안 비밀번호
+
+
+서비스 주 구성원에게 할당하려는 Azure 기본 제공 역할 [https://docs.microsoft.com/azure/role-based-access-control/built-in-roles]의 ID를 가져옵니다.
+
+일반적인 역할은 다음과 같습니다.
+
+
+스토리지 Blob 데이터 참여자 [https://docs.microsoft.com/azure/role-based-access-control/built-in-roles#storage-blob-data-contributor]:
+ba92f5b4-2d11-453d-a403-e96b0029c9fe
+스토리지 Blob 데이터 리더 [https://docs.microsoft.com/azure/role-based-access-control/built-in-roles#storage-blob-data-reader]:
+2a2b9908-6ea1-4ae2-8e65-a410df84e7d1
+
+
+서비스 주 구성원에 역할을 할당하려면 Microsoft Graph REST API를 Azure Resource Management REST API에 호출합니다.
+
+  export ROLE_ASSIGNMENT_ID=$(uuidgen)
+  curl -X PUT \
+'https://management.azure.com/subscriptions/SUBSCRIPTION_ID/resourcegroups/RESOURCE_GROUP_NAME/providers/Microsoft.Storage/storageAccounts/STORAGE_ACCOUNT_NAME/providers/Microsoft.Authorization/roleAssignments/ROLE_ASSIGNMENT_ID?api-version=2018-01-01-preview' \
+    -H "authorization: Bearer ${TOKEN?}" \
+    -H 'cache-control: no-cache' \
+    -H 'content-type: application/json' \
+    -d '{
+        "properties": {
+            "roleDefinitionId": "subscriptions/SUBSCRIPTION_ID/resourcegroups/RESOURCE_GROUP_NAME/providers/Microsoft.Storage/storageAccounts/STORAGE_ACCOUNT_NAME/providers/Microsoft.Authorization/roleDefinitions/ROLE_ID",
+            "principalId": "SP_ID"
+        }
+    }'
+
+다음을 바꿉니다.
+
+
+ROLE_ASSIGNMENT_ID: 역할 ID입니다.
+SP_ID: 서비스 주 구성원 ID입니다.
+ 이 서비스 주 구성원은 생성한 애플리케이션 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#create-azure-tenant]을 위한 것입니다.
+제휴 연결의 서비스 주 구성원을 가져오려면 서비스 주 구성원 객체 [https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals#service-principal-object]를 참조하세요.
+
+SUBSCRIPTION_ID: 구독 ID입니다.
+RESOURCE_GROUP_NAME: 리소스 그룹 이름입니다.
+STORAGE_ACCOUNT_NAME: 스토리지 계정 이름입니다.
+SUBSCRIPTION_ID: 구독 ID입니다.
+이제 연결을 사용할 수 있습니다. 그러나 Azure에서 역할 할당의 전파가 지연될 수 있습니다. 권한 문제로 인해 연결을 사용할 수 없다면 잠시 후에 다시 시도하세요.
+주의: 연결을 삭제하면 Azure 애플리케이션에 액세스하는 데 사용되는 Google ID가 삭제됩니다. Azure 테넌트의 애플리케이션은 삭제되지 않습니다.
+사용자와 연결 공유
+데이터를 쿼리하고 연결을 관리할 수 있도록 사용자에게 다음 역할을 부여할 수 있습니다.
+roles/bigquery.connectionUser: 사용자가 연결을 사용하여 외부 데이터 소스에 연결하고 쿼리를 실행할 수 있습니다.
+roles/bigquery.connectionAdmin: 사용자가 연결을 관리할 수 있습니다.
+BigQuery의 IAM 역할과 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/access-control?hl=ko]을 참조하세요.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+
+이러한 연결은 프로젝트의 외부 연결 그룹에 나열됩니다.
+탐색기 창에서 프로젝트 이름 > 외부 연결 > 연결을 클릭합니다.
+세부정보 창에서 공유를 클릭하여 연결을 공유합니다.
+다음 작업을 수행합니다.
+
+
+연결 권한 대화상자에서 주 구성원을 추가하거나 수정하여 다른 주 구성원과 연결을 공유합니다.
+저장을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#bq] ---
+bq 명령줄 도구로 연결을 공유할 수 없습니다.
+연결을 공유하려면 Google Cloud 콘솔 또는 BigQuery Connections API 메서드를 사용하여 연결을 공유합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#api] ---
+BigQuery 연결 REST API 참조 섹션의 projects.locations.connections.setIAM 메서드 [https://cloud.google.com/bigquery/docs/reference/bigqueryconnection/rest/v1/projects.locations.connections?hl=ko#methods]를 사용하고 policy 리소스의 인스턴스를 지정합니다.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko#%EC%9E%90%EB%B0%94] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.resourcenames.ResourceName [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.resourcenames.ResourceName.html?hl=ko];
+import com.google.cloud.bigquery.connection.v1.ConnectionName [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.ConnectionName.html?hl=ko];
+import com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko];
+import com.google.iam.v1.Binding [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.html?hl=ko];
+import com.google.iam.v1.Policy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.html?hl=ko];
+import com.google.iam.v1.SetIamPolicyRequest [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.html?hl=ko];
+import java.io.IOException;
+
+// Sample to share connections
+public class ShareConnection {
+
+  public static void main(String[] args) throws IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String location = "MY_LOCATION";
+    String connectionId = "MY_CONNECTION_ID";
+    shareConnection(projectId, location, connectionId);
+  }
+
+  static void shareConnection(String projectId, String location, String connectionId)
+      throws IOException {
+    try (ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko] client = ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko].create()) {
+      ResourceName [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.resourcenames.ResourceName.html?hl=ko] resource = ConnectionName [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.ConnectionName.html?hl=ko].of(projectId, location, connectionId);
+      Binding [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.html?hl=ko] binding =
+          Binding [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.html?hl=ko].newBuilder()
+              .addMembers [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.Builder.html?hl=ko#com_google_iam_v1_Binding_Builder_addMembers_java_lang_String_]("group:example-analyst-group@google.com")
+              .setRole("roles/bigquery.connectionUser")
+              .build();
+      Policy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.html?hl=ko] policy = Policy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.html?hl=ko].newBuilder().addBindings [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.Builder.html?hl=ko#com_google_iam_v1_Policy_Builder_addBindings_com_google_iam_v1_Binding_](binding).build();
+      SetIamPolicyRequest [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.html?hl=ko] request =
+          SetIamPolicyRequest [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.html?hl=ko].newBuilder()
+              .setResource(resource.toString())
+              .setPolicy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.Builder.html?hl=ko#com_google_iam_v1_SetIamPolicyRequest_Builder_setPolicy_com_google_iam_v1_Policy_](policy)
+              .build();
+      client.setIamPolicy(request);
+      System.out.println("Connection shared successfully");
+    }
+  }
+}
+다음 단계
+다양한 연결 유형 [https://cloud.google.com/bigquery/docs/connections-api-intro?hl=ko] 알아보기
+연결 관리 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko] 알아보기
+BigQuery Omni [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko] 자세히 알아보기
+BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko] 알아보기
+Blob Storage 데이터 쿼리 [https://cloud.google.com/bigquery/docs/omni-azure-create-external-table?hl=ko] 방법 알아보기
+쿼리 결과를 Blob Storage로 내보내는 방법 [https://cloud.google.com/bigquery/docs/omni-azure-export-results-to-azure-storage?hl=ko] 알아보기
+도움이 되었나요?
+의견 보내기

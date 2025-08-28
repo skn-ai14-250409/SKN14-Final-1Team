@@ -1,0 +1,267 @@
+Source URL: https://cloud.google.com/bigquery/docs/hyperparameter-tuning-tutorial
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+초매개변수 조정으로 모델 성능 향상
+bookmark_border
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/hyperparameter-tuning-tutorial?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/hyperparameter-tuning-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/hyperparameter-tuning-tutorial?hl=ko#before-you-begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/hyperparameter-tuning-tutorial?hl=ko#required_permissions]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/hyperparameter-tuning-tutorial?hl=ko#create_a_dataset]
+이 튜토리얼에서는 BigQuery ML에서 하이퍼파라미터 조정 [https://cloud.google.com/bigquery/docs/hp-tuning-overview?hl=ko]을 사용하여 머신러닝 모델을 조정하고 성능을 개선하는 방법을 설명합니다.
+다른 모델별 옵션과 함께 CREATE MODEL 문에 NUM_TRIALS 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko#num_trials]을 지정하여 하이퍼파라미터 조정을 실행합니다. 이러한 옵션을 설정하면 BigQuery ML은 파라미터가 약간씩 다른 모델의 여러 버전 또는 시도를 학습하고 가장 성능이 우수한 시도를 반환합니다.
+이 튜토리얼에서는 2018년 뉴욕시 택시 운행에 관한 정보가 포함된 공개 tlc_yellow_trips_2018 샘플 테이블 [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=new_york_taxi_trips&%3Bt=tlc_yellow_trips_2018&%3Bpage=table&hl=ko]을 사용합니다.
+목표
+이 튜토리얼에서는 다음 작업을 완료하는 방법을 안내합니다.
+CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko]을 사용하여 기준 선형 회귀 모델을 만듭니다.
+ML.EVALUATE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]를 사용하여 기준 모델을 평가합니다.
+하이퍼파라미터 조정 옵션과 함께 CREATE MODEL 문을 사용하여 선형 회귀 모델의 20개 시도를 학습합니다.
+ML.TRIAL_INFO 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-trial-info?hl=ko]를 사용하여 시도를 검토합니다.
+ML.EVALUATE 함수를 사용하여 시도를 평가합니다.
+ML.PREDICT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko]를 사용하여 시도 중 최적의 모델에서 택시 운행에 관한 예측을 가져옵니다.
+비용
+이 튜토리얼에서는 비용이 청구될 수 있는 Google Cloud구성요소를 사용합니다.
+BigQuery
+BigQuery ML
+BigQuery 비용에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지를 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery는 새 프로젝트에서 자동으로 사용 설정됩니다. 기존 프로젝트에서 BigQuery를 활성화하려면 다음으로 이동합니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create IAM 권한이 필요합니다.
+모델을 만들려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 권한이 필요합니다.
+bigquery.models.getData
+bigquery.jobs.create
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/hyperparameter-tuning-tutorial?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+
+
+공개 데이터 세트는 US 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions]에 저장됩니다. 편의상 같은 위치에 데이터 세트를 저장합니다.
+
+
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/hyperparameter-tuning-tutorial?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/hyperparameter-tuning-tutorial?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+학습 데이터 테이블 만들기
+tlc_yellow_trips_2018 테이블 데이터의 하위 집합을 기반으로 학습 데이터 테이블을 만듭니다.
+테이블을 만들려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+CREATE OR REPLACE TABLE `bqml_tutorial.taxi_tip_input`
+AS
+SELECT * EXCEPT (tip_amount), tip_amount AS label
+FROM
+  `bigquery-public-data.new_york_taxi_trips.tlc_yellow_trips_2018`
+WHERE
+  tip_amount IS NOT NULL
+LIMIT 100000;
+기준 선형 회귀 모델 만들기
+하이퍼파라미터 조정 없이 선형 회귀 모델을 만들고 taxi_tip_input 테이블 데이터로 학습시킵니다.
+모델을 만들려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.baseline_taxi_tip_model`
+  OPTIONS (
+    MODEL_TYPE = 'LINEAR_REG'
+  )
+AS
+SELECT
+  *
+FROM
+  `bqml_tutorial.taxi_tip_input`;
+쿼리가 완료되는 데 약 2분 정도 걸립니다.
+기준 모델 평가
+ML.EVALUATE 함수를 사용하여 모델의 성능을 평가합니다. ML.EVALUATE 함수는 모델 학습 중에 계산된 평가 측정항목을 기준으로 모델에서 반환한 예측 콘텐츠 등급을 평가합니다.
+모델을 평가하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT *
+FROM
+  ML.EVALUATE(MODEL `bqml_tutorial.baseline_taxi_tip_model`);
+결과는 다음과 유사합니다.
++---------------------+--------------------+------------------------+-----------------------+---------------------+---------------------+
+| mean_absolute_error | mean_squared_error | mean_squared_log_error | median_absolute_error |      r2_score       | explained_variance  |
++---------------------+--------------------+------------------------+-----------------------+---------------------+---------------------+
+|  2.5853895559690323 | 23760.416358496139 |   0.017392406523370374 | 0.0044248227819481123 | -1934.5450533482465 | -1934.3513857946277 |
++---------------------+--------------------+------------------------+-----------------------+---------------------+---------------------+
+기준 모델의 r2_score 값은 음수이며 이는 데이터에 잘 맞지 않음을 나타냅니다. R2 점수 [https://en.wikipedia.org/wiki/Coefficient_of_determination]가 1에 가까울수록 모델이 데이터에 더 잘 맞습니다.
+하이퍼파라미터 조정을 사용하여 선형 회귀 모델 만들기
+하이퍼파라미터 조정을 사용하여 선형 회귀 모델을 만들고 taxi_tip_input 테이블 데이터로 학습시킵니다.
+CREATE MODEL 문에 다음과 같은 하이퍼파라미터 조정 옵션을 사용합니다.
+시도 횟수를 20으로 설정하는 NUM_TRIALS 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko#num_trials]
+각 학습 작업에서 두 번의 시도를 실행하여 총 10개의 작업과 20개의 시도를 실행하는 MAX_PARALLEL_TRIALS 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko#max_parallel_trials]. 이렇게 하면 필요한 학습 시간이 줄어듭니다. 그러나 두 번의 시도가 동시에 실행되면 서로의 학습 결과로부터 이점을 얻을 수 없다는 점에 유의하세요.
+여러 시도에서 다양한 L1 정규화 값을 시도할 수 있는 L1_REG 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko#l1_reg]. L1 정규화는 모델에서 관련성이 없는 특성을 삭제하여 과적합 [https://developers.google.com/machine-learning/glossary/?hl=ko#overfitting]을 방지하는 데 도움이 됩니다.
+모델에서 지원하는 다른 하이퍼파라미터 조정 옵션은 다음과 같이 기본값을 사용합니다.
+L1_REG: 0
+HPARAM_TUNING_ALGORITHM: 'VIZIER_DEFAULT'
+HPARAM_TUNING_OBJECTIVES: ['R2_SCORE']
+모델을 만들려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.hp_taxi_tip_model`
+  OPTIONS (
+    MODEL_TYPE = 'LINEAR_REG',
+    NUM_TRIALS = 20,
+    MAX_PARALLEL_TRIALS = 2,
+    L1_REG = HPARAM_RANGE(0, 5))
+AS
+SELECT
+  *
+FROM
+  `bqml_tutorial.taxi_tip_input`;
+쿼리를 완료되는 데 약 20분이 소요됩니다.
+학습 시도에 대한 정보 확인하기
+ML.TRIAL_INFO 함수를 사용하여 하이퍼파라미터 값, 목표, 상태를 비롯한 모든 시도에 관한 정보를 가져옵니다. 이 함수는 이 정보를 기반으로 성능이 가장 우수한 시도에 관한 정보도 반환합니다.
+시도 정보를 확인하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT *
+FROM
+  ML.TRIAL_INFO(MODEL `bqml_tutorial.hp_taxi_tip_model`)
+ORDER BY is_optimal DESC;
+결과는 다음과 유사합니다.
++----------+-------------------------------------+-----------------------------------+--------------------+--------------------+-----------+---------------+------------+
+| trial_id |           hyperparameters           | hparam_tuning_evaluation_metrics  |   training_loss    |     eval_loss      |  status   | error_message | is_optimal |
++----------+-------------------------------------+-----------------------------------+--------------------+--------------------+-----------+---------------+------------+
+|        7 |      {"l1_reg":"4.999999999999985"} |  {"r2_score":"0.653653627638174"} | 4.4677841296238165 |  4.478469742512195 | SUCCEEDED | NULL          |       true |
+|        2 |  {"l1_reg":"2.402163664510254E-11"} | {"r2_score":"0.6532493667964732"} |  4.457692508421795 |  4.483697081650438 | SUCCEEDED | NULL          |      false |
+|        3 |  {"l1_reg":"1.2929452948742316E-7"} |  {"r2_score":"0.653249366811995"} |   4.45769250849513 |  4.483697081449748 | SUCCEEDED | NULL          |      false |
+|        4 |  {"l1_reg":"2.5787102060628228E-5"} | {"r2_score":"0.6532493698925899"} |  4.457692523040582 |  4.483697041615808 | SUCCEEDED | NULL          |      false |
+|      ... |                             ...     |                           ...     |              ...   |             ...    |       ... |          ...  |        ... |
++----------+-------------------------------------+-----------------------------------+--------------------+--------------------+-----------+---------------+------------+
+is_optimal 열 값은 시도 7이 조정에서 반환된 최적의 모델임을 나타냅니다.
+조정된 모델 시도 평가
+ML.EVALUATE 함수를 사용하여 시도의 성능을 평가합니다. ML.EVALUATE 함수는 모델이 반환한 예측 콘텐츠 등급을 모든 시도의 학습 중에 계산된 평가 측정항목과 비교하여 평가합니다.
+모델 시도를 평가하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT *
+FROM
+  ML.EVALUATE(MODEL `bqml_tutorial.hp_taxi_tip_model`)
+ORDER BY r2_score DESC;
+결과는 다음과 유사합니다.
++----------+---------------------+--------------------+------------------------+-----------------------+--------------------+--------------------+
+| trial_id | mean_absolute_error | mean_squared_error | mean_squared_log_error | median_absolute_error |      r2_score      | explained_variance |
++----------+---------------------+--------------------+------------------------+-----------------------+--------------------+--------------------+
+|        7 |   1.151814398002232 |  4.109811493266523 |     0.4918733252641176 |    0.5736103414025084 | 0.6652110305659145 | 0.6652144696114834 |
+|       19 |  1.1518143358927102 |  4.109811921460791 |     0.4918672150119582 |    0.5736106106914161 | 0.6652109956848206 | 0.6652144346901685 |
+|        8 |   1.152747850702547 |  4.123625876152422 |     0.4897808307399327 |    0.5731702310239184 | 0.6640856984144734 |  0.664088410199906 |
+|        5 |   1.152895108945439 |  4.125775524878872 |    0.48939088205957937 |    0.5723300569616766 | 0.6639105860807425 | 0.6639132416838652 |
+|      ... |                ...  |                ... |                    ... |                   ... |                ... |                ... |
++----------+---------------------+--------------------+------------------------+-----------------------+--------------------+--------------------+
+최적의 모델(시도 7)의 r2_score 값은 0.66521103056591446으로, 기준 모델에 비해 상당히 개선된 것을 보여줍니다.
+ML.EVALUATE 함수에서 TRIAL_ID 인수를 지정하여 특정 시도를 평가할 수 있습니다.
+ML.TRIAL_INFO 목표와 ML.EVALUATE 평가 측정항목 사이의 차이에 대한 자세한 내용은 모델 서빙 함수 [https://cloud.google.com/bigquery/docs/hp-tuning-overview?hl=ko#model_serving_functions]를 참조하세요.
+조정된 모델을 사용하여 택시 팁 예측
+조정에서 반환된 최적의 모델을 사용하여 다양한 택시 운행의 팁을 예측합니다. TRIAL_ID 인수를 지정하여 다른 시도를 선택하지 않는 한 최적의 모델이 ML.PREDICT 함수에서 자동으로 사용됩니다. 예측은 predicted_label 열에 반환됩니다.
+예측을 수행하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT *
+FROM
+  ML.PREDICT(
+    MODEL `bqml_tutorial.hp_taxi_tip_model`,
+    (
+      SELECT
+        *
+      FROM
+        `bqml_tutorial.taxi_tip_input`
+      LIMIT 5
+    ));
+결과는 다음과 유사합니다.
++----------+--------------------+-----------+---------------------+---------------------+-----------------+---------------+-----------+--------------------+--------------+-------------+-------+---------+--------------+---------------+--------------+--------------------+---------------------+----------------+-----------------+-------+
+| trial_id |  predicted_label   | vendor_id |   pickup_datetime   |  dropoff_datetime   | passenger_count | trip_distance | rate_code | store_and_fwd_flag | payment_type | fare_amount | extra | mta_tax | tolls_amount | imp_surcharge | total_amount | pickup_location_id | dropoff_location_id | data_file_year | data_file_month | label |
++----------+--------------------+-----------+---------------------+---------------------+-----------------+---------------+-----------+--------------------+--------------+-------------+-------+---------+--------------+---------------+--------------+--------------------+---------------------+----------------+-----------------+-------+
+|        7 |  1.343367839584448 | 2         | 2018-01-15 18:55:15 | 2018-01-15 18:56:18 |               1 |             0 | 1         | N                  | 1            |           0 |     0 |       0 |            0 |             0 |            0 | 193                | 193                 |           2018 |               1 |     0 |
+|        7 | -1.176072791783461 | 1         | 2018-01-08 10:26:24 | 2018-01-08 10:26:37 |               1 |             0 | 5         | N                  | 3            |        0.01 |     0 |       0 |            0 |           0.3 |         0.31 | 158                | 158                 |           2018 |               1 |     0 |
+|        7 |  3.839580104168765 | 1         | 2018-01-22 10:58:02 | 2018-01-22 12:01:11 |               1 |          16.1 | 1         | N                  | 1            |        54.5 |     0 |     0.5 |            0 |           0.3 |         55.3 | 140                | 91                  |           2018 |               1 |     0 |
+|        7 |  4.677393985230036 | 1         | 2018-01-16 10:14:35 | 2018-01-16 11:07:28 |               1 |            18 | 1         | N                  | 2            |        54.5 |     0 |     0.5 |            0 |           0.3 |         55.3 | 138                | 67                  |           2018 |               1 |     0 |
+|        7 |  7.938988937253062 | 2         | 2018-01-16 07:05:15 | 2018-01-16 08:06:31 |               1 |          17.8 | 1         | N                  | 1            |        54.5 |     0 |     0.5 |            0 |           0.3 |        66.36 | 132                | 255                 |           2018 |               1 | 11.06 |
++----------+--------------------+-----------+---------------------+---------------------+-----------------+---------------+-----------+--------------------+--------------+-------------+-------+---------+--------------+---------------+--------------+--------------------+---------------------+----------------+-----------------+-------+
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트를 유지하고 개별 리소스를 삭제하세요.
+만든 프로젝트를 삭제할 수 있습니다.
+또는 프로젝트를 유지하고 데이터 세트를 삭제할 수 있습니다.
+데이터 세트 삭제
+프로젝트를 삭제하면 프로젝트의 데이터 세트와 테이블이 모두 삭제됩니다. 프로젝트를 다시 사용하려면 이 튜토리얼에서 만든 데이터 세트를 삭제할 수 있습니다.
+필요한 경우 Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색 패널에서 앞에서 만든 bqml_tutorial 데이터 세트를 선택합니다.
+창 오른쪽에 있는 데이터 세트 삭제를 클릭합니다. 데이터 세트, 테이블, 모든 데이터가 삭제됩니다.
+데이터 세트 삭제 대화상자에서 데이터 세트 이름(bqml_tutorial)을 입력하고 삭제를 클릭하여 삭제 명령어를 확인합니다.
+프로젝트 삭제
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+머신러닝 단기집중과정 [https://developers.google.com/machine-learning/crash-course/?hl=ko]을 참조하여 머신러닝을 알아보세요.
+BigQuery ML 개요는 BigQuery ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]를 참조하세요.
+Google Cloud 콘솔에 대한 자세한 내용은 Google Cloud 콘솔 사용 [https://cloud.google.com/bigquery/bigquery-web-ui?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,250 @@
+Source URL: https://cloud.google.com/bigquery/docs/best-practices-performance-compute
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+처리되는 데이터 줄이기 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#reduce-data-processed]
+SELECT * 사용 자제 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#avoid_select_]
+과도한 와일드 카드 테이블 사용 피하기 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#avoid_excessive_wildcard_tables]
+날짜별로 샤딩된 표 방지 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#avoid_tables_sharded_by_date]
+테이블 초과 샤딩 방지 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#avoid-oversharding-tables]
+파티션을 나눈 쿼리 정리 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#prune_partitioned_queries]
+JOIN을 사용하기 전 데이터 줄이기 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#reduce_data_before_using_a_join]
+WHERE 절 사용 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#use_the_where_clause]
+쿼리 계산 최적화
+bookmark_border
+이 문서에서는 쿼리 성능을 최적화하기 위한 권장사항을 제공합니다.
+쿼리가 완료되면 Google Cloud 콘솔에서 쿼리 계획 보기 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko]를 수행할 수 있습니다. 또한 INFORMATION_SCHEMA.JOBS* 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko] 또는 jobs.get REST API 메서드 [https://cloud.google.com/bigquery/docs/query-plan-explanation?hl=ko#api_sample_representation]를 사용하여 실행 세부정보를 요청할 수 있습니다.
+쿼리 계획에는 쿼리 스테이지 및 단계에 대한 세부정보가 포함됩니다. 이러한 세부정보는 쿼리 성능을 향상시킬 수 있는 방법을 식별하는 데 도움이 될 수 있습니다. 예를 들어 다른 스테이지보다 많은 출력을 작성하는 스테이지가 확인되었으면 쿼리에서 초기에 필터링해야 할 수 있습니다.
+쿼리 계획에 대해 자세히 알아보고 쿼리 계획 정보를 통해 쿼리 성능을 개선하는 방법에 대한 예시를 보려면 쿼리 성능 통계 가져오기 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko]를 참조하세요. 쿼리 성능 통계를 확인한 후 다음 태스크를 수행하여 쿼리를 더 최적화할 수 있습니다.
+처리할 데이터 줄이기 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#reduce-data-processed]
+쿼리 작업 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#optimize-query-operations]
+쿼리 출력 줄이기 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#reduce-query-output]
+BigQuery BI Engine 예약 사용 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#use-bi-engine]
+안티 SQL 패턴 방지 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#avoid-anti-sql-patterns]
+테이블 스키마에서 제약조건 지정 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#specify-constraints-in-table-schema]
+처리되는 데이터 줄이기
+다음 섹션에 설명된 옵션을 사용해서 처리할 데이터를 줄일 수 있습니다.
+SELECT * 사용 자제
+권장사항: 필요한 열만 쿼리하여 투영을 제어합니다.
+투영은 쿼리가 읽은 열의 수를 나타냅니다. 열을 과도하게 투영하면 불필요한 I/O 추가 및 구체화(결과 작성)가 발생합니다.
+데이터 미리보기 옵션을 사용합니다. 데이터를 실험 또는 탐색하는 경우에는 SELECT * 대신 데이터 미리보기 옵션 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#preview-data] 중 하나를 사용합니다.
+특정 열을 쿼리합니다. SELECT * 쿼리에 LIMIT 절을 적용해도 쿼리가 읽는 데이터 양은 달라지지 않습니다. 전체 테이블에서 읽은 모든 바이트에 대해 요금이 청구되며 무료 등급 할당량에서 쿼리가 계산됩니다. 대신 필요한 열만 쿼리합니다. 예를 들어 하나 이상의 열을 결과에서 제외하려면 SELECT * EXCEPT를 사용합니다.
+파티션을 나눈 테이블 사용. 테이블의 모든 열을 쿼리하되 특정 데이터 하위 집합만 쿼리하려면 다음 방법을 사용하는 것이 좋습니다.
+대상 테이블에서 결과를 구체화하고 해당 테이블을 대신 쿼리합니다.
+테이블 파티션 나누기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko] 및 관련 파티션 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko] 예를 들어 WHERE _PARTITIONDATE="2017-01-01"을 사용하여 2017년 1월 1일 파티션만 쿼리합니다.
+SELECT * EXCEPT 사용. 데이터의 하위 집합을 쿼리하거나 SELECT * EXCEPT를 사용하면 쿼리가 읽는 데이터 양을 크게 줄일 수 있습니다. 쿼리 결과에 필요한 데이터 I/O 및 구체화 양이 줄어들기 때문에 비용 절감은 물론 성능 개선 효과까지 얻을 수 있습니다.
+SELECT * EXCEPT (col1, col2, col5)
+FROM mydataset.newtable
+과도한 와일드 카드 테이블 사용 피하기
+권장사항: 와일드 카드 테이블 [https://cloud.google.com/bigquery/docs/querying-wildcard-tables?hl=ko]을 쿼리할 때는 가장 세분화된 프리픽스를 사용해야 합니다.
+와일드 카드를 이용하면 간결한 SQL 구문으로 여러 테이블을 쿼리할 수 있습니다. 와일드 카드 테이블은 와일드 카드 표현식과 일치하는 테이블의 모음입니다. 와일드 카드 테이블은 데이터 세트에 다음 리소스가 포함된 경우에 유용합니다.
+호환되는 스키마가 있고 이름이 유사한 여러 개의 테이블
+분할된 테이블
+참고: 데이터에서 허용하는 경우 샤딩된 테이블 대신 시간으로 파티션을 나눈 테이블을 사용하세요 자세한 내용은 테이블 과잉 샤딩 피하기 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#avoid-oversharding-tables]를 참조하세요.
+와일드 카드 테이블을 쿼리할 때는 공통 테이블 프리픽스 다음에 와일드 카드(*)를 지정합니다. 예를 들어 FROM bigquery-public-data.noaa_gsod.gsod194*는 1940년대의 모든 테이블을 쿼리합니다.
+더욱 세분화된 프리픽스 성능이 짧은 프리픽스보다 우수합니다. 예를 들어 FROM bigquery-public-data.noaa_gsod.gsod194*는 와일드 카드와 일치하는 테이블이 더 적으므로 FROM bigquery-public-data.noaa_gsod.*에 비해 성능이 더 우수합니다.
+날짜별로 샤딩된 표 방지
+권장사항: 시간으로 파티션을 나눈 테이블을 대신해서 날짜별로 샤딩된 테이블(날짜로 이름이 지정된 테이블)를 사용하지 마세요.
+파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]은 날짜로 이름이 지정된 테이블보다 성능이 뛰어납니다. 날짜별로 샤딩된 테이블을 만들 때, BigQuery는 날짜로 이름이 지정된 각 테이블의 스키마 및 메타데이터의 복사본을 유지관리해야 합니다. 또한 날짜로 이름이 지정된 테이블을 사용하는 경우에는 BigQuery에서 쿼리된 각 테이블의 권한을 확인해야 할 수 있습니다. 이렇게 하면 쿼리 오버헤드가 추가되고 쿼리 성능에 영향을 미칩니다.
+테이블 초과 샤딩 방지
+권장사항: 테이블 샤드를 너무 많이 만들지 않도록 하세요. 날짜별로 테이블을 샤딩할 때는 대신 시간으로 파티션을 나눈 테이블을 사용하세요.
+테이블 샤딩은 큰 데이터세트를 개별 테이블로 나누고 각 테이블 이름에 접미사를 추가하는 것을 의미합니다. 날짜별로 테이블을 샤딩할 때는 대신 시간으로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko]을 사용하세요.
+BigQuery 저장소는 비용이 낮으므로, 관계형 데이터베이스 시스템에서와 같이 비용 때문에 테이블을 최적화할 필요가 없습니다. 테이블 샤드를 대량으로 만들면 성능 영향이 너무 커져서 비용 이점이 사라지게 됩니다.
+테이블이 샤딩된 경우, BigQuery는 각 샤드에 대해 스키마 메타데이터와 권한을 유지 관리해야 합니다. 테이블을 과잉 샤딩하면 각 샤드에서 정보 관리에 필요한 오버헤드가 추가되면서 쿼리 성능에 영향을 미칠 수 있습니다.
+쿼리에서 읽는 데이터의 양과 소스는 쿼리 성능과 비용에 영향을 줄 수 있습니다.
+파티션을 나눈 쿼리 정리
+권장사항: 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko]을 쿼리할 때 파티션을 나눈 테이블의 파티션으로 필터링하려면 다음 열을 사용하세요.
+수집 시간으로 파티션을 나눈 테이블의 경우 유사 열 _PARTITIONTIME을 사용합니다.
+시간 단위 열 기반 및 정수 범위와 같은 파티션을 나눈 테이블의 경우 파티션 나누기 열을 사용합니다.
+시간 단위 파티션을 나눈 테이블의 경우 _PARTITIONTIME 또는 파티션 나누기 열로 데이터를 필터링하면 날짜 또는 날짜 범위를 지정할 수 있습니다. 예를 들어 다음 WHERE 절은 _PARTITIONTIME 유사 열을 사용하여 2016년 1월 1일부터 2016년 1월 31일 사이의 파티션을 지정합니다.
+WHERE _PARTITIONTIME
+BETWEEN TIMESTAMP("20160101")
+AND TIMESTAMP("20160131")
+쿼리는 날짜 범위에 의해 지정된 파티션의 데이터만 처리합니다. 파티션을 필터링하면 쿼리 성능을 높이고 비용을 줄일 수 있습니다.
+JOIN을 사용하기 전 데이터 줄이기
+권장사항: 집계를 수행하여 JOIN 절을 사용하기 전에 처리할 데이터의 양을 줄이세요.
+집계 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko]와 함께 GROUP BY 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_clause]을 사용하는 것은 컴퓨팅 집약적입니다. 이러한 종류의 쿼리에는 셔플 [https://cloud.google.com/blog/products/bigquery/in-memory-query-execution-in-google-bigquery?hl=ko]을 사용하기 때문입니다. 이러한 쿼리는 계산 집약적이므로 필요한 경우에만 GROUP BY 절을 사용해야 합니다.
+GROUP BY 및 JOIN이 포함된 쿼리의 경우 쿼리 초기에 집계를 수행하여 처리되는 데이터의 양을 줄입니다. 예를 들어 다음 쿼리는 미리 필터링하지 않고 큰 테이블 두 개에서 JOIN을 수행합니다.
+WITH
+  users_posts AS (
+  SELECT *
+  FROM
+    `bigquery-public-data`.stackoverflow.comments AS c
+  JOIN
+    `bigquery-public-data`.stackoverflow.users AS u
+  ON
+    c.user_id = u.id
+  )
+SELECT
+  user_id,
+  ANY_VALUE(display_name) AS display_name,
+  ANY_VALUE(reputation) AS reputation,
+  COUNT(text) AS comments_count
+FROM users_posts
+GROUP BY user_id
+ORDER BY comments_count DESC
+LIMIT 20;
+이 쿼리는 주석 수를 미리 집계하여 JOIN의 읽기 데이터 양을 줄여줍니다.
+WITH
+  comments AS (
+  SELECT
+    user_id,
+    COUNT(text) AS comments_count
+  FROM
+    `bigquery-public-data`.stackoverflow.comments
+  WHERE
+    user_id IS NOT NULL
+  GROUP BY user_id
+  ORDER BY comments_count DESC
+  LIMIT 20
+  )
+SELECT
+  user_id,
+  display_name,
+  reputation,
+  comments_count
+FROM comments
+JOIN
+  `bigquery-public-data`.stackoverflow.users AS u
+ON
+  user_id = u.id
+ORDER BY comments_count DESC;
+참고: 공통 테이블 표현식(CTE)이 있는 WITH 절은 성능이 아닌 쿼리 가독성을 위해 사용됩니다. WITH 절을 추가해도 BigQuery가 임시 중간 테이블을 구체화하고 여러 참조에 임시 결과를 재사용한다고는 보장할 수 없습니다. WITH 절은 쿼리 옵티마이저 결정에 따라 쿼리 내에서 여러 번 평가될 수 있습니다.
+WHERE 절 사용
+권장사항: 쿼리가 반환하는 데이터 양을 제한하려면 WHERE 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#where_clause]을 사용합니다. 가능한 경우 WHERE 절에 BOOL, INT, FLOAT, DATE 열을 사용합니다.
+BOOL, INT, FLOAT, DATE 열의 작업은 일반적으로 STRING 또는 BYTE 열의 작업보다 빠릅니다. 가능한 경우 WHERE 절에서 이러한 데이터 유형 중 하나를 사용하는 열을 사용하여 쿼리에서 반환되는 데이터 양을 줄이세요.
+쿼리 작업 최적화
+다음 섹션에 설명된 옵션을 사용하여 쿼리 작업을 최적화할 수 있습니다.
+반복적인 데이터 변환 방지
+권장사항: SQL을 사용하여 ETL 작업을 수행하는 경우 동일한 데이터를 반복적으로 변환하는 상황을 피하세요.
+예를 들어 SQL을 사용하여 문자열을 자르거나 정규 표현식을 사용하여 데이터를 추출하는 경우 변환된 결과를 대상 테이블에 구체화하는 것이 성능에 더 유리합니다. 정규 표현식과 같은 함수에는 부가적인 계산이 필요합니다. 부가적인 계산 오버헤드 없이 대상 표를 쿼리하는 편이 훨씬 더 효율적입니다.
+동일한 CTE에 대한 여러 평가 방지
+권장사항: 절차적 언어 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko], 변수, 임시 테이블 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#temporary_tables], 자동으로 만료되는 테이블을 사용하여 계산을 유지하고 나중에 쿼리에서 사용합니다.
+쿼리의 여러 위치에서 사용되는 공통 테이블 표현식(CTE) [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#with_clause]이 쿼리에 포함된 경우 참조될 때마다 평가될 수 있습니다. 쿼리 옵티마이저는 한 번만 실행할 수 있는 쿼리의 일부를 감지하려고 시도하지만 항상 가능한 것은 아닙니다. 결과적으로 CTE를 사용하면 내부 쿼리 복잡성과 리소스 소비를 줄이는 데 도움이 되지 않을 수 있습니다.
+CTE가 복귀하는 데이터에 따라 CTE 결과를 스칼라 변수나 임시 테이블에 저장할 수 있습니다.
+반복되는 조인 및 하위 쿼리 방지
+권장사항: 동일한 테이블을 반복적으로 연결하거나 똑같은 하위 쿼리를 사용하지 마세요.
+데이터를 반복하여 연결하는 대신 중첩된 반복 데이터를 사용해 관계를 표현하면 더 효과적일 수 있습니다. 중첩된 반복 데이터를 사용하면 조인에 필요한 통신 대역폭의 성능에 미치는 영향이 줄어듭니다. 또한 동일한 데이터를 반복해서 읽고 쓸 때 발생하는 I/O 비용도 절감할 수 있습니다. 자세한 내용은 중첩 및 반복되는 입력란 사용 [https://cloud.google.com/bigquery/docs/best-practices-performance-nested?hl=ko]을 참조하세요.
+마찬가지로 동일한 서브 쿼리가 반복되면 반복적인 쿼리 처리로 인해 성능이 영향을 받습니다. 여러 쿼리에서 동일한 서브 쿼리를 사용할 때는 테이블에서 하위 쿼리 결과를 구체화한 후 쿼리에서 구체화된 데이터를 사용하는 것이 좋습니다.
+하위 쿼리 결과를 구체화하면 성능이 개선되고 BigQuery에서 읽고 쓰는 전체적인 데이터 양이 줄어듭니다. 반복적인 I/O 및 쿼리 처리가 성능에 영향을 미치는 것에 반해 구체화된 데이터는 저장 비용이 적게 들어 훨씬 이롭습니다.
+조인 패턴 최적화
+권장사항: 여러 테이블의 데이터를 조인하는 쿼리의 경우 가장 큰 테이블로 시작하여 조인 패턴을 최적화합니다.
+JOIN 절을 사용하여 쿼리를 만드는 경우 데이터를 병합하는 순서를 고려하세요. GoogleSQL 쿼리 옵티마이저는 어느 테이블이 조인의 어느 쪽에 연결되어야 하는지 결정합니다. 가장 많은 수의 행이 있는 테이블을 먼저 배치한 다음, 가장 적은 수의 행이 있는 테이블을 배치하고 나머지 테이블의 크기를 줄여나가면서 배치하는 것이 좋습니다.
+큰 표가 JOIN의 왼쪽에 있고 작은 표가 JOIN의 오른쪽에 있는 경우 브로드캐스트 조인이 만들어집니다. 브로드캐스트 조인은 작은 테이블의 모든 데이터를 큰 테이블을 처리하는 각 슬롯으로 보냅니다. 브로드캐스트 조인을 먼저 수행하는 것이 좋습니다.
+JOIN의 테이블 크기를 보려면 테이블 정보 가져오기 [https://cloud.google.com/bigquery/docs/tables?hl=ko#get_information_about_tables]를 참조하세요.
+ORDER BY 절 최적화
+권장사항: ORDER BY 절을 사용할 때는 다음 권장사항을 따라야 합니다.
+가장 바깥쪽 쿼리 또는 윈도우 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/window-function-calls?hl=ko] 내에서 ORDER BY를 사용합니다. 복잡한 작업은 쿼리 끝에 배치하세요. 쿼리 중간에 ORDER BY 절을 배치하면 윈도우 함수에 사용되는 경우를 제외하고 성능에 큰 영향을 미치게 됩니다.
+쿼리를 정렬하는 또 다른 방법은 정규 표현식 및 수학 함수와 같은 복잡한 작업을 쿼리의 끝에 배치하는 것입니다. 이 기술은 복잡한 작업을 수행하기 전 처리할 데이터를 줄여줍니다.
+LIMIT 절을 사용합니다. 다수의 값을 정렬할 때 모든 값을 반환할 필요는 없으면 LIMIT 절을 사용하세요. 예를 들어 다음 쿼리는 아주 큰 결과 세트를 정렬하고 Resources exceeded 오류를 발생시킵니다. 이 쿼리는 mytable의 title 열을 기준으로 정렬합니다. title 열에는 값이 수백만 개 포함되어 있습니다.
+SELECT
+title
+FROM
+`my-project.mydataset.mytable`
+ORDER BY
+title;
+오류를 없애려면 다음과 같은 쿼리를 사용합니다.
+SELECT
+title
+FROM
+`my-project.mydataset.mytable`
+ORDER BY
+title DESC
+LIMIT
+1000;
+윈도우 함수를 사용합니다. 다수의 값을 정렬하는 경우 윈도우 함수를 사용하고, 윈도우 함수를 호출하기 전에 데이터를 제한합니다. 예를 들어 다음 쿼리는 10개의 가장 오래된 Stack Overflow 사용자와 순위(가장 오래된 계정이 가장 낮은 순위)를 나열합니다.
+SELECT
+id,
+reputation,
+creation_date,
+DENSE_RANK() OVER (ORDER BY creation_date) AS user_rank
+FROM bigquery-public-data.stackoverflow.users
+ORDER BY user_rank ASC
+LIMIT 10;
+이 쿼리는 실행되는 데 약 15초가 걸립니다. 이 쿼리는 쿼리 끝에 LIMIT를 사용하지만 DENSE_RANK() OVER 윈도우 함수에서는 사용하지 않습니다. 따라서 쿼리를 사용하려면 모든 데이터를 단일 워커 노드에 정렬해야 합니다.
+대신 성능 향상을 위해 윈도우 함수를 계산하기 전에 데이터 세트를 제한해야 합니다.
+WITH users AS (
+SELECT
+id,
+reputation,
+creation_date,
+FROM bigquery-public-data.stackoverflow.users
+ORDER BY creation_date ASC
+LIMIT 10)
+SELECT
+id,
+reputation,
+creation_date,
+DENSE_RANK() OVER (ORDER BY creation_date) AS user_rank
+FROM users
+ORDER BY user_rank;
+이 쿼리는 실행하는 데 약 2초 정도 걸리지만 이전 쿼리와 동일한 결과를 반환합니다.
+한 가지 주의 사항은 DENSE_RANK() 함수가 수년 내의 데이터 순위를 매기므로 여러 해에 걸쳐 데이터 순위를 매기는 경우 이러한 쿼리가 동일한 결과를 제공하지 않는다는 것입니다.
+복잡한 쿼리를 작은 쿼리로 분할
+권장사항: 멀티 문 쿼리 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko] 기능과 저장 프로시저 [https://cloud.google.com/bigquery/docs/procedures?hl=ko]를 활용하여 작고 단순한 쿼리 여러 개 대신 복잡한 쿼리 하나로 설계된 계산을 수행합니다.
+복잡한 쿼리, REGEX 함수, 레이어로 구성된 하위 쿼리 또는 조인은 실행하는 데 시간이 오래 걸리고 리소스를 많이 소모할 수 있습니다. 예를 들어 뷰를 만들기 위해 간혹 큰 SELECT 문 하나에 모든 계산을 맞추려는 시도는 피해야 할 패턴이며 이렇게 하면 쿼리가 느려지고 리소스를 많이 사용할 수 있습니다. 극단적인 경우 내부 쿼리 계획이 너무 복잡해져 BigQuery에서 이를 실행할 수 없게 됩니다.
+복잡한 쿼리를 분할하면 변수나 임시 테이블 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#temporary_tables]에서 중간 결과를 구체화할 수 있습니다. 그런 다음 이러한 중간 결과를 쿼리의 다른 부분에서 사용할 수 있습니다. 이러한 결과가 쿼리 두 곳 이상에서 필요한 경우에 더욱 유용합니다.
+종종 데이터 구체화 지점인 임시 테이블을 사용하여 쿼리의 실제 인텐트 부분을 보다 정확하게 표현할 수 있습니다.
+중첩 및 반복 필드 사용
+중첩 및 반복 필드를 사용하여 데이터 스토리지를 비정규화하는 방법은 중첩 및 반복 필드 사용 [https://cloud.google.com/bigquery/docs/best-practices-performance-nested?hl=ko]을 참조하세요.
+조인에 INT64 데이터 유형 사용
+권장사항: STRING 데이터 유형 대신 조인에 INT64 데이터 유형을 사용하여 비용을 줄이고 비교 성능을 개선합니다.
+BigQuery는 기존 데이터베이스와 같이 기본 키 색인을 생성하지 않으므로 조인 열이 넓을수록 비교하는 데 시간이 오래 걸립니다. 따라서 조인에 INT64 데이터 유형을 사용하면 STRING 데이터 유형 사용 시보다 저렴하고 효율적입니다.
+쿼리 출력 줄이기
+다음 섹션에서 설명된 옵션을 사용하여 쿼리 출력을 줄일 수 있습니다.
+대규모 결과 집합 구체화
+권장사항: 대상 테이블로 대규모 결과 집합을 구체화 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#large-results]할 때는 고려하세요. 대규모 결과 집합을 작성하면 성능 및 비용에 영향이 있습니다.
+BigQuery에서는 캐시 처리된 결과를 약 10GB의 압축된 데이터로 제한합니다. 더 큰 결과를 반환하는 쿼리는 이 한도를 초과하므로 종종 Response too large [https://cloud.google.com/bigquery/troubleshooting-errors?hl=ko#responseTooLarge] 오류가 반환됩니다.
+이 오류는 주로 상당량의 데이터가 포함된 테이블에서 많은 수의 필드를 선택할 때 발생합니다. 캐시 처리된 결과 작성과 관련된 문제는 감소 또는 집계 없이 데이터를 정규화하는 ETL 스타일 쿼리에서도 발생할 수 있습니다.
+다음 옵션을 사용하면 캐시 처리된 결과 크기의 제한을 해결할 수 있습니다.
+필터를 사용해 결과 집합을 제한합니다.
+특히, ORDER BY 절을 사용할 경우 LIMIT 절을 사용하여 결과 집합을 줄입니다.
+출력 데이터를 대상 테이블에 작성합니다.
+BigQuery REST API를 사용하여 결과를 살펴볼 수 있습니다. 자세한 내용은 테이블 데이터 살펴보기 [https://cloud.google.com/bigquery/docs/paging-results?hl=ko]를 참조하세요.
+참고: 대규모 결과 집합을 대상 테이블에 작성하면 쿼리 성능(I/O)이 영향을 받습니다. 또한 대상 테이블 저장 비용도 소액 발생합니다. 데이터세트의 기본 테이블 만료 시간 [https://cloud.google.com/bigquery/docs/datasets?hl=ko#create-dataset]을 사용하면 대규모 대상 테이블을 자동으로 삭제할 수 있습니다. 자세한 내용은 스토리지 권장사항의 만료 설정 사용 [https://cloud.google.com/bigquery/docs/best-practices-storage?hl=ko#use-expiration-settings]을 참조하세요.
+BI Engine 사용
+가장 자주 사용하는 데이터를 캐싱하여 SQL 쿼리를 더 가속화하려면 쿼리가 계산되는 프로젝트에 BI Engine [https://cloud.google.com/bigquery/docs/bi-engine-intro?hl=ko] 예약을 추가하는 것이 좋습니다. BigQuery BI Engine은 벡터화된 쿼리 엔진을 사용하여 SELECT 쿼리 성능을 가속화합니다.
+안티 SQL 패턴 방지
+다음 권장사항에서는 BigQuery의 성능에 영향을 주는 쿼리 안티패턴을 방지하기 위한 지침을 제공합니다.
+자체 조인 방지
+권장사항: 자체 조인을 사용하는 대신 윈도우 (분석) 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts?hl=ko] 또는 PIVOT 연산자를 사용하세요. [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#pivot_operator]
+일반적으로 자체 조인은 행 종속 관계를 계산하는 데 사용됩니다. 자체 조인을 사용하면 출력 행 수가 제곱으로 늘어날 수 있습니다. 이렇게 출력 데이터가 늘어나면 성능이 저하될 수 있습니다.
+교차 조인 방지
+권장사항: 입력보다 더 많은 출력을 생성하는 조인을 가급적 사용하지 마세요. CROSS JOIN이 필요하면 데이터를 미리 집계하세요.
+교차 조인은 첫 번째 테이블의 각 행이 두 번째 테이블의 모든 행에 조인되는 쿼리입니다(양쪽에 고유하지 않은 키가 있음). 최악의 경우 출력은 왼쪽 테이블의 행 수에 오른쪽 테이블의 행 수를 곱한 만큼이 됩니다. 극단적인 경우에는 쿼리가 완료되지 않을 수 있습니다.
+쿼리 작업이 완료되면 쿼리 계획 설명에 출력 행과 입력 행이 표시됩니다. JOIN 절의 양쪽 행 수를 조인 키를 기준으로 그룹화하여 출력하도록 쿼리를 수정하면 카티전 프로덕트 [https://en.wikipedia.org/wiki/Relational_algebra#Selection_and_cross_product]를 확인할 수 있습니다.
+입력보다 더 많은 출력을 생성하는 조인과 연관된 성능 문제를 방지하려면 다음 안내를 따르세요.
+GROUP BY 절을 사용하여 데이터를 미리 집계합니다.
+윈도우 함수를 사용합니다. 윈도우 함수가 교차 조인보다 더 효율적인 경우가 종종 있습니다. 자세한 내용은 윈도우 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/window-function-calls?hl=ko]를 참조하세요.
+단일 행을 업데이트 또는 삽입하는 DML 문 사용 방지
+권장사항: 단일 행을 업데이트 또는 삽입하는 DML [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko] 문은 사용을 방지하세요. 일괄 업데이트 및 삽입을 수행하세요.
+특정 데이터 요소에 대한 DML 문을 사용하는 것은 BigQuery를 온라인 트랜잭션 처리(OLTP) 시스템처럼 취급하는 것입니다. BigQuery는 데이터 요소 조회가 아니라 테이블 검색을 사용한 온라인 분석 처리(OLAP)에 초점을 맞추고 있습니다. OLTP 같은 동작(단일 행 또는 삽입)이 필요한 경우에는 Cloud SQL [https://cloud.google.com/sql/docs?hl=ko]과 같이 OLTP 사용 사례를 지원하도록 설계된 데이터베이스를 사용하는 것이 좋습니다.
+BigQuery DML 문은 일괄 업데이트에 사용됩니다. BigQuery의 UPDATE 및 DELETE DML 문은 단일 행 변형이 아닌 정기적인 데이터 다시 쓰기를 지향합니다. INSERT DML 문은 일부 예외적인 경우에 사용됩니다. 삽입하면 로드 작업과 동일한 수정 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko#data-manipulation-language-statements]이 사용됩니다. 단일 행을 빈번하게 삽입해야 하는 사용 사례의 경우에는 대신 데이터를 스트리밍 [https://cloud.google.com/bigquery/docs/streaming-data-into-bigquery?hl=ko]하는 것이 좋습니다.
+여러 개의 UPDATE 문을 일괄 처리하여 매우 긴 쿼리에서 많은 튜플이 생성되면 쿼리 길이 제한인 256KB에 도달할 수 있습니다. 쿼리 길이 제한을 해결하려면 일련의 직접적인 튜플 대체 대신 논리적 기준을 기반으로 업데이트를 처리할 수 있는지 여부를 고려해야 합니다.
+예를 들어 대체 레코드 세트를 다른 테이블에 로드한 후 해당 열이 원본 테이블의 업데이트되지 않은 열과 일치하면 원본 테이블의 모든 값을 업데이트하는 DML 문을 작성할 수 있습니다. 예를 들어 원본 데이터가 t 테이블에 있고 업데이트가 u 테이블에 스테이징된 경우 쿼리는 다음과 같습니다.
+UPDATE
+  dataset.t t
+SET
+  my_column = u.my_column
+FROM
+  dataset.u u
+WHERE
+  t.my_key = u.my_key
+유사한 이름의 열에 별칭 이름 사용
+권장사항: 서브 쿼리를 포함하여 쿼리 간에 유사한 이름의 열을 사용할 때는 열과 테이블 별칭을 사용하세요.
+별칭은 열의 초기 참조는 물론 참조되는 열 및 테이블을 식별하는 데 도움이 됩니다. 별칭을 사용하면 서브 쿼리에서 사용되는 열 찾기를 포함하여 SQL 쿼리의 문제를 이해하고 해결하는 데 도움이 될 수 있습니다.
+테이블 스키마에서 제약조건 지정
+테이블 데이터에 제약조건이 포함되어 있으면 테이블 스키마에서 제약조건을 지정합니다. 쿼리 엔진은 테이블 제약조건을 사용하여 쿼리 계획을 최적화할 수 있습니다.
+기본 키 및 외래 키 제약조건 지정
+테이블 데이터에서 기본 키 또는 외래 키 제약조건 [https://cloud.google.com/bigquery/docs/information-schema-table-constraints?hl=ko]의 데이터 무결성 [https://cloud.google.com/bigquery/docs/information-schema-table-constraints?hl=ko#limitations] 요구사항을 충족하면 테이블 스키마에 키 제약조건을 지정해야 합니다. 쿼리 엔진은 키 제약조건을 사용하여 쿼리 계획을 최적화할 수 있습니다. 자세한 내용은 BigQuery 기본 키 및 외래 키로 최적화 조인 [https://cloud.google.com/blog/products/data-analytics/join-optimizations-with-bigquery-primary-and-foreign-keys?hl=ko] 블로그 게시물을 참조하세요.
+BigQuery는 자동으로 데이터 무결성을 확인하지 않으므로 데이터가 테이블 스키마에 지정된 제약조건을 충족하는지 확인해야 합니다. 지정된 제약조건이 있는 테이블에서 데이터 무결성 [https://cloud.google.com/bigquery/docs/information-schema-table-constraints?hl=ko#limitations]을 유지하지 않으면 쿼리 결과가 부정확할 수 있습니다.
+다음 단계
+비용 최적화 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko] 방법 알아보기
+스토리지 최적화 [https://cloud.google.com/bigquery/docs/best-practices-storage?hl=ko] 방법 알아보기
+함수 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-functions?hl=ko] 방법 알아보기
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,427 @@
+Source URL: https://cloud.google.com/bigquery/docs/iceberg-external-tables
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#required-roles]
+BigLake Metastore로 테이블 만들기 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#create-using-biglake-metastore]
+메타데이터 파일로 테이블 만들기 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#create-using-metadata-file]
+테이블 메타데이터 업데이트 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#update-table-metadata]
+Apache Iceberg용 BigLake 외부 테이블 만들기
+bookmark_border
+BigLake 외부 테이블을 사용하면 읽기 전용 형식의 세분화된 액세스 제어로 Apache Iceberg [https://iceberg.apache.org/docs/latest/] 테이블에 액세스할 수 있습니다. 이 기능은 Apache Iceberg용 BigQuery 테이블 [https://cloud.google.com/bigquery/docs/iceberg-tables?hl=ko]과 대조적으로 쓰기 가능한 형식으로 Apache Iceberg를 BigQuery로 만들 수 있습니다.
+Iceberg는 페타바이트급 확장 데이터 테이블을 지원하는 오픈소스 테이블 형식입니다. Iceberg 개방형 사양을 사용하면 객체 저장소에 저장된 단일 데이터 사본에서 여러 쿼리 엔진을 실행할 수 있습니다.
+BigQuery 관리자는 테이블에 데이터 마스킹을 포함한 행 및 열 수준 액세스 제어를 적용할 수 있습니다. 테이블 수준에서 액세스 제어를 설정하는 방법은 액세스 제어 정책 설정 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#set-access-control]을 참조하세요. Dataproc 및 서버리스 Spark에서 BigQuery Storage API를 테이블의 데이터 소스로 사용하는 경우에도 테이블 액세스 정책이 적용됩니다. BigLake 테이블은 다른 BigQuery 서비스와의 추가 통합을 제공합니다. 사용 가능한 통합의 전체 목록은 BigLake 테이블 소개 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko]를 참조하세요.
+다음과 같은 방법으로 Iceberg BigLake 테이블을 만들 수 있습니다.
+BigLake Metastore 사용( Google Cloud에 권장) [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#create-using-biglake-metastore]. BigLake Metastore는 커스텀 Iceberg 카탈로그 [https://iceberg.apache.org/docs/latest/custom-catalog/]입니다. Spark 워크로드와 BigQuery 워크로드 간에 테이블을 동기화할 수 있는 Google Cloud BigLake Metastore를 사용하는 것이 좋습니다. 이렇게 하려면 Apache Spark용 BigQuery 저장 프로시져를 사용하여 BigLake Metastore를 초기화하고 Iceberg BigLake 테이블을 만듭니다. 하지만 스키마를 업데이트하려면 BigQuery에서 업데이트 쿼리를 실행해야 합니다.
+AWS Glue Data Catalog 사용(AWS에 권장) [https://cloud.google.com/bigquery/docs/glue-federated-datasets?hl=ko]. AWS Glue는 다양한 AWS 서비스에 저장된 데이터의 구조와 위치를 정의하고 자동 스키마 검색 및 AWS 분석 도구와의 통합과 같은 기능을 제공하는 중앙 집중식 메타데이터 저장소이므로 AWS에 권장되는 방법입니다.
+Iceberg JSON 메타데이터 파일 사용 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#create-using-metadata-file](Azure에 권장) Iceberg JSON 메타데이터 파일을 사용하는 경우 테이블 업데이트가 있을 때마다 최신 메타데이터 파일을 수동으로 업데이트해야 합니다. Apache Spark용 BigQuery 저장 프러시저를 사용하여 Iceberg 메타데이터 파일을 참조하는 Iceberg BigLake 테이블을 만들 수 있습니다. 이를 방지하려면 Google Cloud의 경우 BigLake Metastore [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#create-using-metadata-file]를 사용하고 AWS의 경우 AWS Glue Data Catalog [https://cloud.google.com/bigquery/docs/glue-federated-datasets?hl=ko]를 사용하면 됩니다.
+제한사항의 전체 목록은 제한사항 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#limitations]을 참조하세요.
+다음은 BigLake Iceberg 테이블을 BigQuery의 다른 유사한 테이블과 비교한 것입니다.
+표준 BigQuery 테이블 [https://cloud.google.com/bigquery/docs/tables-intro?hl=ko#standard_tables] BigLake 외부 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko] Apache Iceberg용 BigLake 외부 테이블 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko](BigLake Iceberg 테이블이라고도 함) BigQuery metastore Iceberg 테이블 [https://cloud.google.com/bigquery/docs/bqms-use-tables?hl=ko](프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages]) Apache Iceberg용 BigQuery 테이블 [https://cloud.google.com/bigquery/docs/iceberg-tables?hl=ko](Iceberg 관리 테이블/BigQuery Iceberg 테이블이라고도 함)(프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages])
+주요 특징 완전 관리형 환경 오픈소스 및 BigQuery 엔진 전반에서 거버넌스(세분화된 액세스 제어) 및 기능이 적용됨 BigLake 외부 테이블 기능 + 데이터 일관성, 스키마 업데이트. Spark 또는 기타 공개 엔진에서는 만들 수 없습니다. BigLake Iceberg 테이블 기능 + 외부 엔진에서 변경 가능. DDL 또는 bq 명령줄 도구로 만들 수 없습니다. BigLake Iceberg 테이블 기능 + 공공 데이터 및 메타데이터를 통한 낮은 관리 오버헤드
+데이터 스토리지 BigQuery 관리형 스토리지 사용자 관리 버킷에 호스팅되는 개방형 형식 데이터
+개방형 모델 (커넥터를 통한) BigQuery Storage Read API 개방형 파일 형식(Parquet) 개방형 라이브러리(Iceberg) 오픈소스 호환(Iceberg 메타데이터 스냅샷)
+거버넌스 통합 BigQuery 거버넌스
+쓰기(DML 및 스트리밍) BigQuery 커넥터, API, 높은 처리량 DML, CDC를 통해 외부 엔진을 통해서만 쓰기 BigQuery 커넥터, API, 높은 처리량 DML, CDC를 통해
+시작하기 전에
+Enable the BigQuery Connection, BigQuery Reservation, and BigLake APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigqueryconnection.googleapis.com%2C+biglake.googleapis.com%2Cbigqueryreservation.googleapis.com&%3Bredirect=https%3A%2F%2Fconsole.cloud.google.com&hl=ko]
+BigQuery의 Spark용 저장 프로시져를 사용하여 Iceberg BigLake 테이블을 만드는 경우 다음 단계를 따라야 합니다.
+Spark 연결을 만듭니다 [https://cloud.google.com/bigquery/docs/connect-to-spark?hl=ko#create-spark-connection].
+해당 연결에 대해 액세스 제어를 설정합니다 [https://cloud.google.com/bigquery/docs/connect-to-spark?hl=ko#grant-access].
+Iceberg BigLake 테이블 메타데이터와 데이터 파일을 Cloud Storage에 저장하려면 Cloud Storage 버킷을 만듭니다 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko]. 메타데이터 파일에 액세스하려면 Cloud Storage 버킷에 연결해야 합니다. 단계별 절차는 다음과 같습니다.
+클라우드 리소스 연결을 만듭니다 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection].
+해당 연결에 대한 액세스를 설정합니다 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#access-storage].
+BigLake Metastore를 사용하는 경우 Apache Spark에 적합한 Iceberg 커스텀 카탈로그 [https://iceberg.apache.org/docs/latest/custom-catalog/]를 설치합니다. 사용 중인 Iceberg 버전과 가장 일치하는 커스텀 카탈로그 버전을 선택합니다.
+Iceberg 1.5.0: gs://spark-lib/biglake/biglake-catalog-iceberg1.5.0-0.1.1-with-dependencies.jar
+Iceberg 1.2.0: gs://spark-lib/biglake/biglake-catalog-iceberg1.2.0-0.1.1-with-dependencies.jar
+Iceberg 0.14.0: gs://spark-lib/biglake/biglake-catalog-iceberg0.14.0-0.1.1-with-dependencies.jar
+필요한 역할
+BigLake API 호출자에게 BigLake 테이블을 만드는 데 필요한 권한을 제공하려면 관리자에게 BigLake API 호출자에게 프로젝트에 대한 다음 IAM 역할을 부여해 달라고 요청하세요.
+BigQuery 관리자 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#bigquery.admin](roles/bigquery.admin)
+BigLake 관리자 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#biglake.admin](roles/biglake.admin)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이러한 사전 정의된 역할에는 BigLake 테이블을 만드는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+관리자는 커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko]을 사용하여 BigLake API 호출자에게 이러한 권한을 부여할 수도 있습니다.
+또한 BigQuery 사용자가 테이블을 쿼리할 수 있게 하려면 연결과 관련된 서비스 계정에 BigLake 뷰어(roles/biglake.viewer) 역할 및 해당 데이터를 포함하는 Cloud Storage 버킷에 대한 액세스 권한이 있어야 합니다.
+BigLake 메타스토어를 사용하여 Iceberg BigLake 테이블을 만들려는 경우 BigLake API 호출자가 변경됩니다. Dataproc 또는 Spark 서비스 계정에 해당 데이터를 포함하는 Cloud Storage 버킷에 대한 액세스 권한을 부여해야 합니다.
+Dataproc에서 Spark를 실행할 경우 Dataproc의 호출자가 Dataproc 서비스 계정 [https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/service-accounts?hl=ko]입니다.
+BigQuery에서 Spark 절차를 실행할 경우 호출자가 Spark 연결 서비스 계정 [https://cloud.google.com/bigquery/docs/connect-to-spark?hl=ko]입니다.
+BigLake Metastore로 테이블 만들기
+BigLake Metastore를 사용해서 Iceberg BigLake 테이블을 만드는 것이 좋습니다. Apache Spark를 사용하여 이러한 테이블을 만들 수 있습니다. 이를 수행하는 편리한 방법은 BigQuery Spark 저장 프로시저 [https://cloud.google.com/bigquery/docs/spark-procedures?hl=ko]를 사용하는 것입니다.
+참고: 기존 Hive Metastore 테이블을 BigLake Metastore에 복사하려면 Spark의 저장 프로시저 대신 Dataproc VM [https://cloud.google.com/bigquery/docs/manage-open-source-metadata?hl=ko#connect-dataproc-vm] 또는 Dataproc 서버리스 [https://cloud.google.com/bigquery/docs/manage-open-source-metadata?hl=ko#connect-dataproc-serverless]를 사용하는 것이 좋습니다.
+Spark용 저장 프로시저를 사용하여 테이블을 만들려면 다음 단계를 따르세요.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 연결 리소스를 만들기 위해 사용한 프로젝트에서 연결을 클릭합니다.
+Spark의 저장 프로시져를 만들려면 search 저장 프로시져 만들기를 클릭합니다.
+쿼리 편집기에서 표시되는 CREATE PROCEDURE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_procedure]을 사용하여 BigLake Metastore를 초기화하고 Iceberg용 BigLake 외부 테이블을 만들기 위한 샘플 코드를 수정합니다.
+ # Creates a stored procedure that initializes BLMS and database.
+ # Creates a table in the database and populates a few rows of data.
+ CREATE OR REPLACE PROCEDURE iceberg_demo.iceberg_setup_3_3 ()
+ WITH CONNECTION `
+PROCEDURE_CONNECTION_PROJECT_ID.
+PROCEDURE_CONNECTION_REGION.
+PROCEDURE_CONNECTION_ID`
+ OPTIONS(engine="SPARK",
+ jar_uris=["gs://spark-lib/biglake/biglake-catalog-iceberg1.2.0-0.1.0-with-dependencies.jar"],
+ properties=[
+ ("spark.jars.packages","org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.2.0"),
+ ("spark.sql.catalog.
+CATALOG", "org.apache.iceberg.spark.SparkCatalog"),
+ ("spark.sql.catalog.
+CATALOG.catalog-impl", "org.apache.iceberg.gcp.biglake.BigLakeCatalog"),
+ ("spark.sql.catalog.
+CATALOG.hms_uri", "
+HMS_URI"),
+ ("spark.sql.catalog.
+CATALOG.gcp_project", "
+PROJECT_ID"),
+ ("spark.sql.catalog.
+CATALOG.gcp_location", "
+LOCATION"),
+ ("spark.sql.catalog.
+CATALOG.blms_catalog", "
+CATALOG"),
+ ("spark.sql.catalog.
+CATALOG.warehouse", "
+DATA_WAREHOUSE_URI")
+ ]
+ )
+ LANGUAGE PYTHON AS R'''
+ from pyspark.sql import SparkSession
+
+ spark = SparkSession \
+   .builder \
+   .appName("BigLake Iceberg Example") \
+   .enableHiveSupport() \
+   .getOrCreate()
+
+ spark.sql("CREATE NAMESPACE IF NOT EXISTS 
+CATALOG;")
+ spark.sql("CREATE DATABASE IF NOT EXISTS 
+CATALOG.
+CATALOG_DB;")
+ spark.sql("DROP TABLE IF EXISTS 
+CATALOG.
+CATALOG_DB.
+CATALOG_TABLE;")
+
+ # Create a BigLake Metastore table and a BigQuery Iceberg table.
+ spark.sql("CREATE TABLE IF NOT EXISTS 
+CATALOG.
+CATALOG_DB.
+CATALOG_TABLE (id bigint, demo_name string)
+           USING iceberg
+           TBLPROPERTIES(bq_table='
+BQ_DATASET.
+BQ_TABLE', bq_connection='
+TABLE_CONNECTION_PROJECT_ID.
+TABLE_CONNECTION_REGION.
+TABLE_CONNECTION_ID');
+           ")
+
+ # Copy a Hive Metastore table to BigLake Metastore. Can be used together with
+ #   TBLPROPERTIES `bq_table` to create a BigQuery Iceberg table.
+ spark.sql("CREATE TABLE 
+CATALOG.
+CATALOG_DB.
+CATALOG_TABLE (id bigint, demo_name string)
+            USING iceberg
+            TBLPROPERTIES(hms_table='
+HMS_DB.
+HMS_TABLE');")
+ ''';
+다음을 바꿉니다.
+PROCEDURE_CONNECTION_PROJECT_ID: Spark 프로시져를 실행하기 위한 연결 [https://cloud.google.com/bigquery/docs/connect-to-spark?hl=ko]이 포함된 프로젝트입니다(예: myproject).
+PROCEDURE_CONNECTION_REGION: Spark 프로시져를 실행하기 위한 연결이 포함된 리전입니다(예: us).
+PROCEDURE_CONNECTION_ID: 연결 ID입니다(예: myconnection).
+Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+CATALOG: BigLake Metastore에 대해 만들려는 Iceberg 카탈로그의 이름입니다.
+기본값은 iceberg입니다.
+HMS_URI: 기존 Hive Metastore 테이블을 BigLake 메타스토어에 복사하려면 Hive 메타스토어 URI를 지정합니다.
+예를 들면 thrift://localhost:9083입니다.
+PROJECT_ID: BigLake Metastore 인스턴스를 만들 프로젝트 ID입니다.
+Iceberg BigLake 테이블도 동일한 프로젝트에 생성됩니다.
+LOCATION: BigLake Metastore 인스턴스를 만들 위치입니다.
+BigQuery는 동일한 위치에 저장된 BigLake Metastore 인스턴스에만 액세스할 수 있습니다.
+DATA_WAREHOUSE_URI: Iceberg 메타데이터 및 데이터 파일을 저장하기 위해 만든 Cloud Storage 버킷 URI입니다.
+예를 들면 gs://mybucket/iceberg-warehouse입니다.
+CATALOG_DB: BigLake Metastore에서 만들려는 데이터베이스의 이름입니다.
+이 데이터베이스는 Iceberg BigLake 테이블이 포함될 BigQuery 데이터 세트와 동일합니다.
+CATALOG_TABLE: BigLake Metastore에 만들려는 테이블의 이름입니다.
+이 테이블은 만들려는 Iceberg BigLake 테이블과 동일합니다.
+BQ_DATASET: Iceberg BigLake 테이블을 포함할 BigQuery 데이터 세트입니다.
+BQ_TABLE: 만들려는 Iceberg BigLake 테이블입니다.
+TABLE_CONNECTION_PROJECT_ID: BigLake 테이블을 만들기 위한 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]이 포함된 프로젝트입니다(예: myproject).
+TABLE_CONNECTION_REGION: BigLake 테이블을 만들기 위한 연결이 포함된 리전입니다(예: us).
+TABLE_CONNECTION_ID: 연결 ID입니다(예: myconnection).
+Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+BigQuery 사용자가 테이블을 쿼리할 수 있도록 하려면 연결과 관련된 서비스 계정에 roles/biglake.viewer가 있어야 합니다.
+HMS_DB: 기존 Hive 메타스토어 테이블을 BigLake Metastore에 복사하려면 Hive 메타스토어 데이터베이스를 지정하세요.
+HMS_TABLE: 기존 Hive Metastore 테이블을 BigLake 메타스토어에 복사하려면 Hive 메타스토어 테이블을 지정하세요.
+Iceberg 카탈로그 구성에 대한 자세한 내용은 Spark 카탈로그 [https://iceberg.apache.org/docs/latest/spark-configuration/#catalogs]를 참조하세요.
+저장 프로시져를 실행하려면 실행을 클릭합니다. 자세한 내용은 Spark 저장 프로시져 호출 [https://cloud.google.com/bigquery/docs/spark-procedures?hl=ko#call-spark-procedure]을 참조하세요. Iceberg용 BigLake 외부 테이블이 BigQuery에 생성됩니다.
+메타데이터 파일로 테이블 만들기
+JSON 메타데이터 파일 [https://iceberg.apache.org/spec/#table-metadata]로 Iceberg용 BigLake 외부 테이블을 만들 수 있습니다. 하지만 이 방법은 BigLake 테이블을 최신 상태로 유지하기 위해 JSON 메타데이터 파일의 URI를 수동으로 업데이트 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#update-table-metadata]해야 하므로 권장되는 방법은 아닙니다. URI가 최신 상태로 유지되지 않으면 BigQuery의 쿼리가 실패하거나 Iceberg 카탈로그를 직접 사용하는 다른 쿼리 엔진과 다른 결과를 제공할 수 있습니다. 이를 방지하려면 Iceberg BigLake 테이블을 만들 때 BigLake Metastore 인스턴스 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#create-using-metadata-file]를 참조합니다.
+Iceberg 테이블 메타데이터 파일은 Spark를 사용하여 Iceberg 테이블 [https://cloud.google.com/dataproc-metastore/docs/apache-iceberg?hl=ko#iceberg-table-with-spark]을 만들 때 지정하는 Cloud Storage 버킷에 생성됩니다.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#sql] ---
+CREATE EXTERNAL TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_table_statement]을 사용합니다. 다음 예시에서는 myexternal-table이라는 BigLake 테이블을 만듭니다.
+
+  CREATE EXTERNAL TABLE myexternal-table
+  WITH CONNECTION `myproject.us.myconnection`
+  OPTIONS (
+         format = 'ICEBERG',
+         uris = ["gs://mybucket/mydata/mytable/metadata/iceberg.metadata.json"]
+   )
+
+
+uris 값을 특정 테이블 스냅샷의 최신 JSON 메타데이터 파일 [https://iceberg.apache.org/spec/#table-metadata]로 바꿉니다.
+
+require_partition_filter 플래그를 설정하여 파티션 필터 필요를 사용 설정할 수 있습니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#bq] ---
+명령줄 환경에서 @connection 데코레이터와 함께 bq mk --table 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-table]를 사용하면 --external_table_definition 매개변수 끝에서 사용할 연결을 지정할 수 있습니다.
+파티션 필터 필요를 사용 설정하려면 --require_partition_filter를 사용합니다.
+bq mk 
+    --table 
+    --external_table_definition=TABLE_FORMAT=URI@projects/CONNECTION_PROJECT_ID/locations/CONNECTION_REGION/connections/CONNECTION_ID 
+    PROJECT_ID:DATASET.EXTERNAL_TABLE
+
+다음을 바꿉니다.
+
+
+TABLE_FORMAT: 만들려는 테이블의 이름
+
+이 경우 ICEBERG입니다.
+URI: 특정 테이블 스냅샷에 대한 최신 JSON 메타데이터 파일 [https://iceberg.apache.org/spec/#table-metadata]
+
+예를 들면 gs://mybucket/mydata/mytable/metadata/iceberg.metadata.json입니다.
+
+URI는 Amazon S3 또는 Azure Blob Storage와 같은 외부 클라우드 위치를 가리킬 수도 있습니다.
+
+
+AWS의 예: s3://mybucket/iceberg/metadata/1234.metadata.json
+Azure의 예: azure://mystorageaccount.blob.core.windows.net/mycontainer/iceberg/metadata/1234.metadata.json
+
+CONNECTION_PROJECT_ID: BigLake 테이블을 만들기 위한 연결 [https://cloud.google.com/bigquery/docs/connect-to-spark?hl=ko]이 포함된 프로젝트(예: myproject)
+CONNECTION_REGION: BigLake 테이블을 만들기 위한 연결이 포함된 리전(예: us)
+CONNECTION_ID: 테이블 연결 ID(예: myconnection)
+
+Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+DATASET: 테이블을 만들려는 BigQuery 데이터 세트의 이름
+
+예를 들면 mydataset입니다.
+EXTERNAL_TABLE: 만들려는 테이블의 이름
+
+예를 들면 mytable입니다.
+
+
+
+테이블 메타데이터 업데이트
+JSON 메타데이터 파일을 사용하여 Iceberg용 BigLake 외부 테이블을 만드는 경우 테이블 정의를 최신 테이블 메타데이터로 업데이트합니다. 스키마 또는 메타데이터 파일을 업데이트하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: bq [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#bq] ---
+테이블 정의 파일 만들기
+
+bq mkdef --source_format=ICEBERG \
+"URI" > TABLE_DEFINITION_FILE
+
+--autodetect_schema 플래그와 함께 bq update 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_update]를 사용합니다.
+
+bq update --autodetect_schema --external_table_definition=TABLE_DEFINITION_FILE
+PROJECT_ID:DATASET.TABLE
+
+
+다음을 바꿉니다.
+
+
+URI: 최신 JSON 메타데이터 파일 [https://iceberg.apache.org/spec/#table-metadata]이 있는 Cloud Storage URI
+
+예를 들면 gs://mybucket/us/iceberg/mytable/metadata/1234.metadata.json입니다.
+TABLE_DEFINITION_FILE: 테이블 스키마가 포함된 파일의 이름
+PROJECT_ID: 업데이트할 테이블이 포함된 프로젝트 ID
+DATASET: 업데이트할 테이블이 포함된 데이터 세트
+TABLE: 스냅샷을 작성하려는 테이블
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#api] ---
+autodetect_schema 속성을 true로 설정하여 tables.patch 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch?hl=ko]를 사용합니다.
+
+PATCH https://bigquery.googleapis.com/bigquery/v2/projects/PROJECT_ID/datasets/DATASET/tables/TABLE?autodetect_schema=true
+
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 업데이트할 테이블이 포함된 프로젝트 ID
+DATASET: 업데이트할 테이블이 포함된 데이터 세트
+TABLE: 스냅샷을 작성하려는 테이블
+
+
+요청 본문에서 다음 필드에 업데이트된 값을 지정하세요.
+
+{
+     "externalDataConfiguration": {
+      "sourceFormat": "ICEBERG",
+      "sourceUris": [
+        "URI"
+      ]
+    },
+    "schema": null
+  }'
+
+
+URI를 최신 Iceberg 메타데이터 파일로 바꿉니다. 예를 들면 gs://mybucket/us/iceberg/mytable/metadata/1234.metadata.json입니다.
+액세스 제어 정책 설정
+여러 가지 방법으로 BigLake 테이블에 대한 액세스를 제어할 수 있습니다.
+열 수준 보안 설정에 대한 안내는 열 수준 보안 가이드 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko]를 참조하세요.
+데이터 마스킹 설정에 대한 안내는 데이터 마스킹 가이드 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko]를 참조하세요.
+행 수준 보안 설정에 대한 안내는 행 수준 보안 가이드 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko]를 참조하세요.
+예를 들어 데이터 세트 mydataset의 mytable 테이블에 대한 행 액세스를 제한한다고 가정해 보겠습니다.
++---------+---------+-------+
+| country | product | price |
++---------+---------+-------+
+| US      | phone   |   100 |
+| JP      | tablet  |   300 |
+| UK      | laptop  |   200 |
++---------+---------+-------+
+김(kim@example.com)에 대해 country가 US인 행으로 액세스를 제한하는 행 수준 필터를 만들 수 있습니다.
+CREATE ROW ACCESS POLICY only_us_filter
+ON mydataset.mytable
+GRANT TO ('user:kim@example.com')
+FILTER USING (country = 'US');
+그런 후 다음 쿼리를 실행합니다.
+SELECT * FROM projectid.mydataset.mytable;
+country가 US인 행만 출력에 표시됩니다.
++---------+---------+-------+
+| country | product | price |
++---------+---------+-------+
+| US      | phone   |   100 |
++---------+---------+-------+
+BigLake 테이블 쿼리
+자세한 내용은 Iceberg 데이터 쿼리 [https://cloud.google.com/bigquery/docs/query-iceberg-data?hl=ko]를 참조하세요.
+데이터 매핑
+BigQuery는 다음 표와 같이 Iceberg 데이터 유형을 BigQuery 데이터 유형으로 변환합니다.
+Iceberg 데이터 유형 BigQuery 데이터 유형
+boolean BOOL
+int INT64
+long INT64
+float FLOAT64
+double FLOAT64
+Decimal(P/S) NUMERIC or BIG_NUMERIC depending on precision
+date DATE
+time TIME
+timestamp DATETIME
+timestamptz TIMESTAMP
+string STRING
+uuid BYTES
+fixed(L) BYTES
+binary BYTES
+list<Type> ARRAY<Type>
+struct STRUCT
+map<KeyType, ValueType> ARRAY<Struct<key KeyType, value ValueType>>
+제한사항
+Iceberg BigLake 테이블에는 BigLake 테이블 제한사항 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#limitations]이 포함되며 다음 제한사항도 포함됩니다.
+copy-on-write 구성이 지원되지만 merge-on-read 구성은 지원되지 않습니다. 자세한 내용은 Iceberg 구성 [https://iceberg.apache.org/docs/latest/configuration/]을 참조하세요.
+BigQuery는 Bucket을 제외한 모든 Iceberg 파티션 변환 함수 [https://iceberg.apache.org/spec/#partition-transforms]를 사용하여 매니페스트 프루닝을 지원합니다. 파티션을 프루닝하는 방법은 파티션을 나눈 테이블 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko]를 참조하세요. Iceberg용 BigLake 외부 테이블을 참조하는 쿼리에는 파티션을 나눈 열과 비교하여 조건자에 리터럴이 포함되어야 합니다.
+Apache Parquet 데이터 파일만 지원됩니다.
+BigLake Metastore를 사용하는 경우 다음 제한사항이 적용됩니다.
+BigLake Metastore는 BigQuery Omni 리전 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#locations]에서 지원되지 않습니다.
+테이블 이름을 바꿀 때 대상 테이블은 소스 테이블과 동일한 데이터베이스에 있어야 합니다. 대상 테이블의 데이터베이스를 명시적으로 지정해야 합니다.
+Iceberg 메타데이터 테이블 [https://iceberg.apache.org/docs/latest/spark-queries/#inspecting-tables]을 조사할 때 정규화된 테이블 이름을 사용해야 합니다. 예를 들면 prod.db.table.history입니다.
+비용
+BigLake Metastore 요청 6,250,000건 및 BigLake Metastore에 저장된 625,000개의 객체마다 주문형(TB당) 쿼리 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]에 따라 1TB 요금이 청구됩니다. 주문형 쿼리 가격 책정 비율은 리전에 따라 다릅니다. 요청 또는 객체 수가 적으면 1TB보다 적은 비율로 청구됩니다.
+예를 들어 BigLake Metastore에 대해 6,250,000건의 요청을 수행하고 여기에 312,500개의 객체를 저장한 경우에는 BigLake Metastore 인스턴스를 만든 리전에 대해 주문형 쿼리 가격 책정 비율에 따라 1.5TB에 해당하는 요금이 청구됩니다.
+파티션 필터 필요
+Iceberg 테이블에 파티션 필터 필요 옵션을 사용 설정하여 조건자 필터를 반드시 사용하도록 지정할 수 있습니다. 이 옵션을 사용 설정하면 각 매니페스트 파일에 맞는 WHERE 절을 지정하지 않고 테이블을 쿼리하려고 하면 다음과 같은 오류가 발생합니다.
+Cannot query over table project_id.dataset.table without a
+filter that can be used for partition elimination.
+각 매니페스트 파일에는 파티션 제거에 적합한 서술어가 하나 이상 필요합니다.
+Iceberg 테이블을 만드는 동안 다음과 같은 방법으로 require_partition_filter를 사용 설정할 수 있습니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#sql] ---
+CREATE EXTERNAL TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_table_statement]을 사용합니다. 다음 예시에서는 파티션 필터 필요가 사용 설정된 TABLE이라는 BigLake 테이블을 만듭니다.
+
+  CREATE EXTERNAL TABLE TABLE
+  WITH CONNECTION `PROJECT_ID.REGION.CONNECTION_ID`
+  OPTIONS (
+         format = 'ICEBERG',
+         uris = [URI],
+         require_partition_filter = true
+   )
+
+
+다음을 바꿉니다.
+
+
+TABLE: 만들려는 테이블 이름
+PROJECT_ID: 만들려는 테이블이 포함된 프로젝트 ID
+REGION: Iceberg 테이블을 만들 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]
+CONNECTION_ID: 연결 ID [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections]. 예를 들면 myconnection입니다.
+URI: 최신 JSON 메타데이터 파일 [https://iceberg.apache.org/spec/#table-metadata]이 있는 Cloud Storage URI
+
+예를 들면 gs://mybucket/us/iceberg/mytable/metadata/1234.metadata.json입니다.
+
+URI는 Amazon S3 또는 Azure Blob Storage와 같은 외부 클라우드 위치를 가리킬 수도 있습니다.
+
+
+AWS의 예: s3://mybucket/iceberg/metadata/1234.metadata.json
+Azure의 예: azure://mystorageaccount.blob.core.windows.net/mycontainer/iceberg/metadata/1234.metadata.json
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#bq] ---
+@connection 데코레이터와 함께 bq mk --table 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-table]를 사용하여 --external_table_definition 매개변수 끝에 사용할 연결을 지정합니다.
+--require_partition_filter를 사용하여 파티션 필터 필요를 사용 설정합니다.
+다음 예시에서는 파티션 필터 필요가 사용 설정된 TABLE이라는 BigLake 테이블을 만듭니다.
+bq mk \
+    --table \
+    --external_table_definition=ICEBERG=URI@projects/CONNECTION_PROJECT_ID/locations/CONNECTION_REGION/connections/CONNECTION_ID \
+    PROJECT_ID:DATASET.EXTERNAL_TABLE \
+    --require_partition_filter
+
+다음을 바꿉니다.
+
+
+URI: 특정 테이블 스냅샷에 대한 최신 JSON 메타데이터 파일 [https://iceberg.apache.org/spec/#table-metadata]
+
+예를 들면 gs://mybucket/mydata/mytable/metadata/iceberg.metadata.json입니다.
+
+URI는 Amazon S3 또는 Azure Blob Storage와 같은 외부 클라우드 위치를 가리킬 수도 있습니다.
+
+
+AWS의 예: s3://mybucket/iceberg/metadata/1234.metadata.json
+Azure의 예: azure://mystorageaccount.blob.core.windows.net/mycontainer/iceberg/metadata/1234.metadata.json
+
+CONNECTION_PROJECT_ID: BigLake 테이블을 만들기 위한 연결 [https://cloud.google.com/bigquery/docs/connect-to-spark?hl=ko]이 포함된 프로젝트(예: myproject)
+CONNECTION_REGION: BigLake 테이블을 만들기 위한 연결이 포함된 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko](예: us)
+CONNECTION_ID: 연결 ID [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections]. 예를 들면 myconnection입니다.
+
+Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+DATASET: 업데이트할 테이블이 포함된 BigQuery
+
+데이터 세트의 이름입니다. 예를 들면 mydataset입니다.
+EXTERNAL_TABLE: 만들려는 테이블의 이름
+
+예를 들면 mytable입니다.
+Iceberg 테이블을 업데이트하여 파티션 필터 필요를 사용 설정할 수도 있습니다.
+파티션을 나눈 테이블을 만들 때 파티션 필터 필요 옵션을 사용 설정하지 않았다면 테이블을 업데이트하여 해당 옵션을 추가할 수 있습니다.
+--- 탭: bq [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#bq] ---
+bq update 명령어를 사용하고 --require_partition_filter 플래그를 제공합니다.
+
+예를 들면 다음과 같습니다.
+
+기본 프로젝트에 있는 mydataset의 mypartitionedtable을 업데이트하려면 다음을 입력합니다.
+
+bq update --require_partition_filter PROJECT_ID:DATASET.TABLE
+다음 단계
+Spark용 저장 프로시저 [https://cloud.google.com/bigquery/docs/spark-procedures?hl=ko] 알아보기
+BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko] 알아보기
+액세스 제어 정책 [https://cloud.google.com/bigquery/docs/access-control?hl=ko] 알아보기
+BigQuery에서 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko] 알아보기
+BigQuery에서 지원되는 문 및 SQL 언어 [https://cloud.google.com/bigquery/docs/introduction-sql?hl=ko]에 대해 알아보기
+도움이 되었나요?
+의견 보내기

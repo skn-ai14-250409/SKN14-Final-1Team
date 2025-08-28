@@ -1,0 +1,349 @@
+Source URL: https://cloud.google.com/bigquery/docs/column-level-security
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#before_you_begin]
+역할 및 권한 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#roles]
+Data Catalog 정책 태그 관리자 역할 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#policy_tags_admin]
+BigQuery 데이터 정책 관리자, BigQuery 관리자, BigQuery 데이터 소유자 역할 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#bq-roles]
+조직 뷰어 역할 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#org-viewer-role]
+Data Catalog 세분화된 리더 역할 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#fine_grained_reader]
+열 수준 액세스 제어 설정 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#set_up_column-level_access_control]
+분류 만들기 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#create_taxonomy]
+열 수준 액세스 제어를 사용하여 액세스 제한
+bookmark_border
+이 페이지에서는 BigQuery 열 수준 액세스 제어를 사용하여 열 수준에서 BigQuery 데이터에 대한 액세스를 제한하는 방법을 설명합니다. 열 수준 액세스 제어에 대한 일반적인 내용은 BigQuery 열 수준 액세스 제어 소개 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko]를 참조하세요.
+이 페이지의 안내에서는 BigQuery와 Data Catalog를 모두 사용합니다.
+열에 정책 태그를 설정하려면 테이블 스키마를 업데이트해야 합니다. Google Cloud 콘솔, bq 명령줄 도구, BigQuery API를 사용하여 열에 정책 태그를 설정할 수 있습니다. 또한 다음 기법을 사용하여 한 번의 작업으로 테이블을 만들고 스키마와 정책 태그를 지정할 수 있습니다.
+bq 명령줄 도구의 bq mk 및 bq load 명령어.
+tables.insert API 메서드
+Google Cloud 콘솔의 테이블 만들기 페이지.Google Cloud 콘솔을 사용하는 경우 스키마를 추가하거나 수정할 때 텍스트로 편집을 선택해야 합니다.
+참고: DDL CREATE TABLE 문을 사용하여 정책 태그를 지정할 수 없습니다.
+열 수준 액세스 제어를 강화하려면 선택적으로 동적 데이터 마스킹 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko]을 사용하면 됩니다. 데이터 마스킹을 사용하면 열의 실제 값 대신 null, 기본값 또는 해시된 콘텐츠로 대체하여 민감한 정보를 마스킹할 수 있습니다.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the Data Catalog and BigQuery Data Policy APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=datacatalog.googleapis.com%2Cbigquerydatapolicy.googleapis.com&%3Bredirect=https%3A%2F%2Fconsole.cloud.google.com&hl=ko]
+BigQuery는 자동으로 새 프로젝트에서 사용 설정되지만 기존 프로젝트에서 활성화해야 할 수도 있습니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com&%3Bredirect=https%3A%2F%2Fconsole.cloud.google.com&hl=ko]
+역할 및 권한
+사용자 및 서비스 계정의 정책 태그와 관련된 몇 가지 역할이 있습니다.
+정책 태그를 관리하는 사용자 계정이나 서비스 계정에 Data Catalog 정책 태그 관리자 역할이 있어야 합니다. 정책 태그 관리자 역할은 분류와 정책 태그를 관리할 수 있으며 정책 태그와 연결된 IAM 역할을 부여하거나 삭제할 수 있습니다.
+열 수준 액세스 제어를 위해 액세스 제어를 적용 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#enforce_access_control]하는 사용자 계정이나 서비스 계정에는 BigQuery 관리자 역할이나 BigQuery 데이터 소유자 역할이 있어야 합니다. BigQuery 역할은 분류에 대한 액세스 제어를 적용하는 데 사용되는 데이터 정책을 관리할 수 있습니다.
+Google Cloud 콘솔에서 조직 내 모든 프로젝트의 분류 및 정책 태그를 보려면 사용자에게 조직 뷰어 역할이 필요합니다. 그렇지 않으면 선택한 프로젝트와 관련된 분류 및 정책 태그만 콘솔에 표시됩니다.
+열 수준 액세스 제어로 보호되는 데이터를 쿼리하는 사용자 계정이나 서비스 계정에서 이러한 데이터에 액세스하려면 Data Catalog 세분화된 리더 역할이 있어야 합니다.
+모든 정책 태그 관련 역할에 대한 자세한 내용은 열 수준 액세스 제어에 사용되는 역할 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko#roles]을 참조하세요.
+Data Catalog 정책 태그 관리자 역할
+Data Catalog 정책 태그 관리자 역할은 데이터 정책 태그를 만들고 관리할 수 있습니다.
+정책 태그 관리자 역할을 부여하려면 역할을 부여하려는 프로젝트에 대한 resourcemanager.projects.setIamPolicy 권한이 있어야 합니다. resourcemanager.projects.setIamPolicy 권한이 없는 경우, 프로젝트 소유자에게 권한 부여를 요청하거나 다음 단계를 수행하도록 요청하세요.
+Google Cloud 콘솔에서 IAM 페이지로 이동합니다.
+IAM 페이지 열기 [https://console.cloud.google.com/iam-admin/iam?hl=ko]
+역할을 부여할 사용자의 이메일 주소가 목록에 있는 경우 이메일 주소를 선택하고 edit 수정을 클릭합니다. 액세스 수정 창이 열립니다. 다른 역할 추가를 클릭합니다.
+사용자 이메일 주소가 목록에 없으면 person_add 추가를 클릭한 다음 새 주 구성원 상자에 이메일 주소를 입력합니다.
+역할 선택 드롭다운 목록을 클릭합니다.
+제품 또는 서비스별에서 Data Catalog를 클릭합니다. 역할에서 정책 태그 관리자를 클릭합니다.
+저장을 클릭합니다.
+BigQuery 데이터 정책 관리자, BigQuery 관리자, BigQuery 데이터 소유자 역할
+BigQuery 데이터 정책 관리자, BigQuery 관리자, BigQuery 데이터 소유자 역할은 데이터 정책을 관리할 수 있습니다.
+이러한 역할 중 하나를 부여하려면 역할을 부여하려는 프로젝트에 대한 resourcemanager.projects.setIamPolicy 권한이 있어야 합니다. resourcemanager.projects.setIamPolicy 권한이 없는 경우, 프로젝트 소유자에게 권한 부여를 요청하거나 다음 단계를 수행하도록 요청하세요.
+Google Cloud 콘솔에서 IAM 페이지로 이동합니다.
+IAM 페이지 열기 [https://console.cloud.google.com/iam-admin/iam?hl=ko]
+역할을 부여할 사용자의 이메일 주소가 목록에 있는 경우 이메일 주소를 선택하고 edit 수정을 클릭합니다. 그런 다음 다른 역할 추가를 클릭합니다.
+사용자 이메일 주소가 목록에 없으면 person_add 추가를 클릭한 다음 새 주 구성원 상자에 이메일 주소를 입력합니다.
+역할 선택 드롭다운 목록을 클릭합니다.
+BigQuery를 클릭한 후 BigQuery 데이터 정책 관리자, BigQuery 관리자 또는 BigQuery 데이터 소유자를 클릭합니다.
+저장을 클릭합니다.
+조직 뷰어 역할
+조직 뷰어 역할을 통해 사용자는 조직 리소스에 대한 세부정보를 볼 수 있습니다. 이 역할을 부여하려면 조직에 대한 resourcemanager.organizations.setIamPolicy 권한이 있어야 합니다.
+Data Catalog 세분화된 리더 역할
+열 수준 액세스 제어로 보호된 데이터에 액세스해야 하는 사용자에게는 Data Catalog 세분화된 권한의 리더 역할 또는 datacatalog.categories.fineGrainedGet 권한 [https://cloud.google.com/iam/docs/roles-permissions/datacatalog?hl=ko#datacatalog.categories.fineGrainedGet]이 부여된 다른 역할이 필요합니다. 이 역할은 정책 태그를 구성하는 과정에서 주 구성원에게 할당됩니다.
+정책 태그에 대한 세분화된 리더 역할을 사용자에게 부여하려면 정책 태그 분류가 포함된 프로젝트에 대한 datacatalog.taxonomies.setIamPolicy 권한이 있어야 합니다. datacatalog.taxonomies.setIamPolicy 권한이 없으면 프로젝트 소유자에게 권한을 부여하거나 다음 작업을 수행해 달라고 요청합니다.
+자세한 내용은 정책 태그에 대한 권한 설정 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#set_permissions_on_policy_tags]을 참조하세요.
+열 수준 액세스 제어 설정
+다음 태스크를 완료하여 열 수준 액세스 제어를 설정합니다.
+정책 태그 분류를 만듭니다.
+주 구성원을 정책 태그에 연결하고 주 구성원에게 Data Catalog 세분화된 리더 역할을 부여합니다.
+정책 태그를 BigQuery 테이블 열에 연결합니다.
+정책 태그가 포함된 분류에 대한 액세스 제어를 적용합니다.
+분류 만들기
+분류를 만드는 사용자나 서비스 계정에 Data Catalog 정책 태그 관리자 역할을 부여해야 합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+분류 만들기를 클릭합니다.
+새 분류 페이지에서 다음을 수행합니다.
+
+
+분류 이름에 만들려는 분류의 이름을 입력합니다.
+설명에 설명을 입력합니다.
+필요한 경우 프로젝트 아래에 나열된 프로젝트를 변경합니다.
+필요한 경우 위치 아래에 나열된 위치를 변경합니다.
+정책 태그에 정책 태그 이름과 설명을 입력합니다.
+정책 태그에 하위 정책 태그를 추가하려면 하위 태그 추가를 클릭합니다.
+다른 정책 태그와 수준이 같은 새 정책 태그를 추가하려면 + 정책 태그 추가를 클릭합니다.
+분류에 필요한 정책 태그와 하위 정책 태그를 계속 추가합니다.
+계층 구조에 대한 정책 태그 만들었으면 저장을 클릭합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#api] ---
+기존 분류를 사용하려면 다음 절차의 첫 두 단계 대신 taxonomies.import [https://cloud.google.com/data-catalog/docs/reference/rest/v1/projects.locations.taxonomies/import?hl=ko]를 호출합니다.
+
+
+taxonomies.create [https://cloud.google.com/data-catalog/docs/reference/rest/v1/projects.locations.taxonomies/create?hl=ko]를 호출하여 분류를 만듭니다.
+taxonomies.policytag.create [https://cloud.google.com/data-catalog/docs/reference/rest/v1/projects.locations.taxonomies.policyTags/create?hl=ko]를 호출하여 정책 태그를 만듭니다.
+정책 태그에 대한 권한 설정
+분류를 만드는 사용자나 서비스 계정에 Data Catalog 정책 태그 관리자 역할을 부여해야 합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+관련 정책 태그가 포함된 분류의 이름을 클릭합니다.
+정책 태그를 하나 이상 선택합니다.
+정보 패널이 숨겨져 있는 경우 정보 패널 표시를 클릭합니다.
+정보 패널에서 선택한 정책 태그의 역할과 주 구성원을 볼 수 있습니다.
+정책 태그를 만들고 관리하는 계정에 정책 태그 관리자 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#policy_tags_admin] 역할을 추가합니다. 열 수준 액세스 제어로 보호되는 데이터에 액세스하려는 계정에 세분화된 리더 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#fine_grained_reader] 역할을 추가합니다. 이 패널을 사용하여 계정에서 역할을 삭제하거나 다른 권한을 수정합니다.
+저장을 클릭합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#api] ---
+taxonomies.policytag.setIamPolicy [https://cloud.google.com/data-catalog/docs/reference/rest/v1/projects.locations.taxonomies.policyTags/setIamPolicy?hl=ko]를 호출하여 적절한 역할에 주 구성원을 할당하여 정책 태그에 대한 액세스 권한을 부여합니다.
+열에 정책 태그 설정
+정책 태그를 설정하는 사용자나 서비스 계정에 datacatalog.taxonomies.get 권한과 bigquery.tables.setCategory 권한이 필요합니다. datacatalog.taxonomies.get은 Data Catalog 정책 태그 관리자 역할과 프로젝트 뷰어 역할에 포함되어 있습니다. bigquery.tables.setCategory는 BigQuery 관리자(roles/bigquery.admin) 및 BigQuery 데이터 소유자(roles/bigquery.dataOwner) 역할에 포함되어 있습니다.
+Google Cloud 콘솔에서 조직 내 모든 프로젝트의 분류 및 정책 태그를 보려면 사용자에게 조직 뷰어 역할에 포함된 resourcemanager.organizations.get 권한이 필요합니다.
+참고: 열당 정책 태그 1개만 할당할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔을 사용하여 스키마를 수정 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]해 정책 태그를 설정합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+BigQuery 탐색기에서 업데이트할 테이블을 찾아 선택합니다. 테이블의 테이블 스키마가 열립니다.
+스키마 수정을 클릭합니다.
+현재 스키마 화면에서 대상 열을 선택하고 정책 태그 추가를 클릭합니다.
+정책 태그 추가 화면에서 열에 적용할 정책 태그를 선택합니다.
+선택을 클릭합니다. 다음과 같은 화면이 표시됩니다.
+
+ 
+저장을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#bq] ---
+스키마를 로컬 파일에 씁니다.
+
+bq show --schema --format=prettyjson \
+   project-id:dataset.table > schema.json
+
+각 항목의 의미는 다음과 같습니다.
+
+
+project-id는 프로젝트 ID입니다.
+dataset는 업데이트할 테이블이 포함되어 있는 데이터 세트의 이름입니다.
+table은 업데이트할 테이블의 이름입니다.
+
+schema.json을 수정하여 열에 정책 태그를 설정합니다. policyTags의 names 필드 값에 정책 태그 리소스 이름 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#retrieve_policy_tag_name]을 사용합니다.
+
+[
+ ...
+ {
+   "name": "ssn",
+   "type": "STRING",
+   "mode": "REQUIRED",
+   "policyTags": {
+     "names": ["projects/project-id/locations/location/taxonomies/taxonomy-id/policyTags/policytag-id"]
+   }
+ },
+ ...
+]
+스키마를 업데이트합니다.
+
+bq update \
+   project-id:dataset.table schema.json
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#api] ---
+기존 테이블의 경우 tables.patch [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch?hl=ko]를 호출하거나 새 테이블의 경우 tables.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert?hl=ko]를 호출합니다. 전달하는 Table 객체의 schema 속성을 사용하여 스키마 정의에 정책 태그를 설정합니다. 정책 태그를 설정하는 방법은 명령줄 예시 스키마를 참조하세요.
+
+기존 테이블을 사용하는 경우 tables.update 메서드가 전체 테이블 리소스를 대체하므로 tables.patch 메서드를 사용하는 것이 좋습니다.
+열에 정책 태그를 설정하는 다른 방법
+다음과 같은 경우에도 정책 태그를 설정할 수 있습니다.
+bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mk]를 사용하여 테이블을 만듭니다. 테이블을 만들 때 사용할 스키마를 전달합니다.
+bq load [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_load]를 사용하여 테이블에 데이터를 로드합니다. 테이블을 로드할 때 사용할 스키마를 전달합니다.
+일반적인 스키마 정보는 스키마 지정 [https://cloud.google.com/bigquery/docs/schemas?hl=ko]을 참조하세요.
+액세스 제어 적용
+액세스 제어 적용을 사용 설정하거나 중지하려면 다음 안내를 수행합니다.
+액세스 제어를 적용하려면 데이터 정책을 만들어야 합니다. 이 작업은Google Cloud 콘솔을 사용하여 액세스 제어를 적용하는 경우 자동으로 수행됩니다. BigQuery Data Policy API를 사용하여 액세스 제어를 적용하려면 데이터 정책을 명시적으로 만들어야 합니다.
+액세스 제어를 적용하는 사용자나 서비스 계정에는 BigQuery 관리자 역할 또는 BigQuery 데이터 소유자 역할이 있어야 합니다. 또한 Data Catalog 관리자 역할 또는 Data Catalog 뷰어 역할도 있어야 합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#%EC%BD%98%EC%86%94] ---
+액세스 제어를 적용하려면 다음 단계를 수행합니다.
+
+
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+열 수준 액세스 제어를 적용하려는 분류를 클릭합니다.
+액세스 제어 적용이 아직 사용 설정되지 않았으면 액세스 제어 적용을 클릭하여 사용 설정합니다.
+
+
+액세스 제어 적용이 사용 설정된 경우 이를 중지하려면 액세스 제어 적용을 클릭하여 제어를 전환합니다.
+
+분류에 정책 태그와 연결된 데이터 정책이 있으면 액세스 제어 적용을 중지하기 전에 분류에서 모든 데이터 정책을 삭제해야 합니다. BigQuery Data Policy API를 사용하여 데이터 정책을 삭제하는 경우 DATA_MASKING_POLICY가 dataPolicyType인 모든 데이터 정책을 삭제해야 합니다. 자세한 내용은 데이터 정책 삭제 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#delete_data_policies]를 참조하세요.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#api] ---
+액세스 제어를 적용하려면 create [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest/v1/projects.locations.dataPolicies/create?hl=ko]를 호출하고 dataPolicyType 필드가 COLUMN_LEVEL_SECURITY_POLICY로 설정된 DataPolicy [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest/v1/projects.locations.dataPolicies?hl=ko#resource:-datapolicy] 리소스를 전달합니다.
+
+액세스 제어 적용이 사용 설정된 경우 이를 중지하려면 분류와 연결된 데이터 정책을 삭제합니다. 데이터 정책의 delete [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest/v1/projects.locations.dataPolicies/delete?hl=ko] 메서드를 호출하면 됩니다.
+
+분류에 정책 태그와 연결된 데이터 정책이 있는 경우 먼저 분류에서 모든 데이터 정책을 삭제하지 않으면 액세스 제어 적용을 중지할 수 없습니다. 자세한 내용은 데이터 정책 삭제 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#delete_data_policies]를 참조하세요.
+정책 태그 사용
+이 섹션에서는 정책 태그를 보고 수정하고 삭제하는 방법을 알아봅니다.
+정책 태그 보기
+분류에 대해 만든 정책 태그를 보려면 다음 안내를 따르세요.
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+정책 태그를 보려는 분류를 클릭합니다. 분류 페이지에 분류의 정책 태그가 표시됩니다.
+스키마에서 정책 태그 보기
+테이블 스키마를 검사할 때 테이블에 적용된 정책 태그를 볼 수 있습니다. Google Cloud 콘솔, bq 명령줄 도구, BigQuery API, 클라이언트 라이브러리를 사용하여 스키마를 볼 수 있습니다. 스키마를 보는 방법에 대한 자세한 내용은 테이블 정보 가져오기 [https://cloud.google.com/bigquery/docs/tables?hl=ko#get_information_about_tables]를 참조하세요.
+정책 태그에 대한 권한 보기
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+관련 정책 태그가 포함된 분류의 이름을 클릭합니다.
+정책 태그를 하나 이상 선택합니다.
+정보 패널이 숨겨져 있는 경우 정보 패널 표시를 클릭합니다.
+정보 패널에서 선택한 정책 태그의 역할과 주 구성원을 볼 수 있습니다.
+정책 태그에 대한 권한 업데이트
+분류를 만드는 사용자나 서비스 계정에 Data Catalog 정책 태그 관리자 역할을 부여해야 합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+관련 정책 태그가 포함된 분류의 이름을 클릭합니다.
+정책 태그를 하나 이상 선택합니다.
+정보 패널이 숨겨져 있는 경우 정보 패널 표시를 클릭합니다.
+정보 패널에서 선택한 정책 태그의 역할과 주 구성원을 볼 수 있습니다.
+정책 태그를 만들고 관리하는 계정에 정책 태그 관리자 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#policy_tags_admin] 역할을 추가합니다. 열 수준 액세스 제어로 보호되는 데이터에 액세스하려는 계정에 세분화된 리더 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#fine_grained_reader] 역할을 추가합니다. 이 패널을 사용하여 계정에서 역할을 삭제하거나 다른 권한을 수정합니다.
+저장을 클릭합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#api] ---
+taxonomies.policytag.setIamPolicy [https://cloud.google.com/data-catalog/docs/reference/rest/v1/projects.locations.taxonomies.policyTags/setIamPolicy?hl=ko]를 호출하여 적절한 역할에 주 구성원을 할당하여 정책 태그에 대한 액세스 권한을 부여합니다.
+정책 태그 리소스 이름 검색
+정책 태그를 열에 적용할 때 정책 태그 리소스 이름이 필요합니다.
+정책 태그 리소스 이름을 검색하려면 다음 안내를 따르세요.
+정책 태그가 포함된 분류의 정책 태그를 봅니다 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#view_policy_tags].
+리소스 이름을 복사하려는 정책 태그를 찾습니다.
+정책 태그 리소스 이름 복사 아이콘을 클릭합니다.
+정책 태그 삭제
+열에서 정책 태그를 삭제하려면 테이블 스키마를 업데이트합니다.Google Cloud 콘솔, bq 명령줄 도구, BigQuery API 메서드를 사용하여 열에서 정책 태그를 삭제할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#%EC%BD%98%EC%86%94] ---
+현재 스키마 페이지의 정책 태그에서 X를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#bq] ---
+참고: 정책 태그를 삭제하려면 policyTags의 names 필드를 빈 목록 []으로 명시적으로 설정해야 합니다. policyTags 필드를 삭제해도 기존 정책 태그에는 영향을 주지 않습니다. 이는 민감한 정보를 노출할 수 있는 정책 태그가 실수로 삭제되는 것을 방지하기 위한 것입니다.
+
+스키마를 가져와서 로컬 파일에 저장합니다.
+
+bq show --schema --format=prettyjson \
+   project-id:dataset.table > schema.json
+
+각 항목의 의미는 다음과 같습니다.
+
+
+project-id는 프로젝트 ID입니다.
+dataset는 업데이트할 테이블이 포함되어 있는 데이터 세트의 이름입니다.
+table은 업데이트할 테이블의 이름입니다.
+
+schema.json을 수정하여 열에서 정책 태그를 삭제합니다.
+
+[
+ ...
+ {
+   "name": "ssn",
+   "type": "STRING",
+   "mode": "REQUIRED",
+   "policyTags": {
+     "names": []
+   }
+ },
+ ...
+]
+스키마를 업데이트합니다.
+
+bq update \
+   project-id:dataset.table schema.json
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#api] ---
+참고: 정책 태그를 삭제하려면 policyTags의 names 필드를 빈 목록 []으로 명시적으로 설정해야 합니다. policyTags 필드를 삭제해도 기존 정책 태그에는 영향을 주지 않습니다. 이는 민감한 정보를 노출할 수 있는 정책 태그가 실수로 삭제되는 것을 방지하기 위한 것입니다.
+tables.patch [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch?hl=ko]를 호출하고 schema 속성을 사용하여 스키마 정의에서 정책 태그를 삭제합니다. 정책 태그를 삭제하는 방법은 명령줄 예시 스키마를 참조하세요.
+
+tables.update 메서드는 전체 테이블 리소스를 대체하므로 tables.patch 메서드를 사용하는 것이 좋습니다.
+정책 태그 삭제
+분류에서 정책 태그를 하나 이상 삭제하거나 분류와 포함된 모든 정책 태그를 삭제할 수 있습니다. 정책 태그를 삭제하면 정책 태그와 적용된 모든 열 간의 연결이 자동으로 삭제됩니다.
+데이터 정책 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko]이 연결된 정책 태그를 삭제하면 데이터 정책을 삭제하는 데 최대 30분이 걸릴 수 있습니다. 즉시 삭제하려면 직접 데이터 정책을 삭제 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#delete_data_policies]하면 됩니다.
+분류에서 정책 태그를 하나 이상 삭제하려면 다음 단계를 수행합니다.
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+삭제할 태그가 포함된 분류의 이름을 클릭합니다.
+수정을 클릭합니다.
+삭제할 정책 태그 옆에 있는 delete를 클릭합니다.
+저장을 클릭합니다.
+확인을 클릭합니다.
+전체 분류를 삭제하려면 다음 단계를 수행합니다.
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+삭제할 태그가 포함된 분류의 이름을 클릭합니다.
+정책 태그 분류 삭제를 클릭합니다.
+분류 이름을 입력한 후 삭제를 클릭합니다.
+열 수준 액세스 제어를 사용하여 데이터 쿼리
+사용자에게 데이터세트 액세스 권한이 있고 세분화된 Data Catalog 리더 역할이 있는 경우 열 데이터를 사용할 수 있습니다. 사용자가 정상적으로 쿼리를 실행합니다.
+사용자에게 데이터 세트 액세스 권한이 있지만 Data Catalog 세분화된 권한의 리더 역할이 없는 경우 열 데이터를 사용할 수 없습니다. 이러한 사용자가 SELECT *를 실행하면 사용자가 액세스할 수 없는 열이 나열되는 오류가 발생합니다. 오류를 해결하려면 다음 중 하나를 수행하세요.
+사용자가 액세스할 수 없는 열을 제외하도록 쿼리를 수정합니다. 예를 들어 사용자가 ssn 열에 액세스할 수 없지만 나머지 열에 액세스할 수 있으면 다음 쿼리를 실행할 수 있습니다.
+SELECT * EXCEPT (ssn) FROM ...
+앞의 예시에서 EXCEPT 절은 ssn 열을 제외합니다.
+Data Catalog 관리자에게 사용자를 관련 데이터 클래스에 Data Catalog 세분화된 권한의 리더로 추가하도록 요청합니다. 오류 메시지에는 사용자가 액세스해야 하는 정책 태그의 전체 이름이 표시됩니다.
+FAQ
+뷰에서 BigQuery 열 수준 보안이 작동하나요?
+예. 뷰는 기본 테이블에서 파생됩니다. 뷰를 통해 보호된 열에 액세스하면 테이블에 동일한 열 수준 액세스 제어가 적용됩니다.
+BigQuery 뷰에는 논리적 뷰, 승인된 뷰와 같은 두 가지 종류의 뷰가 있습니다. 두 가지 뷰 유형 모두 소스 테이블에서 파생되며 두 테이블 모두 테이블의 열 수준 액세스 제어와 일치합니다.
+자세한 내용은 승인된 뷰 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko]를 참조하세요.
+STRUCT 열이나 RECORD 열에서 열 수준 액세스 제어가 작동하나요?
+예. 리프 필드에만 정책 태그를 적용할 수 있으며 해당 필드만 보호됩니다.
+legacy SQL과 GoogleSQL을 모두 사용할 수 있나요?
+GoogleSQL을 사용하여 열 수준 액세스 제어로 보호되는 테이블을 쿼리할 수 있습니다.
+대상 테이블에 정책 태그가 있으면 모든 legacy SQL 쿼리가 거부됩니다.
+Cloud Logging에 쿼리가 로깅되나요?
+정책 태그 확인은 Logging에 로깅됩니다. 자세한 내용은 열 수준의 액세스 제어의 감사 로깅 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko#audit_logging]을 참조하세요.
+테이블 복사는 열 수준 액세스 제어의 영향을 받나요?
+예. 열에 액세스할 수 없는 경우 열을 복사할 수 없습니다.
+다음 작업은 열 수준 권한을 확인합니다.
+대상 테이블이 있는 SELECT 쿼리
+테이블 복사 작업 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#copy-table]
+데이터 내보내기 작업 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko](예: Cloud Storage로 내보내기)
+데이터를 새 테이블에 복사하면 정책 태그가 자동으로 적용되나요?
+대부분의 경우는 그렇지 않습니다. 쿼리 결과를 새 테이블에 복사해도 새 테이블에 정책 태그가 자동으로 할당되지는 않습니다. 따라서 새 테이블에는 열 수준 액세스 제어가 없습니다. Cloud Storage로 데이터를 내보내는 경우에도 마찬가지입니다.
+테이블 복사 작업 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#copy-table]을 사용하는 경우는 예외입니다. 테이블 복사 작업은 데이터 변환을 적용하지 않으므로 정책 태그가 대상 테이블에 자동으로 적용됩니다. 리전 간 테이블 복사 작업은 정책 태그 복사를 지원하지 않으므로 이 예외는 리전 간 테이블 복사 작업에는 적용되지 않습니다.
+열 수준 액세스 제어는 Virtual Private Cloud와 호환되나요?
+예. 열 수준 액세스 제어와 VPC는 호환되며 상호보완적입니다.
+VPC는 IAM을 활용하여 BigQuery 및 Cloud Storage와 같은 서비스에 대한 액세스를 제어합니다. 열 수준 액세스 제어에서는 BigQuery 자체 내 개별 열에 대한 세분화된 보안을 제공합니다.
+열 수준 액세스 제어 및 동적 데이터 마스킹을 위한 정책 태그 및 데이터 정책에 VPC를 적용하려면 경계에서 다음 API를 제한해야 합니다.
+Data Catalog API [https://cloud.google.com/data-catalog/docs/reference/rest?hl=ko]
+BigQuery API [https://cloud.google.com/bigquery/docs/reference/rest?hl=ko]
+BigQuery Data Policy API [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest?hl=ko]
+문제 해결
+Data Catalog 역할을 볼 수 없습니다.
+Data Catalog 세분화된 권한의 리더와 같은 역할이 표시되지 않으면 프로젝트에서 Data Catalog API를 사용 설정하지 않았을 수 있습니다. Data Catalog API를 사용 설정하는 방법은 시작하기 전에 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#before_you_begin]를 참조하세요. Data Catalog API를 사용 설정하면 몇 분 후에 Data Catalog 역할이 표시됩니다.
+분류 페이지를 볼 수 없습니다.
+분류 페이지를 보려면 추가 권한이 필요합니다. 예를 들어 Data Catalog 정책 태그 관리자 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#policy_tags_admin] 역할은 분류 페이지에 액세스할 수 있습니다.
+정책 태그를 적용했지만 작동하지 않는 것 같습니다.
+액세스 권한이 없는 계정의 쿼리 결과가 계속 표시되는 경우 계정에서 캐시된 결과를 수신하는 것일 수 있습니다. 특히 이전에 쿼리를 성공적으로 실행한 후에 정책 태그를 적용했다면 쿼리 결과 캐시 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko]에서 가져온 결과일 수 있습니다. 기본적으로 쿼리 결과는 24시간 동안 캐시됩니다. 결과 캐시를 사용 중지 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#disabling_retrieval_of_cached_results]하면 쿼리가 즉시 실패합니다. 캐싱에 대한 자세한 내용은 열 수준 액세스 제어 영향 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#security]을 참조하세요.
+일반적으로 IAM 업데이트가 적용되기까지 약 30초가 걸립니다. 정책 태그 계층 구조의 변경사항이 적용되려면 최대 30분이 걸릴 수 있습니다.
+열 수준 보안이 설정된 테이블에서 읽을 권한이 없습니다.
+조직, 폴더, 프로젝트, 정책 태그와 같은 서로 다른 수준에서 세분화된 리더 역할 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#fine_grained_reader] 또는 마스킹된 리더 역할 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko#roles_for_querying_masked_data]이 필요합니다. 세분화된 리더 역할은 원시 데이터 액세스 권한을 부여하고 마스킹된 리더 역할은 마스킹된 데이터 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko]에 대한 액세스 권한을 부여합니다. IAM 문제 해결 도구 [https://cloud.google.com/policy-intelligence/docs/troubleshoot-access?hl=ko]를 사용하여 프로젝트 수준에서 이 권한을 확인할 수 있습니다.
+정책 태그 분류에서 세분화된 액세스 제어를 설정했지만 사용자에게 보호된 데이터가 표시됨
+이 문제를 해결하려면 다음 세부정보를 확인하세요.
+정책 태그 분류 페이지 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]에서 액세스 제어 적용 전환 버튼이 사용 위치에 있는지 확인합니다.
+쿼리에서 캐시된 쿼리 결과 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko]를 사용하지 않는지 확인합니다. bq 명령줄 인터페이스 도구를 사용하여 쿼리를 테스트하는 경우 --nouse_cache flag를 사용하여 쿼리 캐시를 중지해야 합니다. 예를 들면 다음과 같습니다.
+bq query --nouse_cache --use_legacy_sql=false "SELECT * EXCEPT (customer_pii) FROM my_table;"
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,692 @@
+Source URL: https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial?hl=ko#required_roles]
+설정 [https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial?hl=ko#set_up]
+SQL 및 Python UDF로 멀티모달 데이터 분석
+bookmark_border
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 의견을 제공하거나 지원을 요청하려면 bq-objectref-feedback@google.com [mailto:bq-objectref-feedback@google.com]으로 이메일을 보내세요.
+이 튜토리얼에서는 SQL 쿼리 및 Python 사용자 정의 함수 (UDF) [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko]를 사용하여 멀티모달 데이터를 분석 [https://cloud.google.com/bigquery/docs/analyze-multimodal-data?hl=ko]하는 방법을 보여줍니다.
+이 튜토리얼에서는 공개 Cymbal 애완동물 상점 데이터 세트의 제품 카탈로그를 사용합니다.
+목표
+ObjectRef [https://cloud.google.com/bigquery/docs/reference/standard-sql/objectref_functions?hl=ko#objectref] 값을 사용하여 BigQuery 표준 테이블 [https://cloud.google.com/bigquery/docs/tables-intro?hl=ko#standard_tables]에 구조화된 데이터와 함께 이미지 데이터를 저장합니다.
+AI.GENERATE_TABLE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-table?hl=ko]를 사용하여 표준 테이블의 이미지 데이터를 기반으로 텍스트를 생성합니다.
+Python UDF를 사용하여 기존 이미지를 변환하여 새 이미지를 만듭니다.
+Python UDF를 사용하여 추가 분석을 위해 PDF를 청크합니다.
+Gemini 모델과 ML.GENERATE_TEXT 함수를 사용하여 청크로 나눈 PDF 데이터를 분석합니다.
+ML.GENERATE_EMBEDDING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding?hl=ko]를 사용하여 표준 테이블의 이미지 데이터를 기반으로 임베딩을 생성합니다.
+ObjectRef 값의 배열을 사용하여 순서가 지정된 멀티모달 데이터를 처리합니다.
+비용
+이 문서에서는 비용이 청구될 수 있는 Google Cloud구성요소( )를 사용합니다.
+BigQuery: you incur costs for the data that you process in BigQuery.
+BigQuery Python UDFs: you incur costs for using Python UDFs.
+Cloud Storage: you incur costs for the objects stored in Cloud Storage.
+Vertex AI: you incur costs for calls to Vertex AI models.
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+자세한 내용은 다음 가격 책정 페이지를 참고하세요.
+BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]
+BigQuery Python UDF 가격 책정 [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#pricing]
+Cloud Storage 가격 책정 [https://cloud.google.com/storage/pricing?hl=ko]
+Vertex AI 가격 책정 [https://cloud.google.com/vertex-ai/generative-ai/pricing?hl=ko]
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, Cloud Storage, and Vertex AI APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Cstorage.googleapis.com%2Caiplatform.googleapis.com&hl=ko]
+필요한 역할
+이 튜토리얼을 완료하는 데 필요한 권한을 얻으려면 관리자에게 다음의 IAM 역할을 부여해 달라고 요청하세요.
+연결 만들기: BigQuery 연결 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.connectionAdmin] (roles/bigquery.connectionAdmin)
+연결의 서비스 계정에 권한 부여: 프로젝트 IAM 관리자 [https://cloud.google.com/iam/docs/roles-permissions/resourcemanager?hl=ko#resourcemanager.projectIamAdmin] (roles/resourcemanager.projectIamAdmin)
+Cloud Storage 버킷 만들기: 스토리지 관리자 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.admin] (roles/storage.admin)
+데이터 세트, 모델, UDF, 테이블을 만들고 BigQuery 작업을 실행합니다. BigQuery 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.admin] (roles/bigquery.admin)
+Cloud Storage 객체를 읽고 수정할 수 있는 URL을 만듭니다. BigQuery ObjectRef 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.objectRefAdmin] (roles/bigquery.objectRefAdmin)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+설정
+이 섹션에서는 이 튜토리얼에서 사용되는 데이터 세트, 연결, 테이블, 모델을 만듭니다.
+데이터 세트 만들기
+이 튜토리얼에서 만드는 객체를 포함할 BigQuery 데이터 세트를 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 프로젝트를 선택합니다.
+more_vert 작업 옵션을 펼치고 데이터 세트 만들기를 클릭합니다. 데이터 세트 만들기 창이 열립니다.
+데이터 세트 ID에 cymbal_pets를 입력합니다.
+데이터 세트 만들기를 클릭합니다.
+버킷 만들기
+변환된 객체를 저장할 Cloud Storage 버킷을 만듭니다.
+버킷 페이지로 이동합니다.
+버킷으로 이동 [https://console.cloud.google.com/storage/browser?hl=ko]
+add_box만들기를 클릭합니다.
+버킷 만들기 페이지의 시작하기 섹션에서 버킷 이름 요구사항 [https://cloud.google.com/storage/docs/buckets?hl=ko#naming]을 충족하는 전역적으로 고유한 이름을 입력합니다.
+만들기를 클릭합니다.
+연결 만들기
+클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 만들고 연결의 서비스 계정을 가져옵니다. BigQuery는 연결을 사용하여 Cloud Storage의 객체에 액세스합니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 add 데이터 추가를 클릭합니다.
+데이터 추가 대화상자가 열립니다.
+필터링 기준 창의 데이터 소스 유형 섹션에서 비즈니스 애플리케이션을 선택합니다.
+또는 데이터 소스 검색 필드에 Vertex AI를 입력할 수 있습니다.
+추천 데이터 소스 섹션에서 Vertex AI를 클릭합니다.
+Vertex AI 모델: BigQuery 페더레이션 솔루션 카드를 클릭합니다.
+연결 유형 목록에서 Vertex AI 원격 모델, 원격 함수, BigLake(Cloud 리소스)를 선택합니다.
+연결 ID 필드에 cymbal_conn을 입력합니다.
+연결 만들기를 클릭합니다.
+연결로 이동을 클릭합니다.
+연결 정보 창에서 다음 단계에 사용할 서비스 계정 ID를 복사합니다.
+연결의 서비스 계정에 권한 부여
+다른 서비스에 액세스하기 위해 연결의 서비스 계정에 적절한 역할을 부여합니다. 시작하기 전에 [https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial?hl=ko#before_you_begin] 섹션에서 만들었거나 선택한 것과 동일한 프로젝트에서 이러한 역할을 부여해야 합니다. 다른 프로젝트에서 역할을 부여하면 bqcx-1234567890-xxxx@gcp-sa-bigquery-condel.iam.gserviceaccount.com does not have the permission to access resource 오류가 발생합니다.
+Cloud Storage 버킷에 대한 권한 부여
+생성한 버킷의 객체를 사용할 수 있는 액세스 권한을 서비스 계정에 부여합니다.
+버킷 페이지로 이동합니다.
+버킷으로 이동 [https://console.cloud.google.com/storage/browser?hl=ko]
+만든 버킷의 이름을 클릭합니다.
+권한을 클릭합니다.
+person_add 액세스 권한 부여를 클릭합니다. 액세스 권한 부여 대화상자가 열립니다.
+새 주 구성원 필드에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 Cloud Storage를 선택한 후 스토리지 객체 사용자를 선택합니다.
+저장을 클릭합니다.
+Vertex AI 모델을 사용할 수 있는 권한 부여
+서비스 계정에 Vertex AI 모델 사용 권한을 부여합니다.
+IAM 및 관리자 페이지로 이동합니다.
+IAM 및 관리자로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko]
+person_add 액세스 권한 부여를 클릭합니다. 액세스 권한 부여 대화상자가 열립니다.
+새 주 구성원 필드에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 Vertex AI를 선택한 후 Vertex AI 사용자를 선택합니다.
+저장을 클릭합니다.
+예시 데이터 테이블 만들기
+Cymbal 애완동물 제품 정보를 저장할 테이블을 만듭니다.
+products 테이블 만들기
+Cymbal 애완동물 제품 정보가 포함된 표준 테이블을 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행하여 products 테이블을 만듭니다.
+LOAD DATA OVERWRITE cymbal_pets.products
+FROM
+  FILES(
+    format = 'avro',
+    uris = [
+      'gs://cloud-samples-data/bigquery/tutorials/cymbal-pets/tables/products/products_*.avro']);
+product_images 테이블 만들기
+Cymbal 애완동물 제품 이미지가 포함된 객체 테이블을 만듭니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 product_images 테이블을 만듭니다.
+CREATE OR REPLACE EXTERNAL TABLE cymbal_pets.product_images
+  WITH CONNECTION `us.cymbal_conn`
+  OPTIONS (
+    object_metadata = 'SIMPLE',
+    uris = ['gs://cloud-samples-data/bigquery/tutorials/cymbal-pets/images/*.png'],
+    max_staleness = INTERVAL 30 MINUTE,
+    metadata_cache_mode = AUTOMATIC);
+product_manuals 테이블 만들기
+Cymbal 애완동물 제품 설명서가 포함된 객체 테이블을 만듭니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 product_manuals 테이블을 만듭니다.
+CREATE OR REPLACE EXTERNAL TABLE cymbal_pets.product_manuals
+  WITH CONNECTION `us.cymbal_conn`
+  OPTIONS (
+    object_metadata = 'SIMPLE',
+    uris = ['gs://cloud-samples-data/bigquery/tutorials/cymbal-pets/documents/*.pdf']);
+텍스트 생성 모델 만들기
+Vertex AI Gemini 모델을 나타내는 BigQuery ML 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko]을 만듭니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 원격 모델을 만듭니다.
+CREATE OR REPLACE MODEL `cymbal_pets.gemini`
+  REMOTE WITH CONNECTION `us.cymbal_conn`
+  OPTIONS (ENDPOINT = 'gemini-2.0-flash');
+임베딩 생성 모델 만들기
+Vertex AI 멀티모달 임베딩 모델을 나타내는 BigQuery ML 원격 모델을 만듭니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 원격 모델을 만듭니다.
+CREATE OR REPLACE MODEL `cymbal_pets.embedding_model`
+  REMOTE WITH CONNECTION `us.cymbal_conn`
+  OPTIONS (ENDPOINT = 'multimodalembedding@001');
+멀티모달 데이터로 products_mm 테이블 만들기
+product_images 객체 테이블의 제품 이미지로 채워진 image 열이 포함된 products_mm 테이블을 만듭니다. 생성된 image 열은 ObjectRef 형식을 사용하는 STRUCT 열입니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 products_mm 테이블을 만들고 image 열을 채웁니다.
+CREATE OR REPLACE TABLE cymbal_pets.products_mm
+AS
+SELECT products.* EXCEPT (uri), ot.ref AS image FROM cymbal_pets.products
+INNER JOIN cymbal_pets.product_images ot
+ON ot.uri = products.uri;
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 image 열 데이터를 확인합니다.
+SELECT product_name, image
+FROM cymbal_pets.products_mm`
+결과는 다음과 유사합니다.
++--------------------------------+--------------------------------------+-----------------------------------------------+------------------------------------------------+
+| product_name                   | image.uri                            | image.version | image.authorizer              | image.details                                  |
++--------------------------------+--------------------------------------+-----------------------------------------------+------------------------------------------------+
+|  AquaClear Aquarium Background | gs://cloud-samples-data/bigquery/    | 1234567891011 | myproject.region.myconnection | {"gcs_metadata":{"content_type":"image/png",   |
+|                                | tutorials/cymbal-pets/images/        |               |                               | "md5_hash":"494f63b9b137975ff3e7a11b060edb1d", |
+|                                | aquaclear-aquarium-background.png    |               |                               | "size":1282805,"updated":1742492680017000}}    |
++--------------------------------+--------------------------------------+-----------------------------------------------+------------------------------------------------+
+|  AquaClear Aquarium            | gs://cloud-samples-data/bigquery/    | 2345678910112 | myproject.region.myconnection | {"gcs_metadata":{"content_type":"image/png",   |
+|  Gravel Vacuum                 | tutorials/cymbal-pets/images/        |               |                               | "md5_hash":"b7bfc2e2641a77a402a1937bcf0003fd", |
+|                                | aquaclear-aquarium-gravel-vacuum.png |               |                               | "size":820254,"updated":1742492682411000}}     |
++--------------------------------+--------------------------------------+-----------------------------------------------+------------------------------------------------+
+| ...                            | ...                                  | ...           |                               | ...                                            |
++--------------------------------+--------------------------------------+-----------------------------------------------+------------------------------------------------+
+Gemini 모델을 사용하여 제품 정보 생성
+Gemini 모델을 사용하여 반려동물 상점 제품에 대한 다음 데이터를 생성합니다.
+products_mm 테이블에 image_description 열을 추가합니다.
+products_mm 테이블의 animal_type, search_keywords, subcategory 열을 채웁니다.
+각 제품 브랜드의 설명과 해당 브랜드의 제품 수를 반환하는 쿼리를 실행합니다. 브랜드 설명은 제품 이미지를 비롯해 해당 브랜드의 모든 제품에 대한 제품 정보를 분석하여 생성됩니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 image_description 열을 만들고 채웁니다.
+CREATE OR REPLACE TABLE cymbal_pets.products_mm
+AS
+SELECT
+  product_id,
+  product_name,
+  brand,
+  category,
+  subcategory,
+  animal_type,
+  search_keywords,
+  price,
+  description,
+  inventory_level,
+  supplier_id,
+  average_rating,
+  image,
+  image_description
+FROM
+  AI.GENERATE_TABLE(
+    MODEL `cymbal_pets.gemini`,
+    (
+      SELECT
+        ('Can you describe the following image?', OBJ.GET_ACCESS_URL(image, 'r')) AS prompt,
+        *
+      FROM
+        cymbal_pets.products_mm
+    ),
+    STRUCT('image_description STRING' AS output_schema));
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 생성된 데이터로 animal_type, search_keywords, subcategory 열을 업데이트합니다.
+UPDATE cymbal_pets.products_mm p
+SET
+  p.animal_type = s.animal_type,
+  p.search_keywords = s.search_keywords,
+  p.subcategory = s.subcategory
+FROM
+  (
+    SELECT
+      animal_type,
+      search_keywords,
+      subcategory,
+      uri
+    FROM
+      AI.GENERATE_TABLE(
+        MODEL `cymbal_pets.gemini`,
+        (
+          SELECT
+            (
+              'For the image of a pet product, concisely generate the following metadata.'
+                '1) animal_type and 2) 5 SEO search keywords, and 3) product subcategory',
+              OBJ.GET_ACCESS_URL(image, 'r'),
+              description) AS prompt,
+            image.uri AS uri,
+          FROM cymbal_pets.products_mm
+        ),
+        STRUCT(
+          'animal_type STRING, search_keywords ARRAY<STRING>, subcategory STRING' AS output_schema,
+          100 AS max_output_tokens))
+  ) s
+WHERE p.image.uri = s.uri;
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 생성된 데이터를 확인합니다.
+SELECT
+  product_name,
+  image_description,
+  animal_type,
+  search_keywords,
+  subcategory,
+FROM cymbal_pets.products_mm;
+결과는 다음과 유사합니다.
++--------------------------------+-------------------------------------+-------------+------------------------+------------------+
+| product_name                   | image.description                   | animal_type | search_keywords        | subcategory      |
++--------------------------------+-------------------------------------+-------------+------------------------+------------------+
+|  AquaClear Aquarium Background | The image shows a colorful coral    | fish        | aquarium background    | aquarium decor   |
+|                                | reef backdrop. The background is a  |             | fish tank backdrop     |                  |
+|                                | blue ocean with a bright light...   |             | coral reef decor       |                  |
+|                                |                                     |             | underwater scenery     |                  |
+|                                |                                     |             | aquarium decoration    |                  |
++--------------------------------+-------------------------------------+-------------+------------------------+------------------+
+|  AquaClear Aquarium            | The image shows a long, clear       | fish        | aquarium gravel vacuum | aquarium         |
+|  Gravel Vacuum                 | plastic tube with a green hose      |             | aquarium cleaning      | cleaning         |
+|                                | attached to one end. The tube...    |             | aquarium maintenance   |                  |
+|                                |                                     |             | fish tank cleaning     |                  |
+|                                |                                     |             | gravel siphon          |                  |
++--------------------------------+-------------------------------------+-------------+------------------------+------------------+
+| ...                            | ...                                 | ...         |  ...                   | ...              |
++--------------------------------+-------------------------------------+-------------+------------------------+------------------+
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 각 제품 브랜드의 설명과 해당 브랜드의 제품 수를 생성합니다.
+SELECT
+  brand,
+  brand_description,
+  cnt
+FROM
+  AI.GENERATE_TABLE(
+    MODEL `cymbal_pets.gemini`,
+    (
+      SELECT
+        brand,
+        COUNT(*) AS cnt,
+        (
+          'Use the images and text to give one concise brand description for a website brand page.'
+            'Return the description only.',
+          ARRAY_AGG(OBJ.GET_ACCESS_URL(image, 'r')),
+          ARRAY_AGG(description),
+          ARRAY_AGG(category),
+          ARRAY_AGG(subcategory)) AS prompt
+      FROM cymbal_pets.products_mm
+      GROUP BY brand
+    ),
+    STRUCT('brand_description STRING' AS output_schema))
+ORDER BY cnt DESC;
+결과는 다음과 유사합니다.
++--------------+-------------------------------------+-----+
+| brand        | brand.description                   | cnt |
++--------------+-------------------------------------+-----+
+|  AquaClear   | AquaClear is a brand of aquarium    | 33  |
+|              | and pond care products that offer   |     |
+|              | a wide range of solutions for...    |     |
++--------------+-------------------------------------+-----+
+|  Ocean       | Ocean Bites is a brand of cat food  | 28  |
+|  Bites       | that offers a variety of recipes    |     |
+|              | and formulas to meet the specific.. |     |
++--------------+-------------------------------------+-----+
+|  ...         | ...                                 |...  |
++--------------+-------------------------------------+-----+
+제품 이미지를 변환하는 Python UDF 만들기
+제품 이미지를 그레이스케일로 변환하는 Python UDF를 만듭니다.
+Python UDF는 오픈소스 라이브러리를 사용하며 병렬 실행을 사용하여 여러 이미지를 동시에 변환합니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 to_grayscale UDF를 만듭니다.
+CREATE OR REPLACE FUNCTION cymbal_pets.to_grayscale(src_json STRING, dst_json STRING)
+RETURNS STRING
+LANGUAGE python
+WITH CONNECTION `us.cymbal_conn`
+OPTIONS (entry_point='to_grayscale', runtime_version='python-3.11', packages=['numpy', 'opencv-python'])
+AS """
+
+import cv2 as cv
+import numpy as np
+from urllib.request import urlopen, Request
+import json
+
+# Transform the image to grayscale.
+def to_grayscale(src_ref, dst_ref):
+  src_json = json.loads(src_ref)
+  srcUrl = src_json["access_urls"]["read_url"]
+
+  dst_json = json.loads(dst_ref)
+  dstUrl = dst_json["access_urls"]["write_url"]
+
+  req = urlopen(srcUrl)
+  arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
+  img = cv.imdecode(arr, -1) # 'Load it as it is'
+
+  # Convert the image to grayscale
+  gray_image = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+
+  # Send POST request to the URL
+  _, img_encoded = cv.imencode('.png', gray_image)
+
+  req = Request(url=dstUrl, data=img_encoded.tobytes(), method='PUT', headers = {
+      "Content-Type": "image/png",
+  })
+  with urlopen(req) as f:
+      pass
+  return dst_ref
+""";
+제품 이미지 변환
+그레이스케일 이미지의 대상 경로와 승인자를 포함하는 ObjectRef 열이 있는 products_grayscale 테이블을 만듭니다. 대상 경로는 원본 이미지 경로에서 파생됩니다.
+표를 만든 후 to_grayscale 함수를 실행하여 그레이스케일 이미지를 만들고 Cloud Storage 버킷에 작성한 다음 그레이스케일 이미지의 액세스 URL과 메타데이터가 포함된 ObjectRefRuntime [https://cloud.google.com/bigquery/docs/reference/standard-sql/objectref_functions?hl=ko#objectrefruntime] 값을 반환합니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 products_grayscale 테이블을 만듭니다.
+CREATE OR REPLACE TABLE cymbal_pets.products_grayscale
+AS
+SELECT
+  product_id,
+  product_name,
+  image,
+  OBJ.MAKE_REF(
+    CONCAT('gs://
+BUCKET/cymbal-pets-images/grayscale/', REGEXP_EXTRACT(image.uri, r'([^/]+)$')),
+    'us.cymbal_conn') AS gray_image
+FROM cymbal_pets.products_mm;
+BUCKET을 생성한 버킷 [https://cloud.google.com/bigquery/docs/multimodal-data-sql-tutorial?hl=ko#create_a_bucket]의 이름으로 바꿉니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 그레이스케일 이미지를 만들고, Cloud Storage 버킷에 쓰고, 그레이스케일 이미지의 액세스 URL과 메타데이터가 포함된 ObjectRefRuntime 값을 반환합니다.
+SELECT cymbal_pets.to_grayscale(
+  TO_JSON_STRING(OBJ.GET_ACCESS_URL(image, 'r')),
+  TO_JSON_STRING(OBJ.GET_ACCESS_URL(gray_image, 'rw')))
+FROM cymbal_pets.products_grayscale;
+결과는 다음과 유사합니다.
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| f0                                                                                                                                                                    |
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| {"access_urls":{"expiry_time":"2025-04-26T03:00:48Z",                                                                                                                 |
+| "read_url":"https://storage.googleapis.com/mybucket/cymbal-pets-images%2Fgrayscale%2Focean-bites-salmon-%26-tuna-cat-food.png?additional_read URL_information",       |
+| "write_url":"https://storage.googleapis.com/myproject/cymbal-pets-images%2Fgrayscale%2Focean-bites-salmon-%26-tuna-cat-food.png?additional_write URL_information"},   |
+| "objectref":{"authorizer":"myproject.region.myconnection","uri":"gs://myproject/cymbal-pets-images/grayscale/ocean-bites-salmon-&-tuna-cat-food.png"}}                |
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| {"access_urls":{"expiry_time":"2025-04-26T03:00:48Z",                                                                                                                 |
+| "read_url":"https://storage.googleapis.com/mybucket/cymbal-pets-images%2Fgrayscale%2Ffluffy-buns-guinea-pig-tunnel.png?additional _read URL_information",             |
+| "write_url":"https://storage.googleapis.com/myproject/cymbal-pets-images%2Fgrayscale%2Focean-bites-salmon-%26-tuna-cat-food.png?additional_write_URL_information"},   |
+| "objectref":{"authorizer":"myproject.region.myconnection","uri":"gs://myproject/cymbal-pets-images%2Fgrayscale%2Ffluffy-buns-guinea-pig-tunnel.png"}}                 |
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|  ...                                                                                                                                                                  |
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+PDF 데이터를 청크하는 Python UDF 만들기
+Cymbal 반려동물 제품 설명서가 포함된 PDF 객체를 여러 부분으로 나누는 Python UDF를 만듭니다.
+PDF는 크기가 매우 커서 생성형 AI 모델에 대한 단일 호출에 맞지 않을 수 있습니다. PDF를 청크로 나누면 분석하기 쉬운 모델 준비 형식으로 PDF 데이터를 저장할 수 있습니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 chunk_pdf UDF를 만듭니다.
+-- This function chunks the product manual PDF into multiple parts.
+-- The function accepts an ObjectRefRuntime value for the PDF file and the chunk size.
+-- It then parses the PDF, chunks the contents, and returns an array of chunked text.
+CREATE OR REPLACE FUNCTION cymbal_pets.chunk_pdf(src_json STRING, chunk_size INT64, overlap_size INT64)
+RETURNS ARRAY<STRING>
+LANGUAGE python
+WITH CONNECTION `us.cymbal_conn`
+OPTIONS (entry_point='chunk_pdf', runtime_version='python-3.11', packages=['pypdf'])
+AS """
+import io
+import json
+
+from pypdf import PdfReader  # type: ignore
+from urllib.request import urlopen, Request
+
+def chunk_pdf(src_ref: str, chunk_size: int, overlap_size: int) -> str:
+  src_json = json.loads(src_ref)
+  srcUrl = src_json["access_urls"]["read_url"]
+
+  req = urlopen(srcUrl)
+  pdf_file = io.BytesIO(bytearray(req.read()))
+  reader = PdfReader(pdf_file, strict=False)
+
+  # extract and chunk text simultaneously
+  all_text_chunks = []
+  curr_chunk = ""
+  for page in reader.pages:
+      page_text = page.extract_text()
+      if page_text:
+          curr_chunk += page_text
+          # split the accumulated text into chunks of a specific size with overlaop
+          # this loop implements a sliding window approach to create chunks
+          while len(curr_chunk) >= chunk_size:
+              split_idx = curr_chunk.rfind(" ", 0, chunk_size)
+              if split_idx == -1:
+                  split_idx = chunk_size
+              actual_chunk = curr_chunk[:split_idx]
+              all_text_chunks.append(actual_chunk)
+              overlap = curr_chunk[split_idx + 1 : split_idx + 1 + overlap_size]
+              curr_chunk = overlap + curr_chunk[split_idx + 1 + overlap_size :]
+  if curr_chunk:
+      all_text_chunks.append(curr_chunk)
+
+  return all_text_chunks
+""";
+PDF 데이터 분석
+chunk_pdf 함수를 실행하여 product_manuals 테이블의 PDF 데이터를 청크로 나누고 행당 하나의 PDF 청크가 포함된 product_manual_chunk_strings 테이블을 만듭니다. product_manual_chunk_strings 데이터에서 Gemini 모델을 사용하여 제품 설명서에 있는 법적 정보를 요약합니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 product_manual_chunk_strings 테이블을 만듭니다.
+CREATE OR REPLACE TABLE cymbal_pets.product_manual_chunk_strings
+AS
+SELECT chunked
+FROM cymbal_pets.product_manuals,
+UNNEST (cymbal_pets.chunk_pdf(
+  TO_JSON_STRING(
+    OBJ.GET_ACCESS_URL(OBJ.MAKE_REF(uri, 'us.cymbal_conn'), 'r')),
+    1000,
+    100
+)) as chunked;
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 Gemini 모델을 사용하여 PDF 데이터를 분석합니다.
+SELECT
+  ml_generate_text_llm_result
+FROM
+  ML.GENERATE_TEXT(
+    MODEL `cymbal_pets.gemini`,
+    (
+      SELECT
+        (
+          'Can you summarize the product manual as bullet points? Highlight the legal clauses',
+          chunked) AS prompt,
+      FROM cymbal_pets.product_manual_chunk_strings
+    ),
+    STRUCT(
+      TRUE AS FLATTEN_JSON_OUTPUT));
+결과는 다음과 유사합니다.
++-------------------------------------------------------------------------------------------------------------------------------------------+
+| ml_generate_text_llm_result                                                                                                               |
++-------------------------------------------------------------------------------------------------------------------------------------------+
+| ## CritterCuisine Pro 5000 Automatic Pet Feeder Manual Summary:                                                                           |
+|                                                                                                                                           |
+| **Safety:**                                                                                                                               |
+|                                                                                                                                           |
+| * **Stability:** Place feeder on a level, stable surface to prevent tipping.                                                              |
+| * **Power Supply:** Only use the included AC adapter. Using an incompatible adapter can damage the unit and void the warranty.            |
+| * **Cord Safety:** Keep the power cord out of reach of pets to prevent chewing or entanglement.                                           |
+| * **Children:** Supervise children around the feeder. This is not a toy.                                                                  |
+| * **Pet Health:** Consult your veterinarian before using an automatic feeder if your pet has special dietary needs, health conditions, or |
++-------------------------------------------------------------------------------------------------------------------------------------------+
+| ## Product Manual Summary:                                                                                                                |
+|                                                                                                                                           |
+| **6.3 Manual Feeding:**                                                                                                                   |
+|                                                                                                                                           |
+| * Press MANUAL button to dispense a single portion (Meal 1 size). **(Meal Enabled)**                                                      |
+|                                                                                                                                           |
+| **6.4 Recording a Voice Message:**                                                                                                        |
+|                                                                                                                                           |
+| * Press and hold VOICE button.                                                                                                            |
+| * Speak clearly into the microphone (up to 10 seconds).                                                                                   |
+| * Release VOICE button to finish recording.                                                                                               |
+| * Briefly press VOICE button to play back the recording.                                                                                  |
+| * To disable the voice message, record a blank message (hold VOICE button for 10 seconds without speaking). **(Meal Enabled)**            |
+|                                                                                                                                           |
+| **6.5 Low Food Level Indicator:**                                                                                                         |
++-------------------------------------------------------------------------------------------------------------------------------------------+
+| ...                                                                                                                                       |
++-------------------------------------------------------------------------------------------------------------------------------------------+
+임베딩 생성 및 벡터 검색 실행
+이미지 데이터에서 임베딩을 생성한 다음 임베딩을 사용하여 벡터 검색 [https://cloud.google.com/bigquery/docs/vector-search-intro?hl=ko]을 통해 유사한 이미지를 반환합니다.
+프로덕션 시나리오에서는 벡터 검색을 실행하기 전에 벡터 색인 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_vector_index_statement]을 만드는 것이 좋습니다. 벡터 색인을 사용하면 벡터 검색을 보다 신속하게 수행하고 재현율을 줄여 더 나은 근사치의 결과를 반환합니다.
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 products_embeddings 테이블을 만듭니다.
+CREATE OR REPLACE TABLE cymbal_pets.products_embedding
+AS
+SELECT product_id, ml_generate_embedding_result as embedding, content as image
+FROM ML.GENERATE_EMBEDDING(
+MODEL `cymbal_pets.embedding_model`,
+  (
+    SELECT OBJ.GET_ACCESS_URL(image, 'r') as content, image, product_id
+    FROM cymbal_pets.products_mm
+  ),
+  STRUCT ()
+);
+BigQuery 페이지의 쿼리 편집기에서 다음 쿼리를 실행하여 벡터 검색을 실행하여 지정된 입력 이미지와 유사한 제품 이미지를 반환합니다.
+SELECT *
+FROM
+VECTOR_SEARCH(
+  TABLE cymbal_pets.products_embedding,
+  'embedding',
+  (SELECT ml_generate_embedding_result as embedding FROM ML.GENERATE_EMBEDDING(
+    MODEL `cymbal_pets.embedding_model`,
+    (SELECT OBJ.FETCH_METADATA(OBJ.MAKE_REF('gs://cloud-samples-data/bigquery/tutorials/cymbal-pets/images/cozy-naps-cat-scratching-post-with-condo.png', 'us.cymbal_conn')) as content)
+  ))
+);
+결과는 다음과 유사합니다.
++-----------------+-----------------+----------------+----------------------------------------------+--------------------+-------------------------------+------------------------------------------------+----------------+
+| query.embedding | base.product_id | base.embedding | base.image.uri                               | base.image.version | base.image.authorizer         | base.image.details                             | distance       |
++-----------------+-----------------+----------------+----------------------------------------------+--------------------+-------------------------------+------------------------------------------------+----------------+
+| -0.0112330541   | 181             | -0.0112330541  | gs://cloud-samples-data/bigquery/            | 12345678910        | myproject.region.myconnection | {"gcs_metadata":{"content_type":               | 0.0            |
+| 0.0142525584    |                 |  0.0142525584  | tutorials/cymbal-pets/images/                |                    |                               | "image/png","md5_hash":"21234567hst16555w60j", |                |
+| 0.0135886827    |                 |  0.0135886827  | cozy-naps-cat-scratching-post-with-condo.png |                    |                               | "size":828318,"updated":1742492688982000}}     |                |
+| 0.0149955815    |                 |  0.0149955815  |                                              |                    |                               |                                                |                |
+| ...             |                 |  ...           |                                              |                    |                               |                                                |                |
+|                 |                 |                |                                              |                    |                               |                                                |                |
+|                 |                 |                |                                              |                    |                               |                                                |                |
++-----------------+-----------------+----------------+----------------------------------------------+--------------------+-------------------------------+------------------------------------------------+----------------+
+| -0.0112330541   | 187             | -0.0190353896  | gs://cloud-samples-data/bigquery/            | 23456789101        | myproject.region.myconnection | {"gcs_metadata":{"content_type":               | 0.4216330832.. |
+| 0.0142525584    |                 |  0.0116206668  | tutorials/cymbal-pets/images/                |                    |                               | "image/png","md5_hash":"7328728fhakd9937djo4", |                |
+| 0.0135886827    |                 |  0.0136198215  | cozy-naps-cat-scratching-post-with-bed.png   |                    |                               | "size":860113,"updated":1742492688774000}}     |                |
+| 0.0149955815    |                 |  0.0173457414  |                                              |                    |                               |                                                |                |
+| ...             |                 |  ...           |                                              |                    |                               |                                                |                |
+|                 |                 |                |                                              |                    |                               |                                                |                |
+|                 |                 |                |                                              |                    |                               |                                                |                |
++---------C--------+-----------------+----------------+----------------------------------------------+--------------------+-------------------------------+------------------------------------------------+----------------+
+| ...             | ...             | ...            | ...                                          | ...                | ...                           | ...                                            | ...            |
++-----------------+-----------------+----------------+----------------------------------------------+--------------------+-------------------------------+------------------------------------------------+----------------+
+ObjectRef 값의 배열을 사용하여 순서가 지정된 멀티모달 데이터 처리
+이 섹션에서는 다음 작업을 완료하는 방법을 보여줍니다.
+Crittercuisine 5000 제품 설명서의 PDF 파일과 해당 설명서의 각 페이지에 대한 PDF 파일이 모두 포함되도록 product_manuals 표를 다시 만듭니다.
+매뉴얼을 청크에 매핑하는 표를 만듭니다. 전체 매뉴얼을 나타내는 ObjectRef 값은 STRUCT<uri STRING, version STRING, authorizer STRING, details JSON>> 열에 저장됩니다. 매뉴얼 페이지를 나타내는 ObjectRef 값은 ARRAY<STRUCT<uri STRING, version STRING, authorizer STRING, details JSON>> 열에 저장됩니다.
+ObjectRef 값의 배열을 함께 분석하여 생성된 단일 값을 반환합니다.
+ObjectRef 값의 배열을 별도로 분석하고 각 배열 값에 대해 생성된 값을 반환합니다.
+분석 작업의 일환으로 ObjectRef 값의 배열을 ObjectRefRuntime [https://cloud.google.com/bigquery/docs/analyze-multimodal-data?hl=ko#objectrefruntime_values] 값의 정렬된 목록으로 변환한 다음, 이 목록을 Gemini 모델에 전달하여 ObjectRefRuntime 값을 프롬프트의 일부로 지정합니다. ObjectRefRuntime 값은 모델이 Cloud Storage의 객체 정보에 액세스하는 데 사용하는 서명된 URL을 제공합니다.
+ObjectRef 값의 배열을 사용하여 순서가 지정된 멀티모달 데이터를 처리하려면 다음 단계를 따르세요.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행하여 product_manuals 테이블을 다시 만듭니다.
+CREATE OR REPLACE EXTERNAL TABLE `cymbal_pets.product_manuals`
+  WITH CONNECTION `us.cymbal_conn`
+  OPTIONS (
+    object_metadata = 'SIMPLE',
+    uris = [
+        'gs://cloud-samples-data/bigquery/tutorials/cymbal-pets/documents/*.pdf',
+        'gs://cloud-samples-data/bigquery/tutorials/cymbal-pets/document_chunks/*.pdf']);
+쿼리 편집기에서 다음 쿼리를 실행하여 PDF 데이터를 map_manual_to_chunks 테이블에 씁니다.
+-- Extract the file and chunks into a single table.
+-- Store the chunks in the chunks column as array of ObjectRefs (ordered by page number)
+CREATE OR REPLACE TABLE cymbal_pets.map_manual_to_chunks
+AS
+SELECT ARRAY_AGG(m1.ref)[0] manual, ARRAY_AGG(m2.ref ORDER BY m2.ref.uri) chunks
+FROM cymbal_pets.product_manuals m1
+JOIN cymbal_pets.product_manuals m2
+  ON
+    REGEXP_EXTRACT(m1.uri, r'.*/([^.]*).[^/]+')
+    = REGEXP_EXTRACT(m2.uri, r'.*/([^.]*)_page[0-9]+.[^/]+')
+GROUP BY m1.uri;
+쿼리 편집기에서 다음 쿼리를 실행하여 map_manual_to_chunks 테이블의 PDF 데이터를 확인합니다.
+SELECT *
+FROM cymbal_pets.map_manual_to_chunks;
+결과는 다음과 유사합니다.
++-------------------------------------+--------------------------------+-----------------------------------+------------------------------------------------------+-------------------------------------------+---------------------------------+------------------------------------+-------------------------------------------------------+
+| manual.uri                          | manual.version                 | manual.authorizer                 | manual.details                                       | chunks.uri                                | chunks.version                  | chunks.authorizer                  | chunks.details                                        |
++-------------------------------------+--------------------------------+-----------------------------------+------------------------------------------------------+-------------------------------------------+---------------------------------+------------------------------------+-------------------------------------------------------+
+| gs://cloud-samples-data/bigquery/   | 1742492785900455               | myproject.region.myconnection     | {"gcs_metadata":{"content_type":"application/pef",   | gs://cloud-samples-data/bigquery/         | 1745875761227129                | myproject.region.myconnection      | {"gcs_metadata":{"content_type":"application/pdf",    |
+| tutorials/cymbal-pets/documents/    |                                |                                   | "md5_hash":"c9032b037693d15a33210d638c763d0e",       | tutorials/cymbal-pets/documents/          |                                 |                                    | "md5_hash":"5a1116cce4978ec1b094d8e8b49a1d7c",        |
+| crittercuisine_5000_user_manual.pdf |                                |                                   | "size":566105,"updated":1742492785941000}}           | crittercuisine_5000_user_manual_page1.pdf |                                 |                                    | "size":504583,"updated":1745875761266000}}            |
+|                                     |                                |                                   |                                                      +-------------------------------------------+---------------------------------+------------------------------------+-------------------------------------------------------+
+|                                     |                                |                                   |                                                      | crittercuisine_5000_user_manual_page1.pdf | 1745875760613874                | myproject.region.myconnection      | {"gcs_metadata":{"content_type":"application/pdf",    |
+|                                     |                                |                                   |                                                      | tutorials/cymbal-pets/documents/          |                                 |                                    | "md5_hash":"94d03ec65d28b173bc87eac7e587b325",        |
+|                                     |                                |                                   |                                                      | crittercuisine_5000_user_manual_page2.pdf |                                 |                                    | "size":94622,"updated":1745875760649000}}             |
+|                                     |                                |                                   |                                                      +-------------------------------------------+---------------------------------+------------------------------------+-------------------------------------------------------+
+|                                     |                                |                                   |                                                      | ...                                       | ...                             |  ...                               | ...                                                   |
++-------------------------------------+--------------------------------+-----------------------------------+------------------------------------------------------+-------------------------------------------+---------------------------------+------------------------------------+-------------------------------------------------------+
+쿼리 편집기에서 다음 쿼리를 실행하여 ObjectRef 값 배열 분석을 기반으로 Gemini 모델에서 단일 응답을 생성합니다.
+WITH
+  manuals AS (
+    SELECT
+      OBJ.GET_ACCESS_URL(manual, 'r') AS manual,
+      ARRAY(
+        SELECT OBJ.GET_ACCESS_URL(chunk, 'r') AS chunk
+        FROM UNNEST(m1.chunks) AS chunk WITH OFFSET AS idx
+        ORDER BY idx
+      ) AS chunks
+    FROM cymbal_pets.map_manual_to_chunks AS m1
+  )
+SELECT ml_generate_text_llm_result AS Response
+FROM
+  ML.GENERATE_TEXT(
+    MODEL `cymbal_pets.gemini`,
+    (
+      SELECT
+        (
+          'Can you provide a page by page summary for the first 3 pages of the attached manual? Only write one line for each page. The pages are provided in serial order',
+          manuals.chunks) AS prompt,
+      FROM manuals
+    ),
+    STRUCT(TRUE AS FLATTEN_JSON_OUTPUT));
+결과는 다음과 유사합니다.
++-------------------------------------------+
+| Response                                  |
++-------------------------------------------+
+| Page 1: This manual is for the            |
+| CritterCuisine Pro 5000 automatic         |
+| pet feeder.                               |
+| Page 2: The manual covers safety          |
+| precautions, what's included,             |
+| and product overview.                     |
+| Page 3: The manual covers assembly,       |
+| initial setup, and programming the clock. |
++-------------------------------------------+
+쿼리 편집기에서 다음 쿼리를 실행하여 ObjectRef 값 배열 분석을 기반으로 Gemini 모델에서 여러 응답을 생성합니다.
+WITH
+  input_chunked_objrefs AS (
+    SELECT row_id, offset, chunk_ref
+    FROM
+      (
+        SELECT ROW_NUMBER() OVER () AS row_id, * FROM `cymbal_pets.map_manual_to_chunks`
+      ) AS indexed_table
+    LEFT JOIN
+      UNNEST(indexed_table.chunks) AS chunk_ref
+      WITH OFFSET
+  ),
+  get_access_urls AS (
+    SELECT row_id, offset, chunk_ref, OBJ.GET_ACCESS_URL(chunk_ref, 'r') AS ObjectRefRuntime
+    FROM input_chunked_objrefs
+  ),
+  valid_get_access_urls AS (
+    SELECT *
+    FROM get_access_urls
+    WHERE ObjectRefRuntime['runtime_errors'] IS NULL
+  ),
+  ordered_output_objrefruntime_array AS (
+    SELECT ARRAY_AGG(ObjectRefRuntime ORDER BY offset) AS ObjectRefRuntimeArray
+    FROM valid_get_access_urls
+    GROUP BY row_id
+  )
+SELECT
+  page1_summary,
+  page2_summary,
+  page3_summary
+FROM
+  AI.GENERATE_TABLE(
+    MODEL `cymbal_pets.gemini`,
+    (
+      SELECT
+        (
+          'Can you provide a page by page summary for the first 3 pages of the attached manual? Only write one line for each page. The pages are provided in serial order',
+          ObjectRefRuntimeArray) AS prompt,
+      FROM ordered_output_objrefruntime_array
+    ),
+    STRUCT(
+      'page1_summary STRING, page2_summary STRING, page3_summary STRING' AS output_schema));
+결과는 다음과 유사합니다.
++-----------------------------------------------+-------------------------------------------+----------------------------------------------------+
+| page1_summary                                 | page2_summary                             | page3_summary                                      |
++-----------------------------------------------+-------------------------------------------+----------------------------------------------------+
+| This manual provides an overview of the       | This section explains how to program      | This page covers connecting the feeder to Wi-Fi    |
+| CritterCuisine Pro 5000 automatic pet feeder, | the feeder's clock, set feeding           | using the CritterCuisine Connect app,  remote      |
+| including its features, safety precautions,   | schedules, copy and delete meal settings, | feeding, managing feeding schedules, viewing       |
+| assembly instructions, and initial setup.     | manually feed your pet, record            | feeding logs, receiving low food alerts,           |
+|                                               | a voice message, and understand           | updating firmware, creating multiple pet profiles, |
+|                                               | the low food level indicator.             | sharing access with other users, and cleaning      |
+|                                               |                                           | and maintaining the feeder.                        |
++-----------------------------------------------+-------------------------------------------+----------------------------------------------------+
+삭제
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+도움이 되었나요?
+의견 보내기

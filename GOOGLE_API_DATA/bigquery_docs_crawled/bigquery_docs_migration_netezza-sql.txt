@@ -1,0 +1,587 @@
+Source URL: https://cloud.google.com/bigquery/docs/migration/netezza-sql
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+데이터 유형 [https://cloud.google.com/bigquery/docs/migration/netezza-sql?hl=ko#data_types]
+타임스탬프 및 날짜 유형 형식 지정 [https://cloud.google.com/bigquery/docs/migration/netezza-sql?hl=ko#timestamp_and_date_type_formatting]
+SELECT 문 [https://cloud.google.com/bigquery/docs/migration/netezza-sql?hl=ko#select-statement]
+비교 연산자 [https://cloud.google.com/bigquery/docs/migration/netezza-sql?hl=ko#comparison_operators]
+기본 제공 SQL 함수 [https://cloud.google.com/bigquery/docs/migration/netezza-sql?hl=ko#built-in_sql_functions]
+IBM Netezza SQL 변환 가이드
+bookmark_border
+IBM Netezza 데이터 웨어하우징은 Netezza와 관련된 SQL 구문과 연동하도록 설계되었습니다. Netezza SQL은 Postgres 7.2를 기반으로 합니다. SQL 언어가 다르므로 Netezza용으로 작성된 SQL 스크립트는 변경 없이 BigQuery 데이터 웨어하우스에서 사용할 수 없습니다.
+이 문서에서는 다음과 같은 영역에서 Netezza와 BigQuery 간 SQL 구문의 유사점과 차이점을 자세히 설명합니다.
+데이터 유형
+SQL 언어 요소
+쿼리 구문
+데이터 조작 언어(DML)
+데이터 정의 언어(DDL)
+저장 프로시저
+함수
+또한 일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]을 사용하여 SQL 스크립트를 일괄적으로 마이그레이션하거나 대화형 SQL 변환 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]을 사용하여 임시 쿼리를 변환할 수 있습니다. IBM Netezza SQL/NZPLSQL은 미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages] 상태의 두 도구에서 모두 지원됩니다.
+데이터 유형
+Netezza BigQuery 참고
+INTEGER/INT/INT4 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_exact_numeric.html] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+SMALLINT/INT2 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_exact_numeric.html] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+BYTEINT/INT1 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_exact_numeric.html] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+BIGINT/INT8 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_exact_numeric.html] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+DECIMAL [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_exact_numeric.html] NUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric-type] Netezza에서 DECIMAL 데이터 유형은 NUMERIC 데이터 유형에 대한 별칭입니다.
+NUMERIC [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_exact_numeric.html] NUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric-type] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+NUMERIC(p,s) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_exact_numeric.html] NUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric-type] BigQuery의 NUMERIC 유형은 Netezza가 수행하는 것처럼 커스텀 숫자 또는 확장 경계(제약조건)을 적용하지 않습니다. BigQuery는 소수점 자릿수 다음에 9개 숫자가 고정되어 있고 Netezza는 커스텀 설정을 허용합니다. Netezza에서 정밀도 p는 범위가 1부터 38까지 가능하고 0부터 이 정밀도까지 s를 확장할 수 있습니다.
+FLOAT(p) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_approximate_numeric.html] FLOAT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#floating_point_types]
+REAL/FLOAT(6) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_approximate_numeric.html] FLOAT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#floating_point_types]
+DOUBLE PRECISION/FLOAT(14) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_approximate_numeric.html] FLOAT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#floating_point_types]
+CHAR/CHARACTER [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_character_string.html] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#string] BigQuery의 STRING 유형은 가변 길이이며 Netezza CHARACTER 및 VARCHAR 유형에 필요한 것처럼 최대 문자 길이를 수동으로 설정할 필요가 없습니다. CHAR(n)에서 n의 기본값은 1입니다. 최대 문자열 크기는 64,000입니다.
+VARCHAR [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_character_string.html] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#string] BigQuery의 STRING 유형은 가변 길이이며 Netezza CHARACTER 및 VARCHAR 유형에 필요한 것처럼 최대 문자 길이를 수동으로 설정할 필요가 없습니다. 최대 문자열 크기는 64,000입니다.
+NCHAR [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_data_types.html] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#string] BigQuery의 STRING 유형은 가변 길이 UTF-8로 인코딩된 유니코드로 저장됩니다. 최대 길이는 16,000자입니다.
+NVARCHAR [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_data_types.html] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#string] BigQuery의 STRING 유형은 가변 길이 UTF-8로 인코딩된 유니코드로 저장됩니다. 최대 길이는 16,000자입니다.
+VARBINARY [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_binary_data_types.html] BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bytes_type]
+ST_GEOMETRY [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_binary_data_types.html] GEOGRAPHY [https://cloud.google.com/bigquery/docs/gis-data?hl=ko]
+BOOLEAN/BOOL [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_logical.html] BOOL [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#boolean_type] BigQuery의 BOOL 유형은 0/1, yes/no, true/false, on/off와 같은 다양한 값을 수락할 수 있는 Netezza의 BOOL 유형과 달리 TRUE/FALSE만 수락할 수 있습니다.
+DATE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_temporal.html] DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#date_type]
+TIME [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_temporal.html] TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type]
+TIMETZ/TIME WITH TIME ZONE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_temporal.html] TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type] Netezza는 TIME 데이터 유형을 UTC로 저장하고 WITH TIME ZONE 구문을 사용하여 UTC에서 오프셋을 전달할 수 있습니다. BigQuery의 TIME 데이터 유형은 날짜 또는 시간대와 무관한 시간을 나타냅니다.
+TIMESTAMP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_data_types_temporal.html] DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#datetime_type] Netezza TIMESTAMP 유형에는 BigQuery DATETIME 유형과 같은 시간대가 포함되지 않습니다.
+ARRAY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#array_type] Netezza에는 배열 데이터 유형이 없습니다. 배열 유형은 대신 varchar 필드에 저장 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/c_sqlext_array.html]됩니다.
+타임스탬프 및 날짜 유형 형식 지정
+Netezza SQL에 사용되는 데이터 유형 형식에 대한 자세한 내용은 Netezza 날짜 시간 템플릿 패턴 [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_templ_patterns_date_time_conv.html] 문서를 참조하세요. 날짜 시간 함수에 대한 자세한 내용은 Netezza 날짜/시간 함수 [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html] 문서를 참조하세요.
+Netezza에서 GoogleSQL로 데이터 유형 형식 요소를 변환할 때는 다음 표에 요약된 대로 TIMESTAMP와 DATETIME 사이의 시간대 차이에 특히 주의해야 합니다.
+Netezza BigQuery
+CURRENT_TIMESTAMP [https://www.ibm.com/docs/en/psfa/7.2.1?topic=reference-functions#r_dbuser_functions__wp1932791]
+CURRENT_TIME [https://www.ibm.com/docs/en/psfa/7.2.1?topic=reference-functions#r_dbuser_functions__wp1932791]
+
+TIME 정보는 WITH TIME ZONE 문법을 사용하여 정의되는 다른 시간대 정보를 가질 수 있습니다. 가능한 경우 올바르게 형식이 지정된 CURRENT_TIMESTAMP 함수를 사용합니다. 그러나 출력 형식에 항상 UTC 시간대가 표시되지는 않습니다(내부적으로 BigQuery에 시간대가 없음). bq 명령줄 도구와Google Cloud 콘솔에서 DATETIME 객체 형식은 RFC 3339에 따라 T 구분 기호를 통해 지정됩니다. 그러나 Python 및 자바 JDBC에서는 공백이 구분 기호로 사용됩니다. 명시적 FORMAT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime] 함수를 사용하여 날짜 형식을 올바르게 정의합니다. 그렇지 않으면 문자열에 명시적 변환이 수행됩니다. 예를 들면 다음과 같습니다.
+CAST(CURRENT_DATETIME() AS STRING)
+그러면 또한 공백 구분 기호가 반환됩니다.
+CURRENT_DATE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions.html#r_dbuser_functions__wp1932791] CURRENT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#current_date]
+CURRENT_DATE-3 BigQuery는 산술 데이터 연산을 지원하지 않습니다. 대신 DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add] 함수를 사용하세요.
+SELECT 문
+일반적으로 Netezza SELECT 문은 BigQuery와 호환됩니다. 다음 표에는 예외 목록이 포함되어 있습니다.
+Netezza BigQuery
+FROM 절이 없는 SELECT 문 다음과 같은 특수 사례를 지원합니다.
+SELECT 1 UNION ALL SELECT 2;
+SELECT
+  (subquery) AS flag,
+  CASE WHEN flag = 1 THEN ...
+BigQuery에서 열은 동일한 쿼리 내에 정의된 다른 열의 출력을 참조할 수 없습니다. 논리를 복제하거나 논리를 중첩된 쿼리로 이동해야 합니다.
+옵션 1
+SELECT
+  (subquery) AS flag,
+  CASE WHEN (subquery) = 1 THEN ...
+옵션 2
+SELECT
+  q.*,
+  CASE WHEN flag = 1 THEN ...
+FROM (
+  SELECT
+    (subquery) AS flag,
+    ...
+  ) AS q
+비교 연산자
+Netezza BigQuery 설명
+exp = exp2 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_operators.html] exp = exp2 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators] 같음
+exp <= exp2 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_operators.html] exp <= exp2 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators] 이하
+exp < exp2 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_operators.html] exp < exp2 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators] 미만
+exp <> exp2 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_operators.html]
+exp != exp2 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_operators.html] exp <> exp2 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators]
+exp != exp2 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators] 같지 않음
+exp >= exp2 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_operators.html] exp >= exp2 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators] 이상
+exp > exp2 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_operators.html] exp > exp2 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators] 초과
+기본 제공 SQL 함수
+Netezza BigQuery 설명
+CURRENT_DATE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_val_funcs_keywords.html] CURRENT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#current_date] 현재 날짜(연도, 월, 일)를 가져옵니다.
+CURRENT_TIME [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_val_funcs_keywords.html] CURRENT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#current_time] 현재 시간을 소수점 값으로 가져옵니다.
+CURRENT_TIMESTAMP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_val_funcs_keywords.html] CURRENT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#current_timestamp] 현재 시스템 날짜 및 시간을 가장 가까운 정수 초로 가져옵니다.
+NOW [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions.html] CURRENT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#current_timestamp] 현재 시스템 날짜 및 시간을 가장 가까운 정수 초로 가져옵니다.
+COALESCE(exp, 0) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_funcs.html] COALESCE(exp, 0) [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#coalesce] NULL을 0으로 바꿉니다.
+NVL(exp, 0) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_nvl.html] IFNULL(exp, 0) [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#ifnull] NULL을 0으로 바꿉니다.
+EXTRACT(DOY FROM timestamp_expression) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_extract_datetime.html] EXTRACT(DAYOFYEAR FROM timestamp_expression) [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract] 해당 연도의 시작 지점부터의 일 수를 반환합니다.
+ADD_MONTHS(date_expr, num_expr) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html] DATE_ADD(date, INTERVAL k MONTH) [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add] 날짜에 월을 추가합니다.
+DURATION_ADD(date, k) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html] DATE_ADD(date, INTERVAL k DAY) [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add] 날짜에 덧셈을 수행합니다.
+DURATION_SUBTRACT(date, k) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html] DATE_SUB(date, INTERVAL k DAY) [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub] 날짜에 뺄셈을 수행합니다.
+str1 || str2 CONCAT(str1, str2) [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#concat] 문자열을 연결합니다.
+함수
+이 섹션에서는 Netezza 및 BigQuery 함수를 비교합니다.
+집계 함수
+Netezza BigQuery
+ANY_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#any_value]
+APPROX_COUNT_DISTINCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_count_distinct]
+APPROX_QUANTILES [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_quantiles]
+APPROX_TOP_COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_top_count]
+APPROX_TOP_SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_top_sum]
+AVG [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_agg_funcs.html] AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg]
+intNand [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] BIT_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_and]
+intNnot [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] 비트 NOT 연산자: ~ [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#bitwise_operators]
+intNor [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] BIT_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_or]
+intNxor [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] BIT_XOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_xor]
+intNshl [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html]
+intNshr [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html]
+CORR [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_corr.html] CORR [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#corr]
+COUNT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_agg_funcs.html] COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count]
+COUNTIF [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#countif]
+COVAR_POP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_covar_pop.html] COVAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_pop]
+COVAR_SAMP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_covar_samp.html] COVAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_samp]
+GROUPING [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_grouping_sets.html]
+LOGICAL_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_and]
+LOGICAL_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_or]
+MAX [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_agg_funcs.html] MAX [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#max]
+MIN [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_agg_funcs.html] MIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#min]
+MEDIAN [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_agg_funcs.html] PERCENTILE_CONT [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#percentile_cont](x, 0.5)
+STDDEV_POP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions.html] STDDEV_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_pop]
+STDDEV_SAMP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions.html] STDDEV_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_samp]
+STDDEV [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev]
+STRING_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#string_agg]
+SUM [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions.html] SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum]
+VAR_POP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions.html] VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop]
+VAR_SAMP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions.html] VAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_samp]
+VARIANCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#variance]
+분석 함수
+Netezza BigQuery
+ANY_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#any_value]
+ARRAY_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#array_agg]
+ARRAY_CONCAT [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_array_concat.html] ARRAY_CONCAT_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#array_concat_agg]
+ARRAY_COMBINE [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_array_combine.html]
+ARRAY_COUNT [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_array_count.html]
+ARRAY_SPLIT [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_array_split.html]
+ARRAY_TYPE [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_array_type.html]
+AVG [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_window_aggregation_family_syntax.html] AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg]
+intNand [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] BIT_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_and]
+intNnot [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] 비트 NOT 연산자: ~ [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#bitwise_operators]
+intNor [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] BIT_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_or]
+intNxor [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] BIT_XOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_xor]
+intNshl [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html]
+intNshr [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html]
+CORR [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_corr.html] CORR [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#corr]
+COUNT [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_window_aggregation_family_syntax.html] COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count]
+COUNTIF [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#countif]
+COVAR_POP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_covar_pop.html] COVAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_pop]
+COVAR_SAMP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_covar_samp.html] COVAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_samp]
+CUME_DIST [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_ranking_family_syntax.html] CUME_DIST [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#cume_dist]
+DENSE_RANK [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_ranking_family_syntax.html] DENSE_RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#dense_rank]
+FIRST_VALUE [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_first_last_family_syntax.html] FIRST_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#first_value]
+LAG [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_lag_lead_family_syntax.html] LAG [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#lag]
+LAST_VALUE [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_first_last_family_syntax.html] LAST_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#last_value]
+LEAD [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_lag_lead_family_syntax.html] LEAD [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#lead]
+AND [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_operators.html] LOGICAL_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_and]
+OR [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_operators.html] LOGICAL_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_or]
+MAX [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_window_aggregation_family_syntax.html] MAX [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#max]
+MIN [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_window_aggregation_family_syntax.html] MIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#min]
+NTH_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#nth_value]
+NTILE [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_ranking_family_syntax.html] NTILE [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#ntile]
+PERCENT_RANK [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_ranking_family_syntax.html] PERCENT_RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#percent_rank]
+PERCENTILE_CONT [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_inverse_distribution_funcs_family_syntax.html] PERCENTILE_CONT [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#percentile_cont]
+PERCENTILE_DISC [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_inverse_distribution_funcs_family_syntax.html] PERCENTILE_DISC [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#percentile_disc]
+RANK [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_ranking_family_syntax.html] RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#rank]
+ROW_NUMBER [https://www.ibm.com/docs/en/psfa/7.2.1?topic=reference-functions] ROW_NUMBER [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#row_number]
+STDDEV [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_window_aggregation_family_syntax.html] STDDEV [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev]
+STDDEV_POP [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_window_aggregation_family_syntax.html] STDDEV_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_pop]
+STDDEV_SAMP [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_window_aggregation_family_syntax.html] STDDEV_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_samp]
+STRING_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#string_agg]
+SUM [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_window_aggregation_family_syntax.html] SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum]
+VARIANCE [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_window_aggregation_family_syntax.html] VARIANCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#variance]
+VAR_POP [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_window_aggregation_family_syntax.html] VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop]
+VAR_SAMP [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_window_aggregation_family_syntax.html] VAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_samp]
+VARIANCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#variance]
+WIDTH_BUCKET [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/c_dbuser_example_width_bucket_func.html]
+날짜 및 시간 함수
+Netezza BigQuery
+ADD_MONTHS [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html] DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add]
+TIMESTAMP_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_add]
+AGE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html]
+CURRENT_DATE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_val_funcs_keywords.html] CURRENT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#current_date]
+CURRENT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#current_datetime]
+CURRENT_TIME [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_val_funcs_keywords.html] CURRENT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#current_time]
+CURRENT_TIME(p) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_val_funcs_keywords.html]
+CURRENT_TIMESTAMP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_val_funcs_keywords.html] CURRENT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#current_timestamp]
+CURRENT_TIMESTAMP(p) [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_val_funcs_keywords.html]
+DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date]
+DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add]
+DATE_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_diff]
+DATE_FROM_UNIX_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_from_unix_date]
+DATE_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub]
+DATE_TRUNC [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc]
+DATE_PART [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html]
+DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime]
+DATETIME_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_add]
+DATETIME_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_diff]
+DATETIME_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_sub]
+DATETIME_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_trunc]
+DURATION_ADD [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html]
+DURATION_SUBTRACT [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html]
+EXTRACT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html] EXTRACT (DATE) [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract]
+EXTRACT (TIMESTAMP) [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract]
+FORMAT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#format_date]
+FORMAT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime]
+FORMAT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#format_time]
+FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp]
+LAST_DAY [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html] DATE_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub]( DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc]( DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add]( date_expression, INTERVAL 1 MONTH ), MONTH ), INTERVAL 1 DAY )
+MONTHS_BETWEEN [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html] DATE_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_diff](date_expression, date_expression, MONTH)
+NEXT_DAY [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html]
+NOW [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions.html]
+OVERLAPS [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html]
+PARSE_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#parse_date]
+PARSE_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#parse_datetime]
+PARSE_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#parse_time]
+PARSE_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#parse_timestamp]
+STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#string]
+TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time]
+TIME_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_add]
+TIME_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_diff]
+TIME_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_sub]
+TIME_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_trunc]
+TIMEOFDAY [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html]
+TIMESTAMP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_functions.html] DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime]
+TIMESTAMP_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_add]
+TIMESTAMP_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_diff]
+TIMESTAMP_MICROS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_micros]
+TIMESTAMP_MILLIS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_millis]
+TIMESTAMP_SECONDS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_seconds]
+TIMESTAMP_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_sub]
+TIMESTAMP_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_trunc]
+TIMEZONE [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_date_time_funcs.html]
+TO_DATE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_conversion_funcs.html] PARSE_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#parse_date]
+TO_TIMESTAMP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_conversion_funcs.html] PARSE_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#parse_timestamp]
+UNIX_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#unix_date]
+UNIX_MICROS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_micros]
+UNIX_MILLIS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_millis]
+UNIX_SECONDS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_seconds]
+문자열 함수
+Netezza BigQuery
+ASCII [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] TO_CODE_POINTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_code_points](string_expr)[OFFSET(0)]
+BYTE_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#byte_length]
+TO_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_hex]
+CHAR_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#char_length]
+CHARACTER_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#character_length]
+CODE_POINTS_TO_BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#code_points_to_bytes]
+BTRIM [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html]
+CHR [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] CODE_POINTS_TO_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#code_points_to_string]([numeric_expr])
+CONCAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#concat]
+DBL_MP [https://www.ibm.com/docs/en/psfa/7.2.1?topic=functions-phonetic-matching]
+DLE_DST [https://www.ibm.com/docs/en/psfa/7.2.1?topic=functions-phonetic-matching]
+ENDS_WITH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#ends_with]
+FORMAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#format_string]
+FROM_BASE32 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_base32]
+FROM_BASE64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_base64]
+FROM_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_hex]
+HEX_TO_BINARY [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_conversion_funcs.html]
+HEX_TO_GEOMETRY [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_conversion_funcs.html]
+INITCAP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html]
+INSTR [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html]
+INT_TO_STRING [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_conversion_funcs.html]
+LE_DST [https://www.ibm.com/docs/en/psfa/7.2.1?topic=functions-fuzzy-string-search]
+LENGTH [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#length]
+LOWER [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] LOWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#lower]
+LPAD [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] LPAD [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#lpad]
+LTRIM [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] LTRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#ltrim]
+NORMALIZE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#normalize]
+NORMALIZE_AND_CASEFOLD [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#normalize_and_casefold]
+PRI_MP [https://www.ibm.com/docs/en/psfa/7.2.1?topic=functions-phonetic-matching]
+REGEXP_CONTAINS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_contains]
+REGEXP_EXTRACT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_regexp_extract.html] REGEXP_EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract]
+REGEXP_EXTRACT_ALL [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_regexp_extract_all.html] REGEXP_EXTRACT_ALL [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract_all]
+REGEXP_EXTRACT_ALL_SP [https://www.ibm.com/docs/en/psfa/7.2.1?topic=functions-regexp-extract-all-sp]
+REGEXP_EXTRACT_SP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_regexp_extract_sp.html]
+REGEXP_INSTR [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_regexp_instr.html] STRPOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#strpos](col, REGEXP_EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract]())
+REGEXP_LIKE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_regexp_like.html]
+REGEXP_MATCH_COUNT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_regexp_match_count.html]
+REGEXP_REPLACE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_regexp_replace.html] REGEXP_REPLACE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_replace]
+REGEXP_REPLACE_SP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_regexp_replace_sp.html] IF(REGEXP_CONTAINS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_contains],1,0)
+REGEXP_EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract]
+REPEAT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] REPEAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#repeat]
+REPLACE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#replace]
+REVERSE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#reverse]
+RPAD [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] RPAD [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#rpad]
+RTRIM [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] RTRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#rtrim]
+SAFE_CONVERT_BYTES_TO_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#safe_convert_bytes_to_string]
+SCORE_MP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.0.3/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_phonetic_funcs.html]
+SEC_MP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.0.3/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_phonetic_funcs.html]
+SOUNDEX [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.0.3/com.ibm.nz.dbu.doc/r_dbuser_functions_expressions_phonetic_funcs.html]
+SPLIT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#split]
+STARTS_WITH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#starts_with]
+STRING_TO_INT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_conversion_funcs.html]
+STRPOS [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] STRPOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#strpos]
+SUBSTR [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] SUBSTR [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#substr]
+TO_BASE32 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_base32]
+TO_BASE64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_base64]
+TO_CHAR [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_conversion_funcs.html]
+TO_DATE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_conversion_funcs.html]
+TO_NUMBER [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_conversion_funcs.html]
+TO_TIMESTAMP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_conversion_funcs.html]
+TO_CODE_POINTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_code_points]
+TO_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_hex]
+TRANSLATE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html]
+TRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#trim]
+UPPER [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html] UPPER [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#upper]
+UNICODE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html]
+UNICODES [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_char_funcs.html]
+수학 함수
+Netezza BigQuery
+ABS [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] ABS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#abs]
+ACOS [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] ACOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#acos]
+ACOSH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#acosh]
+ASIN [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] ASIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#asin]
+ASINH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#asinh]
+ATAN [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] ATAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#atan]
+ATAN2 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] ATAN2 [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#atan2]
+ATANH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#atanh]
+CEIL [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html]
+DCEIL [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] CEIL [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ceil]
+CEILING [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ceiling]
+COS [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] COS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#cos]
+COSH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#cosh]
+COT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] COT [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#cot]
+DEGREES [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html]
+DIV [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#div]
+EXP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] EXP [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#exp]
+FLOOR [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html]
+DFLOOR [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] FLOOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#floor]
+GREATEST [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_greatest.html] GREATEST [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#greatest]
+IEEE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ieee_divide]
+IS_INF [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#is_inf]
+IS_NAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#is_nan]
+LEAST [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sqltk.doc/r_sqlext_least.html] LEAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#least]
+LN [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] LN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ln]
+LOG [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] LOG [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#log]
+LOG10 [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#log10]
+MOD [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] MOD [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#mod]
+NULLIF [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#nullif](expr, 0)
+PI [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] ACOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#acos](-1)
+POW [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html]
+FPOW [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power]
+POW [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#pow]
+RADIANS [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html]
+RANDOM [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] RAND [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#rand]
+ROUND [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] ROUND [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#round]
+SAFE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#safe_divide]
+SETSEED [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html]
+SIGN [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] SIGN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sign]
+SIN [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] SIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sin]
+SINH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sinh]
+SQRT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html]
+NUMERIC_SQRT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] SQRT [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sqrt]
+TAN [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] TAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#tan]
+TANH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#tanh]
+TRUNC [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_sql_extns_math_funcs.html] TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#trunc]
+IFNULL [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#ifnull](expr, 0)
+DML 구문
+이 섹션에서는 Netezza 및 BigQuery DML 구문을 비교합니다.
+INSERT 문
+Netezza BigQuery
+INSERT INTO table VALUES (...);
+INSERT INTO table (...) VALUES (...);
+
+Netezza는 열에 대해 DEFAULT 키워드 및 기타 제약조건을 제공합니다. BigQuery에서 INSERT 문의 열 이름 생략은 모든 열이 제공된 경우에만 유효합니다.
+INSERT INTO table (...) VALUES (...);
+INSERT INTO table (...) VALUES (...);
+INSERT INTO table VALUES (), ();
+BigQuery에는 매일 실행 가능한 DML 문 수를 제한하는 DML 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko#data_manipulation_language_statements]이 적용됩니다. 할당량을 최대한 활용하려면 다음 방법을 사용해 보세요.
+INSERT 문당 한 개의 행 대신 하나의 INSERT 문에서 여러 행을 결합합니다.
+MERGE 문을 사용하여 여러 DML 문(INSERT 문 포함)을 결합합니다.
+CREATE TABLE ... AS SELECT 문을 사용하여 새 테이블을 만들고 값을 채웁니다.
+BigQuery의 DML 스크립트와 그에 해당하는 Netezza의 문 간에는 시맨틱스의 일관성 측면에 약간의 차이점이 있습니다. 또한 BigQuery는 NOT NULL 이외의 제약조건을 제공하지 않습니다.
+스냅샷 격리와 세션 및 트랜잭션 처리에 관한 개요는 일관성 보장 및 트랜잭션 격리 [https://cloud.google.com/bigquery/docs/migration/netezza-sql?hl=ko#consistency_guarantees_and_transaction_isolation]를 참조하세요.
+UPDATE 문
+Netezza에서 WHERE 절은 선택사항이지만 BigQuery에서는 필수입니다.
+Netezza BigQuery
+UPDATE tbl
+SET
+tbl.col1=val1;
+WHERE 절이 없으면 지원되지 않습니다. WHERE true 절을 사용하여 모든 행을 업데이트합니다.
+UPDATE A
+SET
+  y = B.y,
+  z = B.z + 1
+FROM B
+WHERE A.x = B.x
+  AND A.y IS NULL;
+UPDATE A
+SET
+  y = B.y,
+  z = B.z + 1
+FROM B
+WHERE A.x = B.x
+  AND A.y IS NULL;
+UPDATE A alias
+SET x = x + 1
+WHERE f(x) IN (0, 1)
+UPDATE A
+SET x = x + 1
+WHERE f(x) IN (0, 1);
+UPDATE A
+SET z = B.z
+FROM B
+WHERE A.x = B.x
+  AND A.y = B.y
+UPDATE A
+SET z = B.z
+FROM B
+WHERE A.x = B.x
+  AND A.y = B.y;
+자세한 내용은 UPDATE 예시 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#update_examples]를 참조하세요.
+DML 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko#data_manipulation_language_statements]으로 인해 여러 개의 단일 UPDATE 및 INSERT 문 대신 큰 MERGE 문을 사용하는 것이 좋습니다. BigQuery의 DML 스크립트와 그에 해당하는 Netezza의 문 간에는 시맨틱스의 일관성 측면에 약간의 차이점이 있습니다. 스냅샷 격리와 세션 및 트랜잭션 처리에 관한 개요는 일관성 보장 및 트랜잭션 격리 [https://cloud.google.com/bigquery/docs/migration/netezza-sql?hl=ko#consistency_guarantees_and_transaction_isolation]를 참조하세요.
+DELETE 및 TRUNCATE 문
+테이블 스키마 또는 색인에 영향을 주지 않고 테이블에서 행을 삭제하려면 DELETE 및 TRUNCATE 문을 사용합니다. TRUNCATE 문은 DELETE 문과 효과가 동일하지만 큰 테이블의 경우 DELETE 문보다 훨씬 빠릅니다. TRUNCATE 문은 Netezza에서 지원되지만 BigQuery에서 지원되지 않습니다. 그러나 Netezza 및 BigQuery 모두 DELETE 문을 사용할 수 있습니다.
+BigQuery의 DELETE 문에는 WHERE 절이 있어야 합니다. Netezza에서 WHERE 절은 선택사항입니다. WHERE 절이 지정되지 않으면 Netezza 테이블의 모든 행이 삭제됩니다.
+Netezza BigQuery 설명
+BEGIN;
+LOCK TABLE A IN EXCLUSIVE MODE;
+DELETE FROM A;
+INSERT INTO A SELECT * FROM B;
+COMMIT;
+테이블의 콘텐츠를 쿼리 출력으로 바꾸는 것은 트랜잭션과 같은 개념입니다. 이 작업은 query [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query] 또는 복사(cp) [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#copy-table] 작업을 사용하여 수행할 수 있습니다.
+
+bq query \
+--replace \
+--destination_table \
+tableA \
+'SELECT * \
+FROM tableB \
+WHERE ...'
+bq cp \
+-f tableA tableB
+테이블의 콘텐츠를 쿼리 결과로 바꿉니다.
+DELETE FROM database.table
+DELETE FROM table WHERE TRUE;
+Netezza에서 delete 문을 실행하면 행이 물리적으로 삭제되지 않고 삭제하도록 표시만 됩니다. 나중에 GROOM TABLE 또는 nzreclaim 명령어를 실행하면 삭제하도록 표시된 행이 삭제되고 해당 디스크 공간이 확보됩니다.
+GROOM TABLE [https://www.ibm.com/docs/en/psfa/7.2.1?topic=reference-groom-table] Netezza는 GROOM TABLE 명령어를 사용해서 삭제하도록 표시된 행을 삭제하여 디스크 공간을 확보합니다.
+MERGE 문
+MERGE 문은 각 대상 행에 대해 최대 1개의 소스 행과 일치해야 합니다. BigQuery의 DML 스크립트와 그에 해당하는 Netezza의 문 간에는 시맨틱스의 일관성 측면에 약간의 차이점이 있습니다. 스냅샷 격리와 세션 및 트랜잭션 처리에 관한 개요는 일관성 보장 및 트랜잭션 격리 [https://cloud.google.com/bigquery/docs/migration/netezza-sql?hl=ko#consistency_guarantees_and_transaction_isolation]를 참조하세요. 예를 들어 BigQuery MERGE 예시 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#merge_examples] 및 Netezza MERGE 예시 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_merge.html]를 참조하세요.
+DDL 구문
+이 섹션에서는 Netezza 및 BigQuery DDL 구문을 비교합니다.
+CREATE TABLE 문
+Netezza BigQuery 설명
+TEMP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_create_table.html]
+TEMPORARY [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_create_table.html] BigQuery의 DDL 지원에 따라 쿼리 결과로부터 테이블을 만들고 생성 시 만료 시간을 지정할 수 있습니다. 예를 들어 3일의 경우 다음과 같습니다.
+
+CREATE TABLE 'my-project.public_dump.vtemp'
+OPTIONS(
+expiration_timestamp=TIMESTAMP_ADD(CURRENT_TIMESTAMP(),
+INTERVAL 3 DAY)) 세션에 대해 임시 테이블을 만듭니다.
+ZONE MAPS [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.adm.doc/c_sysadm_zone_maps.html] 지원되지 않음. WHERE 조건을 빠르게 검색합니다.
+DISTRIBUTE ON [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.adm.doc/c_sysadm_distribution_keys.html] PARTITION BY 파티션 나누기 직접 번역되지 않습니다. DISTRIBUTE ON은 일반적으로 균일하게 분배하기 위해 고유한 키를 사용하여 노드 간에 데이터를 공유하는 반면, PARTITION BY는 데이터를 세그먼트로 프루닝합니다.
+ORGANIZE ON [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.adm.doc/c_sysadm_cbts.html] CLUSTER BY Netezza와 BigQuery 모두 클러스터링에 대해 최대 4개의 키를 지원합니다. Netezza 클러스터링된 기본 테이블(CBT)은 각 클러스터링 열에 대해 동일한 우선순위를 지정합니다. BigQuery는 테이블이 클러스터링된 첫 번째 열, 그 다음 두 번째 열, 그 다음 열 등에 따라 우선순위를 지정합니다.
+ROW SECURITY [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.adv.doc/c_advsec_row_secure_tables.html] Authorized View 행 수준 보안
+CONSTRAINT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_create_table.html] 지원되지 않음 제약조건 확인
+DROP 문
+Netezza BigQuery 설명
+DROP TABLE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_drop_table.html] DROP TABLE
+DROP DATABASE DROP DATABASE
+DROP VIEW DROP VIEW
+열 옵션 및 속성
+Netezza BigQuery 설명
+NULL [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_create_table.html]
+NOT NULL [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_create_table.html] NULLABLE [https://cloud.google.com/bigquery/docs/schemas?hl=ko#modes]
+REQUIRED [https://cloud.google.com/bigquery/docs/schemas?hl=ko#modes] 열이 NULL 값을 포함하도록 허용되는지 여부를 지정합니다.
+REFERENCES [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_create_table.html] 지원되지 않음 열 제약조건을 지정합니다.
+UNIQUE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_create_table.html] 지원되지 않음 열의 각 값이 고유해야 합니다.
+DEFAULT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_create_table.html] 지원되지 않음 열의 모든 값에 대한 기본값입니다.
+임시 테이블
+Netezza는 세션 기간 중 존재하는 TEMPORARY 테이블 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_create_table.html]을 지원합니다.
+BigQuery에서 임시 테이블을 빌드하려면 다음을 수행합니다.
+12시간 정도로 수명이 짧은 데이터 세트를 만듭니다.
+temp의 테이블 이름 프리픽스를 사용하여 데이터 세트에 임시 테이블을 만듭니다. 예를 들어 1시간 내에 만료되는 테이블을 만들려면 다음을 수행합니다.
+CREATE TABLE temp.name (col1, col2, ...)
+OPTIONS(expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(),
+INTERVAL 1 HOUR));
+임시 테이블에서 읽기 및 쓰기를 시작합니다.
+다운스트림 시스템에서 오류를 찾기 위해 중복 항목을 독립적으로 삭제 [https://cloud.google.com/bigquery/streaming-data-into-bigquery?hl=ko#manually_removing_duplicates]할 수도 있습니다.
+BigQuery는 DEFAULT 및 IDENTITY(시퀀스) 열을 지원하지 않습니다.
+절차적 SQL 문
+Netezza는 NZPLSQL [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sproc.doc/r_sproc_nzplqsl_language.html] 스크립트 언어를 사용하여 저장 프로시져 작업을 수행합니다. NZPLSQL은 Postgres PL/pgSQL 언어를 기반으로 합니다. 이 섹션에서는 저장 프로시져, 함수, 트리거에 사용된 절차적 SQL 문을 Netezza에서 BigQuery로 변환하는 방법을 설명합니다.
+CREATE PROCEDURE 문
+Netezza 및 BigQuery 모두 CREATE PROCEDURE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_procedure] 문을 사용하여 저장 프로시져 만들기를 지원합니다. 자세한 내용은 SQL 저장 프로시져 작업 [https://cloud.google.com/bigquery/docs/procedures?hl=ko]을 참조하세요.
+변수 선언 및 할당
+Netezza BigQuery 설명
+DECLARE var datatype(len) [DEFAULT value]; DECLARE [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#declare] 변수를 선언합니다.
+SET var = value; SET [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#set] 변수에 값을 할당합니다.
+예외 핸들러
+Netezza는 특정 오류 조건에서 트리거될 수 있는 예외 핸들러를 지원합니다. BigQuery는 조건 핸들러를 지원하지 않습니다.
+Netezza BigQuery 설명
+EXCEPTION [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.sproc.doc/c_sproc_exceptions_errors.html] 지원되지 않음 일반 오류에 대해 SQL 예외 핸들러를 선언합니다.
+동적 SQL 문
+Netezza는 저장 프로시져 내의 동적 SQL 쿼리를 지원합니다. BigQuery는 동적 SQL 문을 지원하지 않습니다.
+Netezza BigQuery 설명
+EXECUTE IMMEDIATE sql_str; EXECUTE IMMEDIATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#execute_immediate] sql_str; 동적 SQL을 실행합니다.
+제어 흐름 문
+Netezza BigQuery 설명
+IF THEN ELSE STATEMENT [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sproc.doc/c_sproc_conditional_control.html]
+IF 조건
+THEN ...
+ELSE ...
+END IF; IF [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#if] 조건
+THEN ...
+ELSE ...
+END IF; 조건부로 실행됩니다.
+반복 제어 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sproc.doc/c_sproc_iterative_control.html]
+FOR var AS SELECT ...
+DO stmts END FOR;
+FOR var AS cur CURSOR
+FOR SELECT ...
+DO stmts END FOR; 지원되지 않음 행 컬렉션을 반복합니다.
+반복 제어 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sproc.doc/c_sproc_iterative_control.html]
+LOOP stmts END LOOP; LOOP [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#loops]
+sql_statement_list END LOOP; 문의 루프 블록입니다.
+EXIT WHEN [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sproc.doc/c_sproc_iterative_control.html] BREAK [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#break] 프로시져를 종료합니다.
+WHILE *condition* LOOP [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sproc.doc/c_sproc_iterative_control.html] WHILE [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#while] 조건
+DO ...
+END WHILE while 조건이 실패할 때까지 문 루프를 실행합니다.
+기타 문 및 절차적 언어 요소
+Netezza BigQuery 설명
+CALL [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sproc.doc/c_sproc_how_to_execute.html] proc(param,...) 지원되지 않음 프로시져를 실행합니다.
+EXEC [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sproc.doc/c_sproc_how_to_execute.html] proc(param,...) 지원되지 않음 프로시져를 실행합니다.
+EXECUTE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.sproc.doc/c_sproc_how_to_execute.html] proc(param,...) 지원되지 않음 프로시져를 실행합니다.
+다중 문 및 여러 줄로 구성된 SQL 문
+Netezza와 BigQuery는 모두 트랜잭션(세션)을 지원하므로 일관되게 함께 실행되는 세미콜론으로 구분된 문을 지원합니다. 자세한 내용은 멀티 문 트랜잭션 [https://cloud.google.com/bigquery/docs/transactions?hl=ko]을 참조하세요.
+기타 SQL 문
+Netezza BigQuery 설명
+GENERATE STATISTICS [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_generate_statistics.html] 현재 데이터베이스의 모든 테이블에 대한 통계를 생성합니다.
+GENERATE STATISTICS ON table_name 특정 테이블에 대해 통계를 생성합니다.
+GENERATE STATISTICS ON table_name(col1,col4) MIN, MAX, AVG, 등과 같은 통계적 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko]를 사용하거나 UI를 사용하거나 Cloud Data Loss Prevention API를 사용합니다. 테이블의 특정 열에 대해 통계를 생성합니다.
+GENERATE STATISTICS ON table_name APPROX_COUNT_DISTINCT(col) 열의 고유 값 수를 표시합니다.
+INSERT INTO table_name INSERT INTO table_name 행을 삽입합니다.
+LOCK TABLE [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_lock_table.html] table_name FOR EXCLUSIVE; 지원되지 않음 행을 잠급니다.
+SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.1.0/com.ibm.nz.dbu.doc/r_dbuser_set_transaction.html] ... BigQuery는 항상 스냅샷 격리를 사용합니다. 자세한 내용은 일관성 보장 및 트랜잭션 격리 [https://cloud.google.com/bigquery/docs/migration/netezza-sql?hl=ko#consistency_guarantees_and_transaction_isolation]를 참조하세요. 트랜잭션 격리 수준을 정의합니다.
+BEGIN TRANSACTION
+END TRANSACTION
+COMMIT
+BigQuery는 항상 스냅샷 격리를 사용합니다. 자세한 내용은 일관성 보장 및 트랜잭션 격리 [https://cloud.google.com/bigquery/docs/migration/netezza-sql?hl=ko#consistency_guarantees_and_transaction_isolation]를 참조하세요. 멀티 문 요청에 대한 트랜잭션 경계를 정의합니다.
+EXPLAIN [https://www.ibm.com/support/knowledgecenter/SSULQD_7.2.1/com.ibm.nz.adm.doc/r_sysadm_display_plan_types.html] ... 지원되지 않음 쿼리 계획 및 타임라인 [https://cloud.google.com/bigquery/query-plan-explanation?hl=ko]의 비슷한 기능입니다. SELECT 문의 쿼리 계획을 표시합니다.
+사용자 보기 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.adm.doc/r_sysadm_user_views.html] 메타데이터
+시스템 보기 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.adm.doc/r_sysadm_system_views.html] 메타데이터 SELECT
+* EXCEPT(is_typed)
+FROM
+mydataset.INFORMATION_SCHEMA.TABLES;
+
+BigQuery 정보 스키마 [https://cloud.google.com/bigquery/docs/information-schema-intro?hl=ko] 데이터베이스의 객체 쿼리
+일관성 보장 및 트랜잭션 격리
+Netezza 및 BigQuery 모두 원자적인 특성을 갖습니다. 즉, 여러 행에 걸쳐 변형당 수준에서 ACID [https://en.wikipedia.org/wiki/ACID]와 호환됩니다. 예를 들어 MERGE 작업은 여러 개의 삽입된 값이 있는 경우에도 완전히 원자적인 특성을 갖습니다.
+거래
+Netezza는 구문적으로 ANSI SQL 트랜잭션 격리 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_func_cat_tc_iso_level.html]의 4개 모드를 모두 허용합니다. 그러나 지정된 모드에 관계없이 가능한 한 가장 높은 일관성 수준을 제공하는 SERIALIZABLE 모드만 사용됩니다. 또한 이 모드는 동시 트랜잭션 사이의 반복 불가능한 더티 팬텀 읽기를 방지합니다. Netezza는 일관성 강화를 위한 기존 잠금 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_func_cat_tc_locks_concurrency.html]을 사용하지 않습니다. 대신 2개의 트랜잭션이 동일한 데이터를 수정하려고 시도할 때 최신 트랜잭션을 자동으로 롤백하는 낙관적 동시성 제어 형태의 직렬화 종속성 검사 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_ntz_func_cat_tc_tbl_locking.html]가 사용됩니다.
+BigQuery는 트랜잭션도 지원 [https://cloud.google.com/bigquery/docs/transactions?hl=ko]합니다. BigQuery는 쿼리가 시작되기 전 마지막으로 커밋된 데이터를 쿼리가 읽는 스냅샷 격리를 사용하여 최적의 동시 실행 제어(첫 번째 커밋이 우선순위를 가짐)를 보장합니다. 이 접근 방법은 행 및 변형 기준으로 그리고 동일한 DML 문 내의 여러 행에서 동일한 수준의 일관성을 보장하고 교착 상태도 방지합니다. 동일한 테이블에 대해 여러 DML 업데이트가 있는 경우 BigQuery는 최악 동시 실행 제어 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#limitations]로 전환됩니다. 로드 작업은 완전히 독립적으로 실행되고 테이블에 추가될 수 있습니다.
+롤백
+Netezza는 현재 트랜잭션을 중단하고 트랜잭션에 수행된 모든 변경사항을 롤백하는 ROLLBACK 문 [https://www.ibm.com/support/knowledgecenter/en/SSULQD_7.2.1/com.ibm.nz.dbu.doc/r_dbuser_rollback.html]을 지원합니다.
+BigQuery에서는 ROLLBACK TRANSACTION 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#rollback_transaction]을 사용할 수 있습니다.
+데이터베이스 한도
+한도 Netezza BigQuery
+데이터베이스당 테이블 32,000 무제한
+테이블당 열 1600 10000
+최대 행 크기  64KB 100MB
+열 및 테이블 이름 길이 128바이트 16,384개의 유니코드 문자
+테이블당 행 무제한 무제한
+최대 SQL 요청 길이 1MB(최대 해결되지 않은 표준 SQL 쿼리 길이)
+
+12MB(해결된legacy 및 표준 SQL 쿼리 최대 길이)
+
+스트리밍:
+10MB(HTTP 요청 크기 한도)
+10,000(요청당 최대 행)
+최대 요청 및 응답 크기 10MB(요청) 및 10GB(응답), 페이지 나누기 또는 Cloud Storage API를 사용하는 경우에는 거의 무제한입니다.
+최대 동시 실행 세션 수 동시 읽기-쓰기 트랜잭션 63개 서버 동시 연결 2,000개 동시 실행 쿼리 100개(슬롯 예약 [https://cloud.google.com/bigquery/docs/slots?hl=ko] 사용 시 늘어날 수 있음), 사용자당 300개의 동시 실행 API 요청
+다음 단계
+IBM Netezza에서 BigQuery로 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/netezza?hl=ko] 단계별 안내 보기
+도움이 되었나요?
+의견 보내기

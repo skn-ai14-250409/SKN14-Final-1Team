@@ -1,0 +1,87 @@
+Source URL: https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+지원되는 파일 형식 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview?hl=ko#supported_file_formats]
+지원되는 압축 유형 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview?hl=ko#supported_compression_types]
+Cloud Storage 전송을 위한 데이터 수집 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview?hl=ko#data-ingestion]
+증분 전송 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview?hl=ko#incremental_transfers]
+잘린 전송 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview?hl=ko#truncated_transfers]
+Cloud Storage 전송 소개
+bookmark_border
+Cloud Storage용 BigQuery Data Transfer Service를 사용하면 Cloud Storage 버킷 [https://cloud.google.com/storage/docs/buckets?hl=ko]에서 BigQuery로 반복되는 데이터 로드를 예약할 수 있습니다. Cloud Storage와 대상 테이블에 저장된 데이터의 경로는 모두 매개변수화 [https://cloud.google.com/bigquery/docs/gcs-transfer-parameters?hl=ko]될 수 있으므로 날짜별로 구성된 Cloud Storage 버킷에서 데이터를 로드할 수 있습니다.
+지원되는 파일 형식
+현재 BigQuery Data Transfer Service는 Cloud Storage에서 다음 형식 중 하나로 데이터 로드를 지원합니다.
+쉼표로 구분된 값(CSV)
+JSON(줄바꿈으로 구분)
+Avro
+Parquet
+ORC
+지원되는 압축 유형
+Cloud Storage용 BigQuery Data Transfer Service는 압축 데이터 로드를 지원합니다. BigQuery Data Transfer Service에서 지원되는 압축 유형은 BigQuery 로드 작업에서 지원되는 압축 유형과 동일합니다. 자세한 내용은 압축 데이터 및 압축되지 않은 데이터 로드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#loading_compressed_and_uncompressed_data]를 참조하세요.
+Cloud Storage 전송을 위한 데이터 수집
+Cloud Storage 전송을 설정 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer?hl=ko#set_up_a_cloud_storage_transfer]할 때 전송 구성에서 쓰기 환경설정을 선택하여 데이터가 BigQuery에 로드되는 방법을 지정할 수 있습니다.
+사용 가능한 쓰기 환경설정에는 증분 전송 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview?hl=ko#incremental_transfers] 및 잘린 전송 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview?hl=ko#truncated_transfers] 두 가지 유형이 있습니다.
+증분 전송
+증분 전송이라고도 하는 APPEND 또는 WRITE_APPEND 쓰기 환경설정이 있는 전송 구성에서는 이전의 BigQuery 대상 테이블로의 성공적인 전송 이후의 새 데이터를 점진적으로 추가합니다. 전송 구성이 APPEND 쓰기 환경설정으로 실행되면 BigQuery Data Transfer Service는 이전에 성공한 전송 실행 이후 수정된 파일을 필터링합니다. 파일이 수정되는 시간을 확인하기 위해 BigQuery Data Transfer Service는 파일 메타데이터에서 "마지막 수정 시간" 속성을 찾습니다. 예를 들어 BigQuery Data Transfer Service는 Cloud Storage 파일에서 updated 타임스탬프 속성 [https://cloud.google.com/storage/docs/metadata?hl=ko#modification-time]을 찾습니다. BigQuery Data Transfer Service가 마지막으로 성공한 전송 타임스탬프 이후에 발생한 '마지막 수정 시간'이 있는 파일을 찾으면 BigQuery Data Transfer Service는 증분 전송으로 해당 파일을 전송합니다.
+증분 전송 작동 방식을 이해하려면 다음 Cloud Storage 전송 예시를 참조하세요. 사용자가 2023-07-01T00:00Z에 file_1이라는 파일을 Cloud Storage 버킷에 만듭니다. file_1의 updated 타임스탬프 [https://cloud.google.com/storage/docs/metadata?hl=ko#modification-time]는 파일이 생성된 시간입니다. 그런 다음 사용자는 Cloud Storage 버킷에서 2023-07-01T03:00Z부터 시작하여 03:00Z에 매일 한 번 실행되도록 예약된 증분 전송을 만듭니다.
+2023-07-01T03:00Z에 첫 번째 전송 실행이 시작됩니다. 이 구성에 대한 전송 실행이 이번이 처음이기 때문에 BigQuery Data Transfer Service가 소스 URI와 일치하는 모든 파일을 대상 BigQuery 테이블에 로드하려고 시도합니다. 전송 실행이 성공하고 BigQuery Data Transfer Service가 대상 BigQuery 테이블에 file_1을 성공적으로 로드합니다.
+다음 전송 실행인 2023-07-02T03:00Z에는 updated 타임스탬프 속성이 마지막으로 성공한 전송 실행(2023-07-01T03:00Z)보다 큰 파일을 감지하지 않습니다. 전송 실행은 추가 데이터를 대상 BigQuery 테이블에 로드하지 않고도 성공합니다.
+위 예시에서는 BigQuery Data Transfer Service가 소스 파일의 updated 타임스탬프 속성을 확인하여 소스 파일에 변경사항이 있는지 확인하고 감지한 변경사항이 있으면 이를 전송하는 방법을 보여줍니다.
+동일한 예시를 따라 사용자가 2023-07-03T00:00Z 시간에 Cloud Storage 버킷에 file_2라는 다른 파일을 만든다고 가정해 보겠습니다. file_2의 updated 타임스탬프 [https://cloud.google.com/storage/docs/metadata?hl=ko#modification-time]는 파일이 생성된 시간입니다.
+다음 전송 실행인 2023-07-03T03:00Z에는 file_2가 마지막으로 성공한 전송 실행(2023-07-01T03:00Z)보다 큰 updated 타임스탬프를 감지합니다. 전송 실행이 시작될 때 일시적인 오류로 인해 실패한다고 가정해 보세요. 이 시나리오에서는 file_2가 대상 BigQuery 테이블에 로드되지 않습니다. 마지막으로 성공한 전송 실행 타임스탬프는 2023-07-01T03:00Z로 유지됩니다.
+다음 전송 실행인 2023-07-04T03:00Z에는 file_2가 마지막으로 성공한 전송 실행(2023-07-01T03:00Z)보다 큰 updated 타임스탬프를 감지합니다. 이번에는 전송 실행이 문제 없이 완료되므로 file_2가 대상 BigQuery 테이블에 성공적으로 로드됩니다.
+다음 전송 실행인 2023-07-05T03:00Z에는 updated 타임스탬프가 마지막으로 성공한 전송 실행(2023-07-04T03:00Z)보다 큰 파일을 감지하지 않습니다. 전송 실행은 추가 데이터를 대상 BigQuery 테이블에 로드하지 않고도 성공합니다.
+앞의 예시는 전송이 실패할 때 BigQuery 대상 테이블에 파일이 전송되지 않는 것을 보여줍니다. 모든 파일 변경사항은 다음에 전송 실행이 성공할 때 전송됩니다. 전송이 실패한 후 다음 전송이 성공해도 중복 데이터가 발생하지는 않습니다. 전송이 실패한 경우 정기적으로 예약된 시간 이외의 전송을 수동으로 트리거 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko#manually_trigger_a_transfer]하도록 선택할 수도 있습니다.
+경고: BigQuery Data Transfer Service는 증분 전송 예시에서 볼 수 있듯이 각 소스 파일의 '마지막 수정 시간' 속성을 사용하여 전송할 파일을 결정합니다. 이러한 속성을 수정하면 전송 시 특정 파일을 건너뛰거나 동일한 파일을 여러 번 로드할 수 있습니다. 이 속성은 BigQuery Data Transfer Service에서 지원되는 각 스토리지 시스템에서 이름이 서로 다를 수 있습니다. 예를 들어 Cloud Storage 객체는 이 속성을 updated [https://cloud.google.com/storage/docs/metadata?hl=ko#modification-time]라고 합니다.
+잘린 전송
+잘린 전송이라고도 하는 MIRROR 또는 WRITE_TRUNCATE 쓰기 환경설정이 있는 전송 구성은 각 전송 중에 BigQuery 대상 테이블의 데이터를 소스 URI와 일치하는 모든 파일의 데이터로 덮어씁니다. MIRROR는 대상 테이블의 새 데이터 복사본을 덮어씁니다. 대상 테이블에 파티션 데코레이터가 사용될 경우 전송 실행 시 지정된 파티션의 데이터만 덮어씁니다. 파티션 데코레이터가 있는 대상 테이블은 my_table${run_date} 형식입니다(예: my_table$20230809).
+하루에 동일한 증분 또는 잘린 전송을 반복해도 중복 데이터가 발생하지 않습니다. 그러나 동일한 BigQuery 대상 테이블에 영향을 미치는 여러 전송 구성을 실행하는 경우 BigQuery Data Transfer Service에서 중복 데이터가 발생할 수 있습니다.
+Cloud Storage 리소스 경로
+Cloud Storage 데이터 소스에서 데이터를 로드하려면 데이터 경로를 제공해야 합니다.
+Cloud Storage 리소스 경로에는 버킷 이름과 객체(파일 이름)가 포함됩니다. 예를 들어 Cloud Storage 버킷 이름이 mybucket이고 데이터 파일 이름이 myfile.csv라면 리소스 경로는 gs://mybucket/myfile.csv가 됩니다.
+BigQuery는 처음 이중 슬래시 다음에 슬래시 여러 개가 연속으로 포함된 Cloud Storage 리소스 경로를 지원하지 않습니다. Cloud Storage 객체 이름에는 연속된 슬래시('/') 문자 여러 개가 포함될 수 있습니다. 하지만 BigQuery는 연속된 슬래시 여러 개를 단일 슬래시로 변환합니다. 예를 들어 gs://bucket/my//object//name 리소스 경로는 Cloud Storage에서는 유효하지만 BigQuery에서는 작동하지 않습니다.
+Cloud Storage 리소스 경로를 검색하려면 다음 안내를 따르세요.
+Cloud Storage 콘솔을 엽니다.
+Cloud Storage 콘솔 [https://console.cloud.google.com/storage/browser?hl=ko]
+소스 데이터가 포함된 객체(파일) 위치로 이동합니다.
+객체의 이름을 클릭합니다.
+객체 세부정보 페이지가 열립니다.
+gsutil URI 필드에 제공된 값(gs://로 시작)을 복사합니다.
+참고: gcloud storage ls [https://cloud.google.com/sdk/gcloud/reference/storage/ls?hl=ko] 명령어를 사용하여 버킷 또는 객체를 나열할 수도 있습니다.
+Cloud Storage 리소스 경로의 와일드 카드 지원
+Cloud Storage 데이터가 공통된 기본 이름을 공유하는 여러 파일로 분리되어 있는 경우, 데이터를 로드할 때 리소스 경로에 와일드 카드를 사용할 수 있습니다.
+Cloud Storage 리소스 경로에 와일드 카드를 추가하려면 기본 이름에 별표(*)를 추가합니다. 예를 들어 fed-sample000001.csv와 fed-sample000002.csv라는 파일 두 개가 있다면 리소스 경로는 gs://mybucket/fed-sample*입니다. 그러면 이 와일드 카드를Google Cloud 콘솔 또는 Google Cloud CLI에서 사용할 수 있습니다.
+버킷 내에서 객체(파일 이름)에 여러 와일드 카드를 사용할 수 있습니다. 와일드 카드는 객체 이름 내의 아무 곳에나 나타날 수 있습니다.
+와일드 카드는 gs://bucket/의 디렉터리를 확장하지 않습니다. 예를 들어 gs://bucket/dir/*는 dir 디렉터리의 파일을 찾지만 gs://bucket/dir/subdir/ 하위 디렉터리의 파일은 찾지 않습니다.
+또한 와일드 카드 없이 프리픽스를 일치시킬 수 없습니다. 예를 들어 gs://bucket/dir은 gs://bucket/dir/file.csv나 gs://bucket/file.csv와 일치하지 않습니다.
+하지만 버킷 내에서 파일 이름에 여러 개의 와일드 카드를 사용할 수 있습니다. 예를 들어 gs://bucket/dir/*/*.csv는 gs://bucket/dir/subdir/file.csv와 일치합니다.
+매개변수화된 테이블 이름과 조합한 와일드카드 지원의 예시는 전송에 런타임 매개변수 [https://cloud.google.com/bigquery/docs/gcs-transfer-parameters?hl=ko]를 참조하세요.
+위치 고려사항
+Cloud Storage 버킷은 BigQuery에서 대상 데이터 세트의 리전 또는 멀티 리전과 호환되는 리전 또는 멀티 리전에 있어야 합니다.
+BigQuery 데이터 세트가 멀티 리전에 있으면 전송 중인 데이터가 포함된 Cloud Storage 버킷은 동일한 멀티 리전이나 멀티 리전 내에 포함된 위치에 있어야 합니다. 예를 들어 BigQuery 데이터 세트가 EU 멀티 리전에 있으면 Cloud Storage 버킷은 EU 내에 있는 europe-west1 벨기에 리전에 있을 수 있습니다.
+데이터 세트가 단일 리전에 있으면 Cloud Storage 버킷은 같은 리전에 있어야 합니다. 예를 들어 데이터 세트가 asia-northeast1 도쿄 리전에 있으면 Cloud Storage 버킷은 ASIA 멀티 리전에 있을 수 없습니다.
+전송 및 리전에 대한 자세한 내용은 데이터 세트 위치 및 전송 [https://cloud.google.com/bigquery/docs/dts-locations?hl=ko]을 참조하세요.
+Cloud Storage 위치에 대한 자세한 내용은 Cloud Storage 문서의 버킷 위치 [https://cloud.google.com/storage/docs/bucket-locations?hl=ko]를 참조하세요.
+요점: 데이터 세트를 복사하거나 수동으로 다른 리전으로 이동할 수 있습니다. 자세한 내용은 데이터 세트 관리 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko]를 참조하세요. Cloud Storage를 사용하여 대규모 데이터 세트를 저장 및 이동하는 방법에 대한 자세한 내용은 빅데이터에 Cloud Storage 사용 [https://cloud.google.com/storage/docs/working-with-big-data?hl=ko]을 참조하세요.
+가격 책정
+로드 작업에 대한 표준 BigQuery 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#load_jobs]가 적용됩니다.
+데이터가 BigQuery로 전송된 후에는 BigQuery의 표준 스토리지 [https://cloud.google.com/bigquery/pricing?hl=ko#storage] 및 쿼리 [https://cloud.google.com/bigquery/pricing?hl=ko#queries] 가격이 적용됩니다.
+전송을 설정할 때 삭제를 지정하지 않으면 BigQuery에 업로드된 데이터는 Cloud Storage 버킷에서 자동으로 삭제되지 않습니다. Cloud Storage 전송 설정 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer?hl=ko#set_up_a_cloud_storage_transfer]을 참조하세요.
+자세한 내용은 전송 가격 책정 페이지 [https://cloud.google.com/bigquery-transfer/pricing?hl=ko]를 참조하세요.
+할당량 및 한도
+BigQuery Data Transfer Service는 로드 작업을 사용하여 Cloud Storage 데이터를 BigQuery로 로드합니다.
+로드 작업에 대한 모든 BigQuery 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#load_jobs]는 다음과 같은 추가 고려사항과 함께 반복되는 Cloud Storage 로드 작업에 적용됩니다.
+값 한도
+로드 작업 전송 실행당 최대 크기 15TB
+전송 실행당 최대 파일 수 10,000개 파일
+다음 단계
+Cloud Storage 전송 설정 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer?hl=ko] 알아보기
+Cloud Storage 전송에서 런타임 매개변수 [https://cloud.google.com/bigquery/docs/gcs-transfer-parameters?hl=ko] 알아보기
+BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/dts-introduction?hl=ko] 자세히 알아보기
+도움이 되었나요?
+의견 보내기

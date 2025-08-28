@@ -1,0 +1,1231 @@
+Source URL: https://cloud.google.com/bigquery/docs/write-api-streaming
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+1회 이상 실행되는 시맨틱스에 기본 스트림 사용 [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#at-least-once]
+다중화 사용 [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#use_multiplexing]
+1회만 실행되는 시맨틱에 커밋 유형 사용 [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#exactly-once]
+Apache Arrow 형식을 사용하여 데이터 수집 [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#arrow-format]
+Storage Write API를 사용한 데이터 스트리밍
+bookmark_border
+이 문서에서는 BigQuery Storage Write API [https://cloud.google.com/bigquery/docs/write-api?hl=ko]를 사용하여 BigQuery로 데이터를 스트리밍하는 방법을 설명합니다.
+스트리밍 시나리오에서는 데이터가 연속적으로 도착하므로 지연 시간을 최소화하면서 읽기에 사용할 수 있습니다. 스트리밍 워크로드에 BigQuery Storage Write API를 사용할 때는 필요한 사항을 고려하세요.
+애플리케이션에 1회 이상 실행되는 시맨틱스만 필요한 경우 기본 스트림을 사용합니다.
+1회만 실행되는 시맨틱스가 필요한 경우 커밋 유형으로 스트림을 한 개 이상 만들고 스트림 오프셋을 사용하여 정확히 1회 쓰기를 보장합니다.
+커밋 유형에서는 서버가 쓰기 요청을 확인하는 즉시 스트림에 작성된 데이터를 쿼리에 사용할 수 있습니다. 기본 스트림도 커밋 유형을 사용하지만 정확히 1회 보장을 제공하지 않습니다.
+1회 이상 실행되는 시맨틱스에 기본 스트림 사용
+애플리케이션이 대상 테이블에 중복된 레코드가 나타날 가능성을 허용하는 경우 스트리밍 시나리오에 기본 스트림 [https://cloud.google.com/bigquery/docs/write-api?hl=ko#default_stream]을 사용하는 것이 좋습니다.
+다음 코드는 기본 스트림에 데이터를 쓰는 방법을 보여줍니다.
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#%EC%9E%90%EB%B0%94] ---
+BigQuery용 클라이언트 라이브러리 설치 및 사용 방법은 BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/storage/libraries?hl=ko]를 참조하세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.core.ApiFuture [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFuture.html?hl=ko];
+import com.google.api.core.ApiFutureCallback [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutureCallback.html?hl=ko];
+import com.google.api.core.ApiFutures [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutures.html?hl=ko];
+import com.google.api.gax.batching.FlowControlSettings [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.batching.FlowControlSettings.html?hl=ko];
+import com.google.api.gax.core.FixedExecutorProvider [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.core.FixedExecutorProvider.html?hl=ko];
+import com.google.api.gax.retrying.RetrySettings [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.html?hl=ko];
+import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.AppendRowsRequest.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.AppendRowsResponse.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko].AppendSerializationError;
+import com.google.cloud.bigquery.storage.v1.Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko].MaximumRequestCallbackWaitTimeExceededException;
+import com.google.cloud.bigquery.storage.v1.Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko].StorageException;
+import com.google.cloud.bigquery.storage.v1.Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko].StreamWriterClosedException;
+import com.google.cloud.bigquery.storage.v1.JsonStreamWriter [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko];
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.protobuf.ByteString [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.ByteString.html?hl=ko];
+import com.google.protobuf.Descriptors [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Descriptors.html?hl=ko].DescriptorValidationException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Descriptors.DescriptorValidationException.html?hl=ko];
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Phaser;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.concurrent.GuardedBy;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.threeten.bp.Duration [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Duration.html?hl=ko];
+
+public class WriteToDefaultStream {
+
+  public static void runWriteToDefaultStream()
+      throws DescriptorValidationException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Descriptors.DescriptorValidationException.html?hl=ko], InterruptedException, IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    writeToDefaultStream(projectId, datasetName, tableName);
+  }
+
+  private static ByteString [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.ByteString.html?hl=ko] buildByteString() {
+    byte[] bytes = new byte[] {1, 2, 3, 4, 5};
+    return ByteString [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.ByteString.html?hl=ko].copyFrom [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.ByteString.html?hl=ko#com_google_protobuf_ByteString_copyFrom_byte___](bytes);
+  }
+
+  // Create a JSON object that is compatible with the table schema.
+  private static JSONObject buildRecord(int i, int j) {
+    JSONObject record = new JSONObject();
+    StringBuilder sbSuffix = new StringBuilder();
+    for (int k = 0; k < j; k++) {
+      sbSuffix.append(k);
+    }
+    record [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.core.Distribution.html?hl=ko#com_google_api_gax_core_Distribution_record_int_].put("test_string", String.format("record %03d-%03d %s", i, j, sbSuffix.toString()));
+    ByteString [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.ByteString.html?hl=ko] byteString = buildByteString();
+    record [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.core.Distribution.html?hl=ko#com_google_api_gax_core_Distribution_record_int_].put("test_bytes", byteString);
+    record [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.core.Distribution.html?hl=ko#com_google_api_gax_core_Distribution_record_int_].put(
+        "test_geo",
+        "POLYGON((-124.49 47.35,-124.49 40.73,-116.49 40.73,-116.49 47.35,-124.49 47.35))");
+    return record;
+  }
+
+  public static void writeToDefaultStream(String projectId, String datasetName, String tableName)
+      throws DescriptorValidationException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Descriptors.DescriptorValidationException.html?hl=ko], InterruptedException, IOException {
+    TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko] parentTable = TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko].of(projectId, datasetName, tableName);
+
+    DataWriter writer = new DataWriter();
+    // One time initialization for the worker.
+    writer [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_writer_com_google_cloud_bigquery_JobId_com_google_cloud_bigquery_WriteChannelConfiguration_].initialize(parentTable);
+
+    // Write two batches of fake data to the stream, each with 10 JSON records.  Data may be
+    // batched up to the maximum request size:
+    // https://cloud.google.com/bigquery/quotas#write-api-limits
+    for (int i = 0; i < 2; i++) {
+      JSONArray jsonArr = new JSONArray();
+      for (int j = 0; j < 10; j++) {
+        JSONObject record = buildRecord(i, j);
+        jsonArr.put(record);
+      }
+
+      writer [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_writer_com_google_cloud_bigquery_JobId_com_google_cloud_bigquery_WriteChannelConfiguration_].append(new AppendContext(jsonArr));
+    }
+
+    // Final cleanup for the stream during worker teardown.
+    writer [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_writer_com_google_cloud_bigquery_JobId_com_google_cloud_bigquery_WriteChannelConfiguration_].cleanup();
+    verifyExpectedRowCount(parentTable, 12);
+    System.out.println("Appended records successfully.");
+  }
+
+  private static void verifyExpectedRowCount(TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko] parentTable, int expectedRowCount)
+      throws InterruptedException {
+    String queryRowCount =
+        "SELECT COUNT(*) FROM `"
+            + parentTable.getProject [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko#com_google_cloud_bigquery_storage_v1_TableName_getProject__]()
+            + "."
+            + parentTable.getDataset [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko#com_google_cloud_bigquery_storage_v1_TableName_getDataset__]()
+            + "."
+            + parentTable.getTable [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko#com_google_cloud_bigquery_storage_v1_TableName_getTable__]()
+            + "`";
+    QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko] queryConfig = QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko].newBuilder(queryRowCount).build();
+    BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+    TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko] results = bigquery.query [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_query_com_google_cloud_bigquery_QueryJobConfiguration_com_google_cloud_bigquery_BigQuery_JobOption____](queryConfig);
+    int countRowsActual =
+        Integer.parseInt(results.getValues [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko#com_google_cloud_bigquery_TableResult_getValues__]().iterator().next().get("f0_").getStringValue());
+    if (countRowsActual != expectedRowCount) {
+      throw new RuntimeException(
+          "Unexpected row count. Expected: " + expectedRowCount + ". Actual: " + countRowsActual);
+    }
+  }
+
+  private static class AppendContext {
+
+    JSONArray data;
+
+    AppendContext(JSONArray data) {
+      this.data = data;
+    }
+  }
+
+  private static class DataWriter {
+
+    private static final int MAX_RECREATE_COUNT = 3;
+
+    private BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko] client;
+
+    // Track the number of in-flight requests to wait for all responses before shutting down.
+    private final Phaser inflightRequestCount = new Phaser(1);
+    private final Object lock = new Object();
+    private JsonStreamWriter [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko] streamWriter;
+
+    @GuardedBy("lock")
+    private RuntimeException error = null;
+
+    private AtomicInteger recreateCount = new AtomicInteger(0);
+
+    private JsonStreamWriter [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko] createStreamWriter(String tableName)
+        throws DescriptorValidationException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Descriptors.DescriptorValidationException.html?hl=ko], IOException, InterruptedException {
+      // Configure in-stream automatic retry settings.
+      // Error codes that are immediately retried:
+      // * ABORTED, UNAVAILABLE, CANCELLED, INTERNAL, DEADLINE_EXCEEDED
+      // Error codes that are retried with exponential backoff:
+      // * RESOURCE_EXHAUSTED
+      RetrySettings [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.html?hl=ko] retrySettings =
+          RetrySettings [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.html?hl=ko].newBuilder()
+              .setInitialRetryDelay [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setInitialRetryDelay_org_threeten_bp_Duration_](Duration [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Duration.html?hl=ko].ofMillis(500))
+              .setRetryDelayMultiplier [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setRetryDelayMultiplier_double_](1.1)
+              .setMaxAttempts [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setMaxAttempts_int_](5)
+              .setMaxRetryDelay [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setMaxRetryDelay_org_threeten_bp_Duration_](Duration [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Duration.html?hl=ko].ofMinutes(1))
+              .build();
+
+      // Use the JSON stream writer to send records in JSON format. Specify the table name to write
+      // to the default stream.
+      // For more information about JsonStreamWriter, see:
+      // https://googleapis.dev/java/google-cloud-bigquerystorage/latest/com/google/cloud/bigquery/storage/v1/JsonStreamWriter.html
+      return JsonStreamWriter [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko].newBuilder(tableName, client)
+          .setExecutorProvider(FixedExecutorProvider [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.core.FixedExecutorProvider.html?hl=ko].create(Executors.newScheduledThreadPool(100)))
+          .setChannelProvider(
+              BigQueryWriteSettings [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings.html?hl=ko].defaultGrpcTransportProviderBuilder()
+                  .setKeepAliveTime(org.threeten.bp.Duration.ofMinutes(1))
+                  .setKeepAliveTimeout(org.threeten.bp.Duration.ofMinutes(1))
+                  .setKeepAliveWithoutCalls(true)
+                  .setChannelsPerCpu(2)
+                  .build())
+          .setEnableConnectionPool(true)
+          // This will allow connection pool to scale up better.
+          .setFlowControlSettings(
+              FlowControlSettings [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.batching.FlowControlSettings.html?hl=ko].newBuilder().setMaxOutstandingElementCount(100L).build())
+          // If value is missing in json and there is a default value configured on bigquery
+          // column, apply the default value to the missing value field.
+          .setDefaultMissingValueInterpretation(
+              AppendRowsRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.AppendRowsRequest.html?hl=ko].MissingValueInterpretation.DEFAULT_VALUE)
+          .setRetrySettings(retrySettings)
+          .build();
+    }
+
+    public void initialize(TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko] parentTable)
+        throws DescriptorValidationException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Descriptors.DescriptorValidationException.html?hl=ko], IOException, InterruptedException {
+      // Initialize client without settings, internally within stream writer a new client will be
+      // created with full settings.
+      client = BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko].create();
+
+      streamWriter = createStreamWriter(parentTable.toString [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko#com_google_cloud_bigquery_storage_v1_TableName_toString__]());
+    }
+
+    public void append(AppendContext appendContext)
+        throws DescriptorValidationException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Descriptors.DescriptorValidationException.html?hl=ko], IOException, InterruptedException {
+      synchronized (this.lock) {
+        if (!streamWriter.isUserClosed [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_isUserClosed__]()
+            && streamWriter.isClosed [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_isClosed__]()
+            && recreateCount.getAndIncrement() < MAX_RECREATE_COUNT) {
+          streamWriter = createStreamWriter(streamWriter.getStreamName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_getStreamName__]());
+          this.error = null;
+        }
+        // If earlier appends have failed, we need to reset before continuing.
+        if (this.error != null) {
+          throw this.error;
+        }
+      }
+      // Append asynchronously for increased throughput.
+      ApiFuture<AppendRowsResponse> future = streamWriter.append [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_append_com_google_gson_JsonArray_](append [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_append_com_google_gson_JsonArray_]Context.data);
+      ApiFutures [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutures.html?hl=ko].addCallback [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutures.html?hl=ko#com_google_api_core_ApiFutures__V_addCallback_com_google_api_core_ApiFuture_V__com_google_api_core_ApiFutureCallback___super_V__](
+          future, new AppendCompleteCallback(this, appendContext), MoreExecutors.directExecutor());
+
+      // Increase the count of in-flight requests.
+      inflightRequestCount.register();
+    }
+
+    public void cleanup() {
+      // Wait for all in-flight requests to complete.
+      inflightRequestCount.arriveAndAwaitAdvance();
+
+      client.close [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko#com_google_cloud_bigquery_storage_v1_BigQueryWriteClient_close__]();
+      // Close the connection to the server.
+      streamWriter.close [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_close__]();
+
+      // Verify that no error occurred in the stream.
+      synchronized (this.lock) {
+        if (this.error != null) {
+          throw this.error;
+        }
+      }
+    }
+
+    static class AppendCompleteCallback implements ApiFutureCallback<AppendRowsResponse> {
+
+      private final DataWriter parent;
+      private final AppendContext appendContext;
+
+      public AppendCompleteCallback(DataWriter parent, AppendContext appendContext) {
+        this.parent = parent;
+        this.appendContext = appendContext;
+      }
+
+      public void onSuccess(AppendRowsResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.AppendRowsResponse.html?hl=ko] response) {
+        System.out.format("Append success\n");
+        this.parent.recreateCount.set(0);
+        done();
+      }
+
+      public void onFailure(Throwable throwable) {
+        if (throwable instanceof AppendSerializationError) {
+          AppendSerializationError ase = (AppendSerializationError) throwable;
+          Map<Integer, String> rowIndexToErrorMessage = ase.getRowIndexToErrorMessage();
+          if (rowIndexToErrorMessage.size() > 0) {
+            // Omit the faulty rows
+            JSONArray dataNew = new JSONArray();
+            for (int i = 0; i < appendContext.data.length(); i++) {
+              if (!rowIndexToErrorMessage.containsKey(i)) {
+                dataNew.put(appendContext.data.get(i));
+              } else {
+                // process faulty rows by placing them on a dead-letter-queue, for instance
+              }
+            }
+
+            // Retry the remaining valid rows, but using a separate thread to
+            // avoid potentially blocking while we are in a callback.
+            if (dataNew.length() > 0) {
+              try {
+                this.parent.append(new AppendContext(dataNew));
+              } catch (DescriptorValidationException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Descriptors.DescriptorValidationException.html?hl=ko] e) {
+                throw new RuntimeException(e);
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            }
+            // Mark the existing attempt as done since we got a response for it
+            done();
+            return;
+          }
+        }
+
+        boolean resendRequest = false;
+        if (throwable instanceof MaximumRequestCallbackWaitTimeExceededException) {
+          resendRequest = true;
+        } else if (throwable instanceof StreamWriterClosedException) {
+          if (!parent.streamWriter.isUserClosed()) {
+            resendRequest = true;
+          }
+        }
+        if (resendRequest) {
+          // Retry this request.
+          try {
+            this.parent.append(new AppendContext(appendContext.data));
+          } catch (DescriptorValidationException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Descriptors.DescriptorValidationException.html?hl=ko] e) {
+            throw new RuntimeException(e);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+          // Mark the existing attempt as done since we got a response for it
+          done();
+          return;
+        }
+
+        synchronized (this.parent.lock) {
+          if (this.parent.error == null) {
+            StorageException storageException = Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko].toStorageException(throwable);
+            this.parent.error =
+                (storageException != null) ? storageException : new RuntimeException(throwable);
+          }
+        }
+        done();
+      }
+
+      private void done() {
+        // Reduce the count of in-flight requests.
+        this.parent.inflightRequestCount.arriveAndDeregister();
+      }
+    }
+  }
+}
+
+--- 탭: Node.js [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#node.js] ---
+BigQuery용 클라이언트 라이브러리 설치 및 사용 방법은 BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/storage/libraries?hl=ko]를 참조하세요.
+        
+      
+      
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  const {adapt, managedwriter} = require('@google-cloud/bigquery-storage [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko]');
+const {WriterClient, JSONWriter} = managedwriter;
+
+async function appendJSONRowsDefaultStream() {
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // projectId = 'my_project';
+  // datasetId = 'my_dataset';
+  // tableId = 'my_table';
+
+  const destinationTable = `projects/${projectId}/datasets/${datasetId}/tables/${tableId}`;
+  const writeClient = new WriterClient [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko]({projectId});
+
+  try {
+    const writeStream = await writeClient.getWriteStream({
+      streamId: `${destinationTable}/streams/_default`,
+      view: 'FULL [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/bigquery-storage/protos.google.cloud.bigquery.storage.v1.writestreamview.html?hl=ko]',
+    });
+    const protoDescriptor = adapt.convertStorageSchemaToProto2Descriptor [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko](
+      writeStream.tableSchema,
+      'root',
+    );
+
+    const connection = await writeClient.createStreamConnection [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/bigquery-storage/managedwriter.writerclient.html?hl=ko]({
+      streamId: managedwriter.DefaultStream [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko],
+      destinationTable,
+    });
+    const streamId = connection.getStreamId();
+
+    const writer = new JSONWriter [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/bigquery-storage/managedwriter.jsonwriter.html?hl=ko]({
+      streamId,
+      connection,
+      protoDescriptor,
+    });
+
+    let rows = [];
+    const pendingWrites = [];
+
+    // Row 1
+    let row = {
+      row_num: 1,
+      customer_name: 'Octavia',
+    };
+    rows.push(row);
+
+    // Row 2
+    row = {
+      row_num: 2,
+      customer_name: 'Turing',
+    };
+    rows.push(row);
+
+    // Send batch.
+    let pw = writer.appendRows(rows);
+    pendingWrites.push(pw);
+
+    rows = [];
+
+    // Row 3
+    row = {
+      row_num: 3,
+      customer_name: 'Bell',
+    };
+    rows.push(row);
+
+    // Send batch.
+    pw = writer.appendRows(rows);
+    pendingWrites.push(pw);
+
+    const results = await Promise.all(
+      pendingWrites.map(pw => pw.getResult()),
+    );
+    console.log('Write results:', results);
+  } catch (err) {
+    console.log(err);
+  } finally {
+    writeClient.close();
+  }
+}
+
+--- 탭: Python [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#python] ---
+이 예시에서는 기본 스트림을 사용하여 필드가 두 개인 레코드를 삽입하는 방법을 보여줍니다.
+
+
+from google.cloud import bigquery_storage_v1 [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/?hl=ko]
+from google.cloud.bigquery_storage_v1 import types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko]
+from google.cloud.bigquery_storage_v1 import writer [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.html?hl=ko]
+from google.protobuf import descriptor_pb2
+import logging
+import json
+
+import sample_data_pb2
+
+# The list of columns from the table's schema to search in the given data to write to BigQuery.
+TABLE_COLUMNS_TO_CHECK = [
+    "name",
+    "age"
+    ]
+
+# Function to create a batch of row data to be serialized.
+def create_row_data(data):
+    row = sample_data_pb2.SampleData()
+    for field in TABLE_COLUMNS_TO_CHECK:
+      # Optional fields will be passed as null if not provided
+      if field in data:
+        setattr(row, field, data[field])
+    return row.SerializeToString()
+
+class BigQueryStorageWriteAppend(object):
+
+    # The stream name is: projects/{project}/datasets/{dataset}/tables/{table}/_default
+    def append_rows_proto2(
+        project_id: str, dataset_id: str, table_id: str, data: dict
+    ):
+
+        write_client = bigquery_storage_v1 [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/?hl=ko].BigQueryWriteClient()
+        parent = write_client.table_path [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.services.big_query_write.BigQueryWriteClient.html?hl=ko#google_cloud_bigquery_storage_v1_services_big_query_write_BigQueryWriteClient_table_path](project_id, dataset_id, table_id)
+        stream_name = f'{parent}/_default'
+        write_stream = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].WriteStream [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.WriteStream.html?hl=ko]()
+
+        # Create a template with fields needed for the first request.
+        request_template = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko]()
+
+        # The request must contain the stream name.
+        request_template.write_stream = stream_name
+
+        # Generating the protocol buffer representation of the message descriptor.
+        proto_schema = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].ProtoSchema [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.ProtoSchema.html?hl=ko]()
+        proto_descriptor = descriptor_pb2.DescriptorProto()
+        sample_data_pb2.SampleData.DESCRIPTOR.CopyToProto(proto_descriptor)
+        proto_schema.proto_descriptor = proto_descriptor
+        proto_data = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko].ProtoData [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.ProtoData.html?hl=ko]()
+        proto_data.writer_schema = proto_schema
+        request_template.proto_rows = proto_data
+
+        # Construct an AppendRowsStream to send an arbitrary number of requests to a stream.
+        append_rows_stream = writer [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.html?hl=ko].AppendRowsStream [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.AppendRowsStream.html?hl=ko](write_client, request_template)
+
+        # Append proto2 serialized bytes to the serialized_rows repeated field using create_row_data.
+        proto_rows = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].ProtoRows [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.ProtoRows.html?hl=ko]()
+        for row in data:
+            proto_rows.serialized_rows.append(create_row_data(row))
+
+        # Appends data to the given stream.
+        request = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko]()
+        proto_data = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko].ProtoData [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.ProtoData.html?hl=ko]()
+        proto_data.rows [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.reader.ReadRowsStream.html?hl=ko#google_cloud_bigquery_storage_v1_reader_ReadRowsStream_rows] = proto_rows
+        request.proto_rows = proto_data
+
+        append_rows_stream.send [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.AppendRowsStream.html?hl=ko#google_cloud_bigquery_storage_v1beta2_writer_AppendRowsStream_send](request)
+
+        print(f"Rows to table: '{parent}' have been written.")
+
+if __name__ == "__main__":
+
+    ###### Uncomment the below block to provide additional logging capabilities ######
+    #logging.basicConfig(
+    #    level=logging.DEBUG,
+    #    format="%(asctime)s [%(levelname)s] %(message)s",
+    #    handlers=[
+    #        logging.StreamHandler()
+    #    ]
+    #)
+    ###### Uncomment the above block to provide additional logging capabilities ######
+
+    with open('entries.json', 'r') as json_file:
+        data = json.load(json_file)
+    # Change this to your specific BigQuery project, dataset, table details
+    BigQueryStorageWriteAppend.append_rows_proto2("PROJECT_ID","DATASET_ID", "TABLE_ID ",data=data)
+
+이 코드 예시는 컴파일된 프로토콜 모듈 sample_data_pb2.py에 따라 다릅니다. 컴파일된 모듈을 만들려면 protoc --python_out=. sample_data.proto 명령어를 실행합니다. 여기서 protoc은 프로토콜 버퍼 컴파일러입니다. sample_data.proto 파일은 Python 예시에 사용된 메시지 형식을 정의합니다. protoc 컴파일러를 설치하려면 Protocol Buffers - Google의 데이터 교환 형식 [https://github.com/protocolbuffers/protobuf]의 안내를 따르세요.
+
+다음은 sample_data.proto 파일의 콘텐츠입니다.
+
+message SampleData {
+  required string name = 1;
+  required int64 age = 2;
+}
+
+이 스크립트는 BigQuery 테이블에 삽입할 샘플 행 데이터가 포함된 entries.json 파일을 사용합니다.
+{"name": "Jim", "age": 35}
+{"name": "Jane", "age": 27}
+다중화 사용
+기본 스트림에 대해서만 스트림 작성자 수준에서 다중화 [https://cloud.google.com/bigquery/docs/write-api-best-practices?hl=ko#connection_pool_management]를 사용 설정합니다. Java에서 다중화를 사용 설정하려면 StreamWriter 또는 JsonStreamWriter 객체를 구성할 때 setEnableConnectionPool 메서드를 호출합니다.
+연결 풀을 사용 설정하면 Java 클라이언트 라이브러리가 백그라운드에서 연결을 관리하고 기존 연결이 너무 바쁘다고 판단되면 연결을 확장합니다. 자동 확장의 효과를 높이려면 maxInflightRequests 한도를 낮추는 것이 좋습니다.
+// One possible way for constructing StreamWriter
+StreamWriter.newBuilder(streamName)
+              .setWriterSchema(protoSchema)
+              .setEnableConnectionPool(true)
+              .setMaxInflightRequests(100)
+              .build();
+// One possible way for constructing JsonStreamWriter
+JsonStreamWriter.newBuilder(tableName, bigqueryClient)
+              .setEnableConnectionPool(true)
+              .setMaxInflightRequests(100)
+              .build();
+Go에서 다중화를 사용 설정하려면 연결 공유(다중화) [https://pkg.go.dev/cloud.google.com/go/bigquery/storage/managedwriter#hdr-Connection_Sharing__Multiplexing_]를 참조하세요.
+1회만 실행되는 시맨틱에 커밋 유형 사용
+1회만 실행되는 쓰기 시맨틱스가 필요하면 커밋 유형으로 쓰기 스트림을 만듭니다. 커밋 유형에서는 클라이언트가 백엔드로부터 확인을 수신하는 즉시 쿼리에 레코드를 사용할 수 있습니다.
+커밋 유형은 레코드 오프셋을 사용하여 스트림 내에서 정확히 한 번만 전달을 제공합니다. 애플리케이션은 레코드 오프셋을 사용하여 각 AppendRows [https://cloud.google.com/bigquery/docs/reference/storage/rpc/google.cloud.bigquery.storage.v1?hl=ko#google.cloud.bigquery.storage.v1.BigQueryWrite.AppendRows] 호출에서 다음 추가 오프셋을 지정합니다. 쓰기 작업은 오프셋 값이 다음 추가 오프셋과 일치할 때만 수행됩니다. 자세한 내용은 스트림 오프셋 관리를 통해 1회만 실행되는 시맨틱스 구현 [https://cloud.google.com/bigquery/docs/write-api-best-practices?hl=ko#manage_stream_offsets_to_achieve_exactly-once_semantics]을 참조하세요.
+오프셋을 제공하지 않으면 스트림의 현재 끝에 레코드가 추가됩니다. 이 경우 추가 요청으로 오류가 반환될 때 이를 다시 시도하면 레코드가 스트림에서 두 번 이상 표시되는 결과가 발생합니다.
+커밋 유형을 사용하려면 다음 단계를 수행합니다.
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#%EC%9E%90%EB%B0%94] ---
+CreateWriteStream을 호출하여 커밋 유형으로 스트림을 하나 이상 만듭니다.
+각 스트림에 대해 루프에서 AppendRows를 호출하여 레코드 배치를 씁니다.
+스트림마다 FinalizeWriteStream을 호출하여 스트림을 해제합니다. 이 메서드를 호출한 다음에는 스트림에 추가 행을 기록할 수 없습니다. 이 단계는 커밋 유형에서 선택사항이지만 활성 스트림의 한도를 초과하지 않도록 도와줍니다. 자세한 내용은 스트림 생성 속도 제한 [https://cloud.google.com/bigquery/docs/write-api-best-practices?hl=ko#limit_the_rate_of_stream_creation]을 참조하세요.
+
+--- 탭: Node.js [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#node.js] ---
+createWriteStreamFullResponse을 호출하여 커밋 유형으로 스트림을 하나 이상 만듭니다.
+각 스트림에 대해 루프에서 appendRows를 호출하여 레코드 배치를 씁니다.
+스트림마다 finalize을 호출하여 스트림을 해제합니다. 이 메서드를 호출한 다음에는 스트림에 추가 행을 기록할 수 없습니다. 이 단계는 커밋 유형에서 선택사항이지만 활성 스트림의 한도를 초과하지 않도록 도와줍니다. 자세한 내용은 스트림 생성 속도 제한 [https://cloud.google.com/bigquery/docs/write-api-best-practices?hl=ko#limit_the_rate_of_stream_creation]을 참조하세요.
+스트리밍은 명시적으로 삭제할 수 없습니다. 스트림은 시스템 정의 TTL(수명)을 따릅니다.
+스트림에 트래픽이 없으면 커밋된 스트림의 TTL이 3일입니다.
+스트림에 트래픽이 없으면 기본적으로 버퍼링된 스트림의 TTL은 7일입니다.
+다음은 커밋 유형을 사용하는 방법을 보여주는 코드입니다.
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#%EC%9E%90%EB%B0%94] ---
+BigQuery용 클라이언트 라이브러리 설치 및 사용 방법은 BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/storage/libraries?hl=ko]를 참조하세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.core.ApiFuture [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFuture.html?hl=ko];
+import com.google.api.core.ApiFutureCallback [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutureCallback.html?hl=ko];
+import com.google.api.core.ApiFutures [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutures.html?hl=ko];
+import com.google.api.gax.retrying.RetrySettings [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.AppendRowsResponse.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko].StorageException [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.StorageException.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.JsonStreamWriter [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.WriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko];
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.protobuf.Descriptors.DescriptorValidationException;
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Phaser;
+import javax.annotation.concurrent.GuardedBy;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.threeten.bp.Duration;
+
+public class WriteCommittedStream {
+
+  public static void runWriteCommittedStream()
+      throws DescriptorValidationException, InterruptedException, IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+
+    writeCommittedStream(projectId, datasetName, tableName);
+  }
+
+  public static void writeCommittedStream(String projectId, String datasetName, String tableName)
+      throws DescriptorValidationException, InterruptedException, IOException {
+    BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko] client = BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko].create();
+    TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko] parentTable = TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko].of(projectId, datasetName, tableName);
+
+    DataWriter writer = new DataWriter();
+    // One time initialization.
+    writer.initialize(parentTable, client);
+
+    try {
+      // Write two batches of fake data to the stream, each with 10 JSON records.  Data may be
+      // batched up to the maximum request size:
+      // https://cloud.google.com/bigquery/quotas#write-api-limits
+      long offset = 0;
+      for (int i = 0; i < 2; i++) {
+        // Create a JSON object that is compatible with the table schema.
+        JSONArray jsonArr = new JSONArray();
+        for (int j = 0; j < 10; j++) {
+          JSONObject record = new JSONObject();
+          record.put("col1", String.format("batch-record %03d-%03d", i, j));
+          jsonArr.put(record);
+        }
+        writer.append(jsonArr, offset);
+        offset += jsonArr.length();
+      }
+    } catch (ExecutionException e) {
+      // If the wrapped exception is a StatusRuntimeException, check the state of the operation.
+      // If the state is INTERNAL, CANCELLED, or ABORTED, you can retry. For more information, see:
+      // https://grpc.github.io/grpc-java/javadoc/io/grpc/StatusRuntimeException.html
+      System.out.println("Failed to append records. \n" + e);
+    }
+
+    // Final cleanup for the stream.
+    writer.cleanup(client);
+    System.out.println("Appended records successfully.");
+  }
+
+  // A simple wrapper object showing how the stateful stream writer should be used.
+  private static class DataWriter {
+
+    private JsonStreamWriter [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko] streamWriter;
+    // Track the number of in-flight requests to wait for all responses before shutting down.
+    private final Phaser inflightRequestCount = new Phaser(1);
+
+    private final Object lock = new Object();
+
+    @GuardedBy("lock")
+    private RuntimeException error = null;
+
+    void initialize(TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko] parentTable, BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko] client)
+        throws IOException, DescriptorValidationException, InterruptedException {
+      // Initialize a write stream for the specified table.
+      // For more information on WriteStream.Type, see:
+      // https://googleapis.dev/java/google-cloud-bigquerystorage/latest/com/google/cloud/bigquery/storage/v1/WriteStream.Type.html
+      WriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko] stream = WriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko].newBuilder().setType(WriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko].Type.COMMITTED).build();
+
+      CreateWriteStreamRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest.html?hl=ko] createWriteStreamRequest =
+          CreateWriteStreamRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest.html?hl=ko].newBuilder()
+              .setParent(parentTable.toString [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko#com_google_cloud_bigquery_storage_v1_TableName_toString__]())
+              .setWriteStream(stream)
+              .build();
+      WriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko] writeStream = client.createWriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko#com_google_cloud_bigquery_storage_v1_BigQueryWriteClient_createWriteStream_com_google_cloud_bigquery_storage_v1_CreateWriteStreamRequest_](createWriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko#com_google_cloud_bigquery_storage_v1_BigQueryWriteClient_createWriteStream_com_google_cloud_bigquery_storage_v1_CreateWriteStreamRequest_]Request);
+
+      // Configure in-stream automatic retry settings.
+      // Error codes that are immediately retried:
+      // * ABORTED, UNAVAILABLE, CANCELLED, INTERNAL, DEADLINE_EXCEEDED
+      // Error codes that are retried with exponential backoff:
+      // * RESOURCE_EXHAUSTED
+      RetrySettings [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.html?hl=ko] retrySettings =
+          RetrySettings [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.html?hl=ko].newBuilder()
+              .setInitialRetryDelay [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setInitialRetryDelay_org_threeten_bp_Duration_](Duration.ofMillis(500))
+              .setRetryDelayMultiplier [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setRetryDelayMultiplier_double_](1.1)
+              .setMaxAttempts [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setMaxAttempts_int_](5)
+              .setMaxRetryDelay [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setMaxRetryDelay_org_threeten_bp_Duration_](Duration.ofMinutes(1))
+              .build();
+
+      // Use the JSON stream writer to send records in JSON format.
+      // For more information about JsonStreamWriter, see:
+      // https://googleapis.dev/java/google-cloud-bigquerystorage/latest/com/google/cloud/bigquery/storage/v1/JsonStreamWriter.html
+      streamWriter =
+          JsonStreamWriter [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko].newBuilder(writeStream.getName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko#com_google_cloud_bigquery_storage_v1_WriteStream_getName__](), writeStream.getTableSchema [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko#com_google_cloud_bigquery_storage_v1_WriteStream_getTableSchema__](), client)
+              .setRetrySettings(retrySettings)
+              .build();
+    }
+
+    public void append(JSONArray data, long offset)
+        throws DescriptorValidationException, IOException, ExecutionException {
+      synchronized (this.lock) {
+        // If earlier appends have failed, we need to reset before continuing.
+        if (this.error != null) {
+          throw this.error;
+        }
+      }
+      // Append asynchronously for increased throughput.
+      ApiFuture<AppendRowsResponse> future = streamWriter.append [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_append_com_google_gson_JsonArray_](data, offset);
+      ApiFutures [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutures.html?hl=ko].addCallback [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutures.html?hl=ko#com_google_api_core_ApiFutures__V_addCallback_com_google_api_core_ApiFuture_V__com_google_api_core_ApiFutureCallback___super_V__](
+          future, new DataWriter.AppendCompleteCallback(this), MoreExecutors.directExecutor());
+      // Increase the count of in-flight requests.
+      inflightRequestCount.register();
+    }
+
+    public void cleanup(BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko] client) {
+      // Wait for all in-flight requests to complete.
+      inflightRequestCount.arriveAndAwaitAdvance();
+
+      // Close the connection to the server.
+      streamWriter.close [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_close__]();
+
+      // Verify that no error occurred in the stream.
+      synchronized (this.lock) {
+        if (this.error != null) {
+          throw this.error;
+        }
+      }
+
+      // Finalize the stream.
+      FinalizeWriteStreamResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse.html?hl=ko] finalizeResponse =
+          client.finalizeWriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko#com_google_cloud_bigquery_storage_v1_BigQueryWriteClient_finalizeWriteStream_com_google_cloud_bigquery_storage_v1_FinalizeWriteStreamRequest_](streamWriter.getStreamName());
+      System.out.println("Rows written: " + finalizeResponse.getRowCount [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse.html?hl=ko#com_google_cloud_bigquery_storage_v1_FinalizeWriteStreamResponse_getRowCount__]());
+    }
+
+    public String getStreamName() {
+      return streamWriter.getStreamName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_getStreamName__]();
+    }
+
+    static class AppendCompleteCallback implements ApiFutureCallback<AppendRowsResponse> {
+
+      private final DataWriter parent;
+
+      public AppendCompleteCallback(DataWriter parent) {
+        this.parent = parent;
+      }
+
+      public void onSuccess(AppendRowsResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.AppendRowsResponse.html?hl=ko] response) {
+        System.out.format("Append %d success\n", response.getAppendResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.AppendRowsResponse.html?hl=ko#com_google_cloud_bigquery_storage_v1_AppendRowsResponse_getAppendResult__]().getOffset().getValue());
+        done();
+      }
+
+      public void onFailure(Throwable throwable) {
+        synchronized (this.parent.lock) {
+          if (this.parent.error == null) {
+            StorageException [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.StorageException.html?hl=ko] storageException = Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko].toStorageException [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko#com_google_cloud_bigquery_storage_v1_Exceptions_toStorageException_com_google_rpc_Status_java_lang_Throwable_](throwable);
+            this.parent.error =
+                (storageException != null) ? storageException : new RuntimeException(throwable);
+          }
+        }
+        System.out.format("Error: %s\n", throwable.toString());
+        done();
+      }
+
+      private void done() {
+        // Reduce the count of in-flight requests.
+        this.parent.inflightRequestCount.arriveAndDeregister();
+      }
+    }
+  }
+}
+
+--- 탭: Node.js [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#node.js] ---
+BigQuery용 클라이언트 라이브러리 설치 및 사용 방법은 BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/storage/libraries?hl=ko]를 참조하세요.
+        
+      
+      
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  const {adapt, managedwriter} = require('@google-cloud/bigquery-storage [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko]');
+const {WriterClient, JSONWriter} = managedwriter;
+
+async function appendJSONRowsCommittedStream() {
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // projectId = 'my_project';
+  // datasetId = 'my_dataset';
+  // tableId = 'my_table';
+
+  const destinationTable = `projects/${projectId}/datasets/${datasetId}/tables/${tableId}`;
+  const streamType = managedwriter.CommittedStream [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko];
+  const writeClient = new WriterClient [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko]({projectId});
+
+  try {
+    const writeStream = await writeClient.createWriteStreamFullResponse [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/bigquery-storage/managedwriter.writerclient.html?hl=ko]({
+      streamType,
+      destinationTable,
+    });
+    const streamId = writeStream.name;
+    console.log(`Stream created: ${streamId}`);
+
+    const protoDescriptor = adapt.convertStorageSchemaToProto2Descriptor [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko](
+      writeStream.tableSchema,
+      'root',
+    );
+
+    const connection = await writeClient.createStreamConnection [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/bigquery-storage/managedwriter.writerclient.html?hl=ko]({
+      streamId,
+    });
+
+    const writer = new JSONWriter [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/bigquery-storage/managedwriter.jsonwriter.html?hl=ko]({
+      streamId,
+      connection,
+      protoDescriptor,
+    });
+
+    let rows = [];
+    const pendingWrites = [];
+
+    // Row 1
+    let row = {
+      row_num: 1,
+      customer_name: 'Octavia',
+    };
+    rows.push(row);
+
+    // Row 2
+    row = {
+      row_num: 2,
+      customer_name: 'Turing',
+    };
+    rows.push(row);
+
+    // Send batch.
+    let pw = writer.appendRows(rows);
+    pendingWrites.push(pw);
+
+    rows = [];
+
+    // Row 3
+    row = {
+      row_num: 3,
+      customer_name: 'Bell',
+    };
+    rows.push(row);
+
+    // Send batch.
+    pw = writer.appendRows(rows);
+    pendingWrites.push(pw);
+
+    const results = await Promise.all(
+      pendingWrites.map(pw => pw.getResult()),
+    );
+    console.log('Write results:', results);
+
+    const {rowCount} = await connection.finalize();
+    console.log(`Row count: ${rowCount}`);
+  } catch (err) {
+    console.log(err);
+  } finally {
+    writeClient.close();
+  }
+}
+Apache Arrow 형식을 사용하여 데이터 수집
+다음 코드는 Apache Arrow 형식을 사용하여 데이터를 수집하는 방법을 보여줍니다. 자세한 포괄적인 예는 GitHub의 PyArrow 예시 [https://github.com/googleapis/python-bigquery-storage/tree/main/samples/pyarrow]를 참조하세요.
+--- 탭: Python [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#python] ---
+이 예시에서는 기본 스트림을 사용하여 직렬화된 PyArrow 테이블을 수집하는 방법을 보여줍니다.
+
+
+from google.cloud.bigquery_storage_v1 import types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko] as gapic_types
+from google.cloud.bigquery_storage_v1.writer import AppendRowsStream [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.AppendRowsStream.html?hl=ko]
+from google.cloud import bigquery_storage_v1 [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/?hl=ko]
+
+def append_rows_with_pyarrow(
+  pyarrow_table: pyarrow.Table,
+  project_id: str,
+  dataset_id: str,
+  table_id: str,
+):
+  bqstorage_write_client = bigquery_storage_v1 [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/?hl=ko].BigQueryWriteClient()
+
+  # Create request_template.
+  request_template = gapic_types.AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko]()
+  request_template.write_stream = (
+      f"projects/{project_id}/datasets/{dataset_id}/tables/{table_id}/_default"
+  )
+  arrow_data = gapic_types.AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko].ArrowData [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.ArrowData.html?hl=ko]()
+  arrow_data.writer_schema.serialized_schema = (
+      pyarrow_table.schema.serialize().to_pybytes()
+  )
+  request_template.arrow_rows = arrow_data
+
+  # Create AppendRowsStream.
+  append_rows_stream = AppendRowsStream(
+      bqstorage_write_client,
+      request_template,
+  )
+
+  # Create request with table data.
+  request = gapic_types.AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko]()
+  request.arrow_rows.rows [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.reader.ReadRowsStream.html?hl=ko#google_cloud_bigquery_storage_v1_reader_ReadRowsStream_rows].serialized_record_batch = (
+      pyarrow_table.to_batches()[0].serialize().to_pybytes()
+  )
+
+  # Send request.
+  future = append_rows_stream.send [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.AppendRowsStream.html?hl=ko#google_cloud_bigquery_storage_v1beta2_writer_AppendRowsStream_send](request)
+
+  # Wait for result.
+  future.result [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.AppendRowsFuture.html?hl=ko#google_cloud_bigquery_storage_v1beta2_writer_AppendRowsFuture_result]()
+도움이 되었나요?
+의견 보내기

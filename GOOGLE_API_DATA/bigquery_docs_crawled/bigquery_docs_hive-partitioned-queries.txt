@@ -1,0 +1,79 @@
+Source URL: https://cloud.google.com/bigquery/docs/hive-partitioned-queries
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+파티션 스키마 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#partition_schema]
+지원되는 데이터 레이아웃 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#supported_data_layouts]
+지원되지 않는 데이터 레이아웃 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#unsupported_data_layouts]
+감지 모드 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#detection_modes]
+파티션 프루닝 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#partition_pruning]
+쿼리에서 파티션 키의 조건자 필터 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#predicate_filters_on_partition_keys_in_queries]
+제한사항 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#limitations]
+다음 단계 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#whats_next]
+외부에서 파티션을 나눈 데이터 사용
+bookmark_border
+BigQuery 외부 테이블을 사용하여 다음 데이터 스토어의 파티션을 나눈 데이터를 쿼리할 수 있습니다.
+Cloud Storage [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#create-biglake-partitioned-data]
+Amazon Simple Storage Service(Amazon S3) [https://cloud.google.com/bigquery/docs/omni-aws-create-external-table?hl=ko#create-biglake-table-partitioned]
+Azure Blob Storage [https://cloud.google.com/bigquery/docs/omni-azure-create-external-table?hl=ko#create-biglake-table-partitioned]
+파티션을 나눈 외부 데이터는 기본 Hive 파티션 나누기 레이아웃 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#supported_data_layouts]을 사용해야 하며 다음 형식 중 하나여야 합니다.
+Avro
+CSV
+JSON
+ORC
+Parquet
+외부에서 파티션을 나눈 데이터를 쿼리하려면 BigLake 테이블 [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko] 또는 외부 테이블 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#create-external-table-partitioned]을 만들어야 합니다. BigLake 테이블을 사용하면 테이블 수준에서 세분화된 보안을 시행할 수 있으므로 이를 사용하는 것이 좋습니다. BigLake 및 외부 테이블에 대한 자세한 내용은 BigLake 테이블 소개 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko] 및 외부 테이블 소개 [https://cloud.google.com/bigquery/docs/external-tables?hl=ko]를 참조하세요.
+테이블 정의 파일 [https://cloud.google.com/bigquery/docs/external-table-definition?hl=ko#create_a_definition_file_for_hive-partitioned_data]에서 적절한 옵션을 설정하여 Hive 파티션 나누기 지원을 사용 설정할 수 있습니다. 관리되는 파티션을 나눈 테이블 쿼리에 대한 상세 안내는 파티션을 나눈 테이블 소개 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]를 참조하세요.
+파티션 스키마
+다음 섹션에서는 기본 하이브 파티션 나누기 레이아웃 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#supported_data_layouts] 및 BigQuery가 지원하는 스키마 감지 모드 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#detection_modes]를 설명합니다.
+불필요한 파일 읽기를 방지하고 성능을 향상시키려면 쿼리의 파티션 키에 조건자 필터 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#partition_pruning]를 사용할 수 있습니다.
+지원되는 데이터 레이아웃
+하이브 파티션 키는 Cloud Storage에서 데이터를 쿼리할 때 일반 열로 표시됩니다. 데이터는 기본 Hive 파티션 나누기 레이아웃을 따라야 합니다. 예를 들어 다음 파일의 키-값 쌍은 기본 레이아웃을 따라 등호 부호(=)를 구분자로 사용하는 디렉터리로 구성되어 있으며, 파티션 키의 순서는 항상 동일합니다.
+gs://my_bucket/my_table/dt=2019-10-31/lang=en/my_filename
+gs://my_bucket/my_table/dt=2018-10-31/lang=fr/my_filename
+이 예시에서 공통 소스 URI 프리픽스는 gs://my_bucket/my_table입니다.
+지원되지 않는 데이터 레이아웃
+파티션 키 이름이 디렉터리 경로에 인코딩되어 있지 않으면 파티션 스키마 감지가 실패합니다. 예를 들어 다음과 같이 파티션 키 이름이 인코딩되지 않은 경로를 가정해 보겠습니다.
+gs://my_bucket/my_table/2019-10-31/en/my_filename
+파일의 스키마 순서가 일관되지 않으면 감지가 실패합니다. 예를 들어 다음의 두 파일은 파티션 키 인코딩이 반전된 경우입니다.
+gs://my_bucket/my_table/dt=2019-10-31/lang=en/my_filename
+gs://my_bucket/my_table/lang=fr/dt=2018-10-31/my_filename
+감지 모드
+BigQuery는 다음 세 가지 모드의 Hive 파티션 스키마 감지를 지원합니다.
+AUTO: 키 이름과 유형이 자동 감지됩니다. 다음 유형을 감지할 수 있습니다.
+STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type]
+INTEGER [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#date_type]
+예를 들면 /date=2018-10-18/입니다.
+TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type]
+예를 들면 /time=2018-10-18 16:00:00+00/입니다.
+STRINGS: 키 이름이 STRING 유형으로 자동 변환됩니다.
+CUSTOM: 파티션 키 스키마는 소스 URI 프리픽스에 지정된 대로 인코딩됩니다.
+커스텀 파티션 키 스키마
+CUSTOM 스키마를 사용하려면 소스 URI 프리픽스 필드에 스키마를 지정해야 합니다. CUSTOM 스키마를 사용하면 각 파티션 키의 유형을 지정할 수 있습니다. 값은 지정된 유형에 유효하도록 파싱해야 하며, 그렇지 않으면 쿼리가 실패합니다.
+예를 들어 source_uri_prefix 플래그를 gs://my_bucket/my_table/{dt:DATE}/{val:STRING}로 설정하면 BigQuery가 val을 STRING으로, dt를 DATE로 처리하고, gs://my_bucket/my_table을 일치하는 파일의 소스 URI 프리픽스로 사용합니다.
+파티션 프루닝
+BigQuery는 가능한 경우 파티션 키의 쿼리 조건자를 사용하여 파티션을 프루닝합니다. 이는 BigQuery가 불필요한 파일을 읽는 것을 방지하고 성능을 향상하는 데 도움이 됩니다.
+쿼리에서 파티션 키의 조건자 필터
+외부에서 파티션을 나눈 테이블을 만들 때 HivePartitioningOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#hivepartitioningoptions]에서 requirePartitionFilter 옵션을 사용 설정하여 파티션 키에 조건부 필터를 사용하도록 요구할 수 있습니다.
+이 옵션이 사용 설정된 경우 WHERE 절을 지정하지 않고 외부에서 파티션을 나눈 테이블을 쿼리하려면 Cannot query over table <table_name> without a filter over column(s) <partition key names> that can be used for partition elimination과 같은 오류가 발생합니다.
+참고: 필터가 파티션 소거 대상으로 간주되려면 하나 이상의 파티션 키만 참조하는 조건자가 하나 이상 있어야 합니다. 예를 들어 파일에 val 파티션 키와 f 열이 있는 테이블의 경우 다음 WHERE 절 모두 요구사항을 충족합니다.
+    WHERE val = "key"
+    WHERE val = "key" AND f = "column"
+하지만 WHERE (val = "key" OR f = "column")로는 충분하지 않습니다.
+제한사항
+하이브 파티션 나누기 지원은 모든 URI에 대해 파티션 인코딩 바로 앞에서 끝나는 공통의 소스 URI 프리픽스를 가정하여 구축됩니다(예: gs://BUCKET/PATH_TO_TABLE/).
+파티션을 나눈 Hive 테이블의 디렉터리 구조는 동일한 파티션 나누기 키가 동일한 순서로 표시된다고 가정하며, 이때 파티션 키는 테이블당 최대 10개입니다.
+데이터는 기본 Hive 파티션 나누기 레이아웃 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries?hl=ko#supported_data_layouts]을 따라야 합니다.
+기본 파일에 있는 Hive 파티션 나누기 키와 열은 겹치지 않아야 합니다.
+GoogleSQL [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko]에서만 지원됩니다.
+Cloud Storage에 저장된 외부 데이터 소스 쿼리에 대한 모든 제한사항 [https://cloud.google.com/bigquery/external-data-sources?hl=ko#external_data_source_limitations]이 적용됩니다.
+다음 단계
+파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko] 알아보기
+BigQuery에서 SQL을 사용하는 [https://cloud.google.com/bigquery/docs/introduction-sql?hl=ko] 방법 알아보기
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,354 @@
+Source URL: https://cloud.google.com/bigquery/docs/transfer-run-notifications
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+Pub/Sub 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko#notifications]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko#before_you_begin]
+알림 형식 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko#format]
+이메일 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko#email_notifications]
+알림 사용 설정 또는 수정 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko#turn_on_or_edit_notifications]
+실행 알림 가격 책정 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko#run_notification_pricing]
+다음 단계 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko#whats_next]
+BigQuery Data Transfer Service 실행 알림
+bookmark_border
+이 페이지에서는 BigQuery Data Transfer Service의 실행 알림 개요를 설명합니다.
+BigQuery Data Transfer Service에서는 다음 2가지 유형의 실행 알림을 구성할 수 있습니다.
+Pub/Sub 알림: 시스템이 읽을 수 있는 알림으로써 전송 실행 성공 또는 실패 시 전송됩니다
+이메일 알림: 전송 실행이 실패하면 인간이 읽을 수 있는 알림이 전송됩니다.
+각 유형을 개별적으로 구성하거나 Pub/Sub 알림과 이메일 실행 알림을 모두 사용할 수도 있습니다.
+Pub/Sub 알림
+Pub/Sub 알림은 전송 실행에 대한 정보를 Pub/Sub [https://cloud.google.com/pubsub?hl=ko] 주제로 전송합니다. Pub/Sub 알림은 다음 상태 [https://cloud.google.com/bigquery-transfer/docs/reference/datatransfer/rest/v1/TransferState?hl=ko]로 완료된 전송 실행에 의해 트리거됩니다.
+SUCCEEDED
+FAILED
+CANCELLED
+프로젝트에 대한 권한이 충분한 경우 어떤 Pub/Sub 주제에도 알림을 전송할 수 있습니다. Pub/Sub 주제로 수신된 후에는 결과 메시지를 모든 주제 구독자에게 전송할 수 있습니다.
+시작하기 전에
+Pub/Sub 전송 실행 알림을 구성하기 전에 다음 내용을 수행해야 합니다.
+알림을 수신할 프로젝트에서 Pub/Sub API를 사용 설정합니다.
+API 사용 설정 [https://console.cloud.google.com/flows/enableapi?apiid=pubsub&hl=ko]
+알림을 수신할 프로젝트에서 충분한 권한이 있어야 합니다.
+알림을 수신할 프로젝트를 소유하고 있다면 필요한 권한을 가지고 있을 가능성이 높습니다.
+알림을 수신할 주제를 만들려면 pubsub.topics.create [https://cloud.google.com/pubsub/docs/access_control?hl=ko#tbl_roles] 권한이 있어야 합니다.
+신규 또는 기존 주제 중 무엇을 사용하더라도 pubsub.topics.getIamPolicy [https://cloud.google.com/pubsub/docs/access_control?hl=ko#tbl_roles] 및 pubsub.topics.setIamPolicy [https://cloud.google.com/pubsub/docs/access_control?hl=ko#tbl_roles] 권한이 있어야 합니다. 주제를 만들면 일반적으로 주제에 대한 권한이 부여됩니다. 사전 정의된 IAM 역할인 pubsub.admin에는 pubsub.topics.getIamPolicy 및 pubsub.topics.setIamPolicy 권한이 모두 있습니다. 자세한 내용은 Pub/Sub 액세스 제어 [https://cloud.google.com/pubsub/docs/access_control?hl=ko#console]를 참조하세요.
+알림을 보내려는 기존 Pub/Sub 주제가 있어야 합니다 [https://cloud.google.com/pubsub/docs/create-topic?hl=ko].
+주의: pubsub.publisher 사전 정의된 IAM 역할에서 BigQuery Data Transfer Service 에이전트 [https://cloud.google.com/iam/docs/service-agents?hl=ko#bigquerydatatransfer.serviceAgent]를 삭제하지 마세요. 삭제하면 Pub/Sub 주제에 대한 알림 게시가 실패할 수 있습니다.
+주의: Pub/Sub 주제를 만들 때 시 커스텀 스키마를 지정하지 마세요. 커스텀 스키마를 지정하면 알림 게시가 실패할 수 있습니다.
+알림 형식
+Pub/Sub 주제로 전송되는 알림은 다음 두 부분으로 구성됩니다.
+속성: 이벤트를 설명하는 키:값 쌍의 조합입니다.
+페이로드: 변경된 객체의 메타데이터를 포함하는 문자열입니다.
+속성
+속성은 BigQuery Data Transfer Service가 Pub/Sub 주제로 전송하는 모든 알림에 포함되는 키:값 쌍입니다. 알림 페이로드에 관계없이 알림에는 항상 다음 키:값 쌍 조합이 포함됩니다.
+속성 이름 예시 설명
+eventType TRANSFER_RUN_FINISHED 방금 발생한 이벤트의 유형. TRANSFER_RUN_FINISHED가 가능한 유일한 값입니다.
+payloadFormat JSON_API_V1 객체 페이로드의 형식. JSON_API_V1이 가능한 유일한 값입니다.
+페이로드
+페이로드는 전송 실행의 메타데이터가 포함된 문자열입니다. 현재는 페이로드 유형을 구성할 수 없으며, 향후 API 버전 변경을 수용하기 위해 제공됩니다.
+페이로드 유형 설명
+JSON_API_V1 페이로드는 TransferRun의 리소스 표현 [https://cloud.google.com/bigquery-transfer/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs.runs?hl=ko#TransferRun]을 포함하는 UTF-8 JSON 직렬화된 문자열이 됩니다.
+이메일 알림
+이메일 알림은 전송 실행 실패 시 사람이 읽을 수 있는 이메일 메시지를 전송합니다. 이러한 메시지는 전송을 설정한 계정인 전송 관리자의 이메일로 전송됩니다. 메시지 내용은 구성할 수 없으며 메시지 수신자를 구성할 수도 없습니다.
+서비스 계정을 사용하여 전송 구성을 인증한 경우 전송 실행 알림 이메일을 수신할 이메일에 액세스할 수 없을 수 있습니다. 이 경우 전송 실행 알림을 수신하도록 Pub/Sub 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko#notifications]을 설정하는 것이 좋습니다.
+더 많은 사용자에게 전송 실행 이메일 알림을 보내려면 메시지를 배포하는 이메일 전달 규칙을 설정하세요. Gmail을 사용 중인 경우, Gmail 메시지를 다른 계정에 자동으로 전달 [https://support.google.com/mail/answer/10957?hl=ko]할 수 있습니다.
+이메일 알림은 BigQuery Data Transfer Service에서 전송되며, 전송 구성과 전송 실행에 대한 세부정보와 실패한 실행의 실행 기록 링크가 포함되어 있습니다. 예를 들면 다음과 같습니다.
+From: bigquery-data-transfer-service-noreply@google.com
+To: TRANSFER_ADMIN
+Title: BigQuery Data Transfer Service — Transfer Run Failure —
+DISPLAY_NAME
+
+Transfer Configuration
+Display Name: DISPLAY_NAME
+Source: DATA_SOURCE
+Destination: PROJECT_ID
+
+Run Summary
+Run: RUN_NAME
+Schedule Time: SCHEDULE_TIME
+Run Time: RUN_TIME
+View Run History
+
+
+Google LLC 1600 Amphitheatre Parkway, Mountain View, CA 94043
+
+This email was sent because you indicated you are willing to receive Run
+Notifications from the BigQuery Data Transfer Service. If you do not wish to
+receive such emails in the future, click View Transfer Configuration and
+un-check the "Send E-mail Notifications" option.
+알림 사용 설정 또는 수정
+알림을 사용 설정하거나 기존 알림을 수정하려면 다음 중 하나를 선택하세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색 메뉴에서 데이터 전송을 클릭합니다.
+새 전송에 대한 알림을 사용 설정하려면 add전송 만들기를 클릭합니다. 기존 전송의 알림을 조정하려면 전송 이름을 클릭한 다음 수정을 클릭합니다.
+알림 옵션 섹션에서 사용 설정할 알림 유형 옆의 전환 버튼을 클릭합니다.
+
+
+이메일 알림: 이 옵션을 사용 설정하면 전송 실행이 실패할 때 전송 관리자에게 이메일 알림이 발송됩니다.
+Pub/Sub 알림: 이 옵션을 사용 설정하려면 주제 [https://cloud.google.com/pubsub/docs/overview?hl=ko#types] 이름을 선택하거나 주제 만들기를 클릭합니다. 이 옵션은 전송에 대한 Pub/Sub 실행 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko]을 구성합니다.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko#%EC%9E%90%EB%B0%94] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.gax.rpc.ApiException [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.rpc.ApiException.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko];
+import com.google.protobuf.Struct [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.html?hl=ko];
+import com.google.protobuf.Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko];
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+// Sample to get run notification
+public class RunNotification {
+
+  public static void main(String[] args) throws IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    final String projectId = "MY_PROJECT_ID";
+    final String datasetId = "MY_DATASET_ID";
+    final String pubsubTopicName = "MY_TOPIC_NAME";
+    final String query =
+        "SELECT CURRENT_TIMESTAMP() as current_time, @run_time as intended_run_time, "
+            + "@run_date as intended_run_date, 17 as some_integer";
+    Map<String, Value> params = new HashMap<>();
+    params.put("query", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(query).build());
+    params.put(
+        "destination_table_name_template",
+        Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue("my_destination_table_{run_date}").build());
+    params.put("write_disposition", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue("WRITE_TRUNCATE").build());
+    params.put("partitioning_field", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().build());
+    TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] transferConfig =
+        TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko].newBuilder()
+            .setDestinationDatasetId(datasetId)
+            .setDisplayName("Your Scheduled Query Name")
+            .setDataSourceId("scheduled_query")
+            .setParams(Struct [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.html?hl=ko].newBuilder().putAllFields [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.Builder.html?hl=ko#com_google_protobuf_Struct_Builder_putAllFields_java_util_Map_java_lang_String_com_google_protobuf_Value__](params).build())
+            .setSchedule("every 24 hours")
+            .setNotificationPubsubTopic(pubsubTopicName)
+            .build();
+    runNotification(projectId, transferConfig);
+  }
+
+  public static void runNotification(String projectId, TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] transferConfig)
+      throws IOException {
+    try (DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko] dataTransferServiceClient = DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko].create()) {
+      ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko] parent = ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko].of(projectId);
+      CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko] request =
+          CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko].newBuilder()
+              .setParent(parent.toString [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko#com_google_cloud_bigquery_datatransfer_v1_ProjectName_toString__]())
+              .setTransferConfig(transferConfig)
+              .build();
+      TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] config = dataTransferServiceClient.createTransferConfig(request);
+      System.out.println(
+          "\nScheduled query with run notification created successfully :" + config.getName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko#com_google_cloud_bigquery_datatransfer_v1_TransferConfig_getName__]());
+    } catch (ApiException [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.rpc.ApiException.html?hl=ko] ex) {
+      System.out.print("\nScheduled query with run notification was not created." + ex.toString());
+    }
+  }
+}
+
+--- 탭: Python [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko#python] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  transfer_config_name = "projects/1234/locations/us/transferConfigs/abcd"
+pubsub_topic = "projects/PROJECT-ID/topics/TOPIC-ID"
+from google.cloud import bigquery_datatransfer
+from google.protobuf import field_mask_pb2
+
+transfer_client = bigquery_datatransfer.DataTransferServiceClient [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest/google.cloud.bigquery_datatransfer_v1.services.data_transfer_service.DataTransferServiceClient.html?hl=ko]()
+
+transfer_config = bigquery_datatransfer.TransferConfig [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest/google.cloud.bigquery_datatransfer_v1.types.TransferConfig.html?hl=ko](name=transfer_config_name)
+transfer_config.notification_pubsub_topic = pubsub_topic
+update_mask = field_mask_pb2.FieldMask(paths=["notification_pubsub_topic"])
+
+transfer_config = transfer_client.update_transfer_config [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest/google.cloud.bigquery_datatransfer_v1.services.data_transfer_service.DataTransferServiceClient.html?hl=ko#google_cloud_bigquery_datatransfer_v1_services_data_transfer_service_DataTransferServiceClient_update_transfer_config](
+    {"transfer_config": transfer_config, "update_mask": update_mask}
+)
+
+print(f"Updated config: '{transfer_config.name}'")
+print(f"Notification Pub/Sub topic: '{transfer_config.notification_pubsub_topic}'")
+실행 알림 가격 책정
+Pub/Sub 실행 알림을 구성하면 Pub/Sub 요금이 청구됩니다. 자세한 내용은 Pub/Sub 가격 책정 [https://cloud.google.com/pubsub/pricing?hl=ko] 페이지를 참조하세요.
+다음 단계
+Pub/Sub 자세히 알아보기 [https://cloud.google.com/pubsub/docs/overview?hl=ko]
+Pub/Sub 주제 [https://cloud.google.com/pubsub/docs/create-topic?hl=ko] 만들기 자세히 알아보기.
+BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/dts-introduction?hl=ko] 자세히 알아보기
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,183 @@
+Source URL: https://cloud.google.com/bigquery/docs/querying-partitioned-tables
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+개요 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#overview]
+시간 단위 열로 파티션을 나눈 테이블 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#query_a_time-unit_column-partitioned_table]
+수집 시간으로 파티션을 나눈 테이블 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#query_an_ingestion-time_partitioned_table]
+수집 시간으로 파티션으로 나눈 테이블에서 시간대 처리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#handle_time_zones_in_ingestion-time_partitioned_tables]
+유사 열로 성능 향상 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#better_performance_with_pseudocolumns]
+정수 범위로 파티션을 나눈 테이블 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#query_an_integer-range_partitioned_table]
+쓰기 최적화된 스토리지의 데이터 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#query_data_in_the_streaming_buffer]
+파티션 프루닝 권장사항 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#best_practices_for_partition_pruning]
+파티션을 나눈 테이블 쿼리
+bookmark_border
+이 문서에서는 BigQuery에서 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]을 쿼리하기 위한 몇 가지 특정 고려사항에 대해 설명합니다.
+BigQuery에서 쿼리 실행에 대한 일반적인 내용은 대화형 쿼리 및 일괄 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko]을 참조하세요.
+개요
+쿼리에서 파티션 나누기 열의 값에 대해 한정 필터가 사용되는 경우 BigQuery가 필터와 일치하는 파티션을 스캔하고 남은 파티션을 건너뛸 수 있습니다. 이 프로세스를 파티션 프루닝이라고 합니다.
+파티션 프루닝은 입력 검색에서 불필요한 파티션을 제거하기 위해 BigQuery에서 사용하는 메커니즘입니다. 쿼리에서 검색되는 바이트 수를 계산할 때 프루닝된 파티션은 포함되지 않습니다. 일반적으로 파티션 프루닝은 쿼리 비용을 줄이는 데 도움이 됩니다.
+프루닝 동작은 여러 파티셔닝 유형에 따라 달라지므로, 서로 다르게 파티셔닝되었지만 그렇지 않으면 동일한 테이블을 쿼리할 때 처리된 바이트에서 차이를 볼 수 있습니다. 쿼리가 처리할 수 있는 바이트 수를 추정하려면 테스트 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#dry-run]을 수행합니다.
+시간 단위 열로 파티션을 나눈 테이블 쿼리
+시간 단위 열로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#date_timestamp_partitioned_tables]을 쿼리할 때 파티션을 프루닝하려면 파티션 나누기 열에 필터를 포함합니다.
+다음 예시에서는 dataset.table이 transaction_date 열에서 파티셔닝된다고 가정합니다. 이 예시 쿼리는 2016-01-01 이전 날짜를 프루닝합니다.
+SELECT * FROM dataset.table
+WHERE transaction_date >= '2016-01-01'
+수집 시간으로 파티션을 나눈 테이블 쿼리
+수집 시간으로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#ingestion_time]에는 파티션 나누기 열인 _PARTITIONTIME이라는 유사 열이 포함됩니다. 열 값은 각 행에 대한 UTC 수집 시간입니다. 이 값은 TIMESTAMP 값과 같이 파티션 경계(시간별 또는 일별)로 잘려서 표시됩니다.
+예를 들어 2021년 4월 15일 08:15:00 UTC에 데이터를 추가하는 경우 이러한 행의 _PARTITIONTIME 열에는 다음 값이 포함됩니다.
+시간별로 파티션을 나눈 테이블: TIMESTAMP("2021-04-15 08:00:00")
+일별로 파티션을 나눈 테이블: TIMESTAMP("2021-04-15")
+월별로 파티션을 나눈 테이블: TIMESTAMP("2021-04-01")
+연도별로 파티션을 나눈 테이블: TIMESTAMP("2021-01-01")
+파티션 세분성이 일별이면 테이블에 _PARTITIONDATE라는 유사 열도 포함됩니다. 이 값은 DATE 값으로 잘린 _PARTITIONTIME과 동일합니다.
+이러한 유사 열 이름은 모두 예약되어 있습니다. 테이블에서 이러한 이름으로 열을 만들 수 없습니다.
+파티션을 프루닝하려면 이러한 열로 필터링합니다. 예를 들어 다음 쿼리는 2016년 1월 1일부터 2016년 1월 2일 사이의 파티션만 스캔합니다.
+SELECT
+  column
+FROM
+  dataset.table
+WHERE
+  _PARTITIONTIME BETWEEN TIMESTAMP('2016-01-01') AND TIMESTAMP('2016-01-02')
+_PARTITIONTIME 유사 열을 선택하려면 별칭을 사용해야 합니다. 예를 들어 다음 쿼리에서는 별칭 pt를 유사 열에 할당하여 _PARTITIONTIME을 선택합니다.
+SELECT
+  _PARTITIONTIME AS pt, column
+FROM
+  dataset.table
+일별로 파티션을 나눈 테이블의 경우 동일한 방식으로 _PARTITIONDATE 유사 열을 선택할 수 있습니다.
+SELECT
+  _PARTITIONDATE AS pd, column
+FROM
+  dataset.table
+_PARTITIONTIME 및 _PARTITIONDATE 유사 열은 SELECT * 문으로 반환되지 않습니다. 이를 명시적으로 선택해야 합니다.
+SELECT
+  _PARTITIONTIME AS pt, *
+FROM
+  dataset.table
+수집 시간으로 파티션으로 나눈 테이블에서 시간대 처리
+_PARTITIONTIME의 값은 필드가 채워지는 UTC 날짜를 기반으로 합니다. UTC 이외의 시간대를 기준으로 데이터를 쿼리하려면 다음 옵션 중 하나를 선택합니다.
+SQL 쿼리에서 시간대 차이를 조정합니다.
+파티션 데코레이터 [https://cloud.google.com/bigquery/docs/managing-partitioned-table-data?hl=ko#write-to-partition]를 사용하여 UTC가 아닌 다른 시간대를 기준으로 특정 수집 시간 파티션에 데이터를 로드합니다.
+유사 열로 성능 향상
+쿼리 성능을 향상시키려면 비교 왼쪽에 있는 _PARTITIONTIME 유사 열을 단독으로 사용합니다.
+예를 들어 다음 두 쿼리는 동일합니다. 테이블 크기에 따라 두 번째 쿼리는 > 연산자의 왼쪽에 _PARTITIONTIME을 자체적으로 배치하기 때문에 성능이 더 뛰어날 수 있습니다. 두 쿼리 모두 동일한 양의 데이터를 처리합니다.
+-- Might be slower.
+SELECT
+  field1
+FROM
+  dataset.table1
+WHERE
+  TIMESTAMP_ADD(_PARTITIONTIME, INTERVAL 5 DAY) > TIMESTAMP("2016-04-15");
+
+-- Often performs better.
+SELECT
+  field1
+FROM
+  dataset.table1
+WHERE
+  _PARTITIONTIME > TIMESTAMP_SUB(TIMESTAMP('2016-04-15'), INTERVAL 5 DAY);
+쿼리에서 검색되는 파티션을 제한하려면 필터에서 상수 표현식을 사용합니다. 다음 쿼리는 WHERE 절에서 첫 번째 필터 조건을 기준으로 프루닝되는 파티션을 제한합니다. 하지만 두 번째 쿼리는 동적인 테이블 값을 사용하기 때문에 스캔되는 파티션을 제한하지 않습니다.
+SELECT
+  column
+FROM
+  dataset.table2
+WHERE
+  -- This filter condition limits the scanned partitions:
+  _PARTITIONTIME BETWEEN TIMESTAMP('2017-01-01') AND TIMESTAMP('2017-03-01')
+  -- This one doesn't, because it uses dynamic table values:
+  AND _PARTITIONTIME = (SELECT MAX(timestamp) from dataset.table1)
+스캔되는 파티션을 제한하려면 _PARTITIONTIME 필터에 다른 열을 포함하지 마세요. 예를 들어 field1이 테이블의 한 열이기 때문에 다음 쿼리는 스캔되는 파티션을 제한하지 않습니다.
+-- Scans all partitions of table2. No pruning.
+SELECT
+  field1
+FROM
+  dataset.table2
+WHERE
+  _PARTITIONTIME + field1 = TIMESTAMP('2016-03-28');
+쿼리를 특정 시간 범위만큼 자주 수행하는 경우 _PARTITIONTIME 유사 열로 필터링하는 뷰를 만드는 것이 좋습니다. 예를 들어 다음 구문은 dataset.partitioned_table이라는 테이블에서 최근 7일 간의 데이터만 포함된 뷰를 만듭니다.
+-- This view provides pruning.
+CREATE VIEW dataset.past_week AS
+  SELECT *
+  FROM
+    dataset.partitioned_table
+  WHERE _PARTITIONTIME BETWEEN
+    TIMESTAMP_TRUNC(TIMESTAMP_SUB(CURRENT_TIMESTAMP, INTERVAL 7 * 24 HOUR), DAY)
+    AND TIMESTAMP_TRUNC(CURRENT_TIMESTAMP, DAY);
+뷰 만들기에 대한 자세한 내용은 뷰 만들기 [https://cloud.google.com/bigquery/docs/views?hl=ko]를 참조하세요.
+정수 범위로 파티션을 나눈 테이블 쿼리
+정수 범위로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#integer_range]을 쿼리할 때 파티션을 프루닝하려면 파티션 나누기 열에 필터를 포함합니다.
+다음 예시에서는 dataset.table이 customer_id:0:100:10 파티셔닝 사양에 따라 정수 범위로 파티션을 나눈 테이블이라고 가정합니다. 예시 쿼리는 30, 40, 50으로 시작하는 3개의 파티션을 스캔합니다.
+SELECT * FROM dataset.table
+WHERE customer_id BETWEEN 30 AND 50
+
++-------------+-------+
+| customer_id | value |
++-------------+-------+
+|          40 |    41 |
+|          45 |    46 |
+|          30 |    31 |
+|          35 |    36 |
+|          50 |    51 |
++-------------+-------+
+정수 범위로 파티션을 나눈 열의 함수에는 파티션 프루닝이 지원되지 않습니다. 예를 들어 다음 쿼리는 전체 테이블을 스캔합니다.
+SELECT * FROM dataset.table
+WHERE customer_id + 1 BETWEEN 30 AND 50
+쓰기 최적화된 스토리지의 데이터 쿼리
+__UNPARTITIONED__ 파티션에서는 파티션을 나눈 테이블에 스트리밍되는 데이터를 쓰기 최적화 스토리지 [https://cloud.google.com/bigquery/docs/streaming-data-into-bigquery?hl=ko#dataavailability]에 있는 동안 일시적으로 보존합니다. 파티션을 나눈 테이블의 특정 파티션에 직접 스트리밍되는 데이터는 __UNPARTITIONED__ 파티션을 사용하지 않습니다. 대신 파티션에 직접 스트리밍됩니다.
+쓰기 최적화 스토리지의 데이터는 _PARTITIONTIME 및 _PARTITIONDATE 열의 값이 NULL입니다.
+__UNPARTITIONED__ 파티션의 데이터를 쿼리하려면 _PARTITIONTIME 유사 열에 NULL 값을 사용합니다. 예를 들면 다음과 같습니다.
+SELECT
+  column
+FROM dataset.table
+WHERE
+  _PARTITIONTIME IS NULL
+자세한 방법은 파티션을 나눈 테이블로 스트리밍 [https://cloud.google.com/bigquery/docs/streaming-data-into-bigquery?hl=ko#streaming_into_partitioned_tables]을 참조하세요.
+파티션 프루닝 권장사항
+상수 필터 표현식 사용
+쿼리에서 검색되는 파티션을 제한하려면 필터에서 상수 표현식을 사용합니다. 쿼리 필터에서 동적 표현식을 사용할 경우, BigQuery는 모든 파티션을 검색해야 합니다.
+예를 들어 다음 쿼리에서는 필터 에 상수 표현식이 포함되어 있으므로 파티션을 프루닝합니다.
+SELECT
+  t1.name,
+  t2.category
+FROM
+  table1 AS t1
+INNER JOIN
+  table2 AS t2
+ON t1.id_field = t2.field2
+WHERE
+  t1.ts = CURRENT_TIMESTAMP()
+그러나 다음 쿼리는 WHERE t1.ts = (SELECT timestamp from table where key = 2) 필터가 상수 표현식이 아니므로 파티션을 프루닝하지 않습니다. 이는 timestamp 및 key 필드의 동적 값에 따라 달라집니다.
+SELECT
+  t1.name,
+  t2.category
+FROM
+  table1 AS t1
+INNER JOIN
+  table2 AS t2
+ON
+  t1.id_field = t2.field2
+WHERE
+  t1.ts = (SELECT timestamp from table3 where key = 2)
+필터의 파티션 열 분리
+필터를 표현할 때는 파티션 열을 분리해야 합니다. 계산을 위해 여러 필드의 데이터를 필요로 하는 필터에서는 파티션을 프루닝하지 않습니다. 예를 들어 파티션을 나눈 열과 두 번째 필드를 사용한 데이터 비교가 포함된 쿼리 또는 필드 연결이 포함된 쿼리에서는 파티션을 프루닝하지 않습니다.
+예를 들어 다음 필터에서는 파티션을 나눈 ts 필드 및 두 번째 필드 ts2를 사용한 계산을 요구하므로 파티션을 프루닝하지 않습니다.
+WHERE TIMESTAMP_ADD(ts, INTERVAL 6 HOUR) > ts2
+쿼리에 파티션 필터 필요
+파티션을 나눈 테이블을 만들 때 파티션 필터 필요 옵션을 사용 설정하여 조건부 필터 사용을 요구할 수 있습니다. 이 옵션이 적용된 경우 WHERE 절을 지정하지 않고 파티션을 나눈 테이블을 쿼리하려고 하면 다음과 같은 오류가 발생합니다.
+Cannot query over table 'project_id.dataset.table' without a filter that can be used for partition elimination.
+이 요구사항은 파티션을 나눈 테이블을 참조하는 뷰 및 구체화된 뷰의 쿼리에도 적용됩니다.
+필터가 파티션 소거 대상으로 간주되려면 파티션 열만 참조하는 조건자가 하나 이상 있어야 합니다. 예를 들어 스키마의 f 열과 함께 partition_id 열을 기준으로 파티션을 나눈 테이블의 경우 다음 WHERE 절 모두 요구사항을 충족합니다.
+WHERE partition_id = "20221231"
+WHERE partition_id = "20221231" AND f = "20221130"
+하지만 WHERE (partition_id = "20221231" OR f = "20221130")로는 충분하지 않습니다.
+수집 시간으로 파티션을 나눈 테이블의 경우 _PARTITIONTIME 또는 _PARTITIONDATE 유사 열을 사용합니다.
+파티션을 나눈 테이블을 만들 때 파티션 필터 필요 옵션을 추가하는 방법에 대한 자세한 내용은 파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko]를 참조하세요. 기존 테이블에서 이 설정을 업데이트 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#require-filter]할 수도 있습니다.
+다음 단계
+파티션을 나눈 테이블의 개요는 파티션을 나눈 테이블 소개 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]를 참조하세요.
+파티션을 나눈 테이블 만들기에 대한 자세한 내용은 파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko]를 참조하세요.
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,105 @@
+Source URL: https://cloud.google.com/bigquery/docs/monitoring
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+측정항목 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko#metrics]
+로그 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko#logs]
+BigQuery INFORMATION_SCHEMA 뷰 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko#information-schema]
+다음 단계 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko#whats_next]
+BigQuery 모니터링 소개
+bookmark_border
+모니터링과 로깅은 클라우드에서 안정적인 애플리케이션을 실행하는 데 있어 매우 중요합니다. 특히 워크로드에 워크로드가 많거나 작업에 중요하다면 BigQuery 워크로드 또한 마찬가지입니다. 이 문서에서는 BigQuery에 사용할 수 있는 모니터링 데이터의 대략적인 개요를 제공합니다.
+모니터링 및 로깅 소스는 샘플링 또는 집계 빈도에 따라 다를 수 있습니다. 예를 들어 정보 스키마 데이터가 Cloud Monitoring 측정항목 데이터보다 높은 세분화 수준으로 사용될 수 있습니다.
+이 경우 세분화 수준이 낮은 측정항목의 그래프가 유사한 정보 스키마 통계와 다르게 표시될 수 있습니다. 집계에는 불일치를 완화하는 경향이 있습니다. 모니터링 솔루션을 설계할 때 요구사항을 기준으로 측정항목의 요청 응답 시간, 정밀도, 정확성을 평가합니다.
+측정항목
+측정항목은 일정한 간격으로 수집되어 분석에 사용할 수 있는 숫자 값입니다. 측정항목을 사용하여 다음을 수행할 수 있습니다.
+차트 및 대시보드를 만듭니다.
+사람이 개입해야 하는 조건 또는 상황에 대한 알림을 트리거합니다.
+이전 실적을 분석합니다.
+BigQuery의 경우 사용 가능한 측정항목으로 실행 중인 작업 수, 쿼리 중 스캔한 바이트 수, 쿼리 시간 분포가 있습니다. 쿼리의 측정항목은 쿼리가 성공한 후에만 사용할 수 있으며, 보고되는 데 최대 7분이 소요될 수 있습니다. 실패한 쿼리에 대한 측정항목은 보고되지 않습니다. 샘플링 레이트, 공개 상태, 제한사항을 포함하여 사용 가능한 측정항목의 전체 목록은 Google Cloud 측정항목 [https://cloud.google.com/monitoring/api/metrics_gcp?hl=ko] 아래의 bigquery [https://cloud.google.com/monitoring/api/metrics_gcp_a_b?hl=ko#gcp-bigquery]를 참고하세요.
+Cloud Monitoring [https://cloud.google.com/monitoring/docs?hl=ko]을 사용하여 BigQuery 측정항목을 보고 차트와 알림을 만들 수 있습니다. 각 측정항목에는 bigquery_dataset, bigquery_project 또는 global와 같은 리소스 유형과 라벨 집합이 포함됩니다. 이 정보를 사용하여 MQL(Monitoring 쿼리 언어) [https://cloud.google.com/monitoring/mql?hl=ko]로 쿼리를 작성합니다. 라벨을 사용하여 각 측정항목을 그룹화하거나 필터링할 수 있습니다.
+예를 들어 전송 중인 대화형 쿼리 수를 차트로 표시하려면 다음 priority를 interactive와 동일하게 필 MQL 문을 사용합니다.
+fetch global
+| metric 'bigquery.googleapis.com/query/count'
+| filter metric.priority = 'interactive'
+다음 예시에서는 10분 간격으로 그룹화된 실행 중인 로드 작업 수를 가져옵니다.
+fetch bigquery_project
+| metric 'bigquery.googleapis.com/job/num_in_flight'
+| filter metric.job_type = 'load'
+| group_by 10m
+자세한 내용은 BigQuery의 차트 및 알림 만들기 [https://cloud.google.com/bigquery/docs/monitoring-dashboard?hl=ko]를 참조하세요.
+로그
+로그는 특정 이벤트 또는 작업에 대한 응답으로 생성된 텍스트 레코드입니다. BigQuery는 테이블 만들기 또는 삭제, 슬롯 구매, 로드 작업 실행과 같은 작업 로그 항목을 만듭니다. Google Cloud로깅에 대한 자세한 내용은 Cloud Logging [https://cloud.google.com/logging/docs?hl=ko]을 참조하세요.
+로그는 로그 항목의 추가 전용 컬렉션입니다. 예를 들어 projects/PROJECT_ID/logs/my-test-log라는 로그에 자체 로그 항목을 작성할 수 있습니다. BigQuery를 비롯한 여러Google Cloud 서비스에서 감사 로그 [https://cloud.google.com/logging/docs/audit?hl=ko]라는 로그 유형을 만듭니다. 이러한 로그는 다음을 기록합니다.
+리소스 생성 또는 수정과 같은 관리 활동
+데이터 액세스(예: 리소스에서 사용자가 제공한 데이터 읽기)
+사용자 작업이 아니라 Google 시스템에서 생성하는 시스템 이벤트입니다.
+감사 로그는 구조화된 JSON 형식으로 작성됩니다.Google Cloud 로그 항목의 기본 데이터 유형은 LogEntry [https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry?hl=ko] 구조입니다. 이 구조에는 로그 이름, 로그 항목을 생성한 리소스, 타임스탬프(UTC), 기타 기본 정보가 포함됩니다.
+로깅된 이벤트의 세부정보는 페이로드 필드라는 하위 필드에 포함됩니다. 감사 로그의 경우 페이로드 필드 이름은 protoPayload입니다. 이 필드의 값은 AuditLog [https://cloud.google.com/logging/docs/reference/audit/auditlog/rest/Shared.Types/AuditLog?hl=ko] 구조이며, protoPayload.@type 필드가 설정되어 있고 type.googleapis.com/google.cloud.audit.AuditLog를 엽니다.
+데이터 세트, 테이블, 작업에 대한 작업의 경우 BigQuery는 두 가지 형식으로 감사 로그를 쓰는데 두 형식 모두 AuditLog 기본 유형을 공유합니다.
+이전 형식:
+resource.type 필드는 bigquery_resource입니다.
+작업에 대한 세부정보는 protoPayload.serviceData 필드에 기록됩니다. 이 필드의 값은 AuditData [https://cloud.google.com/bigquery/docs/reference/auditlogs/rest/Shared.Types/AuditData?hl=ko] 구조입니다.
+새 형식:
+resource.type 필드는 bigquery_project 또는 bigquery_dataset입니다. bigquery_project 리소스에는 작업에 대한 로그 항목이 있는 반면 bigquery_dataset 리소스에는 스토리지에 대한 로그 항목이 있습니다.
+작업에 대한 세부정보는 protoPayload.metadata 필드에 기록됩니다. 이 필드의 값은 BigQueryAuditMetadata [https://cloud.google.com/bigquery/docs/reference/auditlogs/rest/Shared.Types/BigQueryAuditMetadata?hl=ko] 구조입니다.
+최신 형식의 로그를 사용하는 것이 좋습니다. 자세한 내용은 감사 로그 이전 가이드 [https://cloud.google.com/bigquery/docs/reference/auditlogs/migration?hl=ko]를 참조하세요.
+다음은 실패한 작업을 보여주는 로그 항목의 축약형 예입니다.
+{
+  "protoPayload": {
+    "@type": "type.googleapis.com/google.cloud.audit.AuditLog",
+    "status": {
+      "code": 5,
+      "message": "Not found: Dataset my-project:my-dataset was not found in location US"
+    },
+    "authenticationInfo": { ... },
+    "requestMetadata":  { ... },
+    "serviceName": "bigquery.googleapis.com",
+    "methodName": "google.cloud.bigquery.v2.JobService.InsertJob",
+    "metadata": {
+  },
+  "resource": {
+    "type": "bigquery_project",
+    "labels": { .. },
+  },
+  "severity": "ERROR",
+  "logName": "projects/my-project/logs/cloudaudit.googleapis.com%2Fdata_access",
+  ...
+}
+BigQuery 예약 작업의 경우 protoPayload는 AuditLog [https://cloud.google.com/logging/docs/reference/audit/auditlog/rest/Shared.Types/AuditLog?hl=ko] 구조이며 protoPayload.request 및 protoPayload.response 필드에는 자세한 정보가 포함됩니다. 필드 정의는 BigQuery Reservation API [https://cloud.google.com/bigquery/docs/reference/reservations/rpc?hl=ko]에서 확인할 수 있습니다. 자세한 내용은 BigQuery 예약 모니터링 [https://cloud.google.com/bigquery/docs/reservations-monitoring?hl=ko]을 참조하세요.
+BigQuery INFORMATION_SCHEMA 뷰
+INFORMATION_SCHEMA [https://cloud.google.com/bigquery/docs/information-schema-intro?hl=ko] 뷰는 BigQuery의 또 다른 분석 소스이며 측정항목 및 로그와 함께 사용할 수 있습니다.
+이러한 뷰에는 작업, 데이터 세트, 테이블, 기타 BigQuery 항목의 메타데이터가 포함됩니다. 예를 들어 특정 기간 동안 실행된 BigQuery 작업에 대한 실시간 메타데이터를 가져온 다음 프로젝트, 사용자, 참조한 테이블, 기타 측정기준별로 결과를 그룹화하거나 필터링할 수 있습니다.
+이 정보를 사용하여 BigQuery 워크로드에 대한 더 자세한 분석을 수행하고 다음과 같은 질문에 답할 수 있습니다.
+특정 프로젝트에 지난 7일 동안 모든 쿼리의 평균 슬롯 사용량은 얼마인가요?
+어떤 사용자가 특정 프로젝트의 일괄 로드 작업을 제출했나요?
+지난 30분 동안 오류 코드를 기준으로 그룹화되어 발생한 스트리밍 오류는 무엇인가요?
+특히 성능에 대한 통계를 확인하려면 작업 메타데이터 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko], 스트리밍 메타데이터 [https://cloud.google.com/bigquery/docs/information-schema-streaming?hl=ko], 예약 메타데이터 [https://cloud.google.com/bigquery/docs/information-schema-reservations?hl=ko]를 참조해 BigQuery 워크로드 성능에 대한 유용한 정보를 얻으세요.
+조직의 슬롯과 예약 사용률, 작업 실행과 작업 오류를 보여주는 GitHub의 INFORMATION_SCHEMA 쿼리 예시 [https://github.com/GoogleCloudPlatform/bigquery-utils/tree/master/dashboards/system_tables]를 확인할 수 있습니다. 예를 들어 다음 쿼리는 대기중이거나 실행 중인 쿼리 목록을 제공합니다. 이러한 쿼리는 us 리전에서 생성된 후 경과된 시간에 따라 정렬됩니다.
+SELECT
+    creation_time,
+    project_id,
+    user_email,
+    job_id,
+    job_type,
+    priority,
+    state,
+    TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time,second) as running_time_sec
+ FROM
+   `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+ WHERE
+    creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY) AND CURRENT_TIMESTAMP()
+    AND state != "DONE"
+ORDER BY
+    running_time_sec DESC
+자세한 내용은 이 대시보드로 BigQuery 성능 문제 해결 [https://cloud.google.com/blog/products/data-analytics/troubleshoot-bigquery-performance-with-these-dashboards?hl=ko]을 참조하세요.
+슬롯 예약이 있으면 쿼리를 작성하는 것 외에 BigQuery 관리자 리소스 차트를 사용하여 슬롯 사용량, 작업 동시 실행, 작업 실행 시간을 표시하는 차트를 확인할 수 있습니다. 자세한 내용은 상태, 리소스 사용률, 작업 모니터링 [https://cloud.google.com/bigquery/docs/admin-resource-charts?hl=ko]을 참고하세요.
+다음 단계
+리소스 사용률 및 작업을 모니터링 [https://cloud.google.com/bigquery/docs/admin-resource-charts?hl=ko]하는 방법 알아보기
+BigQuery 차트 및 알림을 만드는 [https://cloud.google.com/bigquery/docs/monitoring-dashboard?hl=ko] 방법 알아보기
+도움이 되었나요?
+의견 보내기

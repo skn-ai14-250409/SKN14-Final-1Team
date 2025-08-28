@@ -1,0 +1,1234 @@
+Source URL: https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#iam-permissions]
+위치 고려사항 [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#location_consideration]
+파티션을 나누지 않은 데이터에 BigLake 테이블 만들기 [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#create-table-storage]
+Apache Hive 파티션을 나눈 데이터에 대한 BigLake 테이블 만들기 [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#create-biglake-partitioned-data]
+Cloud Storage용 BigLake 외부 테이블 만들기
+bookmark_border
+이 문서에서는 Cloud Storage BigLake 테이블을 만드는 방법을 설명합니다. BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko]을 사용하면 액세스 위임을 통해 Cloud Storage의 정형 데이터를 쿼리할 수 있습니다. 액세스 위임은 BigLake 테이블에 대한 액세스 권한을 기본 데이터 스토어에 대한 액세스 권한과 분리합니다.
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery Connection API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigqueryconnection.googleapis.com&hl=ko]
+Apache Spark와 같은 오픈소스 엔진에서 BigLake 테이블을 읽으려면 BigQuery Storage Read API [https://console.cloud.google.com/apis/library/bigquerystorage.googleapis.com?hl=ko]를 사용 설정해야 합니다.
+In the Google Cloud console, activate Cloud Shell.
+Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+BigQuery 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]가 있는지 확인합니다.
+사용 중인 Google Cloud SDK 버전이 366.0.0 이상인지 확인하세요.
+gcloud version
+필요한 경우 Google Cloud SDK를 업데이트 [https://cloud.google.com/sdk/docs/quickstart?hl=ko]합니다.
+선택사항: Terraform의 경우 terraform-provider-google 버전 4.25.0 이상이 필요합니다. terraform-provider-google 출시는 GitHub [https://github.com/hashicorp/terraform-provider-google/releases]에 나와 있습니다. HashiCorp Terraform 다운로드 [https://www.terraform.io/downloads]에서 최신 버전의 Terraform을 다운로드할 수 있습니다.
+Cloud 리소스 연결을 만들거나 외부 데이터 소스에 대한 기본 연결을 설정합니다. 연결에는 추가 역할과 권한이 필요합니다. 자세한 내용은 Cloud 리소스 연결 만들기 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko] 및 기본 연결 개요 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko]를 참조하세요.
+필요한 역할
+BigLake 테이블을 만들려면 다음 BigQuery Identity and Access Management(IAM) 권한이 필요합니다.
+bigquery.tables.create
+bigquery.connections.delegate
+BigQuery 관리자(roles/bigquery.admin)는 사전 정의된 Identity and Access Management 역할에 이러한 권한이 포함되어 있습니다.
+이 역할의 주 구성원이 아닌 경우 관리자에게 액세스 권한을 부여하거나 BigLake 테이블을 만들도록 요청하세요.
+BigQuery의 Identity and Access Management 역할 및 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]을 참조하세요.
+위치 고려사항
+Cloud Storage를 사용하여 데이터 파일을 저장하는 경우 멀티 리전 버킷 대신에 Cloud Storage 단일 리전 [https://cloud.google.com/storage/docs/locations?hl=ko#available-locations] 또는 이중 리전 [https://cloud.google.com/storage/docs/locations?hl=ko#location-dr]을 사용하여 성능을 개선할 수 있습니다.
+파티션을 나누지 않은 데이터에 BigLake 테이블 만들기
+BigQuery에서 테이블 만들기에 익숙한 경우 BigLake 테이블 만들기 프로세스도 비슷합니다. 테이블은 BigLake에서 지원하는 모든 파일 형식을 사용할 수 있습니다. 자세한 내용은 제한사항 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#limitations]을 참조하세요.
+BigLake 테이블을 만들기 전에 Cloud Storage에 액세스 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#access-storage]할 수 있는 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko] 및 Cloud 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection]이 있어야 합니다.
+BigLake 테이블을 만들려면 다음 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+more_vert작업 옵션을 펼치고 테이블 만들기를 클릭합니다.
+소스 섹션에서 다음 세부정보를 지정합니다.
+
+
+다음 항목으로 테이블 만들기에서 Google Cloud Storage를 선택합니다.
+GCS 버킷에서 파일 선택 또는 URI 패턴을 사용에서 사용할 버킷과 파일을 찾아보거나 gs://bucket_name/[folder_name/]file_name 형식으로 경로를 입력합니다.
+
+ Google Cloud 콘솔에서는 URI를 여러 개 지정할 수 없지만 별표(*) 와일드 카드 문자 하나를 지정하여 여러 파일을 선택할 수 있습니다. 예를 들면 gs://mybucket/file_name*입니다. 자세한 내용은 Cloud Storage URI의 와일드 카드 지원 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#wildcard-support]을 참조하세요.
+
+Cloud Storage 버킷은 만들려는 테이블이 포함된 데이터 세트와 같은 위치에 있어야 합니다.
+파일 형식에 파일과 일치하는 형식을 선택합니다.
+
+대상 섹션에서 다음 세부정보를 지정합니다.
+
+
+프로젝트에서 테이블을 만들 프로젝트를 선택합니다.
+데이터 세트에서 테이블을 만들 데이터 세트를 선택합니다.
+테이블에 만들려는 테이블의 이름을 입력합니다.
+테이블 유형에서 외부 테이블을 선택합니다.
+Cloud 리소스 연결을 사용하여 BigLake 테이블 만들기를 선택합니다.
+연결 ID에 대해 이전에 만든 연결을 선택합니다.
+
+스키마 섹션에서 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko]를 사용 설정하거나 소스 파일이 있는 경우 스키마를 수동으로 지정할 수 있습니다. 소스 파일이 없으면 스키마를 수동으로 지정해야 합니다.
+
+
+스키마 자동 감지를 사용 설정하려면 자동 감지 옵션을 선택합니다.
+스키마를 수동으로 지정하려면 자동 감지 옵션을 선택 해제한 상태로 둡니다. 텍스트로 편집을 사용 설정하고 테이블 스키마를 JSON 배열 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#specifying_a_json_schema_file]로 입력합니다.
+
+스키마와 일치하지 않는 추가 열 값이 있는 행을 무시하려면 고급 옵션 섹션을 펼치고 알 수 없는 값을 선택합니다.
+테이블 만들기를 클릭합니다.
+
+
+영구 테이블이 생성된 후에는 기본 BigQuery 테이블인 것처럼 이 테이블에 대해 쿼리를 실행할 수 있습니다. 쿼리가 완료되면 CSV 또는 JSON 파일로 결과를 내보내거나 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko], 테이블로 저장하거나, Google 스프레드시트에 저장할 수 있습니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#sql] ---
+CREATE EXTERNAL TABLE DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_table_statement]을 사용합니다.
+스키마를 명시적으로 지정하거나 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko]를 사용하여 외부 데이터에서 스키마를 추론할 수 있습니다.
+
+
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE EXTERNAL TABLE `PROJECT_ID.DATASET.EXTERNAL_TABLE_NAME`
+  WITH CONNECTION {`PROJECT_ID.REGION.CONNECTION_ID` | DEFAULT}
+  OPTIONS (
+    format ="TABLE_FORMAT",
+    uris = ['BUCKET_PATH'[,...]],
+    max_staleness = STALENESS_INTERVAL,
+    metadata_cache_mode = 'CACHE_MODE'
+    );
+
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 테이블을 만들 프로젝트의 이름(예: myproject)
+  DATASET: 테이블을 만들 BigQuery 데이터 세트의 이름(예: mydataset)
+  EXTERNAL_TABLE_NAME: 만들려는 테이블의 이름(예: mytable)
+  REGION: 연결이 포함된 리전(예: us)
+  CONNECTION_ID: 연결 ID(예: myconnection)
+     Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+    기본 연결 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko]을 사용하려면 PROJECT_ID.REGION.CONNECTION_ID가 포함된 연결 문자열 대신 DEFAULT를 지정합니다.
+  
+  TABLE_FORMAT: 만들려는 테이블의 형식(예: PARQUET)
+  지원되는 형식에 대한 자세한 내용은 제한사항 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#limitations]을 참조하세요.
+  
+
+
+  BUCKET_PATH: 외부 테이블의 데이터가 포함된 Cloud Storage 버킷 경로(['gs://bucket_name/[folder_name/]file_name'] 형식)
+  경로에 별표(*) 와일드 카드 문자 하나를 지정하여 버킷에서 여러 개의 파일을 선택할 수 있습니다. 예를 들면 ['gs://mybucket/file_name*']입니다. 자세한 내용은 Cloud Storage URI의 와일드 카드 지원 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#wildcard-support]을 참조하세요.
+  여러 경로를 제공하여 uris 옵션에 대해 여러 버킷을 지정할 수 있습니다.
+    다음 예시에서는 유효한 uris 값을 보여줍니다.
+    
+    ['gs://bucket/path1/myfile.csv']
+    ['gs://bucket/path1/*.csv']
+    ['gs://bucket/path1/*', 'gs://bucket/path2/file00*']
+    
+    여러 파일을 대상으로 하는 uris 값을 지정하는 경우 해당하는 모든 파일은 호환되는 스키마를 공유해야 합니다.
+    BigQuery에서 Cloud Storage URI를 사용하는 방법에 대한 자세한 내용은 Cloud Storage 리소스 경로 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#google-cloud-storage-uri]를 참조하세요.
+    
+  STALENESS_INTERVAL: 캐시된 메타데이터가 BigLake 테이블에 대한 작업에서 사용되는지 여부와 작업이 사용하기 위해 캐시된 메타데이터가 작업에서 사용되려면 얼마나 최신이어야 하는지를 지정합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+  메타데이터 캐싱을 사용 중지하려면 0을 지정합니다. 이 값이 기본값입니다.
+  메타데이터 캐싱을 사용 설정하려면 30분에서 7일 사이의 간격 리터럴 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#interval_literals] 값을 지정합니다. 예를 들어 4시간 비활성 간격의 경우 INTERVAL 4 HOUR를 지정합니다.
+  이 값을 사용하면 지난 4시간 이내에 새로고침된 경우 테이블에 대한 작업이 캐시된 메타데이터를 사용합니다. 캐시된 메타데이터가 이보다 오래된 경우 작업이 대신 Cloud Storage에서 메타데이터를 검색합니다.
+  CACHE_MODE: 메타데이터 캐시를 자동 또는 수동으로 새로고침할지 지정합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+  시스템 정의 간격(일반적으로 30~60분)으로 메타데이터 캐시를 새로고침하려면 AUTOMATIC으로 설정합니다.
+  지정한 일정에 따라 메타데이터 캐시를 새로고침하려면 MANUAL로 설정합니다. 이 경우 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 프로시져 [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache]를 호출하여 캐시를 새로고침할 수 있습니다.
+  STALENESS_INTERVAL이 0보다 큰 값으로 설정된 경우 CACHE_MODE를 설정해야 합니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#bq] ---
+옵션 1: 테이블 정의 파일
+
+bq mkdef 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mkdef]를 사용하여 테이블 정의 파일을 만든 후 다음과 같이 bq mk 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mk]에 파일 경로를 전달합니다.
+
+
+
+bq mkdef \
+    --connection_id=CONNECTION_ID \
+    --source_format=SOURCE_FORMAT \
+  BUCKET_PATH > DEFINITION_FILE
+
+bq mk --table \
+    --external_table_definition=DEFINITION_FILE \
+    --max_staleness=STALENESS_INTERVAL \
+    PROJECT_ID:DATASET.EXTERNAL_TABLE_NAME \
+    SCHEMA
+
+다음을 바꿉니다.
+
+
+CONNECTION_ID: 연결 ID(예: myconnection)
+
+ Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+
+기본 연결 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko]을 사용하려면 PROJECT_ID.REGION.CONNECTION_ID가 포함된 연결 문자열 대신 DEFAULT를 지정합니다.
+SOURCE_FORMAT: 외부 데이터 소스의 형식.
+예를 들면 PARQUET입니다.
+BUCKET_PATH: 테이블의 데이터가 포함된 Cloud Storage 버킷 경로(gs://bucket_name/[folder_name/]file_pattern 형식)
+
+file_pattern에 별표(*) 와일드 카드 문자 하나를 지정하여 버킷에서 여러 개의 파일을 선택할 수 있습니다. 예를 들면 gs://mybucket/file00*.parquet입니다. 자세한 내용은 Cloud Storage URI의 와일드 카드 지원 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#wildcard-support]을 참조하세요.
+
+여러 경로를 제공하여 uris 옵션에 대해 여러 버킷을 지정할 수 있습니다.
+
+다음 예시에서는 유효한 uris 값을 보여줍니다.
+
+
+gs://bucket/path1/myfile.csv
+gs://bucket/path1/*.parquet
+gs://bucket/path1/file1*, gs://bucket1/path1/*
+
+
+여러 파일을 대상으로 하는 uris 값을 지정하는 경우 해당하는 모든 파일은 호환되는 스키마를 공유해야 합니다.
+
+BigQuery에서 Cloud Storage URI를 사용하는 방법에 대한 자세한 내용은 Cloud Storage 리소스 경로 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#google-cloud-storage-uri]를 참조하세요.
+DEFINITION_FILE: 로컬 머신에 있는 테이블 정의 파일 [https://cloud.google.com/bigquery/docs/external-table-definition?hl=ko]의 경로
+STALENESS_INTERVAL: 캐시된 메타데이터가 BigLake 테이블에 대한 작업에서 사용되는지 여부와 작업이 사용하기 위해 캐시된 메타데이터가 작업에서 사용되려면 얼마나 최신이어야 하는지를 지정합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+
+메타데이터 캐싱을 사용 중지하려면 0을 지정합니다. 이 값이 기본값입니다.
+
+메타데이터 캐싱을 사용 설정하려면 INTERVAL 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#interval_type] 문서에 설명된 Y-M D H:M:S 형식을 사용하여 30분에서 7일 사이의 간격 값을 지정합니다. 예를 들어 4시간 비활성 간격의 경우 0-0 0 4:0:0을 지정합니다.
+이 값을 사용하면 지난 4시간 이내에 새로고침된 경우 테이블에 대한 작업이 캐시된 메타데이터를 사용합니다. 캐시된 메타데이터가 이보다 오래된 경우 작업이 대신 Cloud Storage에서 메타데이터를 검색합니다.
+DATASET: 테이블을 만들려는 BigQuery 데이터 세트의 이름(예: mydataset)
+EXTERNAL_TABLE_NAME: 만들려는 테이블의 이름(예: mytable)
+SCHEMA: BigLake 테이블의 스키마
+
+
+예를 들면 다음과 같습니다.
+
+bq mkdef
+    --connection_id=myconnection
+    --metadata_cache_mode=CACHE_MODE
+    --source_format=CSV 'gs://mybucket/*.csv' > mytable_def
+
+bq mk
+    --table
+    --external_table_definition=mytable_def='gs://mybucket/*.csv'
+    --max_staleness=0-0 0 4:0:0
+    myproject:mydataset.mybiglaketable
+    Region:STRING,Quarter:STRING,Total_sales:INTEGER
+
+스키마 자동 감지를 사용하려면 mkdef 명령어에서 --autodetect=true 플래그를 설정하고 스키마를 생략합니다.
+
+bq mkdef \
+    --connection_id=myconnection \
+    --metadata_cache_mode=CACHE_MODE \
+    --source_format=CSV --autodetect=true \
+    gs://mybucket/*.csv > mytable_def
+
+bq mk \
+    --table \
+    --external_table_definition=mytable_def=gs://mybucket/*.csv \
+    --max_staleness=0-0 0 4:0:0 \
+    myproject:mydataset.myexternaltable
+
+옵션 2: 인라인 테이블 정의
+
+테이블 정의 파일을 만드는 대신 테이블 정의를 bq mk 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mk]에 직접 전달할 수 있습니다.
+@connection 데코레이터를 사용하여 --external_table_definition [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#external_table_definition_flag] 매개변수 끝에 사용할 연결을 지정합니다.
+
+bq mk --table \
+  --external_table_definition=@SOURCE_FORMAT=BUCKET_PATH@projects/PROJECT_ID/locations/REGION/connections/CONNECTION_ID \
+  DATASET_NAME.TABLE_NAME \
+  SCHEMA
+
+다음을 바꿉니다.
+
+
+SOURCE_FORMAT: 외부 데이터 소스의 형식
+
+예를 들면 CSV입니다.
+BUCKET_PATH: 테이블의 데이터가 포함된 Cloud Storage 버킷 경로(gs://bucket_name/[folder_name/]file_pattern 형식)
+
+file_pattern에 별표(*) 와일드 카드 문자 하나를 지정하여 버킷에서 여러 개의 파일을 선택할 수 있습니다. 예를 들면 gs://mybucket/file00*.parquet입니다. 자세한 내용은 Cloud Storage URI의 와일드 카드 지원 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#wildcard-support]을 참조하세요.
+
+여러 경로를 제공하여 uris 옵션에 대해 여러 버킷을 지정할 수 있습니다.
+
+다음 예시에서는 유효한 uris 값을 보여줍니다.
+
+
+gs://bucket/path1/myfile.csv
+gs://bucket/path1/*.parquet
+gs://bucket/path1/file1*, gs://bucket1/path1/*
+
+
+여러 파일을 대상으로 하는 uris 값을 지정하는 경우 해당하는 모든 파일은 호환되는 스키마를 공유해야 합니다.
+
+BigQuery에서 Cloud Storage URI를 사용하는 방법에 대한 자세한 내용은 Cloud Storage 리소스 경로 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#google-cloud-storage-uri]를 참조하세요.
+PROJECT_ID: 테이블을 만들 프로젝트의 이름(예: myproject)
+REGION: 연결이 포함된 리전 us
+CONNECTION_ID: 연결 ID(예: myconnection)
+
+ Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+
+기본 연결 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko]을 사용하려면 PROJECT_ID.REGION.CONNECTION_ID가 포함된 연결 문자열 대신 DEFAULT를 지정합니다.
+DATASET_NAME: BigLake 테이블을 만들려는 데이터 세트의 이름
+TABLE_NAME: BigLake 테이블 이름
+SCHEMA: BigLake 테이블의 스키마
+
+
+예를 들면 다음과 같습니다.
+
+bq mk --table \
+    --external_table_definition=@CSV=gs://mybucket/*.parquet@projects/myproject/locations/us/connections/myconnection \
+    --max_staleness=0-0 0 4:0:0 \
+    myproject:mydataset.myexternaltable \
+    Region:STRING,Quarter:STRING,Total_sales:INTEGER
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#api] ---
+tables.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert?hl=ko] API 메서드를 호출하여, 전달한 Table 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#Table]에 ExternalDataConfiguration [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#externaldataconfiguration]을 생성합니다.
+
+schema 속성을 지정하거나 autodetect 속성을 true로 설정하여 지원되는 데이터 소스에 스키마 자동 감지를 사용 설정합니다.
+
+connectionId 속성을 지정하여 Cloud Storage에 연결하는 데 사용할 연결을 식별합니다.
+
+--- 탭: tabpanel-terraform ---
+이 예시에서는 파티션을 나누지 않은 데이터에 BigLake 테이블을 만듭니다.
+
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # This creates a bucket in the US region named "my-bucket" with a pseudorandom suffix.
+resource "random_id" "default" {
+  byte_length = 8
+}
+resource "google_storage_bucket" "default" {
+  name                        = "my-bucket-${random_id.default.hex}"
+  location                    = "US"
+  force_destroy               = true
+  uniform_bucket_level_access = true
+}
+
+# This queries the provider for project information.
+data "google_project" "project" {}
+
+# This creates a connection in the US region named "my-connection".
+# This connection is used to access the bucket.
+resource "google_bigquery_connection" "default" {
+  connection_id = "my-connection"
+  location      = "US"
+  cloud_resource {}
+}
+
+# This grants the previous connection IAM role access to the bucket.
+resource "google_project_iam_member" "default" {
+  role    = "roles/storage.objectViewer"
+  project = data.google_project.project.id
+  member  = "serviceAccount:${google_bigquery_connection.default.cloud_resource[0].service_account_id}"
+}
+
+# This makes the script wait for seven minutes before proceeding.
+# This lets IAM permissions propagate.
+resource "time_sleep" "default" {
+  create_duration = "7m"
+
+  depends_on = [google_project_iam_member.default]
+}
+
+# This defines a Google BigQuery dataset with
+# default expiration times for partitions and tables, a
+# description, a location, and a maximum time travel.
+resource "google_bigquery_dataset" "default" {
+  dataset_id                      = "my_dataset"
+  default_partition_expiration_ms = 2592000000  # 30 days
+  default_table_expiration_ms     = 31536000000 # 365 days
+  description                     = "My dataset description"
+  location                        = "US"
+  max_time_travel_hours           = 96 # 4 days
+
+  # This defines a map of labels for the bucket resource,
+  # including the labels "billing_group" and "pii".
+  labels = {
+    billing_group = "accounting",
+    pii           = "sensitive"
+  }
+}
+
+
+# This creates a BigQuery Table with automatic metadata caching.
+resource "google_bigquery_table" "default" {
+  dataset_id = google_bigquery_dataset.default.dataset_id
+  table_id   = "my_table"
+  schema = jsonencode([
+    { "name" : "country", "type" : "STRING" },
+    { "name" : "product", "type" : "STRING" },
+    { "name" : "price", "type" : "INT64" }
+  ])
+  external_data_configuration {
+    # This defines an external data configuration for the BigQuery table
+    # that reads Parquet data from the publish directory of the default
+    # Google Cloud Storage bucket.
+    autodetect    = false
+    source_format = "PARQUET"
+    connection_id = google_bigquery_connection.default.name
+    source_uris   = ["gs://${google_storage_bucket.default.name}/data/*"]
+    # This enables automatic metadata refresh.
+    metadata_cache_mode = "AUTOMATIC"
+  }
+
+  # This sets the maximum staleness of the metadata cache to 10 hours.
+  max_staleness = "0-0 0 10:0:0"
+
+  deletion_protection = false
+
+  depends_on = [time_sleep.default]
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+BigLake는 스키마 자동 감지를 지원합니다. 하지만 스키마를 제공하지 않았고 이전 단계에서 서비스 계정에 액세스 권한이 부여되지 않은 경우 스키마를 자동 감지하려고 하면 이 단계가 액세스 거부 메시지와 함께 실패합니다.
+Apache Hive 파티션을 나눈 데이터에 대한 BigLake 테이블 만들기
+Cloud Storage에서 Hive 파티션을 나눈 데이터의 BigLake 테이블을 만들 수 있습니다. 외부에서 파티션을 나눈 테이블을 만든 후에는 파티션 키를 변경할 수 없습니다. 파티션을 변경하려면 테이블을 다시 만들어야 합니다.
+Cloud Storage에서 Hive 파티션을 나눈 데이터를 기반으로 BigLake 테이블을 만들려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+more_vert 작업 보기를 클릭한 후 테이블 만들기를 클릭합니다. 그러면 테이블 만들기 창이 열립니다.
+소스 섹션에서 다음 세부정보를 지정합니다.
+
+
+다음 항목으로 테이블 만들기에서 Google Cloud Storage를 선택합니다.
+와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]를 사용하여 폴더 경로를 제공합니다.
+예를 들면 my_bucket/my_files*입니다.
+폴더는 생성, 추가 또는 덮어쓰려는 테이블이 포함된 데이터 세트와 동일한 위치에 있어야 합니다.
+파일 형식 목록에서 파일 유형을 선택합니다.
+소스 데이터 파티션 나누기 체크박스를 선택한 후 다음 세부정보를 지정합니다.
+
+
+소스 URI 프리픽스 선택에 URI 프리픽스를 입력합니다. 예를 들면 gs://my_bucket/my_files입니다.
+선택사항: 이 테이블의 모든 쿼리에 파티션 필터가 필요하면 파티션 필터 필요 체크박스를 선택합니다.
+파티션 필터를 필수항목으로 설정하면 비용을 줄이고 성능을 높일 수 있습니다. 자세한 내용은 쿼리에서 파티션 키에 조건자 필터 필요 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries-gcs?hl=ko#requiring_predicate_filters_on_partition_keys_in_queries]를 참조하세요.
+파티션 추론 모드 섹션에서 다음 옵션 중 하나를 선택합니다.
+
+
+유형을 자동으로 추론: 파티션 스키마 감지 모드를 AUTO로 설정합니다.
+모든 열은 문자열: 파티션 스키마 감지 모드를 STRINGS로 설정합니다.
+직접 제공: 파티션 스키마 감지 모드를 CUSTOM으로 설정하고 파티션 키의 스키마 정보를 직접 입력합니다. 자세한 내용은 커스텀 파티션 키 스키마 제공 [https://cloud.google.com/bigquery/docs/hive-partitioned-loads-gcs?hl=ko#custom_partition_key_schema]을 참조하세요.
+
+
+
+대상 섹션에서 다음 세부정보를 지정합니다.
+
+
+프로젝트에서 테이블을 만들 프로젝트를 선택합니다.
+데이터 세트에서 테이블을 만들 데이터 세트를 선택합니다.
+테이블에 만들 테이블의 이름을 입력합니다.
+테이블 유형에서 외부 테이블을 선택합니다.
+Cloud 리소스 연결을 사용하여 BigLake 테이블 만들기 체크박스를 선택합니다.
+연결 ID에 대해 이전에 만든 연결을 선택합니다.
+
+스키마 섹션에서 자동 감지 옵션을 선택하여 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko]를 사용 설정합니다.
+스키마와 일치하지 않는 추가 열 값이 있는 행을 무시하려면 고급 옵션 섹션을 펼치고 알 수 없는 값을 선택합니다.
+테이블 만들기를 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#sql] ---
+CREATE EXTERNAL TABLE DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_table_statement]을 사용합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE EXTERNAL TABLE `PROJECT_ID.DATASET.EXTERNAL_TABLE_NAME`
+WITH PARTITION COLUMNS
+(
+  PARTITION_COLUMN PARTITION_COLUMN_TYPE,
+)
+WITH CONNECTION {`PROJECT_ID.REGION.CONNECTION_ID` | DEFAULT}
+OPTIONS (
+  hive_partition_uri_prefix = "HIVE_PARTITION_URI_PREFIX",
+  uris=['FILE_PATH'],
+  max_staleness = STALENESS_INTERVAL,
+  metadata_cache_mode = 'CACHE_MODE',
+  format ="TABLE_FORMAT"
+);
+
+
+다음을 바꿉니다.
+
+PROJECT_ID: 테이블을 만들 프로젝트의 이름(예: myproject)
+DATASET: 테이블을 만들 BigQuery 데이터 세트의 이름(예: mydataset)
+EXTERNAL_TABLE_NAME: 만들려는 테이블의 이름(예: mytable)
+PARTITION_COLUMN: 파티션 나누기 열의 이름
+PARTITION_COLUMN_TYPE: 파티션 나누기 열의 유형
+REGION: 연결이 포함된 리전(예: us)
+  CONNECTION_ID: 연결 ID(예: myconnection)
+   Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+  기본 연결 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko]을 사용하려면 PROJECT_ID.REGION.CONNECTION_ID가 포함된 연결 문자열 대신 DEFAULT를 지정합니다.
+  
+  HIVE_PARTITION_URI_PREFIX: 하이브 파티션 나누기 URI 프리픽스. 예를 들면 gs://mybucket/입니다.
+FILE_PATH: 만들려는 외부 테이블의 데이터 소스 경로(예: gs://mybucket/*.parquet)
+STALENESS_INTERVAL: 캐시된 메타데이터가 BigLake 테이블에 대한 작업에서 사용되는지 여부와 작업이 사용하기 위해 캐시된 메타데이터가 작업에서 사용되려면 얼마나 최신이어야 하는지를 지정합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+  메타데이터 캐싱을 사용 중지하려면 0을 지정합니다. 이 값이 기본값입니다.
+  메타데이터 캐싱을 사용 설정하려면 30분에서 7일 사이의 간격 리터럴 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#interval_literals] 값을 지정합니다. 예를 들어 4시간 비활성 간격의 경우 INTERVAL 4 HOUR를 지정합니다.
+  이 값을 사용하면 지난 4시간 이내에 새로고침된 경우 테이블에 대한 작업이 캐시된 메타데이터를 사용합니다. 캐시된 메타데이터가 이보다 오래된 경우 작업이 대신 Cloud Storage에서 메타데이터를 검색합니다.
+  CACHE_MODE: 메타데이터 캐시를 자동 또는 수동으로 새로고침할지 지정합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+  시스템 정의 간격(일반적으로 30~60분)으로 메타데이터 캐시를 새로고침하려면 AUTOMATIC으로 설정합니다.
+  지정한 일정에 따라 메타데이터 캐시를 새로고침하려면 MANUAL로 설정합니다. 이 경우 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 프로시져 [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache]를 호출하여 캐시를 새로고침할 수 있습니다.
+  STALENESS_INTERVAL이 0보다 큰 값으로 설정된 경우 CACHE_MODE를 설정해야 합니다.
+TABLE_FORMAT: 만들려는 테이블의 형식(예: PARQUET)
+   
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+예시
+
+다음 예시에서는 다음과 같은 파티션을 나눈 데이터에 BigLake 테이블을 만듭니다.
+
+
+스키마는 자동으로 감지됩니다.
+테이블의 메타데이터 캐시 비활성 간격은 1일입니다.
+메타데이터 캐시가 자동으로 새로 고침됩니다.
+
+
+CREATE EXTERNAL TABLE `my_dataset.my_table`
+WITH PARTITION COLUMNS
+(
+  sku STRING,
+)
+WITH CONNECTION `us.my-connection`
+OPTIONS(
+  hive_partition_uri_prefix = "gs://mybucket/products",
+  uris = ['gs://mybucket/products/*'],
+  max_staleness = INTERVAL 1 DAY,
+  metadata_cache_mode = 'AUTOMATIC'
+);
+
+다음 예시에서는 다음과 같은 파티션을 나눈 데이터에 BigLake 테이블을 만듭니다.
+
+
+스키마가 지정됩니다.
+테이블의 메타데이터 캐시 비활성 간격은 8시간입니다.
+수동으로 메타데이터 캐시를 새로고침해야 합니다.
+
+
+CREATE EXTERNAL TABLE `my_dataset.my_table`
+(
+  ProductId INTEGER,
+  ProductName STRING,
+  ProductType STRING
+)
+WITH PARTITION COLUMNS
+(
+  sku STRING,
+)
+WITH CONNECTION `us.my-connection`
+OPTIONS(
+  hive_partition_uri_prefix = "gs://mybucket/products",
+  uris = ['gs://mybucket/products/*'],
+  max_staleness = INTERVAL 8 HOUR,
+  metadata_cache_mode = 'MANUAL'
+);
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#bq] ---
+먼저 bq mkdef [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mkdef] 명령어를 사용하여 테이블 정의 파일을 만듭니다.
+
+bq mkdef \
+--source_format=SOURCE_FORMAT \
+--connection_id=REGION.CONNECTION_ID \
+--hive_partitioning_mode=PARTITIONING_MODE \
+--hive_partitioning_source_uri_prefix=GCS_URI_SHARED_PREFIX \
+--require_hive_partition_filter=BOOLEAN \
+--metadata_cache_mode=CACHE_MODE \
+ GCS_URIS > DEFINITION_FILE
+
+다음을 바꿉니다.
+
+
+SOURCE_FORMAT: 외부 데이터 소스의 형식 (예: CSV)
+REGION: 연결이 포함된 리전(예: us)
+CONNECTION_ID: 연결 ID(예: myconnection)
+
+ Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+
+기본 연결 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko]을 사용하려면 PROJECT_ID.REGION.CONNECTION_ID가 포함된 연결 문자열 대신 DEFAULT를 지정합니다.
+PARTITIONING_MODE: Hive 파티션 나누기 모드. 다음 값 중 하나를 사용합니다.
+
+
+AUTO: 키 이름과 유형을 자동으로 감지
+STRINGS: 키 이름을 문자열로 자동으로 변환
+CUSTOM: 소스 URI 프리픽스의 키 스키마를 인코딩
+
+GCS_URI_SHARED_PREFIX: 소스 URI 프리픽스
+BOOLEAN: 쿼리 시 조건자 필터를 요구할지 여부를 지정합니다. 이 플래그는 선택사항입니다. 기본값은 false입니다.
+CACHE_MODE: 메타데이터 캐시를 자동 또는 수동으로 새로고침할지 지정합니다. 후속 bq mk 명령어에서 --max_staleness 플래그를 사용하여 메타데이터 캐싱도 사용 설정하려는 경우에만 이 플래그를 포함해야 합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+
+시스템 정의 간격(일반적으로 30~60분)으로 메타데이터 캐시를 새로고침하려면 AUTOMATIC으로 설정합니다.
+
+지정한 일정에 따라 메타데이터 캐시를 새로고침하려면 MANUAL로 설정합니다. 이 경우 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 프로시저 [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache]를 호출하여 캐시를 새로고침할 수 있습니다.
+
+STALENESS_INTERVAL이 0보다 큰 값으로 설정된 경우 CACHE_MODE를 설정해야 합니다.
+GCS_URIS: 와일드 카드 형식을 사용하는 Cloud Storage 폴더의 경로
+DEFINITION_FILE: 로컬 머신에 있는 테이블 정의 파일 [https://cloud.google.com/bigquery/external-table-definition?hl=ko]의 경로
+
+
+PARTITIONING_MODE가 CUSTOM이면 다음 형식을 사용하여 소스 URI 프리픽스에 파티션 키 스키마를 포함합니다.
+
+--hive_partitioning_source_uri_prefix=GCS_URI_SHARED_PREFIX/{KEY1:TYPE1}/{KEY2:TYPE2}/...
+
+테이블 정의 파일을 만든 후 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-table] 명령어를 사용하여 BigLake 테이블을 만듭니다.
+
+bq mk --external_table_definition=DEFINITION_FILE \
+--max_staleness=STALENESS_INTERVAL \
+DATASET_NAME.TABLE_NAME \
+SCHEMA
+
+다음을 바꿉니다.
+
+
+DEFINITION_FILE: 테이블 정의 파일의 경로
+STALENESS_INTERVAL: 캐시된 메타데이터가 BigLake 테이블에 대한 작업에서 사용되는지 여부와 작업이 사용하기 위해 캐시된 메타데이터가 작업에서 사용되려면 얼마나 최신이어야 하는지를 지정합니다. 이 플래그를 포함하는 경우 앞의 bq mkdef 명령어에 --metadata_cache_mode 플래그 값도 지정해야 합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+
+메타데이터 캐싱을 사용 중지하려면 0을 지정합니다. 이 값이 기본값입니다.
+
+메타데이터 캐싱을 사용 설정하려면 INTERVAL 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#interval_type] 문서에 설명된 Y-M D H:M:S 형식을 사용하여 30분에서 7일 사이의 간격 값을 지정합니다. 예를 들어 4시간 비활성 간격의 경우 0-0 0 4:0:0를 지정합니다.
+  이 값을 사용하면 지난 4시간 이내에 새로고침된 경우 테이블에 대한 작업이 캐시된 메타데이터를 사용합니다. 캐시된 메타데이터가 이보다 오래된 경우 작업이 대신 Cloud Storage에서 메타데이터를 검색합니다.
+DATASET_NAME: 테이블이 포함된 데이터 세트의 이름
+TABLE_NAME: 생성할 테이블의 이름
+SCHEMA: JSON 스키마 파일 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#specifying_a_json_schema_file] 경로를 지정하거나 field:data_type,field:data_type,... 형식으로 스키마를 지정합니다. 스키마 자동 감지를 사용하려면 이 인수를 생략하세요.
+
+
+예시
+
+다음 예시에서는 AUTO Hive 파티셔닝 모드를 사용하고 메타데이터 캐시가 비활성 간격 12시간 후에 자동으로 새로고침되도록 설정합니다.
+bq mkdef --source_format=CSV \
+  --connection_id=us.my-connection \
+  --hive_partitioning_mode=AUTO \
+  --hive_partitioning_source_uri_prefix=gs://myBucket/myTable \
+  --metadata_cache_mode=AUTOMATIC \
+  gs://myBucket/myTable/* > mytable_def
+
+bq mk --external_table_definition=mytable_def \
+  --max_staleness=0-0 0 12:0:0 \
+  mydataset.mytable \
+  Region:STRING,Quarter:STRING,Total_sales:INTEGER
+
+다음 예시에서는 STRING Hive 파티션 나누기 모드를 사용합니다.
+bq mkdef --source_format=CSV \
+  --connection_id=us.my-connection \
+  --hive_partitioning_mode=STRING \
+  --hive_partitioning_source_uri_prefix=gs://myBucket/myTable \
+  gs://myBucket/myTable/* > mytable_def
+
+bq mk --external_table_definition=mytable_def \
+  mydataset.mytable \
+  Region:STRING,Quarter:STRING,Total_sales:INTEGER
+
+다음 예시에서는 CUSTOM Hive 파티션 나누기 모드를 사용합니다.
+bq mkdef --source_format=CSV \
+  --connection_id=us.my-connection \
+  --hive_partitioning_mode=CUSTOM \
+  --hive_partitioning_source_uri_prefix=gs://myBucket/myTable/{dt:DATE}/{val:STRING} \
+  gs://myBucket/myTable/* > mytable_def
+
+bq mk --external_table_definition=mytable_def \
+  mydataset.mytable \
+  Region:STRING,Quarter:STRING,Total_sales:INTEGER
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#api] ---
+BigQuery API를 사용하여 Hive 파티션 나누기를 설정하려면 테이블 정의 파일 [https://cloud.google.com/bigquery/external-table-definition?hl=ko]을 만들 때 ExternalDataConfiguration [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#externaldataconfiguration] 객체에 hivePartitioningOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#hivepartitioningoptions] 객체를 포함하세요.
+BigLake 테이블을 만들려면 connectionId 필드의 값도 지정해야 합니다.
+
+hivePartitioningOptions.mode 필드를 CUSTOM로 설정한 경우, hivePartitioningOptions.sourceUriPrefix 필드에 파티션 키 스키마를 인코딩해야 합니다(예: gs://BUCKET/PATH_TO_TABLE/{KEY1:TYPE1}/{KEY2:TYPE2}/...).
+
+쿼리 시 조건자 필터를 사용하도록 하려면 hivePartitioningOptions.requirePartitionFilter 필드를 true로 설정합니다.
+
+--- 탭: tabpanel-terraform ---
+이 예시에서는 파티션을 나눈 데이터에 BigLake 테이블을 만듭니다.
+
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# This creates a bucket in the US region named "my-bucket" with a pseudorandom
+# suffix.
+resource "random_id" "default" {
+  byte_length = 8
+}
+resource "google_storage_bucket" "default" {
+  name                        = "my-bucket-${random_id.default.hex}"
+  location                    = "US"
+  force_destroy               = true
+  uniform_bucket_level_access = true
+}
+
+resource "google_storage_bucket_object" "default" {
+  # This creates a fake message to create partition locations on the table.
+  # Otherwise, the table deployment fails.
+  name    = "publish/dt=2000-01-01/hr=00/min=00/fake_message.json"
+  content = "{\"column1\": \"XXX\"}"
+  bucket  = google_storage_bucket.default.name
+}
+
+# This queries the provider for project information.
+data "google_project" "default" {}
+
+# This creates a connection in the US region named "my-connection".
+# This connection is used to access the bucket.
+resource "google_bigquery_connection" "default" {
+  connection_id = "my-connection"
+  location      = "US"
+  cloud_resource {}
+}
+
+# This grants the previous connection IAM role access to the bucket.
+resource "google_project_iam_member" "default" {
+  role    = "roles/storage.objectViewer"
+  project = data.google_project.default.id
+  member  = "serviceAccount:${google_bigquery_connection.default.cloud_resource[0].service_account_id}"
+}
+
+# This makes the script wait for seven minutes before proceeding. This lets IAM
+# permissions propagate.
+resource "time_sleep" "default" {
+  create_duration = "7m"
+
+  depends_on = [google_project_iam_member.default]
+}
+
+# This defines a Google BigQuery dataset with default expiration times for
+# partitions and tables, a description, a location, and a maximum time travel.
+resource "google_bigquery_dataset" "default" {
+  dataset_id                      = "my_dataset"
+  default_partition_expiration_ms = 2592000000  # 30 days
+  default_table_expiration_ms     = 31536000000 # 365 days
+  description                     = "My dataset description"
+  location                        = "US"
+  max_time_travel_hours           = 96 # 4 days
+
+  # This defines a map of labels for the bucket resource,
+  # including the labels "billing_group" and "pii".
+  labels = {
+    billing_group = "accounting",
+    pii           = "sensitive"
+  }
+}
+
+# This creates a BigQuery table with partitioning and automatic metadata
+# caching.
+resource "google_bigquery_table" "default" {
+  dataset_id = google_bigquery_dataset.default.dataset_id
+  table_id   = "my_table"
+  schema     = jsonencode([{ "name" : "column1", "type" : "STRING", "mode" : "NULLABLE" }])
+  external_data_configuration {
+    # This defines an external data configuration for the BigQuery table
+    # that reads Parquet data from the publish directory of the default
+    # Google Cloud Storage bucket.
+    autodetect    = false
+    source_format = "PARQUET"
+    connection_id = google_bigquery_connection.default.name
+    source_uris   = ["gs://${google_storage_bucket.default.name}/publish/*"]
+    # This configures Hive partitioning for the BigQuery table,
+    # partitioning the data by date and time.
+    hive_partitioning_options {
+      mode                     = "CUSTOM"
+      source_uri_prefix        = "gs://${google_storage_bucket.default.name}/publish/{dt:STRING}/{hr:STRING}/{min:STRING}"
+      require_partition_filter = false
+    }
+    # This enables automatic metadata refresh.
+    metadata_cache_mode = "AUTOMATIC"
+  }
+
+
+  # This sets the maximum staleness of the metadata cache to 10 hours.
+  max_staleness = "0-0 0 10:0:0"
+
+  deletion_protection = false
+
+  depends_on = [
+    time_sleep.default,
+    google_storage_bucket_object.default
+  ]
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+액세스 제어 정책 설정
+여러 가지 방법으로 BigLake 테이블에 대한 액세스를 제어할 수 있습니다.
+열 수준 보안 설정에 대한 안내는 열 수준 보안 가이드 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko]를 참조하세요.
+데이터 마스킹 설정에 대한 안내는 데이터 마스킹 가이드 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko]를 참조하세요.
+행 수준 보안 설정에 대한 안내는 행 수준 보안 가이드 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko]를 참조하세요.
+예를 들어 데이터 세트 mydataset의 mytable 테이블에 대한 행 액세스를 제한한다고 가정해 보겠습니다.
++---------+---------+-------+
+| country | product | price |
++---------+---------+-------+
+| US      | phone   |   100 |
+| JP      | tablet  |   300 |
+| UK      | laptop  |   200 |
++---------+---------+-------+
+김(kim@example.com)에 대해 country가 US인 행으로 액세스를 제한하는 행 수준 필터를 만들 수 있습니다.
+CREATE ROW ACCESS POLICY only_us_filter
+ON mydataset.mytable
+GRANT TO ('user:kim@example.com')
+FILTER USING (country = 'US');
+그런 후 다음 쿼리를 실행합니다.
+SELECT * FROM projectid.mydataset.mytable;
+country가 US인 행만 출력에 표시됩니다.
++---------+---------+-------+
+| country | product | price |
++---------+---------+-------+
+| US      | phone   |   100 |
++---------+---------+-------+
+BigLake 테이블 쿼리
+자세한 내용은 BigLake 테이블에서 Cloud Storage 데이터 쿼리 [https://cloud.google.com/bigquery/docs/query-cloud-storage-using-biglake?hl=ko]를 참조하세요.
+BigLake 테이블 업데이트
+메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance] 변경 등으로 인해 필요한 경우 BigLake 테이블을 업데이트할 수 있습니다. 소스 형식 및 소스 URI와 같은 테이블 세부정보를 가져오려면 테이블 정보 가져오기 [https://cloud.google.com/bigquery/docs/tables?hl=ko#get_table_information]를 참조하세요.
+또한 동일한 절차를 사용하여 외부 테이블을 연결에 연결하여 Cloud Storage 기반 외부 테이블을 BigLake 테이블로 업그레이드할 수 있습니다. 자세한 내용은 외부 테이블을 BigLake 테이블로 업그레이드 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#upgrade-external-tables-to-biglake-tables]를 참조하세요.
+BigLake 테이블을 업데이트하려면 다음 중 하나를 선택합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#sql] ---
+CREATE OR REPLACE EXTERNAL TABLE DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_table_statement]을 사용하여 테이블을 업데이트합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE OR REPLACE EXTERNAL TABLE
+  `PROJECT_ID.DATASET.EXTERNAL_TABLE_NAME`
+  WITH CONNECTION {`REGION.CONNECTION_ID` | DEFAULT}
+  OPTIONS(
+    format ="TABLE_FORMAT",
+    uris = ['BUCKET_PATH'],
+    max_staleness = STALENESS_INTERVAL,
+    metadata_cache_mode = 'CACHE_MODE'
+    );
+
+
+다음을 바꿉니다.
+
+ PROJECT_ID: 테이블이 포함된 프로젝트 이름
+  DATASET: 테이블이 포함된 데이터 세트의 이름
+  EXTERNAL_TABLE_NAME: 테이블의 이름
+  REGION: 연결이 포함된 리전
+ CONNECTION_ID: 사용할 연결의 이름
+ 기본 연결 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko]을 사용하려면 REGION.CONNECTION_ID가 포함된 연결 문자열 대신 DEFAULT를 지정합니다.
+ 
+ TABLE_FORMAT: 테이블에 사용되는 형식
+
+테이블을 업데이트할 때는 이를 변경할 수 없습니다.
+
+
+  BUCKET_PATH: 외부 테이블의 데이터가 포함된 Cloud Storage 버킷 경로(['gs://bucket_name/[folder_name/]file_name'] 형식)
+  경로에 별표(*) 와일드 카드 문자 하나를 지정하여 버킷에서 여러 개의 파일을 선택할 수 있습니다. 예를 들면 ['gs://mybucket/file_name*']입니다. 자세한 내용은 Cloud Storage URI의 와일드 카드 지원 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#wildcard-support]을 참조하세요.
+  여러 경로를 제공하여 uris 옵션에 대해 여러 버킷을 지정할 수 있습니다.
+    다음 예시에서는 유효한 uris 값을 보여줍니다.
+    
+    ['gs://bucket/path1/myfile.csv']
+    ['gs://bucket/path1/*.csv']
+    ['gs://bucket/path1/*', 'gs://bucket/path2/file00*']
+    
+    여러 파일을 대상으로 하는 uris 값을 지정하는 경우 해당하는 모든 파일은 호환되는 스키마를 공유해야 합니다.
+    BigQuery에서 Cloud Storage URI를 사용하는 방법에 대한 자세한 내용은 Cloud Storage 리소스 경로 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#google-cloud-storage-uri]를 참조하세요.
+    
+ STALENESS_INTERVAL: 캐시된 메타데이터가 테이블에 대한 작업에서 사용되는지 여부와 작업이 사용하기 위해 캐시된 메타데이터가 작업에서 사용되려면 얼마나 최신이어야 하는지를 지정합니다.
+
+메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+  메타데이터 캐싱을 사용 중지하려면 0을 지정합니다. 이 값이 기본값입니다.
+  메타데이터 캐싱을 사용 설정하려면 30분에서 7일 사이의 간격 리터럴 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#interval_literals] 값을 지정합니다. 예를 들어 4시간 비활성 간격의 경우 INTERVAL 4 HOUR를 지정합니다.
+  이 값을 사용하면 지난 4시간 이내에 새로고침된 경우 테이블에 대한 작업이 캐시된 메타데이터를 사용합니다. 캐시된 메타데이터가 이보다 오래된 경우 작업이 대신 Cloud Storage에서 메타데이터를 검색합니다.
+  
+  CACHE_MODE: 메타데이터 캐시를 자동 또는 수동으로 새로고침할지 지정합니다.
+
+메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+  시스템 정의 간격(일반적으로 30~60분)으로 메타데이터 캐시를 새로고침하려면 AUTOMATIC으로 설정합니다.
+  지정한 일정에 따라 메타데이터 캐시를 새로고침하려면 MANUAL로 설정합니다. 이 경우 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 프로시져 [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache]를 호출하여 캐시를 새로고침할 수 있습니다.
+  STALENESS_INTERVAL이 0보다 큰 값으로 설정된 경우 CACHE_MODE를 설정해야 합니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko#bq] ---
+bq mkdef [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mkdef] 및 bq update [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_update] 명령어를 사용하여 테이블을 업데이트합니다.
+
+
+변경할 테이블의 측면을 설명하는 외부 테이블 정의 [https://cloud.google.com/bigquery/external-table-definition?hl=ko#table-definition]를 생성합니다.
+
+bq mkdef --connection_id=PROJECT_ID.REGION.CONNECTION_ID \
+--source_format=TABLE_FORMAT \
+--metadata_cache_mode=CACHE_MODE \
+"BUCKET_PATH" > /tmp/DEFINITION_FILE
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 연결이 포함된 프로젝트 이름
+REGION: 연결이 포함된 리전
+CONNECTION_ID: 사용할 연결의 이름
+TABLE_FORMAT: 테이블에 사용되는 형식. 테이블을 업데이트할 때는 이를 변경할 수 없습니다.
+CACHE_MODE: 메타데이터 캐시를 자동 또는 수동으로 새로고침할지 지정합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+
+시스템 정의 간격(일반적으로 30~60분)으로 메타데이터 캐시를 새로고침하려면 AUTOMATIC으로 설정합니다.
+
+지정한 일정에 따라 메타데이터 캐시를 새로고침하려면 MANUAL로 설정합니다. 이 경우 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 프로시저 [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache]를 호출하여 캐시를 새로고침할 수 있습니다.
+
+STALENESS_INTERVAL이 0보다 큰 값으로 설정된 경우 CACHE_MODE를 설정해야 합니다.
+BUCKET_PATH: 외부 테이블의 데이터가 포함된 Cloud Storage 버킷 경로(gs://bucket_name/[folder_name/]file_name 형식)
+
+경로에 별표(*) 와일드카드 문자 하나를 지정하여 버킷에서 선택한 파일을 제한할 수 있습니다. 예를 들면 gs://mybucket/file_name*입니다. 자세한 내용은 Cloud Storage URI의 와일드 카드 지원 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#wildcard-support]을 참조하세요.
+
+여러 경로를 제공하여 uris 옵션에 대해 여러 버킷을 지정할 수 있습니다.
+
+다음 예시에서는 유효한 uris 값을 보여줍니다.
+
+
+gs://bucket/path1/myfile.csv
+gs://bucket/path1/*.csv
+gs://bucket/path1/*,gs://bucket/path2/file00*
+
+
+여러 파일을 대상으로 하는 uris 값을 지정하는 경우 해당하는 모든 파일은 호환되는 스키마를 공유해야 합니다.
+
+BigQuery에서 Cloud Storage URI를 사용하는 방법에 대한 자세한 내용은 Cloud Storage 리소스 경로 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#google-cloud-storage-uri]를 참조하세요.
+DEFINITION_FILE: 만들려는 테이블 정의 파일의 이름
+
+새 외부 테이블 정의를 사용하여 테이블을 업데이트합니다.
+
+bq update --max_staleness=STALENESS_INTERVAL \
+--external_table_definition=/tmp/DEFINITION_FILE \
+PROJECT_ID:DATASET.EXTERNAL_TABLE_NAME
+
+다음을 바꿉니다.
+
+
+STALENESS_INTERVAL: 캐시된 메타데이터가 테이블에 대한 작업에서 사용되는지 여부와 작업이 사용하기 위해 캐시된 메타데이터가 작업에서 사용되려면 얼마나 최신이어야 하는지를 지정합니다. 메타데이터 캐싱 고려사항에 대한 자세한 내용은 성능을 위한 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 참조하세요.
+
+메타데이터 캐싱을 사용 중지하려면 0을 지정합니다. 이 값이 기본값입니다.
+
+메타데이터 캐싱을 사용 설정하려면 INTERVAL 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#interval_type] 문서에 설명된 Y-M D H:M:S 형식을 사용하여 30분에서 7일 사이의 간격 값을 지정합니다. 예를 들어 4시간 비활성 간격의 경우 0-0 0 4:0:0을 지정합니다.
+이 값을 사용하면 지난 4시간 이내에 새로고침된 경우 테이블에 대한 작업이 캐시된 메타데이터를 사용합니다. 캐시된 메타데이터가 이보다 오래된 경우 작업이 대신 Cloud Storage에서 메타데이터를 검색합니다.
+DEFINITION_FILE: 만들거나 업데이트한 테이블 정의 파일의 이름
+PROJECT_ID: 테이블이 포함된 프로젝트 이름
+DATASET: 테이블이 포함된 데이터 세트의 이름
+EXTERNAL_TABLE_NAME: 테이블의 이름
+
+
+
+예시
+
+다음 예시에서는 최근 4.5시간 내에 새로고침되었으면 캐시된 메타데이터를 사용하고 캐시된 메타데이터를 자동으로 새로고침하도록 mytable을 업데이트합니다.
+bq update --project_id=myproject --max_staleness='0-0 0 4:30:0' \
+--external_table_definition=enable_metadata.json mydataset.mytable
+
+여기서 enable_metadata.json에는 다음 콘텐츠가 포함됩니다.
+json
+{
+"metadataCacheMode": "AUTOMATIC"
+}
+감사 로깅
+BigQuery의 로깅에 대한 자세한 내용은 BigQuery 모니터링 소개 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko]를 참조하세요. 로깅에 대해 자세히 알아보려면 Google CloudCloud Logging [https://cloud.google.com/logging/docs?hl=ko]을 참조하세요.
+다음 단계
+BigLake [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko] 자세히 알아보기
+Cloud Storage [https://cloud.google.com/storage/docs/introduction?hl=ko] 알아보기
+Amazon Web Services(AWS) 데이터 쿼리 [https://cloud.google.com/bigquery/docs/omni-aws-introduction?hl=ko] 알아보기
+Microsoft Azure 데이터 쿼리 [https://cloud.google.com/bigquery/docs/omni-azure-introduction?hl=ko] 알아보기
+도움이 되었나요?
+의견 보내기

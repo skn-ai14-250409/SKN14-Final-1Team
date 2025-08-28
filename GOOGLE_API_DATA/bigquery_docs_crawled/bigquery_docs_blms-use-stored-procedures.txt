@@ -1,0 +1,86 @@
+Source URL: https://cloud.google.com/bigquery/docs/blms-use-stored-procedures
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/blms-use-stored-procedures?hl=ko#before-you-begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/blms-use-stored-procedures?hl=ko#required-roles]
+저장 프러시저 만들기 및 실행 [https://cloud.google.com/bigquery/docs/blms-use-stored-procedures?hl=ko#run-stored-procedure]
+다음 단계 [https://cloud.google.com/bigquery/docs/blms-use-stored-procedures?hl=ko#what's-next]
+Spark 저장 프러시저와 함께 BigLake metastore 사용
+bookmark_border
+이 문서에서는 BigLake metastore에서 Apache Spark 저장 프러시저 [https://cloud.google.com/bigquery/docs/spark-procedures?hl=ko]를 사용하는 방법을 설명합니다.
+시작하기 전에
+Google Cloud 프로젝트에 결제를 사용 설정합니다. 프로젝트에 결제가 사용 설정되어 있는지 확인 [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko]하는 방법을 알아보세요.
+BigQuery 및 Dataflow API를 사용 설정합니다.
+API 사용 설정 [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko]
+선택사항: 다음에 대해 자세히 알아보세요.
+BigLake metastore의 작동 방식 [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cdataproc.googleapis.com&hl=ko]과 이를 사용해야 하는 이유를 알아봅니다.
+작업을 시작하기 전에 BigQuery Spark 저장 프로시저의 작동 방식 [https://cloud.google.com/bigquery/docs/spark-procedures?hl=ko]을 알아보고 완료합니다.
+필요한 역할
+Spark 저장 프러시저를 사용하려면 저장 프러시저 [https://cloud.google.com/bigquery/docs/spark-procedures?hl=ko#required_roles]에 필요한 역할을 검토하고 필요한 역할을 부여하세요.
+BigLake Metastore를 메타데이터 스토어로 사용하여 Spark 및 저장 프러시저를 사용하는 데 필요한 권한을 얻으려면 관리자에게 다음 IAM 역할을 부여해 달라고 요청하세요.
+Spark에서 BigLake metastore 테이블 만들기:
+프로젝트의 Spark 연결 서비스 계정에 대한 BigQuery 데이터 편집자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataEditor](roles/bigquery.dataEditor)
+프로젝트의 Spark 연결 서비스 계정에 대한 스토리지 객체 관리자 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.objectAdmin](roles/storage.objectAdmin)
+BigQuery에서 BigLake metastore 테이블 쿼리:
+프로젝트에 대한 BigQuery 데이터 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataViewer](roles/bigquery.dataViewer)
+프로젝트에 대한 BigQuery 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.user](roles/bigquery.user)
+프로젝트에 대한 스토리지 객체 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.objectViewer](roles/storage.objectViewer)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+저장 프러시저 만들기 및 실행
+다음 예에서는 BigLake metastore로 저장 프러시저를 만들고 실행하는 방법을 보여줍니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 CREATE PROCEDURE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_procedure]의 다음 샘플 코드를 추가합니다.
+CREATE OR REPLACE PROCEDURE
+`PROJECT_ID.BQ_DATASET_ID.PROCEDURE_NAME`()
+WITH CONNECTION `PROJECT_ID.REGION.SPARK_CONNECTION_ID` OPTIONS (engine='SPARK',
+runtime_version='1.1',
+properties=[("spark.sql.catalog.CATALOG_NAME.warehouse",
+"WAREHOUSE_DIRECTORY"),
+("spark.sql.catalog.CATALOG_NAME.gcp_location",
+"LOCATION"),
+("spark.sql.catalog.CATALOG_NAME.gcp_project",
+"PROJECT_ID"),
+("spark.sql.catalog.CATALOG_NAME",
+"org.apache.iceberg.spark.SparkCatalog"),
+("spark.sql.catalog.CATALOG_NAME.catalog-impl",
+"org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog"),
+("spark.jars.packages",
+"org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.6.1")],
+jar_uris=["gs://spark-lib/bigquery/iceberg-bigquery-catalog-1.6.1-1.0.1-beta.jar"])
+LANGUAGE python AS R"""
+from pyspark.sql import SparkSession
+spark = SparkSession \
+.builder \
+.appName("BigLake Metastore Iceberg") \
+.getOrCreate()
+spark.sql("USE CATALOG_NAME;")
+spark.sql("CREATE NAMESPACE IF NOT EXISTS NAMESPACE_NAME;")
+spark.sql("USE NAMESPACE_NAME;")
+spark.sql("CREATE TABLE TABLE_NAME (id int, data string) USING ICEBERG LOCATION 'WAREHOUSE_DIRECTORY'")
+spark.sql("DESCRIBE TABLE_NAME;")
+spark.sql("INSERT INTO TABLE_NAME VALUES (1, \"first row\");")
+spark.sql("SELECT * from TABLE_NAME;")
+spark.sql("ALTER TABLE TABLE_NAME ADD COLUMNS (newDoubleCol double);")
+spark.sql("DESCRIBE TABLE_NAME;")
+""";
+CALL `PROJECT_ID.BQ_DATASET_ID.PROCEDURE_NAME`();
+다음을 바꿉니다.
+PROJECT_ID: Google Cloud 프로젝트의 ID입니다.
+BQ_DATASET_ID: 프로시저를 포함하는 BigQuery의 데이터 세트의 ID입니다.
+PROCEDURE_NAME: 만들거나 바꾸려는 프러시저의 이름입니다.
+REGION: Spark 연결의 위치입니다.
+LOCATION: BigQuery 리소스의 위치입니다.
+SPARK_CONNECTION_ID: Spark 연결의 ID입니다.
+CATALOG_NAME: 사용 중인 카탈로그의 이름
+WAREHOUSE_DIRECTORY: 데이터 웨어하우스가 포함된 Cloud Storage 폴더의 URI
+NAMESPACE_NAME: 사용 중인 네임스페이스입니다.
+다음 단계
+선택적 BigLake Metastore 기능 [https://cloud.google.com/bigquery/docs/blms-features?hl=ko] 설정하기
+BigQuery 콘솔에서 Spark의 테이블을 보고 쿼리합니다 [https://cloud.google.com/bigquery/docs/blms-query-tables?hl=ko].
+의견 보내기

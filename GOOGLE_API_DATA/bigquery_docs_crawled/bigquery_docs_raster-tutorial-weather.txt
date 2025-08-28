@@ -1,0 +1,155 @@
+Source URL: https://cloud.google.com/bigquery/docs/raster-tutorial-weather
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/raster-tutorial-weather?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/raster-tutorial-weather?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/raster-tutorial-weather?hl=ko#before_you_begin]
+Google Cloud 프로젝트 설정 [https://cloud.google.com/bigquery/docs/raster-tutorial-weather?hl=ko#setup-project]
+필요한 역할 [https://cloud.google.com/bigquery/docs/raster-tutorial-weather?hl=ko#required_roles]
+래스터 데이터를 사용하여 온도 분석
+bookmark_border
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+이 튜토리얼에서는 래스터 데이터 [https://cloud.google.com/bigquery/docs/raster-data?hl=ko]에 대한 지리 공간 분석을 수행하는 방법을 설명합니다.
+목표
+BigQuery Sharing(이전 명칭: Analytics Hub)에서 공개적으로 제공되는 Google Earth Engine 데이터를 찾습니다.
+ST_REGIONSTATS 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_regionstats]를 사용하여 특정 시점의 각 국가별 평균 온도를 계산합니다.
+Google 지도 API를 사용하여 BigQuery에서 지리 공간 데이터를 시각화하는 웹 도구인 BigQuery Geo Viz [https://cloud.google.com/bigquery/docs/geospatial-visualize?hl=ko]에서 결과를 시각화합니다.
+비용
+이 튜토리얼에서는 비용이 청구될 수 있는 Google Cloud의 구성요소를 사용합니다.
+BigQuery [https://cloud.google.com/bigquery/pricing?hl=ko]
+Google Earth Engine [https://cloud.google.com/earth-engine/pricing?hl=ko]
+시작하기 전에
+이 튜토리얼에서는 Google Cloud 프로젝트를 만드는 것이 좋습니다. 이 튜토리얼을 완료하는 데 필요한 역할이 있는지 확인합니다.
+Google Cloud 프로젝트 설정
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery sharing, and Google Earth Engine APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery%2Canalyticshub.googleapis.com%2Cearthengine.googleapis.com&hl=ko]
+필요한 역할
+이 튜토리얼의 태스크를 수행하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트에 대한 다음 IAM 역할을 부여해 달라고 요청하세요.
+Earth Engine 리소스 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/earthengine?hl=ko#earthengine.viewer](roles/earthengine.viewer)
+서비스 사용량 소비자 [https://cloud.google.com/iam/docs/roles-permissions/serviceusage?hl=ko#serviceusage.serviceUsageConsumer](roles/serviceusage.serviceUsageConsumer)
+BigQuery 데이터 편집자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataEditor](roles/bigquery.dataEditor)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이러한 사전 정의된 역할에는 이 튜토리얼의 작업을 수행하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+데이터 세트 구독
+이 튜토리얼에 사용된 데이터 세트를 찾으려면 다음 단계를 따르세요.
+Sharing(Analytics Hub) 페이지로 이동합니다.
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko]
+search 등록정보 검색을 클릭합니다.
+등록정보 검색 필드에 "ERA5-Land Daily Aggregated"을 입력합니다.
+결과를 클릭합니다. 설명, 밴드 정보 링크, 사용 가능 여부, 픽셀 크기, 사용 약관 등 ERA5-Land 기후 재분석 데이터 세트에 관한 정보가 포함된 세부정보 창이 열립니다.
+구독을 클릭합니다.
+선택사항: 프로젝트를 업데이트합니다.
+연결된 데이터 세트 이름을 era5_climate_tutorial로 업데이트합니다.
+저장을 클릭합니다. 연결된 데이터 세트가 프로젝트에 추가되며 climate라는 단일 테이블이 포함됩니다.
+래스터 ID 찾기
+era5_climate_tutorial.climate 테이블의 각 행에는 특정 날짜의 기후 데이터가 있는 래스터 이미지의 메타데이터가 포함됩니다. 다음 쿼리를 실행하여 2025년 1월 1일의 래스터 이미지의 래스터 ID를 추출합니다.
+SELECT
+  assets.image.href
+FROM
+  `era5_climate_tutorial.climate`
+WHERE
+  properties.start_datetime = '2025-01-01';
+결과는 ee://ECMWF/ERA5_LAND/DAILY_AGGR/20250101입니다. 다음 섹션에서는 ST_REGIONSTATS 함수의 raster_id 인수에 이를 사용합니다.
+평균 온도 계산
+다음 쿼리를 실행하여 ST_REGIONSTATS 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_regionstats]를 사용하여 2025년 1월 1일 각 국가의 평균 기온을 계산합니다.
+WITH SimplifiedCountries AS (
+  SELECT
+    ST_SIMPLIFY(geometry, 10000) AS simplified_geometry,
+    names.primary AS name
+  FROM
+    `bigquery-public-data.overture_maps.division_area`
+  WHERE
+    subtype = 'country'
+)
+SELECT
+  sc.simplified_geometry AS geometry,
+  sc.name,
+  ST_REGIONSTATS(
+    sc.simplified_geometry,
+    'ee://ECMWF/ERA5_LAND/DAILY_AGGR/20250101',
+    'temperature_2m'
+  ).mean - 273.15 AS mean_temperature
+FROM
+  SimplifiedCountries AS sc
+ORDER BY
+  mean_temperature DESC;
+이 쿼리는 국가를 비롯한 지구상의 다양한 지역의 경계를 나타내는 GEOGRAPHY 값이 포함된 공개적으로 제공되는 division_area 테이블에서 실행됩니다. ST_REGIONSTATS 함수는 지정된 픽셀에서 지표면 위 2m의 공기 온도를 포함하는 래스터 이미지의 temerature_2m 밴드를 사용합니다.
+Geo Viz에서 쿼리 결과 시각화
+다음으로 BigQuery Geo Viz를 사용하여 결과를 시각화합니다.
+Geo Viz 시작 및 인증
+Geo Viz를 사용하기 전에 BigQuery의 데이터에 대한 액세스 권한을 인증하고 부여해야 합니다.
+Geo Viz를 설정하려면 다음 단계를 따르세요.
+Geo Viz 웹 도구를 엽니다.
+Geo Viz 열기 [https://bigquerygeoviz.appspot.com/?hl=ko]
+또는 쿼리 결과 창에서 다음에서 열기 > GeoViz를 클릭합니다.
+1단계 쿼리에서 승인을 클릭합니다.
+계정 선택 대화상자에서 Google 계정을 클릭합니다.
+액세스 대화상자에서 허용을 클릭하여 BigQuery 데이터에 액세스할 수 있는 권한을 Geo Viz에 부여합니다.
+Geo Viz에서 쿼리 실행
+액세스 권한을 인증하고 부여한 후 다음 단계는 Geo Viz에서 쿼리를 실행하는 것입니다.
+쿼리를 실행하려면 다음 단계를 따르세요.
+1단계 데이터 선택에서 프로젝트 ID 필드에 프로젝트 ID를 입력합니다.
+쿼리 창에 다음 GoogleSQL 쿼리를 입력합니다. 쿼리 결과에서 Geo Viz를 연 경우 이 필드에 이미 쿼리가 입력되어 있습니다.
+WITH SimplifiedCountries AS (
+  SELECT
+    ST_SIMPLIFY(geometry, 10000) AS simplified_geometry,
+    names.primary AS name
+  FROM
+    `bigquery-public-data.overture_maps.division_area`
+  WHERE
+    subtype = 'country'
+)
+SELECT
+  sc.simplified_geometry AS geometry,
+  sc.name,
+  ST_REGIONSTATS(
+    sc.simplified_geometry,
+    'ee://ECMWF/ERA5_LAND/DAILY_AGGR/20250101',
+    'temperature_2m'
+  ).mean - 273.15 AS mean_temperature
+FROM
+  SimplifiedCountries AS sc
+ORDER BY
+  mean_temperature DESC;
+실행을 클릭합니다.
+스타일 적용
+스타일 섹션에는 맞춤설정을 위한 시각 스타일의 목록이 나와 있습니다. 각 스타일에 대한 자세한 내용은 시각화 서식 지정 [https://cloud.google.com/bigquery/docs/geospatial-get-started?hl=ko#format_your_visualization]을 참고하세요.
+지도의 형식을 지정하려면 다음 단계를 따르세요.
+fillColor 패널을 열려면 3단계인 스타일을 클릭합니다.
+데이터 기반 전환 버튼을 클릭하여 설정 위치로 전환합니다.
+함수로 linear를 선택합니다.
+필드에서 mean_temperature을 선택합니다.
+도메인에서 첫 번째 상자에 -20을 입력하고 두 번째 상자에 32를 입력합니다.
+범위에서 첫 번째 상자를 클릭하고 Hex 상자에 #0006ff를 입력한 다음 두 번째 상자를 클릭하고 #ff0000을 입력합니다. 이렇게 하면 2025년 1월 1일의 평균 기온에 따라 각 국가의 색상이 변경됩니다. 파란색은 더 낮은 온도를, 빨간색은 더 높은 온도를 나타냅니다.
+fillOpacity를 클릭합니다.
+값 필드에 .5를 입력합니다.
+스타일 적용을 클릭합니다.
+지도를 확인합니다. 국가를 클릭하면 국가 이름, 평균 온도, 단순화된 지오메트리가 표시됩니다.
+삭제
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+지리정보 분석 옵션을 시각화하는 방법에 대해 자세히 알아보려면 지리정보 데이터 시각화 [https://cloud.google.com/bigquery/docs/geospatial-visualize?hl=ko]를 참조하세요.
+래스터 데이터를 사용하려면 래스터 데이터 작업 [https://cloud.google.com/bigquery/docs/raster-data?hl=ko]을 참고하세요.
+지리정보 분석에 사용할 수 있는 지리 함수에 대한 자세한 내용은 GoogleSQL의 지리 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko]를 참조하세요.
+도움이 되었나요?
+의견 보내기

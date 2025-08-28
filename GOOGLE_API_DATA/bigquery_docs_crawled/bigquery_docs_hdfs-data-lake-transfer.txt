@@ -1,0 +1,214 @@
+Source URL: https://cloud.google.com/bigquery/docs/hdfs-data-lake-transfer
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/hdfs-data-lake-transfer?hl=ko#limitations]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/hdfs-data-lake-transfer?hl=ko#before_you_begin]
+이전된 파일을 위한 Cloud Storage 버킷 만들기 [https://cloud.google.com/bigquery/docs/hdfs-data-lake-transfer?hl=ko#create-bucket]
+필수 파일 [https://cloud.google.com/bigquery/docs/hdfs-data-lake-transfer?hl=ko#required-files]
+API 사용 설정 [https://cloud.google.com/bigquery/docs/hdfs-data-lake-transfer?hl=ko#enable_apis]
+권한 구성 [https://cloud.google.com/bigquery/docs/hdfs-data-lake-transfer?hl=ko#configure_permissions]
+스토리지 전송 에이전트 구성 [https://cloud.google.com/bigquery/docs/hdfs-data-lake-transfer?hl=ko#configure_your_storage_transfer_agent]
+HDFS 데이터 레이크 전송 예약 [https://cloud.google.com/bigquery/docs/hdfs-data-lake-transfer?hl=ko#schedule-transfer]
+HDFS 데이터 레이크에서 테이블 마이그레이션
+bookmark_border
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 지원을 받거나 의견을 제출하려면 bigquery-permission-migration-support@google.com [mailto:bigquery-permission-migration-support@google.com]으로 문의하세요.
+이 문서에서는 Apache Hadoop 분산 파일 시스템 (HDFS) 데이터 레이크 테이블을 Google Cloud로 마이그레이션하는 방법을 보여줍니다.
+BigQuery Data Transfer Service의 HDFS 데이터 레이크 마이그레이션 커넥터를 사용하여 온프레미스 및 클라우드 환경의 다양한 Hadoop 배포에서 Hive 및 Iceberg 테이블을 Google Cloud로 마이그레이션할 수 있습니다.
+HDFS 데이터 레이크 커넥터를 사용하면 파일을 위한 기본 스토리지로 Cloud Storage를 사용하는 동안 Dataproc Metastore [https://cloud.google.com/dataproc-metastore/docs/overview?hl=ko]와 BigLake metastore [https://cloud.google.com/bigquery/docs/about-blms?hl=ko] 모두에 HDFS 데이터 레이크 테이블을 등록할 수 있습니다.
+다음 다이어그램은 Hadoop 클러스터에서 테이블을 이전하는 프로세스를 간략하게 보여줍니다.
+제한사항
+HDFS 데이터 레이크 전송에는 다음과 같은 제한사항이 적용됩니다.
+Iceberg 테이블을 이전하려면 오픈소스 엔진 (예: Spark 또는 Flink)의 쓰기 액세스를 허용하고 BigQuery의 읽기 액세스를 허용하도록 BigLake metastore에 테이블을 등록해야 합니다.
+Hive 테이블을 이전하려면 오픈소스 엔진의 쓰기 액세스를 허용하고 BigQuery의 읽기 액세스를 허용하도록 Dataproc Metastore에 테이블을 등록해야 합니다.
+bq 명령줄 도구를 사용하여 HDFS 데이터 레이크 테이블을 BigQuery로 이전해야 합니다.
+시작하기 전에
+HDFS 데이터 레이크 전송을 예약하기 전에 다음을 수행해야 합니다.
+이전된 파일을 위한 Cloud Storage 버킷 만들기
+마이그레이션된 데이터 레이크 파일의 대상이 될 Cloud Storage 버킷을 만듭니다 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko]. 이 버킷은 이 문서에서 MIGRATION_BUCKET로 참조됩니다.
+필수 파일
+HDFS 데이터 레이크 전송을 예약하려면 Cloud Storage 버킷에 다음 마이그레이션 파일이 있어야 합니다.
+추출된 메타데이터 파일 (hive-dumper-output.zip)
+변환 구성 YAML 파일 (*.config.yaml)
+YAML 파일을 매핑하는 테이블
+다음 섹션에서는 이러한 파일을 만드는 방법을 설명합니다.
+hive-dumper-output.zip
+dwh-migration-dumper 도구를 실행하여 Apache Hive의 메타데이터를 추출 [https://cloud.google.com/bigquery/docs/hadoop-metadata?hl=ko#apache-hive]합니다. 이 도구는 이 문서에서 DUMPER_BUCKET이라고 하는 Cloud Storage 버킷에 hive-dumper-output.zip라는 파일을 생성합니다.
+변환 구성 YAML 파일
+.config.yaml 접미사가 포함된 이름(예: translation.config.yaml)으로 번역 구성 YAML을 만들고 hive-dumper-output.zip가 포함된 동일한 버킷에 업로드합니다. 다음 예와 같이 HDFS 경로를 Cloud Storage 관리 폴더에 매핑하도록 변환 구성 YAML을 구성합니다.
+type: object_rewriter
+relation:
+- match:
+    relationRegex: ".*"
+  external:
+    location_expression: "'gs://
+MIGRATION_BUCKET/' + table.schema + '/' + table.name"
+MIGRATION_BUCKET을 이전된 파일의 대상인 Cloud Storage 버킷의 이름으로 바꿉니다.
+location_expression 필드는 Common Expression Language (CEL) [https://github.com/google/cel-spec?tab=readme-ov-file#common-expression-language] 표현식입니다.
+이 구성 YAML에 대한 자세한 내용은 구성 YAML 파일 만들기 가이드라인 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#yaml_guidelines]을 참고하세요.
+YAML 파일을 매핑하는 테이블 생성
+테이블 매핑 YAML 파일을 생성하려면 다음 명령어를 실행합니다.
+  curl -d '{
+    "tasks": {
+        "string": {
+          "type": "HiveQL2BigQuery_Translation",
+          "translation_details": {
+              "target_base_uri": "
+TRANSLATION_OUTPUT_BUCKET",
+              "source_target_mapping": {
+                "source_spec": {
+                    "base_uri": "
+DUMPER_BUCKET"
+                }
+              },
+              "target_types": ["metadata"]
+          }
+        }
+    }
+    }' \
+    -H "Content-Type:application/json" \
+    -H "Authorization: Bearer 
+TOKEN" -X POST https://bigquerymigration.googleapis.com/v2alpha/projects/
+PROJECT_ID/locations/
+LOCATION/workflows
+다음을 바꿉니다.
+TRANSLATION_OUTPUT_BUCKET: 테이블 매핑 YAML 파일을 포함하는 Cloud Storage 버킷의 기본 URI입니다. 예를 들면 gs://output_bucket/tables/입니다.
+DUMPER_BUCKET: hive-dumper-output.zip 및 구성 YAML 파일이 포함된 Cloud Storage 버킷의 기본 URI입니다.
+TOKEN: OAuth 토큰입니다. 명령줄에서 gcloud auth print-access-token 명령어를 사용하여 생성할 수 있습니다.
+PROJECT_ID: 변환을 처리할 프로젝트입니다.
+LOCATION: 작업이 처리되는 위치입니다. 예를 들면 eu 또는 us입니다.
+실행되면 번역 서비스 API가 WORKFLOW_ID를 반환하고 비동기 백그라운드 작업을 시작합니다. 다음 명령어를 사용하여 이 작업의 상태를 모니터링할 수 있습니다.
+  curl \
+  -H "Content-Type:application/json" \
+  -H "Authorization:Bearer TOKEN" -X GET https://bigquerymigration.googleapis.com/v2alpha/projects/
+PROJECT_ID/locations/
+LOCATION/workflows/
+WORKFLOW_ID
+완료되면 테이블 매핑 YAML 파일이 생성됩니다. 테이블 매핑 YAML 파일은 Cloud Storage 폴더에 저장된 각 테이블의 매핑 파일 여러 개로 구성될 수 있습니다.
+API 사용 설정
+Google Cloud 프로젝트에서 다음 API를 사용 설정 [https://cloud.google.com/endpoints/docs/openapi/enable-api?hl=ko]합니다.
+Data Transfer API
+Storage Transfer API
+Data Transfer API를 사용 설정하면 서비스 에이전트 [https://cloud.google.com/bigquery/docs/enable-transfer-service?hl=ko#service_agent]가 생성됩니다.
+권한 구성
+서비스 계정을 만들고 BigQuery 관리자 역할 (roles/bigquery.admin)을 부여합니다. 이 서비스 계정은 전송 구성을 만드는 데 사용됩니다.
+Data Transfer API를 사용 설정하면 서비스 에이전트 [https://cloud.google.com/bigquery/docs/enable-transfer-service?hl=ko#service_agent] (P4SA)가 생성됩니다. 다음 역할을 부여합니다.
+roles/metastore.metadataOwner
+roles/storagetransfer.admin
+roles/serviceusage.serviceUsageConsumer
+roles/storage.objectViewer
+BigLake Iceberg 테이블의 메타데이터를 마이그레이션하는 경우 roles/storage.objectViewer 대신 roles/storage.objectAdmin 및 roles/bigquery.admin 역할을 부여합니다.
+다음 명령어를 사용하여 서비스 에이전트에게 roles/iam.serviceAccountTokenCreator 역할을 부여합니다.
+gcloud iam service-accounts add-iam-policy-binding 
+SERVICE_ACCOUNT --member serviceAccount:service-
+PROJECT_NUMBER@gcp-sa-bigquerydatatransfer.iam.gserviceaccount.com --role roles/iam.serviceAccountTokenCreator
+스토리지 전송 에이전트 구성
+HDFS 데이터 레이크 전송에 필요한 스토리지 전송 에이전트를 설정하려면 다음을 실행하세요.
+Hadoop 클러스터에서 스토리지 전송 에이전트를 실행하도록 권한을 구성 [https://cloud.google.com/storage-transfer/docs/file-system-permissions?hl=ko]합니다.
+온프레미스 에이전트 머신에 Docker를 설치 [https://cloud.google.com/storage-transfer/docs/on-prem-set-up?hl=ko#install_docker]합니다.
+Google Cloud 프로젝트에서 Storage Transfer Service 에이전트 풀을 만듭니다 [https://cloud.google.com/storage-transfer/docs/on-prem-agent-pools?hl=ko#create-pool].
+온프레미스 에이전트 머신에 에이전트를 설치 [https://cloud.google.com/storage-transfer/docs/create-transfers/agent-based/hdfs?hl=ko#install_agents]합니다.
+HDFS 데이터 레이크 전송 예약
+HDFS 데이터 레이크 전송을 예약하려면 bq mk 명령어를 입력하고 전송 생성 플래그 --transfer_config를 지정합니다.
+  bq mk --transfer_config
+  --data_source=hadoop
+  --display_name='
+TRANSFER_NAME'
+  --service_account_name='
+SERVICE_ACCOUNT'
+  --project_id='
+PROJECT_ID'
+  --location='
+REGION'
+  --params='{"table_name_patterns":"
+LIST_OF_TABLES",
+    "agent_pool_name":"
+AGENT_POOL_NAME",
+    "destination_dataproc_metastore":"
+DATAPROC_METASTORE",
+    "translation_output_gcs_path":"gs://
+TRANSLATION_OUTPUT_BUCKET/metadata/config/default_database/",
+    "table_metadata_path":"gs://
+DUMPER_BUCKET/hive-dumper-output.zip"}'
+다음을 바꿉니다.
+TRANSFER_NAME: 전송 구성의 표시 이름. 전송 이름은 나중에 수정해야 할 경우를 대비해 전송을 식별할 수 있는 값이면 됩니다.
+SERVICE_ACCOUNT: 전송을 인증하는 데 사용되는 서비스 계정 이름입니다. 서비스 계정은 전송을 만드는 데 사용한 것과 동일한 project_id가 소유해야 하며 모든 필수 권한이 있어야 합니다.
+PROJECT_ID: Google Cloud 프로젝트 ID입니다. 특정 프로젝트를 지정하는 --project_id가 입력되지 않으면 기본 프로젝트가 사용됩니다.
+REGION: 이 전송 구성의 위치입니다.
+LIST_OF_TABLES: 전송할 항목 목록입니다. 계층적 이름 지정 사양(database.table)을 사용합니다. 이 필드는 테이블을 지정하기 위해 RE2 정규 표현식을 지원합니다. 예를 들면 다음과 같습니다.
+db1..*: 데이터베이스의 모든 테이블을 지정합니다.
+db1.table1;db2.table2: 테이블 목록
+AGENT_POOL_NAME: 에이전트 생성에 사용되는 에이전트 풀의 이름입니다.
+DATAPROC_METASTORE: 관리형 OSS 대상의 대상 Dataproc Metastore입니다. 대신 BigLake Metastore를 사용하려면 이 전송 구성에서 이 필드를 생략하면 됩니다. BigLake Metastore를 사용하여 메타데이터를 이전하는 방법에 대한 자세한 내용은 메타데이터 이전 [https://cloud.google.com/bigquery/docs/hadoop-transfer?hl=ko#metadata_migration]을 참고하세요.
+이 명령어를 실행하여 전송 구성을 만들고 HDFS 데이터 레이크 전송을 시작합니다. 전송은 기본적으로 24시간마다 실행되도록 예약되지만 전송 예약 옵션 [https://cloud.google.com/bigquery/docs/hdfs-data-lake-transfer?hl=ko#transfer_scheduling_options]을 사용하여 구성할 수 있습니다.
+전송이 완료되면 Hadoop 클러스터의 테이블이 MIGRATION_BUCKET로 이전됩니다.
+데이터 수집 옵션
+다음 섹션에서는 HDFS 데이터 레이크 전송을 구성하는 방법을 자세히 설명합니다.
+메타데이터 마이그레이션
+메타데이터는 Cloud Storage에 저장된 기본 데이터와 함께 Dataproc Metastore 또는 BigLake Metastore로 이전할 수 있습니다.
+메타데이터를 Dataproc Metastore로 전송하려면 destination_dataproc_metastore 필드에 메타스토어 URL을 지정합니다.
+메타데이터를 BigLake 메타 스토어로 전송하기 위해 전송 구성에서 destination_dataproc_metastore 필드를 지정할 필요는 없습니다. 시스템은 생성된 YAML 매핑 파일 내의 targetName 필드에서 대상 BigQuery 데이터 세트를 자동으로 결정합니다. targetName 필드는 bigquery_dataset_name.bigquery_table_name와 같이 두 부분으로 된 식별자로 형식이 지정됩니다. 기본적으로 이름은 소스 시스템과 일치합니다. 전송을 실행하기 전에 소스 스키마 이름이 있는 BigQuery 데이터 세트가 있는지 확인하고, 없는 경우 데이터 세트를 만들어야 합니다.
+다른 BigQuery 데이터 세트를 사용하려면 객체 재작성기 규칙 세트가 포함된 DUMPER_BUCKET에 추가 구성 YAML 파일 (config.yaml 접미사)을 제공한 다음 변환 매핑을 생성해야 합니다. 다음은 my_hive_db라는 소스 데이터베이스를 my_bq_dataset이라는 BigQuery 데이터 세트에 매핑하는 규칙 세트의 예입니다.
+relation:
+  - match:
+      schema: my_hive_db
+    outputName:
+      database: null
+      schema: my_bq_dataset
+schema 매개변수는 BigQuery 데이터 세트 이름에 해당해야 하고 relation 매개변수는 테이블 이름에 해당해야 합니다. 자세한 내용은 출력 이름 매핑 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#output_name_mapping]을 참고하세요.
+database 매개변수도 null로 설정해야 합니다.
+증분 전송
+반복 일정으로 전송 구성을 설정하면 후속 전송마다 소스 테이블에 적용된 최신 업데이트로 Google Cloud 의 테이블이 업데이트됩니다. 예를 들어 스키마 변경이 있는 모든 삽입, 삭제 또는 업데이트 작업은 각 전송 시 Google Cloud 에 반영됩니다.
+전송 예약 옵션
+기본적으로 전송은 24시간마다 실행되도록 예약됩니다. 전송 실행 빈도를 구성하려면 전송 구성에 --schedule 플래그를 추가하고 schedule 문법 [https://cloud.google.com/appengine/docs/flexible/scheduling-jobs-with-cron-yaml?hl=ko#formatting_the_schedule]을 사용하여 전송 일정을 지정합니다. HDFS 데이터 레이크 전송은 전송 실행 간에 최소 24시간이 있어야 합니다.
+일회성 전송의 경우 전송 구성에 end_time 플래그를 추가하여 전송을 한 번만 실행할 수 있습니다.
+HDFS 데이터 레이크 전송 모니터링
+HDFS 데이터 레이크 전송을 예약한 후 bq 명령줄 도구 명령으로 전송 작업을 모니터링할 수 있습니다. 전송 작업 모니터링에 관한 자세한 내용은 전송 보기 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko#view_your_transfers]를 참고하세요.
+표 마이그레이션 상태 추적
+dwh-dts-status 도구를 실행하여 전송 구성 또는 특정 데이터베이스 내에서 전송된 모든 테이블의 상태를 모니터링할 수도 있습니다. dwh-dts-status 도구를 사용하여 프로젝트의 모든 전송 구성을 나열할 수도 있습니다.
+시작하기 전에
+dwh-dts-status 도구를 사용하려면 다음 단계를 따르세요.
+dwh-migration-tools GitHub 저장소 [https://github.com/google/dwh-migration-tools/releases]에서 dwh-migration-tool 패키지를 다운로드하여 dwh-dts-status 도구를 가져옵니다.
+다음 명령어를 사용하여 Google Cloud 에 계정을 인증합니다.
+gcloud auth application-default login
+자세한 내용은 애플리케이션 기본 사용자 인증 정보의 작동 방식 [https://cloud.google.com/docs/authentication/application-default-credentials?hl=ko]을 참고하세요.
+사용자에게 bigquery.admin 및 logging.viewer 역할이 있는지 확인합니다. IAM 역할에 대한 자세한 내용은 액세스 제어 참조 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참고하세요.
+프로젝트의 모든 전송 구성 나열
+프로젝트의 모든 전송 구성을 나열하려면 다음 명령어를 사용합니다.
+  ./dwh-dts-status --list-transfer-configs --project-id=[
+PROJECT_ID] --location=[
+LOCATION]
+다음을 바꿉니다.
+PROJECT_ID : 전송을 실행하는 Google Cloud 프로젝트 ID입니다.
+LOCATION : 전송 구성이 생성된 위치입니다.
+이 명령어는 전송 구성 이름과 ID 목록이 포함된 표를 출력합니다.
+구성의 모든 테이블 상태 보기
+전송 구성에 포함된 모든 테이블의 상태를 보려면 다음 명령어를 사용합니다.
+  ./dwh-dts-status --list-status-for-config --project-id=[
+PROJECT_ID] --config-id=[
+CONFIG_ID] --location=[
+LOCATION]
+다음을 바꿉니다.
+PROJECT_ID: 전송을 실행하는 Google Cloud 프로젝트 ID입니다.
+LOCATION: 전송 구성이 생성된 위치입니다.
+CONFIG_ID: 지정된 전송 구성의 ID입니다.
+이 명령어는 지정된 전송 구성에 있는 테이블 목록과 전송 상태가 포함된 표를 출력합니다. 전송 상태는 PENDING, RUNNING, SUCCEEDED, FAILED, CANCELLED 중 하나일 수 있습니다.
+데이터베이스의 모든 테이블 상태 보기
+특정 데이터베이스에서 전송된 모든 테이블의 상태를 보려면 다음 명령어를 사용합니다.
+  ./dwh-dts-status --list-status-for-database --project-id=[
+PROJECT_ID] --database=[
+DATABASE]
+다음을 바꿉니다.
+PROJECT_ID: 전송을 실행하는 Google Cloud 프로젝트 ID입니다.
+DATABASE:지정된 데이터베이스의 이름입니다.
+이 명령어는 지정된 데이터베이스의 테이블 목록과 전송 상태가 포함된 표를 출력합니다. 전송 상태는 PENDING, RUNNING, SUCCEEDED, FAILED, CANCELLED 중 하나일 수 있습니다.
+도움이 되었나요?
+의견 보내기

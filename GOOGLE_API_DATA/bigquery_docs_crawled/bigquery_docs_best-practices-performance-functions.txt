@@ -1,0 +1,112 @@
+Source URL: https://cloud.google.com/bigquery/docs/best-practices-performance-functions
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+문자열 비교 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-functions?hl=ko#optimize_string_comparison]
+집계 함수 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-functions?hl=ko#optimize_aggregation_functions]
+분위수 함수 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-functions?hl=ko#optimize_quantile_functions]
+UDF 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-functions?hl=ko#optimize_udfs]
+영구 UDF [https://cloud.google.com/bigquery/docs/best-practices-performance-functions?hl=ko#persistent_udfs]
+함수를 위한 권장사항
+bookmark_border
+이 문서에서는 SQL 함수를 사용하는 쿼리를 최적화하는 방법을 설명합니다.
+문자열 비교 최적화
+권장사항: 가능한 경우 REGEXP_CONTAINS 대신 LIKE을 사용합니다.
+BigQuery에서는 REGEXP_CONTAINS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_contains] 함수 또는 LIKE [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators] 연산자를 사용하여 문자열을 비교할 수 있습니다. REGEXP_CONTAINS는 더 많은 기능을 제공하지만 실행 시간이 느립니다. 와일드 카드 일치와 같이 REGEXP_CONTAINS에서 제공하는 정규 표현식의 전체 성능이 필요하지 않다면 REGEXP_CONTAINS 대신 LIKE를 사용하는 것이 더 빠릅니다.
+REGEXP_CONTAINS 함수의 다음 사용을 고려하세요.
+SELECT
+  dim1
+FROM
+  `dataset.table1`
+WHERE
+  REGEXP_CONTAINS(dim1, '.*test.*');
+이 쿼리를 다음과 같이 최적화할 수 있습니다.
+SELECT
+  dim1
+FROM
+  `dataset.table`
+WHERE
+  dim1 LIKE '%test%';
+집계 함수 최적화
+권장사항: 사용 사례에서 지원되는 경우 근사치 집계 함수를 사용하세요.
+사용 중인 SQL 집계 함수에 해당하는 근사치 함수가 있는 경우 근사치 함수가 쿼리 성능을 더 빠르게 해줍니다. 예를 들어 COUNT(DISTINCT) [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count] 대신 APPROX_COUNT_DISTINCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_count_distinct]를 사용하세요. 자세한 내용은 근사 집계 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko]를 참조하세요.
+또한 HyperLogLog++ 함수를 사용하여 근사치를 만들 수도 있습니다(예: 커스텀 근사치 집계 포함). 자세한 내용은 GoogleSQL 참조의 HyperLogLog++ 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions?hl=ko]를 참고하세요.
+COUNT 함수의 다음 사용을 고려하세요.
+SELECT
+  dim1,
+  COUNT(DISTINCT dim2)
+FROM
+  `dataset.table`
+GROUP BY 1;
+이 쿼리를 다음과 같이 최적화할 수 있습니다.
+SELECT
+  dim1,
+  APPROX_COUNT_DISTINCT(dim2)
+FROM
+  `dataset.table`
+GROUP BY 1;
+분위수 함수 최적화
+권장사항: 가능한 경우 NTILE 대신 APPROX_QUANTILE을 사용합니다.
+NTILE [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#ntile] 함수가 포함된 쿼리를 실행하면 단일 파티션에 ORDER BY에 대한 요소가 너무 많아 데이터 볼륨이 증가하면서 Resources exceeded [https://cloud.google.com/bigquery/troubleshooting-errors?hl=ko#resourcesExceeded]와 함께 실패할 수 있습니다. 분석 윈도우는 파티션을 나누지 않으므로 NTILE 계산에는 단일 작업자/슬롯에서 처리할 테이블의 모든 행에 대한 전역 ORDER BY가 필요합니다.
+대신 APPROX_QUANTILES [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_quantiles]를 사용해 보세요. 이 함수를 사용하면 테이블의 모든 행에 대해 전역 ORDER BY가 필요하지 않으므로 쿼리를 더 효율적으로 실행할 수 있습니다.
+NTILE 함수의 다음 사용을 고려하세요.
+SELECT
+  individual_id,
+  NTILE(nbuckets) OVER (ORDER BY sales desc) AS sales_third
+FROM
+  `dataset.table`;
+이 쿼리를 다음과 같이 최적화할 수 있습니다.
+WITH QuantInfo AS (
+  SELECT
+    o, qval
+  FROM UNNEST((
+     SELECT APPROX_QUANTILES(sales, nbuckets)
+     FROM `dataset.table`
+    )) AS qval
+  WITH offset o
+  WHERE o > 0
+)
+SELECT
+  individual_id,
+  (SELECT
+     (nbuckets + 1) - MIN(o)
+   FROM QuantInfo
+   WHERE sales <= QuantInfo.qval
+  ) AS sales_third
+FROM `dataset.table`;
+최적화된 버전은 원본 쿼리와 비슷하지만 동일하지는 않은 결과를 제공하며, 이는 다음과 같은 APPROX_QUANTILES로 인한 것입니다.
+근사치 집계를 제공합니다.
+나머지 값(버킷으로 나눈 행의 나머지 번호)을 다른 방식으로 배치합니다.
+UDF 최적화
+권장사항: 쿼리 최적화 도구로 SQL UDF 정의에 최적화를 적용할 수 있으므로 간단한 계산에는 SQL UDF를 사용합니다. SQL UDF가 지원하지 않는 복잡한 계산에는 자바스크립트 UDF를 사용하세요.
+자바스크립트 UDF 호출에는 하위 프로세스의 인스턴스화가 필요합니다. 이 프로세스를 가동하고 직접 UDF를 실행하는 것은 쿼리 성능에 영향을 미칩니다. 가능한 경우 네이티브(SQL) UDF [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#sql-udf-structure]를 사용하세요.
+영구 UDF
+매번 코드에서 UDF를 만들고 호출하는 대신 쿼리 및 논리적 뷰에서 호출할 수 있는 중앙 집중식 BigQuery 데이터 세트에 영구 사용자 정의 SQL 및 자바스크립트 함수를 만드는 것이 좋습니다. 공유 데이터 세트 내에서 조직 전체의 비즈니스 로직 라이브러리를 만들면 성능 최적화 및 리소스 사용량 감소에 도움이 됩니다.
+다음 예시에서는 쿼리에서 임시 UDF가 호출되는 방법을 보여줍니다.
+CREATE TEMP FUNCTION addFourAndDivide(x INT64, y INT64) AS ((x + 4) / y);
+
+WITH numbers AS
+  (SELECT 1 as val
+  UNION ALL
+  SELECT 3 as val
+  UNION ALL
+  SELECT 4 as val
+  UNION ALL
+  SELECT 5 as val)
+SELECT val, addFourAndDivide(val, 2) AS result
+FROM numbers;
+임시 UDF를 영구 UDF로 대체하여 이 쿼리를 최적화할 수 있습니다.
+WITH numbers AS
+  (SELECT 1 as val
+  UNION ALL
+  SELECT 3 as val
+  UNION ALL
+  SELECT 4 as val
+  UNION ALL
+  SELECT 5 as val)
+SELECT val, `your_project.your_dataset.addFourAndDivide`(val, 2) AS result
+FROM numbers;
+의견 보내기

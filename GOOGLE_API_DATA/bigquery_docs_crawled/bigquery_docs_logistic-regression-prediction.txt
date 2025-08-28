@@ -1,0 +1,1018 @@
+Source URL: https://cloud.google.com/bigquery/docs/logistic-regression-prediction
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+인구조사 데이터로 분류 모델 빌드 및 사용
+bookmark_border
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#before-you-begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#required_permissions]
+소개 [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#introduction]
+이 튜토리얼에서는 BigQuery ML의 바이너리 로지스틱 회귀 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko]을 사용하여 인구통계 데이터를 기준으로 개인의 소득 범위를 예측합니다. 바이너리 로지스틱 회귀 모델은 값이 두 범주 중 하나에 속할지 예측합니다. 이 경우 개인의 연간 소득이 $50,000를 초과하거나 이에 미달하는지 여부를 예측합니다.
+이 튜토리얼에서는 bigquery-public-data.ml_datasets.census_adult_income [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=ml_datasets&%3Bt=census_adult_income&%3Bpage=table&hl=ko] 데이터 세트를 사용합니다. 이 데이터 세트에는 2000년과 2010년 미국 거주자의 인구 통계 및 소득 정보가 포함되어 있습니다.
+목표
+이 튜토리얼에서는 다음 작업을 수행합니다.
+로지스틱 회귀 모델 만들기
+모델 평가
+모델을 사용하여 예측 수행
+모델이 생성한 결과 설명
+비용
+이 튜토리얼에서는 비용이 청구될 수 있는 다음과 같은 Google Cloud구성요소를 사용합니다.
+BigQuery
+BigQuery ML
+BigQuery 비용에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지를 참조하세요.
+BigQuery ML 비용에 대한 자세한 내용은 BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]을 참조하세요.
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com&hl=ko]
+필수 권한
+BigQuery ML을 사용하여 모델을 만들려면 다음 IAM 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+bigquery.models.updateMetadata
+추론을 실행하려면 다음 권한이 필요합니다.
+모델에 대한 bigquery.models.getData
+bigquery.jobs.create
+소개
+머신 러닝의 일반적인 문제는 데이터를 라벨이라고 하는 두 가지 유형 중 하나로 분류하는 것입니다. 예를 들어 소매업체는 한 고객의 여러 정보를 기반으로 이 고객이 새 제품을 구입할지를 예측하고 싶어 합니다. 이 경우 두 라벨은 will buy 및 won't buy일 수 있습니다. 소매업체는 하나의 열이 두 라벨을 모두 나타내고 고객의 위치, 이전 구매, 보고된 선호도와 같은 고객 정보도 포함하도록 데이터 세트를 구성할 수 있습니다. 그러면 소매업체는 이 고객 정보를 사용하여 각 고객을 가장 잘 나타내는 라벨을 예측하는 바이너리 로지스틱 회귀 모델을 사용할 수 있습니다.
+이 튜토리얼에서는 미국 인구조사 응답자의 소득이 응답자의 인구 통계학적 속성에 따라 두 범위 중 하나에 속할지 예측하는 바이너리 로지스틱 회귀 모델을 만들려고 합니다.
+데이터 세트 만들기
+모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+데이터 세트 ID에 census를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+공개 데이터 세트는 US 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions]에 저장됩니다. 편의상 같은 위치에 데이터 세트를 저장합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+데이터 검토
+데이터 세트를 검사하고 로지스틱 회귀 모델의 학습 데이터로 사용할 열을 식별합니다. census_adult_income 테이블에서 100개의 행을 선택합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#sql] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 GoogleSQL 쿼리를 실행합니다.
+
+SELECT
+age,
+workclass,
+marital_status,
+education_num,
+occupation,
+hours_per_week,
+income_bracket,
+functional_weight
+FROM
+`bigquery-public-data.ml_datasets.census_adult_income`
+LIMIT
+100;
+결과는 다음과 유사합니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import bigframes.pandas as bpd
+
+df = bpd.read_gbq(
+    "bigquery-public-data.ml_datasets.census_adult_income",
+    columns=(
+        "age",
+        "workclass",
+        "marital_status",
+        "education_num",
+        "occupation",
+        "hours_per_week",
+        "income_bracket",
+        "functional_weight",
+    ),
+    max_results=100,
+)
+df.peek()
+# Output:
+# age      workclass       marital_status  education_num          occupation  hours_per_week income_bracket  functional_weight
+#  47      Local-gov   Married-civ-spouse             13      Prof-specialty              40           >50K             198660
+#  56        Private        Never-married              9        Adm-clerical              40          <=50K              85018
+#  40        Private   Married-civ-spouse             12        Tech-support              40           >50K             285787
+#  34   Self-emp-inc   Married-civ-spouse              9        Craft-repair              54           >50K             207668
+#  23        Private   Married-civ-spouse             10   Handlers-cleaners              40          <=50K              40060
+쿼리 결과에서는 census_adult_income 테이블의 income_bracket 열에 <=50K 또는 >50K 값 중 하나만 있음을 보여줍니다.
+샘플 데이터 준비
+이 튜토리얼에서는 census_adult_income 테이블의 다음 열 값을 기반으로 인구조사 응답자 소득을 예측합니다.
+age: 응답자의 연령
+workclass: 수행된 작업의 클래스 예를 들어 지방 정부, 민간 또는 자영업자입니다.
+marital_status
+education_num: 응답자의 최고 학력
+occupation
+hours_per_week: 주당 근무 시간
+데이터가 중복된 열을 제외합니다. 예를 들어 education 열은 education 및 education_num 열 값이 동일한 데이터를 서로 다른 형식으로 표현하기 때문입니다.
+functional_weight 열은 인구조사기관에서 특정 행이 대표한다고 판단하는 개인의 수입니다. 이 열의 값은 지정된 행의 income_bracket 값과 관련이 없으므로 이 열의 값을 사용하여 functional_weight 열에서 파생된 새 dataframe 열을 만들어 데이터를 학습, 평가, 예측 세트로 구분합니다. 모델 학습에 사용할 데이터의 80%, 평가에 사용할 데이터의 10%, 예측에 사용할 데이터의 10%에 라벨을 지정합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#sql] ---
+샘플 데이터로 뷰 [https://cloud.google.com/bigquery/docs/views-intro?hl=ko]를 만듭니다.
+이 뷰는 이 튜토리얼 뒷부분에 있는 CREATE MODEL 문에서 사용됩니다.
+
+샘플 데이터를 준비하는 쿼리를 실행합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+
+CREATE OR REPLACE VIEW
+`census.input_data` AS
+SELECT
+age,
+workclass,
+marital_status,
+education_num,
+occupation,
+hours_per_week,
+income_bracket,
+CASE
+  WHEN MOD(functional_weight, 10) < 8 THEN 'training'
+  WHEN MOD(functional_weight, 10) = 8 THEN 'evaluation'
+  WHEN MOD(functional_weight, 10) = 9 THEN 'prediction'
+END AS dataframe
+FROM
+`bigquery-public-data.ml_datasets.census_adult_income`;
+샘플 데이터를 확인합니다.
+
+SELECT * FROM `census.input_data`;
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#bigquery-dataframes] ---
+input_data라는 DataFrame을 만듭니다. 이 튜토리얼의 뒷부분에서 input_data를 사용하여 모델을 학습시키고 모델을 평가하고 예측을 수행합니다.
+
+   이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import bigframes.pandas as bpd
+
+input_data = bpd.read_gbq(
+    "bigquery-public-data.ml_datasets.census_adult_income",
+    columns=(
+        "age",
+        "workclass",
+        "marital_status",
+        "education_num",
+        "occupation",
+        "hours_per_week",
+        "income_bracket",
+        "functional_weight",
+    ),
+)
+input_data["dataframe"] = bpd.Series("training", index=input_data.index,).case_when(
+    [
+        (((input_data["functional_weight"] % 10) == 8), "evaluation"),
+        (((input_data["functional_weight"] % 10) == 9), "prediction"),
+    ]
+)
+del input_data["functional_weight"]
+로지스틱 회귀 모델 만들기
+이전 섹션에서 라벨을 지정한 학습 데이터를 사용하여 로지스틱 회귀 모델을 만듭니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#sql] ---
+CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko]을 사용하고 모델 유형에 LOGISTIC_REG를 지정합니다.
+
+다음은 CREATE MODEL 문에 대해 알아두면 유용한 정보입니다.
+
+
+input_label_cols [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko#input_label_cols] 옵션은 SELECT 문에서 라벨 열로 사용할 열을 지정합니다. 여기서 라벨 열은 income_bracket이므로 모델은 특정 행에 있는 다른 값을 기반으로 income_bracket의 두 값 중 해당 행에 가장 가능성이 높은 값을 학습합니다.
+로지스틱 회귀 모델이 바이너리 또는 멀티클래스인지 여부를 지정할 필요는 없습니다. BigQuery ML은 라벨 열의 고유 값 수를 기반으로 학습할 모델 유형을 결정합니다.
+학습 데이터에서 클래스 라벨의 균형을 맞추도록 auto_class_weights [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko#auto_class_weights] 옵션이 TRUE로 설정됩니다. 기본적으로 학습 데이터는 가중치가 더해지지 않습니다. 학습 데이터 라벨의 균형이 맞지 않는 경우 모델은 가장 인기 있는 라벨 클래스에 더 가중치를 둬서 예측하도록 학습할 수 있습니다. 이 예시에서는 데이터 세트의 응답자 대부분이 저소득층에 속합니다. 이것은 저소득층을 너무 많이 예측하는 모델로 이어질 수 있습니다. 클래스 가중치는 각 클래스의 가중치를 해당 클래스의 빈도에 반비례하게 계산하여 클래스 라벨의 균형을 맞춥니다.
+튜토리얼 후반부에서 모델에 ML.GLOBAL_EXPLAIN 함수를 사용 [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#globally_explain_the_model]할 수 있도록 enable_global_explain 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko#enable_global_explain]이 TRUE로 설정됩니다.
+SELECT 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko#query_statement]은 샘플 데이터가 포함된 input_data 뷰를 쿼리합니다. WHERE 절은 학습 데이터로 라벨이 지정된 행만 모델을 학습하는 데 사용되도록 행을 필터링합니다.
+
+
+로지스틱 회귀 모델을 만드는 쿼리를 실행합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+
+CREATE OR REPLACE MODEL
+`census.census_model`
+OPTIONS
+( model_type='LOGISTIC_REG',
+  auto_class_weights=TRUE,
+  enable_global_explain=TRUE,
+  data_split_method='NO_SPLIT',
+  input_label_cols=['income_bracket'],
+  max_iterations=15) AS
+SELECT * EXCEPT(dataframe)
+FROM
+`census.input_data`
+WHERE
+dataframe = 'training'
+탐색기 창에서 데이터 세트를 클릭합니다.
+데이터 세트 창에서 census를 클릭합니다.
+모델 창을 클릭합니다.
+census_model을 클릭합니다.
+세부정보 탭에는 BigQuery ML이 로지스틱 회귀를 수행하는 데 사용한 속성이 나열됩니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#bigquery-dataframes] ---
+fit [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.linear_model.LogisticRegression?hl=ko#bigframes_ml_linear_model_LogisticRegression_fit] 메서드를 사용하여 모델을 학습시키고 to_gbq [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.linear_model.LogisticRegression?hl=ko#bigframes_ml_linear_model_LogisticRegression_to_gbq] 메서드를 사용하여 이 모델을 데이터 세트에 저장합니다.
+
+   이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import bigframes.ml.linear_model
+
+# input_data is defined in an earlier step.
+training_data = input_data[input_data["dataframe"] == "training"]
+X = training_data.drop(columns=["income_bracket", "dataframe"])
+y = training_data["income_bracket"]
+
+census_model = bigframes.ml.linear_model.LogisticRegression(
+    # Balance the class labels in the training data by setting
+    # class_weight="balanced".
+    #
+    # By default, the training data is unweighted. If the labels
+    # in the training data are imbalanced, the model may learn to
+    # predict the most popular class of labels more heavily. In
+    # this case, most of the respondents in the dataset are in the
+    # lower income bracket. This may lead to a model that predicts
+    # the lower income bracket too heavily. Class weights balance
+    # the class labels by calculating the weights for each class in
+    # inverse proportion to the frequency of that class.
+    class_weight="balanced",
+    max_iterations=15,
+)
+census_model.fit(X, y)
+
+census_model.to_gbq(
+    your_model_id,  # For example: "your-project.census.census_model"
+    replace=True,
+)
+모델의 성능 평가
+모델을 만든 후 평가 데이터를 기준으로 모델의 성능을 평가합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#sql] ---
+ML.EVALUATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko] 함수는 평가 데이터를 기준으로 모델이 생성한 예측 값을 평가합니다.
+
+입력의 경우 ML.EVALUATE 함수는 dataframe 열 값으로 evaluation를 갖는 input_data 뷰로부터 학습된 모델과 모델 행을 가져옵니다. 이 함수는 모델에 대한 단일 행의 통계를 반환합니다.
+
+ML.EVALUATE 쿼리 실행:
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+
+SELECT
+*
+FROM
+ML.EVALUATE (MODEL `census.census_model`,
+  (
+  SELECT
+    *
+  FROM
+    `census.input_data`
+  WHERE
+    dataframe = 'evaluation'
+  )
+);
+결과는 다음과 유사합니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#bigquery-dataframes] ---
+score [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.linear_model.LogisticRegression?hl=ko#bigframes_ml_linear_model_LogisticRegression_score] 메서드를 사용하여 실제 데이터를 기준으로 모델을 평가합니다.
+
+   이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # Select model you'll use for predictions. `read_gbq_model` loads model
+# data from BigQuery, but you could also use the `census_model` object
+# from previous steps.
+census_model = bpd.read_gbq_model(
+    your_model_id,  # For example: "your-project.census.census_model"
+)
+
+# input_data is defined in an earlier step.
+evaluation_data = input_data[input_data["dataframe"] == "evaluation"]
+X = evaluation_data.drop(columns=["income_bracket", "dataframe"])
+y = evaluation_data["income_bracket"]
+
+# The score() method evaluates how the model performs compared to the
+# actual data. Output DataFrame matches that of ML.EVALUATE().
+score = census_model.score(X, y)
+score.peek()
+# Output:
+#    precision    recall  accuracy  f1_score  log_loss   roc_auc
+# 0   0.685764  0.536685   0.83819  0.602134  0.350417  0.882953
+Google Cloud 콘솔에서 모델의 평가 창을 통해 학습 중에 계산된 평가 측정항목을 볼 수도 있습니다.
+소득 구간 예측
+모델을 사용하여 각 응답자의 소득 구간을 예측합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#sql] ---
+ML.PREDICT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko]를 사용하여 예상 소득 구간을 예측합니다. 입력의 경우 ML.PREDICT 함수는 dataframe 열 값으로 prediction를 갖는 input_data 뷰로부터 학습된 모델과 모델 행을 가져옵니다.
+
+ML.PREDICT 쿼리 실행:
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+
+SELECT
+*
+FROM
+ML.PREDICT (MODEL `census.census_model`,
+  (
+  SELECT
+    *
+  FROM
+    `census.input_data`
+  WHERE
+    dataframe = 'prediction'
+  )
+);
+결과는 다음과 유사합니다.
+
+ 
+
+
+predicted_income_bracket 열에는 응답자의 예상 소득 구간이 포함됩니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko#bigquery-dataframes] ---
+predict [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.linear_model.LogisticRegression?hl=ko#bigframes_ml_linear_model_LogisticRegression_predict] 메서드를 사용하여 예상 소득 구간을 예측합니다.
+
+   이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # Select model you'll use for predictions. `read_gbq_model` loads model
+# data from BigQuery, but you could also use the `census_model` object
+# from previous steps.
+census_model = bpd.read_gbq_model(
+    your_model_id,  # For example: "your-project.census.census_model"
+)
+
+# input_data is defined in an earlier step.
+prediction_data = input_data[input_data["dataframe"] == "prediction"]
+
+predictions = census_model.predict(prediction_data)
+predictions.peek()
+# Output:
+#           predicted_income_bracket                     predicted_income_bracket_probs  age workclass  ... occupation  hours_per_week income_bracket   dataframe
+# 18004                    <=50K  [{'label': ' >50K', 'prob': 0.0763305999358786...   75         ?  ...          ?               6          <=50K  prediction
+# 18886                    <=50K  [{'label': ' >50K', 'prob': 0.0448866871906495...   73         ?  ...          ?              22           >50K  prediction
+# 31024                    <=50K  [{'label': ' >50K', 'prob': 0.0362982319421936...   69         ?  ...          ?               1          <=50K  prediction
+# 31022                    <=50K  [{'label': ' >50K', 'prob': 0.0787836112058324...   75         ?  ...          ?               5          <=50K  prediction
+# 23295                    <=50K  [{'label': ' >50K', 'prob': 0.3385373037905673...   78         ?  ...          ?              32          <=50K  prediction
+예측 결과 설명
+모델에서 이러한 예측 결과를 생성하는 이유를 알아보려면 ML.EXPLAIN_PREDICT [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-explain-predict?hl=ko] 함수를 사용하면 됩니다.
+ML.EXPLAIN_PREDICT는 ML.PREDICT 함수의 확장된 버전입니다. ML.EXPLAIN_PREDICT는 예측 결과를 출력할 뿐만 아니라 예측 결과를 설명하는 추가 열을 출력합니다. 설명 가능성에 대한 자세한 내용은 BigQuery ML Explainable AI 개요 [https://cloud.google.com/bigquery/docs/xai-overview?hl=ko#explainable_ai_offerings_in_bigquery_ml]를 참고하세요.
+ML.EXPLAIN_PREDICT 쿼리 실행:
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+SELECT
+*
+FROM
+ML.EXPLAIN_PREDICT(MODEL `census.census_model`,
+  (
+  SELECT
+    *
+  FROM
+    `census.input_data`
+  WHERE
+    dataframe = 'evaluation'),
+  STRUCT(3 as top_k_features));
+결과는 다음과 유사합니다.
+참고: ML.EXPLAIN_PREDICT 쿼리는 ML.PREDICT와 유사한 모든 입력 특성 열을 출력합니다. 가독성을 위해 앞의 그림에는 하나의 특성 열 age만 표시되어 있습니다.
+로지스틱 회귀 모델에서 Shapley 값 [https://wikipedia.org/wiki/Shapley_value]은 모델의 각 특성에 대한 상대적 특성 기여도를 결정하는 데 사용됩니다. 쿼리에서 top_k_features 옵션이 3으로 설정되었기 때문에 ML.EXPLAIN_PREDICT는 input_data 뷰의 각 행에 대한 특성 기여 항목 3개를 출력합니다. 이러한 기여 항목은 절댓값을 기준으로 내림차순으로 표시됩니다.
+모델을 전역적으로 설명
+소득 계층을 결정하는 데 가장 중요한 특성을 알아보려면 ML.GLOBAL_EXPLAIN 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-global-explain?hl=ko]를 사용하세요.
+모델의 전역 설명을 가져옵니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행하여 전역 설명을 가져옵니다.
+SELECT
+  *
+FROM
+  ML.GLOBAL_EXPLAIN(MODEL `census.census_model`)
+결과는 다음과 유사합니다.
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트를 유지하고 개별 리소스를 삭제하세요.
+데이터 세트 삭제
+프로젝트를 삭제하면 프로젝트의 데이터 세트와 테이블이 모두 삭제됩니다. 프로젝트를 다시 사용하려면 이 튜토리얼에서 만든 데이터 세트를 삭제할 수 있습니다.
+필요한 경우Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+앞서 만든 census 데이터 세트를 탐색에서 선택합니다.
+창의 오른쪽에 있는 데이터 세트 삭제를 클릭합니다. 이렇게 하면 데이터 세트와 모델이 삭제됩니다.
+데이터 세트 삭제 대화상자에서 데이터 세트 이름(census)을 입력하고 삭제를 클릭하여 삭제 명령어를 확인합니다.
+프로젝트 삭제
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+BigQuery ML 개요는 BigQuery ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]를 참조하세요.
+모델 만들기에 대한 자세한 내용은 CREATE MODEL [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko] 구문 페이지를 참조하세요.
+도움이 되었나요?
+의견 보내기

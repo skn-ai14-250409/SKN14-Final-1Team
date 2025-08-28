@@ -1,0 +1,96 @@
+Source URL: https://cloud.google.com/bigquery/docs/cloud-sql-instance-access
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/cloud-sql-instance-access?hl=ko#before-you-begin]
+VPC 피어링 설정 [https://cloud.google.com/bigquery/docs/cloud-sql-instance-access?hl=ko#set-up]
+BigQuery Data Transfer Service 커넥터 프로젝트에서 VPC 피어링 만들기 [https://cloud.google.com/bigquery/docs/cloud-sql-instance-access?hl=ko#create-vpc-peering-from-dts-connector-project]
+Cloud SQL 데이터베이스 프로젝트에서 VPC 피어링 만들기 [https://cloud.google.com/bigquery/docs/cloud-sql-instance-access?hl=ko#create-vpc-peering-in-cloud-sql-project]
+경로 및 방화벽 규칙 구성 [https://cloud.google.com/bigquery/docs/cloud-sql-instance-access?hl=ko#configure-routes-and-firewall-rules]
+Cloud SQL 프록시 설정 [https://cloud.google.com/bigquery/docs/cloud-sql-instance-access?hl=ko#set-up-cloud-sql-proxy]
+내부 Cloud SQL IP 주소에 연결 [https://cloud.google.com/bigquery/docs/cloud-sql-instance-access?hl=ko#connect-to-internal-cloud-sql-address]
+네트워크 연결 만들기 [https://cloud.google.com/bigquery/docs/cloud-sql-instance-access?hl=ko#create-network-attachment]
+Cloud SQL 인스턴스 액세스 구성
+bookmark_border
+이 문서에서는 가상 프라이빗 클라우드 피어링을 설정하고, Cloud SQL 프록시를 설치하고, 여러 Google Cloud 프로젝트에서 내부 Cloud SQL IP 주소에 연결하는 자세한 단계를 제공합니다. 이 설정을 사용하면 Cloud SQL 인스턴스와 다음 커넥터 간에 보안이 강화되고 효율적인 통신이 이루어집니다.
+BigQuery Data Transfer Service MySQL 커넥터 [https://cloud.google.com/bigquery/docs/mysql-transfer?hl=ko]
+BigQuery Data Transfer Service PostgreSQL 커넥터 [https://cloud.google.com/bigquery/docs/postgresql-transfer?hl=ko]
+이 문서에서는 BigQuery Data Transfer Service 커넥터 프로젝트에서 네트워크 연결을 만드는 방법도 다룹니다.
+시작하기 전에
+다음 항목을 보유하고 있는지 확인하세요.
+BigQuery Data Transfer Service 커넥터가 있는 Google Cloud 프로젝트와 Cloud SQL 인스턴스가 있는 다른 Google Cloud 프로젝트에 대한 액세스 권한
+Google Cloud 프로젝트의 기존 MySQL 또는 PostgreSQL 데이터베이스
+VPC를 만들고 [https://cloud.google.com/vpc/docs/create-modify-vpc-networks?hl=ko], 방화벽 규칙을 만들고 [https://cloud.google.com/network-connectivity/docs/vpn/how-to/configuring-firewall-rules?hl=ko], 소프트웨어를 설치할 수 있는 적절한 권한
+가상 머신(VM) 인스턴스 [https://cloud.google.com/compute/docs/instances/create-start-instance?hl=ko]
+VPC 피어링 설정
+VPC 피어링을 설정하려면 BigQuery Data Transfer Service 커넥터 프로젝트에서 VPC 피어링을 만들고, Cloud SQL 데이터베이스 프로젝트에서 BigQuery Data Transfer Service 프로젝트로 VPC 피어링을 만들고, 경로와 방화벽 규칙을 구성해야 합니다.
+BigQuery Data Transfer Service 커넥터 프로젝트에서 VPC 피어링 만들기
+Google Cloud 콘솔에서 BigQuery Data Transfer Service 커넥터 프로젝트의 VPC 네트워크 피어링 페이지로 이동합니다.
+VPC 네트워크 피어링으로 이동 [https://console.cloud.google.com/networking/peering/list?hl=ko]
+add 피어링 연결 만들기를 클릭합니다.
+이름 필드에 피어링 구성의 이름을 입력합니다.
+VPC 네트워크에서 BigQuery Data Transfer Service 커넥터 프로젝트에서 피어링할 VPC 네트워크를 선택합니다.
+피어링된 VPC 네트워크에서 다른 프로젝트 내 옵션을 선택합니다.
+프로젝트 ID에 Cloud SQL 프로젝트의 프로젝트 ID를 입력합니다.
+VPC 네트워크 이름에 Cloud SQL 프로젝트의 VPC 네트워크 이름을 입력합니다.
+만들기를 클릭합니다.
+Cloud SQL 데이터베이스 프로젝트에서 VPC 피어링 만들기
+Cloud SQL 데이터베이스 프로젝트에서 BigQuery Data Transfer Service 프로젝트로 VPC 피어링을 만들려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery Data Transfer Service 커넥터 프로젝트의 VPC 네트워크 피어링 페이지로 이동합니다.
+VPC 네트워크 피어링으로 이동 [https://console.cloud.google.com/networking/peering/list?hl=ko]
+add 피어링 연결 만들기를 클릭합니다.
+이름 필드에 피어링 구성의 이름을 입력합니다.
+Cloud SQL 데이터베이스 프로젝트에서 피어링할 VPC 네트워크를 선택합니다.
+피어 프로젝트 ID에 BigQuery Data Transfer Service 프로젝트의 프로젝트 ID를 입력합니다.
+피어링된 VPC 네트워크에 BigQuery Data Transfer Service 커넥터 프로젝트의 VPC 네트워크 이름을 입력합니다.
+만들기를 클릭합니다.
+경로 및 방화벽 규칙 구성
+이전에 피어링 연결을 구성할 때 가져오기/내보내기 경로를 선택하지 않은 경우 다음 단계에 따라 지금 선택하세요.
+BigQuery Data Transfer Service 커넥터 프로젝트의 경로 페이지로 이동합니다.
+경로로 이동 [https://console.cloud.google.com/networking/routes/list?hl=ko]
+피어링된 VPC 환경 간에 트래픽을 허용하는 경로가 있는지 확인합니다.
+방화벽 정책 페이지로 이동합니다.
+방화벽 정책으로 이동 [https://console.cloud.google.com/networking/firewalls/list?hl=ko]
+피어링된 네트워크 간에 필요한 포트(예: MySQL의 경우 포트 3306, PostgreSQL의 경우 포트 5432)의 트래픽을 허용하는 방화벽 규칙을 만듭니다.
+BigQuery Data Transfer Service 커넥터 프로젝트에서 필요한 커스텀 방화벽 규칙을 Cloud SQL 데이터베이스 호스팅 프로젝트에 추가합니다.
+이전 단계에서와 같이 Cloud SQL 인스턴스를 사용하여 프로젝트의 경로와 방화벽 규칙을 구성합니다.
+Cloud SQL 프록시 설정
+SSH를 사용하여 BigQuery Data Transfer Service 커넥터 프로젝트의 가상 머신(VM) 인스턴스에 연결합니다.
+터미널에서 Cloud SQL 프록시를 다운로드합니다.
+wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy
+다운로드한 파일의 권한을 업데이트합니다.
+chmod +x cloud_sql_proxy
+Cloud SQL 프록시를 실행합니다.
+./cloud_sql_proxy -instances=NAME=tcp:3306 or 5432 &
+NAME을 Cloud SQL 인스턴스 연결 이름으로 바꿉니다.
+내부 Cloud SQL IP 주소에 연결
+연결에 Cloud SQL 인스턴스의 내부 IP 주소를 사용합니다.
+적절한 사용자 인증 정보와 데이터베이스 세부정보를 지정하여 내부 IP 주소에 연결하도록 애플리케이션 또는 도구를 구성합니다.
+다른 Google Cloud 프로젝트에서 연결하는 경우 이전에 배포한 프록시 VM의 내부 IP 주소를 사용합니다. 이 솔루션은 전환 피어링 문제를 해결합니다.
+네트워크 연결 만들기
+BigQuery Data Transfer Service 커넥터 프로젝트에서 네트워크 연결을 만들려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 네트워크 연결 페이지로 이동합니다.
+네트워크 연결로 이동 [https://console.cloud.google.com/net-services/psc/list/networkAttachments?hl=ko]
+add 네트워크 연결 만들기를 클릭합니다.
+네트워크 연결 이름을 입력합니다.
+적절한 VPC 네트워크를 선택합니다.
+리전에 BigQuery Data Transfer Service 커넥터가 있는 리전을 지정합니다.
+서브네트워크에서 설정에 맞는 적절한 옵션을 선택합니다.
+네트워크 연결 만들기를 클릭합니다.
+연결 테스트
+Cloud SQL 프록시가 있는 VM이 Cloud SQL 인스턴스에 연결할 수 있는지 확인합니다.
+mysql -u USERNAME -p -h IP_ADDRESS
+다음을 바꿉니다.
+USERNAME: 데이터베이스 사용자의 사용자 이름
+IP_ADDRESS: Cloud SQL 인스턴스의 IP 주소
+BigQuery Data Transfer Service 커넥터 프로젝트의 애플리케이션이 내부 IP를 사용하여 Cloud SQL 인스턴스에 연결할 수 있는지 확인합니다.
+문제 해결
+네트워크 연결을 설정하는 데 문제가 있는 경우 다음을 수행하세요.
+VPC 피어링이 설정되어 있고 경로가 올바르게 구성되어 있는지 확인합니다.
+방화벽 규칙이 필요한 포트의 트래픽을 허용하는지 확인합니다.
+Cloud SQL 프록시 로그에서 오류를 확인하고 올바르게 실행되고 있는지 확인합니다.
+네트워크 연결이 올바르게 구성되고 연결되어 있는지 확인합니다.
+의견 보내기

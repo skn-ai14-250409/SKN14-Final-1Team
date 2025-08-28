@@ -1,0 +1,3109 @@
+Source URL: https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#limitations]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#before_you_begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#required_permissions]
+Cloud Storage에서 데이터를 로드할 수 있는 권한 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#permissions-load-data-from-cloud-storage]
+데이터 세트 생성 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#create_a_dataset]
+Cloud Storage에서 CSV 데이터 로드
+bookmark_border
+Cloud Storage에서 CSV 데이터를 로드할 때는 새 테이블 또는 파티션에 데이터를 로드하거나 기존 테이블 또는 파티션에 추가하거나 덮어쓸 수 있습니다. BigQuery에 로드한 데이터는 Capacitor [https://cloud.google.com/blog/products/bigquery/inside-capacitor-bigquerys-next-generation-columnar-storage-format?hl=ko]용 열 형식(BigQuery의 스토리지 형식)으로 변환됩니다.
+Cloud Storage에서 BigQuery 테이블로 데이터를 로드하는 경우 테이블을 포함한 데이터세트는 Cloud Storage 버킷과 같은 리전이나 멀티 리전 위치에 있어야 합니다.
+로컬 파일에서 CSV 데이터를 로드하는 방법에 대한 자세한 내용은 로컬 데이터 소스에서 BigQuery로 데이터 로드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#loading_data_from_local_files]를 참조하세요.
+직접 사용해 보기
+Google Cloud를 처음 사용하는 경우 계정을 만들어 실제 시나리오에서 BigQuery의 성능을 평가할 수 있습니다. 신규 고객에게는 워크로드를 실행, 테스트, 배포하는 데 사용할 수 있는 $300의 무료 크레딧이 제공됩니다.
+BigQuery 무료로 사용해 보기 [https://console.cloud.google.com/freetrial?hl=ko]
+제한사항
+Cloud Storage 버킷에서 BigQuery로 데이터를 로드할 때는 다음과 같은 제한사항이 적용됩니다.
+BigQuery는 외부 데이터 소스의 데이터 일관성을 보장하지 않습니다. 쿼리가 실행되는 동안 기본 데이터가 변경되면 예상치 못한 동작이 발생할 수 있습니다.
+BigQuery는 Cloud Storage 객체 버전 관리 [https://cloud.google.com/storage/docs/object-versioning?hl=ko]를 지원하지 않습니다. Cloud Storage URI에 세대 번호를 포함하면 로드 작업이 실패합니다.
+BigQuery에 CSV 파일을 로드할 때 다음 사항에 유의하세요.
+CSV 파일은 중첩되거나 반복되는 데이터는 지원하지 않습니다.
+바이트 순서 표시(BOM) 문자를 삭제합니다. 이로 인해 예기치 않은 문제가 발생할 수 있습니다.
+gzip 압축을 사용하면 BigQuery는 데이터를 동시에 읽지 못합니다. 압축한 CSV 데이터를 BigQuery로 로드하는 작업은 미압축 데이터를 로드하는 작업보다 시간이 더 걸립니다. 압축 데이터 및 압축되지 않은 데이터 로드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#loading_compressed_and_uncompressed_data]를 참조하세요.
+압축된 파일과 압축되지 않은 파일을 같은 로드 작업에 모두 포함할 수는 없습니다.
+gzip 파일의 최대 크기는 4GB입니다.
+모든 열이 문자열 유형인 경우 스키마 자동 감지를 사용 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko]하여 CSV 데이터를 로드해도 헤더가 자동으로 감지되지 않습니다. 이 경우 입력에 숫자 열을 추가하거나 스키마를 명시적으로 선언합니다.
+CSV나 JSON 데이터를 로드할 때 DATE 열의 값은 대시(-) 구분 기호를 사용해야 하며 날짜는 YYYY-MM-DD(년-월-일) 형식이어야 합니다.
+JSON이나 CSV 데이터를 로드할 때 TIMESTAMP 열의 값은 타임스탬프 날짜 부분에 대시(-) 또는 슬래시(/) 구분 기호를 사용해야 하며 날짜는 YYYY-MM-DD(년-월-일) 또는 YYYY/MM/DD(년/월/일) 형식 중 하나여야 합니다. 타임스탬프의 hh:mm:ss(시간-분-초) 부분에는 콜론(:) 구분 기호를 사용해야 합니다.
+파일이 로드 작업 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#load_jobs]에 설명된 CSV 파일 크기 한도를 충족해야 합니다.
+시작하기 전에
+이 문서의 각 태스크를 수행하는 데 필요한 권한을 사용자에게 제공하는 Identity and Access Management(IAM) 역할을 부여하고 데이터를 저장할 데이터 세트를 만듭니다.
+필수 권한
+데이터를 BigQuery로 로드하려면 로드 작업을 실행하고 데이터를 BigQuery 테이블과 파티션으로 로드할 수 있는 IAM 권한이 필요합니다. Cloud Storage에서 데이터를 로드할 경우 데이터가 포함된 버킷에 액세스할 수 있는 IAM 권한도 필요합니다.
+데이터를 BigQuery로 로드할 수 있는 권한
+데이터를 새 BigQuery 테이블이나 파티션으로 로드하거나 기존 테이블 또는 파티션을 추가하거나 덮어쓰려면 다음 IAM 권한이 필요합니다.
+bigquery.tables.create
+bigquery.tables.updateData
+bigquery.tables.update
+bigquery.jobs.create
+다음과 같이 사전 정의된 각 IAM 역할에는 데이터를 BigQuery 테이블이나 파티션에 로드하기 위해 필요한 권한이 포함되어 있습니다.
+roles/bigquery.dataEditor
+roles/bigquery.dataOwner
+roles/bigquery.admin(bigquery.jobs.create 권한 포함)
+bigquery.user(bigquery.jobs.create 권한 포함)
+bigquery.jobUser(bigquery.jobs.create 권한 포함)
+또한 bigquery.datasets.create 권한이 있으면 만들 데이터 세트에서 로드 작업을 사용하여 테이블을 만들고 업데이트할 수 있습니다.
+BigQuery의 IAM 역할과 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/access-control?hl=ko]을 참조하세요.
+Cloud Storage에서 데이터를 로드할 수 있는 권한
+Cloud Storage 버킷에서 데이터를 로드하는 데 필요한 권한을 얻으려면 관리자에게 버킷의 스토리지 관리자 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.admin] (roles/storage.admin) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이 사전 정의된 역할에는 Cloud Storage 버킷에서 데이터를 로드하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+데이터 세트 생성
+데이터를 저장할 BigQuery 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]를 만듭니다.
+CSV 압축
+gzip 유틸리티를 사용하여 CSV 파일을 압축할 수 있습니다. Avro 등 다른 파일 형식의 압축 코덱이 수행하는 파일 콘텐츠 압축과 달리 gzip은 전체 파일 압축을 수행한다는 점에 유의하세요. gzip을 사용하여 CSV 파일을 압축하면 성능에 영향을 줄 수 있습니다. 이러한 장단점에 대한 자세한 내용은 압축 데이터 및 압축되지 않은 데이터 로드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#loading_compressed_and_uncompressed_data]를 참조하세요.
+CSV 데이터를 테이블에 로드
+Cloud Storage에서 새 BigQuery 테이블로 CSV 데이터를 로드하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#%EC%BD%98%EC%86%94] ---
+Cloud Shell 편집기에서 이 태스크의 단계별 안내를 직접 수행하려면 둘러보기를 클릭합니다.
+
+
+
+둘러보기 [https://console.cloud.google.com/freetrial?redirectPath=%2F%3Ftutorial%3Dbigquery_import_data_from_cloud_storage&hl=ko]
+
+
+
+
+
+
+
+
+
+
+
+  Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+    BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+
+탐색기 창에서 프로젝트를 펼친 후 데이터 세트를 선택합니다.
+데이터 세트 정보 섹션에서 add_box 테이블 만들기를 클릭합니다.
+ 테이블 만들기 패널에서 다음 세부정보를 지정합니다. 
+
+
+  
+
+
+
+소스 섹션의 다음 항목으로 테이블 만들기 목록에서 Google Cloud Storage를 선택합니다.
+  그런 후 다음 작업을 수행합니다.
+  
+    Cloud Storage 버킷에서 파일을 선택하거나 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]를 입력합니다.
+              Google Cloud 콘솔에서는 URI를 여러 개 포함할 수 없지만 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]는 지원됩니다. Cloud Storage 버킷은 생성, 추가 또는 덮어쓰려는 테이블이 포함된 데이터 세트와 동일한 위치에 있어야 합니다.
+      
+
+      
+
+
+
+
+
+    파일 형식으로 CSV를 선택합니다.
+  
+
+    
+
+
+
+
+
+대상 섹션에서 다음 세부정보를 지정합니다.데이터 세트에서 테이블을 만들 데이터 세트를 선택합니다.
+  테이블 필드에 만들려는 테이블의 이름을 입력합니다.
+  테이블 유형 필드가 기본 테이블로 설정되어 있는지 확인합니다.
+  
+
+
+
+
+
+스키마 섹션에 스키마 [https://cloud.google.com/bigquery/docs/schemas?hl=ko] 정의를 입력합니다.
+   스키마의 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko]를 사용 설정하려면 자동 감지를 선택합니다.
+
+
+
+  
+
+  다음 방법 중 하나를 사용하여 스키마 정보를 직접 입력할 수 있습니다.
+
+      선택사항 1: 텍스트로 수정을 클릭하고 스키마를 JSON 배열 형식으로 붙여넣습니다. JSON 배열을 사용하는 경우 JSON 스키마 파일 만들기 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#specifying_a_json_schema_file]와 동일한 프로세스를 수행하여 스키마를 생성합니다.
+        다음 명령어를 입력하면 기존 테이블의 스키마를 JSON 형식으로 볼 수 있습니다.
+        bq show [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_show] --format=prettyjson dataset.table
+    
+    
+      선택사항 2: add_box 필드 추가를 클릭하고 테이블 스키마를 입력합니다. 각 필드의 이름, 유형 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#standard_sql_data_types], 모드 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#modes]를 지정합니다.
+ 
+
+
+
+  
+  
+
+
+
+  
+  선택사항: 파티션 및 클러스터 설정을 지정합니다. 자세한 내용은 파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko] 및 클러스터링된 테이블 만들기 및 사용 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]을 참조하세요.
+    
+  
+
+
+
+   
+
+
+
+
+고급 옵션을 클릭하고 다음을 수행합니다.
+
+
+
+
+
+  
+  쓰기 환경설정에서 비어 있으면 쓰기를 선택한 상태로 둡니다. 이 옵션은 새 테이블을 만들어 데이터를 로드합니다.
+  
+
+  
+  허용되는 오류 개수에서 기본값 0을 그대로 두거나 오류가 포함된 행을 무시할 수 있는 최대 개수를 입력합니다.
+        오류가 포함된 행의 개수가 이 값을 초과하면 invalid 메시지가 표시되고 작업이 실패합니다. 이 옵션은 CSV 및 JSON 파일에만 적용됩니다. 
+  시간대에 특정 시간대가 없는 타임스탬프 값을 파싱할 때 적용되는 기본 시간대를 입력합니다. 유효한 시간대 이름은 여기 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_zone_name]를 참고하세요. 이 값이 없으면 특정 시간대가 없는 타임스탬프 값이 기본 시간대 UTC를 사용하여 파싱됩니다.
+        (프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  날짜 형식에 입력 파일에서 날짜 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime]를 입력합니다. 이 필드는 SQL 스타일 형식 (예: MM/DD/YYYY)을 예상합니다. 이 값이 있으면 이 형식이 유일하게 호환되는 DATE 형식입니다.
+        스키마 자동 감지 [https://cloud.google.com/bigquery/docs/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식 대신 이 형식을 기반으로 DATE 열 유형을 결정합니다. 이 값이 없으면 DATE 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+        (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  날짜/시간 형식의 경우 입력 파일에서 날짜/시간 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime]를 입력합니다.
+        이 필드는 SQL 스타일 형식 (예: MM/DD/YYYY HH24:MI:SS.FF3)을 예상합니다.
+        이 값이 있으면 이 형식만 호환되는 날짜/시간 형식입니다.
+        스키마 자동 감지 [https://cloud.google.com/bigquery/docs/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식이 아닌 이 형식을 기반으로 DATETIME 열 유형을 결정합니다. 이 값이 없으면 DATETIME 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+        (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  시간 형식에 입력 파일에서 시간 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime]를 입력합니다. 이 필드는 SQL 스타일 형식 (예: HH24:MI:SS.FF3)을 예상합니다. 이 값이 있으면 이 형식이 유일하게 호환되는 시간 형식입니다.
+        스키마 자동 감지 [https://cloud.google.com/bigquery/docs/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식이 아닌 이 형식을 기반으로 시간 열 유형을 결정합니다. 이 값이 없으면 TIME 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+        (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  타임스탬프 형식에 입력 파일에서 타임스탬프 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime]를 입력합니다.
+        이 필드는 SQL 스타일 형식 (예: MM/DD/YYYY HH24:MI:SS.FF3)을 예상합니다.
+        이 값이 있으면 이 형식만 호환되는 TIMESTAMP 형식입니다.
+        스키마 자동 감지 [https://cloud.google.com/bigquery/docs/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식 대신 이 형식을 기반으로 타임스탬프 열 유형을 결정합니다. 이 값이 없으면 타임스탬프 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+        (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  
+
+  테이블 스키마에 없는 행의 값을 무시하려면 알 수 없는 값을 선택합니다.
+
+  
+  필드 구분 기호의 경우 CSV 파일에서 셀을 구분하는 문자(쉼표, 탭, 파이프, 커스텀)를 선택합니다. 커스텀을 선택한 경우 커스텀 필드 구분 기호 상자에 구분 기호를 입력합니다. 기본값은 쉼표입니다.
+  소스 열 일치의 경우 로드된 열을 스키마에 일치시키는 데 사용되는 다음 전략 중 하나를 선택합니다 (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+      
+        Default: 스키마가 제공되는 방식에 따라 기본 동작이 선택됩니다.
+          자동 감지가 사용 설정된 경우 기본 동작은 이름으로 열을 일치시키는 것입니다.
+          그렇지 않으면 기본적으로 위치별로 열이 일치합니다. 이는 동작의 하위 호환성을 유지하기 위해 실행됩니다.
+        Position: 열이 스키마와 동일한 방식으로 정렬되어 있다고 가정하고 위치별로 열을 일치시킵니다.
+        Name: 헤더 행을 열 이름으로 읽고 스키마의 필드 이름과 일치하도록 열을 재정렬하여 이름으로 일치시킵니다. 열 이름은 건너뛸 헤더 행에 따라 건너뛴 마지막 행에서 읽어옵니다.
+      
+  건너뛸 헤더 행에는 CSV 파일 맨 위 부분에서 건너뛸 헤더 행 수를 입력합니다. 기본값은 0입니다.
+  따옴표 안에 줄바꿈의 경우 따옴표 안에 줄바꿈 허용을 선택하여 CSV 파일에서 따옴표 안에 줄바꿈 문자가 포함된 데이터 섹션을 허용합니다. 기본값은 false입니다.
+  불균일 행의 경우 불균일 행 허용을 선택하여 CSV 파일에서 뒤에 오는 열(선택사항)이 누락된 행을 허용합니다. 누락된 값은 null로 취급됩니다. 선택 해제하면 뒤에 오는 열이 누락된 레코드가 불량 레코드로 취급되고, 불량 레코드가 너무 많아지면 작업 결과에 잘못된 오류가 반환됩니다. 기본값은 false입니다.
+  Null 마커에 CSV 데이터에서 NULL 값을 나타내는 맞춤 문자열 목록을 입력합니다. (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  
+  Cloud Key Management Service 키 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 사용하려면 암호화에서 고객 관리 키를 클릭합니다.
+        Google-managed key 설정을 그대로 두면 BigQuery에서 저장 데이터를 암호화 [https://cloud.google.com/security/encryption/default-encryption?hl=ko]합니다.
+
+  
+  
+
+
+
+테이블 만들기를 클릭합니다.
+
+
+참고:Google Cloud 콘솔을 사용하여 빈 테이블에 데이터를 로드하면 라벨, 설명, 테이블 만료 시간 또는 파티션 만료 시간을 추가할 수 없습니다.
+테이블을 만든 후에 테이블의 만료 시간, 설명, 라벨을 업데이트할 수 있지만, Google Cloud 콘솔을 사용하여 테이블을 만든 후에 파티션 만료 시간을 추가할 수는 없습니다. 자세한 내용은 테이블 관리 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko]를 참고하세요.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#sql] ---
+LOAD DATA DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/load-statements?hl=ko]을 사용합니다.
+다음 예시에서는 CSV 파일을 새 테이블인 mytable에 로드합니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+LOAD DATA OVERWRITE mydataset.mytable
+(x INT64,y STRING)
+FROM FILES (
+  format = 'CSV',
+  uris = ['gs://bucket/path/file.csv']);
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#bq] ---
+bq load 명령어를 사용하고, --source_format 플래그로 CSV를 지정하고, Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]를 포함합니다.
+단일 URI, 쉼표로 구분된 URI 목록 또는 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]가 포함된 URI를 포함할 수 있습니다.
+스키마 정의 파일에 스키마를 인라인으로 제공하거나 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko]를 사용합니다. 스키마를 지정하지 않고 --autodetect가 false이며 대상 테이블이 있으면 대상 테이블의 스키마가 사용됩니다.
+
+(선택사항) --location 플래그를 지정하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]로 설정합니다.
+
+다른 선택적 플래그에는 다음이 포함됩니다.
+
+
+--allow_jagged_rows: 지정된 경우 CSV 파일에서 선택적인 뒤에 오는 열이 누락된 행을 허용합니다. 누락된 값은 null로 취급됩니다.
+선택 해제하면 뒤에 오는 열이 누락된 레코드가 불량 레코드로 취급되고, 불량 레코드가 너무 많다면 작업 결과에 잘못된 오류가 반환됩니다. 기본값은 false입니다.
+--allow_quoted_newlines: 지정된 경우 CSV 파일에서 따옴표 안에 줄바꿈 문자가 포함된 데이터 섹션을 허용합니다. 기본값은 false입니다.
+--field_delimiter: 데이터에서 열 사이의 경계를 나타내는 문자입니다. \t와 tab 모두 탭 구분 기호로 사용할 수 있습니다.
+기본값은 ,입니다.
+--null_marker: CSV 데이터에서 NULL 값을 나타내는 선택적 커스텀 문자열입니다.
+--null_markers: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 데이터에서 NULL 값을 나타내는 선택적 쉼표로 구분된 맞춤 문자열 목록입니다. 이 옵션은 --null_marker 플래그와 함께 사용할 수 없습니다.
+--source_column_match: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages])
+로드된 열을 스키마와 일치시키는 데 사용되는 전략을 지정합니다. 열이 스키마와 동일한 순서로 정렬되어 있다고 가정할 때 POSITION를 지정하여 로드된 열을 위치별로 일치시킬 수 있습니다. 헤더 행을 열 이름으로 읽고 스키마의 필드 이름과 일치하도록 열을 재정렬하여 이름으로 일치시키기 위해 NAME를 지정할 수도 있습니다. 이 값이 지정되지 않으면 기본값은 스키마가 제공되는 방식에 따라 달라집니다. --autodetect가 사용 설정된 경우 기본 동작은 이름으로 열을 일치시키는 것입니다. 그렇지 않으면 기본적으로 위치별로 열이 일치합니다.
+--skip_leading_rows: CSV 파일 위에서 건너뛸 헤더 행 수를 지정합니다. 기본값은 0입니다.
+--quote: 레코드를 묶는 데 사용할 따옴표입니다. 기본값은 "입니다. 따옴표 문자를 표시하지 않으려면 빈 문자열을 사용합니다.
+--max_bad_records: 전체 작업이 실패하기 전에 허용되는 불량 레코드 최대 개수를 지정하는 정수입니다. 기본값은 0입니다. --max_bad_records 값과 관계없이 모든 유형에 오류가 최대 5개까지 반환됩니다.
+--ignore_unknown_values: 이 플래그를 지정하면 CSV 또는 JSON 데이터의 인식할 수 없는 추가 값이 허용 및 무시됩니다.
+--time_zone: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 또는 JSON 데이터에 특정 시간대가 없는 타임스탬프 값을 파싱할 때 적용되는 선택적 기본 시간대입니다.
+--date_format: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 또는 JSON 데이터에서 DATE 값의 형식을 지정하는 방법을 정의하는 선택적 맞춤 문자열입니다.
+--datetime_format: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 또는 JSON 데이터에서 DATETIME 값이 서식 지정되는 방식을 정의하는 선택적 맞춤 문자열입니다.
+--time_format: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 또는 JSON 데이터에서 시간 값의 형식을 지정하는 방법을 정의하는 선택적 맞춤 문자열입니다.
+--timestamp_format: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 또는 JSON 데이터에서 TIMESTAMP 값이 서식 지정되는 방식을 정의하는 선택적 맞춤 문자열입니다.
+--autodetect: 이 플래그를 지정하면 CSV 데이터와 JSON 데이터에 스키마 자동 감지가 사용 설정됩니다.
+--time_partitioning_type: 테이블에 시간 기준 파티션 나누기를 사용 설정하고 파티션 유형을 설정합니다. 가능한 값은 HOUR, DAY, MONTH, YEAR입니다. DATE, DATETIME, TIMESTAMP 열을 기준으로 파티션을 나눈 테이블을 만드는 경우 이 플래그는 선택사항입니다. 시간 기준 파티션 나누기의 기본 파티션 유형은 DAY입니다. 기존 테이블의 파티션 나누기 사양을 변경할 수 없습니다.
+--time_partitioning_expiration: 시간 기준 파티션을 삭제할 시간을 초 단위로 지정하는 정수입니다. 만료 시간은 파티션의 UTC 날짜에 정수 값을 더한 값입니다.
+--time_partitioning_field: 파티션을 나눈 테이블을 만드는 데 사용되는 DATE 또는 TIMESTAMP 열입니다. 이 값 없이 시간 기준 파티션 나누기를 사용 설정하면 수집 시간으로 파티션을 나눈 테이블이 생성됩니다.
+--require_partition_filter: 이 옵션을 사용 설정하면 사용자는 쿼리할 파티션을 지정하는 WHERE 절을 포함해야 합니다.
+파티션 필터를 필수항목으로 설정하면 비용을 줄이고 성능을 높일 수 있습니다.
+자세한 내용은 파티션을 나눈 테이블 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko]를 참조하세요.
+--clustering_fields: 클러스터링된 테이블 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]을 만드는 데 사용된 쉼표로 구분된 열 이름(최대 4개) 목록입니다.
+--destination_kms_key: 테이블 데이터 암호화에 사용되는 Cloud KMS 키입니다.
+--column_name_character_map: 유연한 열 이름 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#flexible-column-names]을 사용 설정하는 옵션을 사용하여 열 이름의 문자 범위와 처리를 정의합니다.
+CSV 파일에 --autodetect 옵션이 필요합니다.
+자세한 내용은 load_option_list [https://cloud.google.com/bigquery/docs/reference/standard-sql/load-statements?hl=ko#load_option_list]을 참조하세요.
+
+bq load 명령어에 대한 자세한 내용은 다음을 참조하세요.
+
+
+명령줄 참조 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_load]
+
+
+파티션을 나눈 테이블에 대한 자세한 내용은 다음을 참조하세요.
+
+
+파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko]
+
+
+클러스터링된 테이블에 대한 자세한 내용은 다음을 참조하세요.
+
+
+클러스터링된 테이블 만들기 및 사용 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]
+
+
+테이블 암호화에 대한 자세한 내용은 다음을 참조하세요.
+
+
+Cloud KMS 키로 데이터 보호 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]
+
+
+
+BigQuery에 CSV 데이터를 로드하려면 다음 명령어를 입력하세요.
+
+bq --location=location load \
+--source_format=format \
+dataset.table \
+path_to_source \
+schema
+
+각 항목의 의미는 다음과 같습니다.
+
+
+location은 사용자의 위치입니다. --location 플래그는 선택사항입니다.
+예를 들어 도쿄 리전에서 BigQuery를 사용하는 경우에는 플래그 값을 asia-northeast1으로 설정하면 됩니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+format은 CSV입니다.
+dataset는 기존 데이터 세트입니다.
+table은 데이터를 로드하는 테이블 이름입니다.
+path_to_source는 정규화된 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri] 또는 쉼표로 구분된 URI 목록이며 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]도 지원됩니다.
+schema는 유효한 스키마입니다. 스키마는 로컬 JSON 파일일 수도 있고 명령어의 일부로 인라인으로 입력해도 됩니다. 스키마 정의를 제공하는 대신 --autodetect 플래그를 사용해도 됩니다.
+
+
+예:
+
+다음 명령어는 gs://mybucket/mydata.csv에서 mydataset에 있는 mytable이라는 이름의 테이블로 데이터를 로드합니다. 스키마는 myschema.json이라는 로컬 스키마 파일에 정의됩니다.
+    bq load \
+    --source_format=CSV \
+    mydataset.mytable \
+    gs://mybucket/mydata.csv \
+    ./myschema.json
+
+다음 명령어는 gs://mybucket/mydata.csv에서 mydataset에 있는 mytable이라는 이름의 테이블로 데이터를 로드합니다. 스키마는 myschema.json이라는 로컬 스키마 파일에 정의됩니다. CSV 파일에 2개의 헤더 행이 포함됩니다.
+--skip_leading_rows을 지정하지 않은 경우 기본 동작은 파일에 헤더가 포함되지 않았다고 가정하는 것입니다.
+    bq load \
+    --source_format=CSV \
+    --skip_leading_rows=2
+    mydataset.mytable \
+    gs://mybucket/mydata.csv \
+    ./myschema.json
+
+다음 명령어는 gs://mybucket/mydata.csv에서 mydataset에 있는 mytable이라는 수집 시간으로 파티션을 나눈 테이블에 데이터를 로드합니다. 스키마는 myschema.json이라는 로컬 스키마 파일에 정의됩니다.
+    bq load \
+    --source_format=CSV \
+    --time_partitioning_type=DAY \
+    mydataset.mytable \
+    gs://mybucket/mydata.csv \
+    ./myschema.json
+
+다음 명령어는 gs://mybucket/mydata.csv에서 mydataset에 있는 mytable이라는 새로운 이름의 파티션을 나눈 테이블로 데이터를 로드합니다. 테이블의 파티션은 mytimestamp 열을 기준으로 나뉩니다. 스키마는 myschema.json이라는 로컬 스키마 파일에 정의됩니다.
+    bq load \
+    --source_format=CSV \
+    --time_partitioning_field mytimestamp \
+    mydataset.mytable \
+    gs://mybucket/mydata.csv \
+    ./myschema.json
+
+다음 명령어는 gs://mybucket/mydata.csv에서 mydataset에 있는 mytable이라는 이름의 테이블로 데이터를 로드합니다. 스키마는 자동으로 감지됩니다.
+    bq load \
+    --autodetect \
+    --source_format=CSV \
+    mydataset.mytable \
+    gs://mybucket/mydata.csv
+
+다음 명령어는 gs://mybucket/mydata.csv에서 mydataset에 있는 mytable이라는 이름의 테이블로 데이터를 로드합니다. 스키마는 field:data_type,field:data_type 형식으로 인라인으로 정의됩니다.
+    bq load \
+    --source_format=CSV \
+    mydataset.mytable \
+    gs://mybucket/mydata.csv \
+    qtr:STRING,sales:FLOAT,year:STRING
+참고: bq 명령줄 도구를 사용하여 스키마를 지정하면 RECORD(STRUCT [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#struct-type]) 유형과 필드 설명을 포함할 수 없으며 필드 모드를 지정할 수도 없습니다. 모든 필드 모드는 기본적으로 NULLABLE로 설정됩니다. 필드 설명, 모드, RECORD 유형을 포함하려면 대신 JSON 스키마 파일 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#specifying_a_json_schema_file]을 제공합니다.
+다음 명령어는 gs://mybucket/에 있는 여러 파일에서 mydataset에 있는 mytable이라는 테이블로 데이터를 로드합니다. Cloud Storage URI는 와일드 카드를 사용합니다. 스키마는 자동으로 감지됩니다.
+    bq load \
+    --autodetect \
+    --source_format=CSV \
+    mydataset.mytable \
+    gs://mybucket/mydata*.csv
+
+다음 명령어는 gs://mybucket/에 있는 여러 파일에서 mydataset에 있는 mytable이라는 테이블로 데이터를 로드합니다. 명령어에는 와일드 카드를 사용하는 쉼표로 구분된 Cloud Storage URI 목록이 포함됩니다. 스키마는 myschema.json이라는 로컬 스키마 파일에 정의됩니다.
+    bq load \
+    --source_format=CSV \
+    mydataset.mytable \
+    "gs://mybucket/00/*.csv","gs://mybucket/01/*.csv" \
+    ./myschema.json
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#api] ---
+Cloud Storage의 소스 데이터를 가리키는 load 작업을 만듭니다.
+(선택사항) 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 있는 location 속성에 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]를 지정합니다.
+source URIs 속성은 gs://bucket/object 형식으로 정규화되어야 합니다.
+각 URI는 '*' 와일드 카드 문자 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards] 하나를 포함할 수 있습니다.
+sourceFormat 속성을 CSV으로 설정하여 CSV 데이터 형식을 지정합니다.
+작업 상태를 확인하려면 jobs.get(job_id*) [https://cloud.google.com/bigquery/docs/reference/v2/jobs/get?hl=ko]를 호출합니다. 여기서 job_id는 초기 요청에서 반환 된 작업의 ID입니다.
+
+
+status.state = DONE이면 작업이 성공적으로 완료된 것입니다.
+status.errorResult 속성이 있으면 요청이 실패한 것이며 해당 객체에 문제를 설명하는 정보가 포함됩니다.
+요청이 실패하면 테이블이 생성되지 않고 데이터가 로드되지 않습니다.
+status.errorResult가 없으면 작업은 성공적으로 완료되었지만 일부 행 가져오기 문제와 같은 심각하지 않은 오류가 발생했을 수 있다는 의미입니다. 심각하지 않은 오류는 반환된 작업 객체의 status.errors 속성에 나열됩니다.
+
+
+
+API 참고:
+
+
+로드 작업은 원자적이며 일관적입니다. 로드 작업이 실패하면 어떤 데이터도 사용할 수 없으며, 로드 작업이 성공하면 모든 데이터를 사용할 수 있습니다.
+jobs.insert를 호출하여 로드 작업을 만들 때는 고유 ID를 생성하여 jobReference.jobId로 전달하는 것이 가장 좋습니다. 클라이언트가 알려진 작업 ID로 폴링하거나 재시도할 수 있으므로 이 방법은 네트워크 장애 시에 더욱 안정적입니다.
+특정 작업 ID에 대한 jobs.insert 호출은 멱등성을 가집니다. 동일한 작업 ID에 대해 원하는 만큼 재시도할 수 있으며 이러한 작업 중 최대 하나가 성공하게 됩니다.
+
+--- 탭: tabpanel-c ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 C# 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery C# API 참고 문서 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+using Google.Cloud.BigQuery.V2 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.html?hl=ko];
+using System;
+
+public class BigQueryLoadTableGcsCsv
+{
+    public void LoadTableGcsCsv(
+        string projectId = "your-project-id",
+        string datasetId = "your_dataset_id"
+    )
+    {
+        BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko] client = BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_Create_System_String_Google_Apis_Auth_OAuth2_GoogleCredential_](projectId);
+        var gcsURI = "gs://cloud-samples-data/bigquery/us-states/us-states.csv";
+        var dataset = client.GetDataset [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_GetDataset_Google_Apis_Bigquery_v2_Data_DatasetReference_Google_Cloud_BigQuery_V2_GetDatasetOptions_](datasetId);
+        var schema = new TableSchemaBuilder [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.TableSchemaBuilder.html?hl=ko] {
+            { "name", BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].String [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_String] },
+            { "post_abbr", BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].String [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_String] }
+        }.Build();
+        var destinationTableRef = dataset.GetTableReference(
+            tableId: "us_states");
+        // Create job configuration
+        var jobOptions = new CreateLoadJobOptions [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.CreateLoadJobOptions.html?hl=ko]()
+        {
+            // The source format defaults to CSV; line below is optional.
+            SourceFormat = FileFormat [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.FileFormat.html?hl=ko].Csv [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.FileFormat.html?hl=ko#Google_Cloud_BigQuery_V2_FileFormat_Csv],
+            SkipLeadingRows = 1
+        };
+        // Create and run job
+        var loadJob = client.CreateLoadJob [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_CreateLoadJob_System_Collections_Generic_IEnumerable_System_String__Google_Apis_Bigquery_v2_Data_TableReference_Google_Apis_Bigquery_v2_Data_TableSchema_Google_Cloud_BigQuery_V2_CreateLoadJobOptions_](
+            sourceUri: gcsURI, destination: destinationTableRef,
+            schema: schema, options: jobOptions);
+        loadJob = loadJob.PollUntilCompleted [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryJob.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryJob_PollUntilCompleted_Google_Cloud_BigQuery_V2_GetJobOptions_Google_Api_Gax_PollSettings_]().ThrowOnAnyError();  // Waits for the job to complete.
+
+        // Display the number of rows uploaded
+        BigQueryTable [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryTable.html?hl=ko] table = client.GetTable [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_GetTable_Google_Apis_Bigquery_v2_Data_TableReference_Google_Cloud_BigQuery_V2_GetTableOptions_](destinationTableRef);
+        Console.WriteLine(
+            $"Loaded {table.Resource [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryTable.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryTable_Resource].NumRows} rows to {table.FullyQualifiedId [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryTable.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryTable_FullyQualifiedId]}");
+    }
+}
+
+--- 탭: tabpanel-go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// importCSVExplicitSchema demonstrates loading CSV data from Cloud Storage into a BigQuery
+// table and providing an explicit schema for the data.
+func importCSVExplicitSchema(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	gcsRef := bigquery.NewGCSReference [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_GCSReference_NewGCSReference]("gs://cloud-samples-data/bigquery/us-states/us-states.csv")
+	gcsRef.SkipLeadingRows = 1
+	gcsRef.Schema [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Schema] = bigquery.Schema [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Schema]{
+		{Name: "name", Type: bigquery.StringFieldType [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StringFieldType_BytesFieldType_IntegerFieldType_FloatFieldType_BooleanFieldType_TimestampFieldType_RecordFieldType_DateFieldType_TimeFieldType_DateTimeFieldType_NumericFieldType_GeographyFieldType_BigNumericFieldType_IntervalFieldType_JSONFieldType_RangeFieldType]},
+		{Name: "post_abbr", Type: bigquery.StringFieldType [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StringFieldType_BytesFieldType_IntegerFieldType_FloatFieldType_BooleanFieldType_TimestampFieldType_RecordFieldType_DateFieldType_TimeFieldType_DateTimeFieldType_NumericFieldType_GeographyFieldType_BigNumericFieldType_IntervalFieldType_JSONFieldType_RangeFieldType]},
+	}
+	loader := client.Dataset(datasetID).Table(tableID).LoaderFrom [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Table_LoaderFrom](gcsRef)
+	loader.WriteDisposition = bigquery.WriteEmpty [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_WriteAppend_WriteTruncate_WriteEmpty]
+
+	job, err := loader.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]() != nil {
+		return fmt.Errorf("job completed with error: %v", status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]())
+	}
+	return nil
+}
+
+--- 탭: tabpanel-자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.CsvOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.CsvOptions.html?hl=ko];
+import com.google.cloud.bigquery.Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko];
+import com.google.cloud.bigquery.LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko];
+import com.google.cloud.bigquery.StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+
+// Sample to load CSV data from Cloud Storage into a new BigQuery table
+public class LoadCsvFromGcs {
+
+  public static void runLoadCsvFromGcs() throws Exception {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String sourceUri = "gs://cloud-samples-data/bigquery/us-states/us-states.csv";
+    Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko] schema =
+        Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko].of(
+            Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko].of("name", StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko].STRING),
+            Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko].of("post_abbr", StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko].STRING));
+    loadCsvFromGcs(datasetName, tableName, sourceUri, schema);
+  }
+
+  public static void loadCsvFromGcs(
+      String datasetName, String tableName, String sourceUri, Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko] schema) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      // Skip header row in the file.
+      CsvOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.CsvOptions.html?hl=ko] csvOptions = CsvOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.CsvOptions.html?hl=ko].newBuilder().setSkipLeadingRows(1).build();
+
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(datasetName, tableName);
+      LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko] loadConfig =
+          LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko].newBuilder(tableId, sourceUri, csvOptions).setSchema(schema).build();
+
+      // Load data from a GCS CSV file into the table
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] job = bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](JobInfo.of(loadConfig));
+      // Blocks until this load table job completes its execution, either failing or succeeding.
+      job = job.waitFor [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_waitFor_com_google_cloud_bigquery_BigQueryRetryConfig_com_google_cloud_RetryOption____]();
+      if (job.isDone [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_isDone__]()) {
+        System.out.println("CSV from GCS successfully added during load append job");
+      } else {
+        System.out.println(
+            "BigQuery was unable to load into the table due to an error:"
+                + job.getStatus().getError());
+      }
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Column not added during load append \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client libraries
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const {Storage} = require('@google-cloud/storage [https://cloud.google.com/nodejs/docs/reference/storage/latest/overview.html?hl=ko]');
+
+// Instantiate clients
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+const storage = new Storage();
+
+/**
+ * This sample loads the CSV file at
+ * https://storage.googleapis.com/cloud-samples-data/bigquery/us-states/us-states.csv
+ *
+ * TODO(developer): Replace the following lines with the path to your file.
+ */
+const bucketName = 'cloud-samples-data';
+const filename = 'bigquery/us-states/us-states.csv';
+
+async function loadCSVFromGCS() {
+  // Imports a GCS file into a table with manually defined schema.
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const datasetId = 'my_dataset';
+  // const tableId = 'my_table';
+
+  // Configure the load job. For full list of options, see:
+  // https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad
+  const metadata = {
+    sourceFormat: 'CSV',
+    skipLeadingRows: 1,
+    schema: {
+      fields: [
+        {name: 'name', type: 'STRING'},
+        {name: 'post_abbr', type: 'STRING'},
+      ],
+    },
+    location: 'US',
+  };
+
+  // Load data from a Google Cloud Storage file into the table
+  const [job] = await bigquery
+    .dataset(datasetId)
+    .table(tableId)
+    .load [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/table.html?hl=ko](storage.bucket(bucketName).file(filename), metadata);
+
+  // load() waits for the job to finish
+  console.log(`Job ${job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id} completed.`);
+
+  // Check the job's status for errors
+  const errors = job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].status.errors;
+  if (errors && errors.length > 0) {
+    throw errors;
+  }
+}
+
+--- 탭: tabpanel-php ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 PHP 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery PHP API 참고 문서 [https://cloud.google.com/php/docs/reference/cloud-bigquery/latest/BigQueryClient?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\Core\ExponentialBackoff;
+
+/** Uncomment and populate these variables in your code */
+// $projectId  = 'The Google project ID';
+// $datasetId  = 'The BigQuery dataset ID';
+
+// instantiate the bigquery table service
+$bigQuery = new BigQueryClient([
+    'projectId' => $projectId,
+]);
+$dataset = $bigQuery->dataset($datasetId);
+$table = $dataset->table('us_states');
+
+// create the import job
+$gcsUri = 'gs://cloud-samples-data/bigquery/us-states/us-states.csv';
+$schema = [
+    'fields' => [
+        ['name' => 'name', 'type' => 'string'],
+        ['name' => 'post_abbr', 'type' => 'string']
+    ]
+];
+$loadConfig = $table->loadFromStorage($gcsUri)->schema($schema)->skipLeadingRows(1);
+$job = $table->runJob($loadConfig);
+// poll the job until it is complete
+$backoff = new ExponentialBackoff(10);
+$backoff->execute(function () use ($job) {
+    print('Waiting for job to complete' . PHP_EOL);
+    $job->reload();
+    if (!$job->isComplete()) {
+        throw new Exception('Job has not yet completed', 500);
+    }
+});
+// check if the job has errors
+if (isset($job->info()['status']['errorResult'])) {
+    $error = $job->info()['status']['errorResult']['message'];
+    printf('Error running job: %s' . PHP_EOL, $error);
+} else {
+    print('Data imported successfully' . PHP_EOL);
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    
+Cloud Storage에 있는 CSV 파일에서 데이터를 로드하려면 Client.load_table_from_uri() [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client?hl=ko#google_cloud_bigquery_client_Client_load_table_from_uri] 메서드를 사용합니다. LoadJobConfig.schema [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_schema] 속성을 SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField?hl=ko#google_cloud_bigquery_schema_SchemaField] 객체 목록으로 설정하여 명시적인 스키마 정의를 제공합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set table_id to the ID of the table to create.
+# table_id = "your-project.your_dataset.your_table_name"
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](
+    schema=[
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("name", "STRING"),
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("post_abbr", "STRING"),
+    ],
+    skip_leading_rows=1,
+    # The source format defaults to CSV, so the line below is optional.
+    source_format=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SourceFormat [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.SourceFormat.html?hl=ko].CSV,
+)
+uri = "gs://cloud-samples-data/bigquery/us-states/us-states.csv"
+
+load_job = client.load_table_from_uri [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_uri](
+    uri, table_id, job_config=job_config
+)  # Make an API request.
+
+load_job.result()  # Waits for the job to complete.
+
+destination_table = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id)  # Make an API request.
+print("Loaded {} rows.".format(destination_table.num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows]))
+
+--- 탭: tabpanel-ruby ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Ruby 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Ruby API 참고 문서 [https://googleapis.dev/ruby/google-cloud-bigquery/latest/Google/Cloud/Bigquery.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  require "google/cloud/bigquery"
+
+def load_table_gcs_csv dataset_id = "your_dataset_id"
+  bigquery = Google::Cloud::Bigquery [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery-analytics_hub/latest/Google-Cloud-Bigquery.html?hl=ko].new [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery/latest/Google-Cloud-Bigquery.html?hl=ko]
+  dataset  = bigquery.dataset dataset_id
+  gcs_uri  = "gs://cloud-samples-data/bigquery/us-states/us-states.csv"
+  table_id = "us_states"
+
+  load_job = dataset.load_job table_id, gcs_uri, skip_leading: 1 do |schema|
+    schema.string "name"
+    schema.string "post_abbr"
+  end
+  puts "Starting job #{load_job.job_id [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery/latest/Google-Cloud-Bigquery-Job.html?hl=ko]}"
+
+  load_job.wait_until_done! # Waits for table load to complete.
+  puts "Job finished."
+
+  table = dataset.table table_id
+  puts "Loaded #{table.rows_count [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery/latest/Google-Cloud-Bigquery-Table.html?hl=ko]} rows to table #{table.id}"
+end
+열 기반 시간으로 파티션 나누기를 사용하는 테이블에 CSV 데이터 로드
+Cloud Storage에서 열 기반 시간으로 파티션 나누기를 사용하는 BigQuery 테이블로 CSV 데이터를 로드하려면 다음 안내를 따르세요.
+--- 탭: Go [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// importPartitionedTable demonstrates specifing time partitioning for a BigQuery table when loading
+// CSV data from Cloud Storage.
+func importPartitionedTable(projectID, destDatasetID, destTableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	gcsRef := bigquery.NewGCSReference [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_GCSReference_NewGCSReference]("gs://cloud-samples-data/bigquery/us-states/us-states-by-date.csv")
+	gcsRef.SkipLeadingRows = 1
+	gcsRef.Schema [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Schema] = bigquery.Schema [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Schema]{
+		{Name: "name", Type: bigquery.StringFieldType [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StringFieldType_BytesFieldType_IntegerFieldType_FloatFieldType_BooleanFieldType_TimestampFieldType_RecordFieldType_DateFieldType_TimeFieldType_DateTimeFieldType_NumericFieldType_GeographyFieldType_BigNumericFieldType_IntervalFieldType_JSONFieldType_RangeFieldType]},
+		{Name: "post_abbr", Type: bigquery.StringFieldType [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StringFieldType_BytesFieldType_IntegerFieldType_FloatFieldType_BooleanFieldType_TimestampFieldType_RecordFieldType_DateFieldType_TimeFieldType_DateTimeFieldType_NumericFieldType_GeographyFieldType_BigNumericFieldType_IntervalFieldType_JSONFieldType_RangeFieldType]},
+		{Name: "date", Type: bigquery.DateFieldType [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StringFieldType_BytesFieldType_IntegerFieldType_FloatFieldType_BooleanFieldType_TimestampFieldType_RecordFieldType_DateFieldType_TimeFieldType_DateTimeFieldType_NumericFieldType_GeographyFieldType_BigNumericFieldType_IntervalFieldType_JSONFieldType_RangeFieldType]},
+	}
+	loader := client.Dataset(destDatasetID).Table(destTableID).LoaderFrom [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Table_LoaderFrom](gcsRef)
+	loader.TimePartitioning [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_TimePartitioning] = &bigquery.TimePartitioning [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_TimePartitioning]{
+		Field:      "date",
+		Expiration: 90 * 24 * time.Hour,
+	}
+	loader.WriteDisposition = bigquery.WriteEmpty [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_WriteAppend_WriteTruncate_WriteEmpty]
+
+	job, err := loader.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]() != nil {
+		return fmt.Errorf("job completed with error: %v", status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]())
+	}
+	return nil
+}
+
+--- 탭: Java [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#java] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko];
+import com.google.cloud.bigquery.FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko];
+import com.google.cloud.bigquery.LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko];
+import com.google.cloud.bigquery.StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+import com.google.cloud.bigquery.TimePartitioning [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TimePartitioning.html?hl=ko];
+import java.time [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_time_java_lang_String_].Duration;
+import java.time [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_time_java_lang_String_].temporal.ChronoUnit;
+import java.util.UUID;
+
+public class LoadPartitionedTable {
+
+  public static void runLoadPartitionedTable() throws Exception {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String sourceUri = "/path/to/file.csv";
+    loadPartitionedTable(datasetName, tableName, sourceUri);
+  }
+
+  public static void loadPartitionedTable(String datasetName, String tableName, String sourceUri)
+      throws Exception {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(datasetName, tableName);
+
+      Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko] schema =
+          Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko].of(
+              Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko].of("name", StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko].STRING),
+              Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko].of("post_abbr", StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko].STRING),
+              Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko].of("date", StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko].DATE));
+
+      // Configure time partitioning. For full list of options, see:
+      // https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TimePartitioning
+      TimePartitioning [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TimePartitioning.html?hl=ko] partitioning =
+          TimePartitioning [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TimePartitioning.html?hl=ko].newBuilder(TimePartitioning [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TimePartitioning.html?hl=ko].Type.DAY)
+              .setField("date")
+              .setExpirationMs [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TimePartitioning.Builder.html?hl=ko#com_google_cloud_bigquery_TimePartitioning_Builder_setExpirationMs_java_lang_Long_](Duration.of(90, ChronoUnit.DAYS).toMillis())
+              .build();
+
+      LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko] loadJobConfig =
+          LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko].builder(tableId, sourceUri)
+              .setFormatOptions(FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko].csv [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko#com_google_cloud_bigquery_FormatOptions_csv__]())
+              .setSchema(schema)
+              .setTimePartitioning(partitioning)
+              .build();
+
+      // Create a job ID so that we can safely retry.
+      JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko] jobId = JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko].of(UUID.randomUUID().toString());
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] loadJob = bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](JobInfo.newBuilder(loadJobConfig).setJobId(jobId).build());
+
+      // Load data from a GCS parquet file into the table
+      // Blocks until this load table job completes its execution, either failing or succeeding.
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] completedJob = loadJob.waitFor [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_waitFor_com_google_cloud_bigquery_BigQueryRetryConfig_com_google_cloud_RetryOption____]();
+
+      // Check for errors
+      if (completedJob == null) {
+        throw new Exception("Job not executed since it no longer exists.");
+      } else if (completedJob.getStatus().getError() != null) {
+        // You can also look at queryJob.getStatus().getExecutionErrors() for all
+        // errors, not just the latest one.
+        throw new Exception(
+            "BigQuery was unable to load into the table due to an error: \n"
+                + loadJob.getStatus().getError());
+      }
+      System.out.println("Data successfully loaded into time partitioned table during load job");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println(
+          "Data not loaded into time partitioned table during load job \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: Node.js [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#node.js] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client libraries
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const {Storage} = require('@google-cloud/storage [https://cloud.google.com/nodejs/docs/reference/storage/latest/overview.html?hl=ko]');
+
+// Instantiate clients
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+const storage = new Storage();
+
+/**
+ * This sample loads the CSV file at
+ * https://storage.googleapis.com/cloud-samples-data/bigquery/us-states/us-states.csv
+ *
+ * TODO(developer): Replace the following lines with the path to your file.
+ */
+const bucketName = 'cloud-samples-data';
+const filename = 'bigquery/us-states/us-states-by-date.csv';
+
+async function loadTablePartitioned() {
+  // Load data into a table that uses column-based time partitioning.
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const datasetId = 'my_dataset';
+  // const tableId = 'my_new_table';
+
+  // Configure the load job. For full list of options, see:
+  // https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad
+  const partitionConfig = {
+    type: 'DAY',
+    expirationMs: '7776000000', // 90 days
+    field: 'date [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]',
+  };
+
+  const metadata = {
+    sourceFormat: 'CSV',
+    skipLeadingRows: 1,
+    schema: {
+      fields: [
+        {name: 'name', type: 'STRING'},
+        {name: 'post_abbr', type: 'STRING'},
+        {name: 'date [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]', type: 'DATE'},
+      ],
+    },
+    location: 'US',
+    timePartitioning: partitionConfig,
+  };
+
+  // Load data from a Google Cloud Storage file into the table
+  const [job] = await bigquery
+    .dataset(datasetId)
+    .table(tableId)
+    .load [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/table.html?hl=ko](storage.bucket(bucketName).file(filename), metadata);
+
+  // load() waits for the job to finish
+  console.log(`Job ${job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id} completed.`);
+}
+
+--- 탭: Python [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#python] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set table_id to the ID of the table to create.
+# table_id = "your-project.your_dataset.your_table_name"
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](
+    schema=[
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("name", "STRING"),
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("post_abbr", "STRING"),
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("date", "DATE"),
+    ],
+    skip_leading_rows=1,
+    time_partitioning=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].TimePartitioning [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.TimePartitioning.html?hl=ko](
+        type_=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].TimePartitioningType [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.TimePartitioningType.html?hl=ko].DAY [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.TimePartitioningType.html?hl=ko#google_cloud_bigquery_table_TimePartitioningType_DAY],
+        field="date",  # Name of the column to use for partitioning.
+        expiration_ms=7776000000,  # 90 days.
+    ),
+)
+uri = "gs://cloud-samples-data/bigquery/us-states/us-states-by-date.csv"
+
+load_job = client.load_table_from_uri [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_uri](
+    uri, table_id, job_config=job_config
+)  # Make an API request.
+
+load_job.result()  # Wait for the job to complete.
+
+table = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id)
+print("Loaded {} rows to table {}".format(table.num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows], table_id))
+테이블에 CSV 데이터 추가 또는 덮어쓰기
+소스 파일에서 또는 쿼리 결과를 추가하여 테이블에 추가 데이터를 로드할 수 있습니다.
+Google Cloud 콘솔에서 쓰기 환경설정 옵션을 사용하여 소스 파일 또는 쿼리 결과에서 데이터를 로드할 때 수행할 작업을 지정합니다.
+추가 데이터를 테이블에 로드할 때 다음 옵션을 사용할 수 있습니다.
+Console 옵션 bq 도구 플래그 BigQuery API 속성 설명
+비어 있으면 쓰기 지원되지 않음 WRITE_EMPTY 테이블이 비어 있는 경우에만 데이터를 씁니다.
+테이블에 추가 --noreplace 또는 --replace=false. --[no]replace를 지정하지 않으면 기본값은 추가임 WRITE_APPEND (기본값 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationLoad.FIELDS.write_disposition]) 데이터를 테이블 끝에 추가합니다.
+테이블 덮어쓰기 --replace 또는 --replace=true WRITE_TRUNCATE 새 데이터를 쓰기 전에 테이블의 기존 데이터를 모두 지웁니다. 이 작업은 테이블 스키마, 행 수준 보안을 삭제하고 Cloud KMS 키도 삭제합니다.
+기존 테이블에 데이터를 로드하는 경우 로드 작업에서 데이터를 추가하거나 테이블을 덮어쓸 수 있습니다.
+참고: 이 페이지에서는 파티션을 나눈 테이블 추가 또는 덮어쓰기에 대해서는 다루지 않습니다. 파티션을 나눈 테이블을 추가하고 덮어쓰는 방법은 파티션을 나눈 테이블 데이터 추가 및 덮어쓰기 [https://cloud.google.com/bigquery/docs/managing-partitioned-table-data?hl=ko#append-overwrite]를 참조하세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+    BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+
+탐색기 창에서 프로젝트를 펼친 후 데이터 세트를 선택합니다.
+데이터 세트 정보 섹션에서 add_box 테이블 만들기를 클릭합니다.
+ 테이블 만들기 패널에서 다음 세부정보를 지정합니다. 
+
+
+  
+
+
+
+소스 섹션의 다음 항목으로 테이블 만들기 목록에서 Google Cloud Storage를 선택합니다.
+  그런 후 다음 작업을 수행합니다.
+  
+    Cloud Storage 버킷에서 파일을 선택하거나 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]를 입력합니다.
+              Google Cloud 콘솔에서는 URI를 여러 개 포함할 수 없지만 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]는 지원됩니다. Cloud Storage 버킷은 생성, 추가 또는 덮어쓰려는 테이블이 포함된 데이터 세트와 동일한 위치에 있어야 합니다.
+      
+
+      
+
+
+
+
+
+    파일 형식으로 CSV를 선택합니다.
+  
+
+    
+    참고: 테이블을 추가하거나 덮어쓸 때 해당 테이블 스키마를 수정할 수 있습니다. 로드 작업 시 지원되는 스키마 변경에 대한 자세한 내용은 테이블 스키마 수정 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]을 참조하세요.
+  
+  
+
+
+
+
+
+대상 섹션에서 다음 세부정보를 지정합니다.데이터 세트에서 테이블을 만들 데이터 세트를 선택합니다.
+  테이블 필드에 만들려는 테이블의 이름을 입력합니다.
+  테이블 유형 필드가 기본 테이블로 설정되어 있는지 확인합니다.
+  
+
+
+
+
+
+스키마 섹션에 스키마 [https://cloud.google.com/bigquery/docs/schemas?hl=ko] 정의를 입력합니다.
+   스키마의 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko]를 사용 설정하려면 자동 감지를 선택합니다.
+
+
+
+  
+
+  다음 방법 중 하나를 사용하여 스키마 정보를 직접 입력할 수 있습니다.
+
+      선택사항 1: 텍스트로 수정을 클릭하고 스키마를 JSON 배열 형식으로 붙여넣습니다. JSON 배열을 사용하는 경우 JSON 스키마 파일 만들기 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#specifying_a_json_schema_file]와 동일한 프로세스를 수행하여 스키마를 생성합니다.
+        다음 명령어를 입력하면 기존 테이블의 스키마를 JSON 형식으로 볼 수 있습니다.
+        bq show [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_show] --format=prettyjson dataset.table
+    
+    
+      선택사항 2: add_box 필드 추가를 클릭하고 테이블 스키마를 입력합니다. 각 필드의 이름, 유형 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#standard_sql_data_types], 모드 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#modes]를 지정합니다.
+ 
+
+
+
+  
+   참고: 테이블을 추가하거나 덮어쓸 때 해당 테이블 스키마를 수정할 수 있습니다. 로드 작업 시 지원되는 스키마 변경에 대한 자세한 내용은 테이블 스키마 수정 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]을 참조하세요.
+     
+  
+  
+
+
+
+  
+  (선택사항) 파티션 및 클러스터 설정을 지정합니다. 자세한 내용은 파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko] 및 클러스터링된 테이블 만들기 및 사용 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]을 참조하세요.
+     추가하거나 덮어쓰는 방법으로 파티션을 나눈 테이블 또는 클러스터링된 테이블로 변환할 수 없습니다. Google Cloud 콘솔은 로드 작업에서 파티션을 나눈 테이블 또는 클러스터링된 테이블 추가 또는 덮어쓰기를 지원하지 않습니다. 
+  
+
+
+
+   
+
+
+
+
+고급 옵션을 클릭하고 다음을 수행합니다.
+
+
+
+
+
+  
+  쓰기 환경설정에서 테이블에 추가 또는 테이블 덮어쓰기를 선택합니다.
+  
+
+  
+  허용되는 오류 개수에서 기본값 0을 그대로 두거나 오류가 포함된 행을 무시할 수 있는 최대 개수를 입력합니다.
+        오류가 포함된 행의 개수가 이 값을 초과하면 invalid 메시지가 표시되고 작업이 실패합니다. 이 옵션은 CSV 및 JSON 파일에만 적용됩니다. 
+  시간대에 특정 시간대가 없는 타임스탬프 값을 파싱할 때 적용되는 기본 시간대를 입력합니다. 유효한 시간대 이름은 여기 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_zone_name]를 참고하세요. 이 값이 없으면 특정 시간대가 없는 타임스탬프 값이 기본 시간대 UTC를 사용하여 파싱됩니다.
+        (프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  날짜 형식에 입력 파일에서 날짜 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime]를 입력합니다. 이 필드는 SQL 스타일 형식 (예: MM/DD/YYYY)을 예상합니다. 이 값이 있으면 이 형식이 유일하게 호환되는 DATE 형식입니다.
+        스키마 자동 감지 [https://cloud.google.com/bigquery/docs/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식 대신 이 형식을 기반으로 DATE 열 유형을 결정합니다. 이 값이 없으면 DATE 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+        (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  날짜/시간 형식의 경우 입력 파일에서 날짜/시간 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime]를 입력합니다.
+        이 필드는 SQL 스타일 형식 (예: MM/DD/YYYY HH24:MI:SS.FF3)을 예상합니다.
+        이 값이 있으면 이 형식만 호환되는 날짜/시간 형식입니다.
+        스키마 자동 감지 [https://cloud.google.com/bigquery/docs/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식이 아닌 이 형식을 기반으로 DATETIME 열 유형을 결정합니다. 이 값이 없으면 DATETIME 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+        (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  시간 형식에 입력 파일에서 시간 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime]를 입력합니다. 이 필드는 SQL 스타일 형식 (예: HH24:MI:SS.FF3)을 예상합니다. 이 값이 있으면 이 형식이 유일하게 호환되는 시간 형식입니다.
+        스키마 자동 감지 [https://cloud.google.com/bigquery/docs/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식이 아닌 이 형식을 기반으로 시간 열 유형을 결정합니다. 이 값이 없으면 TIME 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+        (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  타임스탬프 형식에 입력 파일에서 타임스탬프 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime]를 입력합니다.
+        이 필드는 SQL 스타일 형식 (예: MM/DD/YYYY HH24:MI:SS.FF3)을 예상합니다.
+        이 값이 있으면 이 형식만 호환되는 TIMESTAMP 형식입니다.
+        스키마 자동 감지 [https://cloud.google.com/bigquery/docs/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식 대신 이 형식을 기반으로 타임스탬프 열 유형을 결정합니다. 이 값이 없으면 타임스탬프 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+        (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  
+
+  테이블 스키마에 없는 행의 값을 무시하려면 알 수 없는 값을 선택합니다.
+
+  
+  필드 구분 기호의 경우 CSV 파일에서 셀을 구분하는 문자(쉼표, 탭, 파이프, 커스텀)를 선택합니다. 커스텀을 선택한 경우 커스텀 필드 구분 기호 상자에 구분 기호를 입력합니다. 기본값은 쉼표입니다.
+  소스 열 일치의 경우 로드된 열을 스키마에 일치시키는 데 사용되는 다음 전략 중 하나를 선택합니다 (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+      
+        Default: 스키마가 제공되는 방식에 따라 기본 동작이 선택됩니다.
+          자동 감지가 사용 설정된 경우 기본 동작은 이름으로 열을 일치시키는 것입니다.
+          그렇지 않으면 기본적으로 위치별로 열이 일치합니다. 이는 동작의 하위 호환성을 유지하기 위해 실행됩니다.
+        Position: 열이 스키마와 동일한 방식으로 정렬되어 있다고 가정하고 위치별로 열을 일치시킵니다.
+        Name: 헤더 행을 열 이름으로 읽고 스키마의 필드 이름과 일치하도록 열을 재정렬하여 이름으로 일치시킵니다. 열 이름은 건너뛸 헤더 행에 따라 건너뛴 마지막 행에서 읽어옵니다.
+      
+  건너뛸 헤더 행에는 CSV 파일 맨 위 부분에서 건너뛸 헤더 행 수를 입력합니다. 기본값은 0입니다.
+  따옴표 안에 줄바꿈의 경우 따옴표 안에 줄바꿈 허용을 선택하여 CSV 파일에서 따옴표 안에 줄바꿈 문자가 포함된 데이터 섹션을 허용합니다. 기본값은 false입니다.
+  불균일 행의 경우 불균일 행 허용을 선택하여 CSV 파일에서 뒤에 오는 열(선택사항)이 누락된 행을 허용합니다. 누락된 값은 null로 취급됩니다. 선택 해제하면 뒤에 오는 열이 누락된 레코드가 불량 레코드로 취급되고, 불량 레코드가 너무 많아지면 작업 결과에 잘못된 오류가 반환됩니다. 기본값은 false입니다.
+  Null 마커에 CSV 데이터에서 NULL 값을 나타내는 맞춤 문자열 목록을 입력합니다. (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+  
+  Cloud Key Management Service 키 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 사용하려면 암호화에서 고객 관리 키를 클릭합니다.
+        Google-managed key 설정을 그대로 두면 BigQuery에서 저장 데이터를 암호화 [https://cloud.google.com/security/encryption/default-encryption?hl=ko]합니다.
+
+  
+  
+
+
+
+테이블 만들기를 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#sql] ---
+LOAD DATA DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/load-statements?hl=ko]을 사용합니다.
+다음 예시에서는 CSV 파일을 mytable 테이블에 추가합니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+LOAD DATA INTO mydataset.mytable
+FROM FILES (
+  format = 'CSV',
+  uris = ['gs://bucket/path/file.csv']);
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#bq] ---
+bq load 명령어를 사용하고, --source_format 플래그로 CSV를 지정하고, Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]를 포함합니다.
+단일 URI, 쉼표로 구분된 URI 목록 또는 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]가 포함된 URI를 포함할 수 있습니다.
+
+스키마 정의 파일에 스키마를 인라인으로 제공하거나 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko]를 사용합니다. 스키마를 지정하지 않고 --autodetect가 false이며 대상 테이블이 있으면 대상 테이블의 스키마가 사용됩니다.
+
+--replace 플래그를 지정하여 테이블을 덮어씁니다. --noreplace 플래그를 사용하여 데이터를 테이블에 추가합니다. 플래그를 지정하지 않으면 기본값은 데이터 추가입니다.
+
+추가하거나 덮어쓸 때 테이블의 스키마를 수정할 수 있습니다. 로드 작업 시 지원되는 스키마 변경에 대한 자세한 내용은 테이블 스키마 수정 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]을 참조하세요.
+
+(선택사항) --location 플래그를 지정하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]로 설정합니다.
+
+다른 선택적 플래그에는 다음이 포함됩니다.
+
+
+--allow_jagged_rows: 지정된 경우 CSV 파일에서 선택적인 뒤에 오는 열이 누락된 행을 허용합니다. 누락된 값은 null로 취급됩니다.
+선택 해제하면 뒤에 오는 열이 누락된 레코드가 불량 레코드로 취급되고, 불량 레코드가 너무 많다면 작업 결과에 잘못된 오류가 반환됩니다. 기본값은 false입니다.
+--allow_quoted_newlines: 지정된 경우 CSV 파일에서 따옴표 안에 줄바꿈 문자가 포함된 데이터 섹션을 허용합니다. 기본값은 false입니다.
+--field_delimiter: 데이터에서 열 사이의 경계를 나타내는 문자입니다. \t와 tab 모두 탭 구분 기호로 사용할 수 있습니다.
+기본값은 ,입니다.
+--null_marker: CSV 데이터에서 NULL 값을 나타내는 선택적 커스텀 문자열입니다.
+--null_markers: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 데이터에서 NULL 값을 나타내는 선택적 쉼표로 구분된 맞춤 문자열 목록입니다. 이 옵션은 --null_marker 플래그와 함께 사용할 수 없습니다.
+--source_column_match: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages])
+로드된 열을 스키마와 일치시키는 데 사용되는 전략을 지정합니다. 열이 스키마와 동일한 순서로 정렬되어 있다고 가정할 때 POSITION를 지정하여 로드된 열을 위치별로 일치시킬 수 있습니다. 헤더 행을 열 이름으로 읽고 스키마의 필드 이름과 일치하도록 열을 재정렬하여 이름으로 일치시키기 위해 NAME를 지정할 수도 있습니다. 이 값이 지정되지 않으면 기본값은 스키마가 제공되는 방식에 따라 달라집니다. --autodetect가 사용 설정된 경우 기본 동작은 이름으로 열을 일치시키는 것입니다. 그렇지 않으면 기본적으로 위치별로 열이 일치합니다.
+--skip_leading_rows: CSV 파일 위에서 건너뛸 헤더 행 수를 지정합니다. 기본값은 0입니다.
+--quote: 레코드를 묶는 데 사용할 따옴표입니다. 기본값은 "입니다. 따옴표 문자를 표시하지 않으려면 빈 문자열을 사용합니다.
+--max_bad_records: 전체 작업이 실패하기 전에 허용되는 불량 레코드 최대 개수를 지정하는 정수입니다. 기본값은 0입니다. --max_bad_records 값과 관계없이 모든 유형에 오류가 최대 5개까지 반환됩니다.
+--ignore_unknown_values: 이 플래그를 지정하면 CSV 또는 JSON 데이터의 인식할 수 없는 추가 값이 허용 및 무시됩니다.
+--time_zone: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 또는 JSON 데이터에 특정 시간대가 없는 타임스탬프 값을 파싱할 때 적용되는 선택적 기본 시간대입니다.
+--date_format: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 또는 JSON 데이터에서 DATE 값의 형식을 지정하는 방법을 정의하는 선택적 맞춤 문자열입니다.
+--datetime_format: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 또는 JSON 데이터에서 DATETIME 값이 서식 지정되는 방식을 정의하는 선택적 맞춤 문자열입니다.
+--time_format: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 또는 JSON 데이터에서 시간 값의 형식을 지정하는 방법을 정의하는 선택적 맞춤 문자열입니다.
+--timestamp_format: (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) CSV 또는 JSON 데이터에서 TIMESTAMP 값이 서식 지정되는 방식을 정의하는 선택적 맞춤 문자열입니다.
+--autodetect: 이 플래그를 지정하면 CSV 데이터와 JSON 데이터에 스키마 자동 감지가 사용 설정됩니다.
+--destination_kms_key: 테이블 데이터 암호화에 사용되는 Cloud KMS 키입니다.
+
+
+bq --location=location load \
+--[no]replace \
+--source_format=format \
+dataset.table \
+path_to_source \
+schema
+
+각 항목의 의미는 다음과 같습니다.
+
+
+location은 사용자의 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]입니다.
+--location 플래그는 선택사항입니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+format은 CSV입니다.
+dataset는 기존 데이터 세트입니다.
+table은 데이터를 로드하는 테이블 이름입니다.
+path_to_source는 정규화된 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri] 또는 쉼표로 구분된 URI 목록이며 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]도 지원됩니다.
+schema는 유효한 스키마입니다. 스키마는 로컬 JSON 파일일 수도 있고 명령어의 일부로 인라인으로 입력해도 됩니다. 스키마 정의를 제공하는 대신 --autodetect 플래그를 사용해도 됩니다.
+
+
+예:
+
+다음 명령어는 gs://mybucket/mydata.csv에서 데이터를 로드하고 mydataset에 있는 mytable이라는 테이블을 덮어씁니다. 스키마는 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko]를 통해 정의됩니다.
+    bq load \
+    --autodetect \
+    --replace \
+    --source_format=CSV \
+    mydataset.mytable \
+    gs://mybucket/mydata.csv
+
+다음 명령어는 gs://mybucket/mydata.csv에서 데이터를 로드하고 mydataset에 있는 mytable이라는 테이블에 데이터를 추가합니다. 스키마는 JSON 스키마 파일 myschema.json을 사용하여 정의됩니다.
+    bq load \
+    --noreplace \
+    --source_format=CSV \
+    mydataset.mytable \
+    gs://mybucket/mydata.csv \
+    ./myschema.json
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#api] ---
+Cloud Storage의 소스 데이터를 가리키는 load 작업을 만듭니다.
+(선택사항) 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 있는 location 속성에 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]를 지정합니다.
+source URIs 속성은 gs://bucket/object 형식으로 정규화되어야 합니다. 여러 URI를 쉼표로 구분된 목록으로 포함할 수 있습니다. 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]도 지원됩니다.
+configuration.load.sourceFormat 속성을 CSV로 설정하여 데이터 형식을 지정합니다.
+configuration.load.writeDisposition 속성을 WRITE_TRUNCATE 또는 WRITE_APPEND로 설정하여 쓰기 환경설정을 지정합니다.
+
+--- 탭: tabpanel-go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// importCSVTruncate demonstrates loading data from CSV data in Cloud Storage and overwriting/truncating
+// data in the existing table.
+func importCSVTruncate(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	gcsRef := bigquery.NewGCSReference [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_GCSReference_NewGCSReference]("gs://cloud-samples-data/bigquery/us-states/us-states.csv")
+	gcsRef.SourceFormat = bigquery.CSV [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_CSV_Avro_JSON_DatastoreBackup_GoogleSheets_Bigtable_Parquet_ORC_TFSavedModel_XGBoostBooster_Iceberg]
+	gcsRef.AutoDetect = true
+	gcsRef.SkipLeadingRows = 1
+	loader := client.Dataset(datasetID).Table(tableID).LoaderFrom [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Table_LoaderFrom](gcsRef)
+	loader.WriteDisposition = bigquery.WriteTruncate [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_WriteAppend_WriteTruncate_WriteEmpty]
+
+	job, err := loader.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]() != nil {
+		return fmt.Errorf("job completed with error: %v", status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]())
+	}
+	return nil
+}
+
+--- 탭: tabpanel-자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko].WriteDisposition [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.WriteDisposition.html?hl=ko];
+import com.google.cloud.bigquery.LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+
+// Sample to overwrite the BigQuery table data by loading a CSV file from GCS
+public class LoadCsvFromGcsTruncate {
+
+  public static void runLoadCsvFromGcsTruncate() throws Exception {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String sourceUri = "gs://cloud-samples-data/bigquery/us-states/us-states.csv";
+    loadCsvFromGcsTruncate(datasetName, tableName, sourceUri);
+  }
+
+  public static void loadCsvFromGcsTruncate(String datasetName, String tableName, String sourceUri)
+      throws Exception {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(datasetName, tableName);
+
+      LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko] configuration =
+          LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko].builder(tableId, sourceUri)
+              .setFormatOptions(FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko].csv [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko#com_google_cloud_bigquery_FormatOptions_csv__]())
+              // Set the write disposition to overwrite existing table data
+              .setWriteDisposition(WriteDisposition [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.WriteDisposition.html?hl=ko].WRITE_TRUNCATE)
+              .build();
+
+      // For more information on Job see:
+      // https://googleapis.dev/java/google-cloud-clients/latest/index.html?com/google/cloud/bigquery/package-summary.html
+      // Load the table
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] loadJob = bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](JobInfo.of(configuration));
+
+      // Load data from a GCS parquet file into the table
+      // Blocks until this load table job completes its execution, either failing or succeeding.
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] completedJob = loadJob.waitFor [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_waitFor_com_google_cloud_bigquery_BigQueryRetryConfig_com_google_cloud_RetryOption____]();
+
+      // Check for errors
+      if (completedJob == null) {
+        throw new Exception("Job not executed since it no longer exists.");
+      } else if (completedJob.getStatus().getError() != null) {
+        // You can also look at queryJob.getStatus().getExecutionErrors() for all
+        // errors, not just the latest one.
+        throw new Exception(
+            "BigQuery was unable to load into the table due to an error: \n"
+                + loadJob.getStatus().getError());
+      }
+      System.out.println("Table is successfully overwritten by CSV file loaded from GCS");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Column not added during load append \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+
+기존 테이블의 행을 바꾸려면 metadata의 writeDisposition 값을 'WRITE_TRUNCATE'로 설정합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client libraries
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const {Storage} = require('@google-cloud/storage [https://cloud.google.com/nodejs/docs/reference/storage/latest/overview.html?hl=ko]');
+
+// Instantiate clients
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+const storage = new Storage();
+
+/**
+ * This sample loads the CSV file at
+ * https://storage.googleapis.com/cloud-samples-data/bigquery/us-states/us-states.csv
+ *
+ * TODO(developer): Replace the following lines with the path to your file.
+ */
+const bucketName = 'cloud-samples-data';
+const filename = 'bigquery/us-states/us-states.csv';
+
+async function loadCSVFromGCSTruncate() {
+  /**
+   * Imports a GCS file into a table and overwrites
+   * table data if table already exists.
+   */
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const datasetId = 'my_dataset';
+  // const tableId = 'my_table';
+
+  // Configure the load job. For full list of options, see:
+  // https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad
+  const metadata = {
+    sourceFormat: 'CSV',
+    skipLeadingRows: 1,
+    schema: {
+      fields: [
+        {name: 'name', type: 'STRING'},
+        {name: 'post_abbr', type: 'STRING'},
+      ],
+    },
+    // Set the write disposition to overwrite existing table data.
+    writeDisposition: 'WRITE_TRUNCATE',
+    location: 'US',
+  };
+
+  // Load data from a Google Cloud Storage file into the table
+  const [job] = await bigquery
+    .dataset(datasetId)
+    .table(tableId)
+    .load [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/table.html?hl=ko](storage.bucket(bucketName).file(filename), metadata);
+  // load() waits for the job to finish
+  console.log(`Job ${job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id} completed.`);
+
+  // Check the job's status for errors
+  const errors = job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].status.errors;
+  if (errors && errors.length > 0) {
+    throw errors;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 PHP 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery PHP API 참고 문서 [https://cloud.google.com/php/docs/reference/cloud-bigquery/latest/BigQueryClient?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\Core\ExponentialBackoff;
+
+/** Uncomment and populate these variables in your code */
+// $projectId = 'The Google project ID';
+// $datasetId = 'The BigQuery dataset ID';
+// $tableId = 'The BigQuery table ID';
+
+// instantiate the bigquery table service
+$bigQuery = new BigQueryClient([
+    'projectId' => $projectId,
+]);
+$table = $bigQuery->dataset($datasetId)->table($tableId);
+
+// create the import job
+$gcsUri = 'gs://cloud-samples-data/bigquery/us-states/us-states.csv';
+$loadConfig = $table->loadFromStorage($gcsUri)->skipLeadingRows(1)->writeDisposition('WRITE_TRUNCATE');
+$job = $table->runJob($loadConfig);
+
+// poll the job until it is complete
+$backoff = new ExponentialBackoff(10);
+$backoff->execute(function () use ($job) {
+    print('Waiting for job to complete' . PHP_EOL);
+    $job->reload();
+    if (!$job->isComplete()) {
+        throw new Exception('Job has not yet completed', 500);
+    }
+});
+
+// check if the job has errors
+if (isset($job->info()['status']['errorResult'])) {
+    $error = $job->info()['status']['errorResult']['message'];
+    printf('Error running job: %s' . PHP_EOL, $error);
+} else {
+    print('Data imported successfully' . PHP_EOL);
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+
+기존 테이블의 행을 바꾸려면 LoadJobConfig.write_disposition [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_write_disposition] 속성을 SourceFormat [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.SourceFormat?hl=ko] 상수 WRITE_TRUNCATE로 설정합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import six
+
+from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set table_id to the ID of the table to create.
+# table_id = "your-project.your_dataset.your_table_name
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](
+    schema=[
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("name", "STRING"),
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("post_abbr", "STRING"),
+    ],
+)
+
+body = six.BytesIO(b"Washington,WA")
+client.load_table_from_file [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_file](body, table_id, job_config=job_config).result()
+previous_rows = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id).num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows]
+assert previous_rows > 0
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](
+    write_disposition=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].WriteDisposition [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.WriteDisposition.html?hl=ko].WRITE_TRUNCATE [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.WriteDisposition.html?hl=ko#google_cloud_bigquery_enums_WriteDisposition_WRITE_TRUNCATE],
+    source_format=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SourceFormat [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.SourceFormat.html?hl=ko].CSV,
+    skip_leading_rows=1,
+)
+
+uri = "gs://cloud-samples-data/bigquery/us-states/us-states.csv"
+load_job = client.load_table_from_uri [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_uri](
+    uri, table_id, job_config=job_config
+)  # Make an API request.
+
+load_job.result()  # Waits for the job to complete.
+
+destination_table = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id)
+print("Loaded {} rows.".format(destination_table.num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows]))
+하이브 파티션을 나눈 CSV 데이터 로드
+BigQuery는 Cloud Storage에 저장되는 파티션을 나눈 하이브 CSV 데이터 로드를 지원하고, 하이브 파티션 열을 대상 BigQuery 관리 테이블의 열로 채웁니다. 자세한 내용은 외부에서 파티션을 나눈 Cloud Storage 데이터 로드 [https://cloud.google.com/bigquery/docs/hive-partitioned-loads-gcs?hl=ko]를 참조하세요.
+CSV 데이터 로드 세부정보
+이 섹션에서는 BigQuery가 다양한 CSV 형식 지정 옵션을 처리하는 방법에 대해 설명합니다.
+인코딩
+BigQuery는 CSV 데이터가 UTF-8로 인코딩된다고 가정합니다. 지원되는 다른 인코딩 유형이 사용된 CSV 파일이 있는 경우 BigQuery가 데이터를 UTF-8로 올바르게 변환할 수 있도록 인코딩을 명시적으로 지정해야 합니다.
+BigQuery는 CSV 파일에 다음과 같은 인코딩 유형을 지원합니다.
+UTF-8
+ISO-8859-1
+UTF-16BE(UTF-16 Big Endian)
+UTF-16LE(UTF-16 Little Endian)
+UTF-32BE(UTF-32 Big Endian)
+UTF-32LE(UTF-32 Little Endian)
+인코딩을 지정하지 않았거나, CSV 파일이 UTF-8로 인코딩되지 않았을 때 UTF-8 인코딩을 지정하면 BigQuery는 데이터를 UTF-8로 변환하려고 시도합니다. 일반적으로 CSV 파일이 ISO-8859-1로 인코딩된 경우 데이터가 성공적으로 로드되지만 예상과 정확하게 일치하지 않을 수 있습니다. CSV 파일이 UTF-16BE, UTF-16LE, UTF-32BE 또는 UTF-32LE로 인코딩된 경우 로드가 실패할 수 있습니다. 예기치 않은 실패를 방지하려면 --encoding 플래그 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#csv-options]를 사용하여 올바른 인코딩을 지정합니다.
+참고: CSV 파일이 UTF-16BE, UTF-16LE, UTF-32BE 또는 UTF-32LE로 인코딩되었고 --allow_quoted_newlines 플래그 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#csv-options]가 true로 설정된 경우 CSV 파일의 최대 크기 한도는 1GB입니다.
+참고: 기본적으로 CSV 파일에 ASCII 0(NULL) 문자가 포함되어 있으면 데이터를 BigQuery로 로드할 수 없습니다. ASCII 0 및 기타 ASCII 제어 문자를 허용하려면 --preserve_ascii_control_characters=true를 로드 작업에 설정합니다.
+BigQuery가 ASCII 0 문자가 아닌 문자를 변환할 수 없는 경우 BigQuery는 해당 문자를 표준 유니코드 대체 문자(�)로 변환합니다.
+필드 구분 기호
+단일 바이트의 어느 문자든지 CSV 파일의 구분 기호가 될 수 있습니다. 소스 파일이 ISO-8859-1 인코딩을 사용하는 경우 모든 문자가 구분 기호가 될 수 있습니다. 소스 파일이 UTF-8 인코딩을 사용하는 경우 10진수 범위 1~127(U+0001-U+007F)의 모든 문자를 수정 없이 사용할 수 있습니다. 이 범위 밖에 있는 ISO-8859-1 문자를 구분 기호로 삽입할 수 있으며 BigQuery가 이를 올바르게 해석합니다. 그러나 멀티바이트 문자를 구분 기호로 사용하면 일부 바이트가 필드 값의 일부로 잘못 해석됩니다.
+일반적으로 탭, 파이프 또는 쉼표와 같은 표준 구분 기호를 사용하는 것이 좋습니다. 기본값은 쉼표입니다.
+데이터 유형
+불리언. BigQuery는 1 또는 0, true 또는 false, t 또는 f, yes 또는 no, y 또는 n(모두 대소문자를 구분하지 않음)과 같은 불리언 데이터 쌍을 파싱할 수 있습니다. 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko]는 0과 1을 제외한 모든 조합을 자동으로 감지합니다.
+바이트 BYTES 유형의 열은 Base64로 인코딩되어야 합니다.
+날짜. DATE 유형의 열은 YYYY-MM-DD 형식이어야 합니다.
+날짜/시간. DATETIME 유형의 열은 YYYY-MM-DD HH:MM:SS[.SSSSSS] 형식이어야 합니다.
+지리. GEOGRAPHY 유형의 열에는 다음 형식 중 하나의 문자열이 포함되어야 합니다.
+WKT(Well Known Text)
+WKB(Well-Known Binary)
+GeoJSON
+WKB를 사용하는 경우 값을 16진수로 인코딩해야 합니다.
+다음 목록에서는 유효한 데이터 예시를 보여줍니다.
+WKT: POINT(1 2)
+GeoJSON: { "type": "Point", "coordinates": [1, 2] }
+16진수로 인코딩된 WKB: 0101000000feffffffffffef3f0000000000000040
+GEOGRAPHY 데이터를 로드하기 전에 지리정보 데이터 로드 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#loading_geospatial_data]도 참조하세요.
+간격. INTERVAL 유형의 열은 Y-M D H:M:S[.F] 형식이어야 합니다. 각 항목의 의미는 다음과 같습니다.
+Y = 연도. 지원되는 범위는 0~10,000입니다.
+M = 월. 지원되는 범위는 1~12입니다.
+D = 일. 지원되는 범위는 1~[표시된 달의 마지막 날]입니다.
+H = 시.
+M = 분.
+S = 초.
+[.F] = 마이크로초 정밀도의 최대 6자리 소수점 이하 자릿수.
+대시(-)를 앞에 붙여서 음수 값을 나타낼 수 있습니다.
+다음 목록에서는 유효한 데이터 예시를 보여줍니다.
+10-6 0 0:0:0
+0-0 -5 0:0:0
+0-0 0 0:0:1.25
+INTERVAL 데이터를 로드하려면 bq load [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_load] 명령어를 사용하고 --schema 플래그를 사용하여 스키마를 지정해야 합니다. 콘솔을 사용하여 INTERVAL 데이터를 업로드할 수 없습니다.
+JSON. 따옴표는 두 문자 시퀀스 ""를 사용하여 이스케이프 처리됩니다. 자세한 내용은 CSV 파일에서 JSON 데이터 로드 [https://cloud.google.com/bigquery/docs/json-data?hl=ko#load_from_csv_files]의 예를 참고하세요.
+시간. TIME 유형의 열은 HH:MM:SS[.SSSSSS] 형식이어야 합니다.
+타임스탬프. BigQuery에는 다양한 타임스탬프 형식이 사용됩니다. 타임스탬프는 날짜 부분과 시간 부분을 포함해야 합니다.
+날짜 부분은 YYYY-MM-DD 또는 YYYY/MM/DD 형식일 수 있습니다.
+타임스탬프 부분은 HH:MM[:SS[.SSSSSS]] 형식이어야 합니다(초 및 소수점 이하 초는 선택사항).
+날짜와 시간은 공백 또는 'T'로 구분해야 합니다.
+선택적으로 날짜 및 시간 다음에는 UTC 오프셋 또는 UTC 영역 지정자(Z)가 올 수 있습니다. 자세한 내용은 시간대 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_zones]를 참조하세요.
+예를 들어 다음은 유효한 타임스탬프 값입니다.
+2018-08-19 12:11
+2018-08-19 12:11:35
+2018-08-19 12:11:35.22
+2018/08/19 12:11
+2018-07-05 12:54:00 UTC
+2018-08-19 07:11:35.220 -05:00
+2018-08-19T12:11:35.220Z
+스키마를 제공하는 경우 BigQuery에는 또한 타임스탬프 값에 대해 유닉스 시간이 사용됩니다. 하지만 스키마 자동 감지는 이 경우를 감지하지 않으며 대신 값을 숫자 또는 문자열 유형으로 처리합니다.
+유닉스 시간 타임스탬프 값 예시:
+1534680695
+1.534680695e12
+범위. [LOWER_BOUND, UPPER_BOUND) 형식의 CSV 파일로 표시됩니다. 여기서 LOWER_BOUND 및 UPPER_BOUND은 유효한 DATE, DATETIME 또는 TIMESTAMP 문자열입니다. NULL 및 UNBOUNDED는 바인딩되지 않은 시작 또는 종료 값을 나타냅니다.
+참고: 범위 CSV 형식에는 쉼표가 포함되어 있으므로 CSV 구분 기호가 쉼표인 경우 CSV 파일이 유효하려면 큰따옴표로 묶어야 합니다.
+다음은 RANGE<DATE>의 CSV 값의 예입니다.
+"[2020-01-01, 2021-01-01)"
+"[UNBOUNDED, 2021-01-01)"
+"[2020-03-01, NULL)"
+"[UNBOUNDED, UNBOUNDED)"
+스키마 자동 감지
+이 섹션에서는 CSV 파일을 로드할 때의 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko] 동작을 설명합니다.
+CSV 구분 기호
+BigQuery는 다음과 같은 구분 기호를 감지합니다.
+쉼표(,)
+파이프(|)
+탭(\t)
+CSV 헤더
+BigQuery는 파일의 첫 번째 행과 파일의 다른 행을 비교하여 헤더를 추론합니다. 첫 번째 행이 문자열만 포함하고 다른 행이 다른 데이터 유형을 포함하지 않으면, BigQuery는 첫 번째 행이 헤더 행이라고 가정합니다. BigQuery는 헤더 행의 필드 이름을 기준으로 열 이름을 할당합니다. BigQuery의 열에 대해 이름 지정 규칙 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#column_names]을 충족하도록 이름을 수정할 수 있습니다. 예를 들어 공백은 밑줄로 대체됩니다.
+그렇지 않으면 BigQuery가 첫 번째 행을 데이터 행으로 간주하고 string_field_1과 같은 일반적인 열 이름을 할당합니다. 테이블 생성 후 이름을 수동으로 변경할 수 있더라도 [https://cloud.google.com/bigquery/docs/manually-changing-schemas?hl=ko#changing_a_columns_name] 테이블 생성 후에는 스키마에서 열 이름을 업데이트할 수 없습니다. 또 다른 옵션은 자동 감지를 사용하는 대신 명시적으로 스키마를 제공하는 것입니다.
+모든 데이터 필드가 문자열인 제목 행이 포함된 CSV 파일을 사용할 수 있습니다. 이 경우 BigQuery는 첫 번째 행이 제목인 것을 자동으로 감지하지 못합니다. --skip_leading_rows 옵션을 사용하여 제목 행을 건너 뜁니다. 그렇지 않으면 제목을 데이터로 가져옵니다. 이 경우에도 열 이름을 할당할 수 있도록 명시적으로 스키마를 제공하는 것이 좋습니다.
+CSV 따옴표 안 줄바꿈
+BigQuery는 CSV 필드 내의 따옴표 안 줄바꿈 문자를 감지하지만 이를 행 경계로 해석하지 않습니다.
+파싱 오류 문제 해결
+CSV 파일을 파싱하는 데 문제가 있으면 로드 작업의 errors [https://cloud.google.com/bigquery/docs/reference/rest/v2/ErrorProto?hl=ko] 리소스에 오류 세부정보가 채워집니다.
+일반적으로 이러한 오류에서는 바이트 오프셋으로 문제가 있는 줄의 시작을 식별합니다. 압축하지 않은 파일의 경우 gcloud storage를 --recursive 인수와 함께 사용하여 관련 줄에 액세스할 수 있습니다.
+예를 들어 bq load 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_load]를 실행하면 오류가 발생합니다.
+bq load
+    --skip_leading_rows=1 \
+    --source_format=CSV \
+    mydataset.mytable \
+    gs://my-bucket/mytable.csv \
+    'Number:INTEGER,Name:STRING,TookOffice:STRING,LeftOffice:STRING,Party:STRING'
+출력의 오류는 다음과 유사합니다.
+Waiting on bqjob_r5268069f5f49c9bf_0000018632e903d7_1 ... (0s)
+Current status: DONE
+BigQuery error in load operation: Error processing job
+'myproject:bqjob_r5268069f5f49c9bf_0000018632e903d7_1': Error while reading
+data, error message: Error detected while parsing row starting at position: 1405.
+Error: Data between close quote character (") and field separator.
+File: gs://my-bucket/mytable.csv
+Failure details:
+- gs://my-bucket/mytable.csv: Error while reading data,
+error message: Error detected while parsing row starting at
+position: 1405. Error: Data between close quote character (") and
+field separator. File: gs://my-bucket/mytable.csv
+- Error while reading data, error message: CSV processing encountered
+too many errors, giving up. Rows: 22; errors: 1; max bad: 0; error
+percent: 0
+위 오류에 따르면 파일에 형식 오류가 있습니다. 파일의 콘텐츠를 보려면 gcloud storage cat 명령어 [https://cloud.google.com/sdk/gcloud/reference/storage/cat?hl=ko]를 실행합니다.
+gcloud storage cat 1405-1505 gs://my-bucket/mytable.csv --recursive
+출력은 다음과 비슷합니다.
+16,Abraham Lincoln,"March 4, 1861","April 15, "1865,Republican
+18,Ulysses S. Grant,"March 4, 1869",
+...
+파일의 출력에 따르면 "April 15, "1865에 잘못 배치된 따옴표가 문제입니다.
+압축된 CSV 파일
+보고된 바이트 오프셋은 비압축 파일의 위치를 참조하므로 압축된 CSV 파일은 오류 디버깅이 더 어렵습니다. 다음 gcloud storage cat 명령어 [https://cloud.google.com/sdk/gcloud/reference/storage/cat?hl=ko]는 Cloud Storage에서 파일을 스트리밍하고, 파일을 압축 해제하고, 적절한 바이트 오프셋을 식별하고, 형식 오류가 있는 줄을 출력합니다.
+gcloud storage cat gs://my-bucket/mytable.csv.gz | gunzip - | tail -c +1406 | head -n 1
+출력은 다음과 비슷합니다.
+16,Abraham Lincoln,"March 4, 1861","April 15, "1865,Republican
+CSV 옵션
+BigQuery가 CSV 데이터를 파싱하는 방법을 변경하려면 Google Cloud 콘솔, bq 명령줄 도구, API에서 추가 옵션을 지정합니다.
+CSV 형식에 대한 자세한 내용은 RFC 4180 [https://tools.ietf.org/html/rfc4180]을 참조하세요.
+CSV 옵션 콘솔 옵션 bq 도구 플래그 BigQuery API 속성 설명
+필드 구분 기호 필드 구분 기호: 쉼표, 탭, 파이프, 커스텀 -F 또는 --field_delimiter fieldDelimiter (자바 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.CsvOptions.Builder?hl=ko#com_google_cloud_bigquery_CsvOptions_Builder_setFieldDelimiter_java_lang_String_], Python [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_field_delimiter]) (선택사항) CSV 파일의 필드 구분 기호입니다. CSV 파일의 구분 기호는 ISO-8859-1 단일 바이트의 어떤 문자도 될 수 있습니다. BigQuery는 문자열을 ISO-8859-1 인코딩으로 변환하고 인코딩된 문자열의 첫 번째 바이트를 사용해 데이터를 원시 바이너리 상태로 분할합니다. BigQuery는 이스케이프 문자 시퀀스 '\t'로 탭 구분 기호를 지정할 수 있습니다. 기본값은 쉼표(`,`)입니다.
+헤더 행 건너뛸 헤더 행 --skip_leading_rows skipLeadingRows (자바 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.CsvOptions.Builder?hl=ko#com_google_cloud_bigquery_CsvOptions_Builder_setSkipLeadingRows_long_], Python [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_skip_leading_rows]) (선택사항) 소스 데이터의 헤더 행 수를 나타내는 정수입니다.
+소스 열 일치 소스 열 일치: 기본값, 위치, 이름 --source_column_match 없음 (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) (선택사항) 로드된 열을 스키마에 일치시키는 데 사용되는 전략을 제어합니다. 지원되는 값은 다음과 같습니다.
+POSITION: 위치별로 일치합니다. 이 옵션은 열이 스키마와 동일한 순서로 정렬되어 있다고 가정합니다.
+NAME: 이름으로 일치합니다. 이 옵션은 헤더 행을 열 이름으로 읽고 스키마의 필드 이름과 일치하도록 열을 재정렬합니다. 열 이름은 skipLeadingRows 속성을 기반으로 건너뛴 마지막 행에서 읽어옵니다.
+이 값이 지정되지 않으면 스키마가 제공되는 방식에 따라 기본값이 결정됩니다. 자동 감지가 사용 설정된 경우 기본 동작은 이름으로 열을 일치시키는 것입니다. 그렇지 않으면 기본적으로 위치별로 열이 일치합니다. 이는 동작의 하위 호환성을 유지하기 위해 수행됩니다.
+허용된 불량 레코드 수 허용되는 오류 개수 --max_bad_records maxBadRecords (자바 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.Builder?hl=ko#com_google_cloud_bigquery_LoadJobConfiguration_Builder_setMaxBadRecords_java_lang_Integer_], Python [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_max_bad_records]) (선택사항) 작업을 실행할 때 BigQuery가 무시할 수 있는 불량 레코드의 최대 개수입니다. 불량 레코드의 수가 이 값을 초과하면 작업 결과에 잘못된 오류가 반환됩니다. 기본값은 0이며 모든 레코드가 유효해야 합니다.
+줄바꿈 문자 따옴표 안에 줄바꿈 허용 --allow_quoted_newlines allowQuotedNewlines (자바 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.CsvOptions.Builder?hl=ko#com_google_cloud_bigquery_CsvOptions_Builder_setAllowQuotedNewLines_boolean_], Python [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_allow_quoted_newlines]) (선택사항) CSV 파일에서 따옴표 안에 줄바꿈 문자가 포함된 데이터 섹션을 허용할지 여부를 표시합니다. 기본값은 false입니다.
+커스텀 null 값 없음 --null_marker nullMarker (자바 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.Builder?hl=ko#com_google_cloud_bigquery_LoadJobConfiguration_Builder_setNullMarker_java_lang_String_], Python [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_null_marker]) (선택사항) CSV 파일의 null 값을 나타내는 문자열을 지정합니다. 예를 들어 '\N'을 지정하면 BigQuery는 CSV 파일을 로드할 때 '\N'을 null 값으로 지정합니다. 기본값은 빈 문자열입니다. 이 속성을 커스텀 값으로 설정했을 때 STRING과 BYTE를 제외한 모든 데이터 유형에 빈 문자열이 존재하면 BigQuery에서 오류가 발생합니다. BigQuery는 STRING과 BYTE 열의 빈 문자열을 빈 값으로 해석합니다.
+후행 선택 열 불균일 행 허용 --allow_jagged_rows allowJaggedRows (자바 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.CsvOptions.Builder?hl=ko#com_google_cloud_bigquery_CsvOptions_Builder_setAllowQuotedNewLines_boolean_], Python [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_allow_jagged_rows]) (선택사항) 뒤에 오는 열(선택사항)이 누락된 행을 허용합니다. 누락된 값은 null로 취급됩니다. false라면 뒤에 오는 열이 누락된 레코드가 불량 레코드로 취급되고, 불량 레코드가 너무 많다면 작업 결과에 잘못된 오류가 반환됩니다. 기본값은 false입니다. CSV에만 적용되며 다른 형식에서는 무시됩니다.
+알 수 없는 값 알 수 없는 값 무시 --ignore_unknown_values ignoreUnknownValues (자바 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.Builder?hl=ko#com_google_cloud_bigquery_LoadJobConfiguration_Builder_setIgnoreUnknownValues_java_lang_Boolean_], Python [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_ignore_unknown_values]) (선택사항) BigQuery가 테이블 스키마에 표시되지 않는 추가 값을 허용해야 하는지를 나타냅니다. true라면 추가 값은 무시됩니다. false라면 추가 열이 있는 레코드는 불량 레코드로 처리되며 불량 레코드가 너무 많다면 작업 결과에 잘못된 오류가 반환됩니다. 기본값은 false입니다. sourceFormat 속성은 BigQuery가 추가 값으로 처리하는 대상을 결정합니다.
+CSV: 후행 열
+JSON: 어떠한 열 이름과도 일치하지 않는 이름이 지정된 값으로 처리하는 대상을 결정합니다.
+따옴표 따옴표 문자: 큰따옴표, 작은따옴표, 없음, 커스텀 --quote quote (Java [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.CsvOptions.Builder?hl=ko#com_google_cloud_bigquery_CsvOptions_Builder_setQuote_java_lang_String_], Python [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_quote_character]) (선택사항) CSV 파일에서 데이터 섹션을 인용하는 데 사용하는 값입니다. BigQuery는 문자열을 ISO-8859-1 인코딩으로 변환하고 인코딩된 문자열의 첫 번째 바이트를 사용해 데이터를 원시 바이너리 상태로 분할합니다. 기본값은 큰 따옴표('"')입니다. 데이터에 인용된 섹션이 없다면 속성 값을 빈 문자열로 설정합니다. 데이터에 줄바꿈 문자가 있다면 allowQuotedNewlines 속성을 true로 설정해야 합니다. 따옴표로 묶인 값에 특정 따옴표 문자를 포함하려면 일치하는 추가 따옴표 문자를 앞에 추가하십시오. 예를 들어 기본 문자 ' " '를 이스케이프 처리하려면 ' "" '를 사용합니다.
+인코딩 없음 -E 또는 --encoding encoding (자바 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.CsvOptions.Builder?hl=ko#com_google_cloud_bigquery_CsvOptions_Builder_setEncoding_java_nio_charset_Charset_], Python [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_encoding]) (선택사항) 데이터의 문자 인코딩입니다. 지원되는 값은 UTF-8, ISO-8859-1, UTF-16BE, UTF-16LE, UTF-32BE 또는 UTF-32LE입니다. 기본값은 UTF-8입니다. BigQuery는 원시 바이너리 데이터가 quote 및 fieldDelimiter 속성 값으로 분할되면 데이터를 디코딩합니다.
+ASCII 제어 문자 없음 --preserve_ascii_control_characters 없음 (선택사항) ASCII 0과 기타 ASCII 제어 문자를 허용하려면 로드 작업에서 --preserve_ascii_control_characters를 true로 설정합니다.
+Null 마커 Null 마커 --null_markers 없음 (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) (선택사항) CSV 데이터에서 NULL 값을 나타내는 맞춤 문자열 목록입니다. 이 옵션은 --null_marker 옵션과 함께 사용할 수 없습니다.
+시간대 시간대 --time_zone 없음 (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) (선택사항) 특정 시간대가 없는 타임스탬프 값을 파싱할 때 적용되는 기본 시간대입니다. 유효한 시간대 이름 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_zone_name]을 확인하세요. 이 값이 없으면 특정 시간대가 없는 타임스탬프 값이 기본 시간대 UTC를 사용하여 파싱됩니다.
+날짜 형식 날짜 형식 --date_format 없음 (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) (선택사항) 입력 파일에서 날짜 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime] (예: MM/DD/YYYY)입니다. 이 값이 있으면 이 형식만 호환되는 날짜 형식입니다. 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식 대신 이 형식을 기반으로 DATE 열 유형을 결정합니다. 이 값이 없으면 DATE 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+날짜/시간 형식 날짜/시간 형식 --datetime_format 없음 (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) (선택사항) 입력 파일에서 날짜/시간 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime]입니다 (예: MM/DD/YYYY HH24:MI:SS.FF3). 이 값이 있으면 이 형식만 호환되는 날짜/시간 형식입니다. 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식 대신 이 형식을 기반으로 DATETIME 열 유형을 결정합니다. 이 값이 없으면 DATETIME 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+시간 형식 시간 형식 --time_format 없음 (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) (선택사항) 입력 파일에서 시간 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime]입니다 (예: HH24:MI:SS.FF3). 이 값이 있으면 이 형식만 호환되는 시간 형식입니다. 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식 대신 이 형식을 기반으로 시간 열 유형을 결정합니다. 이 값이 없으면 TIME 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+타임스탬프 형식 타임스탬프 형식 --timestamp_format 없음 (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]) (선택사항) 입력 파일에서 타임스탬프 값의 형식이 지정되는 방식을 정의하는 형식 요소 [https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements?hl=ko#format_string_as_datetime]입니다 (예: MM/DD/YYYY HH24:MI:SS.FF3). 이 값이 있으면 이 형식이 유일하게 호환되는 타임스탬프 형식입니다. 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko#date_and_time_values]도 기존 형식 대신 이 형식을 기반으로 타임스탬프 열 유형을 결정합니다. 이 값이 없으면 타임스탬프 필드가 기본 형식 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#data_types]으로 파싱됩니다.
+도움이 되었나요?
+의견 보내기

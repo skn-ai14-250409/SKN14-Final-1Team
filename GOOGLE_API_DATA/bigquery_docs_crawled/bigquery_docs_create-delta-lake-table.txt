@@ -1,0 +1,207 @@
+Source URL: https://cloud.google.com/bigquery/docs/create-delta-lake-table
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#before-you-begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#iam-permissions]
+Delta Lake로 테이블 만들기 [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#create-tables]
+Delta Lake 테이블 업데이트 [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#update-tables]
+Delta Lake 테이블 쿼리 [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#query-tables]
+Delta Lake용 BigLake 외부 테이블 만들기
+bookmark_border
+BigLake를 사용하면 보다 세분화된 액세스 제어로 Delta Lake 테이블에 액세스할 수 있습니다. Delta Lake [https://docs.databricks.com/en/delta/index.html]는 페타바이트급 확장 데이터 테이블을 지원하는 Databricks에서 개발된 오픈소스 테이블 형식 데이터 스토리지 형식입니다.
+BigQuery는 Delta Lake 테이블에서 다음 기능을 지원합니다.
+액세스 위임: 액세스 위임으로 외부 데이터 스토어의 정형 데이터를 쿼리합니다. 액세스 위임은 Delta Lake 테이블에 대한 액세스 권한과 기본 데이터 스토어에 대한 액세스 권한을 분리합니다.
+세분화된 액세스 제어 행 수준 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko] 및열 수준 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko] 보안을 포함하여 테이블 수준에서 세분화된 보안을 적용합니다 Cloud Storage 기반 Delta Lake 테이블의 경우 동적 데이터 마스킹 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko]도 사용할 수 있습니다.
+스키마 개선: Delta Lake 테이블의 스키마 변경사항이 자동으로 감지됩니다. 스키마 변경 사항은 BigQuery 테이블에 반영됩니다.
+Delta Lake 테이블은 BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko]로 구성할 때 모든 BigLake 기능도 지원합니다.
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery Connection and BigQuery Reservation APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigqueryconnection%2C+bigqueryreservation&hl=ko]
+In the Google Cloud console, activate Cloud Shell.
+Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+BigQuery 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]가 있는지 확인합니다.
+사용 중인 Google Cloud SDK 버전이 366.0.0 이상인지 확인하세요.
+gcloud version
+필요한 경우 Google Cloud SDK를 업데이트 [https://cloud.google.com/sdk/docs/quickstart?hl=ko]합니다.
+외부 데이터 소스를 기반으로 Cloud 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection]을 만들고 이 연결에 Cloud Storage에 대한 액세스 권한 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#access-storage]을 부여합니다. 연결을 만들 수 있는 적절한 권한이 없으면 BigQuery 관리자에게 연결을 만들고 공유해 달라고 요청합니다.
+필요한 역할
+Delta Lake 테이블을 만들려면 다음 권한이 필요합니다.
+bigquery.tables.create
+bigquery.connections.delegate
+BigQuery 관리자(roles/bigquery.admin)는 사전 정의된 Identity and Access Management 역할에 이러한 권한이 포함되어 있습니다.
+이 역할의 주 구성원이 아닌 경우 관리자에게 이러한 권한을 부여하거나 Delta Lake 테이블을 만들어달라고 요청하세요.
+또한 BigQuery 사용자가 테이블을 쿼리할 수 있게 하려면 연결과 관련된 서비스 계정에 다음 권한과 액세스 권한이 있어야 합니다.
+BigQuery 뷰어(roles/bigquery.viewer) 역할
+BigQuery 연결 사용자(roles/bigquery.connectionUser) 역할
+해당 데이터가 포함된 Cloud Storage 버킷에 대한 액세스 권한
+BigQuery의 Identity and Access Management 역할 및 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]을 참조하세요.
+Delta Lake로 테이블 만들기
+Delta Lake 테이블을 만들려면 다음 단계를 따르세요.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#sql] ---
+CREATE EXTERNAL TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_table_statement]을 사용하여 Delta Lake 테이블을 만듭니다.
+CREATE EXTERNAL TABLE `PROJECT_ID.DATASET.DELTALAKE_TABLE_NAME`
+WITH CONNECTION `PROJECT_ID.REGION.CONNECTION_ID`
+OPTIONS (
+  format ="DELTA_LAKE",
+  uris=['DELTA_TABLE_GCS_BASE_PATH']);
+
+다음 값을 바꿉니다.
+
+
+PROJECT_ID: Delta Lake 테이블을 만들려는 프로젝트의 ID
+DATASET: Delta Lake 테이블을 포함할 BigQuery 데이터 세트
+DELTALAKE_TABLE_NAME: Delta Lake 테이블 이름
+REGION: Delta Lake 테이블을 만들기 위한 연결이 포함된 리전(예: us)
+CONNECTION_ID: 연결 ID(예: myconnection)
+
+ Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+DELTA_TABLE_GCS_BASE_PATH: Delta Lake 테이블 프리픽스
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#bq] ---
+명령줄 환경에서 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mk] 명령어를 사용하여 Delta Lake 테이블을 만듭니다.
+bq mk --table --external_table_definition=DEFINITION_FILE PROJECT_ID:DATASET.DELTALAKE_TABLE_NAME
+
+다음 값을 바꿉니다.
+
+
+DEFINITION_FILE: 테이블 정의 파일의 경로
+PROJECT_ID: Delta Lake 테이블을 만들려는 프로젝트의 ID
+DATASET: Delta Lake 테이블을 포함할 BigQuery 데이터 세트
+DELTALAKE_TABLE_NAME: Delta Lake 테이블 이름
+
+--- 탭: REST [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#rest] ---
+BigQuery API [https://cloud.google.com/bigquery/docs/reference/rest?hl=ko]에서 tables.insert API 메서드를 호출하여 Delta Lake 테이블을 만듭니다.
+REQUEST='{
+  "autodetect": true,
+  "externalDataConfiguration": {
+  "sourceFormat": "DELTA_LAKE",
+  "connectionId": "PROJECT_ID.REGION.CONNECTION_ID",
+  "sourceUris": [
+    "DELTA_TABLE_GCS_BASE_PATH"
+  ],
+ },
+"tableReference": {
+"tableId": "DELTALAKE_TABLE_NAME"
+}
+}'
+
+echo $REQUEST | curl -X POST -d @- -H "Content-Type: application/json" -H "Authorization: Bearer $(gcloud auth print-access-token)" https://bigquery.googleapis.com/bigquery/v2/projects/PROJECT_ID/datasets/DATASET/tables?autodetect_schema=true
+
+다음 값을 바꿉니다.
+
+
+PROJECT_ID: Delta Lake 테이블을 만들려는 프로젝트의 ID
+REGION: Delta Lake 테이블을 만들기 위한 연결이 포함된 리전(예: us)
+CONNECTION_ID: 연결 ID(예: myconnection)
+
+ Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+DELTA_TABLE_GCS_BASE_PATH: Delta Lake 테이블 프리픽스
+DELTALAKE_TABLE_NAME: Delta Lake 테이블 이름
+DATASET: Delta Lake 테이블을 포함할 BigQuery 데이터 세트
+Delta Lake 테이블을 만들 때 Delta Lake 프리픽스가 테이블의 URI로 사용됩니다. 예를 들어 gs://bucket/warehouse/basictable/_delta_log 버킷에 로그가 있는 테이블의 경우 테이블 URI는 gs://bucket/warehouse/basictable입니다. Delta Lake 테이블에서 쿼리를 실행하면 BigQuery가 프리픽스 아래의 데이터를 읽어 현재 테이블 버전을 식별한 다음 테이블의 메타데이터와 파일을 계산합니다.
+연결 없이 Delta Lake 외부 테이블을 만들 수 있지만 다음과 같은 이유로 권장하지 않습니다.
+사용자가 Cloud Storage의 파일에 액세스하려고 할 때 ACCESS_DENIED 오류가 발생할 수 있습니다.
+세분화된 액세스 제어와 같은 기능은 Delta Lake BigLake 테이블에서만 사용할 수 있습니다.
+Delta Lake 테이블 업데이트
+Delta Lake 테이블의 스키마를 업데이트(새로고침)하려면 다음 단계를 따르세요.
+--- 탭: bq [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#bq] ---
+명령줄 환경에서 bq update [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_update] 명령어를 사용하여 Delta Lake 테이블의 스키마를 업데이트(새로고침)합니다.
+bq update --autodetect_schema PROJECT_ID:DATASET.DELTALAKE_TABLE_NAME
+
+다음 값을 바꿉니다.
+
+
+PROJECT_ID: Delta Lake 테이블을 만들려는 프로젝트의 ID
+DATASET: Delta Lake 테이블을 포함할 BigQuery 데이터 세트
+DELTALAKE_TABLE_NAME: Delta Lake 테이블 이름
+
+--- 탭: REST [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#rest] ---
+BigQuery API [https://cloud.google.com/bigquery/docs/reference/rest?hl=ko]로 tables.patch API 메서드를 호출하여 Delta Lake 테이블을 업데이트합니다.
+REQUEST='{
+  "externalDataConfiguration": {
+    "sourceFormat": "DELTA_LAKE",
+    "sourceUris": [
+      "DELTA_TABLE_GCS_BASE_PATH"
+    ],
+    "connectionId": "PROJECT_ID.REGION.CONNECTION_ID",
+    "autodetect": true
+  }
+}'
+echo $REQUEST |curl -X PATCH -d @- -H "Content-Type: application/json" -H "Authorization: Bearer $(gcloud auth print-access-token)" https://bigquery.googleapis.com/bigquery/v2/projects/PROJECT_ID/datasets/DATASET/tables/DELTALAKE_TABLE_NAME?autodetect_schema=true
+
+다음 값을 바꿉니다.
+
+
+DELTA_TABLE_GCS_BASE_PATH: Delta Lake 테이블 프리픽스
+PROJECT_ID: Delta Lake 테이블을 만들려는 프로젝트의 ID
+REGION: Delta Lake 테이블을 만들기 위한 연결이 포함된 리전(예: us)
+CONNECTION_ID: 연결 ID(예: myconnection)
+
+ Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+DELTALAKE_TABLE_NAME: Delta Lake 테이블 이름
+DATASET: Delta Lake 테이블을 포함할 BigQuery 데이터 세트
+Delta Lake 테이블 쿼리
+Delta Lake BigLake 테이블을 만든 후에는 표준 BigQuery 테이블과 마찬가지로 GoogleSQL 구문을 사용하여 쿼리 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko]할 수 있습니다. 예를 들면 다음과 같습니다.
+SELECT field1, field2 FROM mydataset.my_cloud_storage_table;
+자세한 내용은 BigLake 테이블에서 Cloud Storage 데이터 쿼리 [https://cloud.google.com/bigquery/docs/query-cloud-storage-using-biglake?hl=ko#query-biglake-table-bigquery]를 참조하세요.
+서비스 계정과 연결된 외부 연결 [https://cloud.google.com/bigquery/docs/connections-api-intro?hl=ko]은 데이터 스토어에 연결하는 데 사용됩니다. 서비스 계정이 데이터 스토어에서 데이터를 검색하므로 사용자는 Delta Lake 테이블에만 액세스하면 됩니다.
+데이터 매핑
+BigQuery는 다음 표와 같이 Delta Lake 데이터 유형을 BigQuery 데이터 유형으로 변환합니다.
+Delta Lake 유형 BigQuery 유형
+boolean BOOL
+byte INT64
+int INT64
+long INT64
+float FLOAT64
+double FLOAT64
+Decimal(P/S) 정밀도에 따라 NUMERIC 또는 BIG_NUMERIC
+date DATE
+time TIME
+timestamp (not partition column) TIMESTAMP
+timestamp (partition column) DATETIME
+string STRING
+binary BYTES
+array<Type> ARRAY<Type>
+struct STRUCT
+map<KeyType, ValueType> ARRAY<Struct<key KeyType, value ValueType>>
+제한사항
+Delta Lake 테이블에는 BigLake 테이블 제한사항 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#limitations]이 포함되며 다음 제한사항도 포함됩니다.
+상대 경로 삭제 벡터 및 열 매핑이 있는 Delta Lake 리더 버전 [https://github.com/delta-io/delta/blob/master/PROTOCOL.md#reader-version-requirements] 3을 지원합니다.
+Delta Lake V2 체크포인트를 지원하지 않습니다.
+마지막 로그 항목 파일에 리더 버전을 나열해야 합니다. 예를 들어 새 테이블에는 00000..0.json이 포함되어야 합니다.
+변경 데이터 캡처(CDC) 작업이 지원되지 않습니다. 기존 CDC 작업은 무시됩니다.
+스키마는 자동으로 감지됩니다. BigQuery를 사용한 스키마 수정은 지원되지 않습니다.
+테이블 열 이름은 BigQuery 열 이름 제한사항 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#column_names]을 준수해야 합니다.
+구체화된 뷰는 지원되지 않습니다.
+Delta Lake에는 Read API가 지원되지 않습니다.
+문제 해결
+이 섹션에서는 Delta Lake BigLake 테이블에 관한 도움말을 제공합니다. BigQuery 쿼리 문제 해결에 대한 일반적인 도움말은 쿼리 문제 해결 [https://cloud.google.com/bigquery/docs/troubleshoot-queries?hl=ko]을 참조하세요.
+쿼리 시간 초과 및 리소스 오류
+Delta Lake 테이블의 로그 디렉터리(gs://bucket/warehouse/basictable/_delta_log)를 확인하고 이전 체크포인트 [https://github.com/delta-io/delta/blob/master/PROTOCOL.md#checkpoints]보다 버전 번호가 큰 JSON 파일을 찾습니다. 디렉터리를 나열하거나 _delta_log/_last_checkpoint 파일 [https://github.com/delta-io/delta/blob/master/PROTOCOL.md#last-checkpoint-file]을 검사하여 버전 번호를 확인할 수 있습니다. 10MiB보다 큰 JSON 파일은 테이블 확장을 느리게 할 수 있으며, 이로 인해 시간 초과 및 리소스 문제가 발생할 수 있습니다. 이 문제를 해결하려면 다음 명령어를 사용하여 쿼리에서 JSON 파일 읽기를 건너뛰도록 새 체크포인트를 만드세요.
+  spark.sql("ALTER TABLE delta.`gs://bucket/mydeltatabledir` SET TBLPROPERTIES ('delta.checkpointInterval' = '1')");
+그러면 사용자가 동일한 명령어를 사용하여 체크포인트 간격을 기본값인 10으로 재설정하거나 체크포인트 사이의 JSON 파일이 50MB를 초과하지 않는 값으로 재설정할 수 있습니다.
+잘못된 열 이름
+Delta Lake 테이블에 열 매핑이 사용 설정되어 있는지 확인합니다. 열 매핑은 리더 버전 2 이상 [https://github.com/delta-io/delta/blob/master/PROTOCOL.md#reader-version-requirements]에서 지원됩니다. 리더 버전 1의 경우 다음 명령어를 사용하여 'delta.columnMapping.mode를 'name'으로 설정합니다.
+spark.sql("ALTER TABLE delta.`gs://bucket/mydeltatabledir` SET TBLPROPERTIES ('delta.columnMapping.mode' = 'name', 'delta.minReaderVersion' = '3', 'delta.minWriterVersion' = '7')");
+잘못된 열 이름이 유연한 열 이름 제한사항 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#flexible-column-names]을 준수하는 경우 Cloud Customer Care [https://cloud.google.com/bigquery/docs/getting-support?hl=ko] 또는 biglake-help@google.com [mailto:biglake-help@google.com]에 문의하세요.
+액세스 거부 오류
+Delta Lake BigLake 테이블의 문제를 진단하려면 다음을 확인하세요.
+Delta Lake BigLake 테이블(연결 포함) [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#create-tables]을 사용하고 있는지 확인합니다.
+사용자에게 필요한 권한이 부여 [https://cloud.google.com/bigquery/docs/create-delta-lake-table?hl=ko#iam-permissions]되어 있는지 확인합니다.
+성능
+쿼리 성능을 개선하려면 다음 단계를 따르세요.
+Delta Lake 유틸리티 [https://docs.databricks.com/en/delta/best-practices.html]를 사용하여 기본 데이터 파일을 압축하고 데이터 및 메타데이터와 같은 중복 파일을 삭제합니다.
+delta.checkpoint.writeStatsAsStruct가 true로 설정되어 있는지 확인합니다.
+조건자 절에서 자주 사용되는 변수가 파티션 열에 있는지 확인합니다.
+대규모 데이터 세트(100TB 초과)의 경우 추가 구성과 기능을 활용하면 도움이 될 수 있습니다. 위 단계를 수행해도 문제가 해결되지 않으면 특히 데이터 세트가 100TB를 초과하는 경우 Cloud Customer Care [https://cloud.google.com/bigquery/docs/getting-support?hl=ko] 또는 biglake-help@google.com [mailto:biglake-help@google.com]에 문의하세요.
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,118 @@
+Source URL: https://cloud.google.com/bigquery/docs/dataframes-quickstart
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko#before_you_begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko#required_permissions]
+노트북 만들기 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko#create_a_notebook]
+BigQuery DataFrames 사용해 보기 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko#try-dataframes]
+삭제 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko#clean_up]
+다음 단계 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko#whats_next]
+BigQuery DataFrames 사용해 보기
+bookmark_border
+이 빠른 시작에서는 BigQuery 노트북 [https://cloud.google.com/bigquery/docs/notebooks-introduction?hl=ko]에서 BigQuery DataFrames API [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 사용하여 다음 분석 및 머신러닝(ML) 태스크를 수행합니다.
+bigquery-public-data.ml_datasets.penguins 공개 데이터 세트를 기반으로 DataFrame을 만듭니다.
+펭귄의 평균 몸무게를 계산합니다.
+선형 회귀 모델 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.linear_model.LinearRegression?hl=ko]을 만듭니다.
+펭귄 데이터의 하위 집합에 따라 학습 데이터로 사용할 DataFrame을 만듭니다.
+학습 데이터를 삭제합니다.
+모델 매개변수를 설정합니다.
+모델을 미세조정 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.linear_model.LinearRegression?hl=ko#bigframes_ml_linear_model_LinearRegression_fit]합니다.
+모델 점수 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.linear_model.LinearRegression?hl=ko#bigframes_ml_linear_model_LinearRegression_score]를 매깁니다.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery API가 사용 설정되었는지 확인
+API 사용 설정 [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+새 프로젝트를 만들면 BigQuery API가 자동으로 사용 설정됩니다.
+필수 권한
+노트북을 만들고 실행하려면 다음 Identity and Access Management(IAM) 역할이 필요합니다.
+BigQuery 사용자(roles/bigquery.user) [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.user]
+노트북 런타임 사용자(roles/aiplatform.notebookRuntimeUser) [https://cloud.google.com/vertex-ai/docs/general/access-control?hl=ko#aiplatform.notebookRuntimeUser]
+코드 생성자(roles/dataform.codeCreator) [https://cloud.google.com/dataform/docs/access-control?hl=ko#dataform.codeCreator]
+노트북 만들기
+BigQuery 편집자에서 노트북 만들기 [https://cloud.google.com/bigquery/docs/create-notebooks?hl=ko#create-notebook-console]의 안내에 따라 새 노트북을 만듭니다.
+BigQuery DataFrames 사용해 보기
+다음 단계에 따라 BigQuery DataFrames를 사용합니다.
+노트북에 새 코드 셀을 만듭니다.
+다음 코드를 복사하여 코드 셀에 붙여넣습니다.
+import bigframes.pandas as bpd
+
+# Set BigQuery DataFrames options
+# Note: The project option is not required in all environments.
+# On BigQuery Studio, the project ID is automatically detected.
+bpd.options.bigquery.project = your_gcp_project_id
+
+# Use "partial" ordering mode to generate more efficient queries, but the
+# order of the rows in DataFrames may not be deterministic if you have not
+# explictly sorted it. Some operations that depend on the order, such as
+# head() will not function until you explictly order the DataFrame. Set the
+# ordering mode to "strict" (default) for more pandas compatibility.
+bpd.options.bigquery.ordering_mode = "partial"
+
+# Create a DataFrame from a BigQuery table
+query_or_table = "bigquery-public-data.ml_datasets.penguins"
+df = bpd.read_gbq(query_or_table)
+
+# Efficiently preview the results using the .peek() method.
+df.peek()
+
+# Use the DataFrame just as you would a pandas DataFrame, but calculations
+# happen in the BigQuery query engine instead of the local system.
+average_body_mass = df["body_mass_g"].mean()
+print(f"average_body_mass: {average_body_mass}")
+
+# Create the Linear Regression model
+from bigframes.ml.linear_model import LinearRegression
+
+# Filter down to the data we want to analyze
+adelie_data = df[df.species == "Adelie Penguin (Pygoscelis adeliae)"]
+
+# Drop the columns we don't care about
+adelie_data = adelie_data.drop(columns=["species"])
+
+# Drop rows with nulls to get our training data
+training_data = adelie_data.dropna()
+
+# Pick feature columns and label column
+X = training_data[
+    [
+        "island",
+        "culmen_length_mm",
+        "culmen_depth_mm",
+        "flipper_length_mm",
+        "sex",
+    ]
+]
+y = training_data[["body_mass_g"]]
+
+model = LinearRegression(fit_intercept=False)
+model.fit(X, y)
+model.score(X, y)
+bpd.options.bigquery.project = your_gcp_project_id 줄을 수정하여 프로젝트를 지정합니다(예: bpd.options.bigquery.project = "myproject").
+코드 셀을 실행합니다.
+코드 셀은 데이터 세트에 있는 펭귄의 평균 몸무게를 반환한 후 모델의 평가 측정항목을 반환합니다.
+삭제
+비용이 청구되지 않도록 하는 가장 쉬운 방법은 튜토리얼에서 만든 프로젝트를 삭제하는 것입니다.
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+BigQuery DataFrames를 사용 [https://cloud.google.com/bigquery/docs/use-bigquery-dataframes?hl=ko]하는 방법 계속 알아보기
+BigQuery DataFrames를 사용하여 그래프를 시각화 [https://cloud.google.com/bigquery/docs/dataframes-visualizations?hl=ko]하는 방법 알아보기
+BigQuery DataFrames 노트북을 사용 [https://github.com/googleapis/python-bigquery-dataframes/tree/main/notebooks/getting_started/getting_started_bq_dataframes.ipynb]하는 방법 알아보기
+도움이 되었나요?
+의견 보내기

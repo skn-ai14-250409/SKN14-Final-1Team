@@ -1,0 +1,426 @@
+Source URL: https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+ARIMA_PLUS 단변량 시계열 모델을 수백만 개의 시계열로 확장
+bookmark_border
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#before-you-begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#required_permissions]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#create_a_dataset]
+이 튜토리얼에서는 단일 쿼리로 여러 시계열 예측을 수행하기 위해 ARIMA_PLUS 단변량 시계열 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko] 집합의 학습을 대폭 가속화하는 방법을 알아봅니다. 예측 정확도를 평가하는 방법도 알아봅니다.
+이 튜토리얼에서는 여러 시계열을 예측합니다. 예측 값은 하나 이상의 지정된 열에 있는 각 값에 대해 각 시점으로 계산됩니다. 예를 들어 날씨를 예측하고 도시 데이터가 포함된 열을 지정하려는 경우 예측된 데이터에는 도시 A의 모든 시점에 대한 예측 값, 도시 B의 모든 시점에 대한 예측 값 등이 포함됩니다.
+이 튜토리얼에서는 공개 bigquery-public-data.new_york.citibike_trips [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=new_york&%3Bt=citibike_trips&%3Bpage=table&hl=ko] 및 iowa_liquor_sales.sales [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=iowa_liquor_sales&%3Bt=sales&%3Bpage=table&hl=ko] 테이블의 데이터를 사용합니다. 자전거 여행 데이터에는 시계열이 수백 개만 포함되어 있으므로 모델 학습을 가속화하는 다양한 전략을 설명하는 데 사용됩니다. 주류 판매 데이터에는 100만 개가 넘는 시계열이 있으므로 대규모 시계열 예측을 보여주는 데 사용됩니다.
+이 튜토리얼을 읽기 전에 단변량 모델로 여러 시계열 예측 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko] 및 대규모 시계열 예측 권장사항 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#large-scale-time-series-forecasting-best-practices]을 읽어야 합니다.
+목표
+이 가이드에서는 다음을 사용합니다.
+CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-multivariate-time-series?hl=ko]을 사용하여 시계열 모델을 만듭니다.
+ML.EVALUATE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]를 사용하여 모델의 정확도를 평가합니다.
+CREATE MODEL 문에서 AUTO_ARIMA_MAX_ORDER [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#auto_arima_max_order], TIME_SERIES_LENGTH_FRACTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#time_series_length_fraction], MIN_TIME_SERIES_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#min_time_series_length], MAX_TIME_SERIES_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#max_time_series_length] 옵션을 사용하여 모델 학습 시간을 크게 줄입니다.
+편의를 위해 이 튜토리얼에서는 ML.FORECAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-forecast?hl=ko] 또는 ML.EXPLAIN_FORECAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-explain-forecast?hl=ko] 함수를 사용하여 예측을 생성하는 방법을 다루지 않습니다. 이러한 함수를 사용하는 방법은 단변량 모델로 여러 시계열 예측 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko]을 참고하세요.
+비용
+이 튜토리얼에서는 비용이 청구될 수 있는 Google Cloud구성요소를 사용합니다.
+BigQuery
+BigQuery ML
+비용에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지와 BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml] 페이지를 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery는 새 프로젝트에서 자동으로 사용 설정됩니다. 기존 프로젝트에서 BigQuery를 활성화하려면 다음으로 이동합니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create IAM 권한이 필요합니다.
+모델을 만들려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 권한이 필요합니다.
+bigquery.models.getData
+bigquery.jobs.create
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+입력 데이터 테이블 만들기
+다음 쿼리의 SELECT 문은 EXTRACT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract]를 사용하여 starttime 열에서 날짜 정보를 추출합니다. 이 쿼리는 COUNT(*) 절을 사용하여 일간 총 도심 자전거 여행 수를 가져옵니다.
+table_1에는 시계열이 679개 있습니다. 이 쿼리는 추가 INNER JOIN 논리를 사용하여 시점이 400개를 초과하는 모든 시계열을 선택하므로 시계열이 총 383개 생성됩니다.
+입력 데이터 테이블을 만들려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+CREATE OR REPLACE TABLE
+  `bqml_tutorial.nyc_citibike_time_series` AS
+WITH input_time_series AS
+(
+  SELECT
+    start_station_name,
+    EXTRACT(DATE FROM starttime) AS date,
+    COUNT(*) AS num_trips
+  FROM
+    `bigquery-public-data.new_york.citibike_trips`
+  GROUP BY
+    start_station_name, date
+)
+SELECT table_1.*
+FROM input_time_series AS table_1
+INNER JOIN (
+  SELECT start_station_name,  COUNT(*) AS num_points
+  FROM input_time_series
+  GROUP BY start_station_name) table_2
+ON
+  table_1.start_station_name = table_2.start_station_name
+WHERE
+  num_points > 400;
+기본 매개변수를 사용하여 여러 시계열에 대한 모델 만들기
+각 Citi Bike 자전거 대여소의 자전거 여행 수를 예측하려면 입력 데이터에 포함된 각 Citi Bike 자전거 대여소에 대해 하나씩 여러 시계열 모델이 필요합니다. 이를 위해 여러 CREATE MODEL [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko] 쿼리를 작성할 수 있지만, 특히 시계열 수가 많을 때 이렇게 하면 번거롭고 시간도 많이 소요될 수 있습니다. 대신 단일 쿼리를 사용하여 일련의 시계열 모델을 만들고 적합시켜 여러 시계열을 한 번에 예측할 수 있습니다.
+OPTIONS(model_type='ARIMA_PLUS', time_series_timestamp_col='date', ...) 절은 ARIMA [https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average] 기반 시계열 ARIMA_PLUS 모델 집합을 만들고 있음을 나타냅니다. time_series_timestamp_col 옵션은 시계열이 포함된 열을 지정하고, time_series_data_col 옵션은 예측할 열을 지정하며, time_series_id_col는 시계열을 만들려는 하나 이상의 측정기준을 지정합니다.
+이 예시에서는 2016년 6월 1일 이후 시계열의 시점을 제외하여 나중에 ML.EVALUATE 함수를 사용하여 예측 정확도를 평가하는 데 사용할 수 있습니다.
+모델을 만들려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.nyc_citibike_arima_model_default`
+OPTIONS
+  (model_type = 'ARIMA_PLUS',
+  time_series_timestamp_col = 'date',
+  time_series_data_col = 'num_trips',
+  time_series_id_col = 'start_station_name'
+  ) AS
+SELECT *
+FROM bqml_tutorial.nyc_citibike_time_series
+WHERE date < '2016-06-01';
+쿼리가 완료되는 데 약 15분이 소요됩니다.
+각 시계열의 예측 정확도 평가
+ML.EVALUATE 함수를 사용하여 모델의 예측 정확도를 평가합니다.
+모델을 평가하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT *
+FROM
+  ML.EVALUATE(MODEL `bqml_tutorial.nyc_citibike_arima_model_default`,
+  TABLE `bqml_tutorial.nyc_citibike_time_series`,
+  STRUCT(7 AS horizon, TRUE AS perform_aggregation));
+이 쿼리는 다음과 같은 몇 가지 예측 측정항목을 보고합니다.
+결과는 다음과 비슷하게 표시됩니다.
+ML.EVALUATE 함수의 TABLE 절은 정답 데이터가 포함된 테이블을 식별합니다. 예측 결과를 정답 데이터와 비교하여 정확도 측정항목을 계산합니다. 이 경우 nyc_citibike_time_series에는 2016년 6월 1일 이전과 이후의 시계열 지점이 모두 포함됩니다. 2016년 6월 1일 이후 지점은 정답 데이터입니다. 2016년 6월 1일 이전의 지점은 해당 날짜 이후의 예측을 생성하도록 모델을 학습시키는 데 사용됩니다. 측정항목을 계산할 때는 2016년 6월 1일 이후 지점만 있으면 됩니다. 2016년 6월 1일 이전의 지점은 측정항목 계산에서 무시됩니다.
+ML.EVALUATE 함수의 STRUCT 절은 함수의 매개변수를 지정했습니다. horizon 값은 7입니다. 즉, 쿼리가 7지점 예측을 기반으로 예측 정확도를 계산한다는 의미입니다. 정답 데이터의 비교 지점이 7개 미만인 경우 사용 가능한 지점을 기준으로 정확도 측정항목이 계산됩니다. perform_aggregation 값은 TRUE입니다. 즉, 예측 정확도 측정항목은 시점을 기준으로 측정항목에서 집계됩니다. perform_aggregation 값을 FALSE로 지정하면 예측된 각 시점마다 예측 정확도가 반환됩니다.
+출력 열에 관한 자세한 내용은 ML.EVALUATE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]를 참조하세요.
+전반적인 예측 정확도 평가
+383개 시계열 전체의 예측 정확도를 평가합니다.
+ML.EVALUATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]에서 반환한 예측 측정항목 중 평균 절대 비율 오류 [https://en.wikipedia.org/wiki/Mean_absolute_percentage_error]와 대칭 평균 절대 비율 오류 [https://en.wikipedia.org/wiki/Symmetric_mean_absolute_percentage_error]만 시계열 값 독립적입니다. 따라서 시계열 집합의 전체 예측 정확도를 평가하려면 이러한 두 측정항목의 집계만 의미가 있습니다.
+모델을 평가하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT
+  AVG(mean_absolute_percentage_error) AS MAPE,
+  AVG(symmetric_mean_absolute_percentage_error) AS sMAPE
+FROM
+  ML.EVALUATE(MODEL `bqml_tutorial.nyc_citibike_arima_model_default`,
+    TABLE `bqml_tutorial.nyc_citibike_time_series`,
+    STRUCT(7 AS horizon, TRUE AS perform_aggregation));
+이 쿼리는 MAPE 값을 0.3471로, sMAPE 값을 0.2563로 반환합니다.
+더 작은 초매개변수 검색 공간으로 여러 시계열을 예측하는 모델 만들기
+기본 매개변수로 여러 시계열 모델 만들기 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#arima-model-group] 섹션에서는 auto_arima_max_order 옵션을 포함한 모든 학습 옵션의 기본값을 사용했습니다. 이 옵션은 auto.ARIMA 알고리즘에서 초매개변수를 조정할 수 있도록 검색 공간을 제어합니다.
+다음 쿼리로 만든 모델에서는 auto_arima_max_order 옵션 값을 기본값인 5에서 2로 변경하여 초매개변수의 검색 공간을 더 작게 사용합니다.
+모델을 평가하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.nyc_citibike_arima_model_max_order_2`
+OPTIONS
+  (model_type = 'ARIMA_PLUS',
+  time_series_timestamp_col = 'date',
+  time_series_data_col = 'num_trips',
+  time_series_id_col = 'start_station_name',
+  auto_arima_max_order = 2
+  ) AS
+SELECT *
+FROM `bqml_tutorial.nyc_citibike_time_series`
+WHERE date < '2016-06-01';
+쿼리가 완료되는 데 약 2분 정도 걸립니다. 이전 모델은 auto_arima_max_order 값이 5일 때 완료하는 데 약 15분이 걸렸으므로 이 변경사항으로 모델 학습 속도가 약 7배 향상됩니다. 속도 향상이 5/2=2.5x가 아닌 이유는 auto_arima_max_order 값이 증가할 때 후보 모델 수가 증가할 뿐만 아니라 복잡하기 때문입니다. 이로 인해 모델의 학습 시간이 늘어납니다.
+초매개변수 검색 공간이 작은 모델의 예측 정확도 평가
+모델을 평가하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT
+  AVG(mean_absolute_percentage_error) AS MAPE,
+  AVG(symmetric_mean_absolute_percentage_error) AS sMAPE
+FROM
+  ML.EVALUATE(MODEL `bqml_tutorial.nyc_citibike_arima_model_max_order_2`,
+    TABLE `bqml_tutorial.nyc_citibike_time_series`,
+    STRUCT(7 AS horizon, TRUE AS perform_aggregation));
+이 쿼리는 MAPE 값을 0.3337로, sMAPE 값을 0.2337로 반환합니다.
+전반적인 예측 정확도 평가 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#evaluate_overall_forecasting_accuracy] 섹션에서는 auto_arima_max_order 옵션 값이 5인 더 큰 초매개변수 검색 공간을 사용하여 모델을 평가했습니다. 그 결과 MAPE 값은 0.3471이고 sMAPE 값은 0.2563입니다. 이 경우 초매개변수 검색 공간이 작을수록 실제로 예측 정확도가 높아집니다. 한 가지 이유는 auto.ARIMA 알고리즘이 전체 모델링 파이프라인의 트렌드 모듈에 대해서만 초매개변수 조정을 수행하기 때문입니다. auto.ARIMA 알고리즘으로 선택한 최적의 ARIMA 모델은 전체 파이프라인에 대한 최적의 예측 결과를 생성하지 못할 수 있습니다.
+더 작은 초매개변수 검색 공간과 스마트한 빠른 학습 전략으로 여러 시계열을 예측하는 모델 만들기
+이 단계에서는 max_time_series_length, max_time_series_length 또는 time_series_length_fraction 학습 옵션을 하나 이상 사용하여 더 작은 초매개변수 검색 공간과 스마트한 빠른 학습 전략을 모두 사용합니다.
+계절성과 같은 주기적 모델링에는 특정 시점 수가 필요하지만 트렌드 모델링에는 필요한 시점이 줄어듭니다. 한편 트렌드 모델링의 연산 비용은 계절성과 같은 다른 시계열 구성요소보다 매우 높습니다. 위 빠른 학습 옵션을 사용하면 시계열의 하위 집합으로 트렌드 구성요소를 효율적으로 모델링할 수 있지만 다른 시계열 구성요소는 전체 시계열을 사용합니다.
+다음 예시에서는 max_time_series_length 옵션을 사용하여 빠른 학습을 수행합니다. max_time_series_length 옵션 값을 30로 설정하면 최근 시점 30개만 트렌드 구성요소를 모델링하는 데 사용됩니다. 모든 383개 시계열은 트렌드가 아닌 구성요소를 모델링하는 데 계속 사용됩니다.
+모델을 만들려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.nyc_citibike_arima_model_max_order_2_fast_training`
+OPTIONS
+  (model_type = 'ARIMA_PLUS',
+  time_series_timestamp_col = 'date',
+  time_series_data_col = 'num_trips',
+  time_series_id_col = 'start_station_name',
+  auto_arima_max_order = 2,
+  max_time_series_length = 30
+  ) AS
+SELECT *
+FROM `bqml_tutorial.nyc_citibike_time_series`
+WHERE date < '2016-06-01';
+쿼리가 완료되려면 약 35초 정도 걸립니다. 이는 더 작은 초매개변수 검색 공간으로 여러 시계열을 예측하는 모델 만들기 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko#small-search-space] 섹션에서 사용한 쿼리에 비해 3배 더 빠릅니다. 데이터 사전 처리 등 쿼리의 비학습 부분에 대한 일정한 시간 오버헤드로 인해 시계열 수가 이 예보다 현저히 클 때 속도가 훨씬 높아집니다. 시계열 수가 100만 개인 경우 속도 증가는 시계열 길이와 max_time_series_length 옵션 값의 비율에 접근합니다. 이 경우 속도 증가는 10배보다 큽니다.
+초매개변수 검색 공간이 작고 스마트한 빠른 학습 전략을 통해 모델의 예측 정확도 평가
+모델을 평가하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT
+  AVG(mean_absolute_percentage_error) AS MAPE,
+  AVG(symmetric_mean_absolute_percentage_error) AS sMAPE
+FROM
+  ML.EVALUATE(MODEL `bqml_tutorial.nyc_citibike_arima_model_max_order_2_fast_training`,
+    TABLE `bqml_tutorial.nyc_citibike_time_series`,
+    STRUCT(7 AS horizon, TRUE AS perform_aggregation));
+이 쿼리는 MAPE 값을 0.3515로, sMAPE 값을 0.2473로 반환합니다.
+빠른 학습 전략을 사용하지 않으면 예측 정확도 결과는 MAPE 값이 0.3337이고 sMAPE 값이 0.2337입니다. 두 측정항목 값 집합 간의 차이가 3% 이내이므로 통계적으로 유의미하지 않습니다.
+간단히 말해, 더 작은 초매개변수 검색 공간과 스마트한 빠른 학습 전략을 사용하여 예측 정확도 저하 없이 모델 학습 속도를 20배 이상 향상시켰습니다. 앞에서 언급했듯이 더 많은 시계열을 사용하면 스마트한 빠른 학습 전략을 통한 속도가 더욱 빨라집니다. 또한 ARIMA_PLUS 모델에서 사용하는 기본 ARIMA 라이브러리는 이전보다 5배 빠르게 실행되도록 최적화되었습니다. 이러한 이점을 함께 사용하면 몇 시간 안에 시계열을 수백만 개 예측할 수 있습니다.
+백만 개의 시계열을 예측하는 모델 만들기
+이 단계에서는 아이오와주 주류 판매 공개 데이터를 사용하여 다양한 매장의 100만 개가 넘는 주류 제품에 대한 주류 판매를 예측합니다. 모델 학습에서는 작은 초매개변수 검색 공간과 스마트한 빠른 학습 전략을 사용합니다.
+모델을 평가하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+CREATE OR REPLACE MODEL
+  `bqml_tutorial.liquor_forecast_by_product`
+OPTIONS(
+  MODEL_TYPE = 'ARIMA_PLUS',
+  TIME_SERIES_TIMESTAMP_COL = 'date',
+  TIME_SERIES_DATA_COL = 'total_bottles_sold',
+  TIME_SERIES_ID_COL = ['store_number', 'item_description'],
+  HOLIDAY_REGION = 'US',
+  AUTO_ARIMA_MAX_ORDER = 2,
+  MAX_TIME_SERIES_LENGTH = 30
+) AS
+SELECT
+  store_number,
+  item_description,
+  date,
+  SUM(bottles_sold) as total_bottles_sold
+FROM
+  `bigquery-public-data.iowa_liquor_sales.sales`
+WHERE date BETWEEN DATE("2015-01-01") AND DATE("2021-12-31")
+GROUP BY store_number, item_description, date;
+쿼리가 완료되는 데 약 1시간 16분이 소요됩니다.
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트를 유지하고 개별 리소스를 삭제하세요.
+만든 프로젝트를 삭제할 수 있습니다.
+또는 프로젝트를 유지하고 데이터 세트를 삭제할 수 있습니다.
+데이터 세트 삭제
+프로젝트를 삭제하면 프로젝트의 데이터 세트와 테이블이 모두 삭제됩니다. 프로젝트를 다시 사용하려면 이 튜토리얼에서 만든 데이터 세트를 삭제할 수 있습니다.
+필요한 경우Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+앞서 만든 bqml_tutorial 데이터 세트를 탐색에서 선택합니다.
+데이터 세트 삭제를 클릭하여 데이터 세트, 테이블, 모든 데이터를 삭제합니다.
+데이터 세트 삭제 대화상자에서 데이터 세트 이름(bqml_tutorial)을 입력하고 삭제를 클릭하여 삭제 명령어를 확인합니다.
+프로젝트 삭제
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+일변량 모델로 단일 시계열을 예측 [https://cloud.google.com/bigquery/docs/arima-single-time-series-forecasting-tutorial?hl=ko]하는 방법 알아보기
+다변량 모델로 단일 시계열을 예측 [https://cloud.google.com/bigquery/docs/arima-plus-xreg-single-time-series-forecasting-tutorial?hl=ko]하는 방법 알아보기
+단변량 모델로 여러 시계열을 예측 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko]하는 방법 알아보기
+단변량 모델로 여러 시계열을 계층적으로 예측 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series?hl=ko]하는 방법 알아보기
+BigQuery의 AI 및 ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]에서 BigQuery ML 개요 참조하기
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,134 @@
+Source URL: https://cloud.google.com/bigquery/docs/slots-autoscaling-intro
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+자동 확장 예약 사용 [https://cloud.google.com/bigquery/docs/slots-autoscaling-intro?hl=ko#use_autoscaling_reservations]
+기준 및 자동 확장 슬롯이 있는 예약 사용 [https://cloud.google.com/bigquery/docs/slots-autoscaling-intro?hl=ko#using_reservations_with_baseline_and_autoscaling_slots]
+슬롯 약정 사용 [https://cloud.google.com/bigquery/docs/slots-autoscaling-intro?hl=ko#using_slot_commitments]
+사용 가능한 최대 슬롯 [https://cloud.google.com/bigquery/docs/slots-autoscaling-intro?hl=ko#maximum_available_slots]
+자동 확장 권장사항 [https://cloud.google.com/bigquery/docs/slots-autoscaling-intro?hl=ko#autoscaling_best_practices]
+슬롯 자동 확장 소개
+bookmark_border
+슬롯 자동 확장을 사용하도록 구성한 예약은 워크로드 요구에 맞게 할당된 용량을 자동으로 확장합니다. 워크로드가 증가하거나 감소함에 따라 BigQuery는 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko]을 적절한 수준으로 동적으로 조정합니다. 슬롯 자동 확장 기능이 있는 예약은 BigQuery 버전 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]에서만 사용할 수 있습니다.
+자동 확장 예약 사용
+자동 확장 예약을 만들기 전에 슬롯 약정을 구매할 필요는 없습니다. 슬롯 약정은 일관되게 사용되는 슬롯에 대해 할인된 요금을 제공하지만 자동 확장 예약의 경우에는 선택사항입니다. 자동 확장 예약을 만들려면 예약에 최대 슬롯 수(최대 예약 크기)를 할당합니다. 예약에 할당된 선택적 기준 슬롯에서 최대 예약 크기를 빼서 최대 자동 확장 슬롯 수를 확인할 수 있습니다.
+자동 확장 예약을 만들 때 다음 사항을 고려하세요.
+BigQuery는 작업을 실행하는 데 필요한 슬롯 수에 도달하거나 예약에 사용 가능한 최대 슬롯 수에 도달할 때까지 거의 즉각적으로 예약을 확장합니다. 슬롯은 항상 50의 배수로 자동 확장됩니다.
+수직 확장은 실제 사용량을 기준으로 하며 가장 가까운 50개 슬롯 단위로 반올림됩니다.
+자동 확장된 슬롯은 수직 확장 중에 연결된 버전의 용량 컴퓨팅 가격 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]에 따라 청구됩니다. 사용된 슬롯 수가 아닌 확장된 슬롯 수에 대한 요금이 청구됩니다. BigQuery 수직 확장의 원인이 된 작업이 실패해도 이 요금이 적용됩니다. 따라서 청구 요금과 일치하도록 작업 정보 스키마 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 사용하지 마세요. 대신 정보 스키마로 자동 확장 모니터링 [https://cloud.google.com/bigquery/docs/slots-autoscaling-intro?hl=ko#monitor_autoscaling_with_information_schema]을 참조하세요.
+슬롯 수는 항상 50의 배수로 확장되지만 한 단계에 슬롯 50개를 초과하여 확장될 수도 있습니다. 예를 들어 워크로드에 추가 슬롯 450개가 필요한 경우 BigQuery는 용량 요구사항을 충족하기 위해 한 번에 슬롯 450개로 확장하려고 시도할 수 있습니다.
+BigQuery는 예약과 관련된 작업에 더 이상 용량이 필요하지 않으면(최소 1분 기준) 축소됩니다.
+자동 확장된 용량은 최소 60초 이상 유지됩니다. 이 60초의 기간을 축소 기간이라고 합니다. 새로운 최대 용량이 발생하면 축소 기간이 재설정됩니다. 그러나 마지막으로 용량을 늘린 후 60초 이상이 지났고 수요가 감소한 경우 시스템은 축소 기간을 재설정하지 않고도 용량을 줄여 지연 없이 연속적으로 용량을 감소시킬 수 있습니다.
+예를 들어 초기 워크로드 용량이 슬롯 100개로 확장되면 최대 용량이 60초 이상 유지됩니다. 축소 기간 중에 워크로드가 새로운 최대 용량인 슬롯 200개로 확장되면 60초 동안 새로운 축소 기간이 시작됩니다. 이 축소 기간 동안 새로운 최대 용량이 발생하지 않는 경우 60초가 지나면 워크로드가 축소되기 시작합니다.
+다음과 같은 상세 예시를 살펴보겠습니다. 12:00:00에 초기 용량이 슬롯 100개로 확장되고 사용량이 1초 동안 지속됩니다. 이 최대 용량은 12:00:00부터 시작하여 최소 60초 이상 유지됩니다. 60초가 경과한 후(12:01:01) 새 사용량이 슬롯 50개인 경우 BigQuery는 슬롯 50개로 축소합니다. 12:01:02에 새 사용량이 슬롯 0개인 경우 BigQuery는 즉시 슬롯 0개로 다시 축소합니다. 축소 기간이 종료된 후 BigQuery는 새로운 축소 기간 없이도 여러 번 연속적으로 축소할 수 있습니다.
+자동 확장을 사용하여 작업하는 방법을 알아보려면 슬롯 자동 확장을 사용한 작업 [https://cloud.google.com/bigquery/docs/reservations-tasks?hl=ko]을 참조하세요.
+기준 및 자동 확장 슬롯이 있는 예약 사용
+최대 예약 크기를 지정하는 것 외에도 원하는 경우 예약당 기준 슬롯 수를 지정할 수 있습니다. 기준은 항상 예약에 할당되는 최소 슬롯 수이며 항상 요금이 청구됩니다. 자동 확장 슬롯은 모든 기준 슬롯(해당하는 경우 유휴 슬롯)이 사용된 후에만 추가됩니다. 한 예약의 유휴 기준 슬롯을 용량이 필요한 다른 예약과 공유할 수 있습니다.
+몇 분 단위로 예약의 기준 슬롯 수를 늘릴 수 있습니다. 최근에 기준 슬롯 용량을 변경하였고 기준 슬롯이 약정 슬롯을 초과하는 경우 기준 슬롯을 줄이는 것은 1시간에 한 번으로 제한됩니다. 그렇지 않은 경우 몇 분마다 기준 슬롯을 줄일 수 있습니다.
+기준 슬롯 및 자동 확장 슬롯은 최근 워크로드를 기준으로 용량을 제공하기 위한 것입니다. 최근 워크로드와 크게 다른 대규모 워크로드가 예상되는 경우 워크로드 용량을 처리하기 위해 자동 확장 슬롯을 사용하는 대신 이벤트에 앞서 기준 용량을 늘리는 것이 좋습니다. 기준 용량을 늘리는 데 문제가 발생하는 경우 15분 후에 요청을 재시도하세요.
+예약에 기준 슬롯이 없거나 다른 예약에서 유휴 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko#idle_slots]을 대여하도록 구성되지 않은 경우 BigQuery는 확장을 시도합니다. 그렇지 않으면 확장 전에 기준 슬롯을 완전히 활용해야 합니다.
+예약은 다음 우선순위로 슬롯을 사용하고 추가합니다.
+기준 슬롯
+유휴 슬롯 공유(사용 설정된 경우). 예약은 동일한 버전 및 동일한 리전에서 생성된 다른 예약의 유휴 기준 또는 약정 슬롯만 공유할 수 있습니다.
+자동 확장 슬롯
+다음 예시에서는 지정된 기준 수량에서 슬롯을 확장합니다. etl 및 dashboard 예약의 기준 크기는 각각 700개, 300개입니다.
+이 예시에서 etl 예약은 슬롯 1,300개(기준 슬롯 700개 및 자동 확장 슬롯 600개)로 확장할 수 있습니다. dashboard 예약이 사용되지 않는 경우 etl 예약은 dashboard 예약에서 슬롯 300개를 사용할 수 있으며(실행 중인 작업이 없는 경우) 사용 가능한 슬롯은 최대 1,600개입니다.
+dashboard 예약은 슬롯 1,100개(기준 슬롯 300개 및 자동 확장 슬롯 800개)까지 확장될 수 있습니다. etl 예약이 완전히 유휴 상태이면 dashboard 예약은 최대 1,800개의 슬롯(기준 슬롯 300개, 자동 확장 슬롯 800개, etl 예약의 유휴 슬롯 700개)까지 확장될 수 있습니다.
+etl 예약에서 항상 사용 가능한 700개의 기준 슬롯보다 더 많은 슬롯을 필요로 하는 경우 예약에서는 다음 방법을 순서대로 사용하여 슬롯을 추가하려고 시도합니다.
+기준 슬롯 700개
+dashboard 예약의 기준 슬롯 300개와 유휴 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko#idle_slots] 공유. 예약은 유휴 기준 슬롯만 동일한 버전으로 생성된 다른 예약과 공유합니다.
+600개의 추가 슬롯을 최대 예약 크기로 확장
+슬롯 약정 사용
+다음 예시에서는 용량 약정을 사용하여 슬롯 자동 확장을 보여줍니다.
+예약 기준과 마찬가지로 슬롯 약정을 사용하면 모든 예약에 사용 가능한 고정된 개수의 슬롯을 할당할 수 있습니다. 기준 슬롯과 달리 약정 슬롯은 약정 기간 동안 줄일 수 없습니다. 슬롯 약정은 선택사항이지만 장기간 기준 슬롯이 필요한 경우 비용을 절약할 수 있습니다.
+이 예시에서는 용량 약정 슬롯에 대해 사전 정의된 요금이 청구됩니다. 자동 확장이 활성화되고 예약이 확장 상태인 경우 자동 확장 슬롯 수에 대한 자동 확장 요금이 청구됩니다. 자동 확장 요금의 경우 사용된 슬롯 수가 아닌 확장된 슬롯 수에 대해 요금이 청구됩니다.
+다음 예시에서는 기준 슬롯 수가 약정 슬롯 수를 초과하는 경우의 예약을 보여줍니다.
+이 예시에서는 두 예약 간의 기준 슬롯이 etl 예약에서 500개, dashboard 예약에서 500개 등 총 1,000개 있습니다. 하지만 약정에는 슬롯 800개만 포함됩니다. 이 시나리오에서는 초과 슬롯에 사용한 만큼만 지불(PAYG) 요율로 요금이 청구됩니다.
+사용 가능한 최대 슬롯
+기준 슬롯, 최대 자동 확장 슬롯 수, 동일한 버전으로 생성되었지만 기준 슬롯에 포함되지 않는 약정의 모든 슬롯을 더하여 예약에서 사용할 수 있는 최대 슬롯 수를 계산할 수 있습니다. 이전 이미지의 예시는 다음과 같이 설정됩니다.
+연간 슬롯 1,000개의 용량 약정. 이러한 슬롯은 etl 예약 및 dashboard 예약에서 기준 슬롯으로 할당됩니다.
+etl 예약에 할당된 기준 슬롯 700개
+dashboard 예약에 할당된 기준 슬롯 300개
+etl 예약의 자동 확장 슬롯 600개
+dashboard 예약의 자동 확장 슬롯 800개
+etl 예약의 경우 가능한 최대 슬롯 수는 etl 기준 슬롯(700)과 dashboard 기준 슬롯(모든 슬롯이 유휴 상태인 경우 300개)에 자동 확장 슬롯의 최대 개수(600개)를 더한 값입니다. 따라서 이 예시에서 etl 예약이 사용할 수 있는 최대 슬롯 수는 1,600개입니다. 이 숫자는 용량 약정의 수를 초과합니다.
+다음 예시에서는 연간 약정이 할당된 기준 슬롯을 초과합니다.
+이 예시의 조건은 다음과 같습니다.
+연간 슬롯 1,600개의 용량 약정
+최대 예약 크기 1,500개(자동 확장 슬롯 500개 포함)
+etl 예약에 할당된 기준 슬롯 1,000개
+예약에 사용할 수 있는 최대 슬롯 수는 기준 슬롯(1,000개)과 기준 슬롯 외 약정 유휴 슬롯(약정 슬롯 1,600개 - 기준 슬롯 1,000개 = 600개)에 자동 확장 슬롯(500개)을 더한 값입니다. 따라서 이 예약에서 최대 잠재적 슬롯은 2,100개입니다. 자동 확장된 슬롯은 용량 약정보다 큰 추가 슬롯입니다.
+자동 확장 권장사항
+자동 확장 처리를 처음 사용하는 경우 자동 확장 슬롯 수를 과거 및 예상 성능에 기반하여 의미 있는 숫자로 설정합니다. 예약이 생성되면 실패율, 성능, 청구 요금을 적극적으로 모니터링하고 필요에 따라 자동 확장 슬롯 수를 조정합니다.
+자동 확장 처리는 축소하기 전에 최소 1분이 필요하므로 성능과 비용 간에 균형을 맞추기 위해 자동 확장된 최대 슬롯 수를 설정하는 것이 중요합니다. 자동 확장 슬롯의 최대 개수가 너무 크고 작업에서 모든 슬롯을 사용하여 작업을 몇 초 만에 완료할 수 있더라도 1분 동안 최대 슬롯에 대한 비용이 여전히 발생할 수 있습니다. 최대 슬롯 수를 현재의 절반으로 줄이면 예약이 더 낮은 수로 조정되고 작업이 그 1분 동안 더 많은 slot_seconds를 사용할 수 있으므로 낭비가 줄어듭니다. 슬롯 요구사항을 확인하는 방법은 작업 성능 모니터링 [https://cloud.google.com/bigquery/docs/slots-autoscaling-intro?hl=ko#monitor_job_performance]을 참조하세요. 슬롯 요구사항을 결정하는 다른 방법은 버전 슬롯 추천 보기 [https://cloud.google.com/bigquery/docs/slot-recommender?hl=ko]를 참조하세요.
+슬롯 사용량이 기준 및 확장된 슬롯의 합계를 초과할 수도 있습니다. 기준 및 확장된 슬롯의 합계보다 많은 슬롯 사용량에 대해서는 요금이 청구되지 않습니다.
+자동 확장 처리는 여러 개의 동시 쿼리를 포함하는 워크로드와 같이 장기 실행되는 많은 워크로드에 가장 효율적입니다. 쿼리를 한 번에 하나씩 보내는 것은 피하세요. 쿼리를 보낼 때마다 예약이 확장되어 최소 1분 동안 유지되기 때문입니다. 지속적으로 쿼리를 보내 워크로드가 일정하게 유지되는 경우 기준선을 설정하고 약정을 구매하면 할인된 가격으로 일정한 용량을 사용할 수 있습니다.
+BigQuery 자동 확장에는 용량 가용성이 적용됩니다. BigQuery는 과거 사용량을 기준으로 고객의 용량 수요를 충족하려고 합니다. 용량을 보장하기 위해 예약의 보장된 슬롯 수인 선택적 슬롯 기준을 설정할 수 있습니다. 기준을 사용하면 슬롯을 즉시 사용할 수 있으며 사용 여부에 관계없이 비용을 지불합니다. 트래픽이 많은 공휴일과 같은 대규모의 비자연적 수요에 대해 충분한 용량을 갖추려면 몇 주 전에 BigQuery팀 [https://cloud.google.com/support?hl=ko]에 문의하세요.
+기준 슬롯에는 항상 요금이 청구됩니다. 용량 약정 [https://cloud.google.com/bigquery/docs/reservations-commitments?hl=ko]이 만료되면 원치 않는 요금이 청구되지 않도록 예약에 있는 기준 슬롯 양을 수동으로 조정해야 할 수 있습니다. 예를 들어 슬롯 100개와 기준 슬롯 100개가 포함된 1년 약정이 있다고 가정해보겠습니다. 약정이 만료되며 갱신 요금제가 없습니다. 약정이 만료되면 사용한 만큼만 지불 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]로 기준 슬롯 100개에 대한 비용을 지불합니다.
+자동 확장 모니터링
+관리 리소스 차트 [https://cloud.google.com/bigquery/docs/admin-resource-charts?hl=ko]로 슬롯 사용량을 모니터링할 때 차트는 정렬 기간 동안 사용된 슬롯 수를 평활화하므로 슬롯 사용량보다 훨씬 많은 확장된 슬롯이 표시될 수 있습니다. 자동 확장 슬롯 사용량을 더 정확하게 보려면 기간 옵션을 줄입니다. 이렇게 하면 정렬 기간이 더 작은 증분으로 자동 업데이트됩니다.
+다음 예시의 차트에는 확장된 슬롯이 워크로드에서 요구하는 것보다 훨씬 많이 표시됩니다.
+하지만 정렬 기간이 2초가 되도록 기간 옵션을 줄이면 자동 확장 처리가 워크로드 수요에 맞게 확장되고 더 정확한 데이터가 표시됩니다. 기간 옵션의 시작 범위와 종료 범위를 드래그하여 기간 옵션을 조정할 수 있습니다. 가장 정확한 워크로드 수요 데이터를 표시하려면 p99 목록에서 p99를 선택합니다.
+자동 확장 사용량을 가장 정확하게 확인하려면 1~15초의 정렬 기간을 사용합니다. 관리 리소스 차트의 정렬 기간에 대한 자세한 내용은 기간 옵션 [https://cloud.google.com/bigquery/docs/admin-resource-charts?hl=ko#time-frame]을 참조하세요.
+슬롯 사용량 보기에 대한 자세한 내용은 관리 리소스 차트 보기 [https://cloud.google.com/bigquery/docs/admin-resource-charts?hl=ko#view-admin-resource-charts]를 참조하세요.
+정보 스키마로 자동 확장 모니터링
+다음 SQL 스크립트를 사용하여 특정 버전의 청구 슬롯 시간(초)을 확인할 수 있습니다. 이러한 스크립트는 예약이 생성된 동일한 프로젝트에서 실행되어야 합니다. 첫 번째 스크립트는 commitment_plan이 적용되는 청구 슬롯 시간(초)을 표시하고 두 번째 스크립트는 약정이 적용되지 않는 청구 슬롯 시간(초)을 표시합니다.
+이러한 스크립트를 실행하려면 3가지 변수의 값만 설정하면 됩니다.
+start_time
+end_time
+edition_to_check
+이러한 스크립트에서는 다음 사항에 주의해야 합니다.
+삭제된 예약 및 용량 약정은 데이터 보관 기간이 끝나면 정보 스키마 뷰에서 삭제됩니다. 올바른 결과를 얻기 위해 삭제된 예약 및 약정이 포함되지 않은 최근 기간을 지정합니다.
+작은 차이의 반올림 오류로 인해 스크립트 결과가 청구서와 정확하게 일치하지 않을 수 있습니다.
+다음 스크립트는 특정 버전의 약정이 적용되는 슬롯 사용량을 확인합니다.
+약정에서 슬롯 시간(초)을 계산하는 스크립트를 보려면 펼치기
+다음 스크립트는 특정 버전의 약정에 포함되지 않는 슬롯 사용량을 확인합니다. 이 사용량에는 확장된 슬롯과 약정이 적용되지 않는 기준 슬롯이라는 두 가지 유형의 슬롯이 포함됩니다.
+약정에 포함되지 않는 슬롯 시간(초)을 계산하는 스크립트를 보려면 펼치기
+작업 성능 모니터링
+비용이 상승하지 않도록 자동 확장 max_slots을 조정해야 할 수 있습니다. 다음 쿼리는 작업 성능에 대한 컨텍스트를 제공하므로 워크로드에 맞는 자동 확장 슬롯 수를 선택할 수 있습니다.
+다음 쿼리는 예약된 이전 작업 성능에 관한 세부정보를 제공합니다.
+SELECT
+    AVG(TIMESTAMP_DIFF(end_time, creation_time, MILLISECOND)) as avg_latency_ms,
+    SUM(total_bytes_processed) as total_bytes,
+    COUNT(*) as query_numbers,
+FROM
+    `
+PROJECT_ID.region-
+REGION_NAME`.INFORMATION_SCHEMA.JOBS_BY_ORGANIZATION
+WHERE creation_time >= 
+START_TIME
+    AND creation_time < 
+END_TIME
+    AND (statement_type != "SCRIPT" OR statement_type IS NULL)
+    AND reservation_id = 
+RESERVATION_ID
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트 ID
+REGION_NAME: 프로젝트 리전
+START_TIME: 데이터 보기를 시작하려는 생성 시간
+END_TIME: 데이터 보기를 중지하려는 생성 시간
+RESERVATION_ID: 예약 ID
+다음 예시에서는 5일 동안의 작업 세부정보를 가져옵니다.
+SELECT
+    AVG(TIMESTAMP_DIFF(end_time, creation_time, MILLISECOND)) as avg_latency_ms,
+    SUM(total_bytes_processed) as total_bytes,
+    COUNT(*) as query_numbers,
+FROM
+    `myproject.region-us`.INFORMATION_SCHEMA.JOBS_BY_ORGANIZATION
+WHERE creation_time >= '2024-06-25 00:00:00-07'
+    AND creation_time < '2024-06-30 00:00:00-07'
+    AND (statement_type != "SCRIPT" OR statement_type IS NULL)
+    AND reservation_id = reservationID
+할당량
+최대 예약 크기의 합계는 슬롯 할당량 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko#slot_quotas]을 초과하면 안 됩니다.
+할당량에 대한 자세한 내용은 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#reservations]를 참조하세요.
+다음 단계
+BigQuery 버전에 대한 자세한 내용은 BigQuery 소개 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]를 참조하세요.
+슬롯에 대한 자세한 내용은 슬롯 이해 [https://cloud.google.com/bigquery/docs/slots?hl=ko]를 참조하세요.
+예약에 대한 자세한 내용은 예약 소개 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko]를 참조하세요.
+도움이 되었나요?
+의견 보내기

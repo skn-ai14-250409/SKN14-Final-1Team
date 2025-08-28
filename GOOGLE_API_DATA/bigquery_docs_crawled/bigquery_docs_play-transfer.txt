@@ -1,0 +1,327 @@
+Source URL: https://cloud.google.com/bigquery/docs/play-transfer
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+지원되는 보고서 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#supported_reports]
+Google Play 전송에서 데이터 수집 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#data-ingestion]
+새로고침 기간 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#refresh]
+제한사항 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#limitations]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#before_you_begin]
+BigQuery에 Google Play 데이터 로드
+bookmark_border
+Google Play용 BigQuery Data Transfer Service 커넥터를 사용하여 Google Play에서 BigQuery로 데이터를 로드할 수 있습니다. BigQuery Data Transfer Service를 사용하면 Google Play의 최신 데이터를 BigQuery에 추가하는 반복 전송 작업을 예약할 수 있습니다.
+지원되는 보고서
+Google Play용 BigQuery Data Transfer Service는 다음과 같은 월별 보고 옵션을 지원합니다.
+세부 보고서
+리뷰 [https://support.google.com/googleplay/android-developer/answer/6135870?hl=ko#reviews]
+재무 보고서 [https://support.google.com/googleplay/android-developer/answer/6135870?hl=ko#financial]
+집계 보고서
+통계 [https://support.google.com/googleplay/android-developer/answer/6135870?hl=ko#statistics]
+사용자 획득 [https://support.google.com/googleplay/android-developer/answer/6135870?hl=ko#acquisition]
+Google Play 보고서가 BigQuery 테이블로 변환되는 방식에 대한 자세한 내용은 Google Play 보고서 변환 [https://cloud.google.com/bigquery/docs/play-transformation?hl=ko]을 참조하세요.
+보고 옵션 지원
+지원되는 API 버전
+해당 사항 없음
+반복 빈도
+매일, 데이터 전송이 처음 만들어진 시간(기본값)
+시간을 구성할 수 있습니다.
+새로고침 범위 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#refresh]
+지난 7일
+구성할 수 없음
+최대 백필 기간
+제한 없음
+Google Play에는 알려진 데이터 보관 제한이 없지만, BigQuery Data Transfer Service에는 하나의 백필에서 요청 가능한 일수에 제한이 있습니다. 백필에 대한 자세한 내용은 수동으로 전송 트리거 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko#manually_trigger_a_transfer]를 참조하세요.
+Google Play 전송에서 데이터 수집
+Google Play에서 BigQuery로 데이터를 전송할 때는 데이터가 날짜별로 파티션을 나눈 BigQuery 테이블에 로드됩니다. 데이터가 로드되는 테이블 파티션은 데이터 소스의 날짜에 해당합니다. 동일한 날짜에 여러 전송을 예약하면 BigQuery Data Transfer Service가 해당 날짜의 파티션을 최신 데이터로 덮어씁니다. 동일한 일자에 전송이 여러 개 있거나 백필을 실행해도 데이터가 중복되지 않으며 다른 일자의 파티션에 영향을 주지 않습니다.
+새로고침 기간
+새로고침 기간은 데이터 전송이 발생할 때 데이터 전송이 데이터를 검색하는 일 수입니다. 예를 들어 새로고침 기간이 3일이고 일일 전송이 발생하는 경우 BigQuery Data Transfer Service는 소스 테이블에서 지난 3일 동안의 모든 데이터를 검색합니다. 이 예시에서 일일 전송이 발생하면 BigQuery Data Transfer Service는 현재 날짜의 소스 테이블 데이터 사본이 포함된 새 BigQuery 대상 테이블 파티션을 만든 다음 백필 실행을 자동으로 트리거하여 BigQuery 대상 테이블 파티션을 지난 2일 동안의 소스 테이블 데이터로 업데이트합니다. 자동으로 트리거된 백필 실행은 BigQuery Data Transfer Service 커넥터에서 증분 업데이트가 지원되는지 여부에 따라 BigQuery 대상 테이블을 덮어쓰거나 증분 업데이트합니다.
+데이터 전송을 처음 실행하면 데이터 전송에서 새로고침 기간 내에 사용 가능한 모든 소스 데이터를 검색합니다. 예를 들어 새로고침 기간이 3일이고 데이터 전송을 처음 실행하면 BigQuery Data Transfer Service에서 3일 이내에 모든 소스 데이터를 검색합니다.
+새로고침 기간은 TransferConfig.data_refresh_window_days API 필드 [https://cloud.google.com/bigquery/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs?hl=ko#TransferConfig.FIELDS.data_refresh_window_days]에 매핑됩니다.
+새로고침 기간 외의 데이터(예: 이전 데이터)를 검색하거나 전송 중단 또는 불일치 문제를 해결하려면 백필 실행 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko#manually_trigger_a_transfer]을 시작하거나 예약하면 됩니다.
+제한사항
+데이터 전송을 예약할 수 있는 최소 빈도는 24시간에 한 번입니다. 기본적으로 전송은 사용자가 전송을 만드는 시간에 시작됩니다. 하지만 전송을 설정 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#setup-transfer]할 때 전송 시작 시간을 구성할 수 있습니다.
+BigQuery Data Transfer Service는 Google Play 전송 중 증분 데이터 전송을 지원하지 않습니다. 데이터 전송에 대해 날짜를 지정하면 해당 날짜에 사용 가능한 모든 데이터가 전송됩니다.
+시작하기 전에
+Google Play 데이터 전송을 만들기 전에 다음을 수행하세요.
+BigQuery Data Transfer Service 사용 설정 [https://cloud.google.com/bigquery/docs/enable-transfer-service?hl=ko]에 필요한 모든 작업을 완료했는지 확인합니다.
+Google Play 데이터를 저장할 BigQuery 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]를 만듭니다.
+Cloud Storage 버킷을 찾습니다.
+Google Play 콘솔 [https://play.google.com/apps/publish/?hl=ko]에서 file_download 보고서 다운로드를 클릭하고 미리보기, 통계, 재무를 선택합니다.
+Cloud Storage 버킷의 ID를 복사하려면 content_copy Cloud Storage URI 복사를 클릭합니다. 버킷 ID는 gs://로 시작합니다. 예를 들어 검토 보고서의 경우 ID가 다음과 비슷합니다.
+gs://pubsite_prod_rev_01234567890987654321/reviews
+Google Play 데이터 전송의 경우 gs:// 및 /reviews 사이의 고유 ID만 복사해야 합니다.
+pubsite_prod_rev_01234567890987654321
+Pub/Sub의 전송 실행 알림을 설정하려면 pubsub.topics.setIamPolicy 권한이 있어야 합니다. 이메일 알림만 설정한다면 Pub/Sub 권한이 필요하지 않습니다. 자세한 내용은 BigQuery Data Transfer Service 실행 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko]을 참조하세요.
+필수 권한
+BigQuery: 데이터 전송을 만드는 사람에게 다음과 같은 BigQuery의 권한이 있는지 확인합니다.
+데이터 전송을 만드는 bigquery.transfers.update 권한
+대상 데이터 세트에 대한 bigquery.datasets.get 및 bigquery.datasets.update 권한
+사전 정의된 IAM 역할 bigquery.admin에는 bigquery.transfers.update, bigquery.datasets.update, bigquery.datasets.get 권한이 있습니다. BigQuery Data Transfer Service의 IAM 역할에 대한 자세한 내용은 액세스 제어 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 확인하세요.
+Google Play: 다음과 같은 Google Play의 권한이 있는지 확인합니다.
+Google Play Console [https://play.google.com/apps/publish/?hl=ko]에서 보고 액세스 권한이 있어야 합니다.
+Google Cloud 팀은 사용자를 대신하여 Google Play 파일에 대한 액세스 권한을 생성하거나 부여할 수 없습니다. Google Play 파일 액세스에 관한 도움말은 Google Play 지원팀에 문의하기 [https://support.google.com/googleplay/answer/9789798?ref_topic=3364260&visit_id=636444821343154346-869320595&rd=1&hl=ko]를 참조하세요.
+Google Play 전송 설정
+Google Play 데이터 전송 설정에 필요한 사항은 다음과 같습니다.
+Cloud Storage 버킷. Cloud Storage 버킷을 찾는 단계는 시작하기 전에 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#before_you_begin] 섹션에 설명되어 있습니다. Cloud Storage 버킷은 pubsite_prod_rev로 시작합니다. 예를 들면 pubsite_prod_rev_01234567890987654321입니다.
+테이블 서픽스. 동일한 데이터세트에 로드되는 모든 데이터 소스에 사용하는 사용자 친화적인 이름입니다. 서픽스는 동일한 테이블에 개별 전송이 기록되는 경우를 방지하려는 목적으로 사용합니다. 테이블 서픽스는 같은 데이터세트에 데이터를 로드하는 모든 전송에서 고유해야 하며 결과 테이블 이름의 길이를 최소화하도록 짧은 서픽스를 사용해야 합니다.
+Google Play 데이터 전송을 설정하려면 다음 안내를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터 전송 페이지로 이동합니다.
+
+데이터 전송으로 이동 [https://console.cloud.google.com/bigquery/transfers?hl=ko] 
+add 전송 만들기를 클릭합니다.
+전송 만들기 페이지에서 다음을 수행합니다.
+
+
+소스 유형 섹션의 소스에서 Google Play를 선택합니다.
+
+
+ 
+
+전송 구성 이름 섹션의 표시 이름에 데이터 전송 이름(예: My Transfer)을 입력합니다. 나중에 전송을 수정해야 할 경우를 대비해 전송 이름은 전송을 식별할 수 있는 값이면 됩니다.
+
+
+ 
+
+일정 옵션 섹션에서 다음을 수행합니다.
+
+
+반복 빈도에 대해 데이터 전송을 실행하려는 빈도 옵션을 선택합니다. 일을 선택한 경우 UTC로 유효한 시간을 제공합니다.
+해당하는 경우 지금 시작 또는 설정 시간에 시작을 선택하고 시작 날짜와 실행 시간을 입력합니다.
+
+대상 설정 섹션의 대상 데이터 세트에서 데이터를 저장하기 위해 만든 데이터 세트를 선택합니다.
+
+
+ 
+
+데이터 소스 세부정보 섹션에서 다음을 수행합니다.
+
+
+Cloud Storage 버킷에 Cloud Storage 버킷 ID를 입력합니다.
+테이블 서픽스에 서픽스(예: MT(My Transfer의 경우))를 입력합니다.
+
+
+
+ 
+
+서비스 계정 메뉴에서 Google Cloud 프로젝트와 연결된 서비스 계정의 서비스 계정 [https://cloud.google.com/iam/docs/service-account-overview?hl=ko]을 선택합니다. 사용자 인증 정보를 사용하는 대신 서비스 계정을 데이터 전송에 연결할 수 있습니다. 데이터 전송에서 서비스 계정을 사용하는 방법에 관한 자세한 내용은 서비스 계정 사용 [https://cloud.google.com/bigquery/docs/use-service-accounts?hl=ko]을 참조하세요.
+
+
+제휴 ID [https://cloud.google.com/iam/docs/workforce-identity-federation?hl=ko]로 로그인한 경우 데이터 전송을 만들려면 서비스 계정이 필요합니다. Google 계정 [https://cloud.google.com/iam/docs/principals-overview?hl=ko#google-account]으로 로그인한 경우 전송에 사용되는 서비스 계정은 선택사항입니다.
+서비스 계정에는 필수 권한 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#required_permissions]이 있어야 합니다.
+
+(선택사항) 알림 옵션 섹션에서 다음을 수행합니다.
+
+
+전환을 클릭해서 이메일 알림을 사용 설정합니다. 이 옵션을 사용 설정하면 전송 실행이 실패할 때 전송 관리자에게 이메일 알림이 발송됩니다.
+Pub/Sub 주제 선택에서 주제 [https://cloud.google.com/pubsub/docs/overview?hl=ko#types] 이름을 선택하거나 주제 만들기를 클릭합니다. 이 옵션은 전송에 대한 Pub/Sub 실행 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko]을 구성합니다.
+
+
+저장을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#bq] ---
+bq mk 명령어를 입력하고 전송 생성 플래그 --transfer_config를 지정합니다. 다음 플래그도 필요합니다.
+
+
+--target_dataset
+--display_name
+--params
+--data_source
+
+
+bq mk \
+--transfer_config \
+--project_id=project_id \
+--target_dataset=dataset \
+--display_name=name \
+--params='parameters' \
+--data_source=data_source
+--service_account_name=service_account_name
+
+각 항목의 의미는 다음과 같습니다.
+
+
+project_id는 프로젝트 ID입니다. --project_id를 지정하지 않으면 기본 프로젝트가 사용됩니다.
+dataset는 전송 구성 대상 데이터 세트입니다.
+name은 전송 구성의 표시 이름입니다. 데이터 전송 이름은 나중에 수정해야 할 경우를 대비해 간편하게 전송을 식별할 수 있는 값이면 됩니다.
+parameters에는 JSON 형식으로 생성된 전송 구성의 매개변수가 있습니다. 예를 들면 --params='{"param":"param_value"}'입니다. Google Play의 경우 bucket 및 table_suffix 매개변수를 제공해야 합니다. bucket은 Play 보고서 파일이 포함된 Cloud Storage 버킷입니다.
+data_source는 데이터 소스(play)입니다.
+service_account_name은 데이터 전송을 인증하는 데 사용되는 서비스 계정 이름입니다. 전송을 만드는 데 사용한 것과 동일한 project_id에서 서비스 계정을 소유해야 하며 이 계정에 모든 필수 권한 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#required_permissions]이 있어야 합니다.
+
+주의: 명령줄 도구를 사용하여 알림을 구성할 수 없습니다.
+예를 들어 다음 명령어는 Cloud Storage 버킷 pubsite_prod_rev_01234567890987654321과 대상 데이터 세트 mydataset를 사용하는 My
+Transfer라는 Google Play 데이터 전송을 만듭니다. 기본 프로젝트에 데이터 전송이 생성됩니다.
+bq mk \
+--transfer_config \
+--target_dataset=mydataset \
+--display_name='My Transfer' \
+--params='{"bucket":"pubsite_prod_rev_01234567890987654321","table_suffix":"MT"}' \
+--data_source=play
+
+명령어를 처음 실행하면 다음과 같은 메시지가 수신됩니다.
+
+[URL omitted] Please copy and paste the above URL into your web browser and
+follow the instructions to retrieve an authentication code.
+
+메시지 안내를 따라 명령줄에 인증 코드를 붙여넣습니다.
+주의: 명령줄 도구를 사용하여 Google Play 데이터 전송을 만들면 전송 구성은 일정의 기본값(24시간마다)을 사용하여 설정됩니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#api] ---
+projects.locations.transferConfigs.create [https://cloud.google.com/bigquery-transfer/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs/create?hl=ko] 메서드를 사용하고 TransferConfig [https://cloud.google.com/bigquery-transfer/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs?hl=ko#TransferConfig] 리소스의 인스턴스를 지정합니다.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/play-transfer?hl=ko#%EC%9E%90%EB%B0%94] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.gax.rpc.ApiException [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.rpc.ApiException.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko];
+import com.google.protobuf.Struct [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.html?hl=ko];
+import com.google.protobuf.Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko];
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+// Sample to create a play transfer config.
+public class CreatePlayTransfer {
+
+  public static void main(String[] args) throws IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    final String projectId = "MY_PROJECT_ID";
+    String datasetId = "MY_DATASET_ID";
+    String bucket = "gs://cloud-sample-data";
+    String tableSuffix = "_test";
+    Map<String, Value> params = new HashMap<>();
+    params.put("bucket", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(bucket).build());
+    params.put("table_suffix", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(tableSuffix).build());
+    TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] transferConfig =
+        TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko].newBuilder()
+            .setDestinationDatasetId(datasetId)
+            .setDisplayName("Your Play Config Name")
+            .setDataSourceId("play")
+            .setParams(Struct [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.html?hl=ko].newBuilder().putAllFields [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.Builder.html?hl=ko#com_google_protobuf_Struct_Builder_putAllFields_java_util_Map_java_lang_String_com_google_protobuf_Value__](params).build())
+            .build();
+    createPlayTransfer(projectId, transferConfig);
+  }
+
+  public static void createPlayTransfer(String projectId, TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] transferConfig)
+      throws IOException {
+    try (DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko] client = DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko].create()) {
+      ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko] parent = ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko].of(projectId);
+      CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko] request =
+          CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko].newBuilder()
+              .setParent(parent.toString [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko#com_google_cloud_bigquery_datatransfer_v1_ProjectName_toString__]())
+              .setTransferConfig(transferConfig)
+              .build();
+      TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] config = client.createTransferConfig(request);
+      System.out.println("play transfer created successfully :" + config.getName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko#com_google_cloud_bigquery_datatransfer_v1_TransferConfig_getName__]());
+    } catch (ApiException [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.rpc.ApiException.html?hl=ko] ex) {
+      System.out.print("play transfer was not created." + ex.toString());
+    }
+  }
+}
+주의: 보고서의 스키마를 변경하는 경우 해당 날짜의 모든 파일 스키마는 동일해야 하며, 그렇지 않으면 해당 날짜 전체 데이터 전송이 실패합니다.
+Google Play 전송 설정 문제 해결
+데이터 전송을 설정하는 데 문제가 있으면 BigQuery Data Transfer Service 전송 설정 문제 해결 [https://cloud.google.com/bigquery/docs/transfer-troubleshooting?hl=ko]을 참조하세요.
+데이터 쿼리
+BigQuery로 전송되는 데이터는 내부 데이터화 시간별로 파티션을 나눈 테이블에 기록됩니다. 자세한 내용은 파티션을 나눈 테이블 소개 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]를 참조하세요.
+자동 생성된 뷰를 사용하지 않고 직접 테이블을 쿼리하는 경우에는 쿼리에서 _PARTITIONTIME 유사 열을 사용해야 합니다. 자세한 내용은 파티션을 나눈 테이블 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko]를 참조하세요.
+가격 책정
+Google Play 데이터 전송 가격 책정에 대한 자세한 내용은 가격 책정 [https://cloud.google.com/bigquery-transfer/pricing?hl=ko] 페이지를 참조하세요.
+데이터가 BigQuery로 전송되면 표준 BigQuery 스토리지 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]와 쿼리 [https://cloud.google.com/bigquery/pricing?hl=ko#queries] 가격 책정이 적용됩니다.
+다음 단계
+Google Play 보고서가 BigQuery로 전송되는 방법은 Google Play 보고서 변환 [https://cloud.google.com/bigquery/docs/play-transformation?hl=ko]을 참조하세요.
+BigQuery Data Transfer Service 개요는 BigQuery Data Transfer Service 소개 [https://cloud.google.com/bigquery/docs/dts-introduction?hl=ko]를 참조하세요.
+전송 구성 정보 가져오기, 전송 구성 나열, 전송 실행 기록 보기를 포함한 전송 사용에 대한 정보는 전송 작업 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

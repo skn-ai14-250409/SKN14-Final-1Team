@@ -1,0 +1,152 @@
+Source URL: https://cloud.google.com/bigquery/docs/quickstarts/load-data-bq
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/quickstarts/load-data-bq?hl=ko#before-you-begin]
+소스 공개 데이터 파일 다운로드 [https://cloud.google.com/bigquery/docs/quickstarts/load-data-bq?hl=ko#download_the_source_public_data_file]
+데이터 세트 생성 [https://cloud.google.com/bigquery/docs/quickstarts/load-data-bq?hl=ko#create_a_dataset]
+테이블에 데이터 로드 [https://cloud.google.com/bigquery/docs/quickstarts/load-data-bq?hl=ko#load_data_into_a_table]
+테이블 데이터 쿼리 [https://cloud.google.com/bigquery/docs/quickstarts/load-data-bq?hl=ko#query_table_data]
+삭제 [https://cloud.google.com/bigquery/docs/quickstarts/load-data-bq?hl=ko#clean-up]
+프로젝트 삭제 [https://cloud.google.com/bigquery/docs/quickstarts/load-data-bq?hl=ko#delete_the_project]
+리소스 삭제 [https://cloud.google.com/bigquery/docs/quickstarts/load-data-bq?hl=ko#delete_the_resources]
+bq 도구로 데이터 로드 및 쿼리
+bookmark_border
+bq 명령줄 도구를 사용하여 데이터 세트를 만들고 샘플 데이터를 로드하고 테이블을 쿼리하는 방법을 알아봅니다.
+Google Cloud 콘솔에서 이 태스크에 대한 단계별 안내를 직접 수행하려면 둘러보기를 클릭합니다.
+둘러보기 [https://console.cloud.google.com/freetrial?redirectPath=%2F%3Fwalkthrough_id%3Dbigquery--load-data-bq&hl=ko]
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+이 튜토리얼에서 사용하는 Google Cloud 프로젝트에 결제를 사용 설정하지 않으면 BigQuery 샌드박스에서 데이터를 사용하게 됩니다. BigQuery 샌드박스를 사용하면 제한된 BigQuery 기능 세트로 BigQuery를 무료로 학습할 수 있습니다.
+BigQuery API가 사용 설정되었는지 확인
+API 사용 설정 [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+새 프로젝트를 만들면 BigQuery API가 자동으로 사용 설정됩니다.
+In the Google Cloud console, activate Cloud Shell.
+Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+At the bottom of the Google Cloud console, a Cloud Shell [https://cloud.google.com/shell/docs/how-cloud-shell-works?hl=ko] session starts and displays a command-line prompt. Cloud Shell is a shell environment with the Google Cloud CLI already installed and with values already set for your current project. It can take a few seconds for the session to initialize.
+소스 공개 데이터 파일 다운로드
+아기 이름 ZIP 파일 [https://www.ssa.gov/OACT/babynames/names.zip]을 다운로드합니다.
+ZIP 파일의 압축을 풉니다. 여기에는 데이터 세트 스키마를 설명하는 NationalReadMe.pdf 파일이 포함되어 있습니다. 아기 이름 데이터 세트 자세히 알아보기 [http://www.ssa.gov/OACT/babynames/background.html]
+yob2010.txt 파일을 엽니다. 이 파일은 이름, 출생 시 성별, 해당 이름을 가진 아이의 수까지 3개의 열이 포함된 쉼표로 구분된 값(CSV) 파일입니다. 파일에는 헤더 행이 없습니다.
+파일을 작업 디렉터리로 이동합니다.
+Cloud Shell에서 작업하는 경우 more_vert 더보기 > 업로드를 클릭하고 파일 선택을 클릭하고 yob2010.txt 파일을 선택한 후 업로드를 클릭합니다.
+로컬 셸에서 작업하는 경우 yob2010.txt 파일을 bq 도구가 실행 중인 디렉터리로 복사하거나 이동합니다.
+데이터 세트 생성
+babynames라는 데이터 세트를 만듭니다.
+bq mk babynames
+출력은 다음과 비슷합니다.
+Dataset 'myproject:babynames' successfully created.
+데이터 세트 이름은 최대 1,024자까지 가능하며 A-Z, a-z, 0-9, 밑줄로 구성됩니다. 이름은 숫자 또는 밑줄로 시작하거나 공백이 포함될 수 없습니다.
+이제 babynames 데이터 세트가 프로젝트에 표시되는지 확인합니다.
+bq ls
+출력은 다음과 비슷합니다.
+  datasetId
+-------------
+  babynames
+테이블에 데이터 로드
+babynames 데이터 세트에서 소스 파일 yob2010.txt를 names2010이라는 새 테이블에 로드합니다.
+bq load babynames.names2010 yob2010.txt name:string,assigned_sex_at_birth:string,count:integer
+출력은 다음과 비슷합니다.
+Upload complete.
+Waiting on bqjob_r3c045d7cbe5ca6d2_0000018292f0815f_1 ... (1s) Current status: DONE
+기본적으로 데이터를 로드할 때 BigQuery는 UTF-8로 인코딩된 데이터를 예상합니다. ISO-8859-1(또는 Latin-1)로 인코딩된 데이터가 있고 문제가 있는 경우 bq load -E=ISO-8859-1을 사용하여 BigQuery에서 데이터를 Latin-1로 취급하도록 지시합니다. 자세한 내용은 인코딩 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#encoding]을 참조하세요.
+이제 names2010 테이블이 babynames 데이터 세트에 표시되는지 확인합니다.
+bq ls babynames
+출력은 다음과 비슷합니다. 출력이 간소화되도록 일부 열을 생략합니다.
+  tableId     Type
+----------- ---------
+ names2010    TABLE
+새 names2010 테이블의 테이블 스키마가 name: string, assigned_sex_at_birth: string, count: integer인지 확인합니다.
+bq show babynames.names2010
+출력은 다음과 비슷합니다. 출력이 간소화되도록 일부 열을 생략합니다.
+  Last modified        Schema                      Total Rows   Total Bytes
+----------------- ------------------------------- ------------ ------------
+14 Mar 17:16:45   |- name: string                    34089       654791
+                  |- assigned_sex_at_birth: string
+                  |- count: integer
+테이블 데이터 쿼리
+데이터에서 가장 인기 있는 여자아이 이름을 확인합니다.
+bq query --use_legacy_sql=false \
+    'SELECT
+      name,
+      count
+    FROM
+      `babynames.names2010`
+    WHERE
+      assigned_sex_at_birth = "F"
+    ORDER BY
+      count DESC
+    LIMIT 5;'
+출력은 다음과 비슷합니다.
++----------+-------+
+|   name   | count |
++----------+-------+
+| Isabella | 22925 |
+| Sophia   | 20648 |
+| Emma     | 17354 |
+| Olivia   | 17030 |
+| Ava      | 15436 |
++----------+-------+
+데이터에서 가장 인기 없는 남자아이 이름을 확인합니다.
+bq query --use_legacy_sql=false \
+    'SELECT
+      name,
+      count
+    FROM
+      `babynames.names2010`
+    WHERE
+      assigned_sex_at_birth = "M"
+    ORDER BY
+      count ASC
+    LIMIT 5;'
+출력은 다음과 비슷합니다.
++----------+-------+
+|   name   | count |
++----------+-------+
+| Aamarion |     5 |
+| Aarian   |     5 |
+| Aaqib    |     5 |
+| Aaidan   |     5 |
+| Aadhavan |     5 |
++----------+-------+
+5회 미만 출현한 이름은 소스 데이터에서 생략되어 있으므로 최소 수는 5입니다.
+삭제
+이 페이지에서 사용한 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 Google Cloud 프로젝트를 삭제합니다.
+프로젝트 삭제
+BigQuery 샌드박스 [https://cloud.google.com/bigquery/docs/sandbox?hl=ko]를 사용하여 공개 데이터 세트를 쿼리한 경우에는 프로젝트에 결제가 사용 설정되지 않습니다.
+비용이 청구되지 않도록 하는 가장 쉬운 방법은 튜토리얼에서 만든 프로젝트를 삭제하는 것입니다.
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+리소스 삭제
+기존 프로젝트를 사용한 경우 생성된 리소스를 삭제합니다.
+babynames 데이터 세트를 삭제합니다.
+bq rm --recursive=true babynames
+--recursive 플래그는 names2010 테이블을 포함한 데이터 세트의 모든 테이블을 삭제합니다.
+출력은 다음과 비슷합니다.
+rm: remove dataset 'myproject:babynames'? (y/N)
+삭제 명령어를 확인하려면 y를 입력합니다.
+다음 단계
+bq 도구 사용 [https://cloud.google.com/bigquery/bq-command-line-tool?hl=ko] 자세히 알아보기
+BigQuery 샌드박스 [https://cloud.google.com/bigquery/docs/sandbox?hl=ko] 알아보기
+BigQuery로 데이터 로드 [https://cloud.google.com/bigquery/docs/loading-data?hl=ko] 자세히 알아보기
+BigQuery에서 데이터 쿼리 [https://cloud.google.com/bigquery/docs/query-overview?hl=ko] 자세히 알아보기
+BigQuery 업데이트 [https://cloud.google.com/bigquery/docs/release-notes?hl=ko] 받기
+BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 알아보기
+BigQuery 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko] 알아보기
+도움이 되었나요?
+의견 보내기

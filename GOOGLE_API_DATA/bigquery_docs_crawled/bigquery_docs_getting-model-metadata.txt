@@ -1,0 +1,537 @@
+Source URL: https://cloud.google.com/bigquery/docs/getting-model-metadata
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필수 권한 [https://cloud.google.com/bigquery/docs/getting-model-metadata?hl=ko#required_permissions]
+모델 메타데이터 가져오기 [https://cloud.google.com/bigquery/docs/getting-model-metadata?hl=ko#get_model_metadata]
+다음 단계 [https://cloud.google.com/bigquery/docs/getting-model-metadata?hl=ko#whats_next]
+모델 메타데이터 가져오기
+bookmark_border
+이 페이지에서는 BigQuery ML 모델 관련 정보 또는 메타데이터를 가져오는 방법을 설명합니다. 다음 방법을 사용하여 모델 메타데이터를 가져올 수 있습니다.
+Google Cloud 콘솔 사용
+bq show CLI 명령어 사용
+models.get [https://cloud.google.com/bigquery/docs/reference/rest/v2/models/get?hl=ko] API 메서드 직접 호출 또는 클라이언트 라이브러리 사용
+참고: INFORMATION_SCHEMA 뷰를 쿼리하여 모델에 대한 정보를 가져올 수 없습니다.
+필수 권한
+모델 메타데이터를 가져오려면 데이터 세트에 대한 READER [https://cloud.google.com/bigquery/docs/control-access-to-resources-iam?hl=ko#grant_access_to_a_dataset] 역할을 할당받거나 bigquery.models.getMetadata 권한이 있는 프로젝트 수준의 Identity and Access Management(IAM) 역할을 할당받아야 합니다. 프로젝트 수준에서 bigquery.models.getMetadata 권한을 부여받으면 프로젝트의 모든 데이터 세트에 있는 모델의 메타데이터를 가져올 수 있습니다. 다음과 같은 사전 정의된 프로젝트 수준의 IAM 역할에는 bigquery.models.getMetadata 권한이 포함되어 있습니다.
+bigquery.dataViewer
+bigquery.dataEditor
+bigquery.dataOwner
+bigquery.metadataViewer
+bigquery.admin
+BigQuery ML의 IAM 역할과 권한에 대한 자세한 내용은 액세스 제어 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+모델 메타데이터 가져오기
+모델 메타데이터를 가져오려면 다음 단계를 따릅니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/getting-model-metadata?hl=ko#%EC%BD%98%EC%86%94] ---
+탐색기 창에서 프로젝트를 펼친 후 데이터 세트를 펼칩니다.
+데이터 세트에서 모델 폴더를 펼친 다음 모델 이름을 클릭하여 모델을 선택합니다.
+세부정보 탭을 클릭합니다. 이 탭에는 설명, 라벨, 모델 유형, 학습 옵션을 포함한 모델의 메타데이터가 표시됩니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/getting-model-metadata?hl=ko#bq] ---
+bq show 명령어를 --model 또는 -m 플래그와 함께 실행하여 모델 메타데이터를 표시합니다. --format [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#global_flags] 플래그를 사용하면 출력을 제어할 수 있습니다.
+
+모델의 특성 열만 표시하려면 --model 플래그와 함께 --schema 플래그를 사용합니다. --schema 플래그를 사용할 경우 --format을 json 또는 prettyjson으로 설정해야 합니다.
+
+기본 프로젝트가 아닌 다른 프로젝트의 모델에 대한 정보를 가져오려면 프로젝트 ID를 [PROJECT_ID]:[DATASET] 형식으로 데이터 세트에 추가합니다.
+
+bq show --model --format=prettyjson PROJECT_ID:DATASET.MODEL
+
+
+다음을 바꿉니다.
+
+
+PROJECT_ID는 프로젝트 ID입니다.
+DATASET는 데이터 세트 이름입니다.
+MODEL은 모델 이름입니다.
+
+
+--format=pretty 플래그를 사용할 경우 명령어 출력은 다음과 같습니다. 전체 세부정보를 표시하려면 --format=prettyjson 형식을 사용합니다. 샘플 출력에는 로지스틱 회귀 모델의 메타데이터가 표시됩니다.
+
++--------------+---------------------+---------------------+---------------------------+--------+-----------------+-----------------+
+|      Id      |     Model Type      |   Feature Columns   |       Label Columns       | Labels |  Creation Time  | Expiration Time |
++--------------+---------------------+---------------------+---------------------------+--------+-----------------+-----------------+
+| sample_model | LOGISTIC_REGRESSION | |- column1: string  | |- label_column: int64    |        | 03 May 23:14:42 |                 |
+|              |                     | |- column2: bool    |                           |        |                 |                 |
+|              |                     | |- column3: string  |                           |        |                 |                 |
+|              |                     | |- column4: int64   |                           |        |                 |                 |
++--------------+---------------------+---------------------+---------------------------+--------+-----------------+-----------------+
+
+
+예시:
+
+다음 명령어를 입력하여 mydataset의 mymodel 관련 정보를 모두 표시합니다. mydataset는 기본 프로젝트에 있습니다.
+bq show --model --format=prettyjson mydataset.mymodel
+
+다음 명령어를 입력하여 mydataset의 mymodel 관련 정보를 모두 표시합니다. mydataset는 기본 프로젝트가 아닌 myotherproject에 있습니다.
+bq show --model --format=prettyjson myotherproject:mydataset.mymodel
+
+다음 명령어를 입력하면 mydataset의 mymodel 특성 열만 표시됩니다. mydataset는 기본 프로젝트가 아닌 myotherproject에 있습니다.
+bq show --model --schema --format=prettyjson \
+myotherproject:mydataset.mymodel
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/getting-model-metadata?hl=ko#api] ---
+API를 사용하여 모델 메타데이터를 가져오려면 models.get [https://cloud.google.com/bigquery/docs/reference/rest/v2/models/get?hl=ko] 메서드를 호출하고 projectId, datasetId, modelId를 제공합니다.
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/getting-model-metadata?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// printModelInfo demonstrates fetching metadata about a BigQuery ML model and printing some of
+// it to an io.Writer.
+func printModelInfo(w io.Writer, projectID, datasetID, modelID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// modelID := "mymodel"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %w", err)
+	}
+	defer client.Close()
+
+	meta, err := client.Dataset(datasetID).Model(modelID).Metadata(ctx)
+	if err != nil {
+		return fmt.Errorf("couldn't retrieve metadata: %w", err)
+	}
+	fmt.Fprintf(w, "Got model '%q' with friendly name '%q'\n", modelID, meta.Name)
+	return nil
+}
+
+--- 탭: tabpanel-자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.Model [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Model.html?hl=ko];
+import com.google.cloud.bigquery.ModelId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.ModelId.html?hl=ko];
+
+public class GetModel {
+
+  public static void runGetModel() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String modelName = "MY_MODEL_ID";
+    getModel(datasetName, modelName);
+  }
+
+  public static void getModel(String datasetName, String modelName) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      ModelId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.ModelId.html?hl=ko] modelId = ModelId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.ModelId.html?hl=ko].of(datasetName, modelName);
+      Model [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Model.html?hl=ko] model = bigquery.getModel [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_getModel_com_google_cloud_bigquery_ModelId_com_google_cloud_bigquery_BigQuery_ModelOption____](modelId);
+      System.out.println("Model: " + model.getDescription());
+
+      System.out.println("Successfully retrieved model");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] e) {
+      System.out.println("Cannot retrieve model \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function getModel() {
+  // Retrieves model named "my_existing_model" in "my_dataset".
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample
+   */
+  // const datasetId = "my_dataset";
+  // const modelId = "my_existing_model";
+
+  const dataset = bigquery.dataset(datasetId);
+  const [model] = await dataset.model [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/dataset.html?hl=ko](modelId).get();
+
+  console.log('Model:');
+  console.log(model [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/dataset.html?hl=ko].metadata.modelReference);
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set model_id to the ID of the model to fetch.
+# model_id = 'your-project.your_dataset.your_model'
+
+model = client.get_model [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_model](model_id)  # Make an API request.
+
+full_model_id = "{}.{}.{}".format(model.project, model.dataset_id, model.model_id)
+friendly_name = model.friendly_name
+print(
+    "Got model '{}' with friendly_name '{}'.".format(full_model_id, friendly_name)
+)
+다음 단계
+BigQuery ML 개요는 BigQuery ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko] 참조하기
+BigQuery ML을 시작하려면 BigQuery ML에서 머신러닝 모델 만들기 [https://cloud.google.com/bigquery/docs/create-machine-learning-model?hl=ko] 참조하기
+모델 작업에 대한 자세한 내용은 다음을 참조하세요.
+모델 나열 [https://cloud.google.com/bigquery/docs/listing-models?hl=ko]
+모델 메타데이터 업데이트 [https://cloud.google.com/bigquery/docs/updating-model-metadata?hl=ko]
+모델 관리 [https://cloud.google.com/bigquery/docs/managing-models?hl=ko]
+모델 삭제 [https://cloud.google.com/bigquery/docs/deleting-models?hl=ko]
+도움이 되었나요?
+의견 보내기

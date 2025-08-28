@@ -1,0 +1,442 @@
+Source URL: https://cloud.google.com/bigquery/docs/geospatial-data
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+지리정보 데이터 로드 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#loading_geospatial_data]
+WKT 또는 WKB 데이터 로드 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#loading_wkt_or_wkb_data]
+GeoJSON 데이터 로드 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#loading_geojson_data]
+GeoParquet 파일 로드 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#loading_geoparquet_files]
+좌표계와 에지 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#coordinate_systems_and_edges]
+다각형 방향 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#polygon_orientation]
+부적절한 형식의 공간 데이터 처리 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#handling_improperly_formatted_spatial_data]
+제약조건 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#constraints]
+지리정보 데이터 작업
+bookmark_border
+지리정보 분석을 사용하면 BigQuery에서 지리 데이터를 분석할 수 있습니다. 지리 데이터는 지리정보 데이터라고도 합니다.
+지리정보 데이터를 사용하여 작업할 때 일반적인 유형의 객체는 다음과 같습니다.
+도형은 지구의 표면적을 나타냅니다. 이는 보통 점, 선, 다각형 또는 점, 선, 다각형 컬렉션을 사용하여 기술합니다. 도형 컬렉션은 컬렉션에 있는 모든 모양의 공간 집합을 나타내는 도형입니다.
+공간 지형지물은 논리적 공간 객체를 나타냅니다. 이 속성은 도형을 애플리케이션별 추가 속성과 결합합니다.
+공간 특징 컬렉션은 공간 특징의 집합입니다.
+BigQuery에서 GEOGRAPHY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#geography_type] 데이터 유형은 도형 값 또는 도형 컬렉션을 나타냅니다. 공간 특성을 표현하려면 도형의 GEOGRAPHY 열과 속성의 추가 열을 사용하여 테이블을 만듭니다. 테이블의 각 행은 공간 특성이며 전체 테이블은 공간 특성 컬렉션을 나타냅니다.
+GEOGRAPHY 데이터 유형은 지구 표면의 점 집합을 설명합니다. 점 집합은 에지(측지선)를 포함한 WGS84 [https://earth-info.nga.mil/GandG/update/index.php?action=home#tab_wgs84-data] 기준 회전 타원체상의 점, 선, 다각형으로 구성된 집합입니다. GoogleSQL 지리 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko] 중 하나를 호출하여 GEOGRAPHY 데이터 유형을 사용할 수 있습니다.
+지리정보 데이터 로드
+지구상의 한 점을 간단하게 (longitude, latitude) 쌍으로 나타낼 수 있습니다. 예를 들어 경도 및 위도 값이 포함된 CSV 파일을 로드한 다음 ST_GEOGPOINT [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogpoint] 함수를 사용하여 이를 GEOGRAPHY 값으로 변환할 수 있습니다.
+보다 복잡한 지리의 경우 다음과 같은 지리공간 데이터 형식을 GEOGRAPHY 열에 로드할 수 있습니다.
+WKT(Well Known Text)
+WKB(Well-Known Binary)
+GeoJSON
+GeoParquet
+WKT 또는 WKB 데이터 로드
+WKT [https://en.wikipedia.org/wiki/Well-known_text]는 점, 선, 다각형(선택사항으로 구멍이 있을 수 있음)이나 점, 선, 다각형 컬렉션을 사용하여 개별 도형 모양을 기술하는 텍스트 형식입니다. WKB는 WKT 형식의 바이너리 버전입니다. WKB는 JSON과 같이 바이너리 데이터를 지원하지 않는 형식의 16진수로 인코딩될 수 있습니다.
+예를 들어 다음은 WKT에서 점을 정의합니다.
+POINT(-121 41)
+공간 지형지물을 설명하기 위해 WKT는 일반적으로 CSV 파일 또는 데이터베이스 테이블에 포함된 컨테이너 파일 형식으로 삽입됩니다. 파일 행 또는 테이블 행은 일반적으로 공간 지형지물에 해당합니다. 전체 파일 또는 전체 테이블은 지형지물 컬렉션에 해당합니다. WKT 데이터를 BigQuery로 로드하려면 지리정보 데이터의 GEOGRAPHY 열을 지정하는 스키마 [https://cloud.google.com/bigquery/docs/schemas?hl=ko]를 제공합니다.
+참고: 스키마 자동 감지를 사용하여 WKT 데이터를 GEOGRAPHY 값으로 로드할 수 없습니다. 자동 감지를 사용하도록 설정하면 BigQuery는 데이터를 STRING 값으로 로드합니다.
+예를 들어 다음 데이터가 포함된 CSV 파일이 있다고 가정해 보겠습니다.
+"POLYGON((-124.49 47.35,-124.49 40.73,-116.49 40.73,-116.49 47.35,-124.49 47.35))",poly1
+"POLYGON((-85.6 31.66,-85.6 24.29,-78.22 24.29,-78.22 31.66,-85.6 31.66))",poly2
+"POINT(1 2)",point1
+bq 명령줄 도구 load 명령어를 실행하여 이 파일을 로드할 수 있습니다.
+bq load --source_format=CSV \
+  --schema="geography:GEOGRAPHY,name:STRING" \
+  mydataset.mytable filename1.csv
+BigQuery에서 데이터를 로드하는 방법에 대한 자세한 내용은 데이터 로드 소개 [https://cloud.google.com/bigquery/docs/loading-data?hl=ko]를 참조하세요.
+WKT 데이터를 GEOGRAPHY 열이 있는 기존 BigQuery 테이블로 스트리밍하려면 API 요청에서 데이터를 문자열로 직렬화합니다.
+--- 탭: bq [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#bq] ---
+bq 명령줄 도구 insert 명령어를 실행합니다.
+echo '{"geo": "LINESTRING (-118.4085 33.9416, -73.7781 40.6413)"}' \
+    | bq insert my_dataset.geo_table
+
+--- 탭: Python [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#python] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+import shapely.geometry
+import shapely.wkt
+
+bigquery_client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# This example uses a table containing a column named "geo" with the
+# GEOGRAPHY data type.
+table_id = "my-project.my_dataset.my_table"
+
+# Use the Shapely library to generate WKT of a line from LAX to
+# JFK airports. Alternatively, you may define WKT data directly.
+my_geography = shapely.geometry.LineString(
+    [(-118.4085, 33.9416), (-73.7781, 40.6413)]
+)
+rows = [
+    # Convert data into a WKT string.
+    {"geo": shapely.wkt.dumps(my_geography)},
+]
+
+#  table already exists and has a column
+# named "geo" with data type GEOGRAPHY.
+errors = bigquery_client.insert_rows_json [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_insert_rows_json](table_id, rows)
+if errors:
+    raise RuntimeError(f"row insert failed: {errors}")
+else:
+    print(f"wrote 1 row to {table_id}")
+BigQuery의 데이터 스트리밍에 대한 자세한 내용은 BigQuery로 데이터 스트리밍 [https://cloud.google.com/bigquery/docs/streaming-data-into-bigquery?hl=ko]을 참조하세요.
+또한 ST_GEOGFROMTEXT [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogfromtext] 함수를 사용하여 WKT 텍스트 문자열을 GEOGRAPHY 값으로 변환할 수도 있습니다.
+GeoJSON 데이터 로드
+GeoJSON [https://geojson.org/]은 도형 및 공간 지형지물을 위한 JSON 기반 형식입니다. 예를 들어 다음은 GeoJSON에서 점을 정의합니다.
+{ "type": "Point", "coordinates": [-121,41] }
+GeoJSON 데이터에는 다음과 같은 객체 유형이 포함될 수 있습니다.
+도형 객체. 도형 객체는 점, 선, 다각형(구멍이 있을 수 있음)의 조합으로 설명된 공간 모양입니다.
+특성 객체. 지형지물 객체에는 도형과 추가 이름/값 쌍이 포함되어 있으며, 이는 애플리케이션별입니다.
+기능 항목 공간 지형지물 컬렉션은 지형지물 객체의 집합입니다.
+BigQuery에 GeoJSON 데이터를 로드하는 방법에는 두 가지가 있습니다.
+줄바꿈으로 구분된 GeoJSON 파일 로드 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#geojson-files]
+다른 파일 유형에 삽입된 개별 GeoJSON 도형 객체 로드 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#geojson-data]
+줄바꿈으로 구분된 GeoJSON 파일 로드
+줄바꿈으로 구분된 GeoJSON 파일은 GeoJSON 특성 객체의 목록을 한 줄에 하나씩 포함합니다. GeoJSON 특성 객체는 다음과 같은 구성원이 있는 JSON 객체입니다.
+type. 특성 객체의 경우 값은 Feature이어야 합니다. BigQuery는 값을 검증하지만 테이블 스키마에 포함하지 않습니다.
+geometry. 값은 GeoJSON Geometry 객체 또는 null입니다. BigQuery는 이 구성원을 GEOGRAPHY 값으로 변환합니다.
+properties. 값은 모든 JSON 객체 또는 null입니다. 값이 null이 아니면 BigQuery가 JSON 객체의 각 구성원을 별도의 테이블 열로 로드합니다. BigQuery가 JSON 데이터 유형을 파싱하는 방법에 대한 자세한 내용은 JSON 데이터 로드 세부정보 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json?hl=ko#details_of_loading_json_data]를 참조하세요.
+id. 선택사항입니다. 이 값이 있는 경우 값은 문자열 또는 숫자입니다. BigQuery는 이 값을 id라는 열에 로드합니다.
+특성 객체에 여기에 나열되지 않은 다른 구성원이 포함된 경우 BigQuery는 해당 구성원을 테이블 열로 직접 변환합니다.
+다음과 같이 bq 명령줄 도구의 bq load 명령어를 사용하여 줄바꿈으로 구분된 GeoJSON 파일을 로드할 수 있습니다.
+bq load \
+ --source_format=NEWLINE_DELIMITED_JSON \
+ --json_extension=GEOJSON \
+ --autodetect \
+ 
+DATASET.
+TABLE \
+ 
+FILE_PATH_OR_URI
+다음을 바꿉니다.
+DATASET는 데이터세트 이름입니다.
+TABLE은 대상 테이블의 이름입니다.
+FILE_PATH_OR_URI는 로컬 파일 또는 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]의 경로입니다.
+앞의 예시에서는 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko]를 사용 설정합니다. BigQuery가 properties 객체 내에서 값을 변환하는 방법을 보다 세부적으로 제어하려면 대신 명시적 스키마를 제공할 수 있습니다. 자세한 내용은 스키마 지정 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#specify_schemas]을 참조하세요. 명시적 스키마를 제공하는 경우 스키마 정의에 최상위 type 열을 포함하지 마세요. properties 구성원의 각 구성원마다 하나의 중첩 열이 아닌 별도의 열을 정의합니다.
+RFC 7946 [https://tools.ietf.org/html/rfc7946]에 정의된 대로 전체 GeoJSON 데이터 구조는 단일 JSON 객체입니다. 많은 시스템이 GeoJSON 데이터를 모든 도형이 포함된 단일 FeatureCollection 객체로 내보냅니다. 이 형식을 BigQuery에 로드하려면 루트 수준 FeatureCollection 객체를 삭제하고 개별 특성 객체를 별도의 행으로 분할하여 파일을 변환해야 합니다. 예를 들어 다음 명령어는 jq 명령줄 도구를 사용하여 GeoJSON 파일을 줄바꿈으로 구분된 형식으로 분할합니다.
+cat ~/file1.json | jq -c '.features[]' > converted.json
+줄바꿈으로 구분된 GeoJSON 파일에서 외부 테이블 만들기
+외부 테이블 [https://cloud.google.com/bigquery/docs/external-tables?hl=ko]을 만들어 Cloud Storage에 저장된 줄바꿈으로 구분된 GeoJSON 파일을 쿼리할 수 있습니다. 외부 테이블을 만들려면 CREATE EXTERNAL TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_table_statement] DDL 문을 사용합니다. OPTIONS 절에서 format 옵션을 NEWLINE_DELIMITED_JSON으로 설정하고 json_extension 옵션을 GEOJSON으로 설정합니다.
+예시:
+CREATE EXTERNAL TABLE mydataset.table1 OPTIONS (
+  format="NEWLINE_DELIMITED_JSON",
+  json_extension = 'GEOJSON',
+  uris = ['gs://mybucket/geofile.json']
+);
+GeoJSON 도형 데이터 로드
+지리정보 분석에서는 다른 파일 형식에 텍스트 문자열로 삽입된 개별 GeoJSON 도형 객체 로드를 지원합니다. 예를 들어 열 중 하나에 GeoJSON 도형 객체가 포함된 CSV 파일을 로드할 수 있습니다.
+이 유형의 GeoJSON 데이터를 BigQuery에 로드하려면 GeoJSON 데이터의 GEOGRAPHY 열을 지정하는 스키마 [https://cloud.google.com/bigquery/docs/schemas?hl=ko]를 제공합니다. 스키마를 수동으로 제공해야 합니다. 그렇지 않고 자동 감지를 사용하도록 설정하면 BigQuery는 데이터를 STRING 값으로 로드합니다.
+지리정보 분석에서는 이 방법을 사용하여 GeoJSON 특성 객체 또는 특성 모음을 로드할 수 없습니다. 특성 객체를 로드해야 하는 경우 줄바꿈으로 구분된 GeoJSON 파일을 사용하는 것이 좋습니다.
+GeoJSON 데이터를 GEOGRAPHY 열이 있는 기존 BigQuery 테이블로 스트리밍하려면 API 요청에서 데이터를 문자열로 직렬화합니다.
+--- 탭: bq [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#bq] ---
+bq 명령줄 도구 insert 명령어를 실행합니다.
+echo '{"geo": "{\"type\": \"LineString\", \"coordinates\": [[-118.4085, 33.9416], [-73.7781, 40.6413]]}"}' \
+  | bq insert my_dataset.geo_table
+
+--- 탭: Python [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#python] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import geojson
+from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+bigquery_client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# This example uses a table containing a column named "geo" with the
+# GEOGRAPHY data type.
+table_id = "my-project.my_dataset.my_table"
+
+# Use the python-geojson library to generate GeoJSON of a line from LAX to
+# JFK airports. Alternatively, you may define GeoJSON data directly, but it
+# must be converted to a string before loading it into BigQuery.
+my_geography = geojson.LineString([(-118.4085, 33.9416), (-73.7781, 40.6413)])
+rows = [
+    # Convert GeoJSON data into a string.
+    {"geo": geojson.dumps(my_geography)}
+]
+
+#  table already exists and has a column
+# named "geo" with data type GEOGRAPHY.
+errors = bigquery_client.insert_rows_json [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_insert_rows_json](table_id, rows)
+if errors:
+    raise RuntimeError(f"row insert failed: {errors}")
+else:
+    print(f"wrote 1 row to {table_id}")
+또한 ST_GEOGFROMGEOJSON [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogfromgeojson] 함수를 사용하여 GeoJSON 도형 객체를 GEOGRAPHY 값으로 변환할 수 있습니다. 예를 들어 도형을 STRING 값으로 저장한 다음 ST_GEOGFROMGEOJSON을 호출하는 쿼리를 실행할 수 있습니다.
+GeoParquet 파일 로드
+GeoParquet [https://geoparquet.org/]은 Parquet [https://parquet.apache.org/] 파일 형식에 지리 공간 유형을 추가하는 사양입니다. GeoParquet에는 포함된 지리 공간 데이터에 명확한 시맨틱을 제공하는 메타데이터가 포함되어 있어 다른 지리 공간 데이터 형식에서 발생하는 해석 문제 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#coordinate_systems_and_edges]가 방지됩니다.
+Parquet 파일을 로드할 때 BigQuery는 GeoParquet 메타데이터를 확인합니다. GeoParquet 메타데이터가 있으면 BigQuery는 기본적으로 설명된 모든 열을 해당 GEOGRAPHY 열에 로드합니다. Parquet 파일 로드에 대한 자세한 내용은 Parquet 데이터 로드 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko]를 참조하세요.
+참고: 기존 워크플로가 중단되지 않도록 일부 프로젝트에서는 GeoParquet 지원이 사용 중지되어 있습니다. GeoParquet 파일이 GEOGRAPHY 열에 직접 로드되지 않으면 지원팀에 문의 [https://cloud.google.com/bigquery/docs/getting-support?hl=ko]하세요.
+GeoParquet 데이터에서 외부 테이블 만들기
+GeoParquet 파일을 참조하는 외부 테이블 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko]은 관련 열을 GEOGRAPHY 유형에 매핑합니다.
+GeoParquet 파일(bbox, covering)에서 사용할 수 있는 통계는 외부 테이블에 대한 쿼리를 가속화하는 데 사용되지 않습니다.
+좌표계와 에지
+지리정보 분석에서 점은 WGS84 회전 타원체의 표면상 위치입니다(경도+측지 위도로 표현). 에지는 두 엔드포인트 간의 구체 측지선입니다. 즉, 모서리는 구의 표면에서 가장 짧은 경로입니다.
+WKT 형식은 좌표계를 제공하지 않습니다. WKT 데이터를 로드할 때 지리정보 분석에서는 데이터가 구식 에지와 함께 WGS84 좌표를 사용한다고 가정합니다. 도형이 구면과 평면 가장자리의 차이가 무시될 수 있을 정도로 작은 경우가 아니라면 소스 데이터가 해당 좌표계와 일치하는지 확인합니다.
+GeoJSON은 명시적으로 평면 에지가 있는 WGS84 좌표를 사용합니다. GeoJSON 데이터를 로드할 때 지리정보 분석은 평면 가장자리를 구형 에지로 변환합니다. 지리정보 분석에서는 필요한 경우 선에 별도의 점을 추가하여 변환된 일련의 에지가 원래의 선으로부터 10미터 이내에 유지되도록 합니다. 이러한 프로세스를 테셀링 또는 균일하지 않은 고밀도화라고 합니다. 사용자가 공간 분할 프로세스를 직접 제어할 수 없습니다.
+구면 에지가 있는 지리를 로드하려면 WKT를 사용합니다. 평면 에지가 있는 지리(geomeries라고도 함)를 로드하려면 GeoJSON을 사용하는 것이 가장 간단합니다. 그러나 도형 데이터가 이미 WKT 형식인 경우 또 다른 옵션으로는 데이터를 STRING 유형으로 로드한 다음 ST_GEOGFROMTEXT [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogfromtext_signature2] 함수를 사용하여 GEOGRAPHY 값으로 변환하는 방법이 있습니다. planar 파라미터를 TRUE로 설정하여 데이터를 평면으로 해석합니다.
+GeoParquet 파일에는 데이터를 만드는 데 사용된 좌표계와 에지에 대한 메타데이터가 포함됩니다. 평면 에지가 있는 GeoParquet 파일을 읽을 때 지리 공간 분석은 평면 에지를 구형 에지로 변환합니다. WGS84 이외의 좌표계가 있는 GeoParquet 파일은 거부됩니다.
+교차 형식 선택 시 소스 데이터에 사용되는 좌표계를 알아야 합니다. 대부분의 시스템은 WKT에서 (지형이 아닌) 지역의 파싱을 명시적으로 지원하며 그렇지 않은 경우 평면 에지라고 가정합니다.
+좌표에서는 경도가 첫 번째 형식이고, 위도가 두 번째 형식이어야 합니다. 지역에 긴 세그먼트나 에지가 있으면 지리 공간 분석에서 이를 구면 측지선으로 해석하지만 이 값이 데이터의 출처인 좌표계에 대응하지 않을 수 있으므로 공간 분할이 적용되어야 합니다.
+다각형 방향
+구체의 각 다각형에는 보완 다각형이 있습니다. 예를 들어 지구의 대륙을 나타내는 다각형에는 지구의 대양을 나타내는 보완 다각형이 있습니다. 두 다각형은 동일한 경계 링으로 표현되므로 특정 WKT 문자열이 나타내는 다각형이 둘 중 무엇인지를 확실히 알려주는 규칙이 필요합니다.
+개발자가 파일에서 직접 또는 스트리밍 수집을 통해 WKT 및 WKB 문자열을 로드할 때 다각형의 경계를 입력 카테고리 순서로 순회하면 지리정보 분석에서는 입력된 다각형의 왼쪽이 내부라고 가정합니다. 지리정보 분석에서는 WKT 및 WKB 문자열로 지리 객체를 내보낼 때도 동일한 규칙을 사용합니다.
+ST_GEOGFROMTEXT [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogfromtext] 함수를 사용하여 WKT 문자열을 GEOGRAPHY 값으로 변환하는 경우 oriented 매개변수는 함수가 다각형을 결정하는 방식을 지정합니다.
+FALSE: 면적이 더 작은 다각형으로 입력을 해석합니다. 이는 기본 동작입니다.
+TRUE: 앞에서 설명한 왼쪽 방향 규칙을 사용합니다. 이 옵션을 사용하면 반구보다 면적이 더 큰 다각형을 로드할 수 있습니다.
+GeoJSON 문자열은 평면 지도에 정의되므로 입력이 GeoJSON 형식 사양 RFC 7946 [https://tools.ietf.org/html/rfc7946]에 정의된 방향 규칙을 따르지 않더라도 모호 없이 방향을 결정할 수 있습니다.
+부적절한 형식의 공간 데이터 처리
+다른 도구의 공간 데이터를 BigQuery로 로드하면 잘못된 WKT 또는 GeoJSON 데이터로 인해 변환 오류가 발생할 수 있습니다. 예를 들어 Edge K has duplicate vertex with edge N 같은 오류는 다각형에 첫 번째와 마지막 교점 외에 중복된 교점이 존재함을 나타냅니다.
+형식 지정 문제를 방지하려면 표준을 준수하는 결과를 생성하는 함수를 사용합니다. 예를 들어 PostGIS에서 데이터를 내보낼 때 PostGIS ST_MakeValid 함수를 사용하여 출력을 표준화할 수 있습니다. 또는 데이터를 텍스트로 가져온 후 make_valid 파라미터로 ST_GEOGFROMTEXT [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogfromtext_signature2] 또는 ST_GEOGFROMGEOJSON [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogfromgeojson]을 호출하여 변환합니다. make_valid가 TRUE이면 이러한 함수는 잘못된 다각형 복구를 시도합니다.
+부적절한 형식의 데이터를 찾거나 무시하려면 SAFE 함수 프리픽스를 사용하여 문제가 있는 데이터를 출력합니다. 예를 들어 다음 쿼리는 SAFE 프리픽스를 사용하여 부적절한 형식의 공간 데이터를 검색합니다.
+SELECT
+  geojson AS bad_geojson
+FROM
+  mytable
+WHERE
+  geojson IS NOT NULL
+  AND SAFE.ST_GEOGFROMGEOJSON(geojson) IS NULL
+제약조건
+지리정보 분석은 지리정보 형식의 다음 지형지물을 지원하지 않습니다.
+3차원 도형. 여기에는 WKT 형식의 'Z' 서픽스와 GeoJSON 형식의 고도 좌표가 포함됩니다.
+선형 참조 시스템. 여기에는 WKT 형식의 'M' 서픽스가 포함됩니다.
+기본 도형 또는 멀티파트 도형 이외의 WKT 도형 객체. 특히 지리정보 분석은 Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, GeometryCollection만 지원합니다.
+GeoJson 및 WKT 입력 형식과 관련된 제약조건은 ST_GEOGFROMGEOJSON [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogfromgeojson] 및 ST_GEOGFROMTEXT [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogfromtext]를 참조하세요.
+Google Earth Engine과 지리 공간 래스터 데이터 통합
+지리 공간 통계는 그리드 기반이나 래스터 데이터로 표시되는 경우가 많습니다. 래스터 데이터는 위성 이미지, 날씨 예보, 토지 피복과 같은 리전별 연속 데이터를 픽셀 그리드로 구성합니다. BigQuery는 주로 경계와 점이 있는 기능을 나타내는 테이블 형식 벡터 데이터에 특화되어 있지만 ST_REGIONSTATS 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_regionstats]를 사용하여 래스터 데이터를 BigQuery 분석에 통합할 수 있습니다. 이 함수는 지리 공간 분석이 향상되도록 Google의 래스터 분석 플랫폼인 Earth Engine을 사용하여 래스터 데이터에 대한 계산 및 집계를 수행합니다. 자세한 내용은 래스터 데이터 작업 [https://cloud.google.com/bigquery/docs/raster-data?hl=ko]을 참조하세요.
+Earth Engine 데이터를 BigQuery로 내보내는 방법에 대한 자세한 내용은 BigQuery로 내보내기 [https://developers.google.com/earth-engine/guides/exporting_to_bigquery?hl=ko]를 참조하세요. Earth Engine과 BigQuery 간 통합에 대한 자세한 내용은 Earth Engine 문서의 BigQuery 통합 [https://developers.google.com/earth-engine/guides/bigquery_integrations?hl=ko]을 참조하세요.
+지리정보 데이터 변환
+테이블에 별도의 경도와 위도 열이 포함되어 있으면 ST_GEOGPOINT [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogpoint]와 같은 GoogleSQL 지리 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko]를 사용하여 값을 지리정보로 변환할 수 있습니다. 예를 들어 경도와 위도를 위한 두 개의 DOUBLE 열이 있으면 다음 쿼리를 사용하여 지리 열을 생성할 수 있습니다.
+SELECT
+  *,
+  ST_GEOGPOINT(longitude, latitude) AS g
+FROM
+  mytable
+BigQuery는 WKT와 GeoJSON 문자열을 지리 유형으로 변환할 수 있습니다. 데이터가 셰이프파일과 같은 다른 형식인 경우에는 외부 도구를 사용하여 데이터를 WKT 또는 GeoJSON 문자열로 인코딩된 GEOGRAPHY 열을 사용하여 CSV 파일과 같은 지원되는 입력 파일 형식으로 변환합니다.
+지리정보 데이터 파티션 나누기 및 클러스터링
+GEOGRAPHY 열이 포함된 테이블을 클러스터링 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]하고 파티션을 나눌 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko] 수 있습니다. GEOGRAPHY 열을 클러스터링 열로 사용할 수 있지만 GEOGRAPHY 열을 파티션 나누기 열로 사용할 수 없습니다.
+테이블에 GEOGRAPHY 데이터를 저장하고 쿼리가 공간 조건자를 사용하여 데이터를 필터링하는 경우 테이블이 GEOGRAPHY 열로 클러스터링되는지 확인합니다. 이렇게 하면 일반적으로 쿼리 성능이 향상되고 비용이 절감됩니다. 공간 조건자는 부울 지리 함수를 호출하고 GEOGRAPHY 열을 인수 중 하나로 사용합니다. 다음 샘플에서는 ST_DWITHIN 함수를 사용하는 공간 조건자를 보여줍니다.
+WHERE ST_DWITHIN(geo, ST_GeogPoint(longitude, latitude), 100)
+JOIN을 공간 데이터와 함께 사용
+공간 JOIN은 WHERE 절에 조건자 지리 함수가 있는 두 테이블의 조인입니다. 예를 들면 다음과 같습니다.
+-- how many stations within 1 mile range of each zip code?
+SELECT
+    zip_code AS zip,
+    ANY_VALUE(zip_code_geom) AS polygon,
+    COUNT(*) AS bike_stations
+FROM
+    `bigquery-public-data.new_york.citibike_stations` AS bike_stations,
+    `bigquery-public-data.geo_us_boundaries.zip_codes` AS zip_codes
+WHERE ST_DWITHIN(
+         zip_codes.zip_code_geom,
+         ST_GEOGPOINT(bike_stations.longitude, bike_stations.latitude),
+         1609.34)
+GROUP BY zip
+ORDER BY bike_stations DESC
+지리 데이터가 유지되면 공간 조인 성능이 향상됩니다. 위의 예는 쿼리의 지리 값을 생성합니다. 지리 값을 BigQuery 테이블에 저장하면 성능이 더 향상됩니다.
+예를 들어 다음 쿼리는 경도와 위도 쌍을 검색하여 지리적 점으로 변환합니다. 이 쿼리를 실행하려면 쿼리 결과를 저장할 새로운 대상 테이블을 지정해야 합니다.
+SELECT
+  *,
+  ST_GEOGPOINT(pLongitude, pLatitude) AS p
+FROM
+  mytable
+BigQuery는 다음 GoogleSQL 조건자 함수를 사용하여 INNER JOIN 연산자와 CROSS JOIN 연산자에 최적화된 공간 JOIN을 구현합니다.
+ST_DWITHIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_dwithin]
+ST_INTERSECTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_intersects]
+ST_CONTAINS [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_contains]
+ST_WITHIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_within]
+ST_COVERS [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_covers]
+ST_COVEREDBY [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_coveredby]
+ST_EQUALS [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_equals]
+ST_TOUCHES [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_touches]
+다음과 같은 경우에는 공간 조인이 최적화되지 않습니다.
+LEFT, RIGHT 또는 FULL OUTER 조인의 경우
+안티 조인과 관련된 경우
+공간 조건자를 부정하는 경우
+ST_DWITHIN 조건자를 사용하는 JOIN은 거리 파라미터가 상수 표현식인 경우에만 최적화됩니다.
+공간 데이터 내보내기
+BigQuery에서 공간 데이터를 내보낼 때 GEOGRAPHY 열은 형식이 항상 WKT 문자열로 지정됩니다. 데이터를 GeoJSON 형식으로 내보내려면 ST_ASGEOJSON [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_asgeojson] 함수를 사용합니다.
+내보낸 데이터를 분석하는 데 사용되는 도구에서 GEOGRAPHY 데이터 유형을 인식하지 못하면 ST_ASTEXT [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_astext] 또는 ST_ASGEOJSON [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_asgeojson]과 같은 지리 함수를 사용하여 열 값을 문자열로 변환할 수 있습니다. 지리정보 분석에서는 필요한 경우 선에 별도의 점을 추가하여 변환된 일련의 에지가 원래의 측지선으로부터 10미터 이내에 유지되도록 합니다.
+예를 들어 다음 쿼리는 ST_ASGEOJSON을 사용하여 GeoJSON 값을 문자열로 변환합니다.
+SELECT
+  ST_ASGEOJSON(ST_MAKELINE(ST_GEOGPOINT(1,1), ST_GEOGPOINT(3,2)))
+결과 데이터는 다음과 유사한 형태입니다.
+{ "type": "LineString", "coordinates": [ [1, 1], [1.99977145571783, 1.50022838764041], [2.49981908082299, 1.75018082434274], [3, 2] ] }
+GeoJSON 선에 두 개의 점이 추가되었습니다. 지리정보 분석에서는 이러한 점을 추가하여 GeoJSON 선이 지면에서 원래의 선과 동일한 경로를 밀접하게 따르도록 합니다.
+다음 단계
+지리정보 분석을 시작하려면 데이터 분석가를 위한 지리정보 분석 시작하기 [https://cloud.google.com/bigquery/docs/geospatial-get-started?hl=ko]를 참조하세요.
+지리정보 분석의 시각화 옵션에 대한 자세한 내용은 지리정보 데이터 시각화 [https://cloud.google.com/bigquery/docs/geospatial-visualize?hl=ko]를 참조하세요.
+지리 공간 분석의 GoogleSQL 함수에 대한 문서는 GoogleSQL의 지리 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko]를 참조하세요.
+도움이 되었나요?
+의견 보내기

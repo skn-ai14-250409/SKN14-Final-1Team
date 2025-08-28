@@ -1,0 +1,2114 @@
+Source URL: https://cloud.google.com/bigquery/docs/schemas
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+스키마 구성요소 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#schema_components]
+열 이름 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#column_names]
+유연한 열 이름 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#flexible-column-names]
+열 설명 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#column_descriptions]
+기본값 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#default_values]
+GoogleSQL 데이터 유형 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#standard_sql_data_types]
+모드 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#modes]
+반올림 모드 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#rounding_mode]
+스키마 지정
+bookmark_border
+BigQuery를 사용하면 데이터를 테이블에 로드할 때와 빈 테이블을 만들 때 테이블의 스키마를 지정할 수 있습니다. 또는 지원되는 데이터 형식의 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko#auto-detect]를 사용할 수 있습니다.
+Avro, Parquet, ORC, Firestore 내보내기 파일 또는 Datastore 내보내기 파일을 로드하면 스키마가 자체 설명적 소스 데이터에서 자동으로 검색됩니다.
+다음 방법으로 테이블의 스키마를 지정할 수 있습니다.
+Google Cloud 콘솔을 사용합니다.
+CREATE TABLE SQL 문 사용하기
+bq 명령줄 도구를 사용하는 인라인
+JSON 형식으로 스키마 만들기
+jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] 메서드를 호출하고 load 작업 구성에서 schema 속성을 구성합니다.
+tables.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert?hl=ko] 메서드를 호출하고 테이블 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko]에서 schema 속성을 사용하여 스키마를 구성합니다.
+데이터를 로드하거나 빈 테이블을 만든 후 테이블의 스키마 정의를 수정 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]할 수 있습니다.
+스키마 구성요소
+테이블 스키마를 지정하는 경우, 각 열의 이름과 데이터 유형을 제공해야 합니다. 열의 설명, 모드, 기본값을 제공할 수도 있습니다.
+열 이름
+열 이름은 문자(a~z, A~Z), 숫자(0~9) 또는 밑줄(_)을 포함할 수 있으며 문자나 밑줄로 시작해야 합니다. 유연한 열 이름을 사용하는 경우 BigQuery는 숫자로 열 이름을 시작할 수 있습니다. BigQuery Storage Read API 또는 BigQuery Storage Write API에서 유연한 열 이름을 사용하면 특별한 처리가 필요하므로 숫자로 열을 시작할 때 주의해야 합니다. 유연한 열 이름 지원에 대한 자세한 내용은 유연한 열 이름 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#flexible-column-names]을 참조하세요.
+열 이름 최대 길이는 300자(영문 기준)입니다. 열 이름에 다음과 같은 프리픽스를 사용할 수 없습니다.
+_TABLE_
+_FILE_
+_PARTITION
+_ROW_TIMESTAMP
+__ROOT__
+_COLIDENTIFIER
+중복 열 이름은 대소문자가 다르더라도 허용되지 않습니다. 예를 들어 Column1 열과 column1 열은 동일하다고 간주됩니다. 열 이름 지정 규칙에 대한 자세한 내용은 GoogleSQL 참조의 열 이름 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#column_names]을 참조하세요.
+테이블 이름(예: test)이 열 이름 중 하나와 동일한 경우(예: test) SELECT 표현식은 test 열을 다른 모든 테이블 열이 포함된 STRUCT로 해석합니다. 이러한 충돌을 방지하려면 다음 방법 중 하나를 사용합니다.
+테이블과 테이블 열에 동일한 이름을 사용해서는 안 됩니다.
+테이블에 다른 별칭을 할당합니다. 예를 들어 다음 쿼리는 테이블 별칭 t를 project1.dataset.test 테이블에 할당합니다.
+SELECT test FROM project1.dataset.test AS t;
+열을 참조할 때 테이블 이름을 포함합니다. 예를 들면 다음과 같습니다.
+SELECT test.test FROM project1.dataset.test;
+유연한 열 이름
+영어 외 언어의 문자와 추가 기호에 대한 확장된 액세스를 포함하여 더욱 유연하게 열 이름을 지정할 수 있습니다. 유연한 열 이름이 따옴표로 묶인 식별자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#quoted_identifiers]인 경우 백틱(`) 문자를 사용하여 묶어야 합니다.
+유연한 열 이름은 다음 문자를 지원합니다.
+유니코드 정규 표현식 \p{L} [https://www.unicode.org/reports/tr44/#General_Category_Values]로 표현되는 모든 언어의 문자
+유니코드 정규 표현식 \p{N} [https://www.unicode.org/reports/tr44/#General_Category_Values]로 표현되는 모든 언어의 숫자
+유니코드 정규 표현식 \p{Pc} [https://www.unicode.org/reports/tr44/#General_Category_Values]로 표현되는 밑줄을 포함한 모든 커넥터 구두점 문자
+유니코드 정규 표현식 \p{Pd} [https://www.unicode.org/reports/tr44/#General_Category_Values]로 표현되는 하이픈 또는 대시
+유니코드 정규 표현식 \p{M} [https://www.unicode.org/reports/tr44/#General_Category_Values]로 표현되는 다른 문자를 포함하기 위한 표시 (예: 악센트, 움라우트 또는 바깥쪽 상자)
+다음과 같은 특수문자가 지원됩니다.
+유니코드 정규 표현식 \u0026로 표현되는 앰퍼샌드(&)
+유니코드 정규 표현식 \u0025로 표현되는 퍼센트 기호(%)
+유니코드 정규 표현식 \u003D로 표현되는 등호(=)
+유니코드 정규 표현식 \u002B로 표현되는 더하기 기호(+)
+유니코드 정규 표현식 \u003A로 표현되는 콜론(:)
+유니코드 정규 표현식 \u0027로 표현되는 아포스트로피(')
+유니코드 정규 표현식 \u003C로 표현되는 미만 기호(<)
+유니코드 정규 표현식 \u003E로 표현되는 초과 기호(>)
+유니코드 정규 표현식 \u0023으로 표현되는 숫자 기호(#)
+유니코드 정규 표현식 \u007c로 표현되는 세로 선(|)
+공백.
+유연한 열 이름은 다음과 같은 특수문자를 지원하지 않습니다.
+유니코드 정규 표현식 \u0021로 표현되는 느낌표(!)
+유니코드 정규 표현식 \u0022로 표현되는 따옴표(")
+유니코드 정규 표현식 \u0024로 표현되는 달러 기호($)
+유니코드 정규 표현식 \u0028로 표현되는 왼쪽 괄호(()
+유니코드 정규 표현식 \u0029로 표현되는 오른쪽 괄호())
+유니코드 정규 표현식 \u002A로 표현되는 별표(*)
+유니코드 정규 표현식 \u002C로 표현되는 쉼표(,)
+유니코드 정규 표현식 \u002E로 표현되는 마침표(.) 열 이름 문자 맵을 사용하는 경우 Parquet 파일 열 이름에서 마침표는 밑줄로 대체되지 않습니다. 자세한 내용은 유연한 열 제한사항 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#limitations_2]을 참조하세요.
+유니코드 정규 표현식 \u002F로 표현되는 슬래시(/)
+유니코드 정규 표현식 \u003B로 표현되는 세미콜론(;)
+유니코드 정규 표현식 \u003F로 표현되는 물음표(?)
+유니코드 정규 표현식 \u0040으로 표현되는 골뱅이 부호(@)
+유니코드 정규 표현식 \u005B로 표현되는 왼쪽 대괄호([)
+유니코드 정규 표현식 \u005C로 표현되는 백슬래시(\)
+유니코드 정규 표현식 \u005D로 표현되는 오른쪽 대괄호(])
+유니코드 정규 표현식 \u005E로 표현되는 곡절 악센트(^)
+유니코드 정규 표현식 \u0060으로 표현되는 강세 부호(`)
+유니코드 정규 표현식 \u007B로 표현되는 왼쪽 중괄호({)
+유니코드 정규 표현식 \u007D로 표현되는 오른쪽 중괄호(})
+유니코드 정규 표현식 \u007E로 표현되는 물결표(~)
+추가 가이드라인은 열 이름 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#column_names]을 참조하세요.
+확장된 열 문자는 BigQuery Storage Read API와 BigQuery Storage Write API 모두에서 지원됩니다. BigQuery Storage Read API에서 확장된 유니코드 문자 목록을 사용하려면 플래그를 설정해야 합니다. displayName 속성을 사용하여 열 이름을 가져올 수 있습니다. 다음 예시에서는 Python 클라이언트에서 플래그를 설정하는 방법을 보여줍니다.
+from google.cloud.bigquery_storage import types
+requested_session = types.ReadSession()
+
+#set avro serialization options for flexible column.
+options = types.AvroSerializationOptions()
+options.enable_display_name_attribute = True
+requested_session.read_options.avro_serialization_options = options
+BigQuery Storage Write API에서 확장된 유니코드 문자 목록을 사용하려면 JsonStreamWriter 작성자 객체를 사용하지 않는 한 column_name 표기법으로 스키마를 제공해야 합니다. 다음 예시에서는 스키마를 제공하는 방법을 보여줍니다.
+syntax = "proto2";
+package mypackage;
+// Source protos located in github.com/googleapis/googleapis
+import "google/cloud/bigquery/storage/v1/annotations.proto";
+
+message FlexibleSchema {
+  optional string item_name_column = 1
+  [(.google.cloud.bigquery.storage.v1.column_name) = "name-列"];
+  optional string item_description_column = 2
+  [(.google.cloud.bigquery.storage.v1.column_name) = "description-列"];
+}
+이 예시에서 item_name_column 및 item_description_column은 프로토콜 버퍼 [https://protobuf.dev/]의 이름 지정 규칙을 준수해야 하는 자리표시자 이름입니다. column_name 주석은 항상 자리표시자 이름보다 우선 적용됩니다.
+제한사항
+외부 테이블 [https://cloud.google.com/bigquery/docs/external-tables?hl=ko]에서는 유연한 열 이름이 지원되지 않습니다.
+열 설명
+각 열에는 선택적 설명이 포함될 수 있습니다. 설명은 최대 1,024자의 문자열입니다.
+기본값
+열의 기본값 [https://cloud.google.com/bigquery/docs/default-values?hl=ko]은 리터럴 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#literals] 또는 다음 함수 중 하나여야 합니다.
+CURRENT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#current_date]
+CURRENT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#current_datetime]
+CURRENT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#current_time]
+CURRENT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#current_timestamp]
+GENERATE_UUID [https://cloud.google.com/bigquery/docs/reference/standard-sql/utility-functions?hl=ko#generate_uuid]
+RAND [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#rand]
+SESSION_USER [https://cloud.google.com/bigquery/docs/reference/standard-sql/security_functions?hl=ko#session_user]
+ST_GEOGPOINT [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogpoint]
+GoogleSQL 데이터 유형
+GoogleSQL을 사용하면 스키마에서 다음 데이터 유형을 지정할 수 있습니다. 데이터 유형은 필수 항목입니다.
+이름 데이터 유형 설명
+정수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types] INT64 소수 구성요소가 없는 숫자 값
+부동 소수점 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#floating_point_types] FLOAT64 소수 구성요소가 있는 대략적인 숫자 값
+숫자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_type] NUMERIC 소수 구성요소가 있는 정확한 숫자 값
+BigNumeric [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bignumeric_type] BIGNUMERIC 소수 구성요소가 있는 정확한 숫자 값
+Boolean [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#boolean_type] BOOL TRUE 또는 FALSE(대소문자를 구분하지 않음)
+문자열 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type] STRING 가변 길이 문자(유니코드) 데이터
+바이트 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bytes_type] BYTES 가변 길이 바이너리 데이터
+날짜 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#date_type] DATE 논리적 달력 날짜
+날짜/시간 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#datetime_type] DATETIME 년, 월, 일, 시간, 분, 초, 초 미만
+시간 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type] TIME 특정 날짜와 무관한 시간
+타임스탬프 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type] TIMESTAMP 마이크로초 정밀도의 절대 시점
+구조(레코드) [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#struct_type] STRUCT 각각 유형(필수)과 필드 이름(선택사항)이 있는 정렬된 필드의 컨테이너
+지역 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#geography_type] GEOGRAPHY 지구 표면의 점 집합(WGS84 [http://earth-info.nga.mil/GandG/update/index.php] 참조 회전 타원체상의 점, 선, 다각형으로 구성된 집합, 측지 에지 포함)
+JSON [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#json_type] JSON 경량 데이터 교환 형식인 JSON을 나타냅니다.
+RANGE [https://cloud.google.com/bigquery/docs/reference/standard-sql/range-functions?hl=ko#range] RANGE DATE, DATETIME, TIMESTAMP 값의 범위
+GoogleSQL의 데이터 유형에 대한 자세한 내용은 GoogleSQL 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko]을 참조하세요.
+데이터 쿼리 시 배열 유형을 선언할 수도 있습니다. 자세한 내용은 배열 작업 [https://cloud.google.com/bigquery/docs/arrays?hl=ko]을 참조하세요.
+모드
+BigQuery는 열에 대해 다음 모드를 지원합니다. 모드는 선택사항입니다. 모드가 지정되지 않으면 열은 기본적으로 NULLABLE로 설정됩니다.
+모드 설명
+Null 허용 열에서 NULL 값 허용(기본값)
+필수 NULL 값이 허용되지 않음
+반복 열에 지정된 유형의 값 배열 포함
+모드에 대한 자세한 내용은 TableFieldSchema [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#TableFieldSchema]의 mode를 참조하세요.
+반올림 모드
+열이 NUMERIC 또는 BIGNUMERIC 유형이면 해당 열이 테이블에 작성될 때 해당 열의 값이 반올림되는 방식을 결정하는 rounding_mode 열 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#column_option_list]을 설정할 수 있습니다. 최상위 열 또는 STRUCT 필드에서 rounding_mode 옵션을 설정할 수 있습니다. 다음과 같은 반올림 모드가 지원됩니다.
+"ROUND_HALF_AWAY_FROM_ZERO": 이 모드(기본값)는 0에서 멀어지는 방향으로 반올림됩니다.
+"ROUND_HALF_EVEN": 이 모드는 가장 가까운 짝수의 방향으로 반올림합니다.
+NUMERIC 또는 BIGNUMERIC 유형이 아닌 열에 대해 rounding_mode 옵션을 설정할 수 없습니다. 이러한 유형에 대한 자세한 내용은 10진수 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#decimal_types]을 참조하세요.
+다음 예시에서는 테이블을 만들고 열의 반올림 모드에 따라 반올림되는 값을 삽입합니다.
+CREATE TABLE mydataset.mytable (
+  x NUMERIC(5,2) OPTIONS (rounding_mode='ROUND_HALF_EVEN'),
+  y NUMERIC(5,2) OPTIONS (rounding_mode='ROUND_HALF_AWAY_FROM_ZERO')
+);
+INSERT mydataset.mytable (x, y)
+VALUES (NUMERIC "1.025", NUMERIC "1.025"),
+       (NUMERIC "1.0251", NUMERIC "1.0251"),
+       (NUMERIC "1.035", NUMERIC "1.035"),
+       (NUMERIC "-1.025", NUMERIC "-1.025");
+mytable 테이블은 다음과 같습니다.
++-------+-------+
+| x     | y     |
++-------+-------+
+| 1.02  | 1.03  |
+| 1.03  | 1.03  |
+| 1.04  | 1.04  |
+| -1.02 | -1.03 |
++-------+-------+
+자세한 내용은 TableFieldSchema [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#TableFieldSchema]의 roundingMode를 참조하세요.
+스키마 지정
+데이터를 로드하거나 빈 테이블을 만들 때 Google Cloud 콘솔 또는 bq 명령줄 도구를 사용하여 테이블의 스키마를 지정할 수 있습니다. 스키마 지정은 CSV 및 JSON(줄바꿈으로 구분됨) 파일을 로드할 때 지원됩니다. Avro, Parquet, ORC, Firestore 내보내기 데이터 또는 Datastore 내보내기 데이터를 로드하면 스키마가 자체 설명적 소스 데이터에서 자동으로 검색됩니다.
+테이블 스키마를 지정하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 필드 추가 옵션 또는 텍스트로 편집 옵션을 사용하여 스키마를 지정할 수 있습니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 패널에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+more_vert 작업 옵션을 펼치고 열기를 클릭합니다.
+세부정보 패널에서 테이블 만들기add_box를 클릭합니다.
+테이블 만들기 페이지의 소스 섹션에서 빈 테이블을 선택합니다.
+테이블 만들기 페이지의 대상 섹션에서 다음을 수행합니다.
+
+
+데이터 세트 이름에 적절한 데이터 세트를 선택합니다.
+
+ 
+테이블 이름 필드에 생성할 테이블의 이름을 입력합니다.
+테이블 유형이 기본 테이블로 설정되어 있는지 확인합니다.
+
+스키마 섹션에 스키마 [https://cloud.google.com/bigquery/docs/schemas?hl=ko] 정의를 입력합니다.
+
+
+옵션 1: 필드 추가를 사용하고 각 필드의 이름, 유형 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#standard_sql_data_types], 모드 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#modes]를 지정합니다.
+옵션 2: 텍스트로 편집을 클릭하고 JSON 배열 형식으로 스키마를 붙여넣습니다. JSON 배열을 사용하는 경우 JSON 스키마 파일 만들기 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#specifying_a_json_schema_file]와 동일한 프로세스로 스키마를 생성합니다.
+
+테이블 만들기를 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/schemas?hl=ko#sql] ---
+CREATE TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]을 사용합니다.
+열 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#column_name_and_column_schema] 옵션을 사용하여 스키마를 지정합니다.
+다음 예시는 정수 유형, 문자열, 부울로 구성된 x, y, z 열을 가진 newtable이라는 새 테이블을 만듭니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE TABLE IF NOT EXISTS mydataset.newtable (x INT64, y STRING, z BOOL)
+  OPTIONS(
+    description = 'My example table');
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/schemas?hl=ko#bq] ---
+다음 명령어 중 하나를 사용하여 field:data_type,field:data_type 형식으로 스키마 인라인을 제공합니다.
+
+
+데이터를 로드하는 경우 bq load 명령어를 사용합니다.
+빈 테이블을 만드는 경우 bq mk 명령어를 사용합니다.
+
+
+명령줄에 스키마를 지정할 때는 RECORD(STRUCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#struct_type]) 또는 RANGE [https://cloud.google.com/bigquery/docs/reference/standard-sql/range-functions?hl=ko] 유형을 포함하거나 열 설명을 포함할 수 없으며 열 모드를 지정할 수 없습니다. 모든 모드는 기본적으로 NULLABLE로 설정됩니다. 설명, 모드, RECORD 및 RANGE 유형을 포함하려면 대신 JSON 스키마 파일 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#specifying_a_json_schema_file]을 제공합니다.
+
+인라인 스키마 정의를 사용하여 테이블에 데이터를 로드하려면 load 명령어를 입력하고 --source_format 플래그를 사용하여 데이터 형식을 지정합니다.
+기본 프로젝트가 아닌 다른 프로젝트의 테이블에 데이터를 로드하려면 프로젝트 ID를 project_id:dataset.table_name 형식으로 포함합니다.
+
+(선택사항) --location 플래그를 지정하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]로 설정합니다.
+
+bq --location=location load \
+--source_format=format \
+project_id:dataset.table_name \
+path_to_source \
+schema
+
+다음을 바꿉니다.
+
+
+location: 위치의 이름입니다. --location 플래그는 선택사항입니다. 예를 들어 도쿄 리전에서 BigQuery를 사용하는 경우 플래그 값을 asia-northeast1로 설정하면 됩니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+format: NEWLINE_DELIMITED_JSON 또는 CSV입니다.
+project_id: 프로젝트 ID입니다.
+dataset: 데이터를 로드할 테이블이 포함된 데이터 세트입니다.
+table_name: 데이터를 로드할 테이블의 이름입니다.
+path_to_source: 로컬 머신 또는 Cloud Storage에서 CSV 또는 JSON 데이터 파일의 위치입니다.
+schema: 인라인 스키마 정의입니다.
+
+
+예를 들면 다음과 같습니다.
+
+다음 명령어를 입력하면 myfile.csv이라는 로컬 CSV 파일의 데이터가 기본 프로젝트의 mydataset.mytable에 로드됩니다. 스키마는 인라인으로 지정됩니다.
+bq load \
+--source_format=CSV \
+mydataset.mytable \
+./myfile.csv \
+qtr:STRING,sales:FLOAT,year:STRING
+
+BigQuery에 데이터를 로드하는 방법에 대한 자세한 내용은 데이터 로드 소개 [https://cloud.google.com/bigquery/docs/loading-data?hl=ko]를 참조하세요.
+
+빈 테이블을 만들 때 인라인 스키마 정의를 지정하려면 --table 또는 -t 플래그와 함께 bq mk 명령어를 입력합니다. 기본 프로젝트가 아닌 다른 프로젝트에서 테이블을 만드는 경우 프로젝트 ID를 project_id:dataset.table 형식으로 명령어에 추가합니다.
+
+bq mk --table project_id:dataset.table schema
+
+다음을 바꿉니다.
+
+
+project_id: 프로젝트 ID입니다.
+dataset: 프로젝트의 데이터 세트입니다.
+table: 생성할 테이블의 이름입니다.
+schema: 인라인 스키마 정의입니다.
+
+
+예를 들어 다음 명령어는 기본 프로젝트에 mytable이라는 빈 테이블을 만듭니다. 스키마는 인라인으로 지정됩니다.
+bq mk --table mydataset.mytable qtr:STRING,sales:FLOAT,year:STRING
+
+빈 테이블 만들기에 대한 자세한 내용은 스키마 정의를 사용하여 빈 테이블 만들기 [https://cloud.google.com/bigquery/docs/tables?hl=ko#create_an_empty_table_with_a_schema_definition]를 참조하세요.
+
+--- 탭: C# [https://cloud.google.com/bigquery/docs/schemas?hl=ko#c] ---
+데이터를 테이블로 로드 시 테이블의 스키마를 지정하려면 다음을 사용하세요.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 C# 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery C# API 참고 문서 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+using Google.Apis.Bigquery.v2.Data;
+using Google.Cloud.BigQuery.V2 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.html?hl=ko];
+using System;
+
+public class BigQueryLoadTableGcsJson
+{
+    public void LoadTableGcsJson(
+        string projectId = "your-project-id",
+        string datasetId = "your_dataset_id"
+    )
+    {
+        BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko] client = BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_Create_System_String_Google_Apis_Auth_OAuth2_GoogleCredential_](projectId);
+        var gcsURI = "gs://cloud-samples-data/bigquery/us-states/us-states.json";
+        var dataset = client.GetDataset [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_GetDataset_Google_Apis_Bigquery_v2_Data_DatasetReference_Google_Cloud_BigQuery_V2_GetDatasetOptions_](datasetId);
+        var schema = new TableSchemaBuilder [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.TableSchemaBuilder.html?hl=ko] {
+            { "name", BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].String [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_String] },
+            { "post_abbr", BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].String [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_String] }
+        }.Build();
+        TableReference destinationTableRef = dataset.GetTableReference(
+            tableId: "us_states");
+        // Create job configuration
+        var jobOptions = new CreateLoadJobOptions [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.CreateLoadJobOptions.html?hl=ko]()
+        {
+            SourceFormat = FileFormat [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.FileFormat.html?hl=ko].NewlineDelimitedJson [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.FileFormat.html?hl=ko#Google_Cloud_BigQuery_V2_FileFormat_NewlineDelimitedJson]
+        };
+        // Create and run job
+        BigQueryJob [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryJob.html?hl=ko] loadJob = client.CreateLoadJob [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_CreateLoadJob_System_Collections_Generic_IEnumerable_System_String__Google_Apis_Bigquery_v2_Data_TableReference_Google_Apis_Bigquery_v2_Data_TableSchema_Google_Cloud_BigQuery_V2_CreateLoadJobOptions_](
+            sourceUri: gcsURI, destination: destinationTableRef,
+            schema: schema, options: jobOptions);
+        loadJob = loadJob.PollUntilCompleted [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryJob.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryJob_PollUntilCompleted_Google_Cloud_BigQuery_V2_GetJobOptions_Google_Api_Gax_PollSettings_]().ThrowOnAnyError();  // Waits for the job to complete.
+        // Display the number of rows uploaded
+        BigQueryTable [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryTable.html?hl=ko] table = client.GetTable [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_GetTable_Google_Apis_Bigquery_v2_Data_TableReference_Google_Cloud_BigQuery_V2_GetTableOptions_](destinationTableRef);
+        Console.WriteLine(
+            $"Loaded {table.Resource [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryTable.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryTable_Resource].NumRows} rows to {table.FullyQualifiedId [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryTable.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryTable_FullyQualifiedId]}");
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+빈 테이블 생성 시 스키마를 지정하려면 다음을 사용하세요.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+using Google.Cloud.BigQuery.V2 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.html?hl=ko];
+
+public class BigQueryCreateTable
+{
+    public BigQueryTable CreateTable(
+        string projectId = "your-project-id",
+        string datasetId = "your_dataset_id"
+    )
+    {
+        BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko] client = BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_Create_System_String_Google_Apis_Auth_OAuth2_GoogleCredential_](projectId);
+        var dataset = client.GetDataset [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_GetDataset_Google_Apis_Bigquery_v2_Data_DatasetReference_Google_Cloud_BigQuery_V2_GetDatasetOptions_](datasetId);
+        // Create schema for new table.
+        var schema = new TableSchemaBuilder [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.TableSchemaBuilder.html?hl=ko]
+        {
+            { "full_name", BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].String [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_String] },
+            { "age", BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].Int64 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_Int64] }
+        }.Build();
+        // Create the table
+        return dataset.CreateTable(tableId: "your_table_id", schema: schema);
+    }
+}
+
+--- 탭: tabpanel-go ---
+데이터를 테이블로 로드 시 테이블의 스키마를 지정하려면 다음을 사용하세요.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// importJSONExplicitSchema demonstrates loading newline-delimited JSON data from Cloud Storage
+// into a BigQuery table and providing an explicit schema for the data.
+func importJSONExplicitSchema(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	gcsRef := bigquery.NewGCSReference [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_GCSReference_NewGCSReference]("gs://cloud-samples-data/bigquery/us-states/us-states.json")
+	gcsRef.SourceFormat = bigquery.JSON [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_CSV_Avro_JSON_DatastoreBackup_GoogleSheets_Bigtable_Parquet_ORC_TFSavedModel_XGBoostBooster_Iceberg]
+	gcsRef.Schema [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Schema] = bigquery.Schema [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Schema]{
+		{Name: "name", Type: bigquery.StringFieldType [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StringFieldType_BytesFieldType_IntegerFieldType_FloatFieldType_BooleanFieldType_TimestampFieldType_RecordFieldType_DateFieldType_TimeFieldType_DateTimeFieldType_NumericFieldType_GeographyFieldType_BigNumericFieldType_IntervalFieldType_JSONFieldType_RangeFieldType]},
+		{Name: "post_abbr", Type: bigquery.StringFieldType [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StringFieldType_BytesFieldType_IntegerFieldType_FloatFieldType_BooleanFieldType_TimestampFieldType_RecordFieldType_DateFieldType_TimeFieldType_DateTimeFieldType_NumericFieldType_GeographyFieldType_BigNumericFieldType_IntervalFieldType_JSONFieldType_RangeFieldType]},
+	}
+	loader := client.Dataset(datasetID).Table(tableID).LoaderFrom [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Table_LoaderFrom](gcsRef)
+	loader.WriteDisposition = bigquery.WriteEmpty [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_WriteAppend_WriteTruncate_WriteEmpty]
+
+	job, err := loader.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]() != nil {
+		return fmt.Errorf("job completed with error: %v", status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]())
+	}
+	return nil
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+빈 테이블 생성 시 스키마를 지정하려면 다음을 사용하세요.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  import (
+	"context"
+	"fmt"
+	"time"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// createTableExplicitSchema demonstrates creating a new BigQuery table and specifying a schema.
+func createTableExplicitSchema(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydatasetid"
+	// tableID := "mytableid"
+	ctx := context.Background()
+
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	sampleSchema := bigquery.Schema [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Schema]{
+		{Name: "full_name", Type: bigquery.StringFieldType [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StringFieldType_BytesFieldType_IntegerFieldType_FloatFieldType_BooleanFieldType_TimestampFieldType_RecordFieldType_DateFieldType_TimeFieldType_DateTimeFieldType_NumericFieldType_GeographyFieldType_BigNumericFieldType_IntervalFieldType_JSONFieldType_RangeFieldType]},
+		{Name: "age", Type: bigquery.IntegerFieldType [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StringFieldType_BytesFieldType_IntegerFieldType_FloatFieldType_BooleanFieldType_TimestampFieldType_RecordFieldType_DateFieldType_TimeFieldType_DateTimeFieldType_NumericFieldType_GeographyFieldType_BigNumericFieldType_IntervalFieldType_JSONFieldType_RangeFieldType]},
+	}
+
+	metaData := &bigquery.TableMetadata [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_TableMetadata]{
+		Schema:         sampleSchema,
+		ExpirationTime: time.Now().AddDate(1, 0, 0), // Table will be automatically deleted in 1 year.
+	}
+	tableRef := client.Dataset(datasetID).Table(tableID)
+	if err := tableRef.Create(ctx, metaData); err != nil {
+		return err
+	}
+	return nil
+}
+
+--- 탭: tabpanel-java ---
+데이터를 테이블로 로드 시 테이블의 스키마를 지정하려면 다음을 사용하세요.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko];
+import com.google.cloud.bigquery.FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko];
+import com.google.cloud.bigquery.LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko];
+import com.google.cloud.bigquery.StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+
+// Sample to load JSON data from Cloud Storage into a new BigQuery table
+public class LoadJsonFromGCS {
+
+  public static void runLoadJsonFromGCS() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String sourceUri = "gs://cloud-samples-data/bigquery/us-states/us-states.json";
+    Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko] schema =
+        Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko].of(
+            Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko].of("name", StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko].STRING),
+            Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko].of("post_abbr", StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko].STRING));
+    loadJsonFromGCS(datasetName, tableName, sourceUri, schema);
+  }
+
+  public static void loadJsonFromGCS(
+      String datasetName, String tableName, String sourceUri, Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko] schema) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(datasetName, tableName);
+      LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko] loadConfig =
+          LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko].newBuilder(tableId, sourceUri)
+              .setFormatOptions(FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko].json())
+              .setSchema(schema)
+              .build();
+
+      // Load data from a GCS JSON file into the table
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] job = bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](JobInfo.of(loadConfig));
+      // Blocks until this load table job completes its execution, either failing or succeeding.
+      job = job.waitFor [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_waitFor_com_google_cloud_bigquery_BigQueryRetryConfig_com_google_cloud_RetryOption____]();
+      if (job.isDone [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_isDone__]()) {
+        System.out.println("Json from GCS successfully loaded in a table");
+      } else {
+        System.out.println(
+            "BigQuery was unable to load into the table due to an error:"
+                + job.getStatus().getError());
+      }
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Column not added during load append \n" + e.toString());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+빈 테이블 생성 시 스키마를 지정하려면 다음을 사용하세요.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko];
+import com.google.cloud.bigquery.Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko];
+import com.google.cloud.bigquery.StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko];
+import com.google.cloud.bigquery.StandardTableDefinition [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardTableDefinition.html?hl=ko];
+import com.google.cloud.bigquery.TableDefinition [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableDefinition.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+import com.google.cloud.bigquery.TableInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableInfo.html?hl=ko];
+
+public class CreateTable {
+
+  public static void runCreateTable() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko] schema =
+        Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko].of(
+            Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko].of("stringField", StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko].STRING),
+            Field [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Field.html?hl=ko].of("booleanField", StandardSQLTypeName [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardSQLTypeName.html?hl=ko].BOOL));
+    createTable(datasetName, tableName, schema);
+  }
+
+  public static void createTable(String datasetName, String tableName, Schema [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Schema.html?hl=ko] schema) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(datasetName, tableName);
+      TableDefinition [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableDefinition.html?hl=ko] tableDefinition = StandardTableDefinition [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.StandardTableDefinition.html?hl=ko].of(schema);
+      TableInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableInfo.html?hl=ko] tableInfo = TableInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableInfo.html?hl=ko].newBuilder(tableId, tableDefinition).build();
+
+      bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](tableInfo);
+      System.out.println("Table created successfully");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] e) {
+      System.out.println("Table was not created. \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-python ---
+데이터를 테이블에 로드할 때 테이블의 스키마를 지정하려면 LoadJobConfig.schema [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_schema] 속성을 구성합니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set table_id to the ID of the table to create.
+# table_id = "your-project.your_dataset.your_table_name"
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](
+    schema=[
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("name", "STRING"),
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("post_abbr", "STRING"),
+    ],
+    source_format=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SourceFormat [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.SourceFormat.html?hl=ko].NEWLINE_DELIMITED_JSON,
+)
+uri = "gs://cloud-samples-data/bigquery/us-states/us-states.json"
+
+load_job = client.load_table_from_uri [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_uri](
+    uri,
+    table_id,
+    location="US",  # Must match the destination dataset location.
+    job_config=job_config,
+)  # Make an API request.
+
+load_job.result()  # Waits for the job to complete.
+
+destination_table = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id)
+print("Loaded {} rows.".format(destination_table.num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows]))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+빈 테이블을 만들 때 스키마를 지정하려면 Table.schema [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table?hl=ko#google_cloud_bigquery_table_Table_schema] 속성을 구성합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set table_id to the ID of the table to create.
+# table_id = "your-project.your_dataset.your_table_name"
+
+schema = [
+    bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("full_name", "STRING", mode="REQUIRED"),
+    bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("age", "INTEGER", mode="REQUIRED"),
+]
+
+table = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko](table_id, schema=schema)
+table = client.create_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_table](table)  # Make an API request.
+print(
+    "Created table {}.{}.{}".format(table.project, table.dataset_id, table.table_id)
+)
+JSON 스키마 파일 지정
+필요에 따라 인라인 스키마 정의를 사용하는 대신 JSON 스키마 파일을 사용하여 스키마를 지정할 수 있습니다. JSON 스키마 파일은 다음을 포함하는 JSON 배열로 구성됩니다.
+열의 이름 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#column_names]
+열의 데이터 유형 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#standard_sql_data_types]
+선택사항: 열의 모드 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#modes](지정하지 않으면 모드 기본값은 NULLABLE)
+선택사항: 열의 필드(STRUCT 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#struct_type]인 경우)
+선택사항: 열의 설명 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#column_descriptions]
+선택사항: 필드 수준 액세스 제어에 사용되는 열의 정책 태그 [https://cloud.google.com/data-catalog/docs/policy-tags?hl=ko]
+선택사항: STRING 또는 BYTES 유형에 대한 열의 최대 길이
+선택사항: NUMERIC 또는 BIGNUMERIC 유형에 대한 열의 정밀도 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#decimal_types]
+선택사항: NUMERIC 또는 BIGNUMERIC 유형에 대한 열의 확장 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#decimal_types]
+선택사항: STRING 유형에 대한 열의 콜레이션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/collation-concepts?hl=ko]
+선택사항: 열의 기본값 [https://cloud.google.com/bigquery/docs/default-values?hl=ko]
+선택사항: 열이 NUMERIC 또는 BIGNUMERIC 유형인 경우 열의 반올림 모드 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#rounding_mode]입니다.
+참고: 또한 Google Cloud 콘솔 텍스트로 편집 옵션을 사용하여 사용자가 만드는 JSON 배열을 스키마 파일에 지정할 수 있습니다. 또한 API에서 schema [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#tableschema] 속성을 구성하기 위한 시작점으로 사용될 수도 있습니다.
+JSON 스키마 파일 만들기
+JSON 스키마 파일을 만들려면 각 열에 대해 TableFieldSchema [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#TableFieldSchema]를 입력합니다. name 및 type 필드는 필수입니다. 다른 입력란은 선택사항입니다.
+[
+  {
+    "name": string,
+    "type": string,
+    "mode": string,
+    "fields": [
+      {
+        object (TableFieldSchema)
+      }
+    ],
+    "description": string,
+    "policyTags": {
+      "names": [
+        string
+      ]
+    },
+    "maxLength": string,
+    "precision": string,
+    "scale": string,
+    "collation": string,
+    "defaultValueExpression": string,
+    "roundingMode": string
+  },
+  {
+    "name": string,
+    "type": string,
+    ...
+  }
+]
+열이 RANGE<T> 유형이면 rangeElementType 필드를 사용하여 T를 기술합니다. 여기서 T는 DATE, DATETIME, TIMESTAMP 중 하나여야 합니다.
+[
+  {
+    "name": "duration",
+    "type": "RANGE",
+    "mode": "NULLABLE",
+    "rangeElementType": {
+      "type": "DATE"
+    }
+  }
+]
+JSON 배열은 시작 및 끝 괄호 []로 나타냅니다. 각 열 항목을 쉼표(},)로 구분해야 합니다.
+기존 테이블 스키마를 로컬 파일에 작성하려면 다음 단계를 따르세요.
+--- 탭: bq [https://cloud.google.com/bigquery/docs/schemas?hl=ko#bq] ---
+bq show \
+--schema \
+--format=prettyjson \
+project_id:dataset.table > path_to_file
+
+다음을 바꿉니다.
+
+
+project_id: 프로젝트 ID입니다.
+dataset: 프로젝트의 데이터 세트입니다.
+table: 기존 테이블 스키마의 이름입니다.
+path_to_file: 테이블 스키마를 작성하는 로컬 파일의 위치입니다.
+
+--- 탭: Python [https://cloud.google.com/bigquery/docs/schemas?hl=ko#python] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    
+Python 클라이언트 라이브러리를 사용하여 테이블에서 스키마 JSON 파일을 작성하려면 Client.schema_to_json [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client?hl=ko#google_cloud_bigquery_client_Client_schema_to_json] 메서드를 호출합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(dev): Change the table_id variable to the full name of the
+# table you want to get schema from.
+table_id = "your-project.your_dataset.your_table_name"
+
+# TODO(dev): Change schema_path variable to the path
+# of your schema file.
+schema_path = "path/to/schema.json"
+table = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id)  # Make an API request.
+
+# Write a schema file to schema_path with the schema_to_json method.
+client.schema_to_json [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_schema_to_json](table.schema, schema_path)
+
+with open(schema_path, "r", encoding="utf-8") as schema_file:
+    schema_contents = schema_file.read()
+
+# View table properties
+print(f"Got table '{table.project}.{table.dataset_id}.{table.table_id}'.")
+print(f"Table schema: {schema_contents}")
+출력 파일을 고유 JSON 스키마 파일에 대한 시작점으로 사용할 수 있습니다. 이 방식을 사용하는 경우, 파일에 테이블의 스키마를 나타내는 JSON 배열만 포함되도록 해야 합니다.
+예를 들어 다음 JSON 배열은 기본 테이블 스키마를 나타냅니다. 이 스키마에는 3개의 열qtr(REQUIRED STRING), rep(NULLABLE STRING), sales(NULLABLE FLOAT)이 있습니다.
+[
+  {
+    "name": "qtr",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "quarter"
+  },
+  {
+    "name": "rep",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "sales representative"
+  },
+  {
+    "name": "sales",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "defaultValueExpression": "2.55"
+  }
+]
+JSON 스키마 파일 사용
+JSON 스키마 파일을 만든 후 bq 명령줄 도구를 사용하여 이를 지정할 수 있습니다. Google Cloud 콘솔 또는 API에 스키마 파일을 사용할 수 없습니다.
+스키마 파일을 제공합니다.
+데이터를 로드하는 경우 bq load 명령어를 사용합니다.
+빈 테이블을 만드는 경우 bq mk 명령어를 사용합니다.
+JSON 스키마 파일 제공 시 로컬에서 읽을 수 있는 위치에 파일을 저장해야 합니다. Cloud Storage 또는 Google 드라이브에 저장된 JSON 스키마 파일을 지정할 수 없습니다.
+데이터 로드 시 스키마 파일 지정
+JSON 스키마 정의를 사용하여 테이블에 데이터를 로드하려면 다음을 수행합니다.
+--- 탭: bq [https://cloud.google.com/bigquery/docs/schemas?hl=ko#bq] ---
+bq --location=location load \
+--source_format=format \
+project_id:dataset.table \
+path_to_data_file \
+path_to_schema_file
+
+다음을 바꿉니다.
+
+
+location: 위치의 이름입니다. --location 플래그는 선택사항입니다. 예를 들어 도쿄 리전에서 BigQuery를 사용하는 경우 플래그 값을 asia-northeast1로 설정하면 됩니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+format: NEWLINE_DELIMITED_JSON 또는 CSV입니다.
+project_id: 프로젝트 ID입니다.
+dataset: 데이터를 로드할 테이블이 포함된 데이터 세트입니다.
+table: 데이터를 로드할 테이블의 이름입니다.
+path_to_data_file: 로컬 머신 또는 Cloud Storage에서 CSV 또는 JSON 데이터 파일의 위치입니다.
+path_to_schema_file: 로컬 머신에 있는 스키마 파일의 경로입니다.
+
+
+예를 들면 다음과 같습니다.
+
+다음 명령어를 입력하면 myfile.csv이라는 로컬 CSV 파일의 데이터가 기본 프로젝트의 mydataset.mytable에 로드됩니다. 스키마는 현재 디렉터리의 myschema.json에 지정됩니다.
+
+bq load --source_format=CSV mydataset.mytable ./myfile.csv ./myschema.json
+
+--- 탭: Python [https://cloud.google.com/bigquery/docs/schemas?hl=ko#python] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    
+Python 클라이언트 라이브러리를 사용하여 JSON 파일에서 테이블 스키마를 로드하려면 schema_from_json [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client?hl=ko#google_cloud_bigquery_client_Client_schema_from_json] 메서드를 호출합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(dev): Change uri variable to the path of your data file.
+uri = "gs://your-bucket/path/to/your-file.csv"
+# TODO(dev): Change table_id to the full name of the table you want to create.
+table_id = "your-project.your_dataset.your_table"
+# TODO(dev): Change schema_path variable to the path of your schema file.
+schema_path = "path/to/schema.json"
+# To load a schema file use the schema_from_json method.
+schema = client.schema_from_json [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_schema_from_json](schema_path)
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](
+    # To use the schema you loaded pass it into the
+    # LoadJobConfig constructor.
+    schema=schema,
+    skip_leading_rows=1,
+)
+
+# Pass the job_config object to the load_table_from_file,
+# load_table_from_json, or load_table_from_uri method
+# to use the schema on a new table.
+load_job = client.load_table_from_uri [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_uri](
+    uri, table_id, job_config=job_config
+)  # Make an API request.
+
+load_job.result()  # Waits for the job to complete.
+
+destination_table = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id)  # Make an API request.
+print(f"Loaded {destination_table.num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows]} rows to {table_id}.")
+테이블 생성 시 스키마 파일 지정
+JSON 스키마 파일을 사용하여 기존 데이터 세트에 빈 테이블을 만들려면 다음을 수행합니다.
+--- 탭: bq [https://cloud.google.com/bigquery/docs/schemas?hl=ko#bq] ---
+bq mk --table project_id:dataset.table path_to_schema_file
+
+다음을 바꿉니다.
+
+
+project_id: 프로젝트 ID입니다.
+dataset: 프로젝트의 데이터 세트입니다.
+table: 생성할 테이블의 이름입니다.
+path_to_schema_file: 로컬 머신에 있는 스키마 파일의 경로입니다.
+
+
+예를 들어 다음 명령어는 기본 프로젝트의 mydataset에 mytable이라는 테이블을 만듭니다. 스키마는 현재 디렉터리의 myschema.json에 지정됩니다.
+
+bq mk --table mydataset.mytable ./myschema.json
+
+--- 탭: Python [https://cloud.google.com/bigquery/docs/schemas?hl=ko#python] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    
+Python 클라이언트 라이브러리를 사용하여 JSON 파일에서 테이블 스키마를 로드하려면 schema_from_json [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client?hl=ko#google_cloud_bigquery_client_Client_schema_from_json] 메서드를 호출합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(dev): Change table_id to the full name of the table you want to create.
+table_id = "your-project.your_dataset.your_table_name"
+# TODO(dev): Change schema_path variable to the path of your schema file.
+schema_path = "path/to/schema.json"
+# To load a schema file use the schema_from_json method.
+schema = client.schema_from_json [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_schema_from_json](schema_path)
+
+table = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko](table_id, schema=schema)
+table = client.create_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_table](table)  # API request
+print(f"Created table {table_id}.")
+API에서 스키마 지정
+API를 사용하여 테이블 스키마를 지정합니다.
+데이터를 로드할 때 스키마를 지정하려면 jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] 메서드를 호출하고 JobConfigurationLoad [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#jobconfigurationload] 리소스에서 schema [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationLoad.FIELDS.schema] 속성을 구성합니다.
+테이블을 만들 때 스키마를 지정하려면 tables.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert?hl=ko] 메서드를 호출하고 Table [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#resource:-table] 리소스에서 schema [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#Table.FIELDS.schema] 속성을 구성합니다.
+API를 사용하여 스키마를 지정하는 프로세스는 JSON 스키마 파일 만들기 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#creating_a_JSON_schema_file]와 유사합니다.
+테이블 보안
+BigQuery에서 테이블에 대한 액세스를 제어하려면 IAM으로 리소스에 대한 액세스 제어 [https://cloud.google.com/bigquery/docs/control-access-to-resources-iam?hl=ko]를 참고하세요.
+다음 단계
+스키마 정의에서 중첩 및 반복 열 [https://cloud.google.com/bigquery/docs/nested-repeated?hl=ko] 지정 방법 알아보기
+스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko] 알아보기
+BigQuery에 데이터를 로드 [https://cloud.google.com/bigquery/docs/loading-data?hl=ko]하는 방법 알아보기
+테이블 만들기 및 사용 [https://cloud.google.com/bigquery/docs/tables?hl=ko] 방법 알아보기
+도움이 되었나요?
+의견 보내기

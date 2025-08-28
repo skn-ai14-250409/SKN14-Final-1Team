@@ -1,0 +1,83 @@
+Source URL: https://cloud.google.com/bigquery/docs/metadata-caching-external-tables
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+메타데이터 캐싱 설정 [https://cloud.google.com/bigquery/docs/metadata-caching-external-tables?hl=ko#metadata_caching_settings]
+메타데이터 캐시 새로고침 작업에 대한 정보 가져오기 [https://cloud.google.com/bigquery/docs/metadata-caching-external-tables?hl=ko#get_information_on_metadata_cache_refresh_jobs]
+캐시된 메타데이터와 함께 고객 관리 암호화 키 사용 [https://cloud.google.com/bigquery/docs/metadata-caching-external-tables?hl=ko#use_customer-managed_encryption_keys_with_cached_metadata]
+쿼리 작업별 메타데이터 캐시 사용량에 대한 정보 가져오기 [https://cloud.google.com/bigquery/docs/metadata-caching-external-tables?hl=ko#get_information_on_metadata_cache_usage_by_query_jobs]
+테이블 통계 [https://cloud.google.com/bigquery/docs/metadata-caching-external-tables?hl=ko#table_statistics]
+제한사항 [https://cloud.google.com/bigquery/docs/metadata-caching-external-tables?hl=ko#limitations]
+다음 단계 [https://cloud.google.com/bigquery/docs/metadata-caching-external-tables?hl=ko#whats_next]
+외부 테이블의 메타데이터 캐싱
+bookmark_border
+이 문서에서는 메타데이터 캐싱(열 메타데이터 색인 생성이라고도 함)을 사용하여 객체 테이블 및 일부 유형의 BigLake 테이블의 쿼리 성능을 개선하는 방법을 설명합니다.
+객체 테이블 및 일부 유형의 BigLake 테이블은 외부 데이터 스토어(예: Cloud Storage)의 파일에 대한 메타데이터 정보를 캐시할 수 있습니다. 다음 유형의 BigLake 테이블에서는 메타데이터 캐싱을 지원합니다.
+Amazon S3 BigLake 테이블
+Cloud Storage BigLake 테이블
+메타데이터에는 파일 이름, 파티셔닝 정보, 행 수와 같은 파일의 메타데이터가 포함됩니다. 테이블에서 메타데이터 캐싱을 사용할지 여부를 선택할 수 있습니다. 파일 수가 더 많고 Hive 파티션 필터를 포함하는 쿼리는 메타데이터 캐싱의 이점을 극대화할 수 있습니다.
+메타데이터 캐싱을 사용 설정하지 않으면 테이블의 쿼리에서 외부 데이터 소스를 읽어 객체 메타데이터를 가져와야 합니다. 이 데이터를 읽으면 쿼리 지연 시간이 늘어나므로 외부 데이터 소스에서 수백만 개의 파일을 나열하는 데 몇 분 정도 걸릴 수 있습니다. 메타데이터 캐싱을 사용 설정하면 쿼리가 외부 데이터 소스에서 파일을 나열하지 않고 파티션과 파일 프루닝을 더 빠르게 수행할 수 있습니다.
+테이블을 만들 때 BigLake 또는 객체 테이블에서 메타데이터 캐싱을 사용 설정할 수 있습니다. 객체 테이블 만들기에 대한 자세한 내용은 객체 테이블 만들기 [https://cloud.google.com/bigquery/docs/object-tables?hl=ko]를 참고하세요. BigLake 테이블 생성에 대한 자세한 내용은 다음 주제 중 하나를 참조하세요.
+Amazon S3 BigLake 외부 테이블 만들기 [https://cloud.google.com/bigquery/docs/omni-aws-create-external-table?hl=ko]
+Cloud Storage용 BigLake 외부 테이블 만들기 [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko]
+메타데이터 캐싱 설정
+이 기능의 동작을 제어하는 두 가지 속성은 다음과 같습니다.
+최대 비활성은 쿼리에서 캐시된 메타데이터를 사용하는 시점을 지정합니다.
+메타데이터 캐시 모드는 메타데이터가 수집되는 방식을 지정합니다.
+메타데이터 캐싱을 사용 설정했으면 테이블 작업에 허용되는 메타데이터 비활성 간격을 최대한으로 지정합니다. 예를 들어 1시간 간격을 지정하면 이전 한 시간 내에 새로고침된 경우 테이블 작업에 캐시된 메타데이터가 사용됩니다. 캐시된 메타데이터가 이보다 오래된 경우 작업은 대신 데이터 스토어(Amazon S3 또는 Cloud Storage)에서 메타데이터를 검색하도록 되돌아갑니다. 비활성 간격은 30분부터 7일까지로 지정할 수 있습니다.
+캐시를 자동 또는 수동으로 새로고침하도록 선택할 수 있습니다.
+자동 새로고침의 경우 일반적으로 30분에서 60분 사이로 시스템에서 정의된 간격으로 캐시가 새로고침됩니다. 데이터 스토어의 파일이 무작위 간격으로 추가, 삭제, 수정될 경우에는 캐시를 자동으로 새로고침하는 것이 좋습니다. 추출-변환-로드 작업이 끝날 때 새로고침을 트리거할 때와 같이 새로고침 시간을 제어해야 할 경우에는 수동 새로고침을 사용합니다.
+수동 새로고침의 경우 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 프로시져 [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache]를 실행하여 선택한 일정에 따라 메타데이터 캐시를 새로고침합니다. BigLake 테이블의 경우 테이블 데이터 디렉터리의 하위 디렉터리를 제공하여 선택적으로 메타데이터를 새로고침할 수 있습니다. 이 방식을 통해 불필요한 메타데이터 처리를 방지할 수 있습니다. 데이터 스토어의 파일이 파이프라인 출력과 같이 알려진 간격으로 추가, 삭제, 수정될 경우에는 캐시를 수동으로 새로고침하는 것이 좋습니다.
+수동 및 자동 캐시 새로고침 모두 INTERACTIVE [https://cloud.google.com/bigquery/docs/running-queries?hl=ko] 쿼리 우선순위로 실행됩니다.
+자동 새로고침을 사용하는 경우 메타데이터 캐시 새로고침 작업을 실행하는 프로젝트에 대해 예약 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko]을 만든 후 BACKGROUND 작업 유형으로 할당 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko#assignments]을 만드는 것이 좋습니다. 이렇게 하면 새로고침 작업이 리소스에 대한 사용자 쿼리와 경쟁하지 않으며 사용할 수 있는 리소스가 충분하지 않은 경우 실패하는 것을 방지합니다.
+설정하기 전 비활성 간격 및 메타데이터 캐싱 모드 값이 상호작용하는 방식을 고려해야 합니다. 다음 예를 고려하세요.
+테이블의 메타데이터 캐시가 수동 새로고침을 요구하도록 설정되고 비활성 간격이 2일로 설정된 경우 테이블 작업에 캐시된 메타데이터가 사용되도록 하려면 2일 이내에 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 절차를 실행해야 합니다.
+테이블의 메타데이터 캐시가 자동으로 새로고침되도록 설정되고 비활성 간격이 30분으로 설정된 경우 메타데이터 캐시 새로고침이 일반적인 30분~60분 기간보다 길어지면 테이블에 대한 작업 중 일부에서 데이터 스토어 읽기가 수행될 수 있습니다.
+BigLake 테이블의 메타데이터 캐싱 옵션 설정에 대한 자세한 내용은 Amazon S3 BigLake 외부 테이블 만들기 [https://cloud.google.com/bigquery/docs/omni-aws-create-external-table?hl=ko] 또는 Cloud Storage용 BigLake 외부 테이블 만들기 [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko]를 참고하세요.
+객체 테이블의 메타데이터 캐싱 옵션 설정에 대한 자세한 내용은 객체 테이블 만들기 [https://cloud.google.com/bigquery/docs/object-tables?hl=ko#create_an_object_table]를 참고하세요.
+메타데이터 캐시 새로고침 작업에 대한 정보 가져오기
+메타데이터 캐시 새로고침 작업에 대한 정보를 보려면 다음 예시에 표시된 것처럼 INFORMATION_SCHEMA.JOBS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 쿼리합니다.
+SELECT *
+FROM `region-us.INFORMATION_SCHEMA.JOBS`
+WHERE job_id LIKE '%metadata_cache_refresh%'
+AND creation_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 6 HOUR)
+ORDER BY start_time DESC
+LIMIT 10;
+캐시된 메타데이터와 함께 고객 관리 암호화 키 사용
+캐시된 메타데이터는 캐시된 메타데이터가 연결된 테이블에 사용되는 고객 관리 암호화 키(CMEK) [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]로 보호됩니다. 이는 테이블에 직접 적용된 CMEK 또는 테이블이 데이터 세트 또는 프로젝트에서 상속하는 CMEK일 수 있습니다.
+프로젝트 또는 데이터 세트에 기본 CMEK가 설정되어 있거나 프로젝트 또는 데이터 세트에 기존 CMEK가 변경되어도 기존 테이블 또는 캐시된 메타데이터에 영향을 주지 않습니다. 테이블과 캐시된 메타데이터 모두에 새 키를 적용하려면 테이블의 키를 변경 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#change_key]해야 합니다.
+BigQuery에서 생성된 CMEK는 BigLake 및 객체 테이블에서 사용되는 Cloud Storage 파일에 적용되지 않습니다. 엔드 투 엔드 CMEK 암호화를 가져오려면 해당 파일에 대해 Cloud Storage에서 CMEK를 구성 [https://cloud.google.com/storage/docs/encryption/customer-managed-keys?hl=ko]합니다.
+쿼리 작업별 메타데이터 캐시 사용량에 대한 정보 가져오기
+쿼리 작업의 메타데이터 캐시 사용량에 대한 정보는 해당 작업의 jobs.get 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get?hl=ko]를 호출하고 Job 리소스의 JobStatistics2 섹션 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#jobstatistics2]에서 MetadataCacheStatistics 필드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#metadatacachestatistics]를 확인하세요. 이 필드는 쿼리에 사용된 메타데이터 캐시 지원 테이블, 쿼리에 메타데이터 캐시가 사용되었는지 여부, 사용되지 않았다면 그 이유에 대한 정보를 제공합니다.
+테이블 통계
+Parquet 파일을 기반으로 하는 BigLake 테이블의 경우 통계는 메타데이터 캐시가 새로고침될 때 수집됩니다. 테이블 통계 수집은 자동 새로고침과 수동 새로고침 모두에서 발생하며 통계는 메타데이터 캐시와 동일한 기간 동안 유지됩니다.
+수집되는 테이블 통계에는 행 수, 물리적 파일 및 압축되지 않은 파일 크기, 열의 카디널리티와 같은 파일 정보가 포함됩니다. Parquet 기반 BigLake 테이블에서 쿼리를 실행하면 이러한 통계가 쿼리 최적화 도구에 제공되어 쿼리 계획이 향상되고 일부 쿼리 유형의 쿼리 성능이 향상될 수 있습니다. 예를 들어 일반적인 쿼리 최적화는 동적 제약조건 전파로, 쿼리 최적화 도구는 작은 측정기준 테이블에서 조인에 있는 더 큰 팩트 테이블에 조건자를 동적으로 추론합니다. 이러한 최적화는 정규화된 테이블 스키마를 사용하여 쿼리 속도를 높일 수 있지만, 정확한 테이블 통계가 필요합니다. 메타데이터 캐싱으로 수집된 테이블 통계는 BigQuery와 Apache Spark 모두에서 쿼리 계획 최적화를 향상합니다.
+제한사항
+메타데이터 캐시에는 다음 제한사항이 적용됩니다.
+여러 번의 수동 새로고침을 동시에 수행하면 하나만 성공합니다.
+메타데이터 캐시는 새로고침되지 않을 경우 7일 후 만료됩니다.
+테이블의 소스 URI를 업데이트하면 메타데이터 캐시는 자동으로 새로고침되지 않으며 이후 쿼리는 오래된 캐시의 데이터를 반환합니다. 이 문제를 방지하려면 메타데이터 캐시를 수동으로 새로고침하세요. 테이블의 메타데이터 캐시가 자동으로 새로고침되도록 설정되어 있는 경우, 테이블의 새로 고침 모드를 수동으로 설정하고 수동 새로고침을 수행한 다음 테이블의 새로고침 모드를 자동 모드로 다시 설정합니다.
+메타데이터 캐시를 수동으로 새로고침하고 대상 데이터 세트와 Cloud Storage 버킷이 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#regions] 위치에 있는 경우 BQ.REFRESH_EXTERNAL_METADATA_CACHE [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache] 프로시져 콜을 실행할 때 이 위치를 명시적으로 지정해야 합니다. 다음 중 한 가지 방법을 사용할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/metadata-caching-external-tables?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+편집기에서 탭을 선택합니다.
+settings 더보기를 클릭한 다음 쿼리 설정을 클릭합니다.
+고급 옵션 섹션에서 자동 위치 선택 체크박스를 선택 해제하고 대상 리전을 지정합니다.
+저장을 클릭합니다.
+편집기 탭에서 BQ.REFRESH_EXTERNAL_METADATA_CACHE 프로시져 콜을 포함하는 쿼리를 실행합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/metadata-caching-external-tables?hl=ko#bq] ---
+bq query [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query]를 사용하여 BQ.REFRESH_EXTERNAL_METADATA_CACHE 프로시져 콜을 포함하는 쿼리를 실행하는 경우 --location 플래그 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#global_flags]를 지정해야 합니다.
+다음 단계
+메타데이터 캐싱으로 Cloud Storage BigLake 테이블 만들기 [https://cloud.google.com/bigquery/docs/create-cloud-storage-table-biglake?hl=ko] 자세히 알아보기
+메타데이터 캐싱으로 Amazon S3 BigLake 테이블 만들기 [https://cloud.google.com/bigquery/docs/omni-aws-create-external-table?hl=ko] 자세히 알아보기
+메타데이터 캐싱으로 객체 테이블 만들기 [https://cloud.google.com/bigquery/docs/object-tables?hl=ko] 자세히 알아보기
+BigLake 메타데이터 캐시 지원 테이블에서 구체화된 뷰 사용 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#biglake] 자세히 알아보기
+도움이 되었나요?
+의견 보내기

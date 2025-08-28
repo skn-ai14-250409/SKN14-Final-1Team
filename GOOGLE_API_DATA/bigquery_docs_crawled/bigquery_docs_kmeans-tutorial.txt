@@ -1,0 +1,783 @@
+Source URL: https://cloud.google.com/bigquery/docs/kmeans-tutorial
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+런던 자전거 대여 데이터 세트를 클러스터링하기 위한 k-평균 모델 만들기
+bookmark_border
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/kmeans-tutorial?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/kmeans-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/kmeans-tutorial?hl=ko#before-you-begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/kmeans-tutorial?hl=ko#required_permissions]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/kmeans-tutorial?hl=ko#create_a_dataset]
+이 튜토리얼에서는 BigQuery ML의 k-평균 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-kmeans?hl=ko]을 사용하여 데이터 세트의 클러스터를 식별하는 방법을 알아봅니다.
+데이터를 클러스터로 그룹화하는 k-평균 [https://en.wikipedia.org/wiki/K-means_clustering] 알고리즘은 비지도 머신러닝의 한 형태입니다. 지도 머신러닝의 핵심이 예측 분석이라면 비지도 머신러닝의 핵심은 설명적 분석입니다. 비지도 머신러닝을 사용하면 데이터를 이해하여 데이터를 토대로 의사 결정을 내릴 수 있습니다.
+이 튜토리얼의 쿼리에서는 지리정보 분석에서 사용할 수 있는 지리 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko]를 사용합니다. 자세한 내용은 지리정보 분석 소개 [https://cloud.google.com/bigquery/docs/gis-intro?hl=ko]를 참조하세요.
+이 튜토리얼에서는 런던 자전거 공유 공개 데이터 세트 [https://console.cloud.google.com/marketplace/details/greater-london-authority/london-bicycles?filter=solution-type%3Adataset&%3Bid=95374cac-2834-4fa2-a71f-fc033ccb5ce4&hl=ko]를 사용합니다. 데이터에는 시작 및 중지 타임스탬프, 정거장 이름, 자전거 이용 시간이 포함됩니다.
+목표
+이 튜토리얼에서는 다음 작업을 완료하는 방법을 안내합니다.
+모델을 학습시키는 데 사용된 데이터를 검사합니다.
+k-평균 클러스터링 모델을 만듭니다.
+BigQuery ML의 클러스터 시각화를 사용하여 생성된 데이터 클러스터를 해석합니다.
+k-평균 모델에서 ML.PREDICT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko]를 실행하여 자전거 정거장 세트의 가능한 클러스터를 예측합니다.
+비용
+이 튜토리얼에서는 비용이 청구될 수 있는 다음과 같은 Google Cloud구성요소를 사용합니다.
+BigQuery
+BigQuery ML
+BigQuery 비용에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지를 참조하세요.
+BigQuery ML 비용에 대한 자세한 내용은 BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]을 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery는 새 프로젝트에서 자동으로 사용 설정됩니다. 기존 프로젝트에서 BigQuery를 활성화하려면 다음으로 이동합니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create IAM 권한이 필요합니다.
+모델을 만들려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 권한이 필요합니다.
+bigquery.models.getData
+bigquery.jobs.create
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+데이터 세트 만들기
+k-평균 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형으로 멀티 리전을 선택한 후 EU(유럽 연합의 여러 리전)를 선택합니다.
+런던 자전거 공유 공개 데이터 세트는 EU 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions]에 저장됩니다. 데이터 세트도 같은 위치에 있어야 합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+학습 데이터 검사
+k-평균 모델을 학습시키는 데 사용할 데이터를 검사합니다. 이 튜토리얼에서는 다음 속성에 따라 자전거 정거장을 클러스터링합니다.
+대여 기간
+일일 운행 횟수
+도심에서의 거리
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/kmeans-tutorial?hl=ko#sql] ---
+이 쿼리는 start_station_name 및 duration 열을 포함한 자전거 대여에 대한 데이터를 추출하고 이 데이터를 정거장 정보와 조인합니다. 여기에는 도심에서 정거장까지의 거리가 포함된 계산된 열을 만드는 작업이 포함됩니다. 그런 다음 평균 운행 시간과 운행 횟수를 포함하여 stationstats 열의 정거장 속성과 계산된 distance_from_city_center 열을 계산합니다.
+
+다음 단계에 따라 학습 데이터를 검사합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+WITH
+hs AS (
+  SELECT
+    h.start_station_name AS station_name,
+    IF(
+      EXTRACT(DAYOFWEEK FROM h.start_date) = 1
+        OR EXTRACT(DAYOFWEEK FROM h.start_date) = 7,
+      'weekend',
+      'weekday') AS isweekday,
+    h.duration,
+    ST_DISTANCE(ST_GEOGPOINT(s.longitude, s.latitude), ST_GEOGPOINT(-0.1, 51.5)) / 1000
+      AS distance_from_city_center
+  FROM
+    `bigquery-public-data.london_bicycles.cycle_hire` AS h
+  JOIN
+    `bigquery-public-data.london_bicycles.cycle_stations` AS s
+    ON
+      h.start_station_id = s.id
+  WHERE
+    h.start_date
+    BETWEEN CAST('2015-01-01 00:00:00' AS TIMESTAMP)
+    AND CAST('2016-01-01 00:00:00' AS TIMESTAMP)
+),
+stationstats AS (
+  SELECT
+    station_name,
+    isweekday,
+    AVG(duration) AS duration,
+    COUNT(duration) AS num_trips,
+    MAX(distance_from_city_center) AS distance_from_city_center
+  FROM
+    hs
+  GROUP BY
+    station_name, isweekday
+)
+SELECT *
+FROM
+stationstats
+ORDER BY
+distance_from_city_center ASC;
+
+
+결과는 다음과 비슷하게 표시됩니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/kmeans-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import datetime
+import typing
+
+import pandas as pd
+from shapely.geometry import Point
+
+import bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko]
+import bigframes.bigquery as bbq
+import bigframes.geopandas
+import bigframes.pandas as bpd
+
+bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko].options.bigquery.project [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes._config.bigquery_options.BigQueryOptions.html?hl=ko#bigframes__config_bigquery_options_BigQueryOptions_project] = your_gcp_project_id
+# Compute in the EU multi-region to query the London bicycles dataset.
+bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko].options.bigquery.location [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes._config.bigquery_options.BigQueryOptions.html?hl=ko#bigframes__config_bigquery_options_BigQueryOptions_location] = "EU"
+
+# Extract the information you'll need to train the k-means model in this
+# tutorial. Use the read_gbq function to represent cycle hires
+# data as a DataFrame.
+h = bpd.read_gbq [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.pandas.html?hl=ko](
+    "bigquery-public-data.london_bicycles.cycle_hire",
+    col_order=["start_station_name", "start_station_id", "start_date", "duration"],
+).rename(
+    columns={
+        "start_station_name": "station_name",
+        "start_station_id": "station_id",
+    }
+)
+
+# Use GeoSeries.from_xy and BigQuery.st_distance to analyze geographical
+# data. These functions determine spatial relationships between
+# geographical features.
+cycle_stations = bpd.read_gbq [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.pandas.html?hl=ko]("bigquery-public-data.london_bicycles.cycle_stations")
+s = bpd.DataFrame(
+    {
+        "id": cycle_stations["id"],
+        "xy": bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko].geopandas.GeoSeries.from_xy(
+            cycle_stations["longitude"], cycle_stations["latitude"]
+        ),
+    }
+)
+s_distance = bbq.st_distance [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.bigquery.html?hl=ko](s["xy"], Point(-0.1, 51.5), use_spheroid=False) / 1000
+s = bpd.DataFrame({"id": s["id"], "distance_from_city_center": s_distance})
+
+# Define Python datetime objects in the UTC timezone for range comparison,
+# because BigQuery stores timestamp data in the UTC timezone.
+sample_time = datetime.datetime(2015, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+sample_time2 = datetime.datetime(2016, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+
+h = h.loc[(h["start_date"] >= sample_time) & (h["start_date"] <= sample_time2)]
+
+# Replace each day-of-the-week number with the corresponding "weekday" or
+# "weekend" label by using the Series.map method.
+h = h.assign(
+    isweekday=h.start_date.dt.dayofweek.map [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.operations.ai.AIAccessor.html?hl=ko#bigframes_operations_ai_AIAccessor_map](
+        {
+            0: "weekday",
+            1: "weekday",
+            2: "weekday",
+            3: "weekday",
+            4: "weekday",
+            5: "weekend",
+            6: "weekend",
+        }
+    )
+)
+
+# Supplement each trip in "h" with the station distance information from
+# "s" by merging the two DataFrames by station ID.
+merged_df = h.merge [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.pandas.html?hl=ko](
+    right=s,
+    how="inner",
+    left_on="station_id",
+    right_on="id",
+)
+
+# Engineer features to cluster the stations. For each station, find the
+# average trip duration, number of trips, and distance from city center.
+stationstats = typing.cast(
+    bpd.DataFrame,
+    merged_df.groupby(["station_name", "isweekday"]).agg(
+        {"duration": ["mean", "count"], "distance_from_city_center": "max"}
+    ),
+)
+stationstats.columns = pd.Index [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.core.indexes.base.Index.html?hl=ko](
+    ["duration", "num_trips", "distance_from_city_center"]
+)
+stationstats = stationstats.sort_values(
+    by="distance_from_city_center", ascending=True
+).reset_index()
+
+# Expected output results: >>> stationstats.head(3)
+# station_name	isweekday duration  num_trips	distance_from_city_center
+# Borough Road...	weekday	    1110	    5749	    0.12624
+# Borough Road...	weekend	    2125	    1774	    0.12624
+# Webber Street...	weekday	    795	        6517	    0.164021
+#   3 rows × 5 columns
+k-평균 모델 만들기
+런던 자전거 공유 학습 데이터를 사용하여 k-평균 모델을 만듭니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/kmeans-tutorial?hl=ko#sql] ---
+다음 쿼리에서 CREATE MODEL 문은 사용할 클러스터 수(4개)를 지정합니다. station_name 열에는 특성이 포함되어 있지 않으므로 SELECT 문에서 EXCEPT 절은 이 열을 제외합니다. 쿼리는 station_name별로 고유한 행을 만들며, 특성만 SELECT 문에 언급됩니다.
+
+k-평균 모델을 만들려면 다음 단계를 따르세요.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+CREATE OR REPLACE MODEL `bqml_tutorial.london_station_clusters`
+OPTIONS (
+  model_type = 'kmeans',
+  num_clusters = 4)
+AS
+WITH
+hs AS (
+  SELECT
+    h.start_station_name AS station_name,
+    IF(
+      EXTRACT(DAYOFWEEK FROM h.start_date) = 1
+        OR EXTRACT(DAYOFWEEK FROM h.start_date) = 7,
+      'weekend',
+      'weekday') AS isweekday,
+    h.duration,
+    ST_DISTANCE(ST_GEOGPOINT(s.longitude, s.latitude), ST_GEOGPOINT(-0.1, 51.5)) / 1000
+      AS distance_from_city_center
+  FROM
+    `bigquery-public-data.london_bicycles.cycle_hire` AS h
+  JOIN
+    `bigquery-public-data.london_bicycles.cycle_stations` AS s
+    ON
+      h.start_station_id = s.id
+  WHERE
+    h.start_date
+    BETWEEN CAST('2015-01-01 00:00:00' AS TIMESTAMP)
+    AND CAST('2016-01-01 00:00:00' AS TIMESTAMP)
+),
+stationstats AS (
+  SELECT
+    station_name,
+    isweekday,
+    AVG(duration) AS duration,
+    COUNT(duration) AS num_trips,
+    MAX(distance_from_city_center) AS distance_from_city_center
+  FROM
+    hs
+  GROUP BY
+    station_name, isweekday
+)
+SELECT *
+EXCEPT (station_name, isweekday)
+FROM
+stationstats;
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/kmeans-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+from bigframes.ml.cluster import KMeans
+
+# To determine an optimal number of clusters, construct and fit several
+# K-Means objects with different values of num_clusters, find the error
+# measure, and pick the point at which the error measure is at its minimum
+# value.
+cluster_model = KMeans(n_clusters=4)
+cluster_model.fit(stationstats)
+cluster_model.to_gbq(
+    your_model_id,  # For example: "bqml_tutorial.london_station_clusters"
+    replace=True,
+)
+데이터 클러스터 해석
+모델의 평가 탭에 있는 정보를 통해 모델에서 생성된 클러스터를 해석할 수 있습니다.
+모델의 평가 정보를 보려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 프로젝트를 펼치고 bqml_tutorial 데이터 세트를 펼친 다음 모델 폴더를 펼칩니다.
+london_station_clusters 모델을 선택합니다.
+평가 탭을 선택합니다. 이 탭에는 k-평균 모델로 식별된 클러스터가 시각화되어 표시됩니다. 숫자 특성 섹션의 막대 그래프에는 각 중심에 가장 중요한 숫자 특성 값이 표시됩니다. 각 중심은 지정된 데이터 클러스터를 나타냅니다. 드롭다운 메뉴에서 시각화할 특성을 선택할 수 있습니다.
+이 모델은 다음과 같은 중심을 만듭니다.
+중심 1은 대여 기간이 더 짧고 덜 혼잡한 도시 정거장을 보여줍니다.
+중심 2는 덜 혼잡하고 장기 대여용으로 사용되는 두 번째 도시 정거장을 보여줍니다.
+중심 3은 도심에 가까운 혼잡한 도시 정거장을 보여줍니다.
+중심 4는 운행 거리가 더 긴 교외 정거장을 보여줍니다.
+자전거 대여 비즈니스를 운영하는 경우 이 정보를 참고하여 비즈니스 결정을 내릴 수 있습니다. 예를 들면 다음과 같습니다.
+새로운 유형의 자물쇠를 실험해야 하는 경우를 가정해 보겠습니다. 이 실험 대상으로 어느 정거장 클러스터를 선택해야 할까요? 중심 1, 중심 2, 중심 4의 정거장은 사용량이 높은 정거장이 아니므로 논리적인 대안으로 보입니다.
+일부 정거장에 경주용 자전거를 비치하려는 경우를 가정해 보겠습니다. 어느 정거장을 선택해야 할까요? 중심 4는 도심에서 멀리 떨어져 있어 운행 거리가 가장 긴 정거장 그룹입니다. 경주용 자전거를 위한 후보지로 적합할 수 있습니다.
+ML.PREDICT 함수를 사용하여 정거장의 클러스터 예측
+ML.PREDICT SQL 함수 또는 predict BigQuery DataFrames 함수 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.cluster.KMeans?hl=ko#bigframes_ml_cluster_KMeans_predict]를 사용하여 특정 정거장이 속한 클러스터를 식별합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/kmeans-tutorial?hl=ko#sql] ---
+다음 쿼리는 REGEXP_CONTAINS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_contains] 함수를 사용하여 station_name 열에서 Kennington 문자열이 포함된 모든 항목을 찾습니다. ML.PREDICT 함수는 이 값을 사용하여 어느 클러스터에 이러한 정거장이 포함되어 있는지 예측합니다.
+
+다음 단계에 따라 이름에 Kennington 문자열이 포함된 모든 정거장의 클러스터를 예측합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+WITH
+hs AS (
+  SELECT
+    h.start_station_name AS station_name,
+    IF(
+      EXTRACT(DAYOFWEEK FROM h.start_date) = 1
+        OR EXTRACT(DAYOFWEEK FROM h.start_date) = 7,
+      'weekend',
+      'weekday') AS isweekday,
+    h.duration,
+    ST_DISTANCE(ST_GEOGPOINT(s.longitude, s.latitude), ST_GEOGPOINT(-0.1, 51.5)) / 1000
+      AS distance_from_city_center
+  FROM
+    `bigquery-public-data.london_bicycles.cycle_hire` AS h
+  JOIN
+    `bigquery-public-data.london_bicycles.cycle_stations` AS s
+    ON
+      h.start_station_id = s.id
+  WHERE
+    h.start_date
+    BETWEEN CAST('2015-01-01 00:00:00' AS TIMESTAMP)
+    AND CAST('2016-01-01 00:00:00' AS TIMESTAMP)
+),
+stationstats AS (
+  SELECT
+    station_name,
+    isweekday,
+    AVG(duration) AS duration,
+    COUNT(duration) AS num_trips,
+    MAX(distance_from_city_center) AS distance_from_city_center
+  FROM
+    hs
+  GROUP BY
+    station_name, isweekday
+)
+SELECT *
+EXCEPT (nearest_centroids_distance)
+FROM
+ML.PREDICT(
+  MODEL `bqml_tutorial.london_station_clusters`,
+  (
+    SELECT *
+    FROM
+      stationstats
+    WHERE
+      REGEXP_CONTAINS(station_name, 'Kennington')
+  ));
+
+
+결과는 다음과 비슷하게 표시됩니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/kmeans-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# Select model you'll use for predictions. `read_gbq_model` loads model
+# data from BigQuery, but you could also use the `cluster_model` object
+# from previous steps.
+cluster_model = bpd.read_gbq_model(
+    your_model_id,
+    # For example: "bqml_tutorial.london_station_clusters",
+)
+
+# Use 'contains' function to filter by stations containing the string
+# "Kennington".
+stationstats = stationstats.loc[
+    stationstats["station_name"].str.contains("Kennington")
+]
+
+result = cluster_model.predict(stationstats)
+
+# Expected output results:   >>>results.peek(3)
+# CENTROID...	NEAREST...	station_name  isweekday	 duration num_trips dist...
+# 	1	[{'CENTROID_ID'...	Borough...	  weekday	  1110	    5749	0.13
+# 	2	[{'CENTROID_ID'...	Borough...	  weekend	  2125      1774	0.13
+# 	1	[{'CENTROID_ID'...	Webber...	  weekday	  795	    6517	0.16
+#   3 rows × 7 columns
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트를 유지하고 개별 리소스를 삭제하세요.
+만든 프로젝트를 삭제할 수 있습니다.
+또는 프로젝트를 유지하고 데이터 세트를 삭제할 수 있습니다.
+데이터 세트 삭제
+프로젝트를 삭제하면 프로젝트의 데이터 세트와 테이블이 모두 삭제됩니다. 프로젝트를 다시 사용하려면 이 튜토리얼에서 만든 데이터 세트를 삭제할 수 있습니다.
+필요한 경우Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+앞서 만든 bqml_tutorial 데이터 세트를 탐색에서 선택합니다.
+창의 오른쪽에 있는 데이터 세트 삭제를 클릭합니다. 이렇게 하면 데이터 세트와 모델이 삭제됩니다.
+데이터 세트 삭제 대화상자에서 데이터 세트 이름(bqml_tutorial)을 입력하고 삭제를 클릭하여 삭제 명령어를 확인합니다.
+프로젝트 삭제
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+BigQuery ML 개요는 BigQuery ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]를 참조하세요.
+모델 만들기에 대한 자세한 내용은 CREATE MODEL [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko] 구문 페이지를 참조하세요.
+도움이 되었나요?
+의견 보내기

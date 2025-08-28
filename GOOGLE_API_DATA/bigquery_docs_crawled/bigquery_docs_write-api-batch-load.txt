@@ -1,0 +1,1452 @@
+Source URL: https://cloud.google.com/bigquery/docs/write-api-batch-load
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+대기 유형을 사용한 데이터 일괄 로드 [https://cloud.google.com/bigquery/docs/write-api-batch-load?hl=ko#batch_load_data_using_pending_type]
+Storage Write API를 사용한 데이터 일괄 로드
+bookmark_border
+이 문서에서는 BigQuery Storage Write API [https://cloud.google.com/bigquery/docs/write-api?hl=ko]를 사용하여 데이터를 BigQuery에 일괄 로드하는 방법을 설명합니다.
+일괄 로드 시나리오에서 애플리케이션은 데이터를 쓰고 단일 원자 트랜잭션으로 커밋합니다. Storage Write API를 사용하여 데이터를 일괄 로드하는 경우 대기 유형에서 하나 이상의 스트림을 만듭니다. 대기 유형은 스트림 수준의 트랜잭션을 지원합니다. 스트림은 커밋할 때까지 레코드는 대기 상태로 버퍼링됩니다.
+일괄 워크로드의 경우 커스텀 Storage Write API 코드를 작성하는 대신 Dataproc을 사용하여 BigQuery용 Apache Spark SQL 커넥터 [https://github.com/GoogleCloudDataproc/spark-bigquery-connector#writing-data-to-bigquery]를 통해 Storage Write API를 사용하는 것이 좋습니다.
+Storage Write API는 데이터 파이프라인 아키텍처에 적합합니다. 기본 프로세스는 여러 스트림을 만듭니다. 각 스트림에 대해 작업자 스레드 또는 별도의 프로세스를 할당하여 일괄 데이터의 일부를 작성합니다. 각 작업자는 스트림에 대한 연결을 만들고, 데이터를 쓰고, 완료되면 스트림을 완료합니다. 모든 작업자가 기본 프로세스에 성공적인 완료를 알리면 기본 프로세스가 데이터를 커밋합니다. 작업자가 실패하면 데이터의 할당된 부분이 최종 결과에 표시되지 않으며 전체 작업자를 안전하게 재시도할 수 있습니다. 보다 정교한 파이프라인에서 작업자는 기본 프로세스에 기록된 마지막 오프셋을 보고하여 진행 상황을 체크포인트화합니다. 이 방식은 장애 복원력이 우수한 강력한 파이프라인을 구축할 수 있습니다.
+대기 유형을 사용한 데이터 일괄 로드
+애플리케이션은 대기 유형을 사용하기 위해 다음을 수행합니다.
+CreateWriteStream을 호출하여 대기 유형에서 하나 이상의 스트림을 만듭니다.
+각 스트림에 대해 루프에서 AppendRows를 호출하여 레코드 배치를 씁니다.
+각 스트림에 대해 FinalizeWriteStream을 호출합니다. 이 메서드를 호출한 다음에는 스트림에 추가 행을 기록할 수 없습니다. FinalizeWriteStream을 호출한 후 AppendRows를 호출하면 google.rpc.Status 오류에 StorageErrorCode.STREAM_FINALIZED가 포함된 StorageError [https://cloud.google.com/bigquery/docs/reference/storage/rpc/google.cloud.bigquery.storage.v1?hl=ko#google.cloud.bigquery.storage.v1.StorageError]가 반환됩니다. google.rpc.Status 오류 모델에 대한 자세한 내용은 오류 [https://cloud.google.com/apis/design/errors?hl=ko]를 참조하세요.
+BatchCommitWriteStreams를 호출하여 스트림을 커밋합니다. 이 메서드를 호출한 후 데이터를 읽기에 사용할 수 있습니다. 스트림을 커밋하는 중에 오류가 발생하면 BatchCommitWriteStreamsResponse [https://cloud.google.com/bigquery/docs/reference/storage/rpc/google.cloud.bigquery.storage.v1?hl=ko#batchcommitwritestreamsresponse]의 stream_errors 필드에 오류가 반환됩니다.
+커밋은 원자적 작업이며 한 번에 여러 스트림을 커밋할 수 있습니다. 스트림은 한 번만 커밋할 수 있으므로 커밋 작업이 실패하면 재시도해도 안전합니다. 스트림을 커밋할 때까지 데이터는 대기 중이며 읽기에 표시되지 않습니다.
+스트림이 확정된 후 커밋되기 전에 데이터는 최대 4시간 동안 버퍼에 남아 있을 수 있습니다. 대기 중인 스트림은 24시간 이내에 커밋되어야 합니다. 대기 중인 스트림 버퍼의 총 크기 [https://cloud.google.com/bigquery/quotas?hl=ko#writeapi_pending_stream]에는 할당량 한도가 있습니다.
+다음 코드는 대기 유형에서 데이터를 쓰는 방법을 보여줍니다.
+--- 탭: C# [https://cloud.google.com/bigquery/docs/write-api-batch-load?hl=ko#c] ---
+BigQuery용 클라이언트 라이브러리 설치 및 사용 방법은 BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/storage/libraries?hl=ko]를 참조하세요.
+        
+      
+      
+  자세한 내용은 BigQuery C# API 참고 문서 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+using Google.Api.Gax.Grpc [https://cloud.google.com/dotnet/docs/reference/Google.Api.Gax/latest/Google.Api.Gax.Grpc.html?hl=ko];
+using Google.Cloud.BigQuery.Storage.V1 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.html?hl=ko];
+using Google.Protobuf [https://cloud.google.com/dotnet/docs/reference/Google.Protobuf/latest/Google.Protobuf.html?hl=ko];
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using static Google.Cloud.BigQuery.Storage.V1.AppendRowsRequest.Types;
+
+public class AppendRowsPendingSample
+{
+    /// <summary>
+    /// This code sample demonstrates how to write records in pending mode.
+    /// Create a write stream, write some sample data, and commit the stream to append the rows.
+    /// The CustomerRecord proto used in the sample can be seen in Resources folder and generated C# is placed in Data folder in
+    /// https://github.com/GoogleCloudPlatform/dotnet-docs-samples/tree/main/bigquery-storage/api/BigQueryStorage.Samples
+    /// </summary>
+    public async Task AppendRowsPendingAsync(string projectId, string datasetId, string tableId)
+    {
+        BigQueryWriteClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BigQueryWriteClient.html?hl=ko] bigQueryWriteClient = await BigQueryWriteClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BigQueryWriteClient.html?hl=ko].CreateAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BigQueryWriteClient.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_BigQueryWriteClient_CreateAsync_System_Threading_CancellationToken_]();
+        // Initialize a write stream for the specified table.
+        // When creating the stream, choose the type. Use the Pending type to wait
+        // until the stream is committed before it is visible. See:
+        // https://cloud.google.com/bigquery/docs/reference/storage/rpc/google.cloud.bigquery.storage.v1#google.cloud.bigquery.storage.v1.WriteStream.Type
+        WriteStream [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.WriteStream.html?hl=ko] stream = new WriteStream [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.WriteStream.html?hl=ko] { Type = WriteStream [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.WriteStream.html?hl=ko].Type [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.WriteStream.Types.Type.html?hl=ko]s.Type [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.WriteStream.Types.Type.html?hl=ko].Pending [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.WriteStream.Types.Type.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_WriteStream_Types_Type_Pending] };
+        TableName [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.TableName.html?hl=ko] tableName = TableName [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.TableName.html?hl=ko].FromProjectDatasetTable [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.TableName.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_TableName_FromProjectDatasetTable_System_String_System_String_System_String_](projectId, datasetId, tableId);
+
+        stream = await bigQueryWriteClient.CreateWriteStreamAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BigQueryWriteClient.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_BigQueryWriteClient_CreateWriteStreamAsync_Google_Cloud_BigQuery_Storage_V1_CreateWriteStreamRequest_Google_Api_Gax_Grpc_CallSettings_](tableName, stream);
+
+        // Initialize streaming call, retrieving the stream object
+        BigQueryWriteClient.AppendRowsStream rowAppender = bigQueryWriteClient.AppendRows [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BigQueryWriteClient.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_BigQueryWriteClient_AppendRows_Google_Api_Gax_Grpc_CallSettings_Google_Api_Gax_Grpc_BidirectionalStreamingSettings_]();
+
+        // Sending requests and retrieving responses can be arbitrarily interleaved.
+        // Exact sequence will depend on client/server behavior.
+        // Create task to do something with responses from server.
+        Task appendResultsHandlerTask = Task.Run(async () =>
+        {
+            AsyncResponseStream<AppendRowsResponse> appendRowResults = rowAppender.GetResponseStream();
+            while (await appendRowResults.MoveNextAsync())
+            {
+                AppendRowsResponse responseItem = appendRowResults.Current;
+                // Do something with responses.
+                if (responseItem.AppendResult != null)
+                {
+                    Console.WriteLine($"Appending rows resulted in: {responseItem.AppendResult}");
+                }
+                if (responseItem.Error != null)
+                {
+                    Console.Error.WriteLine($"Appending rows resulted in an error: {responseItem.Error.Message}");
+                    foreach (RowError rowError in responseItem.RowErrors)
+                    {
+                        Console.Error.WriteLine($"Row Error: {rowError}");
+                    }
+                }
+            }
+            // The response stream has completed.
+        });
+
+        // List of records to be appended in the table.
+        List<CustomerRecord> records = new List<CustomerRecord>
+        {
+            new CustomerRecord { CustomerNumber = 1, CustomerName = "Alice" },
+            new CustomerRecord { CustomerNumber = 2, CustomerName = "Bob" }
+        };
+
+        // Create a batch of row data by appending serialized bytes to the
+        // SerializedRows repeated field.
+        ProtoData [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.AppendRowsRequest.Types.ProtoData.html?hl=ko] protoData = new ProtoData [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.AppendRowsRequest.Types.ProtoData.html?hl=ko]
+        {
+            WriterSchema = new ProtoSchema [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.ProtoSchema.html?hl=ko] { ProtoDescriptor = CustomerRecord.Descriptor.ToProto() },
+            Rows = new ProtoRows [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.ProtoRows.html?hl=ko] { SerializedRows = { records.Select(r => r.ToByteString [https://cloud.google.com/dotnet/docs/reference/Google.Protobuf/latest/Google.Protobuf.MessageExtensions.html?hl=ko#Google_Protobuf_MessageExtensions_ToByteString_Google_Protobuf_IMessage_]()) } }
+        };
+
+        // Initialize the append row request.
+        AppendRowsRequest [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.AppendRowsRequest.html?hl=ko] appendRowRequest = new AppendRowsRequest [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.AppendRowsRequest.html?hl=ko]
+        {
+            WriteStreamAsWriteStreamName = stream.WriteStreamName [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.WriteStream.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_WriteStream_WriteStreamName],
+            ProtoRows = protoData
+        };
+
+        // Stream a request to the server.
+        await rowAppender.WriteAsync(appendRowRequest);
+
+        // Append a second batch of data.
+        protoData = new ProtoData [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.AppendRowsRequest.Types.ProtoData.html?hl=ko]
+        {
+            Rows = new ProtoRows [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.ProtoRows.html?hl=ko] { SerializedRows = { new CustomerRecord { CustomerNumber = 3, CustomerName = "Charles" }.ToByteString [https://cloud.google.com/dotnet/docs/reference/Google.Protobuf/latest/Google.Protobuf.MessageExtensions.html?hl=ko#Google_Protobuf_MessageExtensions_ToByteString_Google_Protobuf_IMessage_]() } }
+        };
+
+        // Since this is the second request, you only need to include the row data.
+        // The name of the stream and protocol buffers descriptor is only needed in
+        // the first request.
+        appendRowRequest = new AppendRowsRequest [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.AppendRowsRequest.html?hl=ko]
+        {
+            // If Offset is not present, the write is performed at the current end of stream.
+            ProtoRows = protoData
+        };
+
+        await rowAppender.WriteAsync(appendRowRequest);
+
+        // Complete writing requests to the stream.
+        await rowAppender.WriteCompleteAsync();
+
+        // Await the handler. This will complete once all server responses have been processed.
+        await appendResultsHandlerTask;
+
+        // A Pending type stream must be "finalized" before being committed. No new
+        // records can be written to the stream after this method has been called.
+        await bigQueryWriteClient.FinalizeWriteStreamAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BigQueryWriteClient.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_BigQueryWriteClient_FinalizeWriteStreamAsync_Google_Cloud_BigQuery_Storage_V1_FinalizeWriteStreamRequest_Google_Api_Gax_Grpc_CallSettings_](stream.Name [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.WriteStream.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_WriteStream_Name]);
+        BatchCommitWriteStreamsRequest [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BatchCommitWriteStreamsRequest.html?hl=ko] batchCommitWriteStreamsRequest = new BatchCommitWriteStreamsRequest [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BatchCommitWriteStreamsRequest.html?hl=ko]
+        {
+            Parent = tableName.ToString [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.TableName.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_TableName_ToString](),
+            WriteStreams = { stream.Name [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.WriteStream.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_WriteStream_Name] }
+        };
+
+        BatchCommitWriteStreamsResponse [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BatchCommitWriteStreamsResponse.html?hl=ko] batchCommitWriteStreamsResponse =
+            await bigQueryWriteClient.BatchCommitWriteStreamsAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BigQueryWriteClient.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_BigQueryWriteClient_BatchCommitWriteStreamsAsync_Google_Cloud_BigQuery_Storage_V1_BatchCommitWriteStreamsRequest_Google_Api_Gax_Grpc_CallSettings_](batchCommitWriteStreamsRequest);
+        if (batchCommitWriteStreamsResponse.StreamErrors [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BatchCommitWriteStreamsResponse.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_BatchCommitWriteStreamsResponse_StreamErrors]?.Count > 0)
+        {
+            // Handle errors here.
+            Console.WriteLine("Error committing write streams. Individual errors:");
+            foreach (StorageError [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.StorageError.html?hl=ko] error in batchCommitWriteStreamsResponse.StreamErrors [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.BatchCommitWriteStreamsResponse.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_BatchCommitWriteStreamsResponse_StreamErrors])
+            {
+                Console.WriteLine(error.ErrorMessage [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.StorageError.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_StorageError_ErrorMessage]);
+            }            
+        }
+        else
+        {
+            Console.WriteLine($"Writes to stream {stream.Name [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.Storage.V1/latest/Google.Cloud.BigQuery.Storage.V1.WriteStream.html?hl=ko#Google_Cloud_BigQuery_Storage_V1_WriteStream_Name]} have been committed.");
+        }
+    }
+}
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/write-api-batch-load?hl=ko#go] ---
+BigQuery용 클라이언트 라이브러리 설치 및 사용 방법은 BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/storage/libraries?hl=ko]를 참조하세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://pkg.go.dev/cloud.google.com/go/bigquery/storage?tab=doc]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+import (
+	"context"
+	"fmt"
+	"io"
+	"math/rand"
+	"time"
+
+	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
+	"cloud.google.com/go/bigquery/storage/managedwriter"
+	"cloud.google.com/go/bigquery/storage/managedwriter/adapt"
+	"github.com/GoogleCloudPlatform/golang-samples/bigquery/snippets/managedwriter/exampleproto"
+	"google.golang.org/protobuf/proto"
+)
+
+// generateExampleMessages generates a slice of serialized protobuf messages using a statically defined
+// and compiled protocol buffer file, and returns the binary serialized representation.
+func generateExampleMessages(numMessages int) ([][]byte, error) {
+	msgs := make([][]byte, numMessages)
+	for i := 0; i < numMessages; i++ {
+
+		random := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+		// Our example data embeds an array of structs, so we'll construct that first.
+		sList := make([]*exampleproto.SampleStruct, 5)
+		for i := 0; i < int(random.Int63n(5)+1); i++ {
+			sList[i] = &exampleproto.SampleStruct{
+				SubIntCol: proto.Int64(random.Int63()),
+			}
+		}
+
+		m := &exampleproto.SampleData{
+			BoolCol:    proto.Bool(true),
+			BytesCol:   []byte("some bytes"),
+			Float64Col: proto.Float64(3.14),
+			Int64Col:   proto.Int64(123),
+			StringCol:  proto.String("example string value"),
+
+			// These types require special encoding/formatting to transmit.
+
+			// DATE values are number of days since the Unix epoch.
+
+			DateCol: proto.Int32(int32(time.Now().UnixNano() / 86400000000000)),
+
+			// DATETIME uses the literal format.
+			DatetimeCol: proto.String("2022-01-01 12:13:14.000000"),
+
+			// GEOGRAPHY uses Well-Known-Text (WKT) format.
+			GeographyCol: proto.String("POINT(-122.350220 47.649154)"),
+
+			// NUMERIC and BIGNUMERIC can be passed as string, or more efficiently
+			// using a packed byte representation.
+			NumericCol:    proto.String("99999999999999999999999999999.999999999"),
+			BignumericCol: proto.String("578960446186580977117854925043439539266.34992332820282019728792003956564819967"),
+
+			// TIME also uses literal format.
+			TimeCol: proto.String("12:13:14.000000"),
+
+			// TIMESTAMP uses microseconds since Unix epoch.
+			TimestampCol: proto.Int64(time.Now().UnixNano() / 1000),
+
+			// Int64List is an array of INT64 types.
+			Int64List: []int64{2, 4, 6, 8},
+
+			// This is a required field, and thus must be present.
+			RowNum: proto.Int64(23),
+
+			// StructCol is a single nested message.
+			StructCol: &exampleproto.SampleStruct{
+				SubIntCol: proto.Int64(random.Int63()),
+			},
+
+			// StructList is a repeated array of a nested message.
+			StructList: sList,
+		}
+
+		b, err := proto.Marshal(m)
+		if err != nil {
+			return nil, fmt.Errorf("error generating message %d: %w", i, err)
+		}
+		msgs[i] = b
+	}
+	return msgs, nil
+}
+
+// appendToPendingStream demonstrates using the managedwriter package to write some example data
+// to a pending stream, and then committing it to a table.
+func appendToPendingStream(w io.Writer, projectID, datasetID, tableID string) error {
+	// projectID := "myproject"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+
+	ctx := context.Background()
+	// Instantiate a managedwriter client to handle interactions with the service.
+	client, err := managedwriter.NewClient [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_Client_NewClient](ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("managedwriter.NewClient: %w", err)
+	}
+	// Close the client when we exit the function.
+	defer client.Close()
+
+	// Create a new pending stream.  We'll use the stream name to construct a writer.
+	pendingStream, err := client.CreateWriteStream(ctx, &storagepb.CreateWriteStreamRequest [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/apiv1/storagepb.html?hl=ko#cloud_google_com_go_bigquery_storage_apiv1_storagepb_CreateWriteStreamRequest]{
+		Parent: fmt.Sprintf("projects/%s/datasets/%s/tables/%s", projectID, datasetID, tableID),
+		WriteStream: &storagepb.WriteStream [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/apiv1/storagepb.html?hl=ko#cloud_google_com_go_bigquery_storage_apiv1_storagepb_WriteStream]{
+			Type: storagepb.WriteStream_PENDING [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/apiv1/storagepb.html?hl=ko#cloud_google_com_go_bigquery_storage_apiv1_storagepb_WriteStream_TYPE_UNSPECIFIED_WriteStream_COMMITTED_WriteStream_PENDING_WriteStream_BUFFERED],
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("CreateWriteStream: %w", err)
+	}
+
+	// We need to communicate the descriptor of the protocol buffer message we're using, which
+	// is analagous to the "schema" for the message.  Both SampleData and SampleStruct are
+	// two distinct messages in the compiled proto file, so we'll use adapt.NormalizeDescriptor
+	// to unify them into a single self-contained descriptor representation.
+	m := &exampleproto.SampleData{}
+	descriptorProto, err := adapt.NormalizeDescriptor [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter/adapt.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_adapt_NormalizeDescriptor](m.ProtoReflect().Descriptor())
+	if err != nil {
+		return fmt.Errorf("NormalizeDescriptor: %w", err)
+	}
+
+	// Instantiate a ManagedStream, which manages low level details like connection state and provides
+	// additional features like a future-like callback for appends, etc.  NewManagedStream can also create
+	// the stream on your behalf, but in this example we're being explicit about stream creation.
+	managedStream, err := client.NewManagedStream [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_Client_NewManagedStream](ctx, managedwriter.WithStreamName [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_WriterOption_WithStreamName](pendingStream.GetName()),
+		managedwriter.WithSchemaDescriptor [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_WriterOption_WithSchemaDescriptor](descriptorProto))
+	if err != nil {
+		return fmt.Errorf("NewManagedStream: %w", err)
+	}
+	defer managedStream.Close()
+
+	// First, we'll append a single row.
+	rows, err := generateExampleMessages(1)
+	if err != nil {
+		return fmt.Errorf("generateExampleMessages: %w", err)
+	}
+
+	// We'll keep track of the current offset in the stream with curOffset.
+	var curOffset int64
+	// We can append data asyncronously, so we'll check our appends at the end.
+	var results []*managedwriter.AppendResult [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_AppendResult]
+
+	result, err := managedStream.AppendRows(ctx, rows, managedwriter.WithOffset [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_AppendOption_WithOffset](0))
+	if err != nil {
+		return fmt.Errorf("AppendRows first call error: %w", err)
+	}
+	results = append(results, result)
+
+	// Advance our current offset.
+	curOffset = curOffset + 1
+
+	// This time, we'll append three more rows in a single request.
+	rows, err = generateExampleMessages(3)
+	if err != nil {
+		return fmt.Errorf("generateExampleMessages: %w", err)
+	}
+	result, err = managedStream.AppendRows(ctx, rows, managedwriter.WithOffset [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_AppendOption_WithOffset](curOffset))
+	if err != nil {
+		return fmt.Errorf("AppendRows second call error: %w", err)
+	}
+	results = append(results, result)
+
+	// Advance our offset again.
+	curOffset = curOffset + 3
+
+	// Finally, we'll append two more rows.
+	rows, err = generateExampleMessages(2)
+	if err != nil {
+		return fmt.Errorf("generateExampleMessages: %w", err)
+	}
+	result, err = managedStream.AppendRows(ctx, rows, managedwriter.WithOffset [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_AppendOption_WithOffset](curOffset))
+	if err != nil {
+		return fmt.Errorf("AppendRows third call error: %w", err)
+	}
+	results = append(results, result)
+
+	// Now, we'll check that our batch of three appends all completed successfully.
+	// Monitoring the results could also be done out of band via a goroutine.
+	for k, v := range results {
+		// GetResult blocks until we receive a response from the API.
+		recvOffset, err := v.GetResult [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_AppendResult_GetResult](ctx)
+		if err != nil {
+			return fmt.Errorf("append %d returned error: %w", k, err)
+		}
+		fmt.Fprintf(w, "Successfully appended data at offset %d.\n", recvOffset)
+	}
+
+	// We're now done appending to this stream.  We now mark pending stream finalized, which blocks
+	// further appends.
+	rowCount, err := managedStream.Finalize [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_ManagedStream_Finalize](ctx)
+	if err != nil {
+		return fmt.Errorf("error during Finalize: %w", err)
+	}
+
+	fmt.Fprintf(w, "Stream %s finalized with %d rows.\n", managedStream.StreamName [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_ManagedStream_StreamName](), rowCount)
+
+	// To commit the data to the table, we need to run a batch commit.  You can commit several streams
+	// atomically as a group, but in this instance we'll only commit the single stream.
+	req := &storagepb.BatchCommitWriteStreamsRequest [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/apiv1/storagepb.html?hl=ko#cloud_google_com_go_bigquery_storage_apiv1_storagepb_BatchCommitWriteStreamsRequest]{
+		Parent:       managedwriter.TableParentFromStreamName [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_TableParentFromStreamName](managedStream.StreamName [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_ManagedStream_StreamName]()),
+		WriteStreams: []string{managedStream.StreamName [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/managedwriter.html?hl=ko#cloud_google_com_go_bigquery_storage_managedwriter_ManagedStream_StreamName]()},
+	}
+
+	resp, err := client.BatchCommitWriteStreams(ctx, req)
+	if err != nil {
+		return fmt.Errorf("client.BatchCommit: %w", err)
+	}
+	if len(resp.GetStreamErrors [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/apiv1/storagepb.html?hl=ko#cloud_google_com_go_bigquery_storage_apiv1_storagepb_BatchCommitWriteStreamsResponse_GetStreamErrors]()) > 0 {
+		return fmt.Errorf("stream errors present: %v", resp.GetStreamErrors [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/storage/apiv1/storagepb.html?hl=ko#cloud_google_com_go_bigquery_storage_apiv1_storagepb_BatchCommitWriteStreamsResponse_GetStreamErrors]())
+	}
+
+	fmt.Fprintf(w, "Table data committed at %s\n", resp.GetCommitTime().AsTime().Format(time.RFC3339Nano))
+
+	return nil
+}
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/write-api-batch-load?hl=ko#%EC%9E%90%EB%B0%94] ---
+BigQuery용 클라이언트 라이브러리 설치 및 사용 방법은 BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/storage/libraries?hl=ko]를 참조하세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.core.ApiFuture [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFuture.html?hl=ko];
+import com.google.api.core.ApiFutureCallback [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutureCallback.html?hl=ko];
+import com.google.api.core.ApiFutures [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutures.html?hl=ko];
+import com.google.api.gax.retrying.RetrySettings [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.AppendRowsResponse.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko].StorageException [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.StorageException.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.JsonStreamWriter [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.StorageError [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.StorageError.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko];
+import com.google.cloud.bigquery.storage.v1.WriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko];
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.protobuf.Descriptors.DescriptorValidationException;
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Phaser;
+import javax.annotation.concurrent.GuardedBy;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.threeten.bp.Duration;
+
+public class WritePendingStream {
+
+  public static void runWritePendingStream()
+      throws DescriptorValidationException, InterruptedException, IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+
+    writePendingStream(projectId, datasetName, tableName);
+  }
+
+  public static void writePendingStream(String projectId, String datasetName, String tableName)
+      throws DescriptorValidationException, InterruptedException, IOException {
+    BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko] client = BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko].create();
+    TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko] parentTable = TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko].of(projectId, datasetName, tableName);
+
+    DataWriter writer = new DataWriter();
+    // One time initialization.
+    writer.initialize(parentTable, client);
+
+    try {
+      // Write two batches of fake data to the stream, each with 10 JSON records.  Data may be
+      // batched up to the maximum request size:
+      // https://cloud.google.com/bigquery/quotas#write-api-limits
+      long offset = 0;
+      for (int i = 0; i < 2; i++) {
+        // Create a JSON object that is compatible with the table schema.
+        JSONArray jsonArr = new JSONArray();
+        for (int j = 0; j < 10; j++) {
+          JSONObject record = new JSONObject();
+          record.put("col1", String.format("batch-record %03d-%03d", i, j));
+          jsonArr.put(record);
+        }
+        writer.append(jsonArr, offset);
+        offset += jsonArr.length();
+      }
+    } catch (ExecutionException e) {
+      // If the wrapped exception is a StatusRuntimeException, check the state of the operation.
+      // If the state is INTERNAL, CANCELLED, or ABORTED, you can retry. For more information, see:
+      // https://grpc.github.io/grpc-java/javadoc/io/grpc/StatusRuntimeException.html
+      System.out.println("Failed to append records. \n" + e);
+    }
+
+    // Final cleanup for the stream.
+    writer.cleanup(client);
+    System.out.println("Appended records successfully.");
+
+    // Once all streams are done, if all writes were successful, commit all of them in one request.
+    // This example only has the one stream. If any streams failed, their workload may be
+    // retried on a new stream, and then only the successful stream should be included in the
+    // commit.
+    BatchCommitWriteStreamsRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest.html?hl=ko] commitRequest =
+        BatchCommitWriteStreamsRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest.html?hl=ko].newBuilder()
+            .setParent(parentTable.toString [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko#com_google_cloud_bigquery_storage_v1_TableName_toString__]())
+            .addWriteStreams [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest.Builder.html?hl=ko#com_google_cloud_bigquery_storage_v1_BatchCommitWriteStreamsRequest_Builder_addWriteStreams_java_lang_String_](writer.getStreamName())
+            .build();
+    BatchCommitWriteStreamsResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse.html?hl=ko] commitResponse = client.batchCommitWriteStreams [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko#com_google_cloud_bigquery_storage_v1_BigQueryWriteClient_batchCommitWriteStreams_com_google_cloud_bigquery_storage_v1_BatchCommitWriteStreamsRequest_](commitRequest);
+    // If the response does not have a commit time, it means the commit operation failed.
+    if (commitResponse.hasCommitTime [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse.html?hl=ko#com_google_cloud_bigquery_storage_v1_BatchCommitWriteStreamsResponse_hasCommitTime__]() == false) {
+      for (StorageError [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.StorageError.html?hl=ko] err : commitResponse.getStreamErrorsList [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse.html?hl=ko#com_google_cloud_bigquery_storage_v1_BatchCommitWriteStreamsResponse_getStreamErrorsList__]()) {
+        System.out.println(err.getErrorMessage());
+      }
+      throw new RuntimeException("Error committing the streams");
+    }
+    System.out.println("Appended and committed records successfully.");
+  }
+
+  // A simple wrapper object showing how the stateful stream writer should be used.
+  private static class DataWriter {
+
+    private JsonStreamWriter [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko] streamWriter;
+    // Track the number of in-flight requests to wait for all responses before shutting down.
+    private final Phaser inflightRequestCount = new Phaser(1);
+
+    private final Object lock = new Object();
+
+    @GuardedBy("lock")
+    private RuntimeException error = null;
+
+    void initialize(TableName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko] parentTable, BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko] client)
+        throws IOException, DescriptorValidationException, InterruptedException {
+      // Initialize a write stream for the specified table.
+      // For more information on WriteStream.Type, see:
+      // https://googleapis.dev/java/google-cloud-bigquerystorage/latest/com/google/cloud/bigquery/storage/v1/WriteStream.Type.html
+      WriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko] stream = WriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko].newBuilder().setType(WriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko].Type.PENDING).build();
+
+      // Configure in-stream automatic retry settings.
+      // Error codes that are immediately retried:
+      // * ABORTED, UNAVAILABLE, CANCELLED, INTERNAL, DEADLINE_EXCEEDED
+      // Error codes that are retried with exponential backoff:
+      // * RESOURCE_EXHAUSTED
+      RetrySettings [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.html?hl=ko] retrySettings =
+          RetrySettings [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.html?hl=ko].newBuilder()
+              .setInitialRetryDelay [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setInitialRetryDelay_org_threeten_bp_Duration_](Duration.ofMillis(500))
+              .setRetryDelayMultiplier [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setRetryDelayMultiplier_double_](1.1)
+              .setMaxAttempts [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setMaxAttempts_int_](5)
+              .setMaxRetryDelay [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings.Builder.html?hl=ko#com_google_api_gax_retrying_RetrySettings_Builder_setMaxRetryDelay_org_threeten_bp_Duration_](Duration.ofMinutes(1))
+              .build();
+
+      CreateWriteStreamRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest.html?hl=ko] createWriteStreamRequest =
+          CreateWriteStreamRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest.html?hl=ko].newBuilder()
+              .setParent(parentTable.toString [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.TableName.html?hl=ko#com_google_cloud_bigquery_storage_v1_TableName_toString__]())
+              .setWriteStream(stream)
+              .build();
+      WriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko] writeStream = client.createWriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko#com_google_cloud_bigquery_storage_v1_BigQueryWriteClient_createWriteStream_com_google_cloud_bigquery_storage_v1_CreateWriteStreamRequest_](createWriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko#com_google_cloud_bigquery_storage_v1_BigQueryWriteClient_createWriteStream_com_google_cloud_bigquery_storage_v1_CreateWriteStreamRequest_]Request);
+
+      // Use the JSON stream writer to send records in JSON format.
+      // For more information about JsonStreamWriter, see:
+      // https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter
+      streamWriter =
+          JsonStreamWriter [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko].newBuilder(writeStream.getName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko#com_google_cloud_bigquery_storage_v1_WriteStream_getName__](), writeStream.getTableSchema [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.WriteStream.html?hl=ko#com_google_cloud_bigquery_storage_v1_WriteStream_getTableSchema__]())
+              .setRetrySettings(retrySettings)
+              .build();
+    }
+
+    public void append(JSONArray data, long offset)
+        throws DescriptorValidationException, IOException, ExecutionException {
+      synchronized (this.lock) {
+        // If earlier appends have failed, we need to reset before continuing.
+        if (this.error != null) {
+          throw this.error;
+        }
+      }
+      // Append asynchronously for increased throughput.
+      ApiFuture<AppendRowsResponse> future = streamWriter.append [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_append_com_google_gson_JsonArray_](data, offset);
+      ApiFutures [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutures.html?hl=ko].addCallback [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.core.ApiFutures.html?hl=ko#com_google_api_core_ApiFutures__V_addCallback_com_google_api_core_ApiFuture_V__com_google_api_core_ApiFutureCallback___super_V__](
+          future, new AppendCompleteCallback(this), MoreExecutors.directExecutor());
+      // Increase the count of in-flight requests.
+      inflightRequestCount.register();
+    }
+
+    public void cleanup(BigQueryWriteClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko] client) {
+      // Wait for all in-flight requests to complete.
+      inflightRequestCount.arriveAndAwaitAdvance();
+
+      // Close the connection to the server.
+      streamWriter.close [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_close__]();
+
+      // Verify that no error occurred in the stream.
+      synchronized (this.lock) {
+        if (this.error != null) {
+          throw this.error;
+        }
+      }
+
+      // Finalize the stream.
+      FinalizeWriteStreamResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse.html?hl=ko] finalizeResponse =
+          client.finalizeWriteStream [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.BigQueryWriteClient.html?hl=ko#com_google_cloud_bigquery_storage_v1_BigQueryWriteClient_finalizeWriteStream_com_google_cloud_bigquery_storage_v1_FinalizeWriteStreamRequest_](streamWriter.getStreamName());
+      System.out.println("Rows written: " + finalizeResponse.getRowCount [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse.html?hl=ko#com_google_cloud_bigquery_storage_v1_FinalizeWriteStreamResponse_getRowCount__]());
+    }
+
+    public String getStreamName() {
+      return streamWriter.getStreamName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.html?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_getStreamName__]();
+    }
+
+    static class AppendCompleteCallback implements ApiFutureCallback<AppendRowsResponse> {
+
+      private final DataWriter parent;
+
+      public AppendCompleteCallback(DataWriter parent) {
+        this.parent = parent;
+      }
+
+      public void onSuccess(AppendRowsResponse [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.AppendRowsResponse.html?hl=ko] response) {
+        System.out.format("Append %d success\n", response.getAppendResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.AppendRowsResponse.html?hl=ko#com_google_cloud_bigquery_storage_v1_AppendRowsResponse_getAppendResult__]().getOffset().getValue());
+        done();
+      }
+
+      public void onFailure(Throwable throwable) {
+        synchronized (this.parent.lock) {
+          if (this.parent.error == null) {
+            StorageException [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.StorageException.html?hl=ko] storageException = Exceptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko].toStorageException [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.Exceptions.html?hl=ko#com_google_cloud_bigquery_storage_v1_Exceptions_toStorageException_com_google_rpc_Status_java_lang_Throwable_](throwable);
+            this.parent.error =
+                (storageException != null) ? storageException : new RuntimeException(throwable);
+          }
+        }
+        System.out.format("Error: %s\n", throwable.toString());
+        done();
+      }
+
+      private void done() {
+        // Reduce the count of in-flight requests.
+        this.parent.inflightRequestCount.arriveAndDeregister();
+      }
+    }
+  }
+}
+
+--- 탭: Node.js [https://cloud.google.com/bigquery/docs/write-api-batch-load?hl=ko#node.js] ---
+BigQuery용 클라이언트 라이브러리 설치 및 사용 방법은 BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/storage/libraries?hl=ko]를 참조하세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  const {adapt, managedwriter} = require('@google-cloud/bigquery-storage [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko]');
+const {WriterClient, Writer} = managedwriter;
+
+const customer_record_pb = require('./customer_record_pb.js');
+const {CustomerRecord} = customer_record_pb;
+
+const protobufjs = require('protobufjs');
+require('protobufjs/ext/descriptor');
+
+async function appendRowsPending() {
+  /**
+   * If you make updates to the customer_record.proto protocol buffers definition,
+   * run:
+   *   pbjs customer_record.proto -t static-module -w commonjs -o customer_record.js
+   *   pbjs customer_record.proto -t json --keep-case -o customer_record.json
+   * from the /samples directory to generate the customer_record module.
+   */
+
+  // So that BigQuery knows how to parse the serialized_rows, create a
+  // protocol buffer representation of your message descriptor.
+  const root = protobufjs.loadSync('./customer_record.json');
+  const descriptor = root.lookupType('CustomerRecord').toDescriptor('proto2');
+  const protoDescriptor = adapt.normalizeDescriptor [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko](descriptor).toJSON();
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // projectId = 'my_project';
+  // datasetId = 'my_dataset';
+  // tableId = 'my_table';
+
+  const destinationTable = `projects/${projectId}/datasets/${datasetId}/tables/${tableId}`;
+  const streamType = managedwriter.PendingStream [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko];
+  const writeClient = new WriterClient [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/overview.html?hl=ko]({projectId});
+  try {
+    const writeStream = await writeClient.createWriteStreamFullResponse [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/bigquery-storage/managedwriter.writerclient.html?hl=ko]({
+      streamType,
+      destinationTable,
+    });
+    const streamId = writeStream.name;
+    console.log(`Stream created: ${streamId}`);
+
+    const connection = await writeClient.createStreamConnection [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/bigquery-storage/managedwriter.writerclient.html?hl=ko]({
+      streamId,
+    });
+    const writer = new Writer [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/bigquery-storage/managedwriter.writer.html?hl=ko]({
+      connection,
+      protoDescriptor,
+    });
+
+    let serializedRows = [];
+    const pendingWrites = [];
+
+    // Row 1
+    let row = {
+      rowNum: 1,
+      customerName: 'Octavia',
+    };
+    serializedRows.push(CustomerRecord.encode(row).finish());
+
+    // Row 2
+    row = {
+      rowNum: 2,
+      customerName: 'Turing',
+    };
+    serializedRows.push(CustomerRecord.encode(row).finish());
+
+    // Set an offset to allow resuming this stream if the connection breaks.
+    // Keep track of which requests the server has acknowledged and resume the
+    // stream at the first non-acknowledged message. If the server has already
+    // processed a message with that offset, it will return an ALREADY_EXISTS
+    // error, which can be safely ignored.
+
+    // The first request must always have an offset of 0.
+    let offsetValue = 0;
+
+    // Send batch.
+    let pw = writer.appendRows({serializedRows}, offsetValue);
+    pendingWrites.push(pw);
+
+    serializedRows = [];
+
+    // Row 3
+    row = {
+      rowNum: 3,
+      customerName: 'Bell',
+    };
+    serializedRows.push(CustomerRecord.encode(row).finish());
+
+    // Offset must equal the number of rows that were previously sent.
+    offsetValue = 2;
+
+    // Send batch.
+    pw = writer.appendRows({serializedRows}, offsetValue);
+    pendingWrites.push(pw);
+
+    const results = await Promise.all(
+      pendingWrites.map(pw => pw.getResult()),
+    );
+    console.log('Write results:', results);
+
+    const {rowCount} = await connection.finalize();
+    console.log(`Row count: ${rowCount}`);
+
+    const response = await writeClient.batchCommitWriteStream [https://cloud.google.com/nodejs/docs/reference/bigquery-storage/latest/bigquery-storage/managedwriter.writerclient.html?hl=ko]({
+      parent: destinationTable,
+      writeStreams: [streamId],
+    });
+
+    console.log(response);
+  } catch (err) {
+    console.log(err);
+  } finally {
+    writeClient.close();
+  }
+}
+
+--- 탭: tabpanel-python ---
+이 예시에서는 필드가 두 개 있는 간단한 레코드를 보여줍니다. STRUCT 유형을 포함하여 다양한 데이터 유형을 보내는 방법을 보여주는 더 긴 예시는 GitHub의 append_rows_proto2 sample [https://github.com/googleapis/python-bigquery-storage/blob/main/samples/snippets/append_rows_proto2.py]을 참조하세요.
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          BigQuery용 클라이언트 라이브러리 설치 및 사용 방법은 BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/storage/libraries?hl=ko]를 참조하세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquerystorage/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  """
+This code sample demonstrates how to write records in pending mode
+using the low-level generated client for Python.
+"""
+
+from google.protobuf import descriptor_pb2
+
+from google.cloud import bigquery_storage_v1 [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/?hl=ko]
+from google.cloud.bigquery_storage_v1 import types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko], writer [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.html?hl=ko]
+
+# If you update the customer_record.proto protocol buffer definition, run:
+#
+#   protoc --python_out=. customer_record.proto
+#
+# from the samples/snippets directory to generate the customer_record_pb2.py module.
+from . import customer_record_pb2
+
+
+def create_row_data(row_num: int, name: str):
+    row = customer_record_pb2.CustomerRecord()
+    row.row_num = row_num
+    row.customer_name = name
+    return row.SerializeToString()
+
+
+def append_rows_pending(project_id: str, dataset_id: str, table_id: str):
+    """Create a write stream, write some sample data, and commit the stream."""
+    write_client = bigquery_storage_v1 [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/?hl=ko].BigQueryWriteClient()
+    parent = write_client.table_path [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.services.big_query_write.BigQueryWriteClient.html?hl=ko#google_cloud_bigquery_storage_v1_services_big_query_write_BigQueryWriteClient_table_path](project_id, dataset_id, table_id)
+    write_stream = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].WriteStream [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.WriteStream.html?hl=ko]()
+
+    # When creating the stream, choose the type. Use the PENDING type to wait
+    # until the stream is committed before it is visible. See:
+    # https://cloud.google.com/bigquery/docs/reference/storage/rpc/google.cloud.bigquery.storage.v1#google.cloud.bigquery.storage.v1.WriteStream.Type
+    write_stream.type_ = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].WriteStream [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.WriteStream.html?hl=ko].Type.PENDING
+    write_stream = write_client.create_write_stream [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.services.big_query_write.BigQueryWriteClient.html?hl=ko#google_cloud_bigquery_storage_v1_services_big_query_write_BigQueryWriteClient_create_write_stream](
+        parent=parent, write_stream=write_stream
+    )
+    stream_name = write_stream.name
+
+    # Create a template with fields needed for the first request.
+    request_template = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko]()
+
+    # The initial request must contain the stream name.
+    request_template.write_stream = stream_name
+
+    # So that BigQuery knows how to parse the serialized_rows, generate a
+    # protocol buffer representation of your message descriptor.
+    proto_schema = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].ProtoSchema [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.ProtoSchema.html?hl=ko]()
+    proto_descriptor = descriptor_pb2.DescriptorProto()
+    customer_record_pb2.CustomerRecord.DESCRIPTOR.CopyToProto(proto_descriptor)
+    proto_schema.proto_descriptor = proto_descriptor
+    proto_data = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko].ProtoData [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.ProtoData.html?hl=ko]()
+    proto_data.writer_schema = proto_schema
+    request_template.proto_rows = proto_data
+
+    # Some stream types support an unbounded number of requests. Construct an
+    # AppendRowsStream to send an arbitrary number of requests to a stream.
+    append_rows_stream = writer [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.html?hl=ko].AppendRowsStream [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.AppendRowsStream.html?hl=ko](write_client, request_template)
+
+    # Create a batch of row data by appending proto2 serialized bytes to the
+    # serialized_rows repeated field.
+    proto_rows = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].ProtoRows [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.ProtoRows.html?hl=ko]()
+    proto_rows.serialized_rows.append(create_row_data(1, "Alice"))
+    proto_rows.serialized_rows.append(create_row_data(2, "Bob"))
+
+    # Set an offset to allow resuming this stream if the connection breaks.
+    # Keep track of which requests the server has acknowledged and resume the
+    # stream at the first non-acknowledged message. If the server has already
+    # processed a message with that offset, it will return an ALREADY_EXISTS
+    # error, which can be safely ignored.
+    #
+    # The first request must always have an offset of 0.
+    request = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko]()
+    request.offset = 0
+    proto_data = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko].ProtoData [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.ProtoData.html?hl=ko]()
+    proto_data.rows [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.reader.ReadRowsStream.html?hl=ko#google_cloud_bigquery_storage_v1_reader_ReadRowsStream_rows] = proto_rows
+    request.proto_rows = proto_data
+
+    response_future_1 = append_rows_stream.send [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.AppendRowsStream.html?hl=ko#google_cloud_bigquery_storage_v1beta2_writer_AppendRowsStream_send](request)
+
+    # Send another batch.
+    proto_rows = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].ProtoRows [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.ProtoRows.html?hl=ko]()
+    proto_rows.serialized_rows.append(create_row_data(3, "Charles"))
+
+    # Since this is the second request, you only need to include the row data.
+    # The name of the stream and protocol buffers DESCRIPTOR is only needed in
+    # the first request.
+    request = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko]()
+    proto_data = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].AppendRowsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.html?hl=ko].ProtoData [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.AppendRowsRequest.ProtoData.html?hl=ko]()
+    proto_data.rows [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.reader.ReadRowsStream.html?hl=ko#google_cloud_bigquery_storage_v1_reader_ReadRowsStream_rows] = proto_rows
+    request.proto_rows = proto_data
+
+    # Offset must equal the number of rows that were previously sent.
+    request.offset = 2
+
+    response_future_2 = append_rows_stream.send [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.AppendRowsStream.html?hl=ko#google_cloud_bigquery_storage_v1beta2_writer_AppendRowsStream_send](request)
+
+    print(response_future_1.result [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.AppendRowsFuture.html?hl=ko#google_cloud_bigquery_storage_v1beta2_writer_AppendRowsFuture_result]())
+    print(response_future_2.result [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.AppendRowsFuture.html?hl=ko#google_cloud_bigquery_storage_v1beta2_writer_AppendRowsFuture_result]())
+
+    # Shutdown background threads and close the streaming connection.
+    append_rows_stream.close [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1beta2.writer.AppendRowsStream.html?hl=ko#google_cloud_bigquery_storage_v1beta2_writer_AppendRowsStream_close]()
+
+    # A PENDING type stream must be "finalized" before being committed. No new
+    # records can be written to the stream after this method has been called.
+    write_client.finalize_write_stream [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.services.big_query_write.BigQueryWriteClient.html?hl=ko#google_cloud_bigquery_storage_v1_services_big_query_write_BigQueryWriteClient_finalize_write_stream](name=write_stream.name)
+
+    # Commit the stream you created earlier.
+    batch_commit_write_streams_request = types [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.html?hl=ko].BatchCommitWriteStreamsRequest [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.types.BatchCommitWriteStreamsRequest.html?hl=ko]()
+    batch_commit_write_streams_request.parent = parent
+    batch_commit_write_streams_request.write_streams = [write_stream.name]
+    write_client.batch_commit_write_streams [https://cloud.google.com/python/docs/reference/bigquerystorage/latest/google.cloud.bigquery_storage_v1.services.big_query_write.BigQueryWriteClient.html?hl=ko#google_cloud_bigquery_storage_v1_services_big_query_write_BigQueryWriteClient_batch_commit_write_streams](batch_commit_write_streams_request)
+
+    print(f"Writes to stream: '{write_stream.name}' have been committed.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+이 코드 예시는 컴파일된 프로토콜 모듈 customer_record_pb2.py에 따라 다릅니다. 컴파일된 모듈을 만들려면 protoc --python_out=. customer_record.proto를 실행합니다. 여기서 protoc은 프로토콜 버퍼 컴파일러입니다. customer_record.proto 파일은 Python 예시에 사용된 메시지 형식을 정의합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // The BigQuery Storage API expects protocol buffer data to be encoded in the
+// proto2 wire format. This allows it to disambiguate missing optional fields
+// from default values without the need for wrapper types.
+syntax = "proto2";
+
+// Define a message type representing the rows in your table. The message
+// cannot contain fields which are not present in the table.
+message CustomerRecord {
+
+  optional string customer_name = 1;
+
+  // Use the required keyword for client-side validation of required fields.
+  required int64 row_num = 2;
+}
+도움이 되었나요?
+의견 보내기

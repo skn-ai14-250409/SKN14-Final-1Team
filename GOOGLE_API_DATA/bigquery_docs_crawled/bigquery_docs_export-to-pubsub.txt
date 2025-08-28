@@ -1,0 +1,181 @@
+Source URL: https://cloud.google.com/bigquery/docs/export-to-pubsub
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+기본 요건 [https://cloud.google.com/bigquery/docs/export-to-pubsub?hl=ko#prerequisites]
+필요한 역할 [https://cloud.google.com/bigquery/docs/export-to-pubsub?hl=ko#required_roles]
+사용자 계정 권한 [https://cloud.google.com/bigquery/docs/export-to-pubsub?hl=ko#user_account_permissions_2]
+서비스 계정 권한 [https://cloud.google.com/bigquery/docs/export-to-pubsub?hl=ko#service_account_permissions_2]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/export-to-pubsub?hl=ko#before_you_begin]
+Pub/Sub로 데이터 내보내기(역방향 ETL)
+bookmark_border
+Preview
+This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1]. Pre-GA features are available "as is" and might have limited support. For more information, see the launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+Pub/Sub로 데이터를 내보내려면 BigQuery 연속 쿼리 [https://cloud.google.com/bigquery/docs/continuous-queries-introduction?hl=ko]를 사용해야 합니다. 연속 쿼리 미리보기에 등록하려면 요청 양식 [https://docs.google.com/forms/d/e/1FAIpQLSc-SL89C9K997jSm_u3oQH-UGGe3brzsybbX6mf5VFaA0a4iA/viewform?hl=ko]을 작성하세요. 이 기능에 대한 의견을 제공하거나 지원을 요청하려면 bq-continuous-queries-feedback@google.com [mailto:bq-continuous-queries-feedback@google.com]으로 문의하세요.
+이 문서에서는 BigQuery에서 Pub/Sub [https://cloud.google.com/pubsub/docs/overview?hl=ko]로 역방향 추출-변환-로드(RETL)를 설정하는 방법을 설명합니다. 이렇게 하려면 연속 쿼리 [https://cloud.google.com/bigquery/docs/continuous-queries-introduction?hl=ko]에서 EXPORT DATA 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/export-statements?hl=ko]을 사용하여 BigQuery에서 Pub/Sub 주제 [https://cloud.google.com/pubsub/docs/create-topic?hl=ko]로 데이터를 내보내면 됩니다.
+Pub/Sub에 대한 RETL 워크플로를 사용하여 BigQuery의 분석 기능을 Pub/Sub의 확장 가능한 비동기 전역 메시지 서비스와 결합할 수 있습니다. 이 워크플로를 사용하면 이벤트 기반 방식으로 데이터를 다운스트림 애플리케이션 및 서비스에 제공할 수 있습니다.
+기본 요건
+서비스 계정을 만들어야 [https://cloud.google.com/iam/docs/service-accounts-create?hl=ko] 합니다. 결과를 Pub/Sub 주제로 내보내는 연속 쿼리를 실행하려면 서비스 계정 [https://cloud.google.com/iam/docs/service-account-overview?hl=ko]이 필요합니다.
+연속 쿼리 결과를 메시지로 수신하기 위해 Pub/Sub 주제 [https://cloud.google.com/pubsub/docs/publish-message-overview?hl=ko#about_topics]를 생성하고, 대상 애플리케이션이 해당 메시지를 수신할 수 있도록 Pub/Sub 구독 [https://cloud.google.com/pubsub/docs/subscription-overview?hl=ko]을 생성해야 합니다.
+필요한 역할
+이 섹션에서는 연속 쿼리를 만드는 사용자 계정과 연속 쿼리를 실행하는 서비스 계정에 필요한 역할 및 권한에 대한 정보를 제공합니다.
+사용자 계정 권한
+BigQuery에서 작업을 만들려면 사용자 계정에 bigquery.jobs.create IAM 권한이 있어야 합니다. 다음 각 IAM 역할은 bigquery.jobs.create 권한을 부여합니다.
+BigQuery 사용자(roles/bigquery.user) [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.user]
+BigQuery 작업 사용자(roles/bigquery.jobUser) [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.jobUser]
+BigQuery 관리자(roles/bigquery.admin) [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.admin]
+서비스 계정을 사용하여 실행되는 작업을 제출하려면 사용자 계정에 서비스 계정 사용자(roles/iam.serviceAccountUser) [https://cloud.google.com/iam/docs/service-account-permissions?hl=ko#user-role] 역할이 있어야 합니다. 동일한 사용자 계정을 사용하여 서비스 계정을 만드는 경우 사용자 계정에 서비스 계정 관리자(roles/iam.serviceAccountAdmin) [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#iam.serviceAccountUser] 역할이 있어야 합니다. 프로젝트 내의 모든 서비스 계정이 아닌 단일 서비스 계정에 대한 사용자의 액세스를 제한하는 방법에 관한 자세한 내용은 단일 역할 부여 [https://cloud.google.com/iam/docs/manage-access-service-accounts?hl=ko#grant-single-role]를 참고하세요.
+사용자 계정에 연속 쿼리 사용 사례에 필요한 API를 사용 설정해야 하는 경우 사용자 계정에 서비스 사용량 관리자(roles/serviceusage.serviceUsageAdmin) [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#serviceusage.serviceUsageAdmin] 역할이 있어야 합니다.
+서비스 계정 권한
+BigQuery 테이블에서 데이터를 내보내려면 서비스 계정에 bigquery.tables.export IAM 권한이 있어야 합니다. 다음 각 IAM 역할은 bigquery.tables.export 권한을 부여합니다.
+BigQuery 데이터 뷰어(roles/bigquery.dataViewer) [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.dataViewer]
+BigQuery 데이터 편집자(roles/bigquery.dataEditor) [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.dataEditor]
+BigQuery 데이터 소유자(roles/bigquery.dataOwner) [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.dataOwner]
+BigQuery 관리자(roles/bigquery.admin) [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.admin]
+서비스 계정이 Pub/Sub에 액세스하려면 서비스 계정에 다음 IAM 역할을 모두 부여해야 합니다.
+Pub/Sub 뷰어(roles/pubsub.viewer) [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#pubsub.viewer]
+Pub/Sub 게시자(roles/pubsub.publisher) [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#pubsub.publisher]
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]을 통해 필요한 권한을 얻을 수도 있습니다.
+시작하기 전에
+Enable the BigQuery and Pub/Sub APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cpubsub.googleapis.com&hl=ko]
+Pub/Sub로 내보내기
+EXPORT DATA 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/export-statements?hl=ko]을 사용하여 Pub/Sub 주제로 데이터를 내보냅니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/export-to-pubsub?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 더보기 > 쿼리 설정을 클릭합니다.
+연속 쿼리 섹션에서 연속 쿼리 모드 사용 체크박스를 선택합니다.
+서비스 계정 상자에서 만든 서비스 계정을 선택합니다.
+저장을 클릭합니다.
+쿼리 편집기에서 다음 문을 입력합니다.
+
+EXPORT DATA
+OPTIONS (
+format = 'CLOUD_PUBSUB',
+uri = 'https://pubsub.googleapis.com/projects/PROJECT_ID/topics/TOPIC_ID'
+) AS
+(
+QUERY
+);
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 프로젝트 ID입니다.
+TOPIC_ID: Pub/Sub 주제 ID
+Google Cloud 콘솔의 주제 페이지 [https://console.cloud.google.com/cloudpubsub/topic/list?hl=ko]에서 주제 ID를 가져올 수 있습니다.
+QUERY: 내보낼 데이터를 선택하는 SQL 문입니다. SQL 문에는 지원되는 작업 [https://cloud.google.com/bigquery/docs/continuous-queries-introduction?hl=ko#supported_operations]만 포함되어야 합니다.
+연속 쿼리의 FROM 절에서 APPENDS 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/time-series-functions?hl=ko#appends]를 사용하여 데이터 처리를 시작할 시점을 지정해야 합니다.
+
+실행을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/export-to-pubsub?hl=ko#bq] ---
+In the Google Cloud console, activate Cloud Shell.
+    Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+    
+      At the bottom of the Google Cloud console, a
+      Cloud Shell [https://cloud.google.com/shell/docs/how-cloud-shell-works?hl=ko]
+      session starts and displays a command-line prompt. Cloud Shell is a shell environment
+      with the Google Cloud CLI
+      already installed and with values already set for
+      your current project. It can take a few seconds for the session to initialize.
+    
+    
+  
+
+
+
+
+
+
+
+
+
+
+  
+  
+명령줄에서 다음 플래그와 함께 bq query 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query]를 사용하여 연속 쿼리를 실행합니다.
+
+
+--continuous 플래그를 true로 설정하여 쿼리를 연속으로 실행합니다.
+--connection_property 플래그를 사용하여 사용할 서비스 계정을 지정합니다.
+
+
+bq query --project_id=PROJECT_ID --use_legacy_sql=false \
+--continuous=true --connection_property=service_account=SERVICE_ACCOUNT_EMAIL \
+'EXPORT DATA OPTIONS (format = "CLOUD_PUBSUB", uri = "https://pubsub.googleapis.com/projects/PROJECT_ID/topics/TOPIC_ID") AS (QUERY);'
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 프로젝트 ID입니다.
+SERVICE_ACCOUNT_EMAIL: 서비스 계정 이메일입니다. Google Cloud 콘솔의 서비스 계정 페이지 [https://console.cloud.google.com/iam-admin/serviceaccounts?hl=ko]에서 서비스 계정 이메일을 가져올 수 있습니다.
+QUERY: 내보낼 데이터를 선택하는 SQL 문입니다. SQL 문에는 지원되는 작업 [https://cloud.google.com/bigquery/docs/continuous-queries-introduction?hl=ko#supported_operations]만 포함되어야 합니다.
+연속 쿼리의 FROM 절에서 APPENDS 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/time-series-functions?hl=ko#appends]를 사용하여 데이터 처리를 시작할 시점을 지정해야 합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/export-to-pubsub?hl=ko#api] ---
+jobs.insert 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko]를 호출하여 연속 쿼리를 실행합니다.
+전달하는 Job 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko]의 JobConfigurationQuery 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationQuery]에서 다음 필드를 설정합니다.
+
+
+continuous 필드를 true로 설정하여 쿼리를 연속으로 실행합니다.
+connection_property 필드를 사용하여 사용할 서비스 계정을 지정합니다.
+
+
+curl --request POST \
+  'https://bigquery.googleapis.com/bigquery/v2/projects/PROJECT_ID/jobs'
+  --header 'Authorization: Bearer $(gcloud auth print-access-token) \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '("configuration":("query":"EXPORT DATA OPTIONS (format = 'CLOUD_PUBSUB', uri = 'https://pubsub.googleapis.com/projects/PROJECT_ID/topics/TOPIC_ID') AS (QUERY);","useLegacySql":false,"continuous":true,"connectionProperties":["key": "service_account","value":"SERVICE_ACCOUNT_EMAIL"]))' \
+  --compressed
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 프로젝트 ID입니다.
+QUERY: 내보낼 데이터를 선택하는 SQL 문입니다. SQL 문에는 지원되는 작업 [https://cloud.google.com/bigquery/docs/continuous-queries-introduction?hl=ko#supported_operations]만 포함되어야 합니다.
+연속 쿼리의 FROM 절에서 APPENDS 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/time-series-functions?hl=ko#appends]를 사용하여 데이터 처리를 시작할 시점을 지정해야 합니다.
+SERVICE_ACCOUNT_EMAIL: 서비스 계정 이메일입니다. Google Cloud 콘솔의 서비스 계정 페이지 [https://console.cloud.google.com/iam-admin/serviceaccounts?hl=ko]에서 서비스 계정 이메일을 가져올 수 있습니다.
+Pub/Sub로 여러 열 내보내기
+출력에 여러 열을 포함하려면 열 값을 포함하는 구조체 열을 만든 후 TO_JSON_STRING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions?hl=ko#to_json_string]를 사용하여 구조체 값을 JSON 문자열로 변환하면 됩니다. 다음 예에서는 JSON 문자열 형식으로 네 개의 열에서 데이터를 내보냅니다.
+EXPORT DATA
+  OPTIONS (
+    format = 'CLOUD_PUBSUB',
+    uri = 'https://pubsub.googleapis.com/projects/myproject/topics/taxi-real-time-rides')
+AS (
+  SELECT
+    TO_JSON_STRING(
+      STRUCT(
+        ride_id,
+        timestamp,
+        latitude,
+        longitude)) AS message
+  FROM
+    APPENDS(TABLE `myproject.real_time_taxi_streaming.taxi_rides`,
+      -- Configure the APPENDS TVF start_timestamp to specify when you want to
+      -- start processing data using your continuous query.
+      -- This example starts processing at 10 minutes before the current time.
+      CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE)
+  WHERE ride_status = 'enroute'
+);
+내보내기 최적화
+연속 쿼리 작업 성능이 사용 가능한 컴퓨팅 리소스 [https://cloud.google.com/bigquery/docs/continuous-queries-monitor?hl=ko#get_continuous_query_slot_consumption_information]에 의해 제한되는 것으로 보이면 BigQuery CONTINUOUS 슬롯 예약 할당 [https://cloud.google.com/bigquery/docs/reservations-assignments?hl=ko] 크기를 늘려보세요.
+제한사항
+내보낸 데이터는 단일 STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type] 또는 BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bytes_type] 열로 구성되어야 합니다. 열 이름은 원하는 대로 지정할 수 있습니다.
+Pub/Sub로 내보내려면 연속 쿼리 [https://cloud.google.com/bigquery/docs/continuous-queries-introduction?hl=ko]를 사용해야 합니다.
+연속 쿼리에서 Pub/Sub 주제에 스키마를 전달할 수 없습니다.
+스키마를 사용하는 Pub/Sub 주제로 데이터를 내보낼 수 없습니다.
+NULL 값이 포함된 데이터는 내보낼 수 없습니다. 연속 쿼리에 WHERE message IS NOT NULL 필터를 포함하여 쿼리 결과에서 NULL 값을 제외할 수 있습니다.
+내보낸 데이터는 Pub/Sub 할당량 [https://cloud.google.com/pubsub/quotas?hl=ko]을 초과해서는 안 됩니다.
+가격 책정
+연속 쿼리에서 데이터를 내보내면 BigQuery 용량 계산 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]을 사용하여 요금이 청구됩니다. 연속 쿼리를 실행하려면 Enterprise 또는 Enterprise Plus 버전 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]을 사용하는 예약 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko] CONTINUOUS 작업 유형을 사용하는 예약 할당 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko#assignments]이 있어야 합니다.
+데이터를 내보낸 후 Pub/Sub 사용 요금이 청구됩니다. 자세한 내용은 Pub/Sub 가격 책정 [https://cloud.google.com/pubsub/pricing?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

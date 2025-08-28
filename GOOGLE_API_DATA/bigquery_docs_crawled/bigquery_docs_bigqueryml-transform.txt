@@ -1,0 +1,211 @@
+Source URL: https://cloud.google.com/bigquery/docs/bigqueryml-transform
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+TRANSFORM 절을 사용하여 특성 추출 수행
+bookmark_border
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/bigqueryml-transform?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/bigqueryml-transform?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/bigqueryml-transform?hl=ko#before-you-begin]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/bigqueryml-transform?hl=ko#create_a_dataset]
+모델 만들기 [https://cloud.google.com/bigquery/docs/bigqueryml-transform?hl=ko#create_the_model]
+이 튜토리얼은 모델을 생성하고 훈련하는 동시에 특성 추출을 수행하기 위해 CREATE MODEL 문의 TRANSFORM 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko#transform]을 사용하는 방법을 설명합니다. TRANSFORM 절을 사용하여 하나 이상의 전처리 [https://cloud.google.com/bigquery/docs/manual-preprocessing?hl=ko] 함수를 지정하여 모델 학습에 사용하는 입력 데이터를 변환할 수 있습니다. 모델에 적용하는 전처리는 ML.EVALUATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko] 및 ML.PREDICT [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko] 함수와 함께 모델을 사용할 때 자동으로 적용됩니다.
+이 튜토리얼에서는 공개 bigquery-public-data.ml_datasets.penguin 데이터 세트 [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=ml_datasets&%3Bt=penguins&%3Bpage=table&hl=ko]를 사용합니다.
+목표
+이 튜토리얼에서는 다음 작업을 완료하는 방법을 안내합니다.
+CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko]을 사용하여 서비스 호출 유형을 예측하는 선형 회귀 모델을 만듭니다. CREATE MODEL 문 내에서 ML.QUANTILE_BUCKETIZE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-quantile-bucketize?hl=ko] 및 ML.FEATURE_CROSS [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-feature-cross?hl=ko] 함수를 사용하여 데이터를 전처리합니다.
+ML.EVALUATE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]를 사용하여 모델을 평가합니다.
+ML.PREDICT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko]를 사용하여 모델에서 예측을 가져옵니다.
+비용
+이 튜토리얼에서는 비용이 청구될 수 있는 Google Cloud구성요소를 사용합니다.
+BigQuery
+BigQuery ML
+BigQuery 비용에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지를 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery는 새 프로젝트에서 자동으로 사용 설정됩니다. 기존 프로젝트에서 BigQuery를 활성화하려면 다음으로 이동합니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/bigqueryml-transform?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+
+
+공개 데이터 세트는 US 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions]에 저장됩니다. 편의상 같은 위치에 데이터 세트를 저장합니다.
+
+
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/bigqueryml-transform?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/bigqueryml-transform?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+모델 만들기
+펭귄의 체중을 예측하는 선형 회귀 모델을 만들고 penguins 샘플 테이블에서 학습합니다.
+OPTIONS(model_type='linear_reg', input_label_cols=['body_mass_g']) 절은 선형 회귀 [https://en.wikipedia.org/wiki/Linear_regression] 모델을 만든다는 것을 나타냅니다. 선형 회귀 모델은 입력 특성의 선형 조합에서 연속 값을 생성합니다. body_mass_g 열은 입력 라벨 열입니다. 선형 회귀 모델에서 라벨 열은 실수치여야 합니다 즉, 열 값이 실수여야 합니다.
+이 쿼리의 TRANSFORM 절은 SELECT 문에서 다음 열을 사용합니다.
+body_mass_g: 변경 없이 학습에 사용됩니다.
+culmen_depth_mm: 변경 없이 학습에 사용됩니다.
+flipper_length_mm: 변경 없이 학습에 사용됩니다.
+bucketized_culmen_length: ML.QUANTILE_BUCKETIZE() 분석 함수를 사용하여 분위수를 기반으로 culmen_length_mm를 버킷화하여 culmen_length_mm에서 생성됩니다.
+culmen_length_mm: 원래 culmen_length_mm 값이 STRING 값으로 전송되어 학습에 사용됩니다.
+species_sex: ML.FEATURE_CROSS 함수를 사용하여 species과 sex를 교차해 생성됩니다.
+TRANSFORM 절에서 학습 테이블의 모든 열을 사용할 필요는 없습니다.
+WHERE 절인 WHERE body_mass_g IS NOT NULL AND RAND() < 0.2는 펭귄의 체중이 NULL인 행을 제외하고 RAND 함수를 사용하여 데이터의 무작위 샘플을 추출합니다.
+모델을 만들려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.penguin_transform`
+  TRANSFORM(
+    body_mass_g,
+    culmen_depth_mm,
+    flipper_length_mm,
+    ML.QUANTILE_BUCKETIZE(culmen_length_mm, 10) OVER () AS bucketized_culmen_length,
+    CAST(culmen_length_mm AS string) AS culmen_length_mm,
+    ML.FEATURE_CROSS(STRUCT(species, sex)) AS species_sex)
+  OPTIONS (
+    model_type = 'linear_reg',
+    input_label_cols = ['body_mass_g'])
+AS
+SELECT
+  *
+FROM
+  `bigquery-public-data.ml_datasets.penguins`
+WHERE
+  body_mass_g IS NOT NULL
+  AND RAND() < 0.2;
+쿼리를 완료하는 데 약 15분이 소요되며 이후에는 penguin_transform 모델이 탐색기 창에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 표시되지 않습니다.
+모델 평가
+ML.EVALUATE 함수를 사용하여 모델의 성능을 평가합니다. ML.EVALUATE 함수는 모델에서 반환한 예측 펭귄 가중치를 학습 데이터의 실제 펭귄 가중치와 비교하여 평가합니다.
+이 쿼리의 중첩된 SELECT 문과 FROM 절은 CREATE MODEL 쿼리와 동일합니다. 모델을 만들 때 TRANSFORM 절을 사용했으므로 ML.EVALUATE 함수에서 열과 변환을 다시 지정할 필요가 없습니다. 함수는 모델에서 자동으로 검색합니다.
+모델을 평가하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT
+  *
+FROM
+  ML.EVALUATE(
+    MODEL `bqml_tutorial.penguin_transform`,
+    (
+      SELECT
+        *
+      FROM
+        `bigquery-public-data.ml_datasets.penguins`
+      WHERE
+        body_mass_g IS NOT NULL
+    ));
+결과는 다음과 비슷하게 표시됩니다.
++---------------------+--------------------+------------------------+-----------------------+--------------------+--------------------+
+| mean_absolute_error | mean_squared_error | mean_squared_log_error | median_absolute_error |      r2_score      | explained_variance |
++---------------------+--------------------+------------------------+-----------------------+--------------------+--------------------+
+|   64.21134350607677 | 13016.433317859564 |   7.140935762696211E-4 |     15.31788461553515 | 0.9813042531507734 | 0.9813186268757634 |
++---------------------+--------------------+------------------------+-----------------------+--------------------+--------------------+
+평가 결과에서 중요 측정항목은 R2 [https://en.wikipedia.org/wiki/Coefficient_of_determination] 점수입니다. R2 점수는 선형 회귀 예측이 실제 데이터에 가까운지 알 수 있는 통계 척도입니다. 0 값은 모델이 평균 주위 응답 데이터의 변동성을 전혀 설명하지 못한다는 것을 나타냅니다. 1 값은 모델이 평균 주위 응답 데이터의 변동성을 모두 설명한다는 것을 나타냅니다.
+ML.EVALUATE 함수 출력에 대한 자세한 내용은 회귀 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko#regression_models]을 참조하세요.
+또한 입력 데이터를 제공하지 않고 ML.EVALUATE를 호출할 수도 있습니다. 그러면 학습 중에 계산된 평가 측정항목을 사용합니다.
+모델을 사용하여 펭귄 체중 예측
+ML.PREDICT 함수와 함께 모델을 사용하여 수컷 펭귄의 체중을 예측합니다.
+ML.PREDICT 함수는 예측된 값(이 경우 predicted_body_mass_g)을 predicted_label_column_name 열에 출력합니다.
+ML.PREDICT 함수를 사용할 때 모델 학습에 사용된 모든 열을 전달할 필요는 없습니다. TRANSFORM 절에서 사용한 열만 필요합니다. ML.EVALUATE와 마찬가지로 ML.PREDICT 함수는 모델에서 TRANSFORM 열과 변환을 자동으로 검색합니다.
+모델에서 예측을 가져오려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT
+  predicted_body_mass_g
+FROM
+  ML.PREDICT(
+    MODEL `bqml_tutorial.penguin_transform`,
+    (
+      SELECT
+        *
+      FROM
+        `bigquery-public-data.ml_datasets.penguins`
+      WHERE
+        sex = 'MALE'
+    ));
+결과는 다음과 비슷하게 표시됩니다.
++-----------------------+
+| predicted_body_mass_g |
++-----------------------+
+|    2810.2868541725757 |
++-----------------------+
+|    3813.6574220842676 |
++-----------------------+
+|     4098.844698262214 |
++-----------------------+
+|     4256.587135004173 |
++-----------------------+
+|     3008.393497302691 |
++-----------------------+
+|     ...               |
++-----------------------+
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트를 유지하고 개별 리소스를 삭제하세요.
+만든 프로젝트를 삭제할 수 있습니다.
+또는 프로젝트를 유지하고 데이터 세트를 삭제할 수 있습니다.
+데이터 세트 삭제
+프로젝트를 삭제하면 프로젝트의 데이터 세트와 테이블이 모두 삭제됩니다. 프로젝트를 다시 사용하려면 이 튜토리얼에서 만든 데이터 세트를 삭제할 수 있습니다.
+필요한 경우 Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색 패널에서 앞에서 만든 bqml_tutorial 데이터 세트를 선택합니다.
+창 오른쪽에 있는 데이터 세트 삭제를 클릭합니다. 데이터 세트, 테이블, 모든 데이터가 삭제됩니다.
+데이터 세트 삭제 대화상자에서 데이터 세트 이름(bqml_tutorial)을 입력하여 삭제 명령어를 확인한 후 삭제를 클릭합니다.
+프로젝트 삭제
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+머신러닝 단기집중과정 [https://developers.google.com/machine-learning/crash-course/?hl=ko]을 참조하여 머신러닝을 알아보세요.
+BigQuery ML 개요는 BigQuery ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]를 참조하세요.
+Google Cloud 콘솔에 대한 자세한 내용은 Google Cloud 콘솔 사용 [https://cloud.google.com/bigquery/bigquery-web-ui?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

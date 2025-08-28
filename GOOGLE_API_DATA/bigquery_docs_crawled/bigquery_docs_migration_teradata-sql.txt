@@ -1,0 +1,967 @@
+Source URL: https://cloud.google.com/bigquery/docs/migration/teradata-sql
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+데이터 유형 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#data_types]
+Teradata 유형 형식 지정 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#type_formatting]
+타임스탬프 및 날짜 유형 형식 지정 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#date_type_formatting]
+쿼리 구문 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#query_syntax]
+SELECT 문 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#select_statement]
+Teradata SQL 변환 가이드
+bookmark_border
+이 문서에서는 마이그레이션을 계획하는 데 도움이 되도록 Teradata와 BigQuery 간 SQL 구문 유사점과 차이점을 자세히 설명합니다. 일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]을 사용하여 SQL 스크립트를 일괄적으로 마이그레이션하거나 대화형 SQL 변환 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]을 사용하여 임시 쿼리를 변환합니다.
+데이터 유형
+이 섹션에서는 Teradata와 BigQuery의 데이터 유형 간의 유사점을 보여줍니다.
+참고: Teradata는 DEFAULT [https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Data-Definition-Language-Syntax-and-Examples/Table-Statements/CREATE-TABLE-and-CREATE-TABLE-AS/Syntax-Elements/column_partition_definition/column_data_type_attribute/DEFAULT?tocId=FGX%7EnkdqLciLCOJTJMvFnA] 및 기타 제약조건 [https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Data-Definition-Language-Syntax-and-Examples/Table-Statements/CREATE-TABLE-and-CREATE-TABLE-AS/Syntax-Elements/column_partition_definition/table_constraint]을 지원합니다. 이러한 조건은 BigQuery에는 사용되지 않습니다.
+Teradata BigQuery 참고
+INTEGER [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/INTEGER] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+SMALLINT [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/SMALLINT] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+BYTEINT [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/BYTEINT] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+BIGINT [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/BIGINT] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+DECIMAL [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/DECIMAL/NUMERIC]
+NUMERIC, DECIMAL [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_type]
+BIGNUMERIC, BIGDECIMAL [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_type]
+배율(소수점 이후 자릿수) <= 9인 경우 BigQuery의 NUMERIC(별칭 DECIMAL)을 사용합니다.
+배율이 9보다 크면 BigQuery의 BIGNUMERIC(별칭 BIGDECIMAL)을 사용합니다.
+커스텀 숫자나 배율 경계(제약조건)를 적용해야 하는 경우 BigQuery의 매개변수화된 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#parameterized_decimal_type] 십진수 데이터 유형을 사용합니다.
+Teradata를 사용하면 저장된 값을 반올림하여 더 높은 정밀도 값을 삽입할 수 있습니다. 하지만 계산에서 높은 정밀도를 유지합니다. 이 경우 ANSI 표준에 비해 예기치 않은 반올림 동작 [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Numeric-Data-Types/Rounding]이 발생할 수 있습니다.
+FLOAT [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/DOUBLE-PRECISION/FLOAT/REAL] FLOAT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#floating_point_types]
+NUMERIC [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/DECIMAL/NUMERIC]
+NUMERIC, DECIMAL [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_type]
+BIGNUMERIC, BIGDECIMAL [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_type]
+배율(소수점 이후 자릿수) <= 9인 경우 BigQuery의 NUMERIC(별칭 DECIMAL)을 사용합니다.
+배율이 9보다 크면 BigQuery의 BIGNUMERIC(별칭 BIGDECIMAL)을 사용합니다.
+커스텀 숫자나 배율 경계(제약조건)를 적용해야 하는 경우 BigQuery의 매개변수화된 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#parameterized_decimal_type] 십진수 데이터 유형을 사용합니다.
+Teradata를 사용하면 저장된 값을 반올림하여 더 높은 정밀도 값을 삽입할 수 있습니다. 하지만 계산에서 높은 정밀도를 유지합니다. 이 경우 ANSI 표준에 비해 예기치 않은 반올림 동작 [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Numeric-Data-Types/Rounding]이 발생할 수 있습니다.
+NUMBER [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/NUMBER]
+NUMERIC, DECIMAL [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_type]
+BIGNUMERIC, BIGDECIMAL [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_type]
+배율(소수점 이후 자릿수) <= 9인 경우 BigQuery의 NUMERIC(별칭 DECIMAL)을 사용합니다.
+배율이 9보다 크면 BigQuery의 BIGNUMERIC(별칭 BIGDECIMAL)을 사용합니다.
+커스텀 숫자나 배율 경계(제약조건)를 적용해야 하는 경우 BigQuery의 매개변수화된 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#parameterized_decimal_type] 십진수 데이터 유형을 사용합니다.
+Teradata를 사용하면 저장된 값을 반올림하여 더 높은 정밀도 값을 삽입할 수 있습니다. 하지만 계산에서 높은 정밀도를 유지합니다. 이 경우 ANSI 표준에 비해 예기치 않은 반올림 동작 [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Numeric-Data-Types/Rounding]이 발생할 수 있습니다.
+REAL [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/DOUBLE-PRECISION/FLOAT/REAL] FLOAT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#floating_point_types]
+CHAR/CHARACTER [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/CHARACTER/CHAR] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type]
+최대 문자 길이를 적용해야 하는 경우 BigQuery의 매개변수화된 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#parameterized_string_type] STRING 데이터 유형을 사용합니다.
+VARCHAR [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/VARBYTE] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type]
+최대 문자 길이를 적용해야 하는 경우 BigQuery의 매개변수화된 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#parameterized_string_type] STRING 데이터 유형을 사용합니다.
+CLOB [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/CHARACTER-LARGE-OBJECT/CLOB] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type]
+JSON [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/JSON] JSON [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#json_type]
+BLOB [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/BINARY-LARGE-OBJECT/BLOB] BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bytes_type]
+BYTE [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/BYTE] BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bytes_type]
+VARBYTE [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/VARBYTE] BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bytes_type]
+DATE [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/DATE] DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#date_type] BigQuery는 SDF 형식의 DataForm을 사용한 Teradata가 지원하는 것과 유사한 커스텀 형식을 지원하지 않습니다.
+TIME [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/TIME] TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type]
+TIME WITH TIME ZONE [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/TIME-WITH-TIME-ZONE] TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type] Teradata는 TIME 데이터 유형을 UTC로 저장하고 WITH TIME ZONE 구문을 사용하여 UTC에서 오프셋을 전달할 수 있습니다. BigQuery의 TIME 데이터 유형은 날짜나 시간대와 무관한 시간을 나타냅니다.
+TIMESTAMP [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/TIMESTAMP] TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type] Teradata와 BigQuery의 TIMESTAMP [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/TIMESTAMP] 데이터 유형은 모두 마이크로초 단위의 정밀도를 갖습니다. 하지만 BigQuery와 달리 Teradata는 윤초를 지원합니다.
+
+Teradata와 BigQuery 데이터 유형은 일반적으로 UTC 시간대(자세히 알아보기 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_zones])와 연결되어 있습니다.
+TIMESTAMP WITH TIME ZONE [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/TIMESTAMP-WITH-TIME-ZONE] TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type] Teradata TIMESTAMP는 시스템 전반에 적용되는 시간대를 사용자 또는 열 단위( WITH TIME ZONE [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/TIMESTAMP-WITH-TIME-ZONE] 사용)로 서로 다르게 설정할 수 있습니다.
+
+시간대를 명시적으로 지정하지 않으면 BigQuery TIMESTAMP 유형은 UTC를 사용한다고 가정합니다. 시간대 정보를 올바르게 내보냈는지 확인(이때 시간대 정보 없이 DATE 및 TIME 값을 연결해서는 안 됨)하여 BigQuery가 가져올 때 이를 변환할 수 있도록 합니다. 또는 내보내기 전에 시간대 정보를 UTC로 변환해야 합니다.
+
+BigQuery에는 출력 시 시간대를 표시하지 않는 상용시와 항상 UTC 시간대를 표시하는 정확한 시점인 TIMESTAMP 간을 추상화하는 DATETIME이 적용됩니다.
+ARRAY [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/ARRAY/VARRAY-Data-Type] ARRAY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#array_type]
+MULTI-DIMENSIONAL ARRAY [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/ARRAY/VARRAY-Data-Type] ARRAY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#array_type] BigQuery에서는 각 구조체에 ARRAY 유형의 필드를 포함하는 구조체 배열을 사용합니다. (자세한 내용은 BigQuery 문서 [https://cloud.google.com/bigquery/docs/arrays?hl=ko#building_arrays_of_arrays]를 참조하세요.)
+INTERVAL HOUR [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/INTERVAL-HOUR] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+INTERVAL MINUTE [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/INTERVAL-MINUTE] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+INTERVAL SECOND [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/INTERVAL-SECOND] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+INTERVAL DAY [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/INTERVAL-DAY] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+INTERVAL MONTH [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/INTERVAL-MONTH] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+INTERVAL YEAR [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/INTERVAL-YEAR] INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+PERIOD(DATE) [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/PERIOD-DATE/PERIOD-TIME/PERIOD-TIMESTAMP] DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#date_type], DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#date_type] PERIOD(DATE)는 윈도우 함수와 함께 사용할 수 있도록 시작일과 종료일이 포함 된 2개의 DATE 열로 변환되어야 합니다.
+PERIOD(TIMESTAMP WITH TIME ZONE) [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/PERIOD-DATE/PERIOD-TIME/PERIOD-TIMESTAMP] TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type], TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type]
+PERIOD(TIMESTAMP) [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/PERIOD-DATE/PERIOD-TIME/PERIOD-TIMESTAMP] TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type], TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type]
+PERIOD(TIME) [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/PERIOD-DATE/PERIOD-TIME/PERIOD-TIMESTAMP] TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type], TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type]
+PERIOD(TIME WITH TIME ZONE) [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/PERIOD-DATE/PERIOD-TIME/PERIOD-TIMESTAMP] TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type], TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type]
+UDT [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/UDT-Data-Type] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type]
+XML [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/XML] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type]
+TD_ANYTYPE [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/SQL-Data-Type-Mapping/C-Data-Types/TD_ANYTYPE] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type]
+유형 Cast 변환에 대한 상세 내용은 다음 섹션을 참조하세요.
+Teradata 유형 형식 지정
+Teradata SQL은 표현식과 열 데이터를 표시하고 데이터 유형 간을 변환하기 위한 여러 기본 형식을 사용합니다. 예를 들어 INTEGERDATE 모드의 PERIOD(DATE) 데이터 유형은 기본적으로 YY/MM/DD 형식으로 지정되어 있습니다. 가능한 경우 언제나 ANSIDATE 모드를 사용하여 ANSI SQL 규정 준수를 보장하고 이 기회를 빌어 레거시 형식을 삭제하는 것이 좋습니다.
+Teradata는 DDL을 사용하여 테이블을 만들 때의 데이터 유형 속성으로나 파생 표현식에서나 FORMAT [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Data-Type-Formats-and-Format-Phrases/FORMAT] 절을 사용하는 커스텀 형식을 기본 스토리지 변경 없이 자동으로 적용하도록 허용합니다. 예를 들어 FORMAT 사양 9.99는 모든 FLOAT 값을 두 자리로 반올림합니다. BigQuery에서 이 기능은 ROUND() 함수를 사용하여 변환해야 합니다.
+이 기능을 사용하려면 복잡하고 특이한 사례 처리가 필요합니다. 예를 들어 FORMAT 절이 NUMERIC 열에 적용된 경우 특별한 반올림 및 형식 지정 규칙을 고려 [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Data-Type-Formats-and-Format-Phrases/FORMAT-Phrase-and-NUMERIC-Formats]해야 합니다. FORMAT 절을 사용하면 INTEGER epoch 값을 암시적으로 DATE 형식으로 Cast 변환할 수 있습니다. 또는 VARCHAR 열의 FORMAT 사양 X(6)에 따라 열 값이 잘립니다. 따라서 SUBSTR() 함수로 전환해야 합니다. 이 동작은 ANSI SQL과 호환되지 않습니다. 따라서 열 형식을 BigQuery로 마이그레이션하지 않는 것이 좋습니다.
+열 형식이 절대적으로 필요한 경우에는 뷰 [https://cloud.google.com/bigquery/docs/views?hl=ko] 또는 사용자 정의 함수(UDF) [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko]를 사용합니다.
+Teradata SQL이 각 데이터 유형에 사용하는 기본 형식에 대한 자세한 내용은 Teradata 기본 형식 지정 [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Data-Type-Formats-and-Format-Phrases/Data-Type-Default-Formats] 문서를 참조하세요.
+타임스탬프 및 날짜 유형 형식 지정
+다음 표에는 Teradata SQL과 GoogleSQL 간에 타임스탬프 및 날짜 형식 요소의 차이점이 요약되어 있습니다.
+참고: 형식 (CURRENT_*)은 함수가 아닌 키워드이므로 Teradata 형식에는 괄호를 사용하지 않습니다.
+Teradata 형식 Teradata 설명 BigQuery
+CURRENT_TIMESTAMP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Built-In-Functions/CURRENT_TIMESTAMP]
+CURRENT_TIME [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Built-In-Functions/CURRENT_TIME/CURTIME] Teradata의 TIME과 TIMESTAMP 정보는 시간대 정보가 서로 다르며, ,WITH TIME ZONE를 사용하여 정의합니다. 가능한 경우 ISO 형식으로 지정된 CURRENT_TIMESTAMP()를 사용하세요. 그러나 출력 형식은 항상 UTC 시간대로 표시됩니다. 내부적으로 BigQuery에는 시간대가 없습니다.
+
+ISO 형식과의 차이점에 대한 다음 사항에 유의하세요.
+
+DATETIME 형식은 출력 채널 규칙에 따라 지정됩니다. BigQuery 명령줄 도구와 BigQuery 콘솔에서는 RFC 3339에 따라 T 구분 기호를 사용하여 형식이 지정됩니다. 그러나 Python 및 자바 JDBC에서는 공백이 구분 기호로 사용됩니다.
+
+명시적 형식을 사용하려면 문자열을 명시적으로 Cast 변환하는 FORMAT_DATETIME() [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime]을 사용하세요. 예를 들어 다음 표현식은 항상 공백 구분 기호를 반환합니다.
+
+CAST(CURRENT_DATETIME() AS STRING)
+
+Teradata는 TIME 열에서 DEFAULT 키워드를 사용하여 현재 시간(타임스탬프)를 설정합니다. 이 키워드는 BigQuery에서 사용되지 않습니다.
+CURRENT_DATE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Built-In-Functions/CURRENT_DATE/CURDATE] 날짜는 다음 형식을 사용하여 INT64 값으로 Teradata에 저장됩니다.
+
+(YEAR - 1900) * 10000 + (MONTH * 100) + DAY
+
+날짜 형식은 정수로 지정될 수 있습니다. BigQuery에는 항상 ISO 8601 형식으로 날짜를 반환하는 별도의 DATE 형식이 사용됩니다.
+
+DATE_FROM_UNIX_DATE는 1970 기반이므로 사용할 수 없습니다.
+
+Teradata는 DATE 열에서 DEFAULT 키워드를 사용하여 현재 날짜를 설정합니다. 이 키워드는 BigQuery에서 사용되지 않습니다.
+CURRENT_DATE-3 [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Built-In-Functions/CURRENT_DATE/CURDATE] 날짜 값은 정수로 표시됩니다. Teradata는 날짜 유형의 산술 연산자를 지원합니다. 날짜 유형에는 DATE_ADD() [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add] 또는 DATE_SUB() [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub]를 사용합니다.
+
+BigQuery는 INT64, NUMERIC, FLOAT64 데이터 유형에 산술 연산자를 사용합니다.
+SYS_CALENDAR.CALENDAR [https://docs.teradata.com/r/Data-Dictionary/July-2021/Data-Dictionary-Views/Using-System-Views/System-Calendar-View/Sys_Calendar.CALENDAR_TD1310] Teradata는 정수 작업 범위를 초과하도록 캘린더 작업에 대한 뷰를 제공합니다. BigQuery에는 사용되지 않습니다.
+SET SESSION DATEFORM=ANSIDATE [https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Data-Definition-Language-Syntax-and-Examples/Session-Statements/SET-SESSION-DATEFORM/SET-SESSION-DATEFORM-Examples] 세션 또는 시스템 날짜 형식을 ANSI(ISO 8601)로 설정합니다. BigQuery는 항상 ISO 8601을 사용하므로 Teradata 날짜와 시간을 변환해야 합니다.
+쿼리 구문
+이 섹션에서는 Teradata와 BigQuery 간 쿼리 구문의 차이점을 설명합니다.
+SELECT 문
+대부분의 Teradata SELECT 문 [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/SELECT-Statements]은 BigQuery와 호환됩니다. 아래 표에는 기타 다른 차이점 목록이 포함되어 있습니다.
+Teradata BigQuery
+SEL [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/SELECT-Statements] SELECT로 변환합니다. BigQuery는 SEL 축약어를 사용하지 않습니다.
+SELECT [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/SELECT-Statements]
+  (subquery) AS flag,
+  CASE WHEN flag = 1 THEN ...
+BigQuery에서 열은 동일한 select 목록 내에 정의된 다른 열의 출력을 참조할 수 없습니다. 서브 쿼리를 WITH 절로 이동하는 것이 좋습니다.
+
+WITH flags AS (
+  subquery
+),
+SELECT
+  CASE WHEN flags.flag = 1 THEN ...
+SELECT [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/SELECT-Statements] * FROM table
+WHERE A LIKE ANY ('string1', 'string2')
+BigQuery는 ANY 논리 조건자를 사용하지 않습니다.
+
+여러 OR 연산자를 사용하여 동일한 기능을 수행할 수 있습니다:
+
+SELECT * FROM table
+WHERE col LIKE 'string1' OR
+      col LIKE 'string2'
+
+이 경우 문자열 비교도 다릅니다. 비교 연산자 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#comparison_operators]를 참조하세요.
+SELECT [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/SELECT-Statements] TOP 10 * FROM table BigQuery는 SELECT 키워드 다음에 TOP n 대신 쿼리 끝에 LIMIT를 사용합니다.
+비교 연산자
+다음 표에는 Teradata에 해당하는 Teradata 비교 연산자가 나와 있으며 BigQuery에 사용되는 ANSI SQL:2011 호환 연산자로 변환해야 합니다.
+BigQuery의 연산자에 대한 자세한 내용은 BigQuery 문서의 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko] 섹션을 참조하세요.
+Teradata BigQuery 참고
+exp EQ exp2
+exp IN (exp2, exp3) exp = exp2
+exp IN (exp2, exp3)
+
+NOT CASESPECIFIC의 비 ANSI의 시맨틱스를 유지하려면 다음 사용:
+RTRIM(UPPER(exp)) = RTRIM(UPPER(exp2)) 등호 문자열을 비교할 때 Teradata는 후행 공백을 무시할 수 있지만 BigQuery는 이를 문자열의 일부로 간주합니다. 예를 들어 'xyz'=' xyz'는 Teradata에서 TRUE이지만 BigQuery에서는 FALSE입니다.
+
+Teradata는 두 문자열을 비교할 때 대소문자를 무시하도록 지시하는 NOT CASESPECIFIC [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/Statement-Syntax/USING-Request-Modifier/Usage-Notes/Character-String-Definitions-in-a-USING-Request-Modifier] 열 속성도 제공합니다. BigQuery는 문자열을 비교할 때 항상 대소문자를 구분합니다. 예를 들어 'xYz' = 'xyz'는 Teradata에서 TRUE이지만 BigQuery에서는 FALSE입니다.
+exp LE exp2 exp <= exp2
+exp LT exp2 exp < exp2
+exp NE exp2 exp <> exp2
+exp != exp2
+exp GE exp2 exp >= exp2
+exp GT exp2 exp > exp2
+조건 JOIN개
+BigQuery와 Teradata는 동일한 JOIN, ON, USING 조건을 지원합니다. 아래 표에는 기타 다른 차이점 목록이 포함되어 있습니다.
+Teradata BigQuery 참고
+FROM A JOIN B ON A.date > B.start_date AND A.date < B.end_date FROM A LEFT OUTER JOIN B ON A.date > B.start_date AND A.date < B.end_date BigQuery는 내부 Join에 대하여, 또는 최소한 한 개의 불일치 조건이 주어진 경우 (=) 불일치 JOIN 절을 지원합니다. 하지만 OUTER JOIN에서 불일치 조건이 한 개가 아닌 경우는 (= 및 <) 해당하지 않습니다. 그런 구성은 쿼리 날짜나 정수 범위에서 때때로 사용됩니다. BigQuery는 사용자가 의도치 않게 대규모 교차 조인을 만들지 않도록 방지합니다.
+FROM A, B ON A.id = B.id FROM A JOIN B ON A.id = B.id Teradata의 테이블 사이에 쉼표를 사용하는 것은 INNER JOIN와 동일하지만, BigQuery에서는 CROSS JOIN(카티전 프로덕트)과 같습니다. BigQuery legacy SQL의 쉼표는 UNION으로 취급 [https://cloud.google.com/bigquery/docs/reference/standard-sql/migrating-from-legacy-sql?hl=ko#comma_operator_with_tables]되므로, 혼동을 피하기 위해 작업을 명시적으로 만드는 것이 좋습니다.
+FROM A JOIN B ON (COALESCE(A.id , 0) = COALESCE(B.id, 0)) FROM A JOIN B ON (COALESCE(A.id , 0) = COALESCE(B.id, 0)) 스칼라(상수) 함수에는 차이가 없습니다.
+FROM A JOIN B ON A.id = (SELECT MAX(B.id) FROM B) FROM A JOIN (SELECT MAX(B.id) FROM B) B1 ON A.id = B1.id BigQuery는 사용자가 조인 조건자에서 서브 쿼리, 상관 서브 쿼리 또는 집계를 사용하지 못하게 합니다. 이렇게 하면 BigQuery가 쿼리를 병렬화할 수 있습니다.
+유형 변환 및 Cast 변환
+BigQuery는 Teradata보다 작지만 더 넓은 데이터 유형을 가집니다. 그렇기 때문에 BigQuery가 Cast 변환에서 더 엄격할 것이 요구됩니다.
+Teradata BigQuery 참고
+exp EQ exp2
+exp IN (exp2, exp3) exp = exp2
+exp IN (exp2, exp3)
+
+NOT CASESPECIFIC의 비 ANSI의 시맨틱스를 유지하려면 다음 사용:
+RTRIM(UPPER(exp)) = RTRIM(UPPER(exp2)) 등호 문자열을 비교할 때 Teradata는 후행 공백을 무시할 수 있지만 BigQuery는 이를 문자열의 일부로 간주합니다. 예를 들어 'xyz'=' xyz'는 Teradata에서 TRUE이지만 BigQuery에서는 FALSE입니다.
+
+Teradata는 두 문자열을 비교할 때 대소문자를 무시하도록 지시하는 NOT CASESPECIFIC [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/Statement-Syntax/USING-Request-Modifier/Usage-Notes/Character-String-Definitions-in-a-USING-Request-Modifier] 열 속성도 제공합니다. BigQuery는 문자열을 비교할 때 항상 대소문자를 구분합니다. 예를 들어 'xYz' = 'xyz'는 Teradata에서 TRUE이지만 BigQuery에서는 FALSE입니다.
+CAST(long_varchar_column AS CHAR(6)) LPAD(long_varchar_column, 6) Teradata에서 문자 열을 Cast 변환할 때는 비표준의 최적화되지 않은 방식으로 사용하여 패딩 하위 문자열을 만드는 방법도 있습니다.
+CAST(92617 AS TIME) 92617 (FORMAT '99:99:99') PARSE_TIME("%k%M%S", CAST(92617 AS STRING))
+일반적으로 더 엄격하고 ANSI 표준을 적용하는 BigQuery와 비교해서 Teradata는 다양한 암시적 유형 변환 [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Data-Type-Conversions/Implicit-Type-Conversions]과 반올림을 수행합니다.
+(이 예시는 09:26:17 반환)
+CAST(48.5 (FORMAT 'zz') AS FLOAT) CAST(SUBSTR(CAST(48.5 AS STRING), 0, 2) AS FLOAT64)
+부동 소수점 및 숫자 데이터 유형은 통화와 같은 형식으로 적용될 때 특수한 로딩 규칙 [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Numeric-Data-Types/Rounding]이 필요할 수 있습니다.
+(이 예시에서는 48 반환)
+INT로 FLOAT/DECIMAL 변환
+Teradata에서 Gaussian 및 Banker 알고리즘을 사용하여 숫자를 반올림하는 경우 BigQuery에서 ROUND_HALF_EVEN RoundingMode [https://cloud.google.com/bigquery/docs/reference/rest/v2/RoundingMode?hl=ko]를 사용합니다.
+round(CAST(2.5 as Numeric),0, 'ROUND_HALF_EVEN')
+NUMERIC 또는 BIGNUMERIC으로 STRING 변환
+STRING에서 숫자 값으로 변환할 때는 STRING 값의 소수점 이하 자릿수에 따라 올바른 데이터 유형(NUMERIC 또는 BIGNUMERIC)을 사용합니다.
+BigQuery에서 지원되는 숫자 정밀도와 소수 자릿수에 대한 자세한 내용은 십진수 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#decimal_types]을 참조하세요.
+또한 비교 연산자 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#comparison_operators]와 열 형식 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#type_formatting]을 참조하세요. 비교 및 열 형식 지정 모두 유형 Cast 변환과 같이 작동합니다.
+QUALIFY, ROWS 절
+Teradata의 QUALIFY 절을 사용하면 윈도우 함수의 결과를 필터링 [https://docs.teradata.com/reader/2_MC9vCtAJRlKle2Rpb0mA/19NnI91neorAi7LX6SJXBw]할 수 있습니다. 또는 ROWS 구문 [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Ordered-Analytical/Window-Aggregate-Functions/The-Window-Feature/ROWS-Phrase]을 동일한 작업에 사용할 수 있습니다. 이러한 구문은 GROUP 절의 HAVING 조건과 비슷하게 작동하며, BigQuery에서 윈도우 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/window-function-calls?hl=ko]의 출력을 제한합니다.
+Teradata BigQuery
+SELECT col1, col2
+FROM table
+QUALIFY ROW_NUMBER() OVER (PARTITION BY col1 ORDER BY col2) = 1; ROW_NUMBER(), SUM() ,COUNT() 같은 윈도우 함수 및 OVER PARTITION BY가 포함된 Teradata QUALIFY 절은 BigQuery에서 분석 값을 포함하는 서브 쿼리에 WHERE 절로 표현됩니다.
+
+ROW_NUMBER() 사용:
+
+SELECT col1, col2
+FROM (
+  SELECT col1, col2,
+  ROW_NUMBER() OVER (PARTITION BY col1 ORDER BY col2) RN
+  FROM table
+) WHERE RN = 1;
+
+더 큰 파티션을 지원하는 ARRAY_AGG 사용:
+
+SELECT
+  result.*
+FROM (
+  SELECT
+    ARRAY_AGG(table ORDER BY table.col2
+      DESC LIMIT 1)[OFFSET(0)]
+  FROM table
+  GROUP BY col1
+) AS result;
+SELECT col1, col2
+FROM table
+AVG(col1) OVER (PARTITION BY col1 ORDER BY col2 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW); SELECT col1, col2
+FROM table
+AVG(col1) OVER (PARTITION BY col1 ORDER BY col2 RANGE BETWEEN 2 PRECEDING AND CURRENT ROW);
+
+BigQuery에서는 RANGE 및 ROWS를 모두 윈도우 프레임 절에 사용할 수 있습니다. 그러나 윈도우 절은 AVG()와 같은 윈도우 함수에만 사용할 수 있으며 ROW_NUMBER()와 같은 번호 지정 함수에는 사용할 수 없습니다.
+SELECT col1, col2
+FROM table
+QUALIFY ROW_NUMBER() OVER (PARTITION BY col1 ORDER BY col2) = 1; SELECT col1,
+col2 FROM
+Dataset-name.table
+QUALIFY row_number() OVER (PARTITION BY upper(a.col1) ORDER BY upper(a.col2)) = 1
+NORMALIZE 키워드
+Teradata는 SELECT 절에 NORMALIZE [https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Data-Definition-Language-Syntax-and-Examples/Table-Statements/ALTER-TABLE/ALTER-TABLE-Syntax-Elements/ALTER-TABLE-Syntax-Elements-Basic/ALTER-TABLE-Basic-Options/NORMALIZE] 키워드를 제공하여 겹치는 기간 또는 간격을 모든 개별 기간 값을 포함하는 단일 기간 또는 간격으로 병합합니다.
+BigQuery는 PERIOD 유형을 지원하지 않으므로 Teradata의 어떤 PERIOD 유형 열이든 BigQuery에 기간의 시작과 종료에 해당하는 2개의 개별 DATE 또는 DATETIME 필드로 삽입해야 합니다.다.
+Teradata BigQuery
+SELECT NORMALIZE
+    client_id,
+    item_sid,
+    BEGIN(period) AS min_date,
+    END(period) AS max_date,
+  FROM
+    table;
+SELECT
+  t.client_id,
+  t.item_sid,
+  t.min_date,
+  MAX(t.dwh_valid_to) AS max_date
+FROM (
+  SELECT
+    d1.client_id,
+    d1.item_sid,
+    d1.dwh_valid_to AS dwh_valid_to,
+    MIN(d2.dwh_valid_from) AS min_date
+  FROM
+    table d1
+  LEFT JOIN
+    table d2
+  ON
+    d1.client_id = d2.client_id
+    AND d1.item_sid = d2.item_sid
+    AND d1.dwh_valid_to >= d2.dwh_valid_from
+    AND d1.dwh_valid_from < = d2.dwh_valid_to
+  GROUP BY
+    d1.client_id,
+    d1.item_sid,
+    d1.dwh_valid_to ) t
+GROUP BY
+  t.client_id,
+  t.item_sid,
+  t.min_date;
+함수
+다음 섹션에는 Teradata 함수와 그에 해당하는 BigQuery 함수 간의 매핑이 나와 있습니다.
+집계 함수
+다음 표는 Teradata의 일반적인 집계, 통계 집계, 근사치 집계 함수를 그에 해당하는 BigQuery 함수에 매핑합니다. BigQuery는 다음과 같은 집계 함수를 추가로 제공합니다.
+ANY_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#any_value]
+APPROX_COUNT_DISTINCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_count_distinct]
+APPROX_QUANTILES [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_quantiles]
+APPROX_TOP_COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_top_count]
+APPROX_TOP_SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_top_sum]
+COUNTIF [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#countif]
+LOGICAL_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_and]
+LOGICAL_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_or]
+STRING_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#string_agg]
+Teradata BigQuery
+AVG [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/AVG] AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg]
+참고: BigQuery는 INT 값의 평균을 계산할 때 근사 결과를 제공합니다.
+BITAND [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Bit/Byte-Manipulation-Functions/BITAND] BIT_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_and]
+BITNOT [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Bit/Byte-Manipulation-Functions/BITNOT] 비트 NOT 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#bitwise_operators](~)
+BITOR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Bit/Byte-Manipulation-Functions/BITOR] BIT_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_or]
+BITXOR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Bit/Byte-Manipulation-Functions/BITXOR] BIT_XOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_xor]
+CORR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/CORR] CORR [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#corr]
+COUNT [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/COUNT] COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count]
+COVAR_POP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/COVAR_POP] COVAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_pop]
+COVAR_SAMP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/COVAR_SAMP] COVAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_samp]
+MAX [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/MAXIMUM] MAX [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#max]
+MIN [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/MINIMUM] MIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#min]
+REGR_AVGX [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/REGR_AVGX] AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg](
+  IF(dep_var_expression is NULL
+     OR ind_var_expression is NULL,
+     NULL, ind_var_expression)
+)
+REGR_AVGY [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/REGR_AVGY] AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg](
+  IF(dep_var_expression is NULL
+     OR ind_var_expression is NULL,
+     NULL, dep_var_expression)
+)
+REGR_COUNT [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/REGR_COUNT] SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](
+  IF(dep_var_expression is NULL
+     OR ind_var_expression is NULL,
+     NULL, 1)
+)
+REGR_INTERCEPT [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/REGR_INTERCEPT] AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg](dep_var_expression) - AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg](ind_var_expression) * (COVAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_samp](ind_var_expression,
+              dep_var_expression)
+   / VARIANCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#variance](ind_var_expression))
+REGR_R2 [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/REGR_R2] (COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count](dep_var_expression)*
+ SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](ind_var_expression * dep_var_expression) -
+ SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](dep_var_expression) * SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](ind_var_expression))
+/ SQRT [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sqrt](
+     (COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count](ind_var_expression)*
+      SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power](ind_var_expression, 2))*
+      POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power](SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](ind_var_expression),2))*
+     (COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count](dep_var_expression)*
+      SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power](dep_var_expression, 2))*
+      POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power](SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](dep_var_expression), 2)))
+REGR_SLOPE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/REGR_SLOPE] - COVAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_samp](ind_var_expression,
+            dep_var_expression)
+/ VARIANCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#variance](ind_var_expression)
+REGR_SXX [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/REGR_SXX] SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power](ind_var_expression, 2)) - COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count](ind_var_expression) *
+  POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power](AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg](ind_var_expression),2)
+REGR_SXY [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/REGR_SXY] SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](ind_var_expression * dep_var_expression) - COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count](ind_var_expression)
+  * AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg](ind_var_expression) * AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg](dep_var_expression)
+REGR_SYY [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/REGR_SYY] SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power](dep_var_expression, 2)) - COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count](dep_var_expression)
+  * POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power](AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum](dep_var_expression),2)
+SKEW [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/SKEW] 커스텀 사용자 정의 함수입니다.
+STDDEV_POP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/STDDEV_POP] STDDEV_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_pop]
+STDDEV_SAMP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/STDDEV_SAMP] STDDEV_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_samp], STDDEV [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev]
+SUM [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/SUM] SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum]
+VAR_POP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/VAR_POP] VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop]
+VAR_SAMP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/VAR_SAMP] VAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_samp], VARIANCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#variance]
+분석 함수 및 윈도우 함수
+다음 표는 Teradata의 일반적인 분석 및 집계 분석 함수를 상응하는 BigQuery 윈도우 함수에 매핑합니다. BigQuery는 다음과 같은 함수를 추가 제공합니다.
+ANY_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#any_value]
+AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg]
+COUNTIF [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#countif]
+LAG [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#lag]
+LEAD [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#lead]
+LOGICAL_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_and]
+LOGICAL_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_or]
+NTH_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#nth_value]
+NTILE [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#ntile]
+STRING_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#string_agg]
+Teradata BigQuery
+ARRAY_AGG [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/ARRAY/VARRAY-functions-all/ARRAY_AGG] ARRAY_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#array_agg]
+ARRAY_CONCAT, (|| operator) [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/ARRAY/VARRAY-functions-all/ARRAY_CONCATENATION_FUNCTION] ARRAY_CONCAT_AGG, (|| operator) [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#array_concat_agg]
+BITAND [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Bit/Byte-Manipulation-Functions/BITAND] BIT_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_and]
+BITNOT [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Bit/Byte-Manipulation-Functions/BITNOT] 비트 NOT 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#bitwise_operators](~)
+BITOR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Bit/Byte-Manipulation-Functions/BITOR] BIT_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_or]
+BITXOR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Bit/Byte-Manipulation-Functions/BITXOR] BIT_XOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_xor]
+CORR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/CORR] CORR [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#corr]
+COUNT [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/COUNT] COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count]
+COVAR_POP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/COVAR_POP] COVAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_pop]
+COVAR_SAMP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/COVAR_SAMP] COVAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_samp]
+CUME_DIST [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Ordered-Analytical/Window-Aggregate-Functions/CUME_DIST] CUME_DIST [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#cume_dist]
+DENSE_RANK [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Ordered-Analytical/Window-Aggregate-Functions/DENSE_RANK-ANSI](ANSI) DENSE_RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#dense_rank]
+FIRST_VALUE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Ordered-Analytical/Window-Aggregate-Functions/FIRST_VALUE/LAST_VALUE] FIRST_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#first_value]
+LAST_VALUE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Ordered-Analytical/Window-Aggregate-Functions/FIRST_VALUE/LAST_VALUE] LAST_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#last_value]
+MAX [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/MAXIMUM] MAX [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#max]
+MIN [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/MINIMUM] MIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#min]
+PERCENT_RANK [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Ordered-Analytical/Window-Aggregate-Functions/PERCENT_RANK] PERCENT_RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#percent_rank]
+PERCENTILE_CONT [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Ordered-Analytical/Window-Aggregate-Functions/PERCENTILE_CONT/PERCENTILE_DISC], PERCENTILE_DISC [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Ordered-Analytical/Window-Aggregate-Functions/PERCENTILE_CONT/PERCENTILE_DISC] PERCENTILE_CONT [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#percentile_cont], PERCENTILE_DISC [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#percentile_disc]
+QUANTILE [https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Functions-Expressions-and-Predicates/Ordered-Analytical/Window-Aggregate-Functions/QUANTILE] NTILE [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#ntile]
+RANK [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Ordered-Analytical/Window-Aggregate-Functions/RANK-ANSI](ANSI) RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#rank]
+ROW_NUMBER [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Ordered-Analytical/Window-Aggregate-Functions/ROW_NUMBER] ROW_NUMBER [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#row_number]
+STDDEV_POP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/STDDEV_POP] STDDEV_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_pop]
+STDDEV_SAMP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/STDDEV_SAMP] STDDEV_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_samp], STDDEV [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev]
+SUM [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/SUM] SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum]
+VAR_POP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/VAR_POP] VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop]
+VAR_SAMP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Aggregate-Functions/VAR_SAMP] VAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_samp], VARIANCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#variance]
+날짜/시간 함수
+다음 표는 Teradata의 일반적인 날짜/시간 함수를 그에 해당하는 BigQuery 함수에 매핑합니다. BigQuery는 다음과 같은 날짜/시간 함수를 추가로 제공합니다.
+CURRENT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#current_datetime]
+DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add]
+DATE_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_diff]
+DATE_FROM_UNIX_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_from_unix_date]
+DATE_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub]
+DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc]
+DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime]
+DATETIME_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_add]
+DATETIME_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_diff]
+DATETIME_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_sub]
+DATETIME_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_trunc]
+PARSE_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#parse_date]
+PARSE_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#parse_datetime]
+PARSE_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#parse_time]
+PARSE_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#parse_timestamp]
+STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko]
+TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time]
+TIME_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_add]
+TIME_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_diff]
+TIME_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_sub]
+TIME_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_trunc]
+TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp]
+TIMESTAMP_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_add]
+TIMESTAMP_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_diff]
+TIMESTAMP_MICROS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_micros]
+TIMESTAMP_MILLIS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_millis]
+TIMESTAMP_SECONDS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_seconds]
+TIMESTAMP_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_sub]
+TIMESTAMP_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_trunc]
+UNIX_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#unix_date]
+UNIX_MICROS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_micros]
+UNIX_MILLIS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_millis]
+UNIX_SECONDS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_seconds]
+Teradata BigQuery
+ADD_MONTHS [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/DateTime-and-Interval-Functions-and-Expressions/ADD_MONTHS] DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add], TIMESTAMP_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_add]
+CURRENT_DATE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Built-In-Functions/CURRENT_DATE/CURDATE] CURRENT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#current_date]
+CURRENT_TIME [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Built-In-Functions/CURRENT_TIME/CURTIME] CURRENT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#current_time]
+CURRENT_TIMESTAMP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Built-In-Functions/CURRENT_TIMESTAMP] CURRENT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#current_timestamp]
+DATE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Built-In-Functions/DATE] + k DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add](date_expression, INTERVAL k DAY)
+DATE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Built-In-Functions/DATE] - k DATE_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub](date_expression, INTERVAL k DAY)
+EXTRACT [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/DateTime-and-Interval-Functions-and-Expressions/EXTRACT] EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](DATE), EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract](TIMESTAMP)
+FORMAT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#format_date]
+FORMAT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime]
+FORMAT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#format_time]
+FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp]
+LAST_DAY [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/DateTime-and-Interval-Functions-and-Expressions/LAST_DAY] LAST_DAY [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#last_day] 참고: 이 함수는 DATE 및 DATETIME 입력 표현식을 모두 지원합니다.
+MONTHS_BETWEEN [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/DateTime-and-Interval-Functions-and-Expressions/MONTHS_BETWEEN] DATE_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_diff](date_expression, date_expression, MONTH)
+NEXT_DAY [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/DateTime-and-Interval-Functions-and-Expressions/NEXT_DAY] DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add](
+  DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+    date_expression,
+    WEEK(day_value)
+  ),
+  INTERVAL 1 WEEK
+)
+OADD_MONTHS [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/DateTime-and-Interval-Functions-and-Expressions/OADD_MONTHS] DATE_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub](
+  DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+    DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add](
+      date_expression,
+      INTERVAL num_months MONTH
+    ),
+    MONTH
+  ),
+  INTERVAL 1 DAY
+)
+td_day_of_month [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_day_of_month] EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](DAY FROM date_expression)
+EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](DAY FROM timestamp_expression)
+td_day_of_week [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_day_of_week/DayOfWeek] EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](DAYOFWEEK FROM date_expression)
+EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](DAYOFWEEK FROM timestamp_expression)
+td_day_of_year [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_day_of_year] EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](DAYOFYEAR FROM date_expression)
+EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract](DAYOFYEAR FROM timestamp_expression)
+td_friday [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_friday] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+  date_expression,
+  WEEK(FRIDAY)
+)
+td_monday [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_monday] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+  date_expression,
+  WEEK(MONDAY)
+)
+td_month_begin [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_month_begin] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](date_expression, MONTH)
+td_month_end [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_month_end] DATE_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub](
+  DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+    DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add](
+      date_expression,
+      INTERVAL 1 MONTH
+    ),
+    MONTH
+  ),
+  INTERVAL 1 DAY
+)
+td_month_of_calendar [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_month_of_calendar] (EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](YEAR FROM date_expression) - 1900) * 12 + EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](MONTH FROM date_expression)
+td_month_of_quarter [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_month_of_quarter] EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](MONTH FROM date_expression)
+- ((EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](QUARTER FROM date_expression) - 1) * 3)
+td_month_of_year [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_month_of_year] EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](MONTH FROM date_expression)
+EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract](MONTH FROM timestamp_expression)
+td_quarter_begin [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_quarter_begin] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](date_expression, QUARTER)
+td_quarter_end [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_quarter_end] DATE_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub](
+  DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+    DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add](
+      date_expression,
+      INTERVAL 1 QUARTER
+    ),
+    QUARTER
+  ),
+  INTERVAL 1 DAY
+)
+td_quarter_of_calendar [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_quarter_of_calendar] (EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](YEAR FROM date_expression)
+- 1900) * 4
++ EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](QUARTER FROM date_expression)
+td_quarter_of_year [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_quarter_of_year] EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](QUARTER FROM date_expression)
+EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract](QUARTER FROM timestamp_expression)
+td_saturday [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_saturday] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+  date_expression,
+  WEEK(SATURDAY)
+)
+td_sunday [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_sunday] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+  date_expression,
+  WEEK(SUNDAY)
+)
+td_thursday [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_thursday] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+  date_expression,
+  WEEK(THURSDAY)
+)
+td_tuesday [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_tuesday] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+  date_expression,
+  WEEK(TUESDAY)
+)
+td_wednesday [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_wednesday] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+  date_expression,
+  WEEK(WEDNESDAY)
+)
+td_week_begin [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_week_begin] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](date_expression, WEEK)
+td_week_end [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_week_end] DATE_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub](
+  DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+    DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add](
+      date_expression,
+      INTERVAL 1 WEEK
+    ),
+    WEEK
+  ),
+  INTERVAL 1 DAY
+)
+td_week_of_calendar [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_week_of_calendar] (EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](YEAR FROM date_expression) - 1900) * 52 + EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](WEEK FROM date_expression)
+td_week_of_month [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_week_of_month] EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](WEEK FROM date_expression)
+- EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](WEEK FROM DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](date_expression, MONTH))
+td_week_of_year [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_week_of_year] EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](WEEK FROM date_expression)
+EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract](WEEK FROM timestamp_expression)
+td_weekday_of_month [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_weekday_of_month] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast](
+  CEIL [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ceil](
+    EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](DAY FROM date_expression)
+    / 7
+  ) AS INT64
+)
+td_year_begin [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_year_begin] DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](date_expression, YEAR)
+td_year_end [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Business-Calendars/td_year_end] DATE_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub](
+  DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](
+    DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add](
+      date_expression,
+      INTERVAL 1 YEAR
+    ),
+    YEAR
+  ),
+  INTERVAL 1 DAY
+)
+td_year_of_calendar [https://docs.teradata.com/r/SQL-Date-and-Time-Functions-and-Expressions/July-2021/Calendar-Functions/td_year_of_calendar] EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](YEAR FROM date_expression)
+TO_DATE [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Data-Type-Conversion-Functions/TO_DATE] PARSE_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#parse_date]
+TO_TIMESTAMP [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Data-Type-Conversion-Functions/TO_TIMESTAMP] PARSE_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#parse_timestamp]
+TO_TIMESTAMP_TZ [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Data-Type-Conversion-Functions/TO_TIMESTAMP_TZ] PARSE_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#parse_timestamp]
+문자열 함수
+다음 표는 Teradata 문자열 함수를 그에 해당하는 BigQuery 함수에 매핑합니다. BigQuery는 다음과 같은 문자열 함수를 추가로 제공합니다.
+BYTE_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#byte_length]
+CODE_POINTS_TO_BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#code_points_to_bytes]
+ENDS_WITH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#ends_with]
+FROM_BASE32 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_base32]
+FROM_BASE64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_base64]
+FROM_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_hex]
+NORMALIZE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#normalize]
+NORMALIZE_AND_CASEFOLD [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#normalize_and_casefold]
+REGEXP_CONTAINS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_contains]
+REGEXP_EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract]
+REGEXP_EXTRACT_ALL [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract_all]
+REPEAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#repeat]
+REPLACE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#replace]
+SAFE_CONVERT_BYTES_TO_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#safe_convert_bytes_to_string]
+SPLIT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#split]
+STARTS_WITH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#starts_with]
+STRPOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#strpos]
+TO_BASE32 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_base32]
+TO_BASE64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_base64]
+TO_CODE_POINTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_code_points]
+TO_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_hex]
+Teradata BigQuery
+ASCII [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/ASCII] TO_CODE_POINTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_code_points](string_expression)[OFFSET [https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions?hl=ko#offset_and_ordinal](0)]
+CHAR2HEXINT [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/CHAR2HEXINT] TO_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_hex]
+CHARACTER LENGTH [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Attribute-Functions/CHARACTER_LENGTH] CHAR_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#char_length]
+CHARACTER LENGTH [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Attribute-Functions/CHARACTER_LENGTH] CHARACTER_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#character_length]
+CHR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/CHR] CODE_POINTS_TO_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#code_points_to_string](
+  [mod(numeric_expression, 256)]
+)
+CONCAT, (|| operator) [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/CONCAT] CONCAT, (|| operator) [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#concat]
+CSV [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/CSV] 커스텀 사용자 정의 함수입니다.
+CSVLD [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/CSVLD] 커스텀 사용자 정의 함수입니다.
+FORMAT [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Data-Type-Formats-and-Format-Phrases/FORMAT] FORMAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#format_string]
+INDEX [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/CREATE-TABLE-Queue-Table-Form/CREATE-TABLE-Syntax-Elements-Queue-Table-Form/column_attribute/index_specification] STRPOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#strpos](string, substring)
+INITCAP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/INITCAP] INITCAP [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#initcap]
+INSTR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/INSTR] 커스텀 사용자 정의 함수입니다.
+LEFT [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/LEFT] SUBSTR [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#substr](source_string, 1, length)
+LENGTH [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/LENGTH] LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#length]
+LOWER [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/LOWER] LOWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#lower]
+LPAD [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/LPAD] LPAD [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#lpad]
+LTRIM [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/LTRIM] LTRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#ltrim]
+NGRAM [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/NGRAM] 커스텀 사용자 정의 함수입니다.
+NVP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/NVP] 커스텀 사용자 정의 함수입니다.
+OREPLACE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/OREPLACE] REPLACE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#replace]
+OTRANSLATE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/OTRANSLATE] 커스텀 사용자 정의 함수입니다.
+POSITION [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Cursor-Control-and-DML-Statements/POSITION] STRPOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#strpos](string, substring)
+REGEXP_INSTR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Regular-Expression-Functions/REGEXP_INSTR] STRPOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#strpos](source_string,
+REGEXP_EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract](source_string, regexp_string))
+
+참고: 첫 번째 어커런스를 반환합니다.
+REGEXP_REPLACE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Regular-Expression-Functions/REGEXP_REPLACE] REGEXP_REPLACE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_replace]
+REGEXP_SIMILAR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Regular-Expression-Functions/REGEXP_SIMILAR] IF(REGEXP_CONTAINS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_contains],1,0)
+REGEXP_SUBSTR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Regular-Expression-Functions/REGEXP_SUBSTR] REGEXP_EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract],
+REGEXP_EXTRACT_ALL [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract_all]
+REGEXP_SPLIT_TO_TABLE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Regular-Expression-Functions/REGEXP_SPLIT_TO_TABLE] 커스텀 사용자 정의 함수입니다.
+REVERSE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/REVERSE] REVERSE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#reverse]
+RIGHT [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/RIGHT] SUBSTR [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#substr](source_string, -1, length)
+RPAD [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/RPAD] RPAD [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#rpad]
+RTRIM [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/RTRIM] RTRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#rtrim]
+STRTOK [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/STRTOK]
+
+참고: 구분 기호 문자열 인수의 각 문자는 별개의 구분 기호 문자로 간주됩니다. 기본 구분 기호는 공백 문자입니다. SPLIT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#split](instring, delimiter)[ORDINAL [https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions?hl=ko#offset_and_ordinal](tokennum)]
+
+참고: 전체 구분 기호 문자열 인수는 단일 구분 기호로 사용됩니다. 기본 구분 기호는 쉼표입니다.
+STRTOK_SPLIT_TO_TABLE [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/STRTOK_SPLIT_TO_TABLE] 커스텀 사용자 정의 함수입니다.
+SUBSTRING [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/SUBSTRING], SUBSTR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/SUBSTRING] SUBSTR [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#substr]
+TRIM [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/TRIM] TRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#trim]
+UPPER [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/String-Operators-and-Functions/UPPER/UCASE] UPPER [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#upper]
+수학 함수
+다음 표는 Teradata 수학 함수를 그에 해당하는 BigQuery 함수에 매핑합니다. BigQuery는 다음과 같은 수학 함수를 추가로 제공합니다.
+DIV [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#div]
+IEEE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ieee_divide]
+IS_INF [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#is_inf]
+IS_NAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#is_nan]
+LOG10 [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#log10]
+SAFE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#safe_divide]
+Teradata BigQuery
+ABS [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/ABS] ABS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#abs]
+ACOS [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/TRIGONOMETRIC/TRIGONOMETRIC-Function-Syntax] ACOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#acos]
+ACOSH [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/HYPERBOLIC/HYPERBOLIC-Function-Syntax] ACOSH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#acosh]
+ASIN [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/TRIGONOMETRIC/TRIGONOMETRIC-Function-Syntax] ASIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#asin]
+ASINH [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/HYPERBOLIC/HYPERBOLIC-Function-Syntax] ASINH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#asinh]
+ATAN [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/TRIGONOMETRIC/TRIGONOMETRIC-Function-Syntax] ATAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#atan]
+ATAN2 [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/TRIGONOMETRIC/TRIGONOMETRIC-Function-Syntax] ATAN2 [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#atan2]
+ATANH [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/HYPERBOLIC/HYPERBOLIC-Function-Syntax] ATANH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#atanh]
+CEILING [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/CEILING] CEIL [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ceil]
+CEILING [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/CEILING] CEILING [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ceiling]
+COS [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/TRIGONOMETRIC/TRIGONOMETRIC-Function-Syntax] COS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#cos]
+COSH [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/HYPERBOLIC/HYPERBOLIC-Function-Syntax] COSH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#cosh]
+EXP [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/EXP] EXP [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#exp]
+FLOOR [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/FLOOR] FLOOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#floor]
+GREATEST [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Comparison-Operators-and-Functions/GREATEST] GREATEST [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#greatest]
+LEAST [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Comparison-Operators-and-Functions/LEAST] LEAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#least]
+LN [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/LN] LN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ln]
+LOG [https://docs.teradata.com/r/Database-Utilities/July-2021/Database-Window-xdbw/Commands/LOG] LOG [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#log]
+MOD [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/MOD](% 연산자) MOD [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#mod]
+NULLIFZERO [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/NULLIFZERO] NULLIF [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko](expression, 0)
+POWER [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/POWER](** 연산자) POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power], POW [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#pow]
+RANDOM [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/RANDOM] RAND [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#rand]
+ROUND [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/ROUND] ROUND [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#round]
+SIGN [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/SIGN] SIGN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sign]
+SIN [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/TRIGONOMETRIC/TRIGONOMETRIC-Function-Syntax] SIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sin]
+SINH [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/HYPERBOLIC/HYPERBOLIC-Function-Syntax] SINH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sinh]
+SQRT [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/SQRT] SQRT [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sqrt]
+TAN [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/TRIGONOMETRIC/TRIGONOMETRIC-Function-Syntax] TAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#tan]
+TANH [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/HYPERBOLIC/HYPERBOLIC-Function-Syntax] TANH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#tanh]
+TRUNC [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/TRUNC] TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#trunc]
+ZEROIFNULL [https://docs.teradata.com/r/SQL-Functions-Expressions-and-Predicates/July-2021/Arithmetic-Trigonometric-Hyperbolic-Operators/Functions/ZEROIFNULL] IFNULL [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#ifnull](expression, 0), COALESCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#coalesce](expression, 0)
+Rounding 함수
+Teradata에서 Gaussian 및 Banker 알고리즘을 사용하여 숫자를 반올림하는 경우 BigQuery에서 ROUND_HALF_EVEN RoundingMode [https://cloud.google.com/bigquery/docs/reference/rest/v2/RoundingMode?hl=ko]를 사용합니다.
+-- Teradata syntax
+round(3.45,1)
+
+-- BigQuery syntax
+round(CAST(3.45 as Numeric),1, 'ROUND_HALF_EVEN')
+DML 구문
+이 섹션에서는 Teradata와 BigQuery 간 데이터 관리 언어 구문의 차이점을 설명합니다.
+INSERT 문
+대부분의 Teradata INSERT 문은 BigQuery와 호환됩니다. 다음 표에는 예외 사항이 나와 있습니다.
+BigQuery의 DML 스크립트와 그에 해당하는 Teradata의 문 간에는 시맨틱스의 일관성 측면에 약간의 차이점이 있습니다. 스냅샷 격리와 세션 및 트랙잭션 처리에 관한 개요는 이 문서의 CREATE INDEX [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#create_index] 섹션을 참조하세요.
+Teradata BigQuery
+INSERT INTO [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/Statement-Syntax/INSERT/INSERT-...-SELECT] table VALUES (...); INSERT INTO [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#insert_statement] table (...) VALUES (...);
+
+Teradata는 null 비허용 열에 DEFAULT 키워드를 제공합니다.
+
+참고: BigQuery에서는 대상 테이블의 모든 열 값이 서수 위치에 따라 오름차순으로 포함된 경우에만 INSERT 문의 열 이름을 생략할 수 있습니다.
+INSERT INTO [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/Statement-Syntax/INSERT/INSERT-...-SELECT] table VALUES (1,2,3);
+INSERT INTO [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/Statement-Syntax/INSERT/INSERT-...-SELECT] table VALUES (4,5,6);
+INSERT INTO [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/Statement-Syntax/INSERT/INSERT-...-SELECT] table VALUES (7,8,9); INSERT INTO [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#insert_statement] table VALUES (1,2,3),
+                         (4,5,6),
+                         (7,8,9);
+
+Teradata에는 여러 INSERT 문을 한 번에 전송하는 다중 문 요청(MSR) [https://docs.teradata.com/r/Basic-Teradata-Query-Reference/February-2022/Using-BTEQ/SQL-Requests/Request-Types]이라는 개념이 있습니다. BigQuery의 경우 문 간에 암시적 트랜잭션 경계가 있기 때문에 이 개념이 권장되지 않습니다. 대신에 다중 값 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#insert_values_with_subquery] INSERT를 사용하세요.
+
+BigQuery는 동시 실행되는 INSERT 문을 허용하지만, UPDATE를 큐 [https://cloud.google.com/blog/products/data-analytics/dml-without-limits-now-in-bigquery?hl=ko]에 올릴 수도 있습니다. 성능을 개선하려면 다음 방법을 고려해보세요.
+INSERT 작업당 한 개의 행 대신 하나의 INSERT 문에서 여러 행을 결합합니다.
+MERGE [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#merge_statement] 문을 사용하여 여러 DML 문(INSERT 포함)을 결합합니다.
+UPDATE 또는 DELETE 대신에 CREATE TABLE ... AS SELECT를 사용하여 새 테이블을 만들고 값을 채웁니다( 특히 파티션을 나눈 필드 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#query_an_ingestion-time_partitioned_table] 또는 롤백 또는 복원 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#for_system_time_as_of]을 쿼리할 때).
+UPDATE 문
+대부분의 Teradata UPDATE 문 [https://docs.teradata.com/r/Teradata-MultiLoad-Reference/February-2022/Teradata-MultiLoad-Commands/UPDATE]은 다음을 제외하고 BigQuery와 호환됩니다.
+FROM 절을 사용하면 Teradata 및 BigQuery에서 FROM와 SET 절의 순서가 반대가 됩니다.
+GoogleSQL에서 각 UPDATE 문에 WHERE 키워드와 조건이 순서대로 포함되어야 합니다. 테이블의 모든 행을 업데이트하려면 WHERE true를 사용합니다.
+권장사항으로 단일 UPDATE 및 INSERT 문 대신 여러 DML 변형을 그룹화해야 합니다. BigQuery의 DML 스크립트와 그에 해당하는 Teradata의 문 간에는 시맨틱스의 일관성 측면에 약간의 차이점이 있습니다. 스냅샷 격리와 세션 및 트랜잭션 처리에 관한 개요는 이 문서의 CREATE INDEX [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#create_index] 섹션을 참조하세요.
+다음 표에서는 동일한 작업을 수행하는 Teradata UPDATE 문과 BigQuery 문을 보여줍니다.
+BigQuery의 UPDATE에 대한 자세한 내용은 DML 문서에서 BigQuery UPDATE 예시 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#update_examples]를 참조하세요.
+Teradata BigQuery
+UPDATE table_A
+FROM table_A, table_B
+SET
+  y = table_B.y,
+  z = table_B.z + 1
+WHERE table_A.x = table_B.x
+  AND table_A.y IS NULL; UPDATE table_A
+SET
+  y = table_B.y,
+  z = table_B.z + 1
+FROM table_B
+WHERE table_A.x = table_B.x
+  AND table_A.y IS NULL;
+UPDATE table alias
+SET x = x + 1
+WHERE f(x) IN (0, 1); UPDATE table
+SET x = x + 1
+WHERE f(x) IN (0, 1);
+UPDATE table_A
+FROM table_A, table_B, B
+SET z = table_B.z
+WHERE table_A.x = table_B.x
+  AND table_A.y = table_B.y;
+UPDATE table_A
+SET z = table_B.z
+FROM table_B
+WHERE table_A.x = table_B.x
+  AND table_A.y = table_B.y;
+DELETE 및 TRUNCATE 문
+DELETE 및 TRUNCATE 문 모두 테이블 스키마나 색인에 영향을 주지 않으면서 테이블에서 행을 삭제하는 방법을 지원합니다. TRUNCATE는 모든 데이터를, DELETE는 테이블에서 선택한 행을 삭제합니다.
+BigQuery의 DELETE 문에는 WHERE 절이 있어야 합니다. 테이블의 모든 행을 삭제하려면 WHERE true를 사용합니다. 매우 큰 테이블의 경우 자르기 작업을 빠르게 진행하려면 CREATE OR REPLACE TABLE ... AS SELECT [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#creating_a_new_table_from_an_existing_table] 문을 사용하고 동일 테이블에서 LIMIT 0을 사용하여 자체를 교체하는 것이 좋습니다. 하지만 이를 사용할 때 파티션 나누기 및 클러스터링 정보를 수동으로 추가해야 합니다.
+Teradata는 삭제된 행을 나중에 vacuum 처리합니다. 즉, DELETE 작업이 처음에는 BigQuery에서보다 빠르지만 특히 테이블의 상당 부분에 영향을 주는 대규모 DELETE 작업의 경우 나중에 리소스가 필요합니다. BigQuery에서 비슷한 방법을 이용하기 위해서는 삭제하지 않을 행을 새 테이블에 복사하는 등의 방식으로 DELETE 작업 수를 줄이는 것이 좋습니다. 또는 전체 파티션을 삭제 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#delete_a_partition]할 수 있습니다. 두 옵션 모두 원자적 DML 변형보다 빠르게 설계되었습니다.
+BigQuery의 DELETE에 대한 상세 내용은 DML 문서에서 DELETE 예시 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#delete_examples]를 참조하세요.
+Teradata BigQuery
+BEGIN TRANSACTION;
+LOCKING TABLE table_A FOR EXCLUSIVE;
+DELETE FROM table_A;
+INSERT INTO table_A SELECT * FROM table_B;
+END TRANSACTION; 테이블의 콘텐츠를 쿼리 출력으로 바꾸는 것은 트랜잭션과 같은 개념입니다. 이 작업은 query [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query] 작업 또는 copy [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#copy-table] 작업으로도 수행할 수 있습니다.
+
+query 작업 사용:
+
+bq query --replace --destination_table table_A 'SELECT * FROM table_B';
+
+copy 작업 사용:
+
+bq cp -f table_A table_B
+DELETE database.table ALL; DELETE FROM table WHERE TRUE;
+
+테이블이 매우 큰 경우 더 빠른 방법을 사용해 보세요:
+CREATE OR REPLACE table AS SELECT * FROM table LIMIT 0;
+MERGE 문
+MERGE 문은 INSERT, UPDATE, DELETE 작업을 단일 'upsert' 문으로 결합하여 원자적으로 작업을 수행할 수 있습니다. MERGE 작업은 각 대상 행에 대해 최대 1개의 소스 행과 일치해야 합니다. BigQuery 및 Teradata 모두 ANSI 구문을 따릅니다.
+Teradata의 MERGE 작업은 하나의 액세스 모듈 프로세서(AMP) [https://docs.teradata.com/r/Database-Introduction/July-2021/Teradata-Database-Hardware-and-Software-Architecture/Virtual-Processors/Access-Module-Processor] 내에 있는 일치하는 기본 키로 제한됩니다. 반면에 BigQuery에는 MERGE 작업에 대해 크기 또는 열 제한이 없으므로, MERGE를 사용하는 것이 유용한 최적화입니다. 하지만 MERGE가 주로 큰 삭제인 경우에는 이 문서의 다른 부분에 있는 DELETE 최적화를 참조하세요.
+BigQuery의 DML 스크립트와 그에 해당하는 Teradata의 문 간에는 시맨틱스의 일관성 측면에 약간의 차이점이 있습니다. 예를 들어 세션 모드에서 Teradata의 SET 테이블은 MERGE 작업 중에 중복을 무시 [https://docs.teradata.com/reader/b8dd8xEYJnxfsq4uFRrHQQ/4OgUH6g%7EQfr0TwCyhBrg9g]할 수 있습니다. MULTISET 및 SET 테이블 처리, 스냅샷 격리, 세션 및 트랙잭션 처리에 관한 개요는 이 문서의 CREATE INDEX [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#create_index] 섹션을 참조하세요.
+행의 영향을 받는 변수
+Teradata에서 ACTIVITY_COUNT [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/Result-Code-Variables/ACTIVITY_COUNT] 변수는 DML 문의 영향을 받는 행 수로 채워진 Teradata ANSI SQL 확장 프로그램입니다.
+스크립팅 기능 [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko]의 @@row_count 시스템 변수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#system_variables]에도 비슷한 기능이 있습니다. BigQuery에서는 감사 로그 또는 INFORMATION_SCHEMA [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko] 뷰의 numDmlAffectedRows [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query?hl=ko#body.QueryResponse.FIELDS.num_dml_affected_rows] 반환 값을 확인하는 것이 더 일반적입니다.
+DDL 구문
+이 섹션에서는 Teradata와 BigQuery 간 데이터 정의 언어 구문의 차이점을 설명합니다.
+CREATE TABLE 문
+대부분의 CREATE TABLE [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/CREATE-TABLE-and-CREATE-TABLE-AS] 문은 BigQuery에서 사용되지 않는 다음 구문 요소를 제외하고 BigQuery와 호환됩니다.
+MULTISET [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/CREATE-FOREIGN-TABLE/CREATE-FOREIGN-TABLE-Syntax-Elements/MULTISET]. CREATE INDEX [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#create_index] 섹션을 참조하세요.
+VOLATILE [https://docs.teradata.com/r/SQL-Fundamentals/July-2021/Database-Objects/Tables/Volatile-Tables]. 임시 테이블 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#temporary_tables] 섹션을 참조하세요.
+[NO] FALLBACK [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/ALTER-TABLE/ALTER-TABLE-Syntax-Elements/Table-Options/FALLBACK] 롤백 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#rollback] 섹션을 참조하세요.
+[NO] BEFORE JOURNAL [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/CREATE-TABLE-and-CREATE-TABLE-AS/Syntax-Elements/table_option/BEFORE-JOURNAL], [NO] AFTER JOURNAL [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/CREATE-TABLE-and-CREATE-TABLE-AS/Syntax-Elements/table_option/AFTER-JOURNAL]
+CHECKSUM [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Index-Statements/CREATE-JOIN-INDEX/CREATE-JOIN-INDEX-Syntax-Elements/table_option/CHECKSUM] = DEFAULT | val
+DEFAULT MERGEBLOCKRATIO [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/ALTER-TABLE/ALTER-TABLE-Syntax-Elements/Table-Options/MERGEBLOCKRATIO]
+PRIMARY INDEX [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Index-Statements/CREATE-JOIN-INDEX/CREATE-JOIN-INDEX-Syntax-Elements/index/PRIMARY-INDEX] (col, ...). CREATE INDEX [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#create_index] 섹션을 참조하세요.
+UNIQUE PRIMARY INDEX [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Index-Statements/CREATE-JOIN-INDEX/CREATE-JOIN-INDEX-Syntax-Elements/index/PRIMARY-INDEX]. CREATE INDEX [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#create_index] 섹션을 참조하세요.
+CONSTRAINT [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/User-Profile-and-Role-Statements/MODIFY-PROFILE/MODIFY-PROFILE-Syntax-Elements/CONSTRAINT]
+DEFAULT [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/CREATE-TABLE-and-CREATE-TABLE-AS/Syntax-Elements/column_partition_definition/column_data_type_attribute/DEFAULT?tocId=TzUUl9nkAjYJJd2~gxqYkw]
+IDENTITY [https://docs.teradata.com/r/SQL-Data-Definition-Language-Detailed-Topics/July-2021/CREATE-TABLE-Options/CREATE-TABLE-Column-Definition-Clause/Identity-Columns]
+BigQuery의 CREATE TABLE에 대한 자세한 내용은 DML 문서에서 BigQuery CREATE 예시 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]를 참조하세요.
+열 옵션 및 속성
+CREATE TABLE 문에 대한 다음 열 사양은 BigQuery에서 사용되지 않습니다.
+FORMAT [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Data-Type-Formats-and-Format-Phrases/FORMAT] 'format'. Teradata 유형 형식 지정 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#type_formatting] 섹션을 참조하세요.
+CHARACTER SET [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/CREATE-TABLE-and-CREATE-TABLE-AS/Syntax-Elements/column_partition_definition/column_data_type_attribute/CHARACTER-SET-server_character_set?tocId=c36aNoeODQWLvirPeTi70A] name. BigQuery는 항상 UTF-8 인코딩을 사용합니다.
+[NOT] CASESPECIFIC [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/CREATE-TABLE-and-CREATE-TABLE-AS/Syntax-Elements/column_partition_definition/column_data_type_attribute/CASESPECIFIC?tocId=1b9AH4BoNABTrvxXZsbVLg]
+COMPRESS [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/ALTER-TABLE/ALTER-TABLE-Syntax-Elements/Column-Attributes/COMPRESS] val | (val, ...)
+Teradata는 열의 TITLE [https://docs.teradata.com/r/SQL-Data-Types-and-Literals/July-2021/Data-Type-Formats-and-Format-Phrases/TITLE] 옵션으로 ANSI 표준을 확장합니다. 다음 표와 같이 이 기능은 열 설명을 사용하여 BigQuery에서 유사하게 구현할 수 있습니다. 지도 뷰에서는 이 옵션을 사용할 수 없습니다.
+Teradata BigQuery
+CREATE TABLE [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/CREATE-TABLE-and-CREATE-TABLE-AS] table (
+col1 VARCHAR(30) TITLE 'column desc'
+); CREATE TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement] dataset.table (
+  col1 STRING
+OPTIONS [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#column_option_list](description="column desc")
+);
+임시 테이블
+Teradata는 스크립트에 중간 결과를 저장하는 데 종종 사용되는 volatile [https://docs.teradata.com/r/SQL-Fundamentals/July-2021/Database-Objects/Tables/Volatile-Tables] 테이블을 지원합니다. BigQuery에서 volatile 테이블과 유사한 것을 달성하는 방법에는 여러 가지가 있습니다.
+CREATE TEMPORARY TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]은 스크립트 [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko]와 함께 사용할 수 있으며 스크립트의 전체 기간 동안 유효합니다. 테이블이 스크립트 이상으로 존재해야 하는 경우 이 목록의 다른 옵션을 사용할 수 있습니다.
+데이터 세트 TTL: 데이터 세트에서 생성된 모든 테이블이 데이터 세트의 수명보다 오래 지속되지 않도록 단기(예: 1시간)의 임시 데이터 세트를 만듭니다. 이 데이터 세트의 모든 테이블 이름 앞에 temp를 추가하여 임시 테이블임을 명확하게 나타낼 수 있습니다.
+테이블 TTL: 다음과 유사한 DDL 문을 사용하여 테이블별로 단기 테이블을 만듭니다.
+CREATE TABLE temp.name (col1, col2, ...)
+OPTIONS(expiration_timestamp=TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR));
+WITH 절: 임시 테이블이 동일한 블록 내에서만 필요한 경우 WITH [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#with_clause] 문 또는 서브 쿼리를 사용하여 임시 결과를 사용합니다. 가장 효율적인 옵션입니다.
+Teradata 스크립트(BTEQ [https://docs.teradata.com/r/Basic-Teradata-Query-Reference/February-2022/Introduction-to-BTEQ/Overview-of-BTEQ])에서 자주 사용되는 패턴은 영구 테이블을 만들고, 값을 삽입하고, 진행중인 문에서 이 테이블을 임시 테이블로 사용한 다음 테이블을 삭제하거나 잘라내는 것입니다. 실제로는 테이블을 상수 변수(세마포어)로 사용합니다. 이 접근 방식은 BigQuery에서 효율적이지 않으므로 대신 스크립트 [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko]에서 실제 변수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#set]를 사용하거나 AS SELECT [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]와 함께 CREATE OR REPLACE를 사용하는 것이 좋습니다. 쿼리 구문을 사용하여 이미 값이 있는 테이블을 만듭니다.
+CREATE VIEW 문
+다음 표에서는 CREATE VIEW 문에 대해 Teradata와 BigQuery 간 유사점을 보여줍니다. LOCKING ROW FOR ACCESS [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/Statement-Syntax/LOCKING-Request-Modifier/Usage-Notes/Using-LOCKING-ROW] 같이 테이블 잠금에 사용하는 절은 BigQuery 내에서는 필요하지 않습니다.
+참고: Teradata는 BigQuery 같이 구체화된 뷰 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko]를 직접 지원하지 않으며 색인만 조인합니다.
+Teradata BigQuery 참고
+CREATE VIEW [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/View-Statements/CREATE-VIEW-and-REPLACE-VIEW] view_name AS SELECT ... CREATE VIEW [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_view_statement] view_name AS SELECT ...
+REPLACE VIEW [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/View-Statements/CREATE-VIEW-and-REPLACE-VIEW] view_name AS SELECT ... CREATE OR REPLACE VIEW [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_view_statement]
+view_name AS
+SELECT ...
+지원되지 않음 CREATE VIEW IF NOT EXISTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_view_statement]
+OPTIONS(view_option_list [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#view_option_list])
+AS SELECT ... 지정된 데이터 세트에 현재 뷰가 없는 경우에만 새 뷰를 만듭니다.
+CREATE [UNIQUE] INDEX 문
+Teradata는 모든 테이블에 대한 색인이 필요하며, 고유하지 않거나 색인이 생성되지 않은 데이터를 사용하기 위해서는 MULTISET [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/CREATE-FOREIGN-TABLE/CREATE-FOREIGN-TABLE-Syntax-Elements/MULTISET] 테이블 및 NoPI 테이블 [https://docs.teradata.com/r/Database-Design/July-2021/Primary-Index-Primary-AMP-Index-and-NoPI-Objects/NoPI-Tables-Column-Partitioned-NoPI-Tables-and-Column-Partitioned-NoPI-Join-Indexes] 같은 특별한 우회 방법이 필요합니다.
+BigQuery에는 색인이 필요하지 않습니다. 이 섹션에서는 실제 비즈니스 로직이 필요한 Teradata에서 색인을 사용하는 방법과 비슷한 기능을 BigQuery에서 만드는 방법을 설명합니다.
+성능 색인 생성
+쿼리 및 스토리지 최적화를 사용하는 열 중심 데이터베이스이므로 BigQuery는 명시적 색인이 필요하지 않습니다. BigQuery는 파티션 나누기 및 클러스터링 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]과 같은 기능 외에 중첩된 필드 [https://cloud.google.com/bigquery/docs/nested-repeated?hl=ko]도 제공하므로 데이터 저장 방식을 최적화하여 쿼리 효율성과 성능을 높일 수 있습니다.
+Teradata는 구체화된 뷰를 지원하지 않습니다. 하지만 CREATE JOIN INDEX 문을 사용하여 조인 색인 [https://docs.teradata.com/r/Database-Design/July-2021/Join-and-Hash-Indexes/Join-Indexes]만 제공하므로 기본적으로 조인에 필요한 데이터만 구체화합니다. BigQuery에는 조인을 위한 전용 스풀링 공간이 필요하지 않으므로 구체화된 색인이 필요하지 않습니다.
+다른 최적화 사례에서는 구체화된 뷰 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko]를 사용할 수 있습니다.
+일관성 색인 생성(UNIQUE, PRIMARY INDEX)
+Teradata에서 고유 색인은 테이블에 고유하지 않은 키가 있는 행을 차단하는 데 사용할 수 있습니다. 프로세스에서 이미 색인에 포함된 값이 있는 데이터를 삽입하거나 업데이트하려고 하면 작업이 색인 위반(MULTISET 테이블) 오류와 함께 실패하거나 자동으로 무시합니다(SET 테이블).
+BigQuery는 명시적 색인을 제공하지 않으므로, 중복 레코드를 삭제하는 동안 MERGE 문을 사용하여 스테이징 테이블의 대상 테이블에만 고유 레코드를 삽입할 수 있습니다. 하지만 INSERT 작업 중 BigQuery에서 잠금 기능이 사용되지 않기 때문에 수정 권한이 있는 사용자가 중복 레코드를 삽입하는 것을 방지할 방법이 없습니다. BigQuery에서 중복 레코드에 대해 오류를 발생시키려면 다음 예시에 표시된 것처럼 스테이징 테이블에서 MERGE 문을 사용하면 됩니다.
+Teradata BigQuery
+CREATE [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Index-Statements/CREATE-INDEX] [UNIQUE [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Index-Statements/CREATE-INDEX/CREATE-INDEX-Syntax-Elements/index_specification/UNIQUE]] INDEX [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Index-Statements/CREATE-INDEX] name; MERGE `prototype.FIN_MERGE` t
+USING `prototype.FIN_TEMP_IMPORT` m
+ON t.col1 = m.col1
+  AND t.col2 = m.col2
+WHEN MATCHED THEN
+  UPDATE SET t.col1 = ERROR(CONCAT('Encountered error for ', m.col1, ' ', m.col2))
+WHEN NOT MATCHED THEN
+  INSERT (col1,col2,col3,col4,col5,col6,col7,col8) VALUES(col1,col2,col3,col4,col5,col6,CURRENT_TIMESTAMP(),CURRENT_TIMESTAMP());
+사용자는 다운스트림 시스템에서 오류를 찾기 위해 중복 항목을 독립적으로 제거 [https://cloud.google.com/bigquery/streaming-data-into-bigquery?hl=ko#manually_removing_duplicates]하는 것을 선호하는 경우가 더 많습니다.
+BigQuery는 DEFAULT 및 IDENTITY(시퀀스) 열을 지원하지 않습니다.
+잠금을 위한 색인 생성
+Teradata는 액세스 모듈 프로세서 [https://docs.teradata.com/r/Database-Introduction/July-2021/Teradata-Database-Hardware-and-Software-Architecture/Virtual-Processors/Access-Module-Processor](AMP)에 리소스를 제공합니다. 쿼리는 모든 AMP, 단일 AMP 또는 그룹 AMP 리소스를 사용할 수 있습니다. DDL 문은 모든 AMP를 사용하므로 전역 DDL 잠금과 유사합니다. BigQuery에는 이와 같은 잠금 메커니즘이 없으며 할당량까지 동시 쿼리와 INSERT 문을 실행할 수 있습니다. 즉, 동시 UPDATE DML 문만 특정한 동시 실행 의미 [https://cloud.google.com/blog/products/data-analytics/dml-without-limits-now-in-bigquery?hl=ko]가 있습니다. 동일한 파티션에 대한 UPDATE 작업은 스냅샷 격리를 보장하기 위해 큐에 추가되므로 팬텀 읽기나 업데이트 유실을 방지하기 위해 잠글 필요가 없습니다.
+이러한 차이점으로 인해 다음 Teradata 요소는 BigQuery에서 사용되지 않습니다.
+ON COMMIT DELETE ROWS;
+ON COMMIT PRESERVE ROWS;
+절차적 SQL 문
+이 섹션에서는 저장 프로시저, 함수, 트리거에 사용되는 절차적 SQL 문을 Teradata에서 BigQuery 스크립팅, 절차 또는 사용자 정의 함수(UDF)로 변환하는 방법을 설명합니다. 이 모든 항목은 시스템 관리자가 INFORMATION_SCHEMA [https://cloud.google.com/bigquery/docs/information-schema-routines?hl=ko] 뷰를 사용하여 확인할 수 있습니다.
+CREATE PROCEDURE 문
+저장 프로시저는 BigQuery 스크립팅 [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko]의 일부로 지원됩니다.
+BigQuery에서 스크립팅은 제어문을 사용하는 것을 의미하며, 프로시저는 이름이 지정된 스크립트(필요한 경우 인수 포함)로 다른 스크립트에서 호출되어 필요한 경우 영구적으로 저장할 수 있습니다. 사용자 정의 함수(UDF)도 JavaScript로 작성할 수 있습니다.
+Teradata BigQuery
+CREATE PROCEDURE [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/C/C-External-Stored-Procedures/Installing-a-C/C-External-Stored-Procedure/CREATE-PROCEDURE-Statement] 이름이 필요한 경우 CREATE PROCEDURE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_procedure]. 그렇지 않으면 BEGIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#begin]으로 인라인을 사용하거나 CREATE TEMP FUNCTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_function_statement]으로 한 줄에 입력합니다.
+REPLACE PROCEDURE [https://docs.teradata.com/r/SQL-External-Routine-Programming/July-2021/C/C-External-Stored-Procedures/Installing-a-C/C-External-Stored-Procedure/CREATE-PROCEDURE-Statement] CREATE OR REPLACE PROCEDURE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_procedure]
+CALL [https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Data-Manipulation-Language/Statement-Syntax/CALL] CALL [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#call]
+다음 섹션에서는 기존의 Teradata의 절차적 문을 기능이 유사한 BigQuery 스크립팅 문으로 변환하는 방법을 설명합니다.
+변수 선언 및 할당
+BigQuery 변수들은 스크립트의 수명주기 동안 유효합니다.
+Teradata BigQuery
+DECLARE [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/DECLARE] DECLARE [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#declare]
+SET [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/SET] SET [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#set]
+오류 조건 핸들러
+Teradata는 오류 제어를 위한 절차에서 상태 코드에 핸들러를 사용합니다. BigQuery에서 오류 처리는 다른 언어가 TRY ... CATCH 블록에 제공하는 것과 비슷한 기본 제어 흐름의 핵심 기능입니다.
+Teradata BigQuery
+DECLARE EXIT HANDLER [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/Condition-Handling/DECLARE-HANDLER-EXIT-Type] FOR SQLEXCEPTION [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/Condition-Handling/DECLARE-HANDLER-SQLEXCEPTION-Type] BEGIN ... EXCEPTION WHEN ERROR THEN [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#beginexception]
+SIGNAL [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/Condition-Handling/Diagnostic-Statements/SIGNAL] sqlstate RAISE [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#raise] message
+DECLARE CONTINUE HANDLER [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/Condition-Handling/DECLARE-HANDLER-EXIT-Type] FOR SQLSTATE VALUE 23505; 특정 오류 조건에서 트리거되는 예외 핸들러는 BigQuery에서 사용되지 않습니다.
+
+사전 확인 또는 디버깅에 종료 조건이 사용되는 ASSERT [https://cloud.google.com/bigquery/docs/reference/standard-sql/debugging-statements?hl=ko#assert] 문을 사용하는 것이 좋습니다. 왜냐하면 ANSI SQL:2011 규정을 준수하기 때문입니다.
+Teradata의 SQLSTATE [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/Result-Code-Variables/SQLSTATE] 변수는 BigQuery의 @@error 시스템 변수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#system_variables]와 비슷합니다. BigQuery에서는 감사 로깅 [https://cloud.google.com/bigquery/docs/reference/auditlogs?hl=ko] 또는 INFORMATION_SCHEMA [https://cloud.google.com/bigquery/docs/information-schema-routines?hl=ko] 뷰를 사용하여 오류를 조사하는 것이 보다 일반적입니다.
+커서 선언 및 작업
+BigQuery에서 커서 또는 세션이 지원되지 않기 때문에 다음 문은 BigQuery에 사용되지 않습니다.
+DECLARE cursor_name CURSOR [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Cursor-Control-and-DML-Statements/DECLARE-CURSOR] [FOR | WITH] ...
+PREPARE [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Cursor-Control-and-DML-Statements/PREPARE] stmt_id FROM sql_str;
+OPEN [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Cursor-Control-and-DML-Statements/OPEN-Stored-Procedures-Form] cursor_name [USING var, ...];
+FETCH [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Cursor-Control-and-DML-Statements/FETCH-Stored-Procedures-Form] cursor_name INTO var, ...;
+CLOSE [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Cursor-Control-and-DML-Statements/CLOSE] cursor_name;
+동적 SQL 문
+BigQuery의 스크립팅 기능 [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko]은 다음 표에 표시된 것처럼 동적 SQL 문을 지원합니다.
+Teradata BigQuery
+EXECUTE IMMEDIATE [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/Dynamic-Embedded-SQL-Statements/Dynamic-SQL-Statement-Syntax/EXECUTE-IMMEDIATE] sql_str; EXECUTE IMMEDIATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#execute_immediate] sql_str;
+EXECUTE [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Cursor-Control-and-DML-Statements/EXECUTE] stmt_id [USING var,...]; EXECUTE IMMEDIATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#execute_immediate] stmt_id USING var;
+다음 동적 SQL 문은 BigQuery에서 사용되지 않습니다.
+PREPARE [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Cursor-Control-and-DML-Statements/PREPARE] stmt_id FROM sql_str;
+제어 흐름 문
+BigQuery의 스크립팅 기능 [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko]은 다음 테이블과 같은 제어 흐름 문을 지원합니다.
+Teradata BigQuery
+IF [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/IF/Usage-Notes/Valid-Forms-of-the-IF-Statement/IF-THEN-ELSE-END-IF] condition THEN [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/IF/Usage-Notes/Valid-Forms-of-the-IF-Statement/IF-THEN-ELSE-END-IF] stmts ELSE [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/IF/Usage-Notes/Valid-Forms-of-the-IF-Statement/IF-THEN-ELSE-END-IF] stmts END IF [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/IF/Usage-Notes/Valid-Forms-of-the-IF-Statement/IF-THEN-ELSE-END-IF] IF [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#if] condition THEN [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#if] stmts ELSE [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#if] stmts END IF [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#if]
+label_name [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/LOOP]: LOOP [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/LOOP] stmts END LOOP [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/LOOP] label_name [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/LOOP]; GOTO 스타일 블록 구성은 BigQuery에서 사용되지 않습니다.
+
+이를 사용자 정의 함수(UDF) [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko]로 다시 작성하거나 오류 처리를 위해 사용되는 ASSERT [https://cloud.google.com/bigquery/docs/reference/standard-sql/debugging-statements?hl=ko#assert] 문을 사용하는 것이 좋습니다.
+REPEAT [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/REPEAT] stmts UNTIL condition END REPEAT [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/REPEAT]; WHILE [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#while] condition DO [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#while] stmts END WHILE [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#while]
+LEAVE [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/LEAVE] outer_proc_label; LEAVE [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#leave]는 GOTO 스타일 블록에 사용되지 않으며, WHILE 루프를 종료하는 BREAK의 동의어로 사용됩니다.
+LEAVE [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/LEAVE] label; LEAVE [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#leave]는 GOTO 스타일 블록에 사용되지 않으며, WHILE 루프를 종료하는 BREAK의 동의어로 사용됩니다.
+WITH RECURSIVE [https://docs.teradata.com/r/SQL-Data-Definition-Language-Detailed-Topics/July-2021/CREATE-TRANSFORM-CREATE-VIEW/CREATE-VIEW-and-REPLACE-VIEW/WITH-RECURSIVE-Clause-Usage] temp_table AS ( ... ); 재귀적 쿼리(재귀적 공통 테이블 표현식(CTE)라고도 함)는 BigQuery에서 사용되지 않습니다. UNION ALL [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#union] 배열을 사용하여 다시 작성할 수 있습니다.
+BigQuery에서 커서 또는 세션이 사용되지 않기 때문에 다음 제어 흐름 문은 BigQuery에서 사용되지 않습니다.
+FOR [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/FOR] var AS SELECT ... DO [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/FOR] stmts END FOR [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/FOR];
+FOR [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/FOR] var AS cur CURSOR FOR [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/FOR] SELECT ... DO [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/FOR] stmts END FOR [https://docs.teradata.com/r/SQL-Stored-Procedures-and-Embedded-SQL/July-2021/SQL-Control-Statements/FOR];
+메타데이터 및 트랜잭션 SQL 문
+Teradata BigQuery
+HELP TABLE [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Table-Statements/HELP-TABLE] table_name;
+HELP VIEW [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/View-Statements/HELP-VIEW] view_name; SELECT
+ * EXCEPT(is_generated, generation_expression, is_stored, is_updatable)
+FROM
+ mydataset.INFORMATION_SCHEMA.COLUMNS;
+WHERE
+ table_name=table_name
+
+동일한 쿼리로 뷰의 열 정보를 가져올 수 있습니다.
+자세한 내용은 BigQuery INFORMATION_SCHEMA의 열 뷰 [https://cloud.google.com/bigquery/docs/information-schema-tables?hl=ko#columns_view]를 참조하세요.
+SELECT * FROM dbc.tables WHERE tablekind = 'T';
+
+(Teradata DBC 뷰) SELECT
+ * EXCEPT(is_typed)
+FROM
+mydataset.INFORMATION_SCHEMA.TABLES;
+
+자세한 내용은 BigQuery INFORMATION_SCHEMA 소개 [https://cloud.google.com/bigquery/docs/information-schema-intro?hl=ko]를 참조하세요.
+HELP STATISTICS [https://docs.teradata.com/r/SQL-Data-Definition-Language-Syntax-and-Examples/July-2021/Statistics-Statements/HELP-STATISTICS-Optimizer-Form] table_name; APPROX_COUNT_DISTINCT(col)
+COLLECT STATS USING SAMPLE ON table_name column (...); BigQuery에는 사용되지 않습니다.
+LOCKING TABLE table_name FOR EXCLUSIVE; BigQuery는 항상 스냅샷 격리를 사용합니다. 자세한 내용은 이 문서의 다른 부분에서 일관성 보장 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#consistency_guarantees]을 참조하세요.
+SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL ... BigQuery는 항상 스냅샷 격리를 사용합니다. 자세한 내용은 이 문서의 다른 부분에서 일관성 보장 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#consistency_guarantees]을 참조하세요.
+BEGIN TRANSACTION;
+SELECT ...
+END TRANSACTION; BigQuery는 항상 스냅샷 격리를 사용합니다. 자세한 내용은 이 문서의 다른 부분에서 일관성 보장 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#consistency_guarantees]을 참조하세요.
+EXPLAIN [https://docs.teradata.com/r/SQL-Data-Manipulation-Language/July-2021/Query-and-Workload-Analysis-Statements/EXPLAIN-Request-Modifier] ... BigQuery에는 사용되지 않습니다.
+
+유사한 기능으로는 BigQuery 웹 UI에서의 쿼리 계획 설명 [https://cloud.google.com/bigquery/query-plan-explanation?hl=ko] 및 INFORMATION_SCHEMA [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko] 뷰와 Cloud Monitoring의 감사 로깅 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko]에 표시되는 슬롯 할당이 있습니다.
+BEGIN TRANSACTION;
+SELECT ...
+END TRANSACTION; BEGIN
+ BEGIN TRANSACTION;
+ COMMIT TRANSACTION;
+EXCEPTION WHEN ERROR THEN
+ -- Roll back the transaction inside the exception handler.
+ SELECT @@error.message;
+ ROLLBACK TRANSACTION;
+END;
+다중 문 및 여러 줄로 구성된 SQL 문
+Teradata와 BigQuery는 모두 트랜잭션(세션)을 지원하므로 일관되게 함께 실행되는 세미콜론으로 구분된 문을 지원합니다. 자세한 내용은 멀티 문 트랜잭션 [https://cloud.google.com/bigquery/docs/transactions?hl=ko]을 참조하세요.
+오류 코드 및 메시지
+Teradata 오류 코드와 BigQuery 오류 코드는 서로 다릅니다. REST API인 경우 BigQuery는 HTTP 상태 코드 [https://cloud.google.com/bigquery/docs/error-messages?hl=ko]와 상세 오류 메시지에 주로 의존합니다.
+애플리케이션 로직이 현재 다음 오류를 포착한다면 BigQuery가 동일한 오류 코드를 반환하지 않으므로 오류의 원인 제거를 시도해 보세요.
+SQLSTATE = '02000'—'행을 찾을 수 없음'
+SQLSTATE = '21000'—'카디널리티 위반(고유 색인)'
+SQLSTATE = '22000'—'데이터 위반(데이터 유형)'
+SQLSTATE = '23000'—'제약조건 위반'
+BigQuery에서는 INFORMATION_SCHEMA [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko] 보기 또는 감사 로깅 [https://cloud.google.com/bigquery/docs/reference/auditlogs?hl=ko]을 사용하여 오류를 드릴다운하는 것이 더 일반적입니다.
+스크립팅에서 오류를 처리하는 방법에 대한 상세 내용은 다음 섹션을 참조하세요.
+일관성 보장 및 트랜잭션 격리
+Teradata와 BigQuery는 모두 원자적인 특성을 갖습니다. 즉, 여러 행에 걸쳐 변형당 수준에서 ACID와 호환됩니다. 예를 들어 MERGE 작업은 여러 개의 삽입 및 업데이트된 값이 있는 경우에도 완전히 원자적인 특성을 갖습니다.
+거래
+Teradata는 자동 커밋 모드가 아닌 세션 모드에서 실행될 때 커밋된 읽기(더티 읽기) 또는 직렬화 트랜잭션 격리 수준 [https://docs.teradata.com/r/SQL-Data-Definition-Language-Detailed-Topics/July-2021/END-LOGGING-SET-TIME-ZONE/SET-SESSION-CHARACTERISTICS-AS-TRANSACTION-ISOLATION-LEVEL/Definition-of-Isolation-Level]을 제공합니다. 최적의 상황에서는 Teradata가 모든 파티션의 모든 행 열에서 행 해시에 최악 잠금을 사용하여 엄격하게 직렬화된 격리를 구현합니다. 교착 상태가 발생할 수 있습니다. DDL은 항상 트랜잭션 경계를 강제로 사용합니다. Teradata Fastload 작업은 빈 테이블에서만 독립적으로 실행됩니다.
+BigQuery는 트랜잭션도 지원 [https://cloud.google.com/bigquery/docs/transactions?hl=ko]합니다. BigQuery는 쿼리가 시작되기 전에 마지막으로 커밋된 데이터를 쿼리가 읽는 스냅샷 격리 [https://en.wikipedia.org/wiki/Snapshot_isolation]를 사용하여 최적의 동시 실행 제어 [https://en.wikipedia.org/wiki/Optimistic_concurrency_control](첫 번째 성공 커밋)를 실행할 수 있습니다. 이 접근 방법은 행 및 변형 기준으로 그리고 동일한 DML 문 내의 여러 행에서 동일한 수준의 일관성을 보장하고 교착 상태도 방지합니다. 동일한 테이블에 대해 여러 UPDATE 문이 있으면 BigQuery는 비관적 동시 실행 제어 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-manipulation-language?hl=ko#limitations]로 전환하여 다중 UPDATE 문을 큐 [https://cloud.google.com/blog/products/data-analytics/dml-without-limits-now-in-bigquery?hl=ko]에 넣고 충돌이 일어나는 경우 자동으로 재시도합니다. INSERT DML 문과 로드 작업이 동시에 독립적으로 실행되어 테이블에 추가될 수 있습니다.
+롤백
+Teradata는 원하는 롤백 모드에 따라 ANSI 세션 모드와 Teradata 세션 모드(SET SESSION CHARACTERISTICS 및 SET SESSION TRANSACTION)의 두 가지 세션 롤백 모드 [https://docs.teradata.com/r/SQL-Request-and-Transaction-Processing/July-2021/Transaction-Processing/Rollback-Processing]를 지원합니다. 실패 사례에서는 트랜잭션이 롤백되지 않을 수 있습니다.
+BigQuery는 ROLLBACK TRANSACTION 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#rollback_transaction]을 지원합니다. BigQuery에는 ABORT 문 [https://docs.teradata.com/r/Database-Utilities/July-2021/Dump-Unload/Load-Utility-dul/DUL-Commands/ABORT]이 없습니다.
+데이터베이스 한도
+항상 BigQuery 공개 문서 [https://cloud.google.com/bigquery/quotas?hl=ko]에서 최신 할당량 및 한도를 확인하세요. 대규모 사용자를 위해 대량의 할당량은 Cloud 지원팀에 문의하여 늘릴 수 있습니다. 다음 표에서는 Teradata와 BigQuery의 데이터베이스 한도를 비교합니다.
+한도 Teradata BigQuery
+데이터베이스당 테이블 무제한 무제한
+테이블당 열 2,048 10,000
+최대 행 크기 1MB 100MB
+열 이름 길이 128개의 유니코드 문자 유니코드 문자 300자
+테이블 설명 길이 128개의 유니코드 문자 16,384개의 유니코드 문자
+테이블당 행 무제한 무제한
+최대 SQL 요청 길이 1MB 1MB(해결되지 않은 GoogleSQL 쿼리 최대 길이)
+12MB(해결된 기존 쿼리 및 GoogleSQL 쿼리 최대 길이)
+
+스트리밍:
+10MB(HTTP 요청 크기 한도)
+10,000행(요청당 최대 행:)
+최대 요청 및 응답 크기 7MB(요청), 16MB(응답) 10MB(요청) 및 10GB(응답), 페이지 나누기 또는 Cloud Storage API를 사용하는 경우에는 거의 무제한입니다.
+최대 동시 실행 세션 수 파싱 엔진(PE)당 120 동시 실행 멀티 문 쿼리 1,000개(슬롯 예약 [https://cloud.google.com/bigquery/docs/slots?hl=ko] 사용 시 늘어날 수 있음), 사용자당 동시 실행 API 요청 300개
+최대 동시 실행(고속) 로드 수 30(기본값: 5) 동시 실행 한도 없음, 작업이 큐에 추가됨. 일일 프로젝트당 100,000개 로드 작업
+도움이 되었나요?
+의견 보내기

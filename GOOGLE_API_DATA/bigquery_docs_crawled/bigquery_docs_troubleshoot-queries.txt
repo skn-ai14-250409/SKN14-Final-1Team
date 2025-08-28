@@ -1,0 +1,217 @@
+Source URL: https://cloud.google.com/bigquery/docs/troubleshoot-queries
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+느린 쿼리 문제 해결 [https://cloud.google.com/bigquery/docs/troubleshoot-queries?hl=ko#troubleshoot_slow_queries]
+Avro 스키마 확인 [https://cloud.google.com/bigquery/docs/troubleshoot-queries?hl=ko#cannot_skip_stream]
+동시 쿼리 충돌 [https://cloud.google.com/bigquery/docs/troubleshoot-queries?hl=ko#concurrent_jobs_not_allowed]
+DML 문 충돌 [https://cloud.google.com/bigquery/docs/troubleshoot-queries?hl=ko#could_not_serialize]
+상관 하위 쿼리 [https://cloud.google.com/bigquery/docs/troubleshoot-queries?hl=ko#correlated-subqueries]
+쿼리 관련 문제 해결
+bookmark_border
+이 문서는 쿼리 실행과 관련된 일반적인 문제(예: 느린 쿼리의 원인 파악, 실패한 쿼리에서 반환된 일반적인 오류에 대한 해결 단계 제공)를 해결하는 데 도움이 됩니다.
+느린 쿼리 문제 해결
+느린 쿼리 성능 문제를 해결할 때는 다음과 같은 일반적인 원인을 고려하세요.
+Google Cloud Service Health [https://status.cloud.google.com/?hl=ko] 페이지에서 쿼리 성능에 영향을 줄 수 있는 알려진 BigQuery 서비스 중단이 있는지 확인합니다.
+작업 세부정보 페이지 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#view_job_details_2]에서 쿼리의 작업 타임라인을 검토하여 쿼리의 각 단계가 실행되는 데 걸린 시간을 확인합니다.
+소요된 시간의 대부분이 긴 생성 시간으로 인한 경우 Cloud Customer Care에 문의 [https://cloud.google.com/support?hl=ko]하여 지원을 받으세요.
+소요된 시간의 대부분이 긴 실행 시간으로 인한 경우 쿼리 성능 통계 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko]를 검토합니다. 쿼리 성능 통계는 쿼리 실행 시간이 평균 실행 시간보다 오래 걸렸는지 알려주고 가능한 원인을 제안할 수 있습니다. 가능한 원인으로는 쿼리 슬롯 경합 또는 셔플 할당량 부족이 있습니다. 각 쿼리 성능 문제 및 가능한 해결 방법에 관한 자세한 내용은 쿼리 성능 통계 해석 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#interpret_query_performance_insights]을 참조하세요.
+쿼리 작업의 JobStatistics [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobStatistics]에서 finalExecutionDurationMs 필드를 검토합니다. 쿼리가 재시도되었을 수 있습니다. finalExecutionDurationMs 필드에는 이 작업의 최종 시도 실행 시간이 밀리초 단위로 포함됩니다.
+쿼리 작업 세부정보 페이지 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#view_job_details_2]에서 처리된 바이트를 검토하여 예상보다 많은지 확인합니다. 이렇게 하려면 현재 쿼리에서 처리된 바이트 수를 허용 가능한 시간 내에 완료된 다른 쿼리 작업과 비교하면 됩니다. 두 쿼리 간에 처리된 바이트 수가 크게 다르면 데이터 양이 많아 쿼리 속도가 느렸을 수 있습니다. 대규모 데이터 볼륨을 처리하도록 쿼리를 최적화하는 방법에 관한 자세한 내용은 쿼리 계산 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko]를 참조하세요.
+INFORMATION_SCHEMA.JOBS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko#most_expensive_queries_by_project]를 사용하여 비용이 가장 많이 드는 쿼리를 검색하여 프로젝트에서 대량의 데이터를 처리하는 쿼리를 식별할 수도 있습니다.
+예상보다 느린 쿼리 성능을 설명하는 이유를 찾을 수 없는 경우 Cloud Customer Care에 문의 [https://cloud.google.com/support?hl=ko]하여 지원을 받으세요.
+Avro 스키마 확인
+오류 문자열: Cannot skip stream
+이 오류는 여러 Avro 파일을 서로 다른 스키마로 로드할 때 발생할 수 있으며, 스키마 확인 문제가 발생하고 무작위 파일에서 가져오기 작업이 실패할 수 있습니다.
+이 오류를 해결하려면 로드 작업의 영문자 순으로 마지막 위치의 파일에 다른 스키마의 상위 집합(합집합)이 포함되는지 확인합니다. 이것은 Avro가 스키마 해결을 처리하는 방식 [https://avro.apache.org/docs/1.8.1/spec.html#Schema+Resolution]을 기준으로 하는 요구사항입니다.
+동시 쿼리 충돌
+오류 문자열: Concurrent jobs in the same session are not allowed
+이 오류는 세션에서 여러 쿼리가 동시에 실행될 때 발생할 수 있지만, 지원되지 않습니다. 세션 제한사항 [https://cloud.google.com/bigquery/docs/sessions-intro?hl=ko#limitations]을 참조하세요.
+DML 문 충돌
+오류 문자열: Could not serialize access to table due to concurrent update
+이 오류는 동일한 테이블에서 동시에 실행되는 변형 DML 문이 서로 충돌하거나 DML 문을 변형하는 동안 테이블이 잘린 경우에 발생할 수 있습니다. 자세한 내용은 DML 문 충돌 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#dml_statement_conflicts]을 참조하세요.
+이 오류를 해결하려면 단일 테이블에 영향을 미치는 DML 작업을 실행하여 겹치지 않도록 합니다.
+상관 하위 쿼리
+오류 문자열: Correlated subqueries that reference other tables are not supported unless they can be de-correlated
+이 오류는 쿼리에 해당 서브 쿼리 외부의 열을 참조하는 서브 쿼리(상관 열이라고 함)가 포함되어 있을 때 발생할 수 있습니다. 상관 서브 쿼리는 비효율적인 중첩 실행 전략을 사용하여 평가됩니다. 이 전략에서는 상관 열을 생성하는 외부 쿼리의 모든 행에 대해 서브 쿼리가 평가됩니다. BigQuery는 쿼리가 더 효율적으로 실행되도록 내부적으로 상관된 서브 쿼리가 포함된 쿼리를 다시 작성할 수 있습니다. 상관 서브 쿼리 오류는 BigQuery에서 쿼리를 충분히 최적화할 수 없는 경우에 발생합니다.
+이 오류를 해결하려면 다음을 시도해 보세요.
+서브 쿼리에서 ORDER BY, LIMIT, EXISTS, NOT EXISTS 또는 IN 절을 삭제합니다.
+멀티 문 쿼리 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko]를 사용하여 서브 쿼리에서 참조할 임시 테이블을 만듭니다.
+CROSS JOIN을 대신 사용하도록 쿼리를 다시 작성합니다.
+열 수준 액세스 제어 권한 부족
+오류 문자열: Requires fineGrainedGet permission on the read columns to execute the DML statements
+이 오류는 스캔된 열에 대해 열 수준 액세스 제어를 사용하여 열 수준에서 액세스를 제한하는 세분화된 권한의 리더 권한 없이 DML DELETE, UPDATE 또는 MERGE 문을 시도할 때 발생합니다. 자세한 내용은 열 수준 액세스 제어로 쓰기에 미치는 영향 [https://cloud.google.com/bigquery/docs/column-level-security-writes?hl=ko]을 참조하세요.
+예약된 쿼리의 잘못된 사용자 인증 정보
+오류 문자열:
+Error code: INVALID_USERID
+Error code 5: Authentication failure: User Id not found
+PERMISSION_DENIED: BigQuery: Permission denied while getting Drive credentials
+이 오류는 특히 Google Drive 데이터를 쿼리할 때 오래된 사용자 인증 정보로 인해 예약된 쿼리가 실패할 때 발생할 수 있습니다.
+이 오류를 해결하려면 다음 단계를 수행합니다.
+예약된 쿼리를 사용하기 위한 기본 요건 [https://cloud.google.com/bigquery/docs/scheduling-queries?hl=ko#before_you_begin]인 BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/enable-transfer-service?hl=ko#enable-dts]를 사용 설정했는지 확인합니다.
+예약된 쿼리 사용자 인증 정보 [https://cloud.google.com/bigquery/docs/scheduling-queries?hl=ko#update_scheduled_query_credentials]를 업데이트합니다.
+잘못된 서비스 계정 사용자 인증 정보
+오류 문자열: HttpError 403 when requesting returned: The caller does not have permission
+이 오류는 서비스 계정을 사용하여 예약된 쿼리를 설정하려고 시도할 때 표시될 수 있습니다. 이 오류를 해결하려면 승인 및 권한 문제 [https://cloud.google.com/bigquery/docs/transfer-troubleshooting?hl=ko#authorization_and_permission_issues]의 문제 해결 단계를 참조하세요.
+잘못된 스냅샷 시간
+오류 문자열: Invalid snapshot time
+이 오류는 데이터 세트의 시간 이동 기간 [https://cloud.google.com/bigquery/docs/time-travel?hl=ko] 밖에 있는 이전 데이터를 쿼리하려고 할 때 발생할 수 있습니다. 이 오류를 해결하려면 데이터 세트의 시간 이동 기간 내 이전 데이터에 액세스하도록 쿼리를 변경합니다.
+이 오류는 쿼리에 사용된 테이블 중 하나가 삭제되고 쿼리가 시작된 후 다시 생성되는 경우에도 나타날 수 있습니다. 실패한 쿼리와 동시에 실행된 이 작업을 수행하는 예약된 쿼리 또는 애플리케이션이 있는지 확인합니다. 있는 경우 삭제 및 다시 만들기 작업을 수행하는 프로세스를 해당 테이블을 읽는 쿼리와 충돌하지 않는 시간에 실행해 보세요.
+작업이 이미 존재합니다.
+오류 문자열: Already Exists: Job <job name>
+이 오류는 쿼리 작업을 만드는 데 평균보다 오래 걸리는 큰 배열을 평가해야 하는 쿼리 작업에서 발생할 수 있습니다. 예를 들어 WHERE column IN (<2000+ elements array>)와 같이 WHERE 절이 있는 쿼리입니다.
+이 오류를 해결하려면 다음 단계를 수행합니다.
+BigQuery에서 값을 지정하는 대신 임의의 jobId 값 [https://cloud.google.com/bigquery/docs/reference/rest/v2/JobReference?hl=ko]을 생성하도록 허용합니다.
+매개변수화된 쿼리 [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#using_arrays_in_parameterized_queries]를 사용하여 배열을 로드합니다.
+작업을 찾을 수 없습니다.
+오류 문자열: Job not found
+이 오류는 location 필드에 값이 지정되지 않은 getQueryResults 호출 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults?hl=ko]에 대한 응답으로 발생할 수 있습니다. 이 경우 호출을 다시 시도하고 location 값을 제공합니다.
+자세한 내용은 동일한 공통 테이블 표현(CTE)에 대한 여러 평가 방지 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#avoid_multiple_evaluations_of_the_same_ctes]를 참조하세요.
+위치를 찾을 수 없음
+오류 문자열: Dataset [project_id]:[dataset_id] was not found in location [region]
+이 오류는 존재하지 않는 데이터 세트 리소스를 참조하거나 요청의 위치가 데이터 세트의 위치와 일치하지 않으면 반환됩니다.
+이 문제를 해결하려면 쿼리에서 데이터 세트의 위치를 지정하거나 동일한 위치에서 데이터 세트를 사용할 수 있는지 확인합니다.
+쿼리에서 실행 시간 제한을 초과함
+오류 문자열: Query fails due to reaching the execution time limit
+쿼리가 쿼리 실행 시간 제한 [https://cloud.google.com/bigquery/quotas?hl=ko#query_jobs]에 다다른 경우 다음 예시와 유사한 쿼리로 INFORMATION_SCHEMA.JOBS 보기 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 쿼리하여 이전 쿼리의 실행 시간을 확인합니다.
+SELECT TIMESTAMP_DIFF(end_time, start_time, SECOND) AS runtime_in_seconds
+FROM `region-us`.INFORMATION_SCHEMA.JOBS
+WHERE statement_type = 'QUERY'
+AND query = "my query string";
+이전에 실행한 쿼리 실행에 훨씬 적은 시간이 걸린 경우 쿼리 성능 통계 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko]를 사용하여 근본적인 문제를 확인하고 해결합니다.
+쿼리 응답이 너무 큼
+오류 문자열: responseTooLarge
+이 오류는 쿼리 결과가 최대 응답 크기 [https://cloud.google.com/bigquery/quota-policy?hl=ko#query_jobs]보다 큰 경우에 발생합니다.
+이 오류를 해결하려면 responseTooLarge 오류 메시지 [https://cloud.google.com/bigquery/docs/error-messages?hl=ko#responseTooLarge]에 제공된 안내를 따릅니다.
+DML 문이 너무 많음
+오류 문자열: Too many DML statements outstanding against <table-name>, limit is 20
+이 오류는 단일 테이블의 큐에서 PENDING 상태의 20개 DML 문 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#data-manipulation-language-statements]를 초과할 때 발생합니다. 이 오류는 일반적으로 BigQuery가 처리할 수 있는 것보다 빠른 속도로 단일 테이블에 대해 DML 작업을 제출할 때 발생합니다.
+한 가지 가능한 해결 방법은 업데이트 및 삽입을 일괄 처리하여 여러 개의 작은 DML 작업을 더 크지만 더 적은 수의 작업으로 그룹화하는 것입니다. 작은 작업을 큰 작업으로 그룹화하면 더 큰 작업을 실행하는 비용이 분산되고 실행 속도가 빨라집니다. 같은 데이터에 영향을 주는 DML 문을 통합하면 일반적으로 DML 작업 효율성이 향상되고 큐 크기 할당량 한도를 초과할 가능성이 줄어듭니다. DML 작업 최적화에 대한 자세한 내용은 단일 행을 업데이트 또는 삽입하는 DML 문 사용 방지 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko#avoid-dml-update-single-rows]를 참조하세요.
+DML 효율성을 개선하기 위한 다른 솔루션에는 테이블을 파티션으로 나누거나 클러스터로 묶는 방법이 포함될 수 있습니다. 자세한 내용은 권장사항 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#best_practices]을 참조하세요.
+사용자에게 권한 없음
+오류 문자열:
+Access Denied: Project [project_id]: User does not have bigquery.jobs.create permission in project [project_id].
+User does not have permission to query table project-id:dataset.table.
+Access Denied: User does not have permission to query table or perhaps it does not exist.
+이 오류는 데이터가 포함된 프로젝트에 대한 권한과 관계없이 쿼리를 실행하는 프로젝트에 대한 bigquery.jobs.create 권한 없이 쿼리를 실행하면 발생할 수 있습니다.
+서비스 계정, 사용자 또는 그룹에 쿼리에서 참조하는 모든 테이블 및 뷰에 대한 bigquery.tables.getData 권한이 없는 경우에도 이러한 오류가 표시될 수 있습니다. 쿼리를 실행하는 데 필요한 권한에 대한 자세한 내용은 필요한 역할 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#required_permissions]을 참조하세요.
+이 오류는 쿼리된 리전(예: asia-south1)에 테이블이 없는 경우에도 발생할 수 있습니다. 데이터 세트 위치 [https://cloud.google.com/bigquery/docs/datasets-intro?hl=ko#dataset_location]를 검사하여 리전을 확인할 수 있습니다.
+이러한 오류를 해결할 때는 다음 사항을 고려하세요.
+서비스 계정: 서비스 계정에는 실행되는 프로젝트에 대한 bigquery.jobs.create 권한이 있어야 하며, 쿼리에서 참조하는 모든 테이블과 뷰에 대한 bigquery.tables.getData 권한이 있어야 합니다.
+커스텀 역할: 커스텀 IAM 역할에는 관련 역할에 명시적으로 포함된 bigquery.jobs.create 권한이 있어야 하며, 쿼리에서 참조하는 모든 테이블 및 뷰에 대한 bigquery.tables.getData 권한이 있어야 합니다.
+공유 데이터 세트: 별도의 프로젝트에서 공유 데이터 세트를 사용하는 경우에도 해당 데이터 세트에서 쿼리 또는 작업을 실행하려면 프로젝트에 bigquery.jobs.create 권한이 필요할 수 있습니다.
+테이블 또는 뷰에 액세스할 수 있는 권한을 부여하려면 테이블 또는 뷰에 대한 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/control-access-to-resources-iam?hl=ko#grant_access_to_a_table_or_view]를 참조하세요.
+리소스 초과 문제
+BigQuery에 쿼리 완료에 필요한 리소스가 부족하면 다음과 같은 문제가 발생합니다.
+쿼리에서 CPU 리소스를 초과함
+오류 문자열: Query exceeded resource limits
+이 오류는 주문형 쿼리가 스캔되는 데이터의 양에 비해 너무 많은 CPU를 사용하는 경우에 발생합니다. 이 문제를 해결하는 방법은 리소스 초과 문제 해결 [https://cloud.google.com/bigquery/docs/troubleshoot-queries?hl=ko#ts-resources-exceeded]을 참조하세요.
+쿼리에서 메모리 리소스를 초과함
+오류 문자열: Resources exceeded during query execution: The query could not be executed in the allotted memory
+SELECT 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#select_list]의 경우 쿼리에서 너무 많은 리소스를 사용하면 이 오류가 발생합니다. 이 오류를 해결하려면 리소스 초과 문제 해결 [https://cloud.google.com/bigquery/docs/troubleshoot-queries?hl=ko#ts-resources-exceeded]을 참조하세요.
+스택 공간 부족
+오류 문자열: Out of stack space due to deeply nested query expression during query resolution.
+이 오류는 쿼리에 중첩된 함수 호출이 너무 많이 포함된 경우 발생할 수 있습니다. 파싱 중에 쿼리의 일부가 함수 호출로 변환되는 경우가 있습니다. 예를 들어 A || B || C || ...와 같이 연결 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#concatenation_operator]가 반복되는 표현식은 CONCAT(A, CONCAT(B, CONCAT(C, ...)))가 됩니다.
+이 오류를 해결하려면 중첩 양을 줄이도록 쿼리를 다시 작성하세요.
+쿼리 실행 중 리소스 초과
+오류 문자열: Resources exceeded during query execution: The query could not be executed in the allotted memory. Peak usage: [percentage]% of limit. Top memory consumer(s): ORDER BY operations.
+이는 ORDER BY ... LIMIT ... OFFSET ... 쿼리에서 발생할 수 있습니다. 구현 세부정보로 인해 정렬이 단일 컴퓨팅 단위에서 발생할 수 있으며, 특히 OFFSET이 큰 경우 LIMIT 및 OFFSET이 적용되기 전에 너무 많은 행을 처리해야 하면 메모리가 부족해질 수 있습니다.
+이 오류를 해결하려면 ORDER BY ... LIMIT 쿼리에서 큰 OFFSET 값을 사용하지 마세요. 또는 확장 가능한 ROW_NUMBER() 윈도우 함수를 사용하여 선택한 순서에 따라 순위를 할당한 다음 WHERE 절에서 이러한 순위를 필터링합니다. 예를 들면 다음과 같습니다.
+SELECT ...
+FROM (
+  SELECT ROW_NUMBER() OVER (ORDER BY ...) AS rn
+  FROM ...
+)
+WHERE rn > @start_index AND rn <= @page_size + @start_index  -- note that row_number() starts with 1
+쿼리가 셔플 리소스를 초과함
+오류 문자열: Resources exceeded during query execution: Your project or organization exceeded the maximum disk and memory limit available for shuffle operations
+이 오류는 쿼리가 충분한 셔플 리소스에 액세스할 수 없을 때 발생합니다.
+이 오류를 해결하려면 더 많은 슬롯을 프로비저닝하거나 쿼리에서 처리되는 데이터 양을 줄이세요. 이를 수행하는 방법에 대한 자세한 내용은 셔플 할당량 부족 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#insufficient_shuffle_quota]을 참조하세요.
+이러한 문제를 해결하는 방법에 대한 자세한 내용은 리소스 초과 문제 해결 [https://cloud.google.com/bigquery/docs/troubleshoot-queries?hl=ko#ts-resources-exceeded]을 참조하세요.
+쿼리가 너무 복잡함
+오류 문자열: Resources exceeded during query execution: Not enough resources for query planning - too many subqueries or query is too complex
+이 오류는 쿼리가 지나치게 복잡할 때 발생합니다. 복잡성의 주요 원인은 다음과 같습니다.
+복잡하게 중첩되거나 반복적으로 사용되는 WITH 절이 있습니다.
+복잡하게 중첩되거나 반복적으로 사용되는 보기가 있습니다.
+UNION ALL 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#union_example]가 반복적으로 사용되었습니다.
+이 오류를 해결하려면 다음 옵션을 시도해 보세요.
+쿼리를 여러 쿼리로 분할한 후 절차적 언어 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko]를 사용하여 공유 상태로 이러한 쿼리를 순차적으로 실행합니다.
+WITH 절 대신 임시 테이블을 사용합니다.
+쿼리를 재작성하여 참조되는 객체 및 비교의 수를 줄입니다.
+INFORMATION_SCHEMA.JOBS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]에서 query_info.resource_warning 필드를 사용하여 복잡성 한도에 도달하는 쿼리를 사전에 모니터링할 수 있습니다. 다음 예시는 지난 3일 동안 리소스 사용량이 높은 쿼리를 반환합니다.
+SELECT
+  ANY_VALUE(query) AS query,
+  MAX(query_info.resource_warning) AS resource_warning
+FROM
+  <your_project_id>.`region-us`.INFORMATION_SCHEMA.JOBS
+WHERE
+  creation_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
+  AND query_info.resource_warning IS NOT NULL
+GROUP BY
+  query_info.query_hashes.normalized_literals
+LIMIT
+  1000
+이러한 문제를 해결하는 방법에 대한 자세한 내용은 리소스 초과 문제 해결 [https://cloud.google.com/bigquery/docs/troubleshoot-queries?hl=ko#ts-resources-exceeded]을 참조하세요.
+리소스 초과 문제 해결
+쿼리 작업:
+쿼리를 최적화하려면 다음 단계를 따르세요.
+ORDER BY 절을 삭제해 봅니다.
+쿼리에서 JOIN을 사용하는 경우 더 큰 테이블이 절의 왼쪽에 위치하도록 확인합니다. 데이터에 중복된 조인 키가 없는지도 확인합니다.
+쿼리에서 FLATTEN을 사용하는 경우, 사용 사례에서 필요한지 여부를 확인합니다. 자세한 내용은 중첩 및 반복 데이터 [https://cloud.google.com/bigquery/docs/data?hl=ko#nested]를 참조하세요.
+쿼리에서 EXACT_COUNT_DISTINCT를 사용하는 경우 COUNT(DISTINCT) [https://cloud.google.com/bigquery/query-reference?hl=ko#countdistinct]를 대신 사용하는 것이 좋습니다.
+쿼리에서 <n> 값이 큰 COUNT(DISTINCT <value>, <n>)를 사용하는 경우 GROUP BY를 대신 사용하는 방안을 고려합니다. 자세한 내용은 COUNT(DISTINCT) [https://cloud.google.com/bigquery/query-reference?hl=ko#countdistinct]을 참조하세요.
+쿼리에서 UNIQUE를 사용하는 경우, 대신 GROUP BY를 사용하거나 하위 선택에서 윈도우 함수 [https://cloud.google.com/bigquery/query-reference?hl=ko#windowfunctions]를 사용하는 방안을 고려합니다.
+쿼리가 LIMIT 절을 사용하여 여러 행을 구체화하는 경우 다른 열(예: ROW_NUMBER())로 필터링하거나 LIMIT 절을 완전히 제거하여 쓰기 동시 로드를 허용합니다.
+쿼리에서 복잡하게 중첩된 뷰와 WITH 절을 사용한 경우 복잡성이 기하급수적으로 증가하여 한도에 도달할 수 있습니다.
+임시 테이블을 WITH 절로 바꾸지 마세요. 이 절을 여러 번 다시 계산해야 할 수 있으며 이로 인해 쿼리가 복잡하고 느려질 수 있습니다. 대신 임시 테이블에 중간 결과를 유지하면 복잡성을 낮추는 데 도움이 됩니다.
+UNION ALL 쿼리를 사용하지 마세요.
+쿼리에서 MATCH_RECOGNIZE를 사용하는 경우 PARTITION BY 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#match_recognize_partition_by]을 수정하여 파티션 크기를 줄이거나 PARTITION BY 절이 없는 경우 이를 추가합니다.
+자세한 내용은 다음 리소스를 참조하세요.
+쿼리 계산 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko]
+리소스 경고에 대한 자세한 내용 확인하기 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko#get_details_about_a_resource_warning]
+상태, 리소스 사용률, 작업 모니터링 [https://cloud.google.com/bigquery/docs/admin-resource-charts?hl=ko]
+로드 작업:
+Avro 또는 Parquet 파일을 로드하는 경우 파일의 행 크기를 줄입니다. 로드하는 파일 형식에 특정 크기 제한이 있는지 확인합니다.
+Avro 입력 파일 요구사항 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#input_file_requirements]
+Parquet 입력 파일 요구사항 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#input_file_requirements]
+ORC 파일을 로드할 때 이 오류가 발생하면 지원팀에 문의 [https://cloud.google.com/support?hl=ko]하세요.
+Storage API의 경우:
+오류 문자열: Stream memory usage exceeded
+Storage Read API ReadRows 호출 중에 메모리 사용량이 높은 일부 스트림에서 이 메시지와 함께 RESOURCE_EXHAUSTED 오류가 발생할 수 있습니다. 이 오류는 복잡한 스키마가 있는 넓은 테이블에서 읽을 때 발생할 수 있습니다. 이 문제를 해결하려면 selected_fields 매개변수 [https://cloud.google.com/bigquery/docs/reference/storage/rpc/google.cloud.bigquery.storage.v1?hl=ko#tablereadoptions]를 사용하여 읽을 열을 더 적게 선택하거나 테이블 스키마를 단순화하여 결과 행 크기를 줄입니다.
+연결 문제 해결
+다음 섹션에서는 BigQuery와 상호작용할 때 발생하는 연결 문제를 해결하는 방법을 설명합니다.
+Google DNS를 허용 목록에 추가
+Google IP Dig 도구 [https://toolbox.googleapps.com/apps/dig/#A/]를 사용하여 BigQuery DNS 엔드포인트 bigquery.googleapis.com을 단일 'A' 레코드 IP로 확인합니다. 방화벽 설정에서 이 IP가 차단되지 않았는지 확인합니다.
+일반적으로 Google DNS 이름을 허용 목록에 추가하는 것이 좋습니다. https://www.gstatic.com/ipranges/goog.json [https://www.gstatic.com/ipranges/goog.json] 및 https://www.gstatic.com/ipranges/cloud.json [https://www.gstatic.com/ipranges/cloud.json] 파일에서 공유된 IP 범위는 자주 변경되므로 대신 Google DNS 이름을 허용 목록에 추가하는 것이 좋습니다. 다음은 허용 목록에 추가하는 것이 좋은 일반 DNS 이름의 목록입니다.
+*.1e100.net
+*.google.com
+*.gstatic.com
+*.googleapis.com
+*.googleusercontent.com
+*.appspot.com
+*.gvt1.com
+패킷을 삭제하는 프록시 또는 방화벽 식별
+클라이언트와 Google 프런트엔드(GFE) 간의 모든 패킷 홉을 식별하려면 클라이언트 머신에서 GFE로 전달되는 패킷을 삭제하는 서버를 강조 표시할 수 있는 traceroute [https://en.wikipedia.org/wiki/Traceroute] 명령어를 실행합니다. 다음은 샘플 traceroute 명령어입니다.
+traceroute -T -p 443 bigquery.googleapis.com
+문제가 특정 IP 주소와 관련된 경우 특정 GFE IP 주소의 패킷 홉을 식별할 수도 있습니다.
+traceroute -T -p 443 142.250.178.138
+Google 측 시간 초과 문제가 있는 경우 요청이 GFE까지 도달합니다.
+패킷이 GFE에 도달하지 않는 경우 네트워크 관리자에게 문의하여 이 문제를 해결하세요.
+PCAP 파일을 생성하고 방화벽 또는 프록시 분석
+패킷 캡처 파일(PCAP)을 생성하고 파일을 분석하여 방화벽 또는 프록시가 Google IP로 전송되는 패킷을 필터링하지 않고 패킷이 GFE에 도달하도록 허용하는지 확인합니다.
+다음은 tcpdump [https://www.tcpdump.org/] 도구로 실행할 수 있는 샘플 명령어입니다.
+tcpdump -s 0 -w debug.pcap -K -n host bigquery.googleapis.com
+간헐적인 연결 문제에 대한 재시도 설정
+GFE 부하 분산기가 클라이언트 IP로부터의 연결을 해제할 수 있는 상황이 있습니다. 예를 들어 DDOS 트래픽 패턴이 감지되거나 부하 분산기 인스턴스가 축소되어 엔드포인트 IP가 재활용될 수 있는 경우입니다. GFE 부하 분산기가 연결을 해제하는 경우 클라이언트는 시간 초과된 요청을 포착하고 DNS 엔드포인트에 대한 요청을 재시도해야 합니다. IP 주소가 변경되었을 수 있으므로 요청이 최종적으로 성공할 때까지 동일한 IP 주소를 사용하지 않아야 합니다.
+재시도해도 해결되지 않는 일관된 Google 측 시간 초과 문제를 발견한 경우 Cloud Customer Care에 문의 [https://cloud.google.com/support?hl=ko]하고 tcpdump [https://www.tcpdump.org/]와 같은 패킷 캡처 도구를 실행하여 생성된 새로운 PCAP 파일을 포함해야 합니다.
+다음 단계
+쿼리 성능 통계 가져오기 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko]
+성능을 위한 쿼리 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-overview?hl=ko] 자세히 알아보기
+쿼리의 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#query_jobs] 검토
+다른 BigQuery 오류 메시지 [https://cloud.google.com/bigquery/docs/error-messages?hl=ko] 자세히 알아보기
+도움이 되었나요?
+의견 보내기

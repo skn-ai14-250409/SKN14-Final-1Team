@@ -1,0 +1,253 @@
+Source URL: https://cloud.google.com/bigquery/docs/using-dml-with-partitioned-tables
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+예시에 사용된 테이블 [https://cloud.google.com/bigquery/docs/using-dml-with-partitioned-tables?hl=ko#tables_used_in_examples]
+데이터 삽입 [https://cloud.google.com/bigquery/docs/using-dml-with-partitioned-tables?hl=ko#inserting_data]
+수집-시간으로 파티션을 나눈 테이블에 데이터 삽입 [https://cloud.google.com/bigquery/docs/using-dml-with-partitioned-tables?hl=ko#inserting_data_into_ingestion-time_partitioned_tables]
+파티션을 나눈 테이블에 데이터 삽입 [https://cloud.google.com/bigquery/docs/using-dml-with-partitioned-tables?hl=ko#inserting_data_into_partitioned_tables]
+데이터 삭제 [https://cloud.google.com/bigquery/docs/using-dml-with-partitioned-tables?hl=ko#deleting_data]
+DML을 사용하여 파티션을 나눈 테이블 데이터 업데이트
+bookmark_border
+이 페이지에서는 파티션을 나눈 테이블의 데이터 조작 언어(DML) 지원에 대해 간략히 설명합니다.
+DML에 대한 자세한 내용은 다음을 참조하세요.
+DML 소개 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko]
+DML 구문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko]
+DML을 사용하여 테이블 데이터 업데이트 [https://cloud.google.com/bigquery/docs/updating-data?hl=ko]
+예시에 사용된 테이블
+다음 JSON 스키마 정의는 이 페이지의 예시에 사용된 테이블을 나타냅니다.
+mytable: 수집 시간으로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#ingestion-time]
+    [
+      {"name": "field1", "type": "INTEGER"},
+      {"name": "field2", "type": "STRING"}
+    ]
+mytable2: 파티션을 나누지 않은 표준 테이블
+    [
+      {"name": "id", "type": "INTEGER"},
+      {"name": "ts", "type": "TIMESTAMP"}
+    ]
+mycolumntable: ts TIMESTAMP 열을 사용하여 파티션이 분할된 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#date_timestamp_partitioned_tables]
+    [
+      {"name": "field1", "type": "INTEGER"},
+      {"name": "field2", "type": "STRING"}
+      {"name": "field3", "type": "BOOLEAN"}
+      {"name": "ts", "type": "TIMESTAMP"}
+    ]
+COLUMN_ID가 표시되는 예시에서 해당 ID를 작업하려는 열의 이름으로 바꿉니다.
+데이터 삽입
+DML INSERT 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#insert_statement]을 사용하여 파티션을 나눈 테이블에 행을 추가합니다.
+수집-시간으로 파티션을 나눈 테이블에 데이터 삽입
+DML 문을 사용하여 수집-시간으로 파티션을 나눈 테이블에 행을 추가하는 경우, 행을 추가해야 할 파티션을 지정할 수 있습니다. _PARTITIONTIME 유사 열 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#query_an_ingestion-time_partitioned_table]을 사용하여 파티션을 참조합니다.
+예를 들어 다음 INSERT 문은 mytable — “2017-05-01”의 2017년 5월 1일 파티션에 단일 행을 추가합니다.
+INSERT INTO
+  project_id.dataset.mytable (_PARTITIONTIME,
+    field1,
+    field2)
+SELECT
+  TIMESTAMP("2017-05-01"),
+  1,
+  "one"
+정확한 날짜 경계에 해당하는 타임스탬프만 사용할 수 있습니다. 예를 들어 다음 DML 문은 오류를 반환합니다.
+INSERT INTO
+  project_id.dataset.mytable (_PARTITIONTIME,
+    field1,
+    field2)
+SELECT
+  TIMESTAMP("2017-05-01 21:30:00"),
+  1,
+  "one"
+참고: UPDATE 문 [https://cloud.google.com/bigquery/docs/using-dml-with-partitioned-tables?hl=ko#updating_data]을 사용하여 _PARTITIONTIME 유사열을 수정할 수도 있습니다.
+파티션을 나눈 테이블에 데이터 삽입
+DML을 사용하여 파티션을 나눈 테이블에 데이터를 삽입하는 것은 파티션을 나누지 않은 테이블에 데이터를 삽입하는 것과 동일합니다.
+예를 들어 다음 INSERT 문은 mytable2(파티션을 나누지 않은 테이블)에서 데이터를 선택하여 파티션을 나눈 테이블 mycolumntable에 행을 추가합니다.
+INSERT INTO
+  project_id.dataset.mycolumntable (ts,
+    field1)
+SELECT
+  ts,
+  id
+FROM
+  project_id.dataset.mytable2
+데이터 삭제
+DML DELETE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#delete_statement]을 사용하여 파티션을 나눈 테이블에서 행을 삭제합니다.
+수집-시간으로 파티션을 나눈 테이블에서 데이터 삭제
+다음 DELETE 문은 field1이 21인 mytable의 2017년 6월 1일 파티션("2017-06-01")에서 모든 행을 삭제합니다. _PARTITIONTIME 유사 열 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#query_an_ingestion-time_partitioned_table]을 사용하여 파티션을 참조합니다.
+DELETE
+  project_id.dataset.mytable
+WHERE
+  field1 = 21
+  AND _PARTITIONTIME = "2017-06-01"
+파티션을 나눈 테이블에서 데이터 삭제
+DML을 사용하여 파티션을 나눈 테이블에서 데이터를 삭제하는 것은 파티션을 나누지 않은 테이블에서 데이터를 삭제하는 것과 동일합니다.
+예를 들어 다음 DELETE 문은 field1이 21인 mycolumntable의 2017년 6월 1일 파티션("2017-06-01")에서 모든 행을 삭제합니다.
+DELETE
+  project_id.dataset.mycolumntable
+WHERE
+  field1 = 21
+  AND DATE(ts) = "2017-06-01"
+DML DELETE를 사용하여 파티션 삭제
+적격한 DELETE 문이 파티션의 모든 행을 다루는 경우 BigQuery는 전체 파티션을 삭제합니다. 바이트를 스캔하거나 슬롯을 사용하지 않고도 삭제가 가능합니다. 다음 DELETE 문의 예시에서는 _PARTITIONDATE 유사 열에 있는 필터의 전체 파티션을 다룹니다.
+DELETE mydataset.mytable
+WHERE _PARTITIONDATE IN ('2076-10-07', '2076-03-06');
+일반적인 부적격
+다음 특성을 가진 쿼리는 최적화를 활용할 수 없습니다.
+부분 파티션 적용 범위
+파티셔닝되지 않은 열에 대한 참조
+BigQuery Storage Write API [https://cloud.google.com/bigquery/docs/write-api?hl=ko] 또는 기존 스트리밍 API [https://cloud.google.com/bigquery/streaming-data-into-bigquery?hl=ko]를 통해 최근에 수집된 데이터 [https://cloud.google.com/bigquery/docs/write-api?hl=ko#stream_into_partitioned_tables]
+서브 쿼리 또는 지원되지 않는 조건자가 있는 필터
+최적화 가능 여부는 파티셔닝 유형, 기본 스토리지 메타데이터, 필터 조건자에 따라 달라질 수 있습니다. 권장사항에 따라 테스트 실행을 수행하여 쿼리 결과 처리한 바이트가 0인지 확인합니다.
+멀티 문 트랜잭션
+이 최적화는 멀티 문 트랜잭션 [https://cloud.google.com/bigquery/docs/transactions?hl=ko] 내에서 작동합니다. 다음 쿼리 예시에서는 DELETE 문을 위해 파티션을 스캔하지 않고 단일 트랜잭션에서 파티션을 다른 테이블의 데이터로 대체합니다.
+DECLARE REPLACE_DAY DATE;
+BEGIN TRANSACTION;
+
+-- find the partition which we want to replace
+SET REPLACE_DAY = (SELECT MAX(d) FROM mydataset.mytable_staging);
+
+-- delete the entire partition from mytable
+DELETE FROM mydataset.mytable WHERE part_col = REPLACE_DAY;
+
+-- insert the new data into the same partition in mytable
+INSERT INTO mydataset.mytable
+SELECT * FROM mydataset.mytable_staging WHERE part_col = REPLACE_DAY;
+
+COMMIT TRANSACTION;
+데이터 업데이트
+UPDATE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#update_statement]을 사용하여 파티션을 나눈 테이블의 행을 업데이트합니다.
+수집-시간으로 파티션을 나눈 테이블에서 데이터 업데이트
+다음 UPDATE 문은 한 파티션에서 다른 파티션으로 행을 이동합니다. field1이 21인 mytable의 2017년 5월 1일 파티션(“2017-05-01”)에 있는 행이 2017년 6월 1일 파티션(“2017-06-01”)으로 이동합니다.
+UPDATE
+  project_id.dataset.mytable
+SET
+  _PARTITIONTIME = "2017-06-01"
+WHERE
+  _PARTITIONTIME = "2017-05-01"
+  AND field1 = 21
+파티션을 나눈 테이블에서 데이터 업데이트
+DML을 사용하여 파티션을 나눈 테이블에서 데이터를 업데이트하는 것은 파티션을 나누지 않은 테이블에서 데이터를 업데이트하는 것과 동일합니다. 예를 들어 다음 UPDATE 문은 한 파티션에서 다른 파티션으로 행을 이동합니다. field1이 21인 mytable의 2017년 5월 1일 파티션(“2017-05-01”)에 있는 행이 2017년 6월 1일 파티션(“2017-06-01”)으로 이동합니다.
+UPDATE
+  project_id.dataset.mycolumntable
+SET
+  ts = "2017-06-01"
+WHERE
+  DATE(ts) = "2017-05-01"
+  AND field1 = 21
+시간, 월, 연도를 기준으로 파티션을 나눈 테이블의 DML
+DML 문을 사용하면 시간, 월 또는 연도를 기준으로 파티션을 나눈 테이블을 수정할 수 있습니다. 월을 기준으로 파티션을 나눈 테이블의 다음 예시와 같이 관련 날짜/타임스탬프/날짜/시간으로 시간, 월 또는 연도 범위를 제공합니다.
+    bq query --nouse_legacy_sql 'DELETE FROM my_dataset.my_table WHERE
+    TIMESTAMP_TRUNC(ts_column, MONTH) = "2020-01-01 00:00:00";'
+또는 DATETIME 열이 있는 파티션을 나눈 테이블의 또 다른 예시와 같이 제공합니다.
+    bq query --nouse_legacy_sql 'DELETE FROM my_dataset.my_table WHERE
+    dt_column BETWEEN DATETIME("2020-01-01")
+    AND DATETIME("2020-05-01");'
+MERGE 문 사용
+DML MERGE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#merge_statement]을 사용하여 파티션을 나눈 테이블의 INSERT, UPDATE, DELETE 작업을 하나의 문으로 결합하고 이를 원자적으로 수행합니다.
+MERGE 문을 사용할 때 파티션 잘라내기
+파티션을 나눈 테이블에 대해 MERGE 문을 실행할 때 서브 쿼리 필터, search_condition 필터 또는 merge_condition 필터에 파티션 나누기 열을 포함하여 스캔되는 파티션을 제한할 수 있습니다. 프루닝은 소스 테이블, 대상 테이블 또는 둘 다를 스캔할 때 발생할 수 있습니다.
+아래의 각 예시는 _PARTITIONTIME 유사 열을 필터로 사용하여 수집-시간으로 파티션을 나눈 테이블을 쿼리합니다.
+서브 쿼리를 사용하여 소스 데이터 필터링
+다음 MERGE 문에서 USING 절의 서브 쿼리는 소스 테이블의 _PARTITIONTIME 유사 열을 필터링합니다.
+MERGE dataset.target T
+USING (SELECT * FROM dataset.source WHERE _PARTITIONTIME = '2018-01-01') S
+ON T.
+COLUMN_ID = S.
+COLUMN_ID
+WHEN MATCHED THEN
+  DELETE
+쿼리 실행 계획을 보면 서브 쿼리가 먼저 실행됩니다. 소스 테이블의 '2018-01-01' 파티션에 있는 행만 스캔됩니다. 쿼리 계획의 관련 단계는 다음과 같습니다.
+READ $10:name, $11:_PARTITIONTIME
+FROM temp.source
+WHERE equal($11, 1514764800.000000000)
+when_clause의 search_condition에서 필터 사용
+search_condition에 필터가 포함되어 있으면 쿼리 최적화 도구에서 파티션을 프루닝합니다. 예를 들어 다음 MERGE 문에서 각 WHEN MATCHED 및 WHEN NOT MATCHED 절에는 _PARTITIONTIME 유사 열에 대한 필터가 포함되어 있습니다.
+MERGE dataset.target T
+USING dataset.source S
+ON T.
+COLUMN_ID = S.
+COLUMN_ID
+WHEN MATCHED AND T._PARTITIONTIME = '2018-01-01' THEN
+  UPDATE SET 
+COLUMN_ID = S.
+COLUMN_ID
+WHEN MATCHED AND T._PARTITIONTIME = '2018-01-02' THEN
+  UPDATE SET 
+COLUMN_ID = 
+S.COLUMN_ID + 10
+WHEN NOT MATCHED BY SOURCE AND T._PARTITIONTIME = '2018-01-03' THEN
+  DELETE
+조인 단계 중에는 대상 테이블에서 '2018-01-01', '2018-01-02', '2018-01-03'(즉, 모든 search_condition의 합집합) 파티션만 스캔됩니다.
+쿼리 실행 계획에서 다음을 수행합니다.
+READ
+$1:COLUMN_ID, $2:_PARTITIONTIME, $3:$file_temp_id, $4:$row_temp_id
+FROM temp.target
+WHERE or(equal($2, 1514764800.000000000), equal($2, 1514851200.000000000), equal($2, 1514937600.000000000))
+그러나 다음 예시에서 WHEN NOT MATCHED BY SOURCE 절에는 필터 표현식이 없습니다.
+MERGE dataset.target T
+USING dataset.source S
+ON T.
+COLUMN_ID = S.
+COLUMN_ID
+WHEN MATCHED AND T._PARTITIONTIME = '2018-01-01' THEN
+  UPDATE SET 
+COLUMN_ID = S.
+COLUMN_ID
+WHEN NOT MATCHED BY SOURCE THEN
+  UPDATE SET 
+COLUMN_ID = 
+COLUMN_ID + 1
+이 쿼리는 전체 대상 테이블을 스캔하여 WHEN NOT MATCHED BY SOURCE 절을 계산해야 합니다. 따라서 파티션이 프루닝되지 않습니다.
+merge_condition에서 상수 거짓 조건자 사용
+WHEN NOT MATCHED와 WHEN NOT MATCHED BY SOURCE 절을 함께 사용하면 일반적으로 BigQuery는 프루닝할 수 없는 완전한 외부 조인을 수행합니다. 그러나 병합 조건이 상수 거짓 조건자를 사용하면 BigQuery는 파티션 프루닝에 필터 조건을 사용할 수 있습니다. 상수 거짓 조건자 사용에 대한 자세한 내용은 MERGE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#merge_statement] 문서의 merge_condition 절 설명을 참조하세요.
+다음 예시에서는 대상 및 소스 테이블 모두에서 '2018-01-01' 파티션만 스캔합니다.
+MERGE dataset.target T
+USING dataset.source S
+ON FALSE
+WHEN NOT MATCHED AND _PARTITIONTIME = '2018-01-01' THEN
+  INSERT(
+COLUMN_ID) VALUES(
+COLUMN_ID)
+WHEN NOT MATCHED BY SOURCE AND _PARTITIONTIME = '2018-01-01' THEN
+  DELETE
+merge_condition에서 필터 사용
+쿼리 최적화 도구는 merge_condition에서 필터를 사용하여 파티션을 프루닝합니다. 쿼리 최적화 도구는 조인 유형에 따라 조건자를 테이블 스캔 단계로 푸시다운할 수도 있고 그렇지 않을 수도 있습니다.
+다음 예시에서 merge_condition은 소스와 대상 테이블을 조인하기 위한 조건자로 사용됩니다. 쿼리 최적화 도구는 두 테이블을 모두 스캔할 때 이 조건자를 아래로 푸시다운할 수 있습니다. 그 결과 이 쿼리는 대상 테이블과 소스 테이블 모두에서 '2018-01-01' 파티션만 스캔합니다.
+MERGE dataset.target T
+USING dataset.source S
+ON T.
+COLUMN_ID = S.
+COLUMN_ID AND
+  T._PARTITIONTIME = '2018-01-01' AND
+  S._PARTITIONTIME = '2018-01-01'
+WHEN MATCHED THEN
+  UPDATE SET 
+COLUMN_ID = 
+NEW_VALUE
+다음 예시에서 merge_condition은 소스 테이블의 조건자를 포함하지 않으므로 소스 테이블에서 파티션 프루닝을 수행할 수 없습니다. 이 문에는 대상 테이블의 조건자가 포함되어 있지만 문은 WHEN MATCHED 절 대신 WHEN NOT MATCHED BY SOURCE 절을 사용합니다. 즉, 쿼리는 일치하지 않는 행에 대해 전체 대상 테이블을 스캔해야 합니다.
+MERGE dataset.target T
+USING dataset.source S
+ON T.
+COLUMN_ID = S.
+COLUMN_ID AND T._PARTITIONTIME = '2018-01-01'
+WHEN NOT MATCHED BY SOURCE THEN
+  UPDATE SET 
+COLUMN_ID = 
+NEW_VALUE
+제한사항
+DML 제한에 대한 자세한 내용은 DML 참조 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko] 페이지의 제한사항 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#limitations]을 참조하세요.
+할당량
+DML 할당량 정보에 대한 자세한 내용은 할당량 및 한도 [https://cloud.google.com/bigquery/quota-policy?hl=ko] 페이지의 DML 문 [https://cloud.google.com/bigquery/quotas?hl=ko#data_manipulation_language_statements]을 참조하세요.
+가격 책정
+DML 가격 책정에 대한 자세한 내용은 파티션을 나눈 테이블에 대한 DML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#dml]을 참조하세요.
+테이블 보안
+BigQuery에서 테이블에 대한 액세스를 제어하려면 IAM으로 리소스에 대한 액세스 제어 [https://cloud.google.com/bigquery/docs/control-access-to-resources-iam?hl=ko]를 참고하세요.
+다음 단계
+파티션을 나눈 테이블 생성 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko] 방법 알아보기
+파티션을 나눈 테이블 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko] 방법 알아보기
+DML 소개 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko] 보기
+DML 문법 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko]을 사용하여 DML 문을 작성하는 방법 알아보기
+도움이 되었나요?
+의견 보내기

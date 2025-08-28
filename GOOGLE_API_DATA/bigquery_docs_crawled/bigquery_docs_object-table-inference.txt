@@ -1,0 +1,204 @@
+Source URL: https://cloud.google.com/bigquery/docs/object-table-inference
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko#limitations]
+예시 모델 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko#example_models]
+필수 권한 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko#required_permissions]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko#before_you_begin]
+Cloud Storage에 모델 업로드 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko#upload-model]
+이미지 객체 테이블에서 추론 실행
+bookmark_border
+주의: 특정 BigQuery 버전으로 생성된 예약을 사용하는 경우에는 이 기능을 사용하지 못할 수 있습니다. 각 버전에서 사용 설정된 기능에 대한 자세한 내용은 BigQuery 버전 소개 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]를 참조하세요.
+이 문서에서는 BigQuery ML을 사용하여 이미지 객체 테이블 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko]에서 추론을 실행하는 방법을 설명합니다.
+ML.PREDICT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko]에 대한 입력으로 테이블 객체를 사용해서 이미지 데이터로 추론을 실행할 수 있습니다.
+이를 위해서는 먼저 적절한 모델을 먼저 선택하고, 이를 Cloud Storage에 업로드한 후 CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko]을 실행하여 BigQuery로 가져옵니다. 자체 모델을 만들거나 TensorFlow Hub [https://tfhub.dev/]에서 다운로드할 수 있습니다.
+제한사항
+객체 테이블과 함께 BigQuery ML의 가져온 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/inference-overview?hl=ko#inference_using_imported_models]을 사용하는 것은 예약을 통해 용량 기반 가격 책정을 사용하는 경우에만 지원됩니다. 주문형 가격 책정은 지원되지 않습니다.
+객체 테이블과 연관된 이미지 파일은 다음 요구사항을 충족해야 합니다.
+크기가 20MB 미만이어야 합니다.
+JPEG, PNG, BMP 형식이어야 합니다.
+객체 테이블과 연관된 이미지 파일의 조합 크기가 1TB보다 작아야 합니다.
+모델은 다음 중 하나여야 합니다.
+SavedModel [https://www.tensorflow.org/guide/saved_model?hl=ko] 형식의 TensorFlow [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-tensorflow?hl=ko] 또는 TensorFlow Lite [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-tflite?hl=ko] 모델입니다.
+ONNX 형식 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-onnx?hl=ko]의 PyTorch 모델
+모델이 TensorFlow 모델 가져오기에 사용되는 CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-tensorflow?hl=ko]에 설명된 입력 요구사항 및 제한사항을 충족해야 합니다.
+모델의 직렬화된 크기는 450MB보다 작아야 합니다.
+모델의 직렬화 해제된(인메모리) 크기는 1,000MB보다 작아야 합니다.
+모델 입력 텐서는 다음 기준을 충족해야 합니다.
+데이터 유형이 [0, 1) 값의 tf.float32이거나 [0, 255) 값의 tf.uint8인 데이터 유형이 있어야 합니다.
+[batch_size, weight, height, 3] 모양이며, 다음이 적용됩니다.
+batch_size는 -1, None, 1이어야 합니다.
+width 및 height는 0보다 커야 합니다.
+모델은 다음 색 공간 중 하나의 이미지로 학습되어야 합니다.
+RGB
+HSV
+YIQ
+YUV
+GRAYSCALE
+ML.CONVERT_COLOR_SPACE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-convert-color-space?hl=ko]를 사용하여 입력 이미지를 모델이 학습된 색상 공간으로 변환할 수 있습니다.
+예시 모델
+TensorFlow 허브의 다음 모델은 BigQuery ML 및 이미지 객체 테이블과 함께 작동합니다.
+ResNet 50 [https://tfhub.dev/tensorflow/resnet_50/classification/1]. 이 모델을 사용하려면 튜토리얼: 분류 모델을 사용하여 객체 테이블에서 추론 실행 [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko]을 참조하세요.
+MobileNet V3 [https://tfhub.dev/google/imagenet/mobilenet_v3_small_075_224/feature_vector/5]. 이 모델을 사용하려면 튜토리얼: 특징 벡터 모델을 사용하여 객체 테이블에서 추론 실행 [https://cloud.google.com/bigquery/docs/inference-tutorial-mobilenet?hl=ko]을 참조하세요.
+필수 권한
+모델을 Cloud Storage로 업로드하려면 storage.objects.create 및 storage.objects.get 권한이 필요합니다.
+모델을 BigQuery ML에 로드하려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 권한이 필요합니다.
+객체 테이블에 대한 bigquery.tables.getData
+모델에 대한 bigquery.models.getData
+bigquery.jobs.create
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery and BigQuery Connection API APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com&hl=ko]
+Cloud Storage에 모델 업로드
+모델을 업로드하려면 다음 단계를 수행합니다.
+자체 모델을 만든 경우 로컬에 저장합니다. TensorFlow 허브의 모델을 사용하는 경우 이를 로컬 머신에 다운로드합니다. TensorFlow를 사용하는 경우 모델의 saved_model.pb 파일과 variables 폴더가 제공됩니다.
+필요한 경우 Cloud Storage 버킷을 만듭니다 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko].
+모델 아티팩트를 버킷에 업로드 [https://cloud.google.com/storage/docs/uploading-objects?hl=ko]합니다.
+BigQuery ML에 모델 로드
+이미지 객체 테이블을 사용하는 모델을 로드하는 것은 구조화된 데이터를 사용하는 모델을 로드하는 것과 동일합니다. 모델을 BigQuery ML에 로드하려면 다음 단계를 수행합니다.
+CREATE MODEL `
+PROJECT_ID.
+DATASET_ID.
+MODEL_NAME`
+OPTIONS(
+  model_type = '
+MODEL_TYPE',
+  model_path = '
+BUCKET_PATH');
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트 ID
+DATASET_ID: 모델을 포함할 데이터 세트의 ID
+MODEL_NAME: 모델의 이름입니다.
+MODEL_TYPE: 다음 값 중 하나를 사용합니다.
+TensorFlow 모델의 경우 TENSORFLOW
+ONNX 형식의 PyTorch 모델의 경우 ONNX
+BUCKET_PATH: 모델이 포함된 Cloud Storage 버킷의 경로이며 [gs://bucket_name/[folder_name/]*] 형식입니다.
+다음 예시에서는 기본 프로젝트를 사용하고 gs://my_bucket/my_model_folder의 saved_model.pb 파일 및 variables 폴더를 사용해서 TensorFlow 모델을 BigQuery ML에 my_vision_model로 로드합니다.
+CREATE MODEL `my_dataset.my_vision_model`
+OPTIONS(
+  model_type = 'TENSORFLOW',
+  model_path = 'gs://my_bucket/my_model_folder/*');
+모델 검사
+업로드된 모델을 검사하여 입력 및 출력 필드를 확인할 수 있습니다. 객체 테이블에서 유추를 실행할 때는 이러한 필드를 참조해야 합니다.
+다음 단계에 따라 모델을 검사합니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 프로젝트를 확장하고 모델이 포함된 데이터 세트를 확장한 후 모델 노드를 확장합니다.
+모델을 클릭합니다.
+모델 창이 열리면 스키마 탭을 클릭합니다.
+라벨 섹션을 찾습니다. 이렇게 해서 모델에서 출력된 필드를 식별합니다.
+기능 섹션을 찾습니다. 이렇게 해서 모델에 입력해야 하는 필드를 식별합니다. ML.DECODE_IMAGE 함수에 대한 SELECT 문에서 이를 참조합니다.
+모델 입력의 형태 확인과 같이 TensorFlow 모델을 자세히 검사하려면 TensorFlow를 설치 [https://www.tensorflow.org/install?hl=ko]하고 saved_model_cli show 명령어 [https://www.tensorflow.org/guide/saved_model?hl=ko#show_command]를 사용합니다.
+이미지 전처리
+ML.DECODE_IMAGE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-decode-image?hl=ko]를 사용하여 이미지 바이트를 다차원 ARRAY 표현으로 변환해야 합니다. ML.PREDICT 함수에 직접 ML.DECODE_IMAGE 출력을 사용하거나 ML.DECODE_IMAGE의 결과를 테이블 열에 쓰고 ML.PREDICT를 호출할 때 이 열을 참조합니다.
+다음 예에서는 ML.DECODE_IMAGE 함수의 출력을 테이블에 씁니다.
+CREATE OR REPLACE TABLE mydataset.mytable AS (
+  SELECT ML.DECODE_IMAGE(data) AS decoded_image FROM mydataset.object_table
+  );
+다음 함수를 사용하여 추가로 이미지가 모델에서 작업하도록 처리합니다.
+ML.CONVERT_COLOR_SPACE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-convert-color-space?hl=ko]는 RGB 색상 공간이 있는 이미지를 다른 색상 공간으로 변환합니다.
+ML.CONVERT_IMAGE_TYPE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-convert-image-type?hl=ko]가 ML.DECODE_IMAGE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-decode-image?hl=ko]의 픽셀 값 출력을 부동 소수점 수부터 [0, 255) 범위의 정수까지 반환합니다.
+ML.RESIZE_IMAGE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-resize-image?hl=ko]는 이미지 크기를 조절합니다.
+이를 ML.PREDICT 함수의 일부로 사용하거나 ML.DECODE_IMAGE의 이미지 데이터 출력이 포함된 테이블 열에서 실행할 수 있습니다.
+추론 실행
+적절한 모델이 로드되고 원하는 경우 이미지 데이터를 사전 처리한 경우 이미지 데이터에서 추론을 실행할 수 있습니다.
+추론을 실행하려면 다음 안내를 따르세요.
+SELECT *
+FROM ML.PREDICT(
+  MODEL `
+PROJECT_ID.
+DATASET_ID.
+MODEL_NAME`,
+  (SELECT [other columns from the object table,] 
+IMAGE_DATA AS 
+MODEL_INPUT
+  FROM 
+PROJECT_ID.
+DATASET_ID.
+TABLE_NAME)
+);
+다음을 바꿉니다.
+PROJECT_ID: 모델 및 객체 테이블이 포함된 프로젝트의 프로젝트 ID입니다.
+DATASET_ID: 모델 및 객체 테이블이 포함된 데이터 세트의 ID입니다.
+MODEL_NAME: 모델의 이름입니다.
+IMAGE_DATA: ML.DECODE_IMAGE 함수의 출력이나 ML.DECODE_IMAGE 또는 다른 이미지 처리 함수의 이미지 데이터 출력이 포함된 테이블 열로 표현되는 이미지 데이터입니다.
+MODEL_INPUT: 모델의 입력 필드 이름입니다. 이 정보는 모델을 검사 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko#inspect_the_model]하고 특성 필드에서 해당 필드의 이름을 찾아 확인할 수 있습니다.
+TABLE_NAME: 객체 테이블의 이름입니다.
+예
+예시 1
+다음 예시에서는 ML.PREDICT 함수에서 ML.DECODE_IMAGE 함수를 직접 사용합니다. 입력 필드가 input이고 출력 필드가 feature인 모델의 객체 테이블에 있는 모든 이미지의 추론 결과가 반환됩니다.
+SELECT * FROM
+ML.PREDICT(
+  MODEL `my_dataset.vision_model`,
+  (SELECT uri, ML.RESIZE_IMAGE(ML.DECODE_IMAGE(data), 480, 480, FALSE) AS input
+  FROM `my_dataset.object_table`)
+);
+예시 2
+다음 예시에서는 ML.PREDICT 함수에서 ML.DECODE_IMAGE 함수를 직접 사용하고 ML.PREDICT 함수에서 ML.CONVERT_COLOR_SPACE 함수를 사용하여 이미지 색상 공간을 RBG에서 YIQ로 변환합니다. 또한 객체 테이블 필드를 사용하여 추론에 포함된 객체를 필터링하는 방법도 보여줍니다. 입력 필드가 input이고 출력 필드가 feature인 모델의 객체 테이블에 있는 모든 JPG 이미지의 추론 결과가 반환됩니다.
+SELECT * FROM
+  ML.PREDICT(
+    MODEL `my_dataset.vision_model`,
+    (SELECT uri, ML.CONVERT_COLOR_SPACE(ML.RESIZE_IMAGE(ML.DECODE_IMAGE(data), 224, 280, TRUE), 'YIQ') AS input
+    FROM `my_dataset.object_table`
+    WHERE content_type = 'image/jpeg')
+  );
+예시 3
+다음 예시에서는 테이블 열에 작성되었지만 더 이상 처리되지 않는 ML.DECODE_IMAGE의 결과를 사용합니다. ML.PREDICT 함수에서 ML.RESIZE_IMAGE 및 ML.CONVERT_IMAGE_TYPE를 사용하여 이미지 데이터를 처리합니다. 입력 필드가 input이고 출력 필드가 feature인 모델의 디코딩된 이미지 테이블에 있는 모든 이미지의 추론 결과를 반환합니다.
+디코딩된 이미지 테이블을 만듭니다.
+CREATE OR REPLACE TABLE `my_dataset.decoded_images`
+  AS (SELECT ML.DECODE_IMAGE(data) AS decoded_image
+  FROM `my_dataset.object_table`);
+디코딩된 이미지 테이블에서 추론을 실행합니다.
+SELECT * FROM
+ML.PREDICT(
+  MODEL`my_dataset.vision_model`,
+  (SELECT uri, ML.CONVERT_IMAGE_TYPE(ML.RESIZE_IMAGE(decoded_image, 480, 480, FALSE)) AS input
+  FROM `my_dataset.decoded_images`)
+);
+예시 4
+다음 예시에서는 테이블 열에 작성되고 ML.RESIZE_IMAGE을 사용하여 사전 처리된 ML.DECODE_IMAGE의 결과를 사용합니다. 입력 필드가 input이고 출력 필드가 feature인 모델의 디코딩된 이미지 테이블에 있는 모든 이미지의 추론 결과를 반환합니다.
+테이블을 만듭니다.
+CREATE OR REPLACE TABLE `my_dataset.decoded_images`
+  AS (SELECT ML.RESIZE_IMAGE(ML.DECODE_IMAGE(data) 480, 480, FALSE) AS decoded_image
+  FROM `my_dataset.object_table`);
+디코딩된 이미지 테이블에서 추론을 실행합니다.
+SELECT * FROM
+ML.PREDICT(
+  MODEL `my_dataset.vision_model`,
+  (SELECT uri, decoded_image AS input
+  FROM `my_dataset.decoded_images`)
+);
+예시 5
+다음 예시에서는 ML.PREDICT 함수에서 ML.DECODE_IMAGE 함수를 직접 사용합니다. 이 예시의 모델에는 embeddings 출력 필드와 2개의 입력 필드가 포함됩니다. 하나는 이미지가 사용되는 f_img이고 다른 하나는 문자열이 사용되는 f_txt입니다. 이미지 입력은 객체 테이블에서 가져오고 문자열 입력은 uri 열을 사용하여 객체 테이블과 결합된 표준 BigQuery 테이블에서 가져옵니다.
+SELECT * FROM
+  ML.PREDICT(
+    MODEL `my_dataset.mixed_model`,
+    (SELECT uri, ML.RESIZE_IMAGE(ML.DECODE_IMAGE(my_dataset.my_object_table.data), 224, 224, FALSE) AS f_img,
+      my_dataset.image_description.description AS f_txt
+    FROM `my_dataset.object_table`
+    JOIN `my_dataset.image_description`
+    ON object_table.uri = image_description.uri)
+  );
+다음 단계
+원격 함수를 사용하여 객체 테이블 분석 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko] 방법 알아보기
+특징 벡터 모델을 사용하여 객체 테이블에서 추론 실행 [https://cloud.google.com/bigquery/docs/inference-tutorial-mobilenet?hl=ko] 시도
+분류 모델을 사용하여 객체 테이블에서 추론 실행 [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko] 시도
+원격 함수를 사용하여 객체 테이블 분석 [https://cloud.google.com/bigquery/docs/remote-function-tutorial?hl=ko] 시도
+ML.ANNOTATE_IMAGE 함수로 이미지에 주석 추가 [https://cloud.google.com/bigquery/docs/annotate-image?hl=ko] 시도
+도움이 되었나요?
+의견 보내기

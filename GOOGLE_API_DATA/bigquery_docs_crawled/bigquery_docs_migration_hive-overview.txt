@@ -1,0 +1,80 @@
+Source URL: https://cloud.google.com/bigquery/docs/migration/hive-overview
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+기능 [https://cloud.google.com/bigquery/docs/migration/hive-overview?hl=ko#features]
+데이터 유형 [https://cloud.google.com/bigquery/docs/migration/hive-overview?hl=ko#data_types]
+사용자 정의 함수 [https://cloud.google.com/bigquery/docs/migration/hive-overview?hl=ko#user_defined_functions]
+보안 [https://cloud.google.com/bigquery/docs/migration/hive-overview?hl=ko#security]
+Hive 액세스 제어 [https://cloud.google.com/bigquery/docs/migration/hive-overview?hl=ko#hive_access_control]
+Apache Sentry 및 Apache Ranger를 사용한 보안 [https://cloud.google.com/bigquery/docs/migration/hive-overview?hl=ko#secure_with_apache_sentry_and_apache_ranger]
+BigQuery 보안 [https://cloud.google.com/bigquery/docs/migration/hive-overview?hl=ko#security]
+다음 단계 [https://cloud.google.com/bigquery/docs/migration/hive-overview?hl=ko#whats_next]
+Apache Hive에서 BigQuery로 마이그레이션: 개요
+bookmark_border
+이 문서에서는 Apache Hive와 BigQuery의 차이점을 비교하고 마이그레이션의 주요 고려사항을 설명합니다. 마이그레이션을 완료하는 방법에 대한 자세한 내용은 Apache Hive 마이그레이션 가이드 [https://cloud.google.com/bigquery/docs/migration/hive?hl=ko]를 참조하세요.
+또한 일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]을 사용하여 SQL 스크립트를 일괄적으로 마이그레이션하거나 대화형 SQL 변환 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]을 사용하여 임시 쿼리를 변환할 수 있습니다. 두 SQL 변환 서비스에서 Apache HiveQL이 완벽하게 지원됩니다.
+기능
+Hive와 BigQuery는 모두 분산 데이터 웨어하우스 시스템입니다. 다음 표에서는 대략적인 기능을 비교합니다.
+기능 Hive BigQuery
+사용 가능 여부 구현에 따라 다름 99.99% 이상의 월별 [https://cloud.google.com/bigquery/sla?hl=ko] 업타임
+할당량 구현에 따라 다름 BigQuery 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko]
+지원되는 형식 Avro, Parquet, ORC, 텍스트 Avro, Parquet, ORC, CSV, JSON, Google Drive
+관리형 테이블 스토리지 HDFS Capacitor 형식의 BigQuery 스토리지
+외부 테이블 소스 HDFS, HBase Google Cloud Storage, Google Sheets, Bigtable
+트랜잭션 제한적으로 가능. 파티션 수준의 ACID 파티션 수준으로 제한됨. 멀티 문 트랜잭션 지원
+API 지원 JDBC, ODBC, Thrift 여러 언어를 지원하는 JDBC, ODBC, 클라이언트 라이브러리
+파티션 나누기 지원 시간 단위 열, 수집 시간 또는 정수 범위
+클러스터링 지원 지원
+복제 HDFS에 따라 다름. 데이터 센터 간 복제 없음 Google에서 관리하는 안정적인 데이터 센터 간 복제
+UDF 모든 언어 SQL 또는 자바스크립트
+데이터 로드 일괄, 스트리밍(제한됨) 일괄, 스트리밍
+데이터 작업 DDL, DML DDL, DML, DCL, TCL
+데이터 유형
+Apache Hive와 BigQuery의 데이터 유형 시스템은 서로 다릅니다. 대부분의 경우 Hive의 데이터 유형은 MAP 및 UNION과 같은 일부 예외를 제외하면 BigQuery 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko]에 매핑될 수 있습니다. Apache Hive는 BigQuery보다 더 암시적인 Cast 변환을 수행합니다. 따라서 일괄 SQL 번역기가 명시적 Cast 변환을 여러 개 삽입합니다.
+Hive BigQuery
+TINYINT INT64
+SMALLINT INT64
+INT INT64
+BIGINT INT64
+DECIMAL NUMERIC
+FLOAT FLOAT64
+DOUBLE FLOAT64
+부울 BOOL
+STRING STRING
+VARCHAR STRING
+CHAR STRING
+바이너리 BYTES
+DATE DATE
+- DATETIME
+- TIME
+TIMESTAMP DATETIME/TIMESTAMP
+INTERVAL -
+ARRAY ARRAY
+STRUCT STRUCT
+지도 키 값이 있는 STRUCT(REPEAT 필드)
+UNION 다른 유형의 STRUCT
+- GEOGRAPHY
+- JSON
+사용자 정의 함수
+Apache Hive에서는 자바로 사용한 사용자 정의 함수(UDF)를 작성할 수 있습니다. UDF를 Hive로 로드하여 일반 쿼리에 사용할 수 있습니다. BigQuery UDF [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko]는 GoogleSQL 또는 자바스크립트로 작성해야 합니다. SQL UDF의 성능이 더 우수하므로 Hive UDF를 SQL UDF로 변환하는 것이 좋습니다. 자바스크립트를 사용해야 하는 경우 자바스크립트 UDF 권장사항 [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#best-practices-for-javascript-udfs]을 참조하세요. 다른 언어의 경우 BigQuery는 GoogleSQL 쿼리에서 Cloud Run Functions [https://cloud.google.com/functions/docs/concepts/overview?hl=ko] 또는 Cloud Run [https://cloud.google.com/run/docs/overview/what-is-cloud-run?hl=ko]의 함수를 호출할 수 있는 원격 함수 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko]를 지원합니다.
+BigQuery는 사용자 정의 집계 함수(UDAF)를 지원하지 않습니다.
+보안
+Hive와 BigQuery의 보안 모델은 서로 다르며, 다음 섹션에서 설명합니다.
+Hive 액세스 제어
+Hive는 승인 목적으로 세분화된 액세스 제어를 사용 설정하는 SQL 표준 기반 승인 [https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization]을 도입했습니다. 역할 기반 액세스 제어(RBAC)를 사용하여 일반적인 엔터프라이즈 환경에서 대규모 사용자 및 데이터 객체 집합의 승인을 관리합니다. 이 보안 메커니즘은 Hadoop ID를 기반으로 합니다. Hadoop은 Kerberos를 사용하여 ID를 인증합니다.
+Apache Sentry 및 Apache Ranger를 사용한 보안
+Apache Ranger [http://ranger.apache.org/] 및 Apache Sentry [https://sentry.apache.org/]는 Hive에서 제공하는 플러그인을 사용하여 승인을 구현하는 Apache 프로젝트입니다. Hive RBAC를 구성해도 데이터가 완전히 보호되지는 않습니다. Hive 데이터는 일반적으로 사용자에게 표시되지 않지만 데이터에 직접 접근할 수 있는 HDFS에 저장되기 때문입니다. Ranger 및 Sentry는 Hive의 RBAC 설정에서 변환된 POSIX ACL로 HDFS에 대한 데이터를 적용합니다.
+BigQuery 보안
+BigQuery는 Identity and Access Management [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 사용하여 프로젝트의 데이터에 대한 액세스를 제어합니다. BigQuery 데이터 세트에 대한 액세스를 제한할 수 있습니다. 테이블과 뷰는 데이터 세트의 하위 리소스이며 상위 데이터 세트로부터 권한을 상속합니다. 개별 테이블에 행 수준 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko] 및 열 수준 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko] 보안을 할당할 수 있습니다.
+승인된 뷰 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko] 및 승인된 데이터 세트 [https://cloud.google.com/bigquery/docs/authorized-datasets?hl=ko]를 사용하여 액세스를 제한할 수도 있습니다.
+BigQuery는 기본적으로 데이터를 암호화합니다. 자체 암호화 키를 관리하려면 BigQuery와 함께 Cloud KMS [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 사용하면 됩니다.
+다음 단계
+Apache Hive에서 스키마 및 데이터 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/hive?hl=ko] 단계별 안내 확인하기
+Apache Hive SQL 변환 가이드 [https://cloud.google.com/bigquery/docs/migration/hive-sql?hl=ko] 참조
+도움이 되었나요?
+의견 보내기

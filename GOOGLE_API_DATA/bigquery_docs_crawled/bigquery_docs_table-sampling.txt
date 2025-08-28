@@ -1,0 +1,56 @@
+Source URL: https://cloud.google.com/bigquery/docs/table-sampling
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+테이블 샘플링 사용 [https://cloud.google.com/bigquery/docs/table-sampling?hl=ko#using_table_sampling]
+외부 테이블 [https://cloud.google.com/bigquery/docs/table-sampling?hl=ko#external_tables]
+쓰기 최적화된 스토리지에서 샘플링 [https://cloud.google.com/bigquery/docs/table-sampling?hl=ko#sampling_from_the_streaming_buffer]
+파티션을 나눈 테이블 및 클러스터링된 테이블 [https://cloud.google.com/bigquery/docs/table-sampling?hl=ko#partitioned_and_clustered_tables]
+제한사항 [https://cloud.google.com/bigquery/docs/table-sampling?hl=ko#limitations]
+테이블 샘플링 가격 책정 [https://cloud.google.com/bigquery/docs/table-sampling?hl=ko#table_sampling_pricing]
+테이블 샘플링
+bookmark_border
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+테이블 샘플링을 사용하면 대규모 BigQuery 테이블에서 데이터의 임의 하위 집합을 쿼리할 수 있습니다. 샘플링은 전체 테이블 스캔 및 처리 비용을 방지하면서 다양한 레코드를 반환합니다.
+테이블 샘플링 사용
+쿼리에 테이블 샘플링을 사용하려면 TABLESAMPLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#tablesample_operator] 절을 포함합니다. 예를 들어 다음 쿼리는 테이블 데이터의 약 10%를 선택합니다.
+SELECT * FROM dataset.my_table TABLESAMPLE SYSTEM (10 PERCENT)
+LIMIT 절과 달리 TABLESAMPLE은 테이블에서 임의의 데이터 하위 집합을 반환합니다. 또한 BigQuery는 TABLESAMPLE 절을 포함하는 쿼리의 결과를 캐시하지 않으므로 쿼리가 매번 다른 결과를 반환할 수 있습니다.
+TABLESAMPLE 절을 다른 선택 조건과 결합할 수 있습니다. 다음 예시에서는 테이블의 약 50%를 샘플링한 다음 WHERE 절을 적용합니다.
+SELECT *
+FROM dataset.my_table TABLESAMPLE SYSTEM (50 PERCENT)
+WHERE customer_id = 1
+다음 예시에서는 TABLESAMPLE 절과 JOIN 절을 결합합니다.
+SELECT *
+FROM dataset.table1 T1 TABLESAMPLE SYSTEM (10 PERCENT)
+JOIN dataset.table2 T2 TABLESAMPLE SYSTEM (20 PERCENT) USING (customer_id)
+작은 테이블의 경우 두 개의 샘플을 조인할 때 샘플링된 행이 조인 조건을 하나도 충족하지 않으면 빈 결과를 받을 수 있습니다.
+비율을 쿼리 매개변수 [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko]로 지정할 수 있습니다. 다음 예시에서는 bq 명령줄 도구를 사용하여 쿼리에 백분율을 전달하는 방법을 보여줍니다.
+bq query --use_legacy_sql=false --parameter=percent:INT64:29 \
+    'SELECT * FROM `dataset.my_table` TABLESAMPLE SYSTEM (@percent PERCENT)`
+BigQuery 테이블은 데이터 블록으로 정리됩니다. TABLESAMPLE 절은 테이블에서 데이터 블록의 비율을 무작위로 선택하고 선택한 블록의 모든 행을 읽는 방식으로 작동합니다. 샘플링 세분화 수준은 데이터 블록 수로 제한됩니다.
+일반적으로 BigQuery는 테이블 또는 테이블 파티션이 약 1GB보다 큰 경우 블록으로 분할합니다. 더 작은 테이블은 단일 데이터 블록으로 구성될 수 있습니다. 이 경우 TABLESAMPLE 절은 전체 테이블을 읽습니다. 샘플링 비율이 0보다 크고 테이블이 비어 있지 않으면 테이블 샘플링은 항상 일부 결과를 반환합니다.
+블록은 크기가 다를 수 있으므로 샘플링되는 행의 정확한 비율은 다를 수 있습니다. 데이터 블록 대신 개별 행을 샘플링하려면 WHERE rand() < K 절을 대신 사용하면 됩니다. 하지만 이 방법을 사용하려면 BigQuery가 전체 테이블을 검색해야 합니다. 비용을 절감하면서도 행 수준 샘플링의 이점을 누리려면 두 기법을 모두 결합하면 됩니다.
+다음 예시에서는 스토리지에서 데이터 블록의 약 20%를 읽은 다음 해당 블록에서 행의 10%를 무작위로 선택합니다.
+SELECT * FROM dataset.my_table TABLESAMPLE SYSTEM (20 PERCENT)
+WHERE rand() < 0.1
+외부 테이블
+파일 컬렉션에 데이터를 저장하는 외부 테이블에 TABLESAMPLE 절을 사용할 수 있습니다. BigQuery는 테이블이 참조하는 외부 파일의 하위 집합을 샘플링합니다. 일부 파일 형식의 경우 BigQuery는 개별 파일을 샘플링용 블록으로 분할할 수 있습니다. Google Sheets의 데이터와 같은 일부 외부 데이터는 하나의 데이터 블록으로 샘플링되는 단일 파일로 구성됩니다.
+쓰기 최적화된 스토리지에서 샘플링
+스트리밍 삽입 [https://cloud.google.com/bigquery/docs/streaming-data-into-bigquery?hl=ko]과 함께 테이블 샘플링을 사용하는 경우 BigQuery가 쓰기 최적화된 스토리지에서 데이터를 샘플링합니다. 일부 경우에는 쓰기 최적화된 스토리지의 모든 데이터가 단일 블록으로 표시됩니다. 이 경우에는 쓰기 최적화된 스토리지의 모든 데이터가 결과에 표시되거나 전혀 표시되지 않습니다.
+파티션을 나눈 테이블 및 클러스터링된 테이블
+파티션 나누기 및 클러스터링은 특정 블록 내 모든 행이 동일한 파티션 나누기 키를 갖거나 종가를 가진 클러스터링 속성이 있는 블록을 생성합니다. 따라서 이러한 테이블의 샘플 세트는 파티션을 나누지 않고 클러스터링되지 않은 테이블의 샘플 집합보다 더 편향된 경향이 있습니다.
+제한사항
+샘플링된 테이블은 쿼리 문에 한 번만 나타날 수 있습니다. 이 제한사항에는 뷰 정의 내에서 참조되는 테이블이 포함됩니다.
+뷰에서 데이터 샘플링은 지원되지 않습니다.
+서브 쿼리 또는 테이블 값 함수 호출의 결과 샘플링은 지원되지 않습니다.
+UNNEST 연산자 호출 결과와 같은 배열 스캔의 샘플링은 지원되지 않습니다.
+IN 서브 쿼리 내부의 샘플링은 지원되지 않습니다.
+행 수준 보안이 적용된 테이블에서 샘플링은 지원되지 않습니다.
+테이블 샘플링 가격 책정
+주문형 결제 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]를 사용하는 경우 샘플링된 데이터를 읽는 데 요금이 부과됩니다. BigQuery는 TABLESAMPLE 절이 포함된 쿼리 결과를 캐시하지 않으므로 각 실행마다 스토리지에서 데이터를 읽는 비용이 발생합니다.
+의견 보내기

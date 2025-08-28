@@ -1,0 +1,242 @@
+Source URL: https://cloud.google.com/bigquery/docs/schedule-pipelines
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#before_you_begin]
+파이프라인 예약 사용 설정 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#enable-scheduling]
+필요한 역할 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#required_roles]
+파이프라인 일정 만들기 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#create-schedule]
+Google 계정 승인하기 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#authorize-google-account]
+파이프라인 예약
+bookmark_border
+이 문서에서는 BigQuery 파이프라인 [https://cloud.google.com/bigquery/docs/pipelines-introduction?hl=ko]을 예약하는 방법을 설명합니다. 여기에는 파이프라인을 예약하고 예약된 파이프라인 실행을 검사하는 방법이 포함됩니다.
+파이프라인은 Dataform [https://cloud.google.com/dataform/docs/overview?hl=ko]을 기반으로 합니다. 각 파이프라인 일정은 Google 계정 사용자 인증 정보 또는 일정을 구성할 때 선택한 Dataform 서비스 계정 [https://cloud.google.com/dataform/docs/access-control?hl=ko#about-service-accounts]을 사용하여 실행됩니다.
+파이프라인에 대한 변경사항은 자동으로 저장되지만 본인 및 프로젝트에 Dataform 관리자 역할이 부여된 사용자만 사용할 수 있습니다. 새 버전의 파이프라인으로 일정을 업데이트하려면 파이프라인을 배포 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#deploy]해야 합니다. 배포하면 현재 버전의 파이프라인을 사용하도록 일정이 업데이트됩니다. 일정은 항상 최신 배포 버전을 실행합니다.
+노트북이 포함된 파이프라인의 일정은 기본 런타임 사양 [https://cloud.google.com/colab/docs/runtimes?hl=ko#default_runtime_specifications]을 사용합니다. 노트북이 포함된 파이프라인의 예약된 실행 중에 BigQuery는 예약 생성 중에 선택한 Cloud Storage 버킷 [https://cloud.google.com/storage/docs/buckets?hl=ko]에 노트북 출력을 작성합니다.
+시작하기 전에
+시작하기 전에 파이프라인을 만드세요 [https://cloud.google.com/bigquery/docs/create-pipelines?hl=ko].
+파이프라인 예약 사용 설정
+파이프라인을 예약하려면 파이프라인 일정에 사용할 서비스 계정에 다음 역할을 부여해야 합니다.
+서비스 계정 사용자(roles/iam.serviceAccountUser) [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#iam.serviceAccountUser]
+서비스 계정에 단일 역할 부여 [https://cloud.google.com/iam/docs/manage-access-service-accounts?hl=ko#grant-single-role]에 따라 서비스 계정을 자체 주 구성원으로 추가합니다. 즉, 서비스 계정을 동일한 서비스 계정에 주 구성원으로 추가합니다. 그런 다음 이 주 구성원에게 서비스 계정 사용자 역할을 부여합니다.
+파이프라인에 SQL 쿼리가 포함된 경우 파이프라인 일정에 사용할 서비스 계정에 다음 역할을 부여해야 합니다.
+BigQuery 작업 사용자(roles/bigquery.jobUser) [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#bigquery.jobUser]
+프로젝트에 대한 단일 역할 부여 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko#grant-single-role]에 따라 파이프라인이 데이터를 읽는 프로젝트의 서비스 계정에 BigQuery 작업 사용자 역할을 부여합니다.
+BigQuery 데이터 뷰어(roles/bigquery.dataViewer) [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#bigquery.dataViewer]
+프로젝트에 대한 단일 역할 부여 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko#grant-single-role]에 따라 파이프라인이 데이터를 읽는 프로젝트의 서비스 계정에 BigQuery 데이터 뷰어 역할을 부여합니다.
+BigQuery 데이터 편집자(roles/bigquery.dataEditor) [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#bigquery.dataEditor]
+프로젝트에 대한 단일 역할 부여 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko#grant-single-role]에 따라 파이프라인이 데이터를 쓰는 프로젝트의 서비스 계정에 BigQuery 데이터 편집자 역할을 부여합니다.
+파이프라인에 노트북이 포함된 경우 파이프라인 일정에 사용할 서비스 계정에 다음 역할을 부여해야 합니다.
+노트북 실행자 사용자(roles/aiplatform.notebookExecutorUser) [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#aiplatform.notebookExecutorUser]
+프로젝트에 대한 단일 역할 부여 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko#grant-single-role]에 따라 선택한 프로젝트의 서비스 계정에 노트북 실행자 사용자 역할을 부여합니다.
+스토리지 관리자(roles/storage.admin) [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#storage.admin]
+버킷 수준 정책에 주 구성원 추가 [https://cloud.google.com/storage/docs/access-control/using-iam-permissions?hl=ko#bucket-add]에 따라 예약된 파이프라인 실행에서 실행된 노트북의 출력을 저장하는 데 사용할 Cloud Storage 버킷에 서비스 계정을 주 구성원으로 추가하고 이 주 구성원에게 스토리지 관리자 역할을 부여합니다.
+또한 기본 Dataform 서비스 계정에 다음 역할을 부여해야 합니다.
+서비스 계정 토큰 생성자(roles/iam.serviceAccountTokenCreator) [https://cloud.google.com/iam/docs/service-account-permissions?hl=ko#token-creator-role]
+서비스 계정에 토큰 생성 액세스 권한 부여 [https://cloud.google.com/dataform/docs/access-control?hl=ko#grant-token-creation-access]에 따라 기본 Dataform 서비스 계정을 서비스 계정에 주 구성원으로 추가하고 이 주 구성원에게 서비스 계정 토큰 생성자 역할을 부여합니다.
+Dataform의 서비스 계정에 대한 자세한 내용은 Dataform의 서비스 계정 정보 [https://cloud.google.com/dataform/docs/access-control?hl=ko#about-service-accounts]를 참조하세요.
+필요한 역할
+파이프라인을 관리하는 데 필요한 권한을 얻으려면 관리자에게 다음 IAM 역할을 부여해 달라고 요청하세요.
+파이프라인 삭제: 파이프라인에 대한 Dataform 관리자 [https://cloud.google.com/iam/docs/roles-permissions/dataform?hl=ko#dataform.Admin](roles/dataform.Admin)
+파이프라인 일정 만들기, 수정, 실행, 삭제: 파이프라인에 대한 Dataform 관리자 [https://cloud.google.com/iam/docs/roles-permissions/dataform?hl=ko#dataform.Admin](roles/dataform.Admin)
+파이프라인 보기 및 실행: 프로젝트에 대한 Dataform 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/dataform?hl=ko#dataform.Viewer](roles/dataform.Viewer)
+파이프라인 일정 보기: 프로젝트에 대한 Dataform 편집자 [https://cloud.google.com/iam/docs/roles-permissions/dataform?hl=ko#dataform.Editor](roles/dataform.Editor)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+Dataform IAM에 대한 자세한 내용은 IAM으로 액세스 제어 [https://cloud.google.com/dataform/docs/access-control?hl=ko]를 참조하세요.
+참고: 파이프라인을 만들면 BigQuery에서 해당 파이프라인에 대한 Dataform 관리자(roles/dataform.admin [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#dataform.admin]) 역할을 부여합니다. Google Cloud 프로젝트에 대한 Dataform 관리자(roles/dataform.admin) 역할 [https://cloud.google.com/dataform/docs/access-control?hl=ko#dataform.admin]이 부여된 모든 사용자는 프로젝트에서 생성된 모든 파이프라인에 대한 소유자 액세스 권한을 갖습니다.
+파이프라인을 예약할 때 Colab 노트북 런타임 템플릿을 사용하려면 노트북 런타임 사용자(roles/aiplatform.notebookRuntimeUser) [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#aiplatform.notebookRuntimeUser] 역할이 필요합니다.
+파이프라인 일정 만들기
+파이프라인 일정을 만들려면 다음 단계를 따르세요.
+--- 탭: 탐색기 창 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%ED%83%90%EC%83%89%EA%B8%B0-%EC%B0%BD] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트와 파이프라인 폴더를 펼친 후 파이프라인을 선택합니다.
+일정을 클릭합니다.
+파이프라인 예약 창의 일정 이름 필드에 일정의 이름을 입력합니다.
+인증 섹션에서 Google 계정 사용자 인증 정보 또는 서비스 계정으로 파이프라인을 승인합니다.
+
+
+Google 계정 사용자 인증 정보(프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages])를 사용하려면 내 사용자 인증 정보로 실행을 선택합니다.
+서비스 계정을 사용하려면 선택한 서비스 계정으로 실행을 선택한 후 서비스 계정을 선택합니다.
+
+파이프라인에 노트북이 포함된 경우 노트북 옵션 섹션의 런타임 템플릿 필드에서 Colab 노트북 런타임 템플릿 또는 기본 런타임 사양을 선택합니다. Colab 노트북 런타임 템플릿을 만드는 방법에 대한 자세한 내용은 런타임 템플릿 만들기 [https://cloud.google.com/colab/docs/create-runtime-template?hl=ko]를 참고하세요.
+참고: 노트북 런타임 템플릿은 파이프라인과 동일한 리전에 있어야 합니다.참고: Colab 노트북 런타임 템플릿을 사용하는 데 필요한 역할 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#required_roles]이 없더라도 기본 런타임 사양으로 파이프라인을 실행하고 예약할 수 있습니다.
+파이프라인에 노트북이 포함된 경우 노트북 옵션 섹션의 Cloud Storage 버킷 필드에서 찾아보기를 클릭하고 파이프라인에서 노트북의 출력을 저장할 Cloud Storage 버킷을 선택하거나 만듭니다.
+
+선택한 서비스 계정에 선택한 버킷의 스토리지 관리자 IAM 역할이 부여되어야 합니다.
+자세한 내용은 파이프라인 예약 사용 설정 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#enable-scheduling]을 참고하세요.
+일정 빈도 섹션에서 다음을 수행합니다.
+
+
+반복 메뉴에서 예약된 파이프라인 실행 빈도를 선택합니다.
+시간 필드에 예약된 파이프라인 실행 시간을 입력합니다.
+시간대 메뉴에서 일정의 시간대를 선택합니다.
+
+일정 만들기를 클릭합니다. 인증 방법으로 내 사용자 인증 정보로 실행을 선택한 경우 Google 계정을 승인 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#authorize-google-account](프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages])해야 합니다.
+
+
+일정을 만들면 현재 버전의 파이프라인이 자동으로 배포됩니다. 새 버전의 파이프라인으로 일정을 업데이트하려면 파이프라인을 배포 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#deploy]합니다.
+
+파이프라인의 최신 배포 버전이 선택된 시간과 빈도로 실행됩니다.
+
+--- 탭: 예약 페이지 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%EC%98%88%EC%95%BD-%ED%8E%98%EC%9D%B4%EC%A7%80] ---
+Google Cloud 콘솔에서 예약 페이지로 이동합니다.
+
+예약으로 이동 [https://console.cloud.google.com/bigquery/orchestration?hl=ko]
+만들기를 클릭한 다음 메뉴에서 파이프라인 일정을 선택합니다.
+파이프라인 예약 창에서 예약할 파이프라인을 선택합니다.
+일정 이름 필드에 일정의 이름을 입력합니다.
+인증 섹션에서 Google 계정 사용자 인증 정보 또는 서비스 계정으로 파이프라인을 승인합니다.
+
+
+Google 계정 사용자 인증 정보(프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages])를 사용하려면 내 사용자 인증 정보로 실행을 선택합니다.
+서비스 계정을 사용하려면 선택한 서비스 계정으로 실행을 선택한 후 서비스 계정을 선택합니다.
+
+파이프라인에 노트북이 포함된 경우 노트북 옵션 섹션의 런타임 템플릿 필드에서 Colab 노트북 런타임 템플릿 또는 기본 런타임 사양을 선택합니다. Colab 노트북 런타임 템플릿을 만드는 방법에 대한 자세한 내용은 런타임 템플릿 만들기 [https://cloud.google.com/colab/docs/create-runtime-template?hl=ko]를 참고하세요.
+참고: 노트북 런타임 템플릿은 파이프라인과 동일한 리전에 있어야 합니다.참고: Colab 노트북 런타임 템플릿을 사용하는 데 필요한 역할 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#required_roles]이 없더라도 기본 런타임 사양으로 파이프라인을 실행하고 예약할 수 있습니다.
+파이프라인에 노트북이 포함된 경우 Cloud Storage 버킷 필드에서 찾아보기를 클릭하고 파이프라인에서 노트북의 출력을 저장할 Cloud Storage 버킷을 선택하거나 만듭니다.
+
+선택한 서비스 계정에 선택한 버킷의 스토리지 관리자 IAM 역할이 부여되어야 합니다.
+자세한 내용은 파이프라인 예약 사용 설정 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#enable-scheduling]을 참고하세요.
+일정 빈도 섹션에서 다음을 수행합니다.
+
+
+반복 메뉴에서 예약된 파이프라인 실행 빈도를 선택합니다.
+시간 필드에 예약된 파이프라인 실행 시간을 입력합니다.
+시간대 메뉴에서 일정의 시간대를 선택합니다.
+
+일정 만들기를 클릭합니다. 인증 방법으로 내 사용자 인증 정보로 실행을 선택한 경우 Google 계정을 승인 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#authorize-google-account](프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages])해야 합니다.
+Google 계정 승인하기
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 지원을 요청하거나 의견을 제공하려면 dataform-preview-support@google.com [mailto:dataform-preview-support@google.com]으로 문의하세요.
+Google 계정 [https://cloud.google.com/iam/docs/principals-overview?hl=ko#google-account] 사용자 인증 정보로 리소스를 인증하려면 Google 계정의 액세스 토큰을 가져오고 사용자를 대신하여 소스 데이터에 액세스할 수 있도록 권한을 BigQuery 파이프라인에 수동으로 부여해야 합니다. OAuth 대화상자 인터페이스를 사용하여 수동 승인을 부여할 수 있습니다.
+BigQuery 파이프라인에 대한 권한을 한 번만 부여하면 됩니다.
+부여한 권한을 취소하려면 다음 단계를 수행합니다.
+Google 계정 페이지 [https://myaccount.google.com/?hl=ko]로 이동합니다.
+BigQuery 파이프라인을 클릭합니다.
+액세스 권한 삭제를 클릭합니다.
+경고: 액세스 권한을 취소하면 향후에 모든 리전에서 이 Google 계정에서 소유하고 있는 파이프라인이 실행되지 않습니다.
+또한 새 Google 계정 소유자가 이전에 일정을 만든 적이 없는 경우 사용자 인증 정보를 업데이트하여 파이프라인 일정 소유자를 변경하려면 수동 승인이 필요합니다.
+파이프라인에 노트북이 포함된 경우 Google 계정의 액세스 토큰을 가져오고 사용자를 대신하여 소스 데이터에 액세스할 수 있는 권한을 Colab Enterprise에게 수동으로 부여해야 합니다. 권한을 한 번만 부여하면 됩니다. Google 계정 페이지 [https://myaccount.google.com/?hl=ko]에서 이 권한을 취소할 수 있습니다.
+파이프라인 배포
+파이프라인을 배포하면 현재 버전의 파이프라인으로 일정이 업데이트됩니다. 일정은 파이프라인의 최신 배포 버전을 실행합니다.
+파이프라인을 배포하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 프로젝트와 파이프라인 폴더를 펼친 후 파이프라인을 선택합니다.
+배포를 클릭합니다.
+해당 일정이 현재 버전의 파이프라인으로 업데이트됩니다. 파이프라인의 최신 배포 버전이 예약된 시간에 실행됩니다.
+일정 사용 중지
+일정을 삭제하지 않고 선택한 파이프라인의 예약된 실행을 일시중지하려면 일정을 사용 중지하면 됩니다.
+선택한 파이프라인의 일정을 사용 중지하려면 다음 단계를 따르세요.
+--- 탭: 탐색기 창 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%ED%83%90%EC%83%89%EA%B8%B0-%EC%B0%BD] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트와 파이프라인 폴더를 펼친 후 파이프라인을 선택합니다.
+일정 보기를 클릭합니다.
+일정 세부정보 테이블의 일정 상태 행에서 일정 사용 설정됨 전환 버튼을 클릭합니다.
+
+--- 탭: 예약 페이지 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%EC%98%88%EC%95%BD-%ED%8E%98%EC%9D%B4%EC%A7%80] ---
+Google Cloud 콘솔에서 예약 페이지로 이동합니다.
+
+예약으로 이동 [https://console.cloud.google.com/bigquery/orchestration?hl=ko]
+선택한 파이프라인의 이름을 클릭합니다.
+일정 세부정보 페이지에서 사용 중지를 클릭합니다.
+일정 사용 설정
+사용 중지된 파이프라인 일정의 예약된 실행을 계속하려면 다음 단계를 따르세요.
+--- 탭: 탐색기 창 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%ED%83%90%EC%83%89%EA%B8%B0-%EC%B0%BD] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트와 파이프라인 폴더를 펼친 후 파이프라인을 선택합니다.
+일정 보기를 클릭합니다.
+일정 세부정보 표의 일정 상태 행에서 일정 사용 중지됨 전환 버튼을 클릭합니다.
+
+--- 탭: 예약 페이지 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%EC%98%88%EC%95%BD-%ED%8E%98%EC%9D%B4%EC%A7%80] ---
+Google Cloud 콘솔에서 예약 페이지로 이동합니다.
+
+예약으로 이동 [https://console.cloud.google.com/bigquery/orchestration?hl=ko]
+선택한 파이프라인의 이름을 클릭합니다.
+일정 세부정보 페이지에서 사용 설정을 클릭합니다.
+배포된 파이프라인 수동 실행
+배포된 파이프라인을 선택한 일정으로 수동으로 실행하면 BigQuery는 일정과 관계없이 배포된 파이프라인을 한 번 실행합니다.
+배포된 파이프라인을 수동으로 실행하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 예약 페이지로 이동합니다.
+예약으로 이동 [https://console.cloud.google.com/bigquery/orchestration?hl=ko]
+선택한 파이프라인 일정의 이름을 클릭합니다.
+일정 세부정보 페이지에서 실행을 클릭합니다.
+모든 파이프라인 일정 보기
+Google Cloud 프로젝트의 모든 파이프라인 일정을 보려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 예약 페이지로 이동합니다.
+예약으로 이동 [https://console.cloud.google.com/bigquery/orchestration?hl=ko]
+(선택사항) 파이프라인 일정 세부정보가 포함된 열을 추가로 표시하려면 view_column 열 표시 옵션을 클릭한 다음 열을 선택하고 확인을 클릭합니다.
+파이프라인 일정 세부정보 보기
+선택한 파이프라인 일정의 세부정보를 보려면 다음 단계를 따르세요.
+--- 탭: 탐색기 창 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%ED%83%90%EC%83%89%EA%B8%B0-%EC%B0%BD] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트와 파이프라인 폴더를 펼친 후 파이프라인을 선택합니다.
+일정 보기를 클릭합니다.
+
+--- 탭: 예약 페이지 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%EC%98%88%EC%95%BD-%ED%8E%98%EC%9D%B4%EC%A7%80] ---
+Google Cloud 콘솔에서 예약 페이지로 이동합니다.
+
+예약으로 이동 [https://console.cloud.google.com/bigquery/orchestration?hl=ko]
+선택한 파이프라인 일정의 이름을 클릭합니다.
+이전에 예약된 실행 보기
+선택한 파이프라인 일정의 이전 실행을 보려면 다음 단계를 따르세요.
+--- 탭: 탐색기 창 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%ED%83%90%EC%83%89%EA%B8%B0-%EC%B0%BD] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트와 파이프라인 폴더를 펼친 후 파이프라인을 선택합니다.
+실행을 클릭합니다.
+(선택사항) 이전 실행 목록을 새로고침하려면 새로고침을 클릭합니다.
+
+--- 탭: 예약 페이지 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%EC%98%88%EC%95%BD-%ED%8E%98%EC%9D%B4%EC%A7%80] ---
+Google Cloud 콘솔에서 예약 페이지로 이동합니다.
+
+예약으로 이동 [https://console.cloud.google.com/bigquery/orchestration?hl=ko]
+선택한 파이프라인의 이름을 클릭합니다.
+일정 세부정보 페이지의 이전 실행 섹션에서 이전 실행을 검사합니다.
+(선택사항) 이전 실행 목록을 새로고침하려면 새로고침을 클릭합니다.
+파이프라인 일정 수정
+파이프라인 일정을 수정하려면 다음 단계를 따르세요.
+--- 탭: 탐색기 창 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%ED%83%90%EC%83%89%EA%B8%B0-%EC%B0%BD] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트와 파이프라인 폴더를 펼친 후 파이프라인을 선택합니다.
+일정 보기를 클릭한 다음 수정을 클릭합니다.
+파이프라인 예약 대화상자에서 일정을 수정한 다음 일정 업데이트를 클릭합니다.
+
+--- 탭: 예약 페이지 [https://cloud.google.com/bigquery/docs/schedule-pipelines?hl=ko#%EC%98%88%EC%95%BD-%ED%8E%98%EC%9D%B4%EC%A7%80] ---
+Google Cloud 콘솔에서 예약 페이지로 이동합니다.
+
+예약으로 이동 [https://console.cloud.google.com/bigquery/orchestration?hl=ko]
+선택한 파이프라인의 이름을 클릭합니다.
+일정 세부정보 페이지에서 수정을 클릭합니다.
+일정 보기를 클릭한 다음 수정을 클릭합니다.
+파이프라인 예약 대화상자에서 일정을 수정한 다음 일정 업데이트를 클릭합니다.
+파이프라인 일정 삭제
+파이프라인 일정을 영구적으로 삭제하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 예약 페이지로 이동합니다.
+예약으로 이동 [https://console.cloud.google.com/bigquery/orchestration?hl=ko]
+다음 작업 중 하나를 수행합니다.
+선택한 파이프라인 일정의 이름을 클릭한 다음 일정 세부정보 페이지에서 삭제를 클릭합니다.
+선택한 파이프라인 일정이 포함된 행에서 작업 열의 more_vert 작업 보기를 클릭한 다음 삭제를 클릭합니다.
+대화상자가 표시되면 삭제를 클릭합니다.
+다음 단계
+BigQuery의 파이프라인 [https://cloud.google.com/bigquery/docs/pipelines-introduction?hl=ko]에 대해 자세히 알아보기
+파이프라인을 만드는 방법 [https://cloud.google.com/bigquery/docs/create-pipelines?hl=ko] 알아보기
+도움이 되었나요?
+의견 보내기

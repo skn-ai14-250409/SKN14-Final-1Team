@@ -1,0 +1,272 @@
+Source URL: https://cloud.google.com/bigquery/docs/glue-federated-datasets
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/glue-federated-datasets?hl=ko#before_you_begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/glue-federated-datasets?hl=ko#required_permissions]
+제휴 데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/glue-federated-datasets?hl=ko#create_a_federated_dataset]
+제휴 데이터 세트의 테이블 나열 [https://cloud.google.com/bigquery/docs/glue-federated-datasets?hl=ko#list_tables_in_a_federated_dataset]
+테이블 정보 가져오기 [https://cloud.google.com/bigquery/docs/glue-federated-datasets?hl=ko#get_table_information]
+AWS Glue 제휴 데이터 세트 만들기
+bookmark_border
+이 문서에서는 AWS Glue의 기존 데이터베이스에 연결된 제휴 데이터 세트를 BigQuery에서 만드는 방법을 설명합니다.
+제휴 데이터 세트는 데이터 세트 수준에서 BigQuery와 외부 데이터 소스 간의 연결입니다. 제휴 데이터 세트의 테이블은 해당 외부 데이터 소스의 테이블에서 자동으로 채워집니다. BigQuery에서 이러한 테이블을 직접 쿼리할 수 있지만 수정, 추가 또는 삭제할 수는 없습니다. 하지만 외부 데이터 소스에서 적용한 업데이트는 자동으로 BigQuery에 반영됩니다.
+시작하기 전에
+AWS Glue 데이터에 액세스할 수 있는 연결이 있는지 확인합니다.
+연결을 만들거나 수정하려면 Amazon S3에 연결 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko]의 안내를 따르세요. 해당 연결을 만들 때 BigQuery용 AWS Identity and Access Management 정책 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#creating-aws-iam-policy]에서 AWS Glue에 다음 정책 문을 포함합니다. AWS Glue 테이블의 데이터가 저장된 Amazon S3 버킷에 대한 다른 권한 외에 이 문을 포함합니다.
+{
+ "Effect": "Allow",
+ "Action": [
+   "glue:GetDatabase",
+   "glue:GetTable",
+   "glue:GetTables",
+   "glue:GetPartitions"
+ ],
+ "Resource": [
+   "arn:aws:glue:
+REGION:
+ACCOUNT_ID:catalog",
+   "arn:aws:glue:
+REGION:
+ACCOUNT_ID:database/
+DATABASE_NAME",
+   "arn:aws:glue:
+REGION:
+ACCOUNT_ID:table/
+DATABASE_NAME/*"
+ ]
+}
+다음을 바꿉니다.
+REGION: AWS 리전(예: us-east-1).
+ACCOUNT_ID:: 12자리 AWS 계정 ID
+DATABASE_NAME: AWS Glue 데이터베이스 이름
+필수 권한
+제휴 데이터 세트를 만드는 데 필요한 권한을 얻으려면 관리자에게 BigQuery 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.admin](roles/bigquery.admin) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이 사전 정의된 역할에는 제휴 데이터 세트를 만드는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+제휴 데이터 세트 만들기
+제휴 데이터 세트를 만들려면 다음을 수행합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/glue-federated-datasets?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 패널에서 데이터 세트를 만들 프로젝트를 선택합니다.
+more_vert작업 옵션을 펼치고 데이터 세트 만들기를 클릭합니다.
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 고유한 데이터 세트 이름을 입력합니다.
+위치 유형에서 aws-us-east-1과 같은 데이터 세트의 AWS 위치를 선택합니다. 데이터 세트를 만든 후에는 위치를 변경할 수 없습니다.
+외부 데이터 세트의 경우 다음을 수행합니다.
+
+
+외부 데이터 세트 링크 옆의 상자를 선택합니다.
+외부 데이터 세트 유형으로 AWS Glue를 선택합니다.
+외부 소스에 대해 AWS Glue 데이터베이스의 aws-glue://와 Amazon 리소스 이름(ARN) [https://docs.aws.amazon.com/glue/latest/dg/glue-specifying-resource-arns.html]을 입력합니다. 예: aws-glue://arn:aws:glue:us-east-1:123456789:database/test_database.
+연결 ID로 AWS 연결을 선택합니다.
+
+다른 기본 설정은 그대로 둡니다.
+
+데이터 세트 만들기를 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/glue-federated-datasets?hl=ko#sql] ---
+CREATE EXTERNAL SCHEMA 데이터 정의 언어(DDL) 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_schema_statement]을 사용합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE EXTERNAL SCHEMA DATASET_NAME
+WITH CONNECTION PROJECT_ID.CONNECTION_LOCATION.CONNECTION_NAME
+  OPTIONS (
+    external_source = 'AWS_GLUE_SOURCE',
+    location = 'LOCATION');
+
+
+다음을 바꿉니다.
+
+  DATASET_NAME: BigQuery의 새 데이터 세트 이름
+  PROJECT_ID: 프로젝트 ID
+  CONNECTION_LOCATION: AWS 연결의 위치(예: aws-us-east-1)
+  CONNECTION_NAME: AWS 연결의 이름
+  AWS_GLUE_SOURCE: 소스를 식별하는 프리픽스가 있는 AWS Glue 데이터베이스의 Amazon Resource Name(ARN) [https://docs.aws.amazon.com/glue/latest/dg/glue-specifying-resource-arns.html](예: aws-glue://arn:aws:glue:us-east-1:123456789:database/test_database) 
+  LOCATION: BigQuery의 새 데이터 세트의 위치(예: aws-us-east-1). 데이터 세트를 만든 후에는 위치를 변경할 수 없습니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/glue-federated-datasets?hl=ko#bq] ---
+명령줄 환경에서 bq mk 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset]를 사용하여 데이터 세트를 만듭니다.
+
+bq --location=LOCATION mk --dataset \
+    --external_source aws-glue://AWS_GLUE_SOURCE \
+    --connection_id PROJECT_ID.CONNECTION_LOCATION.CONNECTION_NAME \
+    DATASET_NAME
+
+다음을 바꿉니다.
+
+
+LOCATION: BigQuery의 새 데이터 세트 위치(예: aws-us-east-1). 데이터 세트를 만든 후에는 위치를 변경할 수 없습니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 기본 위치 값을 설정할 수 있습니다.
+AWS_GLUE_SOURCE: AWS Glue 데이터베이스의 Amazon Resource Name(ARN) [https://docs.aws.amazon.com/glue/latest/dg/glue-specifying-resource-arns.html]입니다(예: arn:aws:glue:us-east-1:123456789:database/test_database).
+PROJECT_ID: BigQuery 프로젝트 ID입니다.
+CONNECTION_LOCATION: AWS 연결 위치(예: aws-us-east-1)
+CONNECTION_NAME: AWS 연결 이름
+DATASET_NAME: BigQuery의 새 데이터 세트 이름입니다. 기본 프로젝트가 아닌 다른 프로젝트에서 데이터 세트를 만들려면 해당 프로젝트 ID를 다음 형식으로 데이터 세트 이름에 추가하세요.
+PROJECT_ID:DATASET_NAME.
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/glue-federated-datasets?hl=ko#terraform] ---
+google_bigquery_dataset 리소스 [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_dataset#example-usage---bigquery-dataset-external-reference-aws-docs]를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 AWS Glue 제휴 데이터 세트를 만듭니다.
+
+resource "google_bigquery_dataset" "dataset" {
+  provider                    = google-beta
+  dataset_id                  = "example_dataset"
+  friendly_name               = "test"
+  description                 = "This is a test description."
+  location                    = "aws-us-east-1"
+
+external_dataset_reference {
+  external_source = "aws-glue://arn:aws:glue:us-east-1:999999999999:database/database"
+  connection      = "projects/project/locations/aws-us-east-1/connections/connection"
+  }
+}
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+
+--- 탭: tabpanel-api ---
+AWS Glue 데이터베이스용으로 데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko] 및 externalDatasetReference 필드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko#ExternalDatasetReference]가 정의된 datasets.insert 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko]를 호출합니다.
+제휴 데이터 세트의 테이블 나열
+제휴 데이터 세트에서 쿼리할 수 있는 테이블을 나열하려면 데이터 세트 나열 [https://cloud.google.com/bigquery/docs/listing-datasets?hl=ko]을 참조하세요.
+테이블 정보 가져오기
+스키마 세부정보와 같은 제휴 데이터 세트의 테이블에 대한 정보를 가져오려면 테이블 정보 가져오기 [https://cloud.google.com/bigquery/docs/tables?hl=ko#get_table_information]를 참조하세요.
+테이블에 대한 액세스 제어
+제휴 데이터 세트의 테이블에 대한 액세스 권한을 관리하려면 IAM으로 리소스 액세스 제어 [https://cloud.google.com/bigquery/docs/control-access-to-resources-iam?hl=ko]를 참조하세요.
+제휴 데이터 세트의 테이블에도 행 수준 보안 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko], 열 수준 보안 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko], 데이터 마스킹 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko]이 지원됩니다.
+AWS Glue에서 열을 삭제하는 등 보안 정책을 무효화할 수 있는 스키마 작업을 실행하면 정책이 업데이트될 때까지 작업이 실패할 수 있습니다. 또한 AWS Glue에서 테이블을 삭제하고 다시 만들면 보안 정책이 다시 만든 테이블에 적용되지 않습니다.
+AWS Glue 데이터 쿼리
+제휴 데이터 세트의 테이블 쿼리 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko]는 다른 BigQuery 데이터 세트의 테이블 쿼리와 동일합니다.
+다음 형식으로 AWS Glue 테이블을 쿼리할 수 있습니다.
+CSV(압축 및 비압축)
+JSON(압축 및 비압축)
+Parquet
+ORC
+Avro
+Iceberg
+Delta Lake
+테이블 매핑 세부정보
+AWS Glue 데이터베이스에서 액세스 권한을 부여한 모든 테이블이 BigQuery 데이터 세트에 상응하는 테이블로 표시됩니다.
+형식
+각 BigQuery 테이블 형식은 각 AWS Glue 테이블 [https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-tables.html#aws-glue-api-catalog-tables-Table]의 다음 필드에 따라 결정됩니다.
+InputFormat(Table.StorageDescriptor.InputFormat)
+OutputFormat(Table.StorageDescriptor.OutputFormat)
+SerializationLib(Table.StorageDescriptor.SerdeInfo.SerializationLibrary)
+유일한 예외는 Iceberg 테이블로, 이 테이블에서는 TableType(Table.Parameters["table_type"]) 필드를 사용합니다.
+예를 들어 다음 필드가 있는 AWS Glue 테이블은 BigQuery의 ORC 테이블에 매핑됩니다.
+InputFormat = "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat"
+OutputFormat = "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"
+SerializationLib = "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
+위치
+각 BigQuery 테이블 위치는 다음에 따라 결정됩니다.
+Iceberg 테이블: AWS Glue 테이블의 Table.Parameters["metadata_location"] 필드
+비Iceberg 파티션을 나누지 않은 테이블: AWS Glue 테이블의 Table.StorageDescriptor.Location 필드
+비Iceberg 파티션을 나눈 테이블: AWS Glue GetPartitions API
+기타 속성
+또한 일부 AWS Glue 테이블 속성은 BigQuery의 형식별 옵션에 자동으로 매핑됩니다.
+형식 SerializationLib AWS Glue 테이블 값 BigQuery 옵션
+CSV LazySimpleSerDe Table.StorageDescriptor.SerdeInfo.Parameters["field.delim"] CsvOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#csvoptions].fieldDelimiter
+CSV LazySimpleSerDe Table.StorageDescriptor.Parameters["serialization.encoding"] CsvOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#csvoptions].encoding
+CSV LazySimpleSerDe Table.StorageDescriptor.Parameters["skip.header.line.count"] CsvOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#csvoptions].skipLeadingRows
+CSV OpenCsvSerDe Table.StorageDescriptor.SerdeInfo.Parameters["separatorChar"] CsvOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#csvoptions].fieldDelimiter
+CSV OpenCsvSerDe Table.StorageDescriptor.SerdeInfo.Parameters["quoteChar"] CsvOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#csvoptions].quote
+CSV OpenCsvSerDe Table.StorageDescriptor.Parameters["serialization.encoding"] CsvOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#csvoptions].encoding
+CSV OpenCsvSerDe Table.StorageDescriptor.Parameters["skip.header.line.count"] CsvOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#csvoptions].skipLeadingRows
+JSON Hive JsonSerDe [https://github.com/apache/hive/blob/master/hcatalog/core/src/main/java/org/apache/hive/hcatalog/data/JsonSerDe.java] Table.StorageDescriptor.Parameters["serialization.encoding"] JsonOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#jsonoptions].encoding
+제휴 데이터 세트에서 뷰 만들기
+제휴 데이터 세트에서 뷰를 만들 수 없습니다. 하지만 제휴 데이터 세트의 테이블을 기반으로 하는 표준 데이터 세트에서 뷰를 만들 수 있습니다. 자세한 내용은 뷰 만들기 [https://cloud.google.com/bigquery/docs/views?hl=ko]를 참조하세요.
+제휴 데이터 세트 삭제
+제휴 데이터 세트 삭제는 다른 BigQuery 데이터 세트 삭제와 동일합니다. 자세한 내용은 데이터 세트 삭제 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#delete-datasets]를 참조하세요.
+가격 책정
+가격 책정에 대한 자세한 내용은 BigQuery Omni 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqomni]을 참조하세요.
+제한사항
+모든 BigQuery Omni 제한사항 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#limitations]이 적용됩니다.
+AWS Glue 제휴 데이터 세트의 테이블에서 데이터나 메타데이터를 추가, 삭제 또는 업데이트할 수 없습니다.
+AWS Glue 제휴 데이터 세트에는 새 테이블, 뷰, 구체화된 뷰를 만들 수 없습니다.
+INFORMATION_SCHEMA 뷰 [https://cloud.google.com/bigquery/docs/information-schema-intro?hl=ko]는 지원되지 않습니다.
+메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]은 지원되지 않습니다.
+수동으로 테이블을 만들 수 없으므로 테이블 생성 기본값과 관련된 데이터 세트 수준 설정은 제휴 데이터 세트에 영향을 미치지 않습니다.
+Apache Hive 데이터 유형 UNION은 Avro 테이블에서 지원되지 않습니다.
+외부 테이블 제한사항 [https://cloud.google.com/bigquery/docs/external-tables?hl=ko#limitations]이 적용됩니다.
+다음 단계
+BigQuery Omni [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko] 자세히 알아보기
+AWS에서 BigQuery Omni 실습 [https://www.cloudskillsboost.google/catalog_lab/5345?hl=ko] 사용해보기
+도움이 되었나요?
+의견 보내기

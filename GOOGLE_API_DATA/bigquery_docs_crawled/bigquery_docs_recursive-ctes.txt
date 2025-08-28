@@ -1,0 +1,272 @@
+Source URL: https://cloud.google.com/bigquery/docs/recursive-ctes
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+재귀적 CTE를 사용한 작업
+bookmark_border
+이 페이지의 내용
+재귀적 CTE 만들기 [https://cloud.google.com/bigquery/docs/recursive-ctes?hl=ko#create-recursive-cte]
+방향성 비순환 그래프(DAG)의 연결 가능성 살펴보기 [https://cloud.google.com/bigquery/docs/recursive-ctes?hl=ko#explore-recursive-cte-dag]
+반복 한도 오류 문제 해결 [https://cloud.google.com/bigquery/docs/recursive-ctes?hl=ko#troubleshoot]
+무한 재귀 점검 [https://cloud.google.com/bigquery/docs/recursive-ctes?hl=ko#check-infinite-recursion]
+재귀적 CTE의 적절한 사용 확인 [https://cloud.google.com/bigquery/docs/recursive-ctes?hl=ko#verify-cte-usage]
+재귀적 CTE를 여러 개의 재귀적 CTE로 분할 [https://cloud.google.com/bigquery/docs/recursive-ctes?hl=ko#split-ctes]
+재귀적 CTE 대신 루프 사용 [https://cloud.google.com/bigquery/docs/recursive-ctes?hl=ko#use-a-loop]
+재귀적 한도 변경 [https://cloud.google.com/bigquery/docs/recursive-ctes?hl=ko#remove-limit]
+BigQuery용 GoogleSQL에서 WITH 절에는 쿼리 표현식에서 참조할 수 있는 하나 이상의 공통 테이블 표현식(CTE)이 포함됩니다. CTE는 비재귀적 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#simple_cte]이거나 재귀적 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#recursive_cte]이거나 또는 둘 다일 수 있습니다. RECURSIVE [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#recursive_keyword] 키워드는 WITH 절(WITH RECURSIVE)에서 재귀를 사용 설정합니다.
+재귀적 CTE는 자체, 이전 CTE 또는 후속 CTE를 참조할 수 있습니다. 비재귀적 CTE는 앞의 CTE만 참조할 수 있으며 자체 CTE는 참조할 수 없습니다. 재귀적 CTE는 새 결과가 발견되지 않을 때까지 지속적으로 실행되지만 비재귀적 CTE는 1회만 실행됩니다. 이러한 이유로 재귀적 CTE는 계층적 데이터 및 그래프 데이터를 쿼리하는 데 일반적으로 사용됩니다.
+예를 들어 각 행이 다른 노드에 연결할 수 있는 노드를 나타내는 그래프를 가정해 보겠습니다. 최대 홉 수를 알 수 없지만 특정 시작 노드에서 연결할 수 있는 모든 노드의 전환 종료를 찾으려면 쿼리(WITH RECURSIVE)에 재귀적 CTE가 필요합니다. 재귀 쿼리는 시작 노드의 기본 사례로 시작하며 각 단계는 지금까지 확인된 모든 노드에서 연결될 수 있는 새로운 확인되지 않은 노드를 계산합니다. 새 노드를 찾을 수 없으면 쿼리가 종료됩니다.
+그러나 재귀적 CTE는 컴퓨팅 비용이 많이 들 수 있으므로 이를 사용하기 전에 이 가이드와 GoogleSQL 참고 문서의 WITH 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#with_clause] 섹션을 검토하는 것이 좋습니다.
+재귀적 CTE 만들기
+GoogleSQL에서 재귀적 CTE를 만들려면 다음 예시와 같이 WITH RECURSIVE 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#with_clause]을 사용하세요.
+WITH RECURSIVE
+  CTE_1 AS (
+    (SELECT 1 AS iteration UNION ALL SELECT 1 AS iteration)
+    UNION ALL
+    SELECT iteration + 1 AS iteration FROM CTE_1 WHERE iteration < 3
+  )
+SELECT iteration FROM CTE_1
+ORDER BY 1 ASC
+앞의 예시는 다음 결과를 생성합니다.
+/*-----------*
+ | iteration |
+ +-----------+
+ | 1         |
+ | 1         |
+ | 2         |
+ | 2         |
+ | 3         |
+ | 3         |
+ *-----------*/
+재귀적 CTE에는 기본 항, 합집합 연산자, 재귀적 항이 포함됩니다. 기본 항은 재귀적 합집합 연산의 처음 반복을 실행합니다. 재귀적 항은 나머지 반복을 실행하며 재귀적 CTE에 대한 하나의 자체 참조를 포함해야 합니다. 재귀적 항만 자체 참조를 포함할 수 있습니다.
+앞의 예시에서 재귀적 CTE는 다음 구성요소를 포함합니다.
+재귀적 CTE 이름: CTE_1
+기본 항: SELECT 1 AS iteration
+통합 연산자: UNION ALL
+재귀 항: SELECT iteration + 1 AS iteration FROM CTE_1 WHERE iteration < 3
+재귀적 CTE 구문, 규칙, 예시에 대한 자세한 내용은 GoogleSQL 참고 문서의 WITH 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#with_clause]을 참조하세요.
+방향성 비순환 그래프(DAG)의 연결 가능성 살펴보기
+재귀적 쿼리를 사용하여 방향성 비순환 그래프(DAG)의 연결 가능성을 살펴볼 수 있습니다. 다음 쿼리는 GraphData라는 그래프의 5 노드에서 연결할 수 있는 모든 노드를 찾습니다.
+WITH RECURSIVE
+  GraphData AS (
+    --    1          5
+    --   / \        / \
+    --  2 - 3      6   7
+    --      |       \ /
+    --      4        8
+    SELECT 1 AS from_node, 2 AS to_node UNION ALL
+    SELECT 1, 3 UNION ALL
+    SELECT 2, 3 UNION ALL
+    SELECT 3, 4 UNION ALL
+    SELECT 5, 6 UNION ALL
+    SELECT 5, 7 UNION ALL
+    SELECT 6, 8 UNION ALL
+    SELECT 7, 8
+  ),
+  R AS (
+    (SELECT 5 AS node)
+    UNION ALL
+    (
+      SELECT GraphData.to_node AS node
+      FROM R
+      INNER JOIN GraphData
+        ON (R.node = GraphData.from_node)
+    )
+  )
+SELECT DISTINCT node FROM R ORDER BY node;
+앞의 예시는 다음 결과를 생성합니다.
+/*------*
+ | node |
+ +------+
+ | 5    |
+ | 6    |
+ | 7    |
+ | 8    |
+ *------*/
+반복 한도 오류 문제 해결
+재귀적 CTE는 재귀적 항이 종료 조건을 충족시키지 않고 계속해서 실행될 때 발생하는 무한 재귀를 일으킬 수 있습니다. 무한 재귀를 종료하기 위해 각 재귀적 CTE에 대한 반복 한도가 적용됩니다. BigQuery의 경우 반복 한도는 500회 반복입니다. 재귀적 CTE가 최대 반복 수에 도달하면 CTE 실행이 오류와 함께 중단됩니다.
+재귀적 CTE 계산은 비용이 많이 들 수 있고, 반복 횟수가 많은 CTE를 실행하려면 많은 시스템 리소스를 소비하고 완료까지 훨씬 더 많은 시간이 걸리기 때문에 이렇게 한도를 두어야 합니다.
+반복 한도에 도달하는 쿼리는 일반적으로 적절한 종료 조건이 없어서 무한 루프가 생성되거나 부적절한 시나리오에서 재귀적 CTE를 사용합니다.
+반복 한도 오류가 발생하면 이 섹션의 제안사항을 검토하세요.
+무한 재귀 점검
+무한 재귀를 방지하려면 특정 반복 횟수를 실행한 후 재귀적 항이 빈 결과를 생성할 수 있는지 확인합니다.
+무한 재귀를 점검하는 한 가지 방법은 다음과 같이 첫 번째 100 반복에 대해 REPEAT 루프가 있는 재귀적 CTE를 TEMP TABLE로 변환하는 것입니다.
+DECLARE current_iteration INT64 DEFAULT 0;
+
+CREATE TEMP TABLE 
+recursive_cte_name AS
+SELECT 
+base_expression, current_iteration AS iteration;
+
+REPEAT
+  SET current_iteration = current_iteration + 1;
+  INSERT INTO 
+recursive_cte_name
+    SELECT 
+recursive_expression, current_iteration
+    FROM 
+recursive_cte_name
+    WHERE 
+termination_condition_expression
+      AND iteration = current_iteration - 1
+      AND current_iteration < 100;
+  UNTIL NOT EXISTS(SELECT * FROM 
+recursive_cte_name WHERE iteration = current_iteration)
+END REPEAT;
+다음 값을 바꿉니다.
+recursive_cte_name: 디버깅할 재귀적 CTE
+base_expression: 재귀적 CTE의 기본 항
+recursive_expression: 재귀적 CTE의 재귀적 항
+termination_condition_expression: 재귀적 CTE의 종료 표현식
+예를 들어 TestCTE라는 다음과 같은 재귀적 CTE를 고려해 보세요.
+WITH RECURSIVE
+  TestCTE AS (
+    SELECT 1 AS n
+    UNION ALL
+    SELECT n + 3 FROM TestCTE WHERE MOD(n, 6) != 0
+  )
+이 예시에서는 다음 값을 사용합니다.
+recursive_cte_name: TestCTE
+base_expression: SELECT 1
+recursive_expression: n + 3
+termination_condition_expression: MOD(n, 6) != 0
+따라서 다음 코드는 무한 반복에 대해 TestCTE를 테스트합니다.
+DECLARE current_iteration INT64 DEFAULT 0;
+
+CREATE TEMP TABLE TestCTE AS
+SELECT 1 AS n, current_iteration AS iteration;
+
+REPEAT
+SET current_iteration = current_iteration + 1;
+
+INSERT INTO TestCTE
+SELECT n + 3, current_iteration
+FROM TestCTE
+WHERE
+  MOD(n, 6) != 0
+  AND iteration = current_iteration - 1
+  AND current_iteration < 10;
+
+UNTIL
+  NOT EXISTS(SELECT * FROM TestCTE WHERE iteration = current_iteration)
+    END REPEAT;
+
+-- Print the number of rows produced by each iteration
+
+SELECT iteration, COUNT(1) AS num_rows
+FROM TestCTE
+GROUP BY iteration
+ORDER BY iteration;
+
+-- Examine the actual result produced for a specific iteration
+
+SELECT * FROM TestCTE WHERE iteration = 2;
+위의 예시에서는 반복 ID와 해당 반복 중에 생성된 행 수를 포함하는 다음 결과가 생성됩니다.
+/*-----------+----------*
+ | iteration | num_rows |
+ +-----------+----------+
+ | 0         | 1        |
+ | 1         | 1        |
+ | 2         | 1        |
+ | 3         | 1        |
+ | 4         | 1        |
+ | 5         | 1        |
+ | 6         | 1        |
+ | 7         | 1        |
+ | 8         | 1        |
+ | 9         | 1        |
+ | 10        | 1        |
+ *-----------+----------*/
+다음은 반복 2 중에 생성된 실제 결과입니다.
+/*----------+-----------*
+ | n        | iteration |
+ +----------+-----------+
+ | 7        | 2         |
+ *----------+-----------*/
+행 수가 항상 0보다 크면(이 예시의 경우 true) 샘플의 무한 반복이 발생할 수 있습니다.
+재귀적 CTE의 적절한 사용 확인
+적절한 시나리오에서 재귀적 CTE를 사용하고 있는지 확인하세요. 재귀적 CTE는 계층적 데이터 및 그래프 데이터를 쿼리하도록 설계되었기 때문에 계산 비용이 비쌀 수 있습니다. 이 두 가지 종류의 데이터를 쿼리하지 않는 경우 비재귀적 CTE와 함께 LOOP 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#loop]을 사용하는 등의 다른 대안을 고려하세요.
+재귀적 CTE를 여러 개의 재귀적 CTE로 분할
+재귀적 CTE에 허용되는 최대 반복보다 더 많이 필요하다고 생각되면 재귀적 CTE를 여러 개의 재귀적 CTE로 나눌 수 있습니다.
+다음과 유사한 쿼리 구조를 사용하여 재귀적 CTE를 분할할 수 있습니다.
+WITH RECURSIVE
+  CTE_1 AS (
+    SELECT 
+base_expression
+    UNION ALL
+    SELECT 
+recursive_expression FROM CTE_1 WHERE iteration < 500
+  ),
+  CTE_2 AS (
+    SELECT * FROM CTE_1 WHERE iteration = 500
+    UNION ALL
+    SELECT 
+recursive_expression FROM CTE_2 WHERE iteration < 500 * 2
+  ),
+  CTE_3 AS (
+    SELECT * FROM CTE_2 WHERE iteration = 500 * 2
+    UNION ALL
+    SELECT 
+recursive_expression FROM CTE_3 WHERE iteration < 500 * 3
+  ),
+  
+[, ...]
+SELECT * FROM CTE_1
+UNION ALL SELECT * FROM CTE_2 WHERE iteration > 500
+UNION ALL SELECT * FROM CTE_3 WHERE iteration > 500 * 2
+[...]
+다음 값을 바꿉니다.
+base_expression: 현재 CTE의 기본 항 표현식
+recursive_expression: 현재 CTE의 재귀적 항 표현식
+예를 들어 다음 코드는 CTE를 3개의 개별 CTE로 분할합니다.
+WITH RECURSIVE
+  CTE_1 AS (
+    SELECT 1 AS iteration
+    UNION ALL
+    SELECT iteration + 1 AS iteration FROM CTE_1 WHERE iteration < 10
+  ),
+  CTE_2 AS (
+    SELECT * FROM CTE_1 WHERE iteration = 10
+    UNION ALL
+    SELECT iteration + 1 AS iteration FROM CTE_2 WHERE iteration < 10 * 2
+  ),
+  CTE_3 AS (
+    SELECT * FROM CTE_2 WHERE iteration = 10 * 2
+    UNION ALL
+    SELECT iteration + 1 AS iteration FROM CTE_3 WHERE iteration < 10 * 3
+  )
+SELECT iteration FROM CTE_1
+UNION ALL
+SELECT iteration FROM CTE_2 WHERE iteration > 10
+UNION ALL
+SELECT iteration FROM CTE_3 WHERE iteration > 20
+ORDER BY 1 ASC
+위 예시에서는 반복 500회가 반복 10회로 변경되어 쿼리 결과를 더 빠르게 확인할 수 있습니다. 이 쿼리는 30개의 행을 생성하지만 각 재귀적 CTE는 10번만 반복됩니다. 출력은 다음과 같이 표시됩니다.
+/*-----------*
+ | iteration |
+ +-----------+
+ | 2         |
+ | ...       |
+ | 30        |
+ *-----------*/
+이전 쿼리를 훨씬 더 큰 반복으로 테스트할 수 있습니다.
+재귀적 CTE 대신 루프 사용
+반복 제한을 방지하려면 재귀적 CTE 대신 루프를 사용하는 것이 좋습니다. LOOP, REPEAT 또는 WHILE 같은 여러 루프 문 중 하나로 루프를 만들 수 있습니다. 자세한 내용은 루프 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#loops]를 참고하세요.
+재귀적 한도 변경
+다음 요소에 해당한다고 생각되면 고객 관리에 문의하여 재귀적 한도를 늘리세요.
+재귀적 CTE가 500회 이상 반복되어야 하는 합당한 이유가 있는 경우
+훨씬 더 오래 실행해도 괜찮은 경우
+재귀적 한도를 늘리면 다음과 같은 잠재적인 위험이 있습니다.
+CTE가 메모리 초과 또는 제한 시간과 같은 다른 오류 메시지가 표시되면서 실패할 수 있습니다.
+프로젝트에서 주문형 가격 책정 모델을 사용하는 경우 정액제 용량 기반 가격 책정 모델로 전환할 때까지 CTE가 결제 등급 오류와 함께 실패할 수 있습니다.
+반복 횟수가 많은 재귀적 CTE는 많은 리소스를 사용합니다. 공유 리소스에 대해 경쟁하므로 동일한 예약에서 실행 중인 다른 쿼리에 영향을 줄 수 있습니다.
+가격 책정
+주문형 결제 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]를 사용하는 경우 BigQuery는 재귀적 CTE가 있는 쿼리를 실행하는 동안 처리된 바이트 수를 기준으로 요금을 청구합니다.
+자세한 내용은 쿼리 크기 계산 [https://cloud.google.com/bigquery/docs/estimate-costs?hl=ko#query_size_calculation]을 참조하세요.
+할당량
+재귀적 CTE 할당량 및 한도에 대한 자세한 내용은 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#recursive-ctes-limits]를 참조하세요.
+도움이 되었나요?
+의견 보내기

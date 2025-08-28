@@ -1,0 +1,793 @@
+Source URL: https://cloud.google.com/bigquery/docs/omni-aws-create-connection
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#required_roles]
+BigQuery용 AWS IAM 정책 만들기 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#creating-aws-iam-policy]
+BigQuery용 AWS IAM 역할 만들기 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#creating-aws-iam-role]
+연결 만들기 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#creating-aws-connection]
+Amazon S3에 연결
+bookmark_border
+BigQuery 관리자는 데이터 분석가가 Amazon Simple Storage Service(Amazon S3) 버킷에 저장된 데이터에 액세스할 수 있도록 연결 [https://cloud.google.com/bigquery/docs/connections-api-intro?hl=ko]을 만들 수 있습니다.
+BigQuery Omni [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko]는 연결을 통해 Amazon S3 데이터에 액세스합니다. 각 연결에는 고유한 Amazon Web Services (AWS) ID 및 액세스 관리 (IAM) 사용자가 있습니다. AWS IAM 역할을 통해 사용자에게 권한을 부여합니다. AWS IAM 역할의 정책에 따라 BigQuery가 각 연결에서 액세스할 수 있는 데이터가 결정됩니다.
+연결이 Amazon S3 데이터를 쿼리 [https://cloud.google.com/bigquery/docs/omni-aws-create-external-table?hl=ko]하고 BigQuery에서 Amazon S3 버킷으로 쿼리 결과를 내보내려면 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko] 연결이 필요합니다.
+시작하기 전에
+다음 리소스를 만들었는지 확인합니다.
+BigQuery Connection API [https://console.cloud.google.com/apis/library/bigqueryconnection.googleapis.com?hl=ko]가 사용 설정된 Google Cloud 프로젝트 [https://cloud.google.com/docs/overview?hl=ko#projects]
+용량 기반 가격 책정 모델을 사용하는 경우 프로젝트에 BigQuery Reservation API [https://console.cloud.google.com/apis/library/bigqueryreservation.googleapis.com?hl=ko]를 사용 설정했는지 확인합니다. 가격 책정에 대한 자세한 내용은 BigQuery Omni 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqomni]을 참고하세요.
+AWS에서 IAM 정책을 수정할 권한이 있는 AWS 계정 [https://aws.amazon.com/premiumsupport/knowledge-center/create-and-activate-aws-account/].
+필요한 역할
+연결을 만들어 Amazon S3 데이터에 액세스하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트의 BigQuery 연결 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.connectionAdmin] (roles/bigquery.connectionAdmin) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+BigQuery용 AWS IAM 정책 만들기
+Amazon S3의 보안 권장사항 [https://docs.aws.amazon.com/AmazonS3/latest/dev/security-best-practices.html]을 따르세요. 다음을 수행하는 것이 좋습니다.
+HTTP를 통해 Amazon S3 버킷에 액세스하지 못하도록 하는 AWS 정책을 설정합니다.
+Amazon S3 버킷에 대한 공개 액세스를 방지하는 AWS 정책을 설정합니다.
+Amazon S3 서버 측 암호화를 사용합니다.
+Google 계정에 부여되는 권한을 필요한 최소 수준으로 제한합니다.
+CloudTrails를 설정하고 Amazon S3 데이터 이벤트를 사용 설정합니다.
+AWS IAM 정책을 만들려면 AWS 콘솔 또는 Terraform을 사용합니다.
+--- 탭: AWS 콘솔 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#aws-%EC%BD%98%EC%86%94] ---
+AWS IAM 콘솔로 이동합니다.
+액세스하려는 Amazon S3 버킷을 소유한 계정에 로그인되어 있는지 확인합니다.
+
+AWS IAM 콘솔로 이동 [https://console.aws.amazon.com/iam/home] 
+정책 > 정책 만들기를 선택합니다 (새 탭에서 열림).
+JSON을 클릭하고 다음을 편집기에 붙여넣습니다.
+{
+ "Version": "2012-10-17",
+ "Statement": [
+    {
+     "Effect": "Allow",
+     "Action": [
+       "s3:ListBucket"
+     ],
+     "Resource": [
+       "arn:aws:s3:::BUCKET_NAME"
+      ]
+    },
+   {
+     "Effect": "Allow",
+     "Action": [
+       "s3:GetObject",
+       EXPORT_PERM
+     ],
+     "Resource": [
+       "arn:aws:s3:::BUCKET_NAME",
+        "arn:aws:s3:::BUCKET_NAME/*"
+      ]
+    }
+ ]
+}
+
+다음을 바꿉니다.
+
+
+BUCKET_NAME: BigQuery에서 액세스하도록 할 Amazon S3 버킷
+EXPORT_PERM (선택사항): Amazon S3 버킷으로 데이터를 내보내기 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko]를 원하는 경우 추가 권한
+"s3:PutObject"로 바꾸기
+
+내보내기 액세스 제어를 분리하려면 별도의 AWS IAM 역할로 다른 연결을 만들고 해당 역할에 쓰기 전용 액세스 권한을 부여하는 것이 좋습니다. 더 세부적인 액세스 제어를 위해 버킷의 특정 경로로 역할의 액세스 권한을 제한할 수도 있습니다.
+
+
+참고: JSON을 편집기에 붙여넣은 후 오류가 발생하면 JSON 편집기를 사용하여 JSON 텍스트의 형식을 지정하세요.
+이름 필드에 정책 이름(예: bq_omni_read_only)을 입력합니다.
+정책 만들기를 클릭합니다.
+
+
+정책은 다음 형식의 Amazon 리소스 이름(ARN)을 사용하여 생성됩니다.
+
+arn:aws:iam::AWS_ACCOUNT_ID:policy/POLICY_NAME
+
+다음을 바꿉니다.
+
+
+AWS_ACCOUNT_ID: 연결의 AWS IAM 사용자 ID 번호
+POLICY_NAME: 선택한 정책 이름
+
+--- 탭: AWS CLI [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#aws-cli] ---
+AWS IAM 정책을 만들려면 aws iam create-policy 명령어 [https://docs.aws.amazon.com/cli/latest/reference/iam/create-policy.html]를 사용합니다.
+
+  aws iam create-policy \
+   --policy-name POLICY_NAME \
+   --policy-document '{
+     "Version": "2012-10-17",
+     "Statement": [
+        {
+         "Effect": "Allow",
+         "Action": [
+           "s3:ListBucket"
+         ],
+         "Resource": [
+           "arn:aws:s3:::BUCKET_NAME"
+          ]
+        },
+       {
+         "Effect": "Allow",
+         "Action": [
+           "s3:GetObject",
+           EXPORT_PERM
+         ],
+         "Resource": [
+           "arn:aws:s3:::BUCKET_NAME",
+            "arn:aws:s3:::BUCKET_NAME/*"
+          ]
+        }
+     ]
+    }'
+
+다음을 바꿉니다.
+
+
+POLICY_NAME: 만들려는 정책의 이름입니다.
+BUCKET_NAME: BigQuery에서 액세스하도록 할 Amazon S3 버킷
+EXPORT_PERM (선택사항): Amazon S3 버킷으로 데이터를 내보내려는 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko] 경우 추가 권한
+  "s3:PutObject"로 바꾸기
+
+내보내기 액세스 제어를 분리하려면 별도의 AWS IAM 역할로 다른 연결을 만들고 해당 역할에 쓰기 전용 액세스 권한을 부여하는 것이 좋습니다. 더 세부적인 액세스 제어를 위해 버킷의 특정 경로로 역할의 액세스 권한을 제한할 수도 있습니다.
+
+
+
+정책은 다음 형식의 Amazon 리소스 이름(ARN)을 사용하여 생성됩니다.
+
+arn:aws:iam::AWS_ACCOUNT_ID:policy/POLICY_NAME
+
+다음을 바꿉니다.
+
+
+AWS_ACCOUNT_ID: 연결의 AWS IAM 사용자 ID 번호
+POLICY_NAME: 선택한 정책 이름
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#terraform] ---
+Terraform 구성에 다음을 추가하여 Amazon S3 버킷 리소스에 정책을 연결합니다.
+
+  resource "aws_iam_policy" "bigquery-omni-connection-policy" {
+    name = "bigquery-omni-connection-policy"
+
+    policy = <<-EOF
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                  {
+                      "Sid": "BucketLevelAccess",
+                      "Effect": "Allow",
+                      "Action": ["s3:ListBucket"],
+                      "Resource": ["arn:aws:s3:::BUCKET_NAME"]
+                  },
+                  {
+                      "Sid": "ObjectLevelAccess",
+                      "Effect": "Allow",
+                      "Action": ["s3:GetObject",EXPORT_PERM],
+                      "Resource": [
+                          "arn:aws:s3:::BUCKET_NAME",
+                          "arn:aws:s3:::BUCKET_NAME/*"
+                          ]
+                  }
+              ]
+            }
+            EOF
+  }
+
+다음을 바꿉니다.
+
+
+BUCKET_NAME: BigQuery에서 액세스하도록 할 Amazon S3 버킷
+EXPORT_PERM (선택사항): Amazon S3 버킷으로 데이터를 내보내기 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko]를 원하는 경우 추가 권한
+"s3:PutObject"로 바꾸기
+
+내보내기 액세스 제어를 분리하려면 별도의 AWS IAM 역할로 다른 연결을 만들고 해당 역할에 쓰기 전용 액세스 권한을 부여하는 것이 좋습니다. 액세스를 더 세부적으로 제어하려면 버킷의 특정 경로로 역할의 액세스 권한을 제한할 수도 있습니다.
+BigQuery용 AWS IAM 역할 만들기
+다음은 BigQuery 내에서 Amazon S3 버킷에 액세스할 수 있는 역할을 만듭니다. 이 역할에는 이전 섹션에서 만든 정책이 사용됩니다.
+AWS IAM 역할을 만들려면 AWS 콘솔 또는 Terraform을 사용합니다.
+--- 탭: AWS 콘솔 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#aws-%EC%BD%98%EC%86%94] ---
+AWS IAM 콘솔로 이동합니다.
+액세스하려는 Amazon S3 버킷을 소유한 계정에 로그인되어 있는지 확인합니다.
+
+AWS IAM 콘솔로 이동 [https://console.aws.amazon.com/iam/home] 
+역할 > 역할 만들기를 선택합니다.
+신뢰할 수 있는 기관 유형 선택에서 웹 ID를 선택합니다.
+ID 공급업체에 Google을 선택합니다.
+잠재고객에 자리표시자 값으로 00000을 입력합니다.
+이 값은 나중에 바꿉니다.
+다음: 권한을 클릭합니다.
+Amazon S3 데이터에 대한 액세스 권한을 역할에 부여하려면 역할에 IAM 정책을 연결합니다. 이전 섹션에서 만든 정책을 검색하고 전환을 클릭합니다.
+다음: 태그를 클릭합니다.
+다음: 검토를 클릭합니다. 역할 이름을 입력합니다(예: BQ_Read_Only).
+역할 만들기를 클릭합니다.
+
+--- 탭: AWS CLI [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#aws-cli] ---
+다음 명령어를 사용하여 IAM 역할을 만들고 생성된 역할에 정책을 할당합니다.
+
+  aws iam create-role \
+   --role-name bigquery-omni-connection \
+   --max-session-duration 43200 \
+   --assume-role-policy-document '{
+     "Version": "2012-10-17",
+     "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "accounts.google.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "accounts.google.com:sub": "00000"
+                }
+            }
+        }
+    ]
+}'
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#terraform] ---
+IAM 역할을 만들고 생성된 역할에 정책을 할당하려면 Terraform 구성에 다음을 추가합니다.
+
+  resource "aws_iam_role" "bigquery-omni-connection-role" {
+    name                 = "bigquery-omni-connection"
+    max_session_duration = 43200
+
+    assume_role_policy = <<-EOF
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Federated": "accounts.google.com"
+          },
+          "Action": "sts:AssumeRoleWithWebIdentity",
+          "Condition": {
+            "StringEquals": {
+              "accounts.google.com:sub": "00000"
+            }
+          }
+        }
+      ]
+    }
+    EOF
+  }
+
+  resource "aws_iam_role_policy_attachment" "bigquery-omni-connection-role-attach" {
+    role       = aws_iam_role.bigquery-omni-connection-role.name
+    policy_arn = aws_iam_policy.bigquery-omni-connection-policy.arn
+  }
+
+  output "bigquery_omni_role" {
+    value = aws_iam_role.bigquery-omni-connection-role.arn
+  }
+
+그런 다음 정책을 역할에 연결합니다.
+
+  aws iam attach-role-policy \
+    --role-name bigquery-omni-connection \
+    --policy-arn arn:aws:iam::AWS_ACCOUNT_ID:policy/POLICY_NAME
+
+다음을 바꿉니다.
+
+
+AWS_ACCOUNT_ID: 연결의 AWS IAM 사용자 ID 번호
+POLICY_NAME: 선택한 정책 이름
+연결 만들기
+Amazon S3 버킷에 연결하려면Google Cloud 콘솔, bq 명령줄 도구 또는 클라이언트 라이브러리를 사용합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#%EC%BD%98%EC%86%94] ---
+요점: 쿼리할 Amazon S3 인스턴스가 포함된 Google Cloud 프로젝트에서 연결을 만듭니다.
+
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 add 데이터 추가를 클릭합니다.
+
+데이터 추가 대화상자가 열립니다.
+필터링 기준 창의 데이터 소스 유형 섹션에서 스토리지/데이터 레이크를 선택합니다.
+
+또는 데이터 소스 검색 필드에 aws 또는 Amazon S3를 입력할 수 있습니다.
+추천 데이터 소스 섹션에서 Amazon S3를 클릭합니다.
+Amazon S3 Omni: BigQuery 제휴 솔루션 카드를 클릭합니다.
+표 만들기 대화상자의 연결 ID 필드에서 새 S3 연결 만들기를 선택합니다.
+외부 데이터 소스 창에서 다음 정보를 입력합니다.
+
+
+연결 유형으로 AWS 기반 BigLake (BigQuery Omni를 통해 연결)를 선택합니다.
+연결 ID에는 연결 리소스의 식별자를 입력합니다. 문자, 숫자, 대시, 밑줄을 사용할 수 있습니다.
+리전에서 연결을 만들 위치를 선택합니다.
+선택사항: 별칭에 사용자 친화적인 연결 이름(예: My connection resource)을 입력합니다. 사용자 친화적인 이름으로 나중에 수정해야 하는 경우 연결 리소스를 식별하는 데 도움이 되는 모든 값을 사용할 수 있습니다.
+선택사항: 설명에 이 연결 리소스에 대한 설명을 입력합니다.
+AWS 역할 ID에 생성한 전체 IAM 역할 ID를 다음 형식으로 입력합니다.
+arn:aws:iam::AWS_ACCOUNT_ID:role/ROLE_NAME
+
+연결 만들기를 클릭합니다.
+연결로 이동을 클릭합니다.
+연결 정보 창에서 BigQuery Google ID를 복사합니다.
+이는 각 연결과 관련된 Google 주 구성원입니다. 예:
+
+  BigQuery Google identity: IDENTITY_ID
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#terraform] ---
+resource "google_bigquery_connection" "connection" {
+    connection_id = "bigquery-omni-aws-connection"
+    friendly_name = "bigquery-omni-aws-connection"
+    description   = "Created by Terraform"
+
+    location      = "AWS_LOCATION"
+    aws {
+      access_role {
+        # This must be constructed as a string instead of referencing the
+        # AWS resources directly to avoid a resource dependency cycle
+        # in Terraform.
+        iam_role_id = "arn:aws:iam::AWS_ACCOUNT:role/IAM_ROLE_NAME"
+      }
+    }
+  }
+
+다음을 바꿉니다.
+
+
+AWS_LOCATION: Google Cloud의 Amazon S3 위치 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#locations]입니다.
+AWS_ACCOUNT: AWS 계정 ID
+IAM_ROLE_NAME: BigQuery에서 Amazon S3 버킷에 액세스하도록 허용하는 역할 BigQuery용 AWS IAM 역할 만들기 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#creating-aws-iam-role]의 aws_iam_role 리소스에서 name 인수 값을 사용합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#bq] ---
+bq mk --connection --connection_type='AWS' \
+--iam_role_id=arn:aws:iam::AWS_ACCOUNT_ID:role/ROLE_NAME \
+--location=AWS_LOCATION \
+CONNECTION_ID
+
+다음을 바꿉니다.
+
+
+AWS_ACCOUNT_ID: 연결의 AWS IAM 사용자 ID 번호
+ROLE_NAME: 선택한 역할 정책 이름
+AWS_LOCATION: Google Cloud의 Amazon S3 위치 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#locations]입니다.
+CONNECTION_ID: 이 연결 리소스에 지정한 ID
+
+
+명령줄은 다음 출력을 표시합니다.
+
+  Identity: IDENTITY_ID
+
+
+출력에는 다음이 포함됩니다.
+
+
+IDENTITY_ID: Google Cloud가 제어하는 Google 주 구성원이며 각 연결과 관련이 있습니다.
+
+
+IDENTITY_ID 값을 기록해 둡니다.
+참고: 기본 프로젝트를 재정의하려면 --project_id=PROJECT_ID 매개변수를 사용하세요. PROJECT_ID를Google Cloud 프로젝트의 ID로 바꿉니다.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#%EC%9E%90%EB%B0%94] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.connection.v1.AwsAccessRole [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.AwsAccessRole.html?hl=ko];
+import com.google.cloud.bigquery.connection.v1.AwsProperties [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.AwsProperties.html?hl=ko];
+import com.google.cloud.bigquery.connection.v1.Connection [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.Connection.html?hl=ko];
+import com.google.cloud.bigquery.connection.v1.CreateConnectionRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.CreateConnectionRequest.html?hl=ko];
+import com.google.cloud.bigquery.connection.v1.LocationName [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.LocationName.html?hl=ko];
+import com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko];
+import java.io.IOException;
+
+// Sample to create aws connection
+public class CreateAwsConnection {
+
+  public static void main(String[] args) throws IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    // Example of location: aws-us-east-1
+    String location = "MY_LOCATION";
+    String connectionId = "MY_CONNECTION_ID";
+    // Example of role id: arn:aws:iam::accountId:role/myrole
+    String iamRoleId = "MY_AWS_ROLE_ID";
+    AwsAccessRole [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.AwsAccessRole.html?hl=ko] role = AwsAccessRole [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.AwsAccessRole.html?hl=ko].newBuilder().setIamRoleId(iamRoleId).build();
+    AwsProperties [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.AwsProperties.html?hl=ko] awsProperties = AwsProperties [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.AwsProperties.html?hl=ko].newBuilder().setAccessRole [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.AwsProperties.Builder.html?hl=ko#com_google_cloud_bigquery_connection_v1_AwsProperties_Builder_setAccessRole_com_google_cloud_bigquery_connection_v1_AwsAccessRole_](role).build();
+    Connection [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.Connection.html?hl=ko] connection = Connection [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.Connection.html?hl=ko].newBuilder().setAws [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.Connection.Builder.html?hl=ko#com_google_cloud_bigquery_connection_v1_Connection_Builder_setAws_com_google_cloud_bigquery_connection_v1_AwsProperties_](awsProperties).build();
+    createAwsConnection(projectId, location, connectionId, connection);
+  }
+
+  static void createAwsConnection(
+      String projectId, String location, String connectionId, Connection [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.Connection.html?hl=ko] connection)
+      throws IOException {
+    try (ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko] client = ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko].create()) {
+      LocationName [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.LocationName.html?hl=ko] parent = LocationName [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.LocationName.html?hl=ko].of(projectId, location);
+      CreateConnectionRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.CreateConnectionRequest.html?hl=ko] request =
+          CreateConnectionRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.CreateConnectionRequest.html?hl=ko].newBuilder()
+              .setParent(parent.toString [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.LocationName.html?hl=ko#com_google_cloud_bigquery_connection_v1_LocationName_toString__]())
+              .setConnection(connection)
+              .setConnectionId [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.CreateConnectionRequest.Builder.html?hl=ko#com_google_cloud_bigquery_connection_v1_CreateConnectionRequest_Builder_setConnectionId_java_lang_String_](connectionId)
+              .build();
+      Connection [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.Connection.html?hl=ko] response = client.createConnection(request);
+      AwsAccessRole [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.AwsAccessRole.html?hl=ko] role = response.getAws [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.Connection.html?hl=ko#com_google_cloud_bigquery_connection_v1_Connection_getAws__]().getAccessRole();
+      System.out.println(
+          "Aws connection created successfully : Aws userId :"
+              + role.getIamRoleId [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.AwsAccessRole.html?hl=ko#com_google_cloud_bigquery_connection_v1_AwsAccessRole_getIamRoleId__]()
+              + " Aws externalId :"
+              + role.getIdentity [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.AwsAccessRole.html?hl=ko#com_google_cloud_bigquery_connection_v1_AwsAccessRole_getIdentity__]());
+    }
+  }
+}
+AWS 역할에 트러스트 관계 추가
+BigQuery Omni는 Amazon S3에서 데이터에 안전하게 액세스하는 두 가지 방법을 제공합니다. Google Cloud 서비스 계정에 AWS 역할에 대한 액세스를 부여할 수 있습니다. 또는 AWS 계정에 accounts.google.com에 대한 커스텀 ID 공급업체 [https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html]가 포함된 경우 Google Cloud 서비스 계정을 공급업체에 대한 잠재고객으로 추가해야 합니다.
+AWS 역할에 트러스트 정책 추가 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#add-trust-policy]
+커스텀 AWS ID 공급업체 구성 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#configuring-custom-idp]
+AWS 역할에 트러스트 정책 추가
+트러스트 관계를 사용하면 연결이 역할을 가정하고 역할 정책에 지정된 Amazon S3 데이터에 액세스할 수 있습니다.
+트러스트 관계를 추가하려면 AWS 콘솔 또는 Terraform을 사용합니다.
+--- 탭: AWS 콘솔 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#aws-%EC%BD%98%EC%86%94] ---
+AWS IAM 콘솔로 이동합니다.
+액세스하려는 Amazon S3 버킷을 소유한 계정에 로그인되어 있는지 확인합니다.
+
+AWS IAM 콘솔로 이동 [https://console.aws.amazon.com/iam/home] 
+역할을 선택합니다.
+만든 ROLE_NAME을 선택합니다.
+수정을 클릭한 후 다음을 수행합니다.
+
+
+최대 세션 시간을 12시간으로 설정합니다. 각 쿼리가 최대 6시간 동안 실행될 수 있으므로 이 기간 동안 한 번 더 재시도할 수 있습니다. 세션 시간을 12시간 이상으로 늘려도 추가 재시도는 허용되지 않습니다.
+자세한 내용은 쿼리/다중 문 쿼리 실행 시간 제한 [https://cloud.google.com/bigquery/quotas?hl=ko#query_script_execution_time_limit]을 참고하세요.
+
+
+변경사항 저장을 클릭합니다.
+
+트러스트 관계를 선택하고 트러스트 관계 수정을 클릭합니다.
+정책 콘텐츠를 다음으로 바꿉니다.
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "accounts.google.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "accounts.google.com:sub": "IDENTITY_ID"
+        }
+      }
+    }
+  ]
+}
+
+IDENTITY_ID를 생성한 연결 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#creating-aws-connection]에 대한 Google Cloud 콘솔에서 찾을 수 있는 BigQuery Google ID 값으로 바꿉니다.
+트러스트 정책 업데이트를 클릭합니다.
+
+--- 탭: AWS CLI [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#aws-cli] ---
+BigQuery 연결과의 신뢰 관계를 만들려면 aws iam update-assume-role-policy 명령어 [https://docs.aws.amazon.com/cli/latest/reference/iam/update-assume-role-policy.html]를 사용합니다.
+
+  aws iam update-assume-role-policy \
+    --role-name bigquery-omni-connection \
+    --policy-document '{
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Federated": "accounts.google.com"
+          },
+          "Action": "sts:AssumeRoleWithWebIdentity",
+          "Condition": {
+            "StringEquals": {
+              "accounts.google.com:sub": "IDENTITY_ID"
+            }
+          }
+        }
+      ]
+    }'
+  aws iam update-assume-role-policy \
+    --role-name bigquery-omni-connection \
+    --policy-document '{
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Federated": "accounts.google.com"
+          },
+          "Action": "sts:AssumeRoleWithWebIdentity",
+          "Condition": {
+            "StringEquals": {
+              "accounts.google.com:sub": "IDENTITY_ID"
+            }
+          }
+        }
+      ]
+    }'
+
+다음을 바꿉니다.
+
+
+IDENTITY_ID: 생성한 연결 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#creating-aws-connection]의 Google Cloud 콘솔에서 확인할 수 있는 BigQuery Google ID 값입니다.
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#terraform] ---
+Terraform 구성에서 aws_iam_role 리소스를 업데이트하여 트러스트 관계를 추가합니다.
+
+    resource "aws_iam_role" "bigquery-omni-connection-role" {
+      name                 = "bigquery-omni-connection"
+      max_session_duration = 43200
+
+      assume_role_policy = <<-EOF
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Federated": "accounts.google.com"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                  "StringEquals": {
+                    "accounts.google.com:sub": "${google_bigquery_connection.connection.aws[0].access_role[0].identity}"
+                  }
+                }
+              }
+            ]
+          }
+          EOF
+    }
+참고: AWS에서 역할 할당에 대한 전파 지연이 발생할 수 있습니다. 새 연결을 사용할 때 이 유형의 오류가 발생할 경우 기다렸다가 나중에 다시 시도하면 문제가 해결될 수 있습니다.
+이제 연결을 사용할 수 있습니다.
+커스텀 AWS ID 공급업체 구성
+AWS 계정에 accounts.google.com의 커스텀 ID 공급업체 [https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html]가 있으면 IDENTITY_ID를 공급업체에 대한 잠재고객으로 추가해야 합니다. 이렇게 하려면 다음을 수행합니다.
+AWS IAM 콘솔로 이동합니다. 액세스하려는 Amazon S3 버킷을 소유한 계정에 로그인되어 있는지 확인합니다.
+AWS IAM 콘솔로 이동 [https://console.aws.amazon.com/iam/home]
+IAM > ID 공급업체로 이동합니다.
+accounts.google.com의 ID 공급업체를 선택합니다.
+잠재고객 추가를 클릭하고 IDENTITY_ID를 잠재고객으로 추가합니다.
+이제 연결을 사용할 수 있습니다.
+사용자와 연결 공유
+데이터를 쿼리하고 연결을 관리할 수 있도록 사용자에게 다음 역할을 부여할 수 있습니다.
+roles/bigquery.connectionUser: 사용자가 연결을 사용하여 외부 데이터 소스에 연결하고 쿼리를 실행할 수 있습니다.
+roles/bigquery.connectionAdmin: 사용자가 연결을 관리할 수 있습니다.
+BigQuery의 IAM 역할과 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/access-control?hl=ko]을 참조하세요.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+
+이러한 연결은 프로젝트의 외부 연결 그룹에 나열됩니다.
+탐색기 창에서 프로젝트 이름 > 외부 연결 > 연결을 클릭합니다.
+세부정보 창에서 공유를 클릭하여 연결을 공유합니다.
+다음 작업을 수행합니다.
+
+
+연결 권한 대화상자에서 주 구성원을 추가하거나 수정하여 다른 주 구성원과 연결을 공유합니다.
+저장을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#bq] ---
+bq 명령줄 도구로 연결을 공유할 수 없습니다.
+연결을 공유하려면 Google Cloud 콘솔 또는 BigQuery Connections API 메서드를 사용하여 연결을 공유합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#api] ---
+BigQuery 연결 REST API 참조 섹션의 projects.locations.connections.setIAM 메서드 [https://cloud.google.com/bigquery/docs/reference/bigqueryconnection/rest/v1/projects.locations.connections?hl=ko#methods]를 사용하고 policy 리소스의 인스턴스를 지정합니다.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#%EC%9E%90%EB%B0%94] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.resourcenames.ResourceName [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.resourcenames.ResourceName.html?hl=ko];
+import com.google.cloud.bigquery.connection.v1.ConnectionName [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.ConnectionName.html?hl=ko];
+import com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko];
+import com.google.iam.v1.Binding [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.html?hl=ko];
+import com.google.iam.v1.Policy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.html?hl=ko];
+import com.google.iam.v1.SetIamPolicyRequest [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.html?hl=ko];
+import java.io.IOException;
+
+// Sample to share connections
+public class ShareConnection {
+
+  public static void main(String[] args) throws IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String location = "MY_LOCATION";
+    String connectionId = "MY_CONNECTION_ID";
+    shareConnection(projectId, location, connectionId);
+  }
+
+  static void shareConnection(String projectId, String location, String connectionId)
+      throws IOException {
+    try (ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko] client = ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko].create()) {
+      ResourceName [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.resourcenames.ResourceName.html?hl=ko] resource = ConnectionName [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.ConnectionName.html?hl=ko].of(projectId, location, connectionId);
+      Binding [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.html?hl=ko] binding =
+          Binding [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.html?hl=ko].newBuilder()
+              .addMembers [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.Builder.html?hl=ko#com_google_iam_v1_Binding_Builder_addMembers_java_lang_String_]("group:example-analyst-group@google.com")
+              .setRole("roles/bigquery.connectionUser")
+              .build();
+      Policy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.html?hl=ko] policy = Policy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.html?hl=ko].newBuilder().addBindings [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.Builder.html?hl=ko#com_google_iam_v1_Policy_Builder_addBindings_com_google_iam_v1_Binding_](binding).build();
+      SetIamPolicyRequest [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.html?hl=ko] request =
+          SetIamPolicyRequest [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.html?hl=ko].newBuilder()
+              .setResource(resource.toString())
+              .setPolicy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.Builder.html?hl=ko#com_google_iam_v1_SetIamPolicyRequest_Builder_setPolicy_com_google_iam_v1_Policy_](policy)
+              .build();
+      client.setIamPolicy(request);
+      System.out.println("Connection shared successfully");
+    }
+  }
+}
+다음 단계
+다양한 연결 유형 [https://cloud.google.com/bigquery/docs/connections-api-intro?hl=ko] 알아보기
+연결 관리 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko] 알아보기
+BigQuery Omni [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko] 알아보기
+AWS에서 BigQuery Omni 실습 [https://www.cloudskillsboost.google/catalog_lab/5345?hl=ko] 사용
+BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko] 알아보기
+Amazon S3 데이터 쿼리 [https://cloud.google.com/bigquery/docs/omni-aws-create-external-table?hl=ko] 방법 알아보기
+쿼리 결과를 Amazon S3 버킷으로 내보내는 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko] 방법 알아보기
+도움이 되었나요?
+의견 보내기

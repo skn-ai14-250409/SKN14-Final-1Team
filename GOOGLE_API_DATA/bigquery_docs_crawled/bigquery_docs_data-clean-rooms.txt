@@ -1,0 +1,488 @@
+Source URL: https://cloud.google.com/bigquery/docs/data-clean-rooms
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+역할 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#roles]
+아키텍처 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#architecture]
+제한사항 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#limitations]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#before_you_begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#required_permissions]
+데이터 클린룸에서 민감한 정보 공유
+bookmark_border
+데이터 클린룸은 여러 관계자가 기본 데이터를 이동하거나 공개하지 않고도 데이터 애셋을 공유, 조인, 분석할 수 있는 보안 강화 환경을 제공합니다.
+BigQuery 데이터 클린룸은 BigQuery Sharing(이전 명칭: Analytics Hub) 플랫폼을 기반으로 합니다. 표준 Sharing 데이터 교환 [https://cloud.google.com/bigquery/docs/analytics-hub-manage-exchanges?hl=ko]에서도 조직 경계를 넘어 데이터를 대규모로 공유하는 방법을 제공하지만 데이터 클린룸을 사용하면 보호받는 민감한 정보를 공유하는 사용 사례를 해결할 수 있습니다. 데이터 클린룸은 추가적인 보안 제어 수단을 제공하여 기본 데이터를 보호하고 데이터 소유자가 정의하는 분석 규칙 [https://cloud.google.com/bigquery/docs/analysis-rules?hl=ko]을 적용하도록 지원합니다.
+기본 사용 사례는 다음과 같습니다.
+캠페인 계획 및 잠재고객 통계. 두 관계자(예: 판매자 및 구매자)가 퍼스트 파티 데이터를 혼합하고 개인 정보 보호 중심의 방식으로 데이터 보강을 개선할 수 있습니다.
+측정 및 기여 분석. 고객 및 미디어 실적 데이터를 일치시켜 마케팅 활동의 효과를 더 잘 이해하고 보다 정보에 입각한 비즈니스 결정을 내릴 수 있습니다.
+활성화. 고객 데이터를 다른 관계자의 데이터와 결합해 고객 이해도를 높여 세분화 기능을 개선하고 보다 효과적으로 미디어를 활성화할 수 있습니다.
+마케팅 업계 이외의 데이터 클린룸 사용 사례 몇 가지를 소개합니다.
+소매 및 소비재(CPG). 소매업체의 판매 시점 데이터와 CPG 회사의 마케팅 데이터를 결합하여 마케팅 및 프로모션 활동을 최적화합니다.
+금융 서비스. 다른 금융 및 정부 기관의 민감한 정보를 결합하여 사기 행위 감지를 개선합니다. 여러 은행의 고객 데이터를 집계하여 신용 위험 점수를 빌드합니다.
+의료 서비스. 의사와 제약 연구원 간에 데이터를 공유하여 환자의 치료 효과를 알아봅니다.
+공급망, 물류, 운송. 공급업체와 마케팅 담당자의 데이터를 결합하여 수명 주기 전반의 제품 실적을 전체적으로 파악할 수 있습니다.
+역할
+BigQuery 데이터 클린룸에는 세 가지 주요 역할이 있습니다.
+데이터 클린룸 소유자: 한 프로젝트 내에 있는 하나 이상의 데이터 클린룸의 권한, 공개 상태, 멤버십을 관리하는 사용자입니다. 이 역할은 Analytics Hub 관리자 [https://cloud.google.com/bigquery/docs/analytics-hub-grant-roles?hl=ko#ah-admin-role]와 유사합니다.
+데이터 참여자: 데이터 클린룸에 데이터를 게시하도록 데이터 클린룸 소유자가 할당하는 사용자입니다. 대부분의 경우 데이터 클린룸 소유자가 데이터 참여자이기도 합니다. 이 역할은 Analytics Hub 게시자 [https://cloud.google.com/bigquery/docs/analytics-hub-grant-roles?hl=ko#ah-publisher-role]와 유사합니다.
+구독자: 데이터 클린룸에 게시된 데이터를 구독하고 해당 데이터에 대한 쿼리를 실행할 수 있도록 데이터 클린룸 소유자가 할당하는 사용자입니다. 이 역할은 Analytics Hub 구독자 [https://cloud.google.com/bigquery/docs/analytics-hub-grant-roles?hl=ko#ah-subscriber-role] 및Analytics Hub 구독 소유자 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#analyticshub.subscriptionOwner]를 합친 역할과 유사합니다.
+아키텍처
+BigQuery 데이터 클린룸은 BigQuery 데이터의 게시 및 구독 모델을 기반으로 합니다. BigQuery 아키텍처는 컴퓨팅과 스토리지의 분리를 제공하므로 데이터 참여자가 여러 개의 데이터 사본을 만들지 않고도 데이터를 공유할 수 있습니다. 다음 이미지는 BigQuery 데이터 클린룸 아키텍처의 개요입니다.
+데이터 클린룸
+데이터 클린룸은 원시 액세스를 방지하고 쿼리 제한이 적용되는 민감한 정보를 공유하는 환경입니다. 데이터 클린룸에 구독자로 추가된 사용자 또는 그룹만 공유 데이터를 구독할 수 있습니다. 데이터 클린룸 소유자는 Sharing에서 원하는 만큼 데이터 클린룸을 만들 수 있습니다.
+공유 리소스
+공유 리소스는 데이터 클린룸의 데이터 공유 단위입니다. 리소스는 BigQuery 테이블 또는 뷰여야 합니다. 데이터 참여자는 구독자와 공유할 프로젝트의 기존 BigQuery 리소스를 만들거나 사용합니다.
+등록정보
+목록은 데이터 참여자가 데이터 클린룸에 데이터를 추가할 때 생성됩니다. 여기에는 데이터 제공자의 공유 리소스에 대한 참조와 구독자가 데이터를 사용하는 데 도움이 되는 설명 정보가 포함됩니다. 데이터 제공자는 목록을 만들고 설명, 샘플 쿼리, 구독자를 위한 문서 링크와 같은 정보를 포함할 수 있습니다.
+연결된 데이터 세트
+연결된 데이터 세트는 데이터 클린룸의 모든 데이터에 대한 심볼릭 링크 역할을 하는 읽기 전용 BigQuery 데이터 세트입니다. 구독자가 연결된 데이터 세트의 리소스를 쿼리하면 공유 리소스의 데이터가 반환되고 데이터 기여자가 설정한 분석 규칙을 충족합니다. 구독자가 데이터 클린룸에 구독하면 구독자의 프로젝트 내에 연결된 데이터 세트가 생성됩니다. 데이터 사본은 생성되지 않으며 구독자에게는 뷰 정의와 같은 특정 메타데이터가 표시되지 않습니다.
+분석 규칙
+데이터 참여자는 데이터 클린룸에서 공유하는 리소스에 분석 규칙을 구성합니다. 분석 규칙 [https://cloud.google.com/bigquery/docs/analysis-rules?hl=ko]은 기본 데이터에 대한 원시 액세스를 방지하고 쿼리 제한을 적용합니다. 예를 들어 데이터 클린룸은 구독자가 집계 쿼리를 통해서만 데이터를 분석할 수 있는 집계 기준 분석 규칙 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#agg_threshold_clause]을 지원합니다.
+데이터 이그레스 제어
+구독자가 데이터 클린룸에서 원시 데이터를 복사하거나 내보내지 못하도록 데이터 이그레스 [https://cloud.google.com/bigquery/docs/analytics-hub-introduction?hl=ko#data_egress] 제어가 자동으로 사용 설정됩니다. 데이터 기여자는 구독자가 획득한 쿼리 결과의 복사 및 내보내기를 방지하는 데 도움이 되는 추가 제어를 구성할 수 있습니다.
+제한사항
+BigQuery 데이터 클린룸에는 다음과 같은 제한사항이 있습니다.
+분석 규칙 [https://cloud.google.com/bigquery/docs/analysis-rules?hl=ko]은 뷰에만 설정할 수 있으며 테이블이나 구체화된 뷰에는 설정할 수 없습니다. 이러한 제한사항으로 인해 데이터 참여자가 테이블 또는 구체화된 뷰(또는 분석 규칙이 없는 뷰)를 데이터 클린룸에 직접 공유하는 경우 구독자가 해당 리소스의 데이터에 대한 원시 액세스 권한을 갖게 됩니다.
+데이터 클린룸은 Sharing 플랫폼을 기반으로 하므로 모든 Sharing 제한사항 [https://cloud.google.com/bigquery/docs/analytics-hub-introduction?hl=ko#limitations]이 적용됩니다.
+데이터 클린룸은 Sharing 리전 [https://cloud.google.com/bigquery/docs/analytics-hub-introduction?hl=ko#supported-regions]에서만 사용할 수 있습니다.
+구독자는 Dataplex Universal Catalog 또는 Data Catalog에서 공유 리소스를 검색할 수 없습니다.
+구독자는 연결된 데이터 세트에서 INFORMATION_SCHEMA 뷰 [https://cloud.google.com/bigquery/docs/information-schema-intro?hl=ko]를 쿼리할 수 없습니다.
+데이터 참여자는 전체 데이터 세트를 데이터 클린룸에 직접 게시할 수 없습니다.
+데이터 참여자는 데이터 클린룸에 모델이나 루틴을 게시할 수 없습니다.
+데이터 클린룸에 공유 리소스를 최대 100개까지 추가할 수 있습니다. 이 한도를 늘려야 하는 경우 bq-dcr-feedback@google.com [mailto:bq-dcr-feedback@google.com]에 문의하세요.
+시작하기 전에
+사용자에게 이 문서의 각 작업을 수행하는 데 필요한 권한을 부여하는 Identity and Access Management(IAM) 역할을 부여하고 Analytics Hub API를 사용 설정하고 Analytics Hub 관리자 역할을 데이터 클린룸 소유자(데이터 클린룸을 만들 사용자)에게 할당합니다.
+필수 권한
+데이터 클린룸을 사용하는 데 필요한 권한을 얻으려면 관리자에게 BigQuery 데이터 편집자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataEditor](roles/bigquery.dataEditor) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이 사전 정의된 역할에는 데이터 클린룸을 사용하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+Analytics Hub API 사용 설정
+Analytics Hub API를 사용 설정하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#%EC%BD%98%EC%86%94] ---
+Analytics Hub API 페이지로 이동하여 Google Cloud 프로젝트에 Analytics Hub API를 사용 설정합니다.
+
+Analytics Hub API 사용 설정 [https://console.cloud.google.com/apis/library/analyticshub.googleapis.com?hl=ko]
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#bq] ---
+gcloud services enable 명령어를 실행합니다 [https://cloud.google.com/sdk/gcloud/reference/services/enable?hl=ko].
+
+gcloud services enable analyticshub.googleapis.com
+Analytics Hub API를 사용 설정하고 나면 Sharing(Analytics Hub) 페이지 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko]에 액세스할 수 있습니다.
+Analytics Hub 관리자 역할 할당
+데이터 클린룸 소유자에게 Analytics Hub 관리자 역할 [https://cloud.google.com/bigquery/docs/analytics-hub-grant-roles?hl=ko#ah-admin-role](roles/analyticshub.admin)이 있어야 합니다. 다른 사용자에게 이 역할을 부여하는 방법을 알아보려면 Analytics Hub 관리자 만들기 [https://cloud.google.com/bigquery/docs/analytics-hub-manage-exchanges?hl=ko#create-exchange-adminstrator]를 참조하세요.
+데이터 클린룸 소유자 워크플로
+데이터 클린룸 소유자는 다음을 수행할 수 있습니다.
+데이터 클린룸 만들기
+데이터 클린룸 속성 업데이트
+데이터 클린룸 삭제
+데이터 참여자 관리
+구독자 관리
+데이터 클린룸 공유
+추가 데이터 클린룸 소유자 권한
+데이터 클린룸 소유자 작업을 수행하려면 프로젝트에 대한 Analytics Hub 관리자 역할 [https://cloud.google.com/bigquery/docs/analytics-hub-grant-roles?hl=ko#ah-admin-role](roles/analyticshub.admin)이 있어야 합니다. 이 역할은 해당하는 경우 폴더 또는 조직 수준에서 할당될 수도 있습니다.
+데이터 클린룸 만들기
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko] 
+데이터 클린룸 만들기를 클릭합니다.
+프로젝트에서 데이터 클린룸의 프로젝트를 선택합니다. 프로젝트에 Analytics Hub API를 사용 설정해야 합니다.
+데이터 클린룸의 위치, 이름, 기본 연락처, 아이콘(선택사항), 설명을 지정합니다. 데이터 클린룸과 동일한 리전에 있는 리소스만 데이터 클린룸에 나열할 수 있습니다.
+선택사항: 연결된 데이터 세트에 대해 작업 및 쿼리를 실행하는 사용자의 모든 주 구성원 식별자 [https://cloud.google.com/iam/docs/principal-identifiers?hl=ko]를 로깅하려면 구독자 이메일 로깅 전환 버튼(프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages])을 클릭합니다.
+참고: 이메일 로깅을 사용 설정하고 저장한 후에는 이 설정을 수정할 수 없습니다.
+데이터 클린룸 만들기를 클릭합니다.
+선택사항: 데이터 클린룸 권한 섹션에서 다른 데이터 클린룸 소유자, 데이터 참여자 또는 구독자를 추가합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#api] ---
+projects.locations.dataExchanges.create 메서드 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges/create?hl=ko]를 사용하고 공유 환경 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges?hl=ko#sharingenvironmentconfig]을 dcrExchangeConfig로 설정합니다.
+
+다음 예시는 curl 명령어를 사용하여 projects.locations.dataExchanges.create 메서드를 호출하는 방법을 보여줍니다.
+
+  curl -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" -L -X POST https://analyticshub.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/dataExchanges?data_exchange_id=CLEAN_ROOM_ID -d
+  '{
+    display_name: "CLEAN_ROOM_NAME",
+    sharing_environment_config: {dcr_exchange_config: {}}
+  }'
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID
+  LOCATION: 데이터 클린룸의 위치
+  CLEAN_ROOM_ID: 데이터 클린룸 ID
+  CLEAN_ROOM_NAME: 데이터 클린룸의 표시 이름
+
+
+요청 본문에 데이터 교환 세부정보 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges?hl=ko#resource:-dataexchange]를 제공합니다.
+요청이 성공하면 응답 본문에 데이터 클린룸의 세부정보가 포함됩니다. 구독자 이메일 로깅(프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages])을 사용 설정한 경우 데이터 교환 응답에 log_linked_dataset_query_user_email: true가 포함됩니다.
+데이터 클린룸 업데이트
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko] 
+업데이트할 데이터 클린룸의 표시 이름을 클릭합니다.
+세부정보 탭에서 데이터 클린룸 세부정보 수정을 클릭합니다.
+필요에 따라 데이터 클린룸 이름, 기본 연락처, 아이콘, 설명 또는 구독자 이메일 로깅을 업데이트합니다.
+참고: 이메일 로깅을 사용 설정하고 저장한 후에는 이 설정을 수정할 수 없습니다. 이메일 로깅을 사용 중지하려면 데이터 클린룸을 삭제하고 구독자 이메일 로깅 전환 버튼(프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages])을 클릭하지 않고 다시 만드세요.
+저장을 클릭합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#api] ---
+projects.locations.dataExchanges.patch 메서드 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges/patch?hl=ko]를 사용하고 공유 환경 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges?hl=ko#sharingenvironmentconfig]을 dcrExchangeConfig로 설정합니다.
+
+다음 예시는 curl 명령어를 사용하여 projects.locations.dataExchanges.patch 메서드를 호출하는 방법을 보여줍니다.
+
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" -L -X PATCH https://analyticshub.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/dataExchanges/CLEAN_ROOM_ID?updateMask=UPDATEMASK -d
+'{
+  display_name: "CLEAN_ROOM_NAME",
+  sharing_environment_config: {dcr_exchange_config: {}}
+}'
+
+다음을 바꿉니다.
+
+PROJECT_ID: 프로젝트 ID
+LOCATION: 데이터 클린룸의 위치
+CLEAN_ROOM_ID: 데이터 클린룸 ID
+CLEAN_ROOM_NAME: 데이터 클린룸의 표시 이름
+
+
+UPDATEMASK를 업데이트할 필드 목록으로 바꿉니다. 여러 값을 업데이트하려면 쉼표로 구분된 목록을 사용합니다.
+예를 들어 데이터 교환의 표시 이름과 기본 연락처를 업데이트하려면 displayName,primaryContact를 입력합니다.
+
+요청 본문에서 다음 필드에 업데이트된 값을 지정하세요.
+
+
+표시 이름
+설명
+문서
+아이콘
+기본 연락처
+공개 검색 가능 여부
+구독자 이메일 로깅(프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages])
+
+
+이러한 필드에 대한 자세한 내용은 리소스: DataExchange [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges?hl=ko#resource:-dataexchange]를 참고하세요.
+데이터 클린룸 삭제
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko] 
+삭제할 데이터 클린룸 행에서 more_vert
+작업 더보기 > 삭제를 클릭합니다.
+확인을 위해 delete를 입력한 다음 삭제를 클릭합니다. 이 작업은 실행취소할 수 없습니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#api] ---
+projects.locations.dataExchanges.delete 메서드 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges/delete?hl=ko]를 사용하고 공유 환경 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges?hl=ko#sharingenvironmentconfig]을 dcrExchangeConfig로 설정합니다.
+
+다음 예시는 curl 명령어를 사용하여 projects.locations.dataExchanges.delete 메서드를 호출하는 방법을 보여줍니다.
+
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" -L -X DELETE https://analyticshub.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/dataExchanges?data_exchange_id=CLEAN_ROOM_ID
+
+다음을 바꿉니다.
+
+PROJECT_ID: 프로젝트 ID
+LOCATION: 데이터 클린룸의 위치
+CLEAN_ROOM_ID: 데이터 클린룸 ID
+CLEAN_ROOM_NAME: 데이터 클린룸의 표시 이름
+데이터 클린룸을 삭제하면 그 안에 있는 모든 목록이 삭제됩니다. 하지만 공유 리소스와 연결된 데이터 세트는 삭제되지 않습니다. 연결된 데이터 세트가 소스 데이터 세트에서 연결 해제되므로 이후 구독자가 데이터 클린룸의 리소스를 쿼리할 경우 실패합니다.
+데이터 참여자 관리
+데이터 클린룸 소유자는 데이터 클린룸에 데이터를 추가할 수 있는 사용자(데이터 참여자)를 관리합니다. 사용자가 데이터 클린룸에 데이터를 추가할 수 있게 하려면 특정 데이터 클린룸에 대한 Analytics Hub 게시자 역할 [https://cloud.google.com/bigquery/docs/analytics-hub-grant-roles?hl=ko#ah-publisher-role](roles/analyticshub.publisher)을 해당 사용자에게 부여합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko] 
+권한을 부여할 데이터 클린룸의 표시 이름을 클릭합니다.
+세부정보 탭에서 권한 설정을 클릭합니다.
+주 구성원 추가를 클릭합니다.
+새 주 구성원에 추가할 데이터 참여자의 사용자 이름 또는 이메일을 입력합니다.
+역할 선택에서 Analytics Hub > Analytics Hub 게시자를 선택합니다.
+저장을 클릭합니다.
+
+
+권한 설정을 클릭하면 언제든지 데이터 참여자를 삭제하고 업데이트할 수 있습니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#api] ---
+projects.locations.dataExchanges.setIamPolicy 메서드 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges/setIamPolicy?hl=ko]를 사용합니다.
+
+다음 예시는 curl 명령어를 사용하여 projects.locations.dataExchanges.setIamPolicy 메서드를 호출하는 방법을 보여줍니다.
+
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" -L -X POST https://analyticshub.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/dataExchanges/CLEAN_ROOM_ID:setIamPolicy -d
+'{
+  "policy": {
+    "bindings": [
+      {
+        "members": [
+          "my-service-account@my-project.iam.gserviceaccount.com"
+        ],
+        "role": "roles/analyticshub.publisher"
+      }
+    ]
+  }
+}'
+
+요청 본문의 정책은 정책 [https://cloud.google.com/iam/reference/rest/v1/Policy?hl=ko]의 구조를 준수해야 합니다.
+IAM 페이지 [https://console.cloud.google.com/iam-admin?hl=ko]에서 전체 프로젝트에 대한 Analytics Hub 게시자 역할을 부여하면 한 프로젝트의 모든 데이터 클린룸에 데이터를 추가할 수 있는 권한이 사용자에게 제공됩니다. 하지만 사용자에게 과도한 액세스 권한이 부여될 수 있으므로 이 작업은 권장되지 않습니다.
+구독자 관리
+데이터 클린룸 소유자는 데이터 클린룸을 구독할 수 있는 사용자(구독자)를 관리합니다. 사용자가 데이터 클린룸을 구독할 수 있게 하려면 특정 데이터 클린룸에 대한 Analytics Hub 구독자 [https://cloud.google.com/bigquery/docs/analytics-hub-grant-roles?hl=ko#ah-subscriber-role](roles/analyticshub.subscriber) 및 Analytics Hub 구독 소유자 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#analyticshub.subscriptionOwner](roles/analyticshub.subscriptionOwner) 역할을 부여합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko] 
+권한을 부여할 데이터 클린룸의 표시 이름을 클릭합니다.
+세부정보 탭에서 권한 설정을 클릭합니다.
+주 구성원 추가를 클릭합니다.
+새 주 구성원에 추가할 구독자의 사용자 이름 또는 이메일을 입력합니다.
+역할 선택에서 Analytics Hub > Analytics Hub 구독자를 선택합니다.
+add_box다른 역할 추가를 클릭합니다.
+역할 선택에서 Analytics Hub > Analytics Hub 구독 소유자를 선택합니다.
+저장을 클릭합니다.
+
+
+권한 설정을 클릭하면 언제든지 구독자를 삭제하고 업데이트할 수 있습니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#api] ---
+projects.locations.dataExchanges.setIamPolicy 메서드 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges/setIamPolicy?hl=ko]를 사용합니다.
+
+다음 예시는 curl 명령어를 사용하여 projects.locations.dataExchanges.setIamPolicy 메서드를 호출하는 방법을 보여줍니다.
+
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" -L -X POST https://analyticshub.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/dataExchanges/CLEAN_ROOM_ID:setIamPolicy -d
+'{
+  "policy": {
+    "bindings": [
+      {
+        "members": [
+          "user:mike@example.com"
+        ],
+        "role": "roles/analyticshub.subscriptionOwner"
+      },
+      {
+        "members": [
+          "user:mike@example.com"
+        ],
+        "role": "roles/analyticshub.subscriber"
+      }
+    ]
+  }
+}'
+
+요청 본문의 정책은 정책 [https://cloud.google.com/iam/reference/rest/v1/Policy?hl=ko]의 구조를 준수해야 합니다.
+IAM 페이지 [https://console.cloud.google.com/iam-admin?hl=ko]에서 전체 프로젝트에 대한 Analytics Hub 구독자 및 Analytics Hub 구독 소유자 역할을 부여하면 한 프로젝트의 모든 데이터 클린룸을 구독할 수 있는 권한이 사용자에게 제공됩니다. 하지만 사용자에게 과도한 액세스 권한이 부여될 수 있으므로 이 작업은 권장되지 않습니다.
+데이터 클린룸 공유
+데이터 클린룸을 구독자와 직접 공유할 수 있습니다.
+Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko]
+공유하려는 데이터 클린룸 행에서 more_vert 작업 더보기 > 공유 링크 복사를 클릭합니다.
+구독자가 데이터 클린룸을 보고 구독할 수 있도록 복사된 링크를 구독자와 공유합니다.
+데이터 참여자 워크플로
+데이터 참여자는 다음을 수행할 수 있습니다.
+목록을 만들어 데이터 클린룸에 데이터 추가
+목록 업데이트
+목록 삭제
+데이터 클린룸 공유
+목록 모니터링
+추가 데이터 참여자 권한
+데이터 참여자 작업을 수행하려면 데이터 클린룸에 대한 Analytics Hub 게시자 역할 [https://cloud.google.com/bigquery/docs/analytics-hub-grant-roles?hl=ko#ah-publisher-role](roles/analyticshub.publisher)이 있어야 합니다.
+또한 데이터 클린룸에 나열할 리소스가 포함된 데이터 세트에 대한 bigquery.datasets.link 권한이 필요합니다. 자신의 현재 프로젝트에 없는 조직의 데이터 클린룸을 보려면 resourcemanager.organization.get 권한도 필요합니다.
+목록 만들기(데이터 추가)
+참고: 공동작업 환경에서 데이터 참여자 및 구독자 데이터 세트에 데이터를 조인하기 위한 공통 식별자가 필요한 경우 다음 단계를 따르기 전에 항목 확인 [https://cloud.google.com/bigquery/docs/entity-resolution-setup?hl=ko]을 구성하세요.
+분석 규칙 [https://cloud.google.com/bigquery/docs/analysis-rules?hl=ko]을 사용하여 데이터를 준비하고 데이터 클린룸에 목록으로 게시하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko] 
+목록을 만들려는 데이터 클린룸의 표시 이름을 클릭합니다.
+
+데이터 클린룸 소유자와 다른 조직에 속해 있고 데이터 클린룸이 표시되지 않는 경우 데이터 클린룸 소유자에게 직접 링크를 요청하세요.
+데이터 추가를 클릭합니다.
+데이터 세트 선택 및 테이블/뷰 이름에서 데이터 클린룸과 해당 데이터 세트에 나열할 테이블 또는 뷰를 입력합니다. 이 기본 데이터에 대한 원시 액세스 방지하기 위해 몇 단계 후에 분석 규칙을 추가합니다.
+게시할 리소스의 열을 선택합니다.
+목록의 뷰 이름, 기본 연락처, 설명(선택사항)을 설정합니다.
+다음을 클릭합니다.
+목록의 분석 규칙을 선택하고 세부정보를 구성합니다.
+목록에 대한 데이터 이그레스 [https://cloud.google.com/bigquery/docs/analytics-hub-introduction?hl=ko#data_egress] 제어를 설정합니다.
+다음을 클릭합니다.
+데이터 클린룸에 추가할 데이터와 분석 규칙을 검토합니다.
+데이터 추가를 클릭합니다. 데이터에 대해 뷰가 생성되고 데이터 클린룸에 목록으로 추가됩니다. 소스 테이블 또는 뷰 자체는 추가되지 않습니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#api] ---
+projects.locations.dataExchanges.listings.create 메서드 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges.listings/create?hl=ko]를 사용합니다.
+
+다음 예시는 curl 명령어를 사용하여 projects.locations.dataExchanges.listings.create 메서드를 호출하는 방법을 보여줍니다.
+
+  curl -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" -H 'x-goog-user-project:DCR_PROJECT_ID' -X POST https://analyticshub.googleapis.com/v1/projects/DCR_PROJECT_ID/locations/LOCATION/dataExchanges/CLEAN_ROOM_ID/listings?listingId=LISTING_ID -d
+  '{"bigqueryDataset":{"dataset":"projects/PROJECT_ID/datasets/DATASET_ID","selectedResources":[{"table":"projects/PROJECT_ID/datasets/DATASET_ID/tables/VIEW_ID"}],},"displayName":LISTING_NAME"}'
+
+다음을 바꿉니다.
+
+  DCR_PROJECT_ID: 데이터 클린룸이 생성된 프로젝트의 프로젝트 ID
+  PROJECT_ID: 소스 데이터 세트가 포함된 프로젝트의 프로젝트 ID
+  DATASET_ID: 소스 데이터 세트 ID
+  LOCATION: 데이터 클린룸의 위치
+  CLEAN_ROOM_ID: 데이터 클린룸 ID
+  LISTING_ID: 등록정보 ID
+  LISTING_NAME: 등록정보 이름
+  VIEW_ID: 뷰 ID. 데이터 클린룸에 추가하는 뷰는 분석 규칙 [https://cloud.google.com/bigquery/docs/analysis-rules?hl=ko]으로 구성된 승인된 뷰 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko]여야 합니다.
+데이터 클린룸의 리소스를 나열하면 현재 및 향후의 모든 데이터 클린룸 구독자에게 공유 리소스의 데이터에 대한 액세스 권한을 부여할 수 있습니다.
+분석 규칙이 없는 공유 리소스로 목록을 만들려고 하면 구독자가 해당 리소스의 원시 데이터에 액세스할 수 있다는 경고가 표시됩니다. 분석 규칙 없이 이러한 리소스를 게시할 의사를 확인한 경우에는 목록을 만들 수 있습니다.
+Failed to save listing 오류가 발생하면 데이터 참여자 작업을 수행하는 데 필요한 권한 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#additional_data_contributor_permissions]이 있는지 확인합니다.
+목록 업데이트
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko] 
+목록이 포함된 데이터 클린룸의 표시 이름을 클릭합니다.
+업데이트할 목록의 행에서 more_vert
+작업 더보기 > 목록 수정을 클릭합니다.
+필요에 따라 기본 연락처 또는 설명을 업데이트합니다.
+다음을 클릭합니다.
+필요에 따라 분석 규칙을 업데이트합니다. 선택한 규칙의 파라미터만 업데이트할 수 있습니다. 다른 규칙으로 전환할 수 없습니다.
+다음을 클릭합니다.
+목록을 검토하고 데이터 추가를 클릭합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#api] ---
+projects.locations.dataExchanges.listings.patch 메서드 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges.listings/patch?hl=ko]를 사용합니다.
+
+다음 예시는 curl 명령어를 사용하여 projects.locations.dataExchanges.listings.patch 메서드를 호출하는 방법을 보여줍니다.
+
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" -H 'x-goog-user-project:DCR_PROJECT_ID' -X PATCH https://analyticshub.googleapis.com/v1/projects/DCR_PROJECT_ID/locations/LOCATION/dataExchanges/CLEAN_ROOM_ID/listings/listingId=LISTING_ID?updateMask=displayName -d
+'{"displayName":LISTING_NAME"}'
+
+다음을 바꿉니다.
+
+DCR_PROJECT_ID: 데이터 클린룸이 생성된 프로젝트의 프로젝트 ID
+LOCATION: 데이터 클린룸의 위치
+CLEAN_ROOM_ID: 데이터 클린룸 ID
+LISTING_ID: 등록정보 ID
+LISTING_NAME: 등록정보 이름
+목록이 생성된 후에는 목록의 소스 리소스 또는 데이터 이그레스 제어를 변경할 수 없습니다.
+목록 삭제
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko] 
+목록이 포함된 데이터 클린룸의 표시 이름을 클릭합니다.
+삭제할 목록 행에서 more_vert
+작업 더보기 > 목록 삭제를 클릭합니다.
+확인을 위해 delete를 입력한 다음 삭제를 클릭합니다. 이 작업은 실행취소할 수 없습니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#api] ---
+projects.locations.dataExchanges.listings.delete 메서드 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges.listings/delete?hl=ko]를 사용합니다.
+
+다음 예시는 curl 명령어를 사용하여 projects.locations.dataExchanges.listings.delete 메서드를 호출하는 방법을 보여줍니다.
+
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" -H 'x-goog-user-project:DCR_PROJECT_ID' -X DELETE https://analyticshub.googleapis.com/v1/projects/DCR_PROJECT_ID/locations/LOCATION/dataExchanges/CLEAN_ROOM_ID/listings?listingId=LISTING_ID
+
+다음을 바꿉니다.
+
+DCR_PROJECT_ID: 데이터 클린룸이 생성된 프로젝트의 프로젝트 ID
+LOCATION: 데이터 클린룸의 위치
+CLEAN_ROOM_ID: 데이터 클린룸 ID
+LISTING_ID: 등록정보 ID
+등록정보를 삭제해도 공유 리소스와 연결된 데이터 세트는 삭제되지 않습니다. 연결된 데이터 세트가 소스 데이터 세트에서 연결 해제되므로 이후 구독자가 해당 목록의 데이터를 쿼리할 경우 실패합니다.
+데이터 클린룸 공유
+데이터 클린룸을 구독자와 직접 공유할 수 있습니다.
+Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko]
+공유하려는 데이터 클린룸 행에서 more_vert 작업 더보기 > 공유 링크 복사를 클릭합니다.
+구독자가 데이터 클린룸을 보고 구독할 수 있도록 복사된 링크를 구독자와 공유합니다.
+목록 모니터링
+INFORMATION_SCHEMA.SHARED_DATASET_USAGE 뷰 [https://cloud.google.com/bigquery/docs/information-schema-shared-dataset-usage?hl=ko]를 쿼리하면 데이터 클린룸에서 공유하는 리소스의 소스 데이터 세트에 대한 사용량 측정항목을 볼 수 있습니다.
+목록 구독자를 보려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko]
+데이터 클린룸의 표시 이름을 클릭합니다.
+확인하려는 목록 행에서 more_vert 작업 더보기 > 구독 보기를 클릭합니다.
+구독자 워크플로
+구독자는 데이터 클린룸을 보고 구독할 수 있습니다. 데이터 클린룸을 구독하면 구독자 프로젝트에 연결된 데이터 세트가 하나 생성됩니다. 연결된 각 데이터 세트의 이름은 데이터 클린룸과 동일합니다.
+데이터 클린룸 내의 특정 목록을 구독할 수 없습니다. 데이터 클린룸 자체만 구독할 수 있습니다.
+추가 구독자 권한
+구독자 작업을 수행하려면 데이터 클린룸에 대한 Analytics Hub 구독자 [https://cloud.google.com/bigquery/docs/analytics-hub-grant-roles?hl=ko#ah-subscriber-role](roles/analyticshub.subscriber) 및 Analytics Hub 구독 소유자 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#analyticshub.subscriptionOwner](roles/analyticshub.subscriptionOwner) 역할이 있어야 합니다.
+또한 데이터 클린룸을 구독할 때 연결된 데이터 세트를 만들려면 프로젝트에 대한 bigquery.datasets.create 권한이 필요합니다.
+데이터 클린룸 구독
+데이터 클린룸을 구독하면 프로젝트에 연결된 데이터 세트가 생성되어 목록의 데이터에 대한 쿼리 액세스가 제공됩니다. 데이터 클린룸을 구독하려면 다음을 수행합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 add_box 데이터 추가를 클릭합니다.
+Sharing(Analytics Hub)을 선택합니다. 탐색 페이지가 열립니다.
+액세스 권한이 있는 데이터 클린룸을 표시하려면 필터 목록에서 데이터 클린룸을 선택합니다.
+구독하려는 데이터 클린룸을 클릭합니다. 데이터 클린룸의 설명 페이지가 열립니다. 이 페이지에서 제공업체가 구독자 이메일 로깅을 사용 설정했는지도 확인할 수 있습니다.
+구독을 클릭합니다.
+구독의 대상 프로젝트를 선택하고 구독을 클릭합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#api] ---
+projects.locations.dataExchanges.subscribe 메서드 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges/subscribe?hl=ko]를 사용합니다.
+
+다음 예시는 curl 명령어를 사용하여 projects.locations.dataExchanges.subscribe 메서드를 호출하는 방법을 보여줍니다.
+
+  curl -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" -L -X POST https://analyticshub.googleapis.com/v1/projects/DCR_PROJECT_ID/locations/LOCATION/dataExchanges/CLEAN_ROOM_ID:subscribe  --data '{"destination":"projects/SUBSCRIBER_PROJECT_ID/locations/LOCATION","subscription":"SUBSCRIPTION"}'
+
+다음을 바꿉니다.
+
+  DCR_PROJECT_ID: 데이터 클린룸이 생성된 프로젝트의 프로젝트 ID
+  SUBSCRIBER_PROJECT_ID: 구독자 프로젝트의 프로젝트 ID
+  LOCATION: 데이터 클린룸의 위치
+  CLEAN_ROOM_ID: 데이터 클린룸 ID
+  SUBSCRIPTION: 구독 이름
+
+
+요청 본문에서 연결된 데이터 세트 [https://cloud.google.com/bigquery/docs/analytics-hub-introduction?hl=ko#linked_datasets]를 만들 데이터 세트를 지정합니다.
+요청이 성공하면 응답 본문에 구독 객체 [https://cloud.google.com/bigquery/docs/reference/analytics-hub/rest/v1/projects.locations.dataExchanges.listings/subscribe?hl=ko#response-body]가 포함됩니다.
+데이터 클린룸에 대해 구독자 이메일 로깅(프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages])을 사용 설정하면 구독 응답에 log_linked_dataset_query_user_email: true가 포함됩니다.
+이제 연결된 데이터 세트가 지정한 프로젝트에 추가되며 이를 쿼리에 사용할 수 있습니다.
+구독자는 연결된 데이터 세트의 일부 메타데이터(예: 설명 및 라벨)를 수정할 수 있습니다. 연결된 데이터 세트에 권한을 설정할 수도 있습니다. 하지만 연결된 데이터 세트의 변경사항은 소스 데이터 세트에 영향을 주지 않습니다. 또한 뷰 정의를 볼 수 없습니다.
+연결된 데이터 세트에 포함된 리소스는 읽기 전용입니다. 구독자는 연결된 데이터 세트에 있는 리소스의 데이터 또는 메타데이터를 수정할 수 없습니다. 또한 연결된 데이터 세트 내의 개별 리소스에 대한 권한을 지정할 수 없습니다.
+데이터 클린룸을 구독 취소하려면 연결된 데이터 세트를 삭제하세요.
+연결된 데이터 세트의 데이터 쿼리
+연결된 데이터 세트의 데이터를 쿼리하려면 분석 규칙이 적용된 뷰에 대한 쿼리를 실행할 수 있게 해주는 SELECT WITH AGGREGATION_THRESHOLD 문법 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#agg_threshold_clause]을 사용합니다. 이 문법의 예시는 집계 기준 분석 규칙 적용 뷰 쿼리 [https://cloud.google.com/bigquery/docs/analysis-rules?hl=ko#view_in_privacy_query]를 참조하세요.
+예시 시나리오: 광고주 및 게시자 기여도 부여 분석
+광고주가 마케팅 캠페인의 효과를 추적하려고 합니다. 이 광고주는 구매 내역, 인구통계, 관심분야를 비롯한 고객에 관한 퍼스트 파티 데이터를 보유하고 있습니다. 게시자에게는 방문자에게 게재된 광고와 전환을 포함한 웹사이트 데이터가 있습니다.
+광고주와 게시자가 데이터 클린룸을 사용하여 데이터를 결합하고 캠페인 결과를 측정하기로 합의합니다. 이 경우 게시자가 데이터 클린룸을 만들고 광고주가 분석을 수행할 수 있도록 데이터를 제공합니다. 그 결과, 광고주에게 판매 촉진에 가장 효과적인 광고를 보여주는 기여도 보고서를 얻게 됩니다. 이후 광고주는 이 정보를 사용하여 향후 마케팅 캠페인을 개선할 수 있습니다.
+광고주 및 게시자가 다음 프로세스를 통해 BigQuery 데이터 클린룸을 조정합니다.
+데이터 클린룸 만들기(게시자)
+게시자 조직의 데이터 클린룸 소유자가 BigQuery 프로젝트에서 Analytics Hub API를 사용 설정하고 사용자 A를 데이터 클린룸 소유자(Analytics Hub 관리자)로 할당합니다.
+사용자 A가 Campaign Analysis라는 데이터 클린룸을 만들고 다음 권한을 할당합니다.
+데이터 참여자(Analytics Hub 게시자): 게시자 조직의 데이터 엔지니어인 사용자 B
+구독자(Analytics Hub 구독자 및 구독 소유자): 광고주 조직의 마케팅 분석가인 사용자 C
+데이터 클린룸에 데이터 추가(게시자)
+사용자 B가 데이터 클린룸에서 Publisher Conversion Data라는 새 목록을 만듭니다. 목록 생성의 일환으로 분석 규칙이 포함된 새 보기가 생성됩니다.
+데이터 클린룸 구독(광고주)
+사용자 C가 데이터 클린룸을 구독하여 Publisher Conversion Data 목록을 비롯한 데이터 클린룸의 모든 목록에 연결된 데이터 세트가 생성됩니다.
+이제 사용자 C가 집계 쿼리를 실행하여 연결된 데이터 세트의 데이터를 퍼스트 파티 데이터와 결합하여 캠페인 효과를 측정할 수 있습니다.
+항목 확인
+데이터 클린룸 사용 사례에서는 공통 식별자를 포함하지 않는 데이터 참여자 및 구독자 데이터 세트에 항목을 연결해야 하는 경우가 종종 있습니다. 구독자와 데이터 참여자가 여러 데이터 세트에서 동일한 레코드를 다르게 나타낼 수 있습니다. 이는 데이터 세트가 다른 데이터 소스에서 생성되었거나 데이터 세트가 다른 네임스페이스의 식별자를 사용하기 때문입니다.
+데이터 준비 [https://cloud.google.com/bigquery/docs/data-clean-rooms?hl=ko#add-data] 과정에서 다음과 같이 BigQuery의 항목 확인이 수행됩니다.
+데이터 참여자인 경우 데이터 참여자가 선택한 공통 제공업체의 식별자를 사용하여 공유된 리소스에서 레코드를 중복 삭제하고 확인합니다. 이 프로세스는 교차 참여자 조인을 사용 설정합니다.
+구독자의 경우 퍼스트 파티 데이터 세트의 레코드를 중복 삭제하고 확인하며 데이터 참여자 데이터 세트의 항목에 연결합니다. 이 프로세스는 구독자와 데이터 참여자 데이터 간에 조인을 사용 설정합니다.
+원하는 ID 공급업체로 항목 확인을 설정하려면 BigQuery에서 항목 확인 구성 및 사용 [https://cloud.google.com/bigquery/docs/entity-resolution-setup?hl=ko]을 참고하세요.
+데이터 클린룸 애셋 탐색
+액세스 권한이 있는 모든 데이터 클린룸을 찾으려면 다음 안내를 따르세요.
+데이터 클린룸 소유자 및 데이터 참여자의 경우Google Cloud 콘솔에서 Sharing(Analytics Hub) 페이지로 이동합니다.
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko]
+액세스할 수 있는 모든 데이터 클린룸이 나열됩니다.
+구독자의 경우 다음을 수행합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 add_box 데이터 추가를 클릭합니다.
+Sharing(Analytics Hub)을 선택합니다. 탐색 페이지가 열립니다.
+액세스 권한이 있는 데이터 클린룸을 표시하려면 필터 목록에서 데이터 클린룸을 선택합니다.
+프로젝트의 데이터 클린룸에서 만든 모든 연결된 데이터 세트를 찾으려면 명령줄 환경에서 다음 명령어를 실행합니다.
+PROJECT=
+PROJECT_ID \
+for dataset in $(bq ls --project_id $PROJECT | tail +3); \
+do [ "$(bq show -d --project_id $PROJECT $dataset | egrep LINKED)" ] \
+&& echo $dataset; done
+PROJECT_ID를 연결된 데이터 세트가 포함된 프로젝트로 바꿉니다.
+참고: 연결된 데이터 세트는 탐색기 창의 표준 데이터 세트와 다른 아이콘이 있습니다.
+가격 책정
+데이터 참여자에게는 데이터 스토리지 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]에 대한 요금만 청구됩니다. 구독자에게는 쿼리를 실행할 때의 컴퓨팅(분석) [https://cloud.google.com/bigquery/pricing?hl=ko#overview_of_pricing] 요금만 청구됩니다.
+다음 단계
+VPC 서비스 제어 사용자인 경우 VPC 서비스 제어 [https://cloud.google.com/bigquery/docs/analytics-hub-introduction?hl=ko#vpc-service] 참조
+분석 규칙으로 데이터 액세스 제한 [https://cloud.google.com/bigquery/docs/analysis-rules?hl=ko]
+Sharing 소개 [https://cloud.google.com/bigquery/docs/analytics-hub-introduction?hl=ko]
+도움이 되었나요?
+의견 보내기

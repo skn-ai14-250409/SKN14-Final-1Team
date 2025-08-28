@@ -1,0 +1,185 @@
+Source URL: https://cloud.google.com/bigquery/docs/column-data-masking
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#before_you_begin]
+분류 만들기 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#create_taxonomies]
+정책 태그 사용 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#work_with_policy_tags]
+데이터 정책 만들기 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#create_data_policies]
+열에 정책 태그 설정 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#set_policy_tags_on_columns]
+열 데이터 마스킹
+bookmark_border
+이 문서에서는 민감한 정보를 선택적으로 숨길 수 있도록 데이터 마스킹을 구현하는 방법을 보여줍니다. 데이터 마스킹을 구현하면 여러 사용자 그룹에 서로 다른 수준의 가시성을 제공할 수 있습니다. 일반적인 정보는 데이터 마스킹 소개 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko]를 참조하세요.
+열에 데이터 정책을 추가하여 데이터 마스킹을 구현합니다. 열에 데이터 마스킹 정책을 추가하려면 다음 단계를 완료해야 합니다.
+하나 이상의 정책 태그가 있는 분류를 만드세요.
+(선택사항) 생성한 정책 태그 중 하나 이상에서 Data Catalog 세분화된 권한의 리더 역할을 하나 이상의 주 구성원에게 부여합니다.
+정책 태그에 최대 3개의 데이터 정책을 만들어 마스킹 규칙 및 주 구성원(사용자 또는 그룹을 나타냄)을 해당 태그에 매핑합니다.
+열에 정책 태그를 설정합니다. 그러면 정책 태그와 연결된 데이터 정책이 선택한 열에 매핑됩니다.
+마스킹된 데이터에 액세스해야 하는 사용자를 BigQuery 마스킹된 리더 역할에 할당합니다. 데이터 정책 수준에서 BigQuery 마스킹된 리더 역할을 할당하는 것이 좋습니다. 프로젝트 수준 이상에서 역할을 할당하면 사용자에게 프로젝트의 모든 데이터 정책에 대한 권한이 부여되어 과도한 권한으로 인한 문제가 발생할 수 있습니다.
+Google Cloud 콘솔 또는 BigQuery Data Policy API를 사용하여 데이터 정책 작업을 수행할 수 있습니다.
+이러한 단계를 완료하면 해당 열에 대해 쿼리를 실행하는 사용자에게 자신이 속한 그룹 및 부여된 역할에 따라 마스킹 해제된 데이터, 마스킹된 데이터 또는 액세스 거부 오류가 발생합니다. 자세한 내용은 마스킹된 리더 및 세분화된 권한의 리더 역할 상호작용 방법 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko#role-interaction]을 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the Data Catalog and BigQuery Data Policy APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=datacatalog.googleapis.com%2Cbigquerydatapolicy.googleapis.com&%3Bredirect=https%3A%2F%2Fconsole.cloud.google.com&hl=ko]
+BigQuery는 자동으로 새 프로젝트에서 사용 설정되지만 기존 프로젝트에서 활성화해야 할 수도 있습니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com&%3Bredirect=https%3A%2F%2Fconsole.cloud.google.com&hl=ko]
+커스텀 마스킹 루틴 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko#custom_mask]을 참조하는 데이터 정책을 만드는 경우 다음 단계에서 사용할 수 있도록 연결된 마스킹 UDF를 만듭니다.
+분류 만들기
+분류를 만드는 사용자나 서비스 계정에 Data Catalog 정책 태그 관리자 역할을 부여해야 합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+분류 만들기를 클릭합니다.
+새 분류 페이지에서 다음을 수행합니다.
+
+
+분류 이름에 만들려는 분류의 이름을 입력합니다.
+설명에 설명을 입력합니다.
+필요한 경우 프로젝트 아래에 나열된 프로젝트를 변경합니다.
+필요한 경우 위치 아래에 나열된 위치를 변경합니다.
+정책 태그에 정책 태그 이름과 설명을 입력합니다.
+정책 태그에 하위 정책 태그를 추가하려면 하위 태그 추가를 클릭합니다.
+다른 정책 태그와 수준이 같은 새 정책 태그를 추가하려면 + 정책 태그 추가를 클릭합니다.
+분류에 필요한 정책 태그와 하위 정책 태그를 계속 추가합니다.
+계층 구조에 대한 정책 태그 만들었으면 저장을 클릭합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#api] ---
+기존 분류를 사용하려면 다음 절차의 첫 두 단계 대신 taxonomies.import [https://cloud.google.com/data-catalog/docs/reference/rest/v1/projects.locations.taxonomies/import?hl=ko]를 호출합니다.
+
+
+taxonomies.create [https://cloud.google.com/data-catalog/docs/reference/rest/v1/projects.locations.taxonomies/create?hl=ko]를 호출하여 분류를 만듭니다.
+taxonomies.policytag.create [https://cloud.google.com/data-catalog/docs/reference/rest/v1/projects.locations.taxonomies.policyTags/create?hl=ko]를 호출하여 정책 태그를 만듭니다.
+정책 태그 사용
+정책 태그를 보거나 업데이트하는 방법과 같이 정책 태그 작업을 수행하는 방법에 대한 자세한 내용은 정책 태그로 작업하기 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#work_with_policy_tags]를 참조하세요. 추가 권장사항은 BigQuery에서 정책 태그 사용을 위한 권장사항 [https://cloud.google.com/bigquery/docs/best-practices-policy-tags?hl=ko]을 참조하세요.
+데이터 정책 만들기
+데이터 정책을 만드는 사용자 또는 서비스 계정에는 bigquery.dataPolicies.create, bigquery.dataPolicies.setIamPolicy, datacatalog.taxonomies.get 권한이 있어야 합니다.
+bigquery.dataPolicies.create 및 bigquery.dataPolicies.setIamPolicy 권한은 BigQuery 데이터 정책 관리자, BigQuery 관리자, BigQuery 데이터 소유자 역할에 포함되어 있습니다. datacatalog.taxonomies.get 권한은 Data Catalog 관리자 역할과 Data Catalog 뷰어 역할에 포함되어 있습니다.
+커스텀 마스킹 루틴 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko#custom_mask]을 참조하는 데이터 정책을 만드는 경우 루틴 권한 [https://cloud.google.com/bigquery/docs/routines?hl=ko#permissions]도 필요합니다.
+커스텀 마스킹의 경우 사용자에게 BigQuery 관리자 또는 BigQuery 데이터 소유자 역할을 부여하여 루틴과 데이터 정책 모두에 필요한 권한을 부여합니다.
+정책 태그에 데이터 정책을 최대 9개까지 만들 수 있습니다. 이러한 정책 중 하나는 열 수준 액세스 제어 설정 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#set_up_column-level_access_control]용으로 예약되어 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+열려는 분류 이름을 클릭합니다.
+정책 태그를 선택합니다.
+데이터 정책 관리를 클릭합니다.
+데이터 정책 이름에 데이터 정책 이름을 입력합니다. 데이터 정책 이름은 데이터 정책이 있는 프로젝트 내에서 고유해야 합니다.
+마스킹 규칙의 경우 사전 정의된 마스킹 규칙 또는 커스텀 마스킹 루틴을 선택합니다. 커스텀 마스킹 루틴을 선택하는 경우 프로젝트 수준의 bigquery.routines.get 및 bigquery.routines.list 권한이 모두 있는지 확인합니다.
+주 구성원에 열에 대한 마스킹된 액세스 권한을 부여하려는 하나 이상의 사용자 또는 그룹 이름을 입력합니다. 여기에 입력하는 모든 사용자 및 그룹에 BigQuery 마스킹된 리더 역할이 부여됩니다.
+제출을 클릭합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#api] ---
+create [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest/v1/projects.locations.dataPolicies/create?hl=ko] 메서드를 호출합니다. 다음 요구사항을 충족하는 DataPolicy [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest/v1/projects.locations.dataPolicies?hl=ko#resource:-datapolicy] 리소스를 전달합니다.
+
+
+dataPolicyType 필드는 DATA_MASKING_POLICY으로 설정됩니다.
+dataMaskingPolicy 필드는 사용할 데이터 마스킹 규칙 또는 루틴을 식별합니다.
+dataPolicyId 필드는 데이터 정책이 있는 프로젝트 내에서 고유한 데이터 정책의 이름을 제공합니다.
+
+setIamPolicy [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest/v1/projects.locations.dataPolicies/setIamPolicy?hl=ko] 메서드를 호출하고 Policy [https://cloud.google.com/iam/docs/reference/rest/v1/Policy?hl=ko]를 전달합니다. Policy는 마스킹된 데이터에 대한 액세스 권한이 부여된 주 구성원을 식별하고 role 필드에 roles/bigquerydatapolicy.maskedReader를 지정해야 합니다.
+열에 정책 태그 설정
+데이터 정책과 연결된 정책 태그를 열에 연결하여 열에 데이터 정책을 설정합니다.
+정책 태그를 설정하는 사용자나 서비스 계정에 datacatalog.taxonomies.get 권한과 bigquery.tables.setCategory 권한이 필요합니다. datacatalog.taxonomies.get은 Data Catalog 정책 태그 관리자 역할과 프로젝트 뷰어 역할에 포함되어 있습니다. bigquery.tables.setCategory는 BigQuery 관리자(roles/bigquery.admin) 및 BigQuery 데이터 소유자(roles/bigquery.dataOwner) 역할에 포함되어 있습니다.
+Google Cloud 콘솔에서 조직 내 모든 프로젝트의 분류 및 정책 태그를 보려면 사용자에게 조직 뷰어 역할에 포함된 resourcemanager.organizations.get 권한이 필요합니다.
+참고: 열당 정책 태그 1개만 할당할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔을 사용하여 스키마를 수정 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]해 정책 태그를 설정합니다.
+
+
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+BigQuery 탐색기에서 업데이트할 테이블을 찾아 선택합니다. 테이블의 테이블 스키마가 열립니다.
+스키마 수정을 클릭합니다.
+현재 스키마 화면에서 대상 열을 선택하고 정책 태그 추가를 클릭합니다.
+정책 태그 추가 화면에서 열에 적용할 정책 태그를 선택합니다.
+선택을 클릭합니다. 다음과 같은 화면이 표시됩니다.
+
+ 
+저장을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#bq] ---
+스키마를 로컬 파일에 씁니다.
+
+bq show --schema --format=prettyjson \
+   project-id:dataset.table > schema.json
+
+각 항목의 의미는 다음과 같습니다.
+
+
+project-id는 프로젝트 ID입니다.
+dataset는 업데이트할 테이블이 포함되어 있는 데이터 세트의 이름입니다.
+table은 업데이트할 테이블의 이름입니다.
+
+schema.json을 수정하여 열에 정책 태그를 설정합니다. policyTags의 names 필드 값에 정책 태그 리소스 이름 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#retrieve_policy_tag_name]을 사용합니다.
+
+[
+ ...
+ {
+   "name": "ssn",
+   "type": "STRING",
+   "mode": "REQUIRED",
+   "policyTags": {
+     "names": ["projects/project-id/locations/location/taxonomies/taxonomy-id/policyTags/policytag-id"]
+   }
+ },
+ ...
+]
+스키마를 업데이트합니다.
+
+bq update \
+   project-id:dataset.table schema.json
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#api] ---
+기존 테이블의 경우 tables.patch [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch?hl=ko]를 호출하거나 새 테이블의 경우 tables.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert?hl=ko]를 호출합니다. 전달하는 Table 객체의 schema 속성을 사용하여 스키마 정의에 정책 태그를 설정합니다. 정책 태그를 설정하는 방법은 명령줄 예시 스키마를 참조하세요.
+
+기존 테이블을 사용하는 경우 tables.update 메서드가 전체 테이블 리소스를 대체하므로 tables.patch 메서드를 사용하는 것이 좋습니다.
+액세스 제어 적용
+정책 태그에 데이터 정책을 만들면 액세스 제어가 자동으로 적용됩니다. 해당 정책 태그가 적용된 모든 열은 마스킹된 리더 역할이 있는 사용자의 쿼리에 대한 응답으로 마스킹된 데이터를 반환합니다.
+액세스 제어 적용을 중지하려면 먼저 분류에서 정책 태그와 연결된 모든 데이터 정책을 삭제해야 합니다. 자세한 내용은 액세스 제어 적용 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko#enforce_access_control]을 참조하세요.
+데이터 정책의 IAM 권한 확인
+데이터 정책에 대해 갖고 있는 권한을 확인하려면 testIamPermissions [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest/v1/projects.locations.dataPolicies/testIamPermissions?hl=ko] 메서드를 호출합니다.
+데이터 정책 업데이트
+데이터 정책을 업데이트하는 사용자 또는 서비스 계정에는 bigquery.dataPolicies.update 권한이 있어야 합니다. 데이터 정책이 연결된 정책 태그를 업데이트하는 경우 datacatalog.taxonomies.get 권한도 필요합니다.
+데이터 정책과 연결된 주 구성원을 업데이트하려면 bigquery.dataPolicies.setIamPolicy 권한이 필요합니다.
+bigquery.dataPolicies.update 및 bigquery.dataPolicies.setIamPolicy 권한은 BigQuery 데이터 정책 관리자, BigQuery 관리자, BigQuery 데이터 소유자 역할에 포함되어 있습니다. datacatalog.taxonomies.get 권한은 Data Catalog 관리자 역할과 Data Catalog 뷰어 역할에 포함되어 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+열려는 분류 이름을 클릭합니다.
+정책 태그를 선택합니다.
+데이터 정책 관리를 클릭합니다.
+원하는 경우 마스킹 규칙을 변경합니다.
+(선택사항) 주 구성원을 추가하거나 삭제합니다.
+제출을 클릭합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#api] ---
+데이터 마스킹 규칙을 변경하려면 patch [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest/v1/projects.locations.dataPolicies/patch?hl=ko] 메서드를 호출하고 업데이트된 dataMaskingPolicy 필드와 함께 DataPolicy [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest/v1/projects.locations.dataPolicies?hl=ko#resource:-datapolicy] 리소스에 전달합니다.
+
+데이터 정책과 연결된 주 구성원을 변경하려면 setIamPolicy [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest/v1/projects.locations.dataPolicies/setIamPolicy?hl=ko] 메서드를 호출하고 마스킹된 데이터에 대한 액세스 권한이 부여된 주 구성원을 업데이트하는 Policy [https://cloud.google.com/iam/docs/reference/rest/v1/Policy?hl=ko]에 전달합니다.
+데이터 정책 삭제
+데이터 정책을 만드는 사용자 또는 서비스 계정에는 bigquery.dataPolicies.delete 권한이 있어야 합니다. 이 권한은 BigQuery 데이터 정책 관리자, BigQuery 관리자, BigQuery 데이터 소유자 역할에 포함되어 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 정책 태그 분류 페이지를 엽니다.
+정책 태그 분류 페이지 열기 [https://console.cloud.google.com/bigquery/policy-tags?hl=ko]
+열려는 분류 이름을 클릭합니다.
+정책 태그를 선택합니다.
+데이터 정책 관리를 클릭합니다.
+삭제할 데이터 정책 옆에 있는 delete를 클릭합니다.
+제출을 클릭합니다.
+확인을 클릭합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#api] ---
+데이터 정책을 삭제하려면 delete [https://cloud.google.com/bigquery/docs/reference/bigquerydatapolicy/rest/v1/projects.locations.dataPolicies/delete?hl=ko] 메서드를 호출합니다.
+도움이 되었나요?
+의견 보내기

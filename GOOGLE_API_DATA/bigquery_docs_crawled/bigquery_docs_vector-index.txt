@@ -1,0 +1,542 @@
+Source URL: https://cloud.google.com/bigquery/docs/vector-index
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+역할 및 권한 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#roles_and_permissions]
+벡터 색인 유형 선택 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#choose-vector-index-type]
+IVF 색인 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#ivf-index]
+TreeAH 색인 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#tree-ah-index]
+IVF 벡터 색인 만들기 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#create_an_ivf_vector_index]
+벡터 색인 관리
+bookmark_border
+이 문서에서는 벡터 검색 속도를 높이기 위해 벡터 색인을 만들고 관리하는 방법을 설명합니다.
+벡터 색인은 VECTOR_SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search]가 특히 대규모 데이터 세트에서 더 효율적으로 실행될 수 있도록 설계된 데이터 구조입니다. 색인을 사용할 때 VECTOR_SEARCH는 근사 최근접 이웃(ANN) [https://en.wikipedia.org/wiki/Nearest_neighbor_search#Approximation_methods] 알고리즘을 사용하여 쿼리 지연 시간과 컴퓨팅 비용을 줄입니다. ANN은 어느 정도의 근사치를 도입하므로 재현율 [https://developers.google.com/machine-learning/crash-course/classification/precision-and-recall?hl=ko#recallsearch_term_rules]이 100%가 아닐 수 있지만, 일반적으로 이 같은 성능 개선은 대부분의 애플리케이션에 이점을 제공합니다.
+역할 및 권한
+벡터 색인을 만들려면 색인을 만들 테이블에 대한 bigquery.tables.createIndex IAM 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bq-permissions]이 필요합니다. 벡터 색인을 삭제하려면 bigquery.tables.deleteIndex 권한이 필요합니다. 다음과 같은 사전 정의된 각 IAM 역할에는 벡터 색인을 사용하는 데 필요한 권한이 포함되어 있습니다.
+BigQuery 데이터 소유자(roles/bigquery.dataOwner)
+BigQuery 데이터 편집자(roles/bigquery.dataEditor)
+벡터 색인 유형 선택
+BigQuery는 두 가지 벡터 색인 유형인 IVF [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#ivf-index]와 TreeAH [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#tree-ah-index]를 제공하며, 각 유형은 서로 다른 사용 사례를 지원합니다. BigQuery는 VECTOR_SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search]에서 입력 데이터의 여러 행을 처리하여 벡터 검색을 위한 일괄 처리를 지원합니다. 소규모 쿼리 배치에는 IVF 색인이 선호됩니다. 대규모 쿼리 배치에는 Google의 ScaNN 알고리즘 [https://github.com/google-research/google-research/blob/master/scann/docs/algorithms.md]으로 빌드된 TreeAH 색인이 선호됩니다.
+IVF 색인
+IVF는 k-평균 알고리즘을 사용하여 벡터 데이터를 클러스터링한 다음 이러한 클러스터를 기반으로 벡터 데이터를 파티셔닝하는 역파일 색인입니다. VECTOR_SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search]는 이러한 파티션을 사용하여 결과를 결정하기 위해 읽어야 할 데이터 양을 줄일 수 있습니다.
+TreeAH 색인
+TreeAH 색인 유형은 트리와 유사한 구조와 기본 ScaNN 알고리즘 [https://github.com/google-research/google-research/blob/master/scann/docs/algorithms.md]의 핵심 양자화 기법인 비대칭 해싱(AH)의 사용을 결합한 데서 이름을 따왔습니다. TreeAH 색인은 다음과 같이 작동합니다.
+기본 테이블은 더 작고 관리하기 쉬운 샤드로 분할됩니다.
+클러스터링 모델이 학습되며, 클러스터 수는 CREATE VECTOR INDEX 문의 tree_ah_options 인수에 있는 leaf_node_embedding_count 옵션에서 파생됩니다.
+벡터는 메모리 사용량을 줄이는 기법인 제품 양자화로 압축됩니다. 압축된 벡터는 원래 벡터 대신 색인 테이블에 저장되므로 벡터 색인 크기가 줄어듭니다.
+VECTOR_SEARCH 함수가 실행되면 대략적인 거리 계산에 맞게 하드웨어 최적화된 비대칭 해싱을 사용하여 각 쿼리 벡터의 후보 목록이 효율적으로 계산됩니다. 그런 다음 정확한 임베딩을 사용하여 이러한 후보의 점수를 다시 매기고 순위를 다시 매깁니다.
+TreeAH 알고리즘은 수백 개 이상의 쿼리 벡터를 처리하는 일괄 쿼리에 최적화되어 있습니다. 제품 양자화를 사용하면 IVF에 비해 지연 시간과 비용을 크게 줄일 수 있습니다. 그러나 오버헤드가 증가하므로 쿼리 벡터 수가 적은 경우 IVF 알고리즘이 더 나을 수 있습니다.
+사용 사례가 다음 기준을 충족하는 경우 TreeAH 색인 유형을 사용해 보세요.
+테이블에 2억 개 이하의 행이 포함되어 있습니다.
+수백 개 이상의 쿼리 벡터가 포함된 대규모 일괄 쿼리를 자주 실행합니다.
+TreeAH 색인 유형을 사용하는 소규모 일괄 쿼리의 경우 VECTOR_SEARCH가 무차별 대입 검색 [https://wikipedia.org/wiki/Brute-force_search]으로 되돌아갈 수 있습니다. 이 경우 벡터 색인이 활용되지 않은 이유를 설명하는 IndexUnusedReason [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#IndexUnusedReason]이 제공됩니다.
+IVF 벡터 색인 만들기
+IVF 벡터 색인을 만들려면 CREATE VECTOR INDEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_vector_index_statement] 데이터 정의 언어(DDL) 문을 사용합니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 SQL 문을 실행합니다.
+IVF [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#ivf-index] 벡터 색인을 만들려면 다음 단계를 따르세요.
+CREATE [ OR REPLACE ] VECTOR INDEX [ IF NOT EXISTS ] 
+INDEX_NAME
+ON 
+DATASET_NAME.
+TABLE_NAME(
+COLUMN_NAME)
+STORING(
+STORED_COLUMN_NAME [, ...])
+OPTIONS(index_type = 'IVF',
+  distance_type = '
+DISTANCE_TYPE',
+  ivf_options = '{"num_lists":
+NUM_LISTS}')
+다음을 바꿉니다.
+INDEX_NAME: 만들려는 벡터 색인의 이름입니다. 색인은 항상 기본 테이블과 동일한 프로젝트 및 데이터 세트에 생성되므로 이름에 이를 지정할 필요가 없습니다.
+DATASET_NAME: 테이블이 포함된 데이터 세트의 이름입니다.
+TABLE_NAME: 임베딩 데이터가 포함된 열이 있는 테이블의 이름입니다.
+COLUMN_NAME: 임베딩 데이터가 포함된 열의 이름입니다. 이 열은 ARRAY<FLOAT64> 유형이어야 합니다. 열에 하위 필드가 있을 수 없습니다. 배열의 모든 요소는 NULL이 아니어야 하고 열의 모든 값은 배열 차원이 동일해야 합니다.
+STORED_COLUMN_NAME: 벡터 색인에 저장할 테이블의 최상위 열 이름입니다. 열 유형은 RANGE일 수 없습니다. 테이블에 행 수준 액세스 정책이 있거나 열에 정책 태그가 있는 경우 저장된 열은 사용되지 않습니다. 저장된 열을 사용 설정하는 방법에 관한 자세한 내용은 열 저장 및 사전 필터링 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#stored-columns]을 참조하세요.
+DISTANCE_TYPE: 이 색인을 사용하여 벡터 검색을 실행할 때 사용할 기본 거리 유형을 지정합니다. 지원되는 값은 EUCLIDEAN [https://en.wikipedia.org/wiki/Euclidean_distance], COSINE [https://en.wikipedia.org/wiki/Cosine_similarity#Cosine_Distance], DOT_PRODUCT [https://en.wikipedia.org/wiki/Dot_product]입니다. 기본값은 EUCLIDEAN입니다.
+색인 생성 자체는 항상 학습에 EUCLIDEAN 거리를 사용하지만 VECTOR_SEARCH 함수에 사용되는 거리는 다를 수 있습니다.
+VECTOR_SEARCH 함수의 distance_type 인수에 값을 지정하면 DISTANCE_TYPE 값 대신 해당 값이 사용됩니다.
+NUM_LISTS: IVF 색인이 벡터 데이터를 클러스터링한 후 파티셔닝하는 목록 수를 지정하는 INT64 값입니다. 이 값은 5,000 이하여야 합니다. 색인 생성 중에 벡터는 가장 가까운 클러스터 중심에 해당하는 목록에 할당됩니다. 이 인수를 생략하면 BigQuery에서 데이터 특성을 기반으로 기본값을 결정합니다. 기본값은 대부분의 사용 사례에 적합합니다.
+NUM_LISTS는 쿼리 조정 세부사항을 제어합니다. 값이 높을수록 목록이 더 많이 생성되므로 VECTOR_SEARCH 함수의 fraction_lists_to_search 옵션을 설정하여 더 적은 비율의 색인을 스캔할 수 있습니다. 예를 들어 10개 목록 중 10%를 스캔하는 대신 100개 목록 중 1%를 스캔합니다. 이렇게 하면 검색 속도와 재현율을 더 세밀하게 제어할 수 있지만 색인 생성 비용이 약간 증가합니다. 쿼리 범위를 얼마나 정확하게 조정해야 하는지에 따라 이 인수 값을 설정합니다.
+다음 예시에서는 my_table의 embedding 열에 벡터 색인을 만듭니다.
+CREATE TABLE my_dataset.my_table(embedding ARRAY<FLOAT64>);
+
+CREATE VECTOR INDEX my_index ON my_dataset.my_table(embedding)
+OPTIONS(index_type = 'IVF');
+다음 예시에서는 my_table의 embedding 열에 벡터 색인을 만들고 사용할 거리 유형과 IVF 옵션을 지정합니다.
+CREATE TABLE my_dataset.my_table(embedding ARRAY<FLOAT64>);
+
+CREATE VECTOR INDEX my_index ON my_dataset.my_table(embedding)
+OPTIONS(index_type = 'IVF', distance_type = 'COSINE',
+ivf_options = '{"num_lists": 2500}')
+TreeAH 벡터 색인 만들기
+TreeAH 벡터 색인을 만들려면 CREATE VECTOR INDEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_vector_index_statement] 데이터 정의 언어(DDL) 문을 사용합니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 SQL 문을 실행합니다.
+CREATE [ OR REPLACE ] VECTOR INDEX [ IF NOT EXISTS ] 
+INDEX_NAME
+ON 
+DATASET_NAME.
+TABLE_NAME(
+COLUMN_NAME)
+STORING(
+STORED_COLUMN_NAME [, ...])
+OPTIONS(index_type = 'TREE_AH',
+  distance_type = '
+DISTANCE_TYPE',
+  tree_ah_options = '{"leaf_node_embedding_count":
+LEAF_NODE_EMBEDDING_COUNT,
+    "normalization_type":"
+NORMALIZATION_TYPE"}')
+다음을 바꿉니다.
+INDEX_NAME: 만들려는 벡터 색인의 이름입니다. 색인은 항상 기본 테이블과 동일한 프로젝트 및 데이터 세트에 생성되므로 이름에 이를 지정할 필요가 없습니다.
+DATASET_NAME: 테이블이 포함된 데이터 세트의 이름입니다.
+TABLE_NAME: 임베딩 데이터가 포함된 열이 있는 테이블의 이름입니다.
+COLUMN_NAME: 임베딩 데이터가 포함된 열의 이름입니다. 이 열은 ARRAY<FLOAT64> 유형이어야 합니다. 열에 하위 필드가 있을 수 없습니다. 배열의 모든 요소는 NULL이 아니어야 하고 열의 모든 값은 배열 차원이 동일해야 합니다.
+STORED_COLUMN_NAME: 벡터 색인에 저장할 테이블의 최상위 열 이름입니다. 열 유형은 RANGE일 수 없습니다. 테이블에 행 수준 액세스 정책이 있거나 열에 정책 태그가 있는 경우 저장된 열은 사용되지 않습니다. 저장된 열을 사용 설정하는 방법에 관한 자세한 내용은 열 저장 및 사전 필터링 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#stored-columns]을 참조하세요.
+DISTANCE_TYPE: 이 색인을 사용하여 벡터 검색을 실행할 때 사용할 기본 거리 유형을 지정하는 선택적 인수입니다. 지원되는 값은 EUCLIDEAN [https://en.wikipedia.org/wiki/Euclidean_distance], COSINE [https://en.wikipedia.org/wiki/Cosine_similarity#Cosine_Distance], DOT_PRODUCT [https://en.wikipedia.org/wiki/Dot_product]입니다. 기본값은 EUCLIDEAN입니다.
+색인 생성 자체는 항상 학습에 EUCLIDEAN 거리를 사용하지만 VECTOR_SEARCH 함수에 사용되는 거리는 다를 수 있습니다.
+VECTOR_SEARCH 함수의 distance_type 인수에 값을 지정하면 DISTANCE_TYPE 값 대신 해당 값이 사용됩니다.
+LEAF_NODE_EMBEDDING_COUNT: TreeAH 알고리즘이 생성하는 트리의 각 리프 노드에 있는 대략적인 벡터 수를 지정하는 500보다 크거나 같은 INT64 값입니다. TreeAH 알고리즘은 전체 데이터 공간을 여러 목록으로 나누며 각 목록에는 약 LEAF_NODE_EMBEDDING_COUNT개의 데이터 포인트가 포함됩니다. 값이 낮을수록 데이터 포인트가 적은 목록이 더 많이 생성되고 값이 클수록 데이터 포인트가 많은 목록이 더 적게 생성됩니다. 기본값은 1,000이며 대부분의 데이터 세트에 적합합니다.
+NORMALIZATION_TYPE: STRING 값입니다. 지원되는 값은 NONE 또는 L2 [https://en.wikipedia.org/wiki/Norm_(mathematics)#Euclidean_norm]입니다. 기본값은 NONE입니다. 정규화는 모든 처리 전에 기본 테이블 데이터와 쿼리 데이터 모두에 대해 실행되지만 TABLE_NAME의 임베딩 열 COLUMN_NAME는 수정하지 않습니다. 데이터 세트, 임베딩 모델, VECTOR_SEARCH [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search] 중에 사용된 거리 유형에 따라 임베딩을 정규화하면 검색률이 개선될 수 있습니다.
+다음 예시에서는 my_table의 embedding 열에 벡터 색인을 만들고 사용할 거리 유형과 TreeAH 옵션을 지정합니다.
+CREATE TABLE my_dataset.my_table(id INT64, embedding ARRAY<FLOAT64>);
+
+CREATE VECTOR INDEX my_index ON my_dataset.my_table(embedding)
+OPTIONS (index_type = 'TREE_AH', distance_type = 'EUCLIDEAN',
+tree_ah_options = '{"normalization_type": "L2"}');
+필터링
+다음 섹션에서는 사전 필터와 사후 필터가 벡터 검색 결과에 미치는 영향과 벡터 색인의 저장된 열과 파티션을 사용하여 사전 필터링하는 방법을 설명합니다.
+사전 필터 및 사후 필터
+BigQuery VECTOR_SEARCH 작업에서 사전 필터링과 사후 필터링은 모두 벡터 임베딩과 연결된 메타데이터 열을 기반으로 조건을 적용하여 검색 결과를 미세 조정하는 데 사용됩니다. 쿼리 성능, 비용, 정확성을 최적화하려면 이러한 차이점, 구현, 영향을 이해하는 것이 중요합니다.
+사전 필터링과 사후 필터링은 다음과 같이 정의됩니다.
+사전 필터링: 근사 최근접 이웃(ANN) 검색에서 후보 벡터에 대한 거리 계산을 수행하기 전에 필터 조건을 적용합니다. 이렇게 하면 검색 중에 고려되는 벡터 풀이 좁아집니다. 따라서 ANN 검색에서 잠재적 후보를 더 적게 평가하므로 사전 필터링을 사용하면 쿼리 시간이 단축되고 계산 비용이 절감되는 경우가 많습니다.
+사후 필터링: ANN 검색에서 초기 top_k 최근접 이웃이 식별된 후 필터 조건을 적용합니다. 이렇게 하면 지정된 기준에 따라 최종 결과 세트가 미세 조정됩니다.
+WHERE 절의 위치에 따라 필터가 사전 필터로 작동하는지 사후 필터로 작동하는지가 결정됩니다.
+사전 필터를 만들려면 쿼리의 WHERE 절이 VECTOR_SEARCH 함수의 기본 테이블 인수에 적용되어야 합니다. 조건자가 저장된 열에 적용되어야 합니다. 그렇지 않으면 실질적으로 사후 필터가 됩니다.
+다음 예에서는 사전 필터를 만드는 방법을 보여줍니다.
+-- Pre-filter on a stored column. The index speeds up the query.
+SELECT *
+FROM
+  VECTOR_SEARCH(
+    (SELECT * FROM my_dataset.my_table WHERE type = 'animal'),
+    'embedding',
+    TABLE my_dataset.my_testdata);
+
+-- Filter on a column that isn't stored. The index is used to search the
+-- entire table, and then the results are post-filtered. You might see fewer
+-- than 5 matches returned for some embeddings.
+SELECT query.test_id, base.type, distance
+FROM
+  VECTOR_SEARCH(
+    (SELECT * FROM my_dataset.my_table WHERE id = 123),
+    'embedding',
+    TABLE my_dataset.my_testdata,
+    top_k => 5);
+
+-- Use pre-filters with brute force. The data is filtered and then searched
+-- with brute force for exact results.
+SELECT query.test_id, base.type, distance
+FROM
+  VECTOR_SEARCH(
+    (SELECT * FROM my_dataset.my_table WHERE id = 123),
+    'embedding',
+    TABLE my_dataset.my_testdata,
+    options => '{"use_brute_force":true}');
+사후 필터를 만들려면 검색에서 반환된 결과를 필터링할 수 있도록 쿼리의 WHERE 절을 VECTOR_SEARCH 함수 외부에 적용해야 합니다.
+다음 예에서는 사후 필터를 만드는 방법을 보여줍니다.
+-- Use post-filters. The index is used, but the entire table is searched and
+-- the post-filtering might reduce the number of results.
+SELECT query.test_id, base.type, distance
+FROM
+  VECTOR_SEARCH(
+    TABLE my_dataset.my_table,
+    'embedding',
+    TABLE my_dataset.my_testdata,
+    top_k => 5)
+WHERE base.type = 'animal';
+
+SELECT base.id, distance
+FROM
+  VECTOR_SEARCH(
+    TABLE mydataset.base_table,
+    'embedding',
+    (SELECT embedding FROM mydataset.query_table),
+    top_k => 10
+  )
+WHERE type = 'document' AND year > 2022
+사후 필터링을 사용하거나 지정한 기본 테이블 필터가 저장되지 않은 열을 참조하여 사후 필터 역할을 하는 경우 조건자가 선택적이면 최종 결과 세트에 top_k 미만의 행이 포함될 수 있으며, 행이 0개일 수도 있습니다. 필터링 후 특정 개수의 결과가 필요한 경우 VECTOR_SEARCH 호출에서 더 큰 top_k 값을 지정하거나 fraction_lists_to_search 값을 늘리는 것이 좋습니다.
+특히 사전 필터가 매우 선택적인 경우 사전 필터링을 통해 결과 세트의 크기를 줄일 수도 있습니다. 이 경우 VECTOR_SEARCH 호출에서 fraction_lists_to_search 값을 늘려 보세요.
+저장된 열로 사전 필터링
+벡터 색인의 효율성을 더욱 개선하려면 벡터 색인에 저장할 기본 테이블의 열을 지정할 수 있습니다. 저장된 열을 사용하면 다음과 같은 방식으로 VECTOR_SEARCH 함수를 호출하는 쿼리를 최적화할 수 있습니다.
+전체 테이블을 검색하는 대신 WHERE 절을 사용하여 기본 테이블을 사전 필터링하는 쿼리 문에 VECTOR_SEARCH [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search] 함수를 호출할 수 있습니다. 테이블에 색인이 있고 저장된 열만 필터링하는 경우 BigQuery는 검색하기 전에 데이터를 필터링한 다음 색인을 사용하여 더 작은 결과 세트를 검색하여 쿼리를 최적화합니다. 저장되지 않은 열을 필터링하면 BigQuery는 테이블을 검색한 후 필터를 적용합니다(사후 필터링).
+VECTOR_SEARCH 함수는 기본 테이블의 모든 열이 포함된 base라는 구조체를 출력합니다. 저장된 열이 없으면 base에 저장된 열을 검색하는 데 비용이 많이 드는 조인이 필요할 수 있습니다. IVF 색인을 사용하고 쿼리가 base에서 저장된 열만 선택하는 경우 BigQuery는 쿼리를 최적화하여 해당 조인을 제거합니다. TreeAH 색인의 경우 기본 테이블과의 조인이 삭제되지 않습니다. TreeAH 색인의 저장된 열은 사전 필터링 목적으로만 사용됩니다.
+열을 저장하려면 CREATE VECTOR INDEX 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_vector_index_statement]의 STORING 절에 열을 나열합니다. 열을 저장하면 벡터 색인의 크기가 증가하므로 가장 자주 사용되거나 필터링된 열만 저장하는 것이 가장 좋습니다.
+다음 예에서는 저장된 열로 벡터 색인을 만든 다음 저장된 열만 선택하는 벡터 검색 쿼리를 실행합니다.
+-- Create a table that contains an embedding.
+CREATE TABLE my_dataset.my_table(embedding ARRAY<FLOAT64>, type STRING, creation_time DATETIME, id INT64);
+
+-- Create a query table that contains an embedding.
+CREATE TABLE my_dataset.my_testdata(embedding ARRAY<FLOAT64>, test_id INT64);
+
+-- Create a vector index with stored columns.
+CREATE VECTOR INDEX my_index ON my_dataset.my_table(embedding)
+STORING (type, creation_time)
+OPTIONS (index_type = 'IVF');
+
+-- Select only stored columns from a vector search to avoid an expensive join.
+SELECT query, base.type, distance
+FROM
+  VECTOR_SEARCH(
+    TABLE my_dataset.my_table,
+    'embedding'
+    TABLE my_dataset.my_testdata);
+저장된 열 제한사항
+기본 테이블에서 열의 모드, 유형 또는 스키마가 변경되고 벡터 색인에 저장된 열인 경우 변경사항이 벡터 색인에 반영되기까지 지연이 발생할 수 있습니다. 업데이트가 색인에 적용될 때까지 벡터 검색 쿼리는 기본 테이블의 수정된 저장된 열을 사용합니다.
+저장된 열이 있는 색인이 있는 테이블에 대한 VECTOR_SEARCH 쿼리의 query 출력에서 STRUCT 유형의 열을 선택하면 전체 쿼리가 실패할 수 있습니다.
+파티션으로 사전 필터링
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 의견을 제공하거나 지원을 요청하려면 bq-vector-search@google.com [mailto:bq-vector-search@google.com]으로 문의하세요.
+벡터 색인을 만들 테이블이 파티션으로 나뉘어 있는 경우 벡터 색인도 파티션으로 나눌 수 있습니다. 벡터 색인을 파티셔닝하면 다음과 같은 이점이 있습니다.
+파티션 프루닝이 테이블 파티션 외에도 벡터 색인에 적용됩니다. 파티션 프루닝은 벡터 검색에서 파티셔닝 열의 값에 대해 한정 필터를 사용하는 경우 발생합니다. 이렇게 하면 BigQuery가 필터와 일치하는 파티션을 스캔하고 나머지 파티션을 건너뛸 수 있습니다. 파티션 프루닝은 I/O 비용을 줄일 수 있습니다. 파티션 프루닝에 대한 자세한 내용은 파티션을 나눈 테이블 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko]를 참조하세요.
+파티셔닝 열에서 사전 필터링하면 벡터 검색에서 결과를 누락할 가능성이 줄어듭니다.
+TreeAH 벡터 색인만 파티셔닝할 수 있습니다.
+벡터 색인 파티셔닝은 사전 필터링을 사용하여 대부분의 벡터 검색을 몇 개의 파티션으로 제한하는 경우에만 권장됩니다.
+파티션을 나눈 색인을 만들려면 CREATE VECTOR INDEX 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_vector_index_statement]의 PARTITION BY 절을 사용합니다. CREATE VECTOR INDEX 문에 지정하는 PARTITION BY 절은 다음 예시와 같이 벡터 색인을 만드는 테이블의 CREATE TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]에 지정된 PARTITION BY 절과 동일해야 합니다.
+-- Create a date-partitioned table.
+CREATE TABLE my_dataset.my_table(
+  embeddings ARRAY
+  id INT64,
+  date DATE,
+)
+PARTITION BY date;
+
+-- Create a partitioned vector index on the table.
+CREATE VECTOR INDEX my_index ON my_dataset.my_table(embeddings)
+PARTITION BY date
+OPTIONS(index_type='TREE_AH', distance_type='COSINE');
+테이블에서 정수 범위 또는 시간 단위 열 파티셔닝을 사용하는 경우 파티셔닝 열이 벡터 색인에 저장되어 스토리지 비용이 증가합니다. 테이블 열이 CREATE VECTOR INDEX 문의 STORING 및 PARTITION BY 절 모두에 사용되는 경우 열은 한 번만 저장됩니다.
+벡터 색인 파티션을 사용하려면 VECTOR_SEARCH 문의 기본 테이블 서브 쿼리에서 파티셔닝 열을 필터링합니다. 다음 예시에서 samples.items 테이블은 produced_date 열을 기준으로 파티션을 나누므로 VECTOR_SEARCH 문의 기본 테이블 서브 쿼리는 produced_date 열을 기준으로 필터링됩니다.
+SELECT query.id, base.id, distance
+FROM VECTOR_SEARCH(
+  (SELECT * FROM my_dataset.my_table WHERE produced_date = '2025-01-01'),
+  'embedding',
+  TABLE samples.test,
+  distance_type => 'COSINE',
+  top_k => 10
+);
+예시
+datetime으로 파티션을 나눈 테이블에 파티션을 나눈 벡터 색인을 만듭니다.
+-- Create a datetime-partitioned table.
+CREATE TABLE my_dataset.my_table(
+  id INT64,
+  produced_date DATETIME,
+  embeddings ARRAY
+)
+PARTITION BY produced_date;
+
+-- Create a partitioned vector index on the table.
+CREATE VECTOR INDEX index0 ON my_dataset.my_table(embeddings)
+PARTITION BY produced_date
+OPTIONS(index_type='TREE_AH', distance_type='COSINE');
+타임스탬프로 파티션을 나눈 테이블에 파티션을 나눈 벡터 색인을 만듭니다.
+-- Create a timestamp-partitioned table.
+CREATE TABLE my_dataset.my_table(
+  id INT64,
+  produced_time TIMESTAMP,
+  embeddings ARRAY
+)
+PARTITION BY TIMESTAMP_TRUNC(produced_time, HOUR);
+
+-- Create a partitioned vector index on the table.
+CREATE VECTOR INDEX index0 ON my_dataset.my_table(embeddings)
+PARTITION BY TIMESTAMP_TRUNC(produced_time, HOUR)
+OPTIONS(index_type='TREE_AH', distance_type='COSINE');
+정수 범위로 파티션을 나눈 테이블에 파티션을 나눈 벡터 색인을 만듭니다.
+-- Create a integer range-partitioned table.
+CREATE TABLE my_dataset.my_table(
+  id INT64,
+  embeddings ARRAY
+)
+PARTITION BY RANGE_BUCKET(id, GENERATE_ARRAY(-100, 100, 20));
+
+-- Create a partitioned vector index on the table.
+CREATE VECTOR INDEX index0 ON my_dataset.my_table(embeddings)
+PARTITION BY RANGE_BUCKET(id, GENERATE_ARRAY(-100, 100, 20))
+OPTIONS(index_type='TREE_AH', distance_type='COSINE');
+수집 시간으로 파티션을 나눈 테이블에 파티션을 나눈 벡터 색인을 만듭니다.
+-- Create a ingestion time-partitioned table.
+CREATE TABLE my_dataset.my_table(
+  id INT64,
+  embeddings ARRAY
+)
+PARTITION BY TIMESTAMP_TRUNC(_PARTITIONTIME, DAY);
+
+-- Create a partitioned vector index on the table.
+CREATE VECTOR INDEX index0 ON my_dataset.my_table(embeddings)
+PARTITION BY TIMESTAMP_TRUNC(_PARTITIONTIME, DAY)
+OPTIONS(index_type='TREE_AH', distance_type='COSINE');
+사전 필터링 제한사항
+사전 필터에서는 논리 뷰 [https://cloud.google.com/bigquery/docs/views-intro?hl=ko]를 사용할 수 없습니다.
+사전 필터에 하위 쿼리 [https://cloud.google.com/bigquery/docs/reference/standard-sql/subqueries?hl=ko]가 포함된 경우 색인 사용에 방해가 될 수 있습니다.
+데이터의 색인이 생성되는 시점 이해하기
+벡터 색인은 BigQuery에서 완전하게 관리되며 색인 생성된 테이블이 변경되면 자동으로 새로고침됩니다.
+색인 생성은 비동기식입니다. 기본 테이블에 새 행을 추가하는 시점과 새 행이 색인에 반영되는 시점 사이에 지연이 발생합니다. 하지만 VECTOR_SEARCH 함수는 여전히 모든 행을 고려하며 색인이 생성되지 않은 행을 누락하지 않습니다. 이 함수는 색인이 생성된 레코드의 색인을 사용하여 검색하고 아직 색인이 생성되지 않은 레코드에는 무차별 대입 검색을 사용합니다.
+10MB보다 작은 테이블에 벡터 색인을 만들 경우 벡터 색인이 채워지지 않습니다. 마찬가지로 색인이 생성된 테이블에서 데이터를 삭제하여 테이블 크기가 10MB 미만이 되면 벡터 색인이 일시적으로 중지됩니다. 이 경우 벡터 검색 쿼리는 색인을 사용하지 않으며 Job 리소스의 vectorSearchStatistics [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#vectorsearchstatistics] 섹션에 있는 indexUnusedReasons 코드가 BASE_TABLE_TOO_SMALL입니다. 색인이 없으면 VECTOR_SEARCH는 무작위 대입을 사용해 임베딩의 최근접 이웃을 찾도록 자동으로 되돌아갑니다.
+테이블에서 색인이 생성된 열을 삭제하거나 테이블 자체의 이름을 바꾸면 벡터 색인이 자동으로 삭제됩니다.
+벡터 색인 상태 모니터링
+INFORMATION_SCHEMA 뷰를 쿼리하여 벡터 색인의 상태를 모니터링할 수 있습니다. 다음 뷰에는 벡터 색인에 관한 메타데이터가 포함되어 있습니다.
+INFORMATION_SCHEMA.VECTOR_INDEXES 뷰 [https://cloud.google.com/bigquery/docs/information-schema-vector-indexes?hl=ko]에는 데이터 세트의 벡터 색인에 관한 정보가 있습니다.
+CREATE VECTOR INDEX 문이 완료된 후에도 색인을 사용하려면 색인을 채워야 합니다. last_refresh_time 및 coverage_percentage 열을 사용하여 벡터 색인의 준비 상태를 확인할 수 있습니다. 벡터 색인이 준비되지 않은 경우에도 테이블에서 VECTOR_SEARCH 함수를 사용할 수 있지만 색인이 없으면 더 느리게 실행될 수 있습니다.
+INFORMATION_SCHEMA.VECTOR_INDEX_COLUMNS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-vector-index-columns?hl=ko]에는 데이터 세트에 있는 모든 테이블의 벡터 색인 생성 열에 대한 정보가 있습니다.
+INFORMATION_SCHEMA.VECTOR_INDEX_OPTIONS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-vector-index-options?hl=ko]에는 데이터 세트의 벡터 색인에서 사용하는 옵션에 관한 정보가 있습니다.
+벡터 색인 예시
+다음 예시는 my_project 프로젝트에 위치한 데이터 세트 my_dataset에 있는 테이블의 모든 활성 벡터 색인을 보여줍니다. 여기에는 이름, 벡터 색인을 만드는 데 사용된 DDL 문, 적용 범위 비율이 포함됩니다. 색인이 생성된 기본 테이블이 10MB 미만이면 색인이 채워지지 않으며, 이 경우 coverage_percentage 값은 0입니다.
+SELECT table_name, index_name, ddl, coverage_percentage
+FROM my_project.my_dataset.INFORMATION_SCHEMA.VECTOR_INDEXES
+WHERE index_status = 'ACTIVE';
+결과는 다음과 비슷합니다.
++------------+------------+-------------------------------------------------------------------------------------------------+---------------------+
+| table_name | index_name | ddl                                                                                             | coverage_percentage |
++------------+------------+-------------------------------------------------------------------------------------------------+---------------------+
+| table1     | indexa     | CREATE VECTOR INDEX `indexa` ON `my_project.my_dataset.table1`(embeddings)                      | 100                 |
+|            |            | OPTIONS (distance_type = 'EUCLIDEAN', index_type = 'IVF', ivf_options = '{"num_lists": 100}')   |                     |
++------------+------------+-------------------------------------------------------------------------------------------------+---------------------+
+| table2     | indexb     | CREATE VECTOR INDEX `indexb` ON `my_project.my_dataset.table2`(vectors)                         | 42                  |
+|            |            | OPTIONS (distance_type = 'COSINE', index_type = 'IVF', ivf_options = '{"num_lists": 500}')      |                     |
++------------+------------+-------------------------------------------------------------------------------------------------+---------------------+
+| table3     | indexc     | CREATE VECTOR INDEX `indexc` ON `my_project.my_dataset.table3`(vectors)                         | 98                  |
+|            |            | OPTIONS (distance_type = 'DOT_PRODUCT', index_type = 'TREE_AH',                                 |                     |
+|            |            |          tree_ah_options = '{"leaf_node_embedding_count": 1000, "normalization_type": "NONE"}') |                     |
++------------+------------+-------------------------------------------------------------------------------------------------+---------------------+
+벡터 색인 열 예시
+다음 쿼리는 벡터 색인이 있는 열에 대한 정보를 추출합니다.
+SELECT table_name, index_name, index_column_name, index_field_path
+FROM my_project.dataset.INFORMATION_SCHEMA.VECTOR_INDEX_COLUMNS;
+결과는 다음과 비슷합니다.
++------------+------------+-------------------+------------------+
+| table_name | index_name | index_column_name | index_field_path |
++------------+------------+-------------------+------------------+
+| table1     | indexa     | embeddings        | embeddings       |
+| table2     | indexb     | vectors           | vectors          |
+| table3     | indexc     | vectors           | vectors          |
++------------+------------+-------------------+------------------+
+벡터 색인 옵션 예시
+다음 쿼리는 벡터 색인 옵션에 대한 정보를 추출합니다.
+SELECT table_name, index_name, option_name, option_type, option_value
+FROM my_project.dataset.INFORMATION_SCHEMA.VECTOR_INDEX_OPTIONS;
+결과는 다음과 비슷합니다.
++------------+------------+------------------+------------------+-------------------------------------------------------------------+
+| table_name | index_name | option_name      | option_type      | option_value                                                      |
++------------+------------+------------------+------------------+-------------------------------------------------------------------+
+| table1     | indexa     | index_type       | STRING           | IVF                                                               |
+| table1     | indexa     | distance_type    | STRING           | EUCLIDEAN                                                         |
+| table1     | indexa     | ivf_options      | STRING           | {"num_lists": 100}                                                |
+| table2     | indexb     | index_type       | STRING           | IVF                                                               |
+| table2     | indexb     | distance_type    | STRING           | COSINE                                                            |
+| table2     | indexb     | ivf_options      | STRING           | {"num_lists": 500}                                                |
+| table3     | indexc     | index_type       | STRING           | TREE_AH                                                           |
+| table3     | indexc     | distance_type    | STRING           | DOT_PRODUCT                                                       |
+| table3     | indexc     | tree_ah_options  | STRING           | {"leaf_node_embedding_count": 1000, "normalization_type": "NONE"} |
++------------+------------+------------------+------------------+-------------------------------------------------------------------+
+벡터 색인 사용 확인
+벡터 색인 사용에 대한 정보는 벡터 검색 쿼리를 실행한 작업의 작업 메타데이터에서 확인할 수 있습니다. Google Cloud 콘솔, bq 명령줄 도구, BigQuery API 또는 클라이언트 라이브러리를 사용하여 작업 메타데이터를 볼 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#view-job] 수 있습니다.
+Google Cloud 콘솔을 사용하는 경우 벡터 색인 사용 모드 및 벡터 색인 미사용 이유 필드에서 벡터 색인 사용 정보를 확인할 수 있습니다.
+bq 도구 또는 BigQuery API를 사용하는 경우 Job 리소스의 VectorSearchStatistics [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#vectorsearchstatistics] 섹션에서 벡터 색인 사용 정보 찾을 수 있습니다.
+색인 사용 모드는 다음 값 중 하나를 제공하여 벡터 색인이 사용되었는지 여부를 나타냅니다.
+UNUSED: 사용된 벡터 색인이 없습니다.
+PARTIALLY_USED: 쿼리의 일부 VECTOR_SEARCH 함수에 벡터 색인이 사용되었고 일부는 사용하지 않았습니다.
+FULLY_USED: 쿼리의 모든 VECTOR_SEARCH 함수에 벡터 색인이 사용되었습니다.
+색인 사용 모드 값이 UNUSED 또는 PARTIALLY_USED인 경우 색인 미사용 이유에서 쿼리에 벡터 색인이 사용되지 않은 이유를 나타냅니다.
+예를 들어 bq show --format=prettyjson -j my_job_id에서 반환한 다음 결과는 VECTOR_SEARCH 함수에 use_brute_force 옵션이 지정되어 색인이 사용되지 않았음을 보여줍니다.
+"vectorSearchStatistics": {
+  "indexUnusedReasons": [
+    {
+      "baseTable": {
+        "datasetId": "my_dataset",
+        "projectId": "my_project",
+        "tableId": "my_table"
+      },
+      "code": "INDEX_SUPPRESSED_BY_FUNCTION_OPTION",
+      "message": "No vector index was used for the base table `my_project:my_dataset.my_table` because use_brute_force option has been specified."
+    }
+  ],
+  "indexUsageMode": "UNUSED"
+}
+색인 관리 옵션
+색인을 만들고 BigQuery가 이를 유지보수하도록 할 때는 다음 두 가지 옵션이 있습니다.
+기본 공유 슬롯 풀 사용 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#use_shared_slots]: 색인을 생성할 데이터가 조직별 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#index_limits]보다 낮으면 색인 관리를 위한 공유 슬롯 풀을 무료로 사용할 수 있습니다.
+자체 예약 사용 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#use_your_own_reservation]: 큰 프로덕션 워크로드에서 보다 예측 가능하고 일관적으로 색인을 생성하기 위해서는 색인 관리를 위해 자체 예약을 사용할 수 있습니다.
+공유 슬롯 사용
+색인 생성에 전용 예약 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#use_your_own_reservation]을 사용하도록 프로젝트를 구성하지 않은 경우 색인 관리는 다음과 같은 제약조건에 따라 무료 공유 슬롯 풀에서 처리됩니다.
+데이터를 테이블에 추가하여 색인이 생성된 테이블의 총 크기가 조직의 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#index_limits]를 초과할 경우 BigQuery가 색인이 생성된 모든 테이블의 색인 관리를 일시중지합니다. 이 경우 INFORMATION_SCHEMA.VECTOR_INDEXES 뷰 [https://cloud.google.com/bigquery/docs/information-schema-vector-indexes?hl=ko]의 index_status 필드에 PENDING DISABLEMENT가 표시되고 색인이 삭제 큐에 추가됩니다. 사용 중지 대기 중인 색인은 쿼리에 계속 사용되며 색인 스토리지 요금이 부과됩니다. 색인이 삭제되면 index_status 필드에 색인이 TEMPORARILY DISABLED로 표시됩니다. 이 상태에서는 쿼리에 색인이 사용되지 않고 색인 스토리지 요금이 청구되지 않습니다. 여기에서 IndexUnusedReason 코드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#indexunusedreason]는 BASE_TABLE_TOO_LARGE입니다.
+테이블에서 데이터를 삭제하고 색인이 생성된 테이블의 총 크기가 조직별 한도 미만이 되면 색인이 생성된 모든 테이블의 색인 관리가 다시 시작됩니다. INFORMATION_SCHEMA.VECTOR_INDEXES 뷰의 index_status 필드는 ACTIVE이고 쿼리에서 색인을 사용할 수 있으며 색인 스토리지에 대한 요금이 부과됩니다.
+INFORMATION_SCHEMA.SEARCH_INDEXES_BY_ORGANIZATION 뷰 [https://cloud.google.com/bigquery/docs/information-schema-indexes-by-organization?hl=ko]를 사용하여 특정 리전에서 조직별 한도를 기준으로 현재 소비량을 프로젝트 및 테이블별로 분류하여 파악할 수 있습니다.
+BigQuery는 공유 풀의 사용 가능한 용량 또는 표시된 색인 생성의 처리량을 보장하지 않습니다. 프로덕션 애플리케이션의 경우 색인 처리를 위해 전용 슬롯을 사용할 수 있습니다.
+자체 예약 사용
+기본 공유 슬롯 풀을 사용하는 대신 자체 예약을 지정하여 테이블의 색인을 지정할 수 있습니다. 자체 예약을 사용하면 생성, 새로고침, 백그라운드 최적화와 같은 색인 관리 작업의 예측 가능한 일관된 성능을 보장할 수 있습니다.
+예약에서 색인 생성 작업을 실행할 때는 테이블 크기 한도가 없습니다.
+자체 예약을 사용하면 색인을 유연하게 관리할 수 있습니다. 매우 큰 색인을 만들거나 색인 생성된 테이블에 주요 업데이트를 수행해야 하는 경우 일시적으로 할당에 슬롯을 더 추가할 수 있습니다.
+지정된 예약이 있는 프로젝트에서 테이블의 색인을 생성하려면 테이블이 위치한 리전에서 예약을 만듭니다 [https://cloud.google.com/bigquery/docs/reservations-tasks?hl=ko]. 그런 다음 job_type을 BACKGROUND로 설정하여 예약에 프로젝트를 할당합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#sql] ---
+CREATE ASSIGNMENT DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_assignment_statement]을 사용합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE ASSIGNMENT
+  `ADMIN_PROJECT_ID.region-LOCATION.RESERVATION_NAME.ASSIGNMENT_ID`
+OPTIONS (
+  assignee = 'projects/PROJECT_ID',
+  job_type = 'BACKGROUND');
+
+
+다음을 바꿉니다.
+
+  ADMIN_PROJECT_ID: 예약 리소스를 소유하는 관리 프로젝트 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#admin-project]의 프로젝트 ID
+  LOCATION: 예약 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]
+  RESERVATION_NAME: 예약 이름
+  ASSIGNMENT_ID: 할당 ID.
+    ID는 프로젝트 및 위치에 고유해야 하고, 소문자 또는 숫자로 시작하고 끝나야 하고, 소문자, 숫자, 대시만 포함해야 합니다.
+  PROJECT_ID: 색인을 생성할 테이블이 포함된 프로젝트의 ID입니다. 이 프로젝트가 예약에 할당됩니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/vector-index?hl=ko#bq] ---
+bq mk 명령어를 사용합니다.
+
+bq mk \
+    --project_id=ADMIN_PROJECT_ID \
+    --location=LOCATION \
+    --reservation_assignment \
+    --reservation_id=RESERVATION_NAME \
+    --assignee_id=PROJECT_ID \
+    --job_type=BACKGROUND \
+    --assignee_type=PROJECT
+
+
+다음을 바꿉니다.
+
+
+ADMIN_PROJECT_ID: 예약 리소스를 소유하는 관리 프로젝트 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#admin-project]의 프로젝트 ID
+LOCATION: 예약 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]
+RESERVATION_NAME: 예약 이름
+PROJECT_ID: 이 예약에 할당할 프로젝트의 ID입니다.
+색인 생성 작업 보기
+단일 테이블에서 색인을 만들거나 업데이트할 때마다 새로운 색인 생성 작업이 생성됩니다. 작업에 대한 정보를 보려면 INFORMATION_SCHEMA.JOBS* 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 쿼리합니다. 쿼리의 WHERE 절에서 job_type IS NULL AND SEARCH(job_id, '`search_index`')를 설정하여 색인 생성 작업을 필터링할 수 있습니다. 다음 예시는 my_project 프로젝트에 있는 최근 5개의 색인 생성 작업을 보여줍니다.
+SELECT *
+FROM
+ region-us.INFORMATION_SCHEMA.JOBS
+WHERE
+  project_id  = 'my_project'
+  AND job_type IS NULL
+  AND SEARCH(job_id, '`search_index`')
+ORDER BY
+ creation_time DESC
+LIMIT 5;
+참고: 기본 공유 슬롯 풀에서 실행되는 색인 생성 작업에 대한 정보는 확인할 수 없습니다.
+예약 크기 선택
+예약에 적합한 슬롯 수를 선택하려면 색인 관리 작업이 실행되는 시기, 사용되는 슬롯 수, 시간 경과에 따른 사용량을 고려해야 합니다. BigQuery는 다음 상황에서 색인 관리 작업을 트리거합니다.
+테이블에 색인을 만듭니다.
+색인 생성된 테이블에서 데이터가 수정됩니다.
+테이블의 스키마가 변경되어 색인이 생성되는 열에 영향을 미칩니다.
+색인 데이터 및 메타데이터가 주기적으로 최적화되거나 업데이트됩니다.
+테이블에서 색인 관리 작업에 필요한 슬롯 수는 다음 요소에 따라 달라집니다.
+테이블 크기
+테이블에 대한 데이터 수집 비율
+테이블에 적용되는 DML 문의 비율
+색인 빌드 및 유지보수에 허용되는 지연 시간
+중복 항목 수와 같이 일반적으로 데이터 속성에 따라 결정되는 색인의 복잡성
+사용량 및 진행 상태 모니터링
+색인 관리 작업을 효율적으로 실행하기 위해 필요한 슬롯 수를 평가하기 위해서는 슬롯 사용률을 모니터링하고 그에 따라 예약 크기를 조정하는 것이 가장 좋습니다. 다음 쿼리는 색인 관리 작업을 위한 일일 슬롯 사용량을 보여줍니다. 이전 30일만 us-west1 리전에 포함됩니다.
+SELECT
+  TIMESTAMP_TRUNC(job.creation_time, DAY) AS usage_date,
+  -- Aggregate total_slots_ms used for index-management jobs in a day and divide
+  -- by the number of milliseconds in a day. This value is most accurate for
+  -- days with consistent slot usage.
+  SAFE_DIVIDE(SUM(job.total_slot_ms), (1000 * 60 * 60 * 24)) AS average_daily_slot_usage
+FROM
+  `region-us-west1`.INFORMATION_SCHEMA.JOBS job
+WHERE
+  project_id = 'my_project'
+  AND job_type IS NULL
+  AND SEARCH(job_id, '`search_index`')
+GROUP BY
+  usage_date
+ORDER BY
+  usage_date DESC
+limit 30;
+색인 관리 작업을 실행하는 데 슬롯이 부족하면 색인이 테이블과 동기화되지 않고 색인 생성 작업이 실패할 수 있습니다. 이 경우 BigQuery에서 색인을 처음부터 다시 빌드합니다. 색인이 동기화되지 않도록 방지하려면 데이터 수집 및 최적화로부터 색인 업데이트를 지원하기에 슬롯이 충분한지 확인해야 합니다. 슬롯 사용량 모니터링에 대한 자세한 내용은 관리 리소스 차트 [https://cloud.google.com/bigquery/docs/admin-resource-charts?hl=ko]를 참조하세요.
+벡터 색인 다시 빌드
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 의견을 제공하거나 지원을 요청하려면 bq-vector-search@google.com [mailto:bq-vector-search@google.com]으로 이메일을 보내세요.
+벡터 색인을 만든 후 테이블 데이터가 크게 변경되면 벡터 색인의 효율성이 떨어질 수 있습니다. 벡터 색인의 효율성이 저하되면 색인을 사용할 때 원래는 재현율 [https://developers.google.com/machine-learning/glossary?hl=ko#recall]이 높았던 벡터 검색 쿼리의 재현율이 낮아집니다. 기본 테이블의 데이터 분포 변화가 벡터 색인에 표현되지 않기 때문입니다.
+검색 쿼리 지연 시간을 늘리지 않고 재현율을 개선하려면 벡터 색인을 다시 빌드하세요. 또는 벡터 검색의 fraction_lists_to_search 옵션 값을 늘려 재현율을 개선할 수 있지만 이 경우 일반적으로 검색 쿼리 속도가 느려집니다.
+VECTOR_INDEX.STATISTICS 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/vectorindex_functions?hl=ko#vector_indexstatistics]를 사용하여 벡터 색인이 생성된 시점과 현재 시점 사이에 색인이 생성된 테이블의 데이터가 얼마나 달라졌는지 계산할 수 있습니다. 벡터 색인을 다시 빌드해야 할 정도로 테이블 데이터가 변경된 경우 ALTER VECTOR INDEX REBUILD 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_vector_index_rebuild_statement]을 사용하여 벡터 색인을 다시 빌드할 수 있습니다.
+벡터 색인을 다시 빌드하려면 다음 단계를 따르세요.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 SQL 문을 실행하여 색인이 생성된 테이블의 데이터 드리프트를 확인합니다.
+SELECT VECTOR_INDEX.STATISTICS(TABLE 
+DATASET_NAME.
+TABLE_NAME);
+다음을 바꿉니다.
+DATASET_NAME: 색인이 생성된 테이블이 포함된 데이터 세트의 이름입니다.
+TABLE_NAME: 벡터 색인이 포함된 테이블의 이름입니다.
+이 함수는 [0,1) 범위의 FLOAT64 값을 반환합니다. 값이 낮을수록 드리프트가 적다는 것을 나타냅니다. 일반적으로 0.3 이상의 값은 충분히 큰 변화로 간주되며 이는 벡터 색인 재빌드가 유용할 수 있음을 나타냅니다.
+VECTOR_INDEX.STATISTICS 함수에서 테이블 데이터 드리프트가 상당하다고 표시되면 다음 SQL 문을 실행하여 벡터 색인을 다시 빌드합니다.
+ALTER VECTOR INDEX IF EXISTS 
+INDEX_NAME
+ON 
+DATASET_NAME.
+TABLE_NAME
+REBUILD;
+다음을 바꿉니다.
+INDEX_NAME: 다시 빌드할 벡터 색인의 이름입니다.
+DATASET_NAME: 색인이 생성된 테이블이 포함된 데이터 세트의 이름입니다.
+TABLE_NAME: 벡터 색인이 포함된 테이블의 이름입니다.
+벡터 색인 삭제
+벡터 색인이 더 이상 필요하지 않거나 테이블에서 색인을 생성할 열을 변경하려면 DROP VECTOR INDEX DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#drop_vector_index]을 사용하여 해당 테이블에 있는 색인을 삭제하면 됩니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 SQL 문을 실행합니다.
+DROP VECTOR INDEX 
+INDEX_NAME ON 
+DATASET_NAME.
+TABLE_NAME;
+다음을 바꿉니다.
+INDEX_NAME: 삭제할 벡터 색인의 이름입니다.
+DATASET_NAME: 색인이 생성된 테이블이 포함된 데이터 세트의 이름입니다.
+TABLE_NAME: 벡터 색인이 포함된 테이블의 이름입니다.
+색인이 생성된 테이블을 삭제하면 색인이 자동으로 삭제됩니다.
+Vertex AI 벡터 검색으로 임베딩 내보내기
+지연 시간이 매우 짧은 온라인 애플리케이션을 사용 설정하려면 Vertex AI 벡터 검색 [https://cloud.google.com/vertex-ai/docs/vector-search/overview?hl=ko]과 BigQuery 통합을 사용하여 BigQuery 임베딩을 벡터 검색으로 가져오고 지연 시간이 짧은 엔드포인트를 배포합니다. 자세한 내용은 BigQuery에서 색인 데이터 가져오기 [https://cloud.google.com/vertex-ai/docs/vector-search/import-index-data-from-big-query?hl=ko]를 참조하세요.
+다음 단계
+벡터 검색 소개 [https://cloud.google.com/bigquery/docs/vector-search-intro?hl=ko]에서 벡터 색인 사용 사례, 가격 책정, 제한사항에 대한 개요 참조하기
+VECTOR_SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search]를 사용하여 벡터 검색을 수행하는 방법 알아보기
+CREATE VECTOR INDEX 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_vector_index_statement] 자세히 알아보기
+벡터 검색으로 임베딩 검색 [https://cloud.google.com/bigquery/docs/vector-search?hl=ko] 튜토리얼 사용해 보기
+도움이 되었나요?
+의견 보내기

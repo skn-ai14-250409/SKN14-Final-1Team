@@ -1,0 +1,158 @@
+Source URL: https://cloud.google.com/bigquery/docs/sessions-write-queries
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+세션에서 시스템 변수 사용 [https://cloud.google.com/bigquery/docs/sessions-write-queries?hl=ko#session_system_variables]
+세션에 라벨 할당하기 [https://cloud.google.com/bigquery/docs/sessions-write-queries?hl=ko#session_labels]
+세션에서 변수 사용 [https://cloud.google.com/bigquery/docs/sessions-write-queries?hl=ko#session_variables]
+세션에서 임시 테이블 사용 [https://cloud.google.com/bigquery/docs/sessions-write-queries?hl=ko#use_temporary_tables_in_sessions]
+세션에서 임시 함수 사용 [https://cloud.google.com/bigquery/docs/sessions-write-queries?hl=ko#use_temporary_functions_in_sessions]
+세션에서 쿼리 작성
+bookmark_border
+이 문서에서는 BigQuery 세션에서 쿼리를 작성하는 방법을 설명합니다. 이 문서는 이미 BigQuery 세션 [https://cloud.google.com/bigquery/docs/sessions-intro?hl=ko]에 대해 이해하고 세션에서 쿼리를 실행 [https://cloud.google.com/bigquery/docs/sessions-run-queries?hl=ko]하는 방법을 알고 있는 사용자를 대상으로 합니다.
+세션은 상태를 저장합니다. 세션에서 생성된 상태는 전체 세션 간에 유지관리되고 사용 가능합니다. 따라서 하나의 쿼리 항목에 임시 테이블을 만들면 해당 임시 테이블을 나머지 세션의 다른 쿼리 항목에 사용할 수 있습니다.
+세션에는 세션 변수 [https://cloud.google.com/bigquery/docs/sessions-write-queries?hl=ko#session_variables], 세션 시스템 변수 [https://cloud.google.com/bigquery/docs/sessions-write-queries?hl=ko#session_system_variables], 멀티 문 쿼리 [https://cloud.google.com/bigquery/docs/sessions-write-queries?hl=ko#session_scripting], 멀티 문 트랜잭션 [https://cloud.google.com/bigquery/docs/sessions-write-queries?hl=ko#multi_transactions]에 대한 지원이 포함됩니다.
+이 단계를 완료하기 전에 세션에서 작업하는 데 필요한 권한 [https://cloud.google.com/bigquery/docs/sessions-intro?hl=ko#roles_and_permissions]이 있는지 확인합니다.
+세션에서 시스템 변수 사용
+다음 시스템 변수 [https://cloud.google.com/bigquery/docs/reference/system-variables?hl=ko]를 사용하여 세션 수준 데이터를 설정하거나 가져올 수 있습니다.
+@@dataset_id: 현재 프로젝트의 기본 데이터 세트 ID입니다. 시스템 변수 @@dataset_project_id 및 @@dataset_id를 함께 설정하고 사용할 수 있습니다.
+@@dataset_project_id: 쿼리에 사용된 데이터 세트의 기본 프로젝트 ID입니다. 이 시스템 변수가 설정되지 않았거나 NULL로 설정되면 쿼리 실행 프로젝트가 사용됩니다. 시스템 변수 @@dataset_project_id 및 @@dataset_id를 함께 설정하고 사용할 수 있습니다.
+@@query_label: 세션에 할당할 작업 라벨 [https://cloud.google.com/bigquery/docs/adding-labels?hl=ko#job-label]입니다. 라벨은 세션의 특정 쿼리뿐만 아니라 전체 세션에서 사용할 수 있습니다.
+@@session_id: 현재 세션의 ID입니다.
+@@time_zone: 시간대가 인수로 지정되지 않은 경우 시간대 종속 SQL 함수에 사용할 기본 시간대입니다.
+이러한 시스템 변수는 세션 중에 언제든지 사용할 수 있으며 나머지 세션의 범위에 있습니다. 이러한 변수를 정의하지 않지만 SET [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#set] 문으로 변수에 새 값을 할당할 수 있습니다.
+세션에서 변수 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#variables]의 최대 크기는 1MB이며, 세션에서 모든 변수의 최대 크기는 10MB입니다.
+세션에 라벨 할당하기
+세션에 작업 라벨을 할당 [https://cloud.google.com/bigquery/docs/adding-labels?hl=ko#adding-label-to-session]할 수 있습니다. 이렇게 하면 세션의 모든 향후 쿼리가 라벨에 할당됩니다. 라벨은 세션 중에 언제든지 사용할 수 있으며 나머지 세션의 범위에 있습니다. 할당한 작업 라벨이 감사 로그 [https://cloud.google.com/bigquery/docs/reference/auditlogs?hl=ko]에 표시됩니다.
+세션에서 변수 사용
+변수 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#variables]를 사용하여 세션 수준 데이터를 만들고 설정하며 가져올 수 있습니다. 변수는 세션 중에 언제든지 사용할 수 있으며 나머지 세션의 범위에 있습니다.
+세션 범위 변수를 만들려면 BEGIN...END [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#begin] 블록 외부에서 DECLARE [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#declare] 문을 사용합니다.
+세션 범위 변수를 만든 후에 설정하려면 SET [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#set] 문을 사용합니다.
+BEGIN...END 블록 내부에 선언된 변수는 세션 범위 변수가 아닙니다.
+세션 범위 변수는 BEGIN...END 블록 내부에서 참조될 수 있습니다.
+세션 범위 변수는 BEGIN...END 블록 내부에서 설정할 수 있습니다.
+세션에서 변수 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#variables]의 최대 크기는 1MB이며, 세션에서 모든 변수의 최대 크기는 10MB입니다.
+세션에서 임시 테이블 사용
+임시 테이블을 사용하면 중간 결과를 테이블에 저장할 수 있습니다. 임시 테이블은 세션 수준에서 표시되므로 데이터 세트에 저장하거나 유지할 필요가 없습니다. 세션이 종료되면 자동으로 삭제됩니다. 세션이 활성 상태인 동안에는 임시 테이블 스토리지의 비용이 청구됩니다. 임시 테이블에 대한 자세한 내용은 멀티 문 쿼리 작업 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#temporary_tables]을 참조하세요.
+세션에서 임시 함수 사용
+임시 함수는 세션 수준에서 표시되므로 데이터 세트에 저장하거나 유지할 필요가 없습니다. 세션이 종료되면 자동으로 삭제됩니다.
+세션에서 멀티 문 쿼리 사용
+하나의 세션에서 GoogleSQL 멀티 문 쿼리 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#write_a_multi_statement_query]를 사용할 수 있습니다. 스크립트에는 각 스크립트의 임시 테이블 및 시스템 변수가 포함될 수 있습니다. 세션 변수와 임시 테이블은 스크립트에 표시됩니다. 스크립트에 선언된 모든 최상위 변수는 세션 변수이기도 합니다.
+세션에서 멀티 쿼리 멀티 문 트랜잭션 실행
+세션의 여러 쿼리에서 멀티 문 트랜잭션을 실행할 수 있습니다. 예를 들면 다음과 같습니다.
+다음 쿼리는 트랜잭션을 시작합니다.
+BEGIN TRANSACTION
+트랜잭션 내에서 다음 쿼리는 Flights라는 임시 테이블을 만든 다음 이 테이블의 데이터를 반환합니다. 두 문이 쿼리에 포함되어 있습니다.
+CREATE TEMP TABLE Flights(total INT64)  AS SELECT * FROM UNNEST([10,23,3,14,55]) AS a;
+
+SELECT * FROM Flights;
+다음 쿼리는 트랜잭션을 커밋합니다.
+COMMIT
+Flights 테이블에 영향을 미치는 활성 트랜잭션을 찾을 수 있습니다.
+WITH running_transactions AS (
+  SELECT DISTINCT transaction_id
+  FROM
+    `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+    WHERE creation_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+    EXCEPT DISTINCT
+    SELECT transaction_id FROM `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+    WHERE
+      creation_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+      AND statement_type = "COMMIT_TRANSACTION"
+      OR statement_type = "ROLLBACK_TRANSACTION"
+)
+SELECT
+  jobs.transaction_id AS transaction_id,
+  project_id,
+  user_email,
+  session_info.session_id,
+  query
+FROM `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT AS jobs, running_transactions
+  WHERE
+  creation_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+  AND destination_table = ("Flights")
+  AND jobs.transaction_id = running_transactions.transaction_id;
+진행 중인 트랜잭션을 취소하려 하고 bigquery.admin 역할이 있는 경우 Cloud Shell의 트랜잭션 또는 API 호출과 연결된 세션 ID를 사용하여 롤백 문을 실행 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#rollback_transaction]할 수 있습니다. 트랜잭션과 연결된 세션 ID를 사용하여 쿼리를 실행 [https://cloud.google.com/bigquery/docs/sessions-run-queries?hl=ko]하면 세션 ID가 결과에 표시됩니다.
+예시 세션
+다음은 Google Cloud 콘솔의 세션 워크플로 예시입니다.
+Google Cloud 콘솔에서 새 편집기 탭을 열고 세션을 만듭니다 [https://cloud.google.com/bigquery/docs/sessions-create?hl=ko].
+편집기 탭에서 다음 쿼리를 추가합니다.
+CREATE TEMP TABLE Flights(total INT64)  AS SELECT * FROM UNNEST([10,23,3,14,55]) AS a;
+SELECT * FROM Flights;
+쿼리를 실행합니다. Flights라는 임시 테이블이 생성되고 모든 데이터가 반환됩니다.
++-------+
+| total |
++-------+
+|    55 |
+|    23 |
+|     3 |
+|    14 |
+|    10 |
++-------+
+편집기 탭에서 콘텐츠를 삭제하고 다음 쿼리를 추가합니다.
+SELECT * FROM Flights LIMIT 2;
+쿼리를 실행합니다. 두 레코드의 결과가 반환됩니다. 이전 쿼리를 삭제했더라도 쿼리의 정보는 현재 세션에 저장됩니다.
++-------+
+| total |
++-------+
+|    55 |
+|    23 |
++-------+
+편집기 탭에서 콘텐츠를 삭제하고 다음 쿼리를 추가합니다.
+DECLARE x INT64 DEFAULT 10;
+
+SELECT total * x AS total_a FROM Flights LIMIT 2;
+
+BEGIN
+  SET x = 100;
+  SELECT total * x AS total_b FROM Flights LIMIT 2;
+END;
+
+SELECT total * x AS total_c FROM Flights LIMIT 2;
+쿼리를 실행합니다. 세션 범위 변수 x는 Flights 테이블에 반환되는 결과 수를 제한하는 데 사용됩니다. 이 변수가 BEGIN...END 문 외부에서 선언될 때, BEGIN...END 문 내부에서 설정될 때, 다시 BEGIN...END 문 외부에서 참조될 때 이 범위에 어떤 영향이 있는지 면밀히 살펴보세요.
++---------+
+| total_a |
++---------+
+|     550 |
+|     230 |
++---------+
+
++---------+
+| total_b |
++---------+
+|    5500 |
+|    2300 |
++---------+
+
++---------+
+| total_c |
++---------+
+|    5500 |
+|    2300 |
++---------+
+편집기 탭에서 콘텐츠를 삭제하고 다음 쿼리를 추가합니다.
+SELECT STRING(TIMESTAMP "2008-12-20 15:30:00+00", @@time_zone) AS default_time_zone;
+
+SET @@time_zone = "America/Los_Angeles";
+
+SELECT STRING(TIMESTAMP "2008-12-20 15:30:00+00", @@time_zone) AS new_time_zone;
+쿼리를 실행합니다. 세션 범위 시스템 변수 @@time_zone은 시간대를 타임스탬프에 할당하는 데 사용됩니다. 첫 번째 문은 기본 시간대(이 예시에서는 UTC)의 타임스탬프를 반환합니다. 다음 문은 @@time_zone을 새 값에 할당합니다. 세 번째 문은 새 시간대가 포함된 타임스탬프를 반환합니다.
++-------------------------------+
+| default_time_zone             |
++-------------------------------+
+| 2008-12-20 15:30:00+00        |
++-------------------------------+
+
++-------------------------------+
+| new_time_zone                 |
++-------------------------------+
+| 2008-12-20 07:30:00-08        |
++-------------------------------+
+다음 단계
+세션에서 쿼리 실행 [https://cloud.google.com/bigquery/docs/sessions-run-queries?hl=ko]
+세션에서 쿼리 기록 보기 [https://cloud.google.com/bigquery/docs/sessions-view-history?hl=ko]
+세션 종료 [https://cloud.google.com/bigquery/docs/sessions-terminating?hl=ko]
+의견 보내기

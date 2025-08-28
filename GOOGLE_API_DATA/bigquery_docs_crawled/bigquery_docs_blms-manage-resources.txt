@@ -1,0 +1,303 @@
+Source URL: https://cloud.google.com/bigquery/docs/blms-manage-resources
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#required_roles]
+메타스토어 리소스 만들기 [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#create_metastore_resources]
+네임스페이스 만들기 [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#create_namespaces]
+Iceberg 테이블 만들기 [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#create-iceberg-tables]
+metastore 리소스 보기 [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#view_metastore_resources]
+네임스페이스 보기 [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#view_namespaces]
+테이블 보기 [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#view_tables]
+BigLake metastore에서 Iceberg 리소스 관리
+bookmark_border
+BigLake metastore는 데이터 처리 엔진 간에 데이터 공유를 지원하는 단일 공유 메타스토어이므로 오픈소스 워크로드에 대해 별도의 메타스토어를 유지할 필요가 없습니다.
+이 문서에서는 BigLake Metastore에서 Iceberg 리소스를 만들고, 보고, 수정하고, 삭제하는 방법을 설명합니다.
+시작하기 전에
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+프로젝트에 결제가 사용 설정되어 있는지 확인 [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko]하는 방법을 알아보세요.
+Enable the BigQuery, BigQuery Storage, and Dataproc APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigquerystorage.googleapis.com%2Cdataproc.googleapis.com&hl=ko]
+선택사항: BigLake Metastore의 작동 방식 [https://cloud.google.com/bigquery/docs/about-blms?hl=ko]과 이를 사용해야 하는 이유를 알아봅니다.
+필요한 역할
+BigLake metastore에서 Iceberg 리소스를 관리하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트에 대한 다음 IAM 역할을 부여해 달라고 요청하세요.
+BigQuery 데이터 편집자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataEditor](roles/bigquery.dataEditor)
+스토리지 객체 관리자 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.objectAdmin] (roles/storage.objectAdmin)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+메타스토어 리소스 만들기
+다음 섹션에서는 BigLake metastore에서 리소스를 만드는 방법을 설명합니다.
+네임스페이스 만들기
+다음 옵션 중 하나를 선택합니다.
+--- 탭: API [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#api] ---
+datasets.insert 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko]를 사용하고 전달하는 데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]에서 ExternalCatalogDatasetOptions 필드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko#externalcatalogdatasetoptions]를 지정합니다.
+
+{
+  "datasetReference": {
+    "projectId": "PROJECT_ID",
+    "datasetId": "DATASET_ID"
+  },
+  "externalCatalogDatasetOptions": {
+    "defaultStorageLocationUri": "URI",
+    "parameters": {
+      ...
+    }
+  },
+  "location": "LOCATION"
+}
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 대상 데이터 세트가 포함된 프로젝트의 ID
+DATASET_ID: 대상 데이터 세트의 ID
+URI: 데이터 세트의 모든 테이블에 대한 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]
+LOCATION: 데이터 세트를 만들려는 BigQuery 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]
+
+--- 탭: Spark SQL [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#spark-sql] ---
+CREATE NAMESPACE SPARK_CATALOG.NAMESPACE;
+
+다음을 바꿉니다.
+
+
+SPARK_CATALOG: Spark 카탈로그의 이름
+NAMESPACE: 새 네임스페이스의 이름
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#terraform] ---
+provider "google" {
+  project = "PROJECT_ID"
+}
+
+resource "google_bigquery_dataset" "default" {
+  dataset_id = "DATASET_ID"
+  location   = "LOCATION"
+
+  external_catalog_dataset_options {
+    default_storage_location_uri = "URI"
+    parameters = {
+      ...
+    }
+  }
+}
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 대상 데이터 세트가 포함된 프로젝트의 ID
+DATASET_ID: 대상 데이터 세트의 ID
+LOCATION: 데이터 세트를 만들려는 BigQuery 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]
+URI: 데이터 세트의 모든 테이블에 대한 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]
+Iceberg 테이블 만들기
+다음 옵션 중 하나를 선택합니다.
+--- 탭: API [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#api] ---
+tables.insert 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert?hl=ko]를 사용하고 전달하는 테이블 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko]에서 ExternalCatalogTableOptions 필드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#ExternalCatalogTableOptions]를 지정합니다.
+
+{
+  "tableReference": {
+    "projectId": "PROJECT_ID",
+    "datasetId": "DATASET_ID",
+    "tableId": "TABLE_ID"
+  },
+  "externalCatalogTableOptions": {
+    "parameters": {
+      "table_type": "iceberg",
+      "metadata_location": "METADATA_URI"
+    },
+    "connection_id": "CONNECTION_ID"
+  }
+}
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 대상 테이블이 포함된 프로젝트의 ID입니다.
+DATASET_ID: 대상 테이블이 포함된 데이터 세트의 ID입니다.
+TABLE_ID: 타겟 테이블의 ID입니다.
+METADATA_URI: 최신 Iceberg 메타데이터 파일의 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]입니다. 예를 들면 gs://mybucket/mytable/metadata/1234.metadata.json입니다.
+CONNECTION_ID: Cloud Storage 연결의 ID입니다.
+
+--- 탭: Spark SQL [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#spark-sql] ---
+CREATE TABLE SPARK_CATALOG.NAMESPACE.TABLE
+  (id bigint, data string) USING iceberg;
+
+다음을 바꿉니다.
+
+
+SPARK_CATALOG: Spark 카탈로그의 이름
+NAMESPACE: 네임스페이스의 이름입니다.
+TABLE: 새 테이블의 이름
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#terraform] ---
+resource "google_bigquery_table" "default" {
+  deletion_protection = false
+  dataset_id          = google_bigquery_dataset.default.dataset_id
+  table_id            = "TABLE"
+
+  external_catalog_table_options {
+    storage_descriptor {
+      location_uri  = "STORAGE_URI"
+      input_format  = "org.apache.hadoop.mapred.FileInputFormat"
+      output_format = "org.apache.hadoop.mapred.FileOutputFormat"
+    }
+    parameters = {
+      "table_type"        = "iceberg"
+      "metadata_location" = "METADATA_URI"
+      "write.parquet.compression-codec" : "zstd"
+      "EXTERNAL" : "TRUE"
+    }
+  }
+}
+
+다음을 바꿉니다.
+
+
+TABLE: 대상 테이블의 이름입니다.
+STORAGE_URI: 테이블 데이터가 저장된 Cloud Storage URI입니다(gs://로 시작).
+METADATA_URI: 최신 Iceberg 메타데이터 파일의 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]입니다. 예를 들면 gs://mybucket/mytable/metadata/1234.metadata.json입니다.
+metastore 리소스 보기
+다음 섹션에서는 BigLake metastore에서 리소스를 보는 방법을 설명합니다.
+네임스페이스 보기
+다음 옵션 중 하나를 선택합니다.
+--- 탭: API [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#api] ---
+datasets.list 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list?hl=ko]를 사용하여 모든 네임스페이스를 보거나 datasets.get 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/get?hl=ko]를 사용하여 정의된 네임스페이스에 관한 정보를 봅니다.
+
+--- 탭: Spark SQL [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#spark-sql] ---
+카탈로그의 모든 네임스페이스를 보려면 다음 문을 사용합니다.
+
+SHOW { DATABASES | NAMESPACES } IN SPARK_CATALOG;
+
+SPARK_CATALOG을 Spark 카탈로그 이름으로 바꿉니다.
+
+정의된 네임스페이스에 대한 정보를 보려면 다음 문을 사용합니다.
+
+DESCRIBE { DATABASE | NAMESPACE } [EXTENDED]
+SPARK_CATALOG.NAMESPACE;
+
+다음을 바꿉니다.
+
+
+SPARK_CATALOG: Spark 카탈로그의 이름
+NAMESPACE: 네임스페이스의 이름입니다.
+테이블 보기
+다음 옵션 중 하나를 선택합니다.
+--- 탭: API [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#api] ---
+tables.list 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list?hl=ko]를 사용하여 네임스페이스의 모든 테이블을 보거나 tables.get 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/get?hl=ko]를 사용하여 정의된 테이블에 관한 정보를 봅니다.
+
+--- 탭: Spark SQL [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#spark-sql] ---
+네임스페이스의 모든 테이블을 보려면 다음 문을 사용합니다.
+
+SHOW TABLES IN SPARK_CATALOG.NAMESPACE;
+
+다음을 바꿉니다.
+
+
+SPARK_CATALOG: Spark 카탈로그의 이름
+NAMESPACE: 네임스페이스의 이름입니다.
+
+
+정의된 테이블에 대한 정보를 보려면 다음 문을 사용합니다.
+
+DESCRIBE TABLE [EXTENDED]
+SPARK_CATALOG.NAMESPACE.TABLE;
+
+다음을 바꿉니다.
+
+
+SPARK_CATALOG: Spark 카탈로그의 이름
+NAMESPACE: 네임스페이스의 이름입니다.
+TABLE: 테이블의 이름
+metastore 리소스 수정
+주의: BigQuery API를 사용하여 BigLake Metastore 리소스를 수정하면 외부 엔진과 호환되지 않는 변경사항이 발생할 수 있습니다.
+다음 섹션에서는 BigLake metastore에서 리소스를 수정하는 방법을 설명합니다.
+네임스페이스 업데이트
+다음 옵션 중 하나를 선택합니다.
+--- 탭: API [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#api] ---
+datasets.patch 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/patch?hl=ko]를 사용하여 데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]의 ExternalCatalogDatasetOptions 필드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko#externalcatalogdatasetoptions]를 업데이트합니다. datasets.update 메서드는 전체 데이터 세트 리소스를 대체하므로 권장되지 않습니다.
+
+--- 탭: Spark SQL [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#spark-sql] ---
+ALTER DATABASE 문 [https://spark.apache.org/docs/3.5.1/sql-ref-syntax-ddl-alter-database.html]을 사용합니다.
+Iceberg 테이블 업데이트
+다음 옵션 중 하나를 선택합니다.
+--- 탭: API [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#api] ---
+tables.patch 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch?hl=ko]를 사용하고 테이블 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko]에서 ExternalCatalogTableOptions 필드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#ExternalCatalogTableOptions]를 업데이트합니다. tables.update 메서드는 전체 테이블 리소스를 대체하므로 권장되지 않습니다.
+
+스키마 또는 메타데이터 파일을 업데이트하려면 tables.patch 메서드를 사용하고 autodetect_schema 속성을 true로 설정합니다.
+
+PATCH https://bigquery.googleapis.com/bigquery/v2/projects/PROJECT_ID/datasets/DATASET_ID/tables/TABLE_ID?autodetect_schema=true
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 업데이트할 테이블이 포함된 프로젝트의 ID
+DATASET_ID: 업데이트하려는 테이블이 포함된 데이터 세트의 ID
+TABLE_ID: 업데이트하려는 테이블의 ID
+
+
+요청 본문에서 각 필드의 업데이트된 값을 지정합니다. 예를 들어 Iceberg 테이블의 메타데이터 위치를 업데이트하려면 metadata_location 필드의 업데이트된 값을 지정합니다.
+
+{
+  "externalCatalogTableOptions": {
+    "parameters": {"metadata_location": "METADATA_URI"}
+  },
+  "schema": null
+}'
+
+METADATA_URI를 최신 Iceberg 메타데이터 파일의 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]로 바꿉니다. 예를 들면 gs://mybucket/mytable/metadata/1234.metadata.json입니다.
+
+--- 탭: Spark SQL [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#spark-sql] ---
+ALTER TABLE 문 [https://iceberg.apache.org/docs/latest/spark-ddl/#alter-table]을 사용합니다.
+metastore 리소스 삭제
+다음 섹션에서는 BigLake metastore에서 리소스를 삭제하는 방법을 설명합니다.
+네임스페이스 삭제
+다음 옵션 중 하나를 선택합니다.
+--- 탭: API [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#api] ---
+datasets.delete 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete?hl=ko]를 사용합니다.
+deleteContents 매개변수를 true로 설정하여 네임스페이스의 테이블을 삭제합니다.
+
+--- 탭: Spark SQL [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#spark-sql] ---
+DROP NAMESPACE SPARK_CATALOG.NAMESPACE;
+
+다음을 바꿉니다.
+
+
+SPARK_CATALOG: Spark 카탈로그의 이름
+NAMESPACE: 네임스페이스의 이름입니다.
+테이블 삭제
+다음 옵션 중 하나를 선택합니다.
+--- 탭: API [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#api] ---
+tables.delete 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/delete?hl=ko]를 사용하고 테이블 이름을 지정합니다. 이 메서드는 Cloud Storage의 연결된 파일을 삭제하지 않습니다.
+
+--- 탭: Spark SQL [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko#spark-sql] ---
+테이블만 삭제하려면 다음 문을 사용합니다.
+
+DROP TABLE SPARK_CATALOG.NAMESPACE.TABLE;
+
+다음을 바꿉니다.
+
+
+SPARK_CATALOG: Spark 카탈로그의 이름
+NAMESPACE: 네임스페이스의 이름입니다.
+TABLE: 삭제할 테이블의 이름
+
+
+테이블을 삭제하고 Cloud Storage에서 관련 파일을 삭제하려면 다음 문을 사용합니다.
+
+DROP TABLE SPARK_CATALOG.NAMESPACE.TABLE PURGE;
+
+다음을 바꿉니다.
+
+
+SPARK_CATALOG: Spark 카탈로그의 이름
+NAMESPACE: 네임스페이스의 이름입니다.
+TABLE: 삭제할 테이블의 이름
+다음 단계
+추가 BigLake 메타스토어 기능 [https://cloud.google.com/bigquery/docs/blms-features?hl=ko]에 대해 알아봅니다.
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,105 @@
+Source URL: https://cloud.google.com/bigquery/docs/cloud-sql-federated-queries
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/cloud-sql-federated-queries?hl=ko#before_you_begin]
+데이터 쿼리 [https://cloud.google.com/bigquery/docs/cloud-sql-federated-queries?hl=ko#query_data]
+Cloud SQL 테이블 스키마 보기 [https://cloud.google.com/bigquery/docs/cloud-sql-federated-queries?hl=ko#view_a_table_schema]
+연결 세부정보 [https://cloud.google.com/bigquery/docs/cloud-sql-federated-queries?hl=ko#connection_details]
+BigQuery 통합 쿼리 추적 [https://cloud.google.com/bigquery/docs/cloud-sql-federated-queries?hl=ko#track_federated_queries]
+문제 해결 [https://cloud.google.com/bigquery/docs/cloud-sql-federated-queries?hl=ko#troubleshooting]
+다음 단계 [https://cloud.google.com/bigquery/docs/cloud-sql-federated-queries?hl=ko#whats_next]
+Cloud SQL 통합 쿼리
+bookmark_border
+데이터 분석가는 통합 쿼리 [https://cloud.google.com/bigquery/docs/federated-queries-intro?hl=ko]를 사용하여 BigQuery에서 Cloud SQL의 데이터를 쿼리할 수 있습니다.
+BigQuery Cloud SQL 통합을 사용하면 BigQuery에서 Cloud SQL에 위치한 데이터를 실시간으로, 데이터 복사나 이동 없이 쿼리할 수 있습니다. 쿼리 통합은 Cloud SQL에서 MySQL(2세대) 및 PostgreSQL 인스턴스를 모두 지원합니다.
+또는 Cloud Data Fusion 또는 Datastream [https://cloud.google.com/datastream/docs/overview?hl=ko]을 사용하여 데이터를 BigQuery로 복제할 수도 있습니다. Cloud Data Fusion 사용에 대한 자세한 내용은 MySQL에서 BigQuery로 데이터 복제 [https://cloud.google.com/data-fusion/docs/tutorials/replicating-data/mysql-to-bigquery?hl=ko]를 참조하세요.
+시작하기 전에
+BigQuery 관리자가 Cloud SQL 연결 [https://cloud.google.com/bigquery/docs/connect-to-sql?hl=ko#create-sql-connection]을 만들어 사용자와 공유 [https://cloud.google.com/bigquery/docs/connect-to-sql?hl=ko#share_connections]했는지 확인합니다.
+Cloud SQL 인스턴스를 쿼리하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트에 대한 BigQuery 연결 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.connectionUser](roles/bigquery.connectionUser) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+데이터 쿼리
+GoogleSQL 쿼리에서 Cloud SQL로 통합 쿼리를 보내려면 EXTERNAL_QUERY 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/federated_query_functions?hl=ko#external_query]를 사용합니다.
+고객 테이블은 BigQuery에, 판매 테이블은 Cloud SQL에 저장되어 있는 상황에서 하나의 쿼리로 두 테이블을 조인하려는 경우가 있습니다. 다음 예시에서는 orders라는 Cloud SQL 테이블에 통합 쿼리를 만들고 결과를 mydataset.customers라는 BigQuery 테이블과 조인합니다.
+SELECT c.customer_id, c.name, rq.first_order_date
+FROM mydataset.customers AS c
+LEFT OUTER JOIN EXTERNAL_QUERY(
+  'us.connection_id',
+  '''SELECT customer_id, MIN(order_date) AS first_order_date
+  FROM orders
+  GROUP BY customer_id''') AS rq ON rq.customer_id = c.customer_id
+GROUP BY c.customer_id, c.name, rq.first_order_date;
+예시 쿼리는 다음과 같은 3부분으로 구성됩니다.
+운영 PostgreSQL 데이터베이스에서 외부 쿼리 SELECT customer_id, MIN(order_date) AS first_order_date FROM orders GROUP BY customer_id를 실행하여 EXTERNAL_QUERY() 함수를 통해 각 고객의 첫 주문 날짜를 구합니다.
+customer_id를 기준으로 BigQuery에서 외부 쿼리 결과 테이블을 고객 테이블과 조인합니다.
+고객 정보와 첫 주문 날짜를 선택합니다.
+Cloud SQL 테이블 스키마 보기
+information_schema 테이블을 쿼리하기 위해 EXTERNAL_QUERY() 함수를 사용해 데이터베이스 메타데이터에 액세스하여 데이터베이스의 모든 테이블을 나열하거나 테이블 스키마를 볼 수 있습니다. 다음 예시의 information_schema 쿼리는 MySQL과 PostgreSQL에서 모두 작동합니다. MySQL information_schema 테이블 [https://dev.mysql.com/doc/refman/8.0/en/information-schema-introduction.html] 및 PostgreSQL information_schema 테이블 [https://www.postgresql.org/docs/9.1/information-schema.html]에서 더 자세히 알아볼 수 있습니다.
+-- List all tables in a database.
+SELECT * FROM EXTERNAL_QUERY("connection_id",
+"select * from information_schema.tables;");
+-- List all columns in a table.
+SELECT * FROM EXTERNAL_QUERY("connection_id",
+"select * from information_schema.columns where table_name='x';");
+연결 세부정보
+다음 표에서는 Cloud SQL 연결 속성을 보여줍니다.
+속성 이름 값 설명
+name 문자열 연결 리소스의 이름입니다(형식: project_id.location_id.connection_id).
+location 문자열 Cloud SQL 인스턴스 위치와 일치하거나 해당 관할 구역의 멀티 리전이어야 하는 연결의 위치입니다. 예를 들어 us-east4의 Cloud SQL 인스턴스는 US를 사용할 수 있는 반면 europe-north1의 Cloud SQL 인스턴스는 EU를 사용할 수 있습니다. 이 위치에서 실행되는 BigQuery 쿼리만 이 연결을 사용할 수 있습니다.
+friendlyName 문자열 연결의 사용자 친화적인 표시 이름입니다.
+description 문자열 연결에 대한 설명입니다.
+cloudSql.type 문자열 'POSTGRES' 또는 'MYSQL'일 수 있습니다.
+cloudSql.instanceId 문자열 Cloud SQL 인스턴스 [https://cloud.google.com/sql/docs/mysql/instance-settings?hl=ko#instance-id-2ndgen] 이름은 주로 다음 형식입니다.
+
+Project-id:location-id:instance-id
+
+Cloud SQL 인스턴스 [https://console.cloud.google.com/sql/instances?hl=ko] 세부정보 페이지에서 인스턴스 ID를 확인할 수 있습니다.
+cloudSql.database 문자열 연결할 Cloud SQL Database입니다.
+cloudSql.serviceAccountId 문자열 Cloud SQL 데이터베이스에 액세스하도록 구성된 서비스 계정입니다.
+다음 표에서는 Cloud SQL 인스턴스 사용자 인증 정보에 대한 속성을 보여줍니다.
+속성 이름 값 설명
+username 문자열 데이터베이스 사용자 이름
+password 문자열 데이터베이스 비밀번호
+BigQuery 통합 쿼리 추적
+Cloud SQL에 대해 통합 쿼리를 실행하면 BigQuery는 다음과 유사한 주석으로 쿼리에 주석을 추가합니다.
+/* Federated query from BigQuery. Project ID: PROJECT_ID, BigQuery Job ID: JOB_ID. */
+MySQL 또는 PostgreSQL 데이터베이스에서 다음 주석을 사용하면 로그의 쿼리 사용량을 모니터링할 때 BigQuery에서 수신되는 쿼리를 식별할 수 있습니다.
+로그 탐색기 페이지로 이동합니다.
+로그 탐색기로 이동 [https://console.cloud.google.com/logs/query?hl=ko]
+쿼리 탭에서 다음 쿼리를 입력합니다.
+resource.type="cloudsql_database"
+textPayload=~"Federated query from BigQuery"
+쿼리 실행을 클릭합니다.
+BigQuery 통합 쿼리에 사용할 수 있는 레코드가 있는 경우 쿼리 결과에 다음과 유사한 레코드 목록이 표시됩니다.
+YYYY-MM-DD hh:mm:ss.millis UTC [3210064]: [4-1]
+db=DATABASE, user=USER_ACCOUNT
+STATEMENT: SELECT 1 FROM (SELECT FROM company_name_table) t;
+/* Federated query from BigQuery.
+Project ID: PROJECT_ID, BigQuery Job ID: JOB_ID
+*/
+
+YYYY-MM-DD hh:mm:ss.millis UTC [3210532]: [2-1]
+db=DATABASE, user=USER_ACCOUNT
+STATEMENT: SELECT "company_id", "company type_id" FROM
+(SELECT FROM company_name_table) t;
+/* Federated query from BigQuery.
+Project ID: PROJECT_ID, BigQuery Job ID: JOB_ID
+*/
+문제 해결
+이 섹션은 통합 쿼리를 Cloud SQL로 전송할 때 발생할 수 있는 문제를 해결하는 데 도움이 됩니다.
+문제: 데이터베이스 서버에 연결하지 못했습니다. MySQL 데이터베이스를 쿼리하는 경우 다음 오류가 발생할 수 있습니다.
+Invalid table-valued function EXTERNAL_QUERY Failed to connect to MySQL database. Error: MysqlErrorCode(2013): Lost connection to MySQL server during query.
+또는 PostgreSQL 데이터베이스를 쿼리하는 경우 다음 오류가 발생할 수 있습니다.
+Invalid table-valued function EXTERNAL_QUERY Connect to PostgreSQL server failed: server closed the connection unexpectedly This probably means the server terminated abnormally before or while processing the request.
+해결 방법: 유효한 사용자 인증 정보가 사용되었고 모든 기본 요건을 따라 Cloud SQL에 대한 연결 [https://cloud.google.com/bigquery/docs/connect-to-sql?hl=ko]을 생성했는지 확인합니다. Cloud SQL에 연결할 때 자동으로 생성되는 서비스 계정에 Cloud SQL 클라이언트(roles/cloudsql.client) 역할이 있는지 확인합니다. 서비스 계정의 형식은 다음과 같습니다. service-PROJECT_NUMBER@gcp-sa-bigqueryconnection.iam.gserviceaccount.com 자세한 안내는 서비스 계정에 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/connect-to-sql?hl=ko#access-sql]를 참조하세요.
+다음 단계
+통합 쿼리 [https://cloud.google.com/bigquery/docs/federated-queries-intro?hl=ko] 알아보기
+MySQL에서 BigQuery로의 데이터 유형 매핑 [https://cloud.google.com/bigquery/docs/reference/standard-sql/federated_query_functions?hl=ko#mysql_mapping] 알아보기
+PostgreSQL에서 BigQuery로의 데이터 유형 매핑 [https://cloud.google.com/bigquery/docs/reference/standard-sql/federated_query_functions?hl=ko#postgresql_mapping] 알아보기
+지원되지 않는 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/federated_query_functions?hl=ko#unsupported_data_types] 알아보기
+도움이 되었나요?
+의견 보내기

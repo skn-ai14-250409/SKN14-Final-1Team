@@ -1,0 +1,79 @@
+Source URL: https://cloud.google.com/bigquery/docs/model-monitoring-overview
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+사용 사례 모니터링 [https://cloud.google.com/bigquery/docs/model-monitoring-overview?hl=ko#monitoring_use_cases]
+기본 데이터 비대칭 모니터링 [https://cloud.google.com/bigquery/docs/model-monitoring-overview?hl=ko#basic_data_skew_monitoring]
+기본 데이터 드리프트 모니터링 [https://cloud.google.com/bigquery/docs/model-monitoring-overview?hl=ko#basic_data_drift_monitoring]
+고급 데이터 비대칭 또는 드리프트 모니터링 [https://cloud.google.com/bigquery/docs/model-monitoring-overview?hl=ko#advanced_data_skew_or_drift_monitoring]
+모니터링 시각화 [https://cloud.google.com/bigquery/docs/model-monitoring-overview?hl=ko#monitoring_visualization]
+모니터링 자동화 [https://cloud.google.com/bigquery/docs/model-monitoring-overview?hl=ko#monitoring_automation]
+모델 모니터링 개요
+bookmark_border
+이 문서에서는 BigQuery ML이 모델에서 사용하는 데이터를 평가하고 비교하여 머신러닝(ML) 모델을 모니터링하는 방법을 설명합니다. 여기에는 모델의 서빙 데이터를 학습 데이터와 비교하고 새 서빙 데이터를 이전에 사용한 서빙 데이터와 비교하는 작업이 포함됩니다.
+데이터가 모델 성능에 영향을 미치므로 모델에서 사용하는 데이터를 이해하는 것은 ML 관점에서 중요합니다. 학습 데이터와 서빙 데이터 사이의 편차를 이해하는 것은 시간 경과에 따라 모델을 정확하게 유지하려면 특히 중요합니다. 모델은 학습 데이터와 유사한 서빙 데이터에서 가장 뛰어난 성능을 보입니다. 서빙 데이터가 모델을 학습시키는 데 사용된 데이터와 다르면 모델 자체가 변경되지 않았더라도 모델 성능이 저하될 수 있습니다.
+BigQuery ML은 데이터 편향 및 데이터 드리프트에 대해 학습 및 서빙 데이터를 분석하는 데 도움이 되는 함수를 제공합니다.
+데이터 비대칭은 학습 데이터의 특성 값 분포가 프로덕션의 데이터 제공과 크게 다를 때 발생합니다. 모델의 학습 통계는 모델 학습 중에 저장되므로 편향 감지를 사용하는 데 원래 학습 데이터가 필요하지 않습니다.
+데이터 드리프트는 시간 경과에 따라 프로덕션의 특성 데이터 분포가 크게 변경되면 발생합니다. 드리프트 감지는 연속적인 데이터 스팬(예: 서로 다른 데이터 제공 날짜 간)에 지원됩니다. 이렇게 하면 데이터 세트가 너무 많이 분기되어 모델을 재학습하기 전에 서빙 데이터가 시간 경과에 따라 변경되는 경우 알림을 받을 수 있습니다.
+다음 함수를 사용하여 BigQuery ML에서 모델을 모니터링합니다.
+ML.DESCRIBE_DATA [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-describe-data?hl=ko]: 학습 또는 서빙 데이터 세트에 대한 설명 통계를 계산합니다.
+ML.VALIDATE_DATA_SKEW [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-validate-data-skew?hl=ko]: 두 데이터 세트 간에 비정상적인 차이를 식별하기 위해 서빙 데이터 세트의 통계를 계산한 후 BigQuery ML 모델이 학습될 때 계산된 학습 데이터 통계와 비교합니다. 성능 개선 및 비용 절감을 위해 학습 데이터의 특성 열과 일치하는 서빙 데이터의 특성 열에 대해서만 통계가 계산됩니다.
+ML.VALIDATE_DATA_DRIFT [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-validate-data-drift?hl=ko]: 두 데이터 세트 간의 비정상적인 차이를 식별하기 위해 두 서빙 데이터 세트의 통계를 계산하고 비교합니다.
+ML.TFDV_DESCRIBE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-tfdv-describe?hl=ko]: 학습 또는 서빙 데이터 세트에 대해 세분화된 설명 통계를 계산합니다. 이 함수는 TensorFlow tfdv.generate_statistics_from_csv API [https://www.tensorflow.org/tfx/data_validation/api_docs/python/tfdv/generate_statistics_from_csv?hl=ko]와 동일한 동작을 제공합니다.
+ML.TFDV_VALIDATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-tfdv-validate?hl=ko]: 두 데이터 세트 간의 비정상적인 차이를 식별하기 위해 학습 및 서빙 데이터 통계 또는 두 개의 서빙 데이터 통계 집합을 비교합니다. 이 함수는 TensorFlow validate_statistics API [https://www.tensorflow.org/tfx/data_validation/api_docs/python/tfdv/validate_statistics?hl=ko]와 동일한 동작을 제공합니다.
+사용 사례 모니터링
+이 섹션에서는 일반적인 모니터링 사용 사례에서 BigQuery ML 모델 모니터링 함수를 사용하는 방법을 설명합니다.
+기본 데이터 비대칭 모니터링
+이 사용 사례는 데이터 비대칭에 대한 모델을 신속하게 개발 및 모니터링하려고 하고 기존 모니터링 솔루션과 통합하는 데 세분화된 편향 통계가 필요 없는 경우에 적합합니다.
+이 사용 사례의 일반적인 단계는 다음과 같습니다.
+학습 및 서빙 데이터에서 ML.DESCRIBE_DATA 함수를 실행하여 두 데이터 세트가 서로 적절히 비교되고 예상된 매개변수 내에 있는지 확인합니다.
+BigQuery ML 모델을 만들고 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko] 학습 데이터로 학습시킵니다.
+ML.VALIDATE_DATA_SKEW 함수를 실행하여 서빙 데이터 통계를 모델 생성 중에 계산된 학습 데이터 통계와 비교하여 데이터 편향이 있는지 확인합니다.
+데이터 비대칭이 있으면 근본 원인을 조사하고 학습 데이터를 적절하게 조정한 후 모델을 다시 학습시킵니다.
+기본 데이터 드리프트 모니터링
+이 사용 사례는 데이터 드리프트에 대한 모델을 신속하게 개발 및 모니터링하려고 하고 기존 모니터링 솔루션과 통합하는 데 세분화된 드리프트 통계가 필요 없는 경우에 적합합니다.
+이 사용 사례의 일반적인 단계는 다음과 같습니다.
+학습 및 서빙 데이터에서 ML.DESCRIBE_DATA 함수를 실행하여 두 데이터 세트가 서로 적절히 비교되고 예상된 매개변수 내에 있는지 확인합니다.
+BigQuery ML 모델을 만들고 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko] 학습 데이터로 학습시킵니다.
+데이터 드리프트가 있는지 확인하기 위해 ML.VALIDATE_DATA_DRIFT 함수를 실행하여 서로 다른 두 개의 서빙 데이터 세트의 통계를 비교합니다. 예를 들어 현재 서빙 데이터를 테이블 스냅샷 [https://cloud.google.com/bigquery/docs/table-snapshots-intro?hl=ko]의 이전 서빙 데이터 또는 ML.FEATURES_AT_TIME 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-feature-time?hl=ko]를 사용하여 가져올 수 있는 특정 시점에 서빙된 특성과 비교해야 할 수 있습니다.
+데이터 드리프트가 있으면 근본 원인을 조사하고 학습 데이터를 적절하게 조정한 후 모델을 다시 학습시킵니다.
+고급 데이터 비대칭 또는 드리프트 모니터링
+이 사용 사례는 세분화된 편향 또는 드리프트 통계를 기존 모니터링 솔루션과 통합하거나 다른 목적으로 통합하려는 경우에 적합합니다.
+이 사용 사례의 일반적인 단계는 다음과 같습니다.
+모니터링 솔루션에 적합한 간격으로 학습 및 서빙 데이터에서 ML.TFDV_DESCRIBE 함수를 실행하고 쿼리 결과를 저장 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko]합니다. 이 단계를 통해 향후 서빙 데이터를 이전 시점의 학습 및 서빙 데이터와 비교할 수 있습니다.
+학습 및 서빙 데이터 통계 또는 두 개의 서빙 데이터 통계 집합에서 ML.TFDV_VALIDATE 함수를 실행하여 각각 데이터 편향 또는 특성 드리프트를 평가합니다. 학습 및 서빙 데이터는 JSON 형식의 TensorFlow DatasetFeatureStatisticsList 프로토콜 버퍼 [https://www.tensorflow.org/tfx/tf_metadata/api_docs/python/tfmd/proto/statistics_pb2/DatasetFeatureStatisticsList?hl=ko]로 제공되어야 합니다. ML.TFDV_DESCRIBE 함수를 실행하여 올바른 형식으로 프로토콜 버퍼를 생성하거나 BigQuery 외부에서 로드할 수 있습니다. 다음 예시에서는 특성 편향을 평가하는 방법을 보여줍니다.
+DECLARE stats1 JSON;
+DECLARE stats2 JSON;
+
+SET stats1 = (
+  SELECT * FROM ML.TFDV_DESCRIBE(TABLE `myproject.mydataset.training`)
+);
+SET stats2 = (
+  SELECT * FROM ML.TFDV_DESCRIBE(TABLE `myproject.mydataset.serving`)
+);
+
+SELECT ML.TFDV_VALIDATE(stats1, stats2, 'SKEW');
+
+INSERT `myproject.mydataset.serve_stats`
+  (t, dataset_feature_statistics_list)
+SELECT CURRENT_TIMESTAMP() AS t, stats1;
+데이터 비대칭이나 데이터 드리프트가 있으면 근본 원인을 조사하고 학습 데이터를 적절하게 조정한 후 모델을 다시 학습시킵니다.
+모니터링 시각화
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+일부 모니터링 기능은 Vertex AI 모델 모니터링 [https://cloud.google.com/vertex-ai/docs/model-monitoring/overview?hl=ko]과 통합되어 차트와 그래프를 사용하여 모델 모니터링 기능 출력을 분석 [https://cloud.google.com/vertex-ai/docs/model-monitoring/run-monitoring-job?hl=ko#analyze_monitoring_job_results]할 수 있습니다.
+Vertex AI 시각화를 사용하면 다음과 같은 이점이 있습니다.
+대화형 시각화: Vertex AI 콘솔에서 차트와 그래프를 사용하여 데이터 분포, 기울기 측정항목, 드리프트 측정항목을 탐색합니다.
+이력 분석: Vertex AI 시각화를 사용하여 시간 경과에 따른 모델 모니터링 결과를 추적합니다. 이를 통해 데이터 변경사항의 추세와 패턴을 파악하여 모델을 선제적으로 업데이트하고 유지관리할 수 있습니다.
+중앙 집중식 관리: 통합 Vertex AI 대시보드에서 모든 BigQuery ML 및 Vertex AI 모델의 모니터링을 관리합니다.
+ML.VALIDATE_DATA_DRIFT 함수의 MODEL 인수를 사용하여 해당 함수의 출력을 시각화할 수 있습니다. ML.VALIDATE_DATA_SKEW 함수의 enable_visualization_link 인수를 사용하여 해당 함수의 출력을 시각화할 수 있습니다.
+Vertex AI에 등록 [https://cloud.google.com/bigquery/docs/managing-models-vertex?hl=ko#register_models]된 모델에만 모니터링 시각화를 사용할 수 있습니다. ALTER MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-alter-model?hl=ko]을 사용하여 기존 모델을 등록할 수 있습니다.
+모니터링 자동화
+예약된 쿼리 [https://cloud.google.com/bigquery/docs/scheduling-queries?hl=ko]를 사용하여 모니터링을 자동화해 모니터링 함수를 실행하고 출력을 평가하고 이상치가 감지되면 모델을 다시 학습시킬 수 있습니다. 예약된 쿼리 설정 [https://cloud.google.com/bigquery/docs/scheduling-queries?hl=ko#set_up_scheduled_queries]의 일부로 이메일 알림을 사용 설정해야 합니다.
+ML.VALIDATE_DATA_SKEW 함수를 자동화하는 방법을 보여주는 예시는 편향 감지 자동화 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-validate-data-skew?hl=ko#automate_skew_detection]를 참조하세요.
+도움이 되었나요?
+의견 보내기

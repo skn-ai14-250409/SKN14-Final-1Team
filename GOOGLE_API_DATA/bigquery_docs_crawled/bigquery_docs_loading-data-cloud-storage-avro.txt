@@ -1,0 +1,1553 @@
+Source URL: https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#limitations]
+입력 파일 요구사항 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#input_file_requirements]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#before_you_begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#required_permissions]
+Cloud Storage에서 데이터를 로드할 수 있는 권한 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#permissions-load-data-from-cloud-storage]
+Cloud Storage에서 Avro 데이터 로드
+bookmark_border
+Avro [https://avro.apache.org/]는 직렬화된 데이터를 같은 파일에서 데이터 스키마와 함께 묶는 오픈소스 데이터 형식입니다.
+Cloud Storage에서 Avro 데이터를 로드할 때 새 테이블 또는 파티션에 데이터를 로드하거나 기존 테이블 또는 파티션에 추가하거나 덮어쓸 수 있습니다. BigQuery에 로드한 데이터는 Capacitor용 열 형식 [https://cloud.google.com/blog/products/bigquery/inside-capacitor-bigquerys-next-generation-columnar-storage-format?hl=ko](BigQuery의 스토리지 형식)으로 변환됩니다.
+Cloud Storage에서 BigQuery 테이블로 데이터를 로드하는 경우 테이블을 포함한 데이터 세트는 Cloud Storage 버킷과 같은 리전이나 멀티 리전 위치에 있어야 합니다.
+로컬 파일에서 Avro 데이터를 로드하는 자세한 내용은 로컬 데이터 소스에서 BigQuery로 데이터 로드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#loading_data_from_local_files]를 참조하세요.
+제한사항
+Cloud Storage 버킷에서 BigQuery로 데이터를 로드할 때는 다음과 같은 제한사항이 적용됩니다.
+BigQuery는 외부 데이터 소스의 데이터 일관성을 보장하지 않습니다. 쿼리가 실행되는 동안 기본 데이터가 변경되면 예상치 못한 동작이 발생할 수 있습니다.
+BigQuery는 Cloud Storage 객체 버전 관리 [https://cloud.google.com/storage/docs/object-versioning?hl=ko]를 지원하지 않습니다. Cloud Storage URI에 세대 번호를 포함하면 로드 작업이 실패합니다.
+BigQuery에 Avro 파일을 로드할 때도 다음 제한사항이 적용됩니다.
+BigQuery는 독립형 Avro 스키마 (.avsc) 파일 로드를 지원하지 않습니다.
+BigQuery에서는 중첩된 배열 형식이 지원되지 않습니다. 이 형식을 사용하는 Avro 파일은 가져오기 전에 변환해야 합니다.
+Avro 파일에서 전체 이름의 이름과 네임스페이스에 영숫자 문자와 밑줄 문자(_)만 포함할 수 있습니다. 다음 정규 표현식은 허용되는 문자([A-Za-z_][A-Za-z0-9_]*)를 보여줍니다.
+BigQuery 로드 작업 한도에 대한 자세한 내용은 로드 작업 [https://cloud.google.com/bigquery/quotas?hl=ko#load_jobs]을 참고하세요.
+입력 파일 요구사항
+BigQuery에 Avro 파일을 로드할 때 resourcesExceeded 오류를 방지하려면 다음 가이드라인을 따르세요.
+행 크기를 50MB 이하로 유지합니다.
+행에 많은 배열 필드나 매우 긴 배열 필드가 포함된 경우 배열 값을 별도의 필드로 나눕니다.
+시작하기 전에
+이 문서의 각 태스크를 수행하는 데 필요한 권한을 사용자에게 제공하는 Identity and Access Management(IAM) 역할을 부여하고 데이터를 저장할 데이터 세트 및 테이블을 만듭니다.
+필수 권한
+데이터를 BigQuery로 로드하려면 로드 작업을 실행하고 데이터를 BigQuery 테이블과 파티션으로 로드할 수 있는 IAM 권한이 필요합니다. Cloud Storage에서 데이터를 로드할 경우 데이터가 포함된 버킷에 액세스할 수 있는 IAM 권한도 필요합니다.
+데이터를 BigQuery로 로드할 수 있는 권한
+데이터를 새 BigQuery 테이블이나 파티션으로 로드하거나 기존 테이블 또는 파티션을 추가하거나 덮어쓰려면 다음 IAM 권한이 필요합니다.
+bigquery.tables.create
+bigquery.tables.updateData
+bigquery.tables.update
+bigquery.jobs.create
+다음과 같이 사전 정의된 각 IAM 역할에는 데이터를 BigQuery 테이블이나 파티션에 로드하기 위해 필요한 권한이 포함되어 있습니다.
+roles/bigquery.dataEditor
+roles/bigquery.dataOwner
+roles/bigquery.admin(bigquery.jobs.create 권한 포함)
+bigquery.user(bigquery.jobs.create 권한 포함)
+bigquery.jobUser(bigquery.jobs.create 권한 포함)
+또한 bigquery.datasets.create 권한이 있으면 만들 데이터 세트에서 로드 작업을 사용하여 테이블을 만들고 업데이트할 수 있습니다.
+BigQuery의 IAM 역할과 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/access-control?hl=ko]을 참조하세요.
+Cloud Storage에서 데이터를 로드할 수 있는 권한
+Cloud Storage 버킷에서 데이터를 로드하는 데 필요한 권한을 얻으려면 관리자에게 버킷의 스토리지 관리자 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.admin] (roles/storage.admin) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이 사전 정의된 역할에는 Cloud Storage 버킷에서 데이터를 로드하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+데이터 세트 및 테이블 만들기
+데이터를 저장하려면 BigQuery 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]를 만든 다음 해당 데이터 세트 내에 BigQuery 테이블 [https://cloud.google.com/bigquery/docs/tables?hl=ko]을 만들어야 합니다.
+Avro의 장점
+Avro는 BigQuery로 데이터를 로드할 때 권장되는 형식입니다. Avro 파일을 로드하면 CSV 및 JSON(줄바꿈으로 구분됨)에 비해 다음과 같은 이점이 있습니다.
+Avro 바이너리 형식:
+로드가 빠릅니다. 데이터 블록이 압축 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#loading_compressed_and_uncompressed_data]된 경우에도 데이터를 병렬로 읽을 수 있습니다.
+유형 설정이나 직렬화가 필요 없습니다.
+ASCII와 같은 다른 형식에서 인코딩 문제가 없으므로 파싱이 간편합니다.
+Avro 파일을 BigQuery로 로드하면 테이블 스키마를 자체 설명적 소스 데이터로부터 자동으로 가져옵니다.
+Avro 스키마
+Avro 파일을 새 BigQuery 테이블에 로드하면 테이블 스키마를 소스 데이터를 사용하여 자동으로 가져옵니다. BigQuery가 소스 데이터에서 스키마를 검색하면 알파벳순으로 마지막 파일이 사용됩니다.
+예를 들어 Cloud Storage에 다음과 같은 Avro 파일이 있습니다.
+gs://mybucket/00/
+  a.avro
+  z.avro
+gs://mybucket/01/
+  b.avro
+bq 명령줄 도구로 이 명령어를 실행하면 모든 파일(쉼표로 구분된 목록)이 로드되고 스키마가 mybucket/01/b.avro에서 파생됩니다.
+bq load \
+--source_format=AVRO \
+dataset.
+table \
+"gs://mybucket/00/*.avro","gs://mybucket/01/*.avro"
+Avro 스키마가 서로 다른 Avro 파일을 여러 개 가져오는 경우, 모든 스키마는 Avro의 스키마 해상도 [https://avro.apache.org/docs/1.8.1/spec.html#Schema+Resolution]와 호환되어야 합니다.
+BigQuery가 스키마를 감지하면 일부 Avro 데이터 유형은 GoogleSQL 문법과 호환되도록 BigQuery 데이터 유형으로 변환됩니다. 자세한 내용은 Avro 변환 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#avro_conversions]을 참조하세요.
+외부 테이블을 만들기 위한 테이블 스키마를 제공하려면 BigQuery API의 referenceFileSchemaUri 속성을 설정하거나 bq 명령줄 도구의
+--reference_file_schema_uri 매개변수를 참조 파일의 URL로 설정합니다.
+예를 들면 --reference_file_schema_uri="gs://mybucket/schema.avro"입니다.
+JSON 스키마 파일을 지정 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#specifying_a_json_schema_file]하여 스키마를 BigQuery로 가져올 수도 있습니다.
+Avro 압축
+BigQuery는 Avro 파일 콘텐츠에 대해 다음과 같은 압축 코덱을 지원합니다.
+Snappy
+DEFLATE
+ZSTD
+새 테이블에 Avro 데이터 로드
+Cloud Storage에서 새 BigQuery 테이블로 Avro 데이터를 로드하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 패널에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+more_vert 작업 옵션을 펼치고 열기를 클릭합니다.
+세부정보 패널에서 테이블 만들기add_box를 클릭합니다.
+테이블 만들기 페이지의 소스 섹션에서 다음을 수행합니다.
+
+
+다음 항목으로 테이블 만들기에서 Google Cloud Storage를 선택합니다.
+소스 필드에서 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]를 찾아보거나 직접 입력합니다.
+Google Cloud 콘솔에서는 URI를 여러 개 포함할 수 없지만 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]는 지원됩니다. Cloud Storage 버킷은 만들려는 테이블이 포함된 데이터 세트와 같은 위치에 있어야 합니다.
+
+ 
+파일 형식으로 Avro를 선택합니다.
+
+테이블 만들기 페이지의 대상 섹션에서 다음을 수행합니다.
+
+
+데이터세트 이름에서 적절한 데이터세트를 선택합니다.
+테이블 유형이 기본 테이블로 설정되어 있는지 확인합니다.
+테이블 이름 필드에 BigQuery에 만들려는 테이블의 이름을 입력합니다.
+
+스키마 섹션은 별도의 설정이 필요하지 않습니다. 스키마는 Avro 파일에서 자체 기술됩니다.
+(선택사항) 테이블 파티션을 나누려면 파티션 및 클러스터 설정에서 옵션을 선택합니다. 자세한 내용은 파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko]를 참조하세요.
+(선택사항) 파티션 필터에서 파티션 필터 필요 상자를 클릭하여 사용자가 쿼리할 파티션을 지정하는 WHERE 절을 포함하도록 요구합니다. 파티션 필터를 필수항목으로 설정하면 비용을 줄이고 성능을 높일 수 있습니다. 자세한 내용은 쿼리에 파티션 필터 필요 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#require_a_partition_filter_in_queries]를 참고하세요.
+파티션 없음을 선택한 경우에는 이 옵션을 사용할 수 없습니다.
+(선택사항) 테이블을 클러스터링 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]하려면 클러스터링 순서 상자에 1~4개의 필드 이름을 입력합니다.
+(선택사항) 고급 옵션을 클릭합니다.
+
+
+쓰기 환경설정의 경우 비어 있으면 쓰기를 선택한 상태로 둡니다. 이 옵션은 새 테이블을 만들어 데이터를 로드합니다.
+알 수 없는 값의 경우 알 수 없는 값 무시를 해제된 상태로 둡니다.
+이 옵션은 CSV 및 JSON 파일에만 적용됩니다.
+Cloud Key Management Service 키 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 사용하려면 암호화에서 고객 관리 키를 클릭합니다.
+Google-managed key 설정을 그대로 두면 BigQuery에서 저장 데이터를 암호화 [https://cloud.google.com/security/encryption/default-encryption?hl=ko]합니다.
+
+테이블 만들기를 클릭합니다.
+
+참고:Google Cloud 콘솔을 사용하여 빈 테이블에 데이터를 로드하면 라벨, 설명, 테이블 만료 시간 또는 파티션 만료 시간을 추가할 수 없습니다.
+테이블을 만든 후에 테이블의 만료 시간, 설명, 라벨을 업데이트할 수 있지만, Google Cloud 콘솔을 사용하여 테이블을 만든 후에 파티션 만료 시간을 추가할 수는 없습니다. 자세한 내용은 테이블 관리 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko]를 참고하세요.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#sql] ---
+LOAD DATA DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/load-statements?hl=ko]을 사용합니다.
+다음 예시는 Avro 파일을 새 테이블인 mytable에 로드합니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+LOAD DATA OVERWRITE mydataset.mytable
+FROM FILES (
+  format = 'avro',
+  uris = ['gs://bucket/path/file.avro']);
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#bq] ---
+bq load 명령어를 사용하고, --source_format 플래그로 AVRO를 지정하고, Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]를 포함합니다.
+단일 URI, 쉼표로 구분된 URI 목록 또는 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]가 포함된 URI를 포함할 수 있습니다.
+
+(선택사항) --location 플래그를 지정하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]로 설정합니다.
+
+이 외에 다음과 같은 선택적 플래그가 있습니다.
+
+
+--time_partitioning_type: 테이블에 시간 기준 파티션 나누기를 사용 설정하고 파티션 유형을 설정합니다. 가능한 값은 HOUR, DAY, MONTH, YEAR입니다. DATE, DATETIME, TIMESTAMP 열을 기준으로 파티션을 나눈 테이블을 만드는 경우 이 플래그는 선택사항입니다. 시간 기준 파티션 나누기의 기본 파티션 유형은 DAY입니다.  기존 테이블의 파티션 나누기 사양을 변경할 수 없습니다.
+--time_partitioning_expiration: 시간 기준 파티션을 삭제할 시간을 초 단위로 지정하는 정수입니다. 만료 시간은 파티션의 UTC 날짜에 정수 값을 더한 값입니다.
+--time_partitioning_field: 파티션을 나눈 테이블을 만드는 데 사용되는 DATE 또는 TIMESTAMP 열입니다. 이 값 없이 시간 기준 파티션 나누기를 사용 설정하면 수집 시간으로 파티션을 나눈 테이블이 생성됩니다.
+--require_partition_filter: 이 옵션을 사용 설정하면 사용자는 쿼리할 파티션을 지정하는 WHERE 절을 포함해야 합니다.
+파티션 필터를 필수항목으로 설정하면 비용을 줄이고 성능을 높일 수 있습니다.
+자세한 내용은 쿼리에 파티션 필터 필요 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko#require_a_partition_filter_in_queries]를 참고하세요.
+--clustering_fields: 클러스터링된 테이블 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]을 만드는 데 사용된 쉼표로 구분된 열 이름(최대 4개) 목록입니다.
+--destination_kms_key: 테이블 데이터 암호화에 사용되는 Cloud KMS 키입니다.
+
+파티션을 나눈 테이블에 대한 자세한 내용은 다음을 참조하세요.
+
+
+파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko]
+
+
+클러스터링된 테이블에 대한 자세한 내용은 다음을 참조하세요.
+
+
+클러스터링된 테이블 만들기 및 사용 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]
+
+
+테이블 암호화에 대한 자세한 내용은 다음을 참조하세요.
+
+
+Cloud KMS 키로 데이터 보호 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]
+
+
+
+BigQuery에 Avro 데이터를 로드하려면 다음 명령어를 입력하세요.
+
+bq --location=location load \
+--source_format=format \
+dataset.table \
+path_to_source
+
+다음을 바꿉니다.
+
+
+location은 사용자의 위치입니다. --location 플래그는 선택사항입니다.
+예를 들어 도쿄 리전에서 BigQuery를 사용하는 경우에는 플래그 값을 asia-northeast1으로 설정하면 됩니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+format은 AVRO입니다.
+dataset는 기존 데이터 세트입니다.
+table은 데이터를 로드하는 테이블 이름입니다.
+path_to_source는 정규화된 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri] 또는 쉼표로 구분된 URI 목록이며 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]도 지원됩니다.
+
+
+예를 들면 다음과 같습니다.
+
+다음 명령어는 gs://mybucket/mydata.avro에서 mydataset에 있는 mytable이라는 이름의 테이블로 데이터를 로드합니다.
+    bq load \
+    --source_format=AVRO \
+    mydataset.mytable \
+    gs://mybucket/mydata.avro
+
+다음 명령어는 gs://mybucket/mydata.avro에서 mydataset에 있는 mytable이라는 수집 시간으로 파티션을 나눈 테이블에 데이터를 로드합니다.
+    bq load \
+    --source_format=AVRO \
+    --time_partitioning_type=DAY \
+    mydataset.mytable \
+    gs://mybucket/mydata.avro
+
+다음 명령어는 gs://mybucket/mydata.avro에서 mydataset에 있는 mytable이라는 새로운 이름의 파티션을 나눈 테이블로 데이터를 로드합니다. 테이블의 파티션은 mytimestamp 열을 기준으로 나뉩니다.
+    bq load \
+    --source_format=AVRO \
+    --time_partitioning_field mytimestamp \
+    mydataset.mytable \
+    gs://mybucket/mydata.avro
+
+다음 명령어는 gs://mybucket/에 있는 여러 파일에서 mydataset에 있는 mytable이라는 테이블로 데이터를 로드합니다. Cloud Storage URI는 와일드 카드를 사용합니다.
+    bq load \
+    --source_format=AVRO \
+    mydataset.mytable \
+    gs://mybucket/mydata*.avro
+
+다음 명령어는 gs://mybucket/에 있는 여러 파일에서 mydataset에 있는 mytable이라는 테이블로 데이터를 로드합니다. 명령어에는 와일드 카드를 사용하는 쉼표로 구분된 Cloud Storage URI 목록이 포함됩니다.
+    bq load \
+    --source_format=AVRO \
+    mydataset.mytable \
+    "gs://mybucket/00/*.avro","gs://mybucket/01/*.avro"
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#api] ---
+Cloud Storage의 소스 데이터를 가리키는 load 작업을 만듭니다.
+(선택사항) 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 있는 location 속성에 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]를 지정합니다.
+source URIs 속성은 gs://bucket/object 형식으로 정규화되어야 합니다.
+각 URI는 '*' 와일드 카드 문자 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards] 하나를 포함할 수 있습니다.
+sourceFormat 속성을 AVRO로 설정하여 Avro 데이터 형식을 지정합니다.
+작업 상태를 확인하려면 jobs.get(job_id*) [https://cloud.google.com/bigquery/docs/reference/v2/jobs/get?hl=ko]를 호출합니다. 여기서 job_id는 초기 요청에서 반환 된 작업의 ID입니다.
+
+
+status.state = DONE이면 작업이 성공적으로 완료된 것입니다.
+status.errorResult 속성이 있으면 요청이 실패한 것이며 해당 객체에 문제를 설명하는 정보가 포함됩니다.
+요청이 실패하면 테이블이 생성되지 않고 데이터가 로드되지 않습니다.
+status.errorResult가 없으면 작업은 성공적으로 완료되었지만 일부 행 가져오기 문제와 같은 심각하지 않은 오류가 발생했을 수 있다는 의미입니다. 심각하지 않은 오류는 반환된 작업 객체의 status.errors 속성에 나열됩니다.
+
+
+
+API 참고:
+
+
+로드 작업은 원자적이며 일관적입니다. 로드 작업이 실패하면 어떤 데이터도 사용할 수 없으며, 로드 작업이 성공하면 모든 데이터를 사용할 수 있습니다.
+jobs.insert를 호출하여 로드 작업을 만들 때는 고유 ID를 생성하여 jobReference.jobId로 전달하는 것이 가장 좋습니다. 클라이언트가 알려진 작업 ID로 폴링하거나 재시도할 수 있으므로 이 방법은 네트워크 장애 시에 더욱 안정적입니다.
+특정 작업 ID에 대한 jobs.insert 호출은 멱등성을 가집니다. 동일한 작업 ID에 대해 원하는 만큼 재시도할 수 있으며 이러한 작업 중 최대 하나가 성공하게 됩니다.
+
+--- 탭: tabpanel-go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// importAvro demonstrates loading Apache Avro data from Cloud Storage into a table.
+func importAvro(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	gcsRef := bigquery.NewGCSReference [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_GCSReference_NewGCSReference]("gs://cloud-samples-data/bigquery/us-states/us-states.avro")
+	gcsRef.SourceFormat = bigquery.Avro [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_CSV_Avro_JSON_DatastoreBackup_GoogleSheets_Bigtable_Parquet_ORC_TFSavedModel_XGBoostBooster_Iceberg]
+	loader := client.Dataset(datasetID).Table(tableID).LoaderFrom [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Table_LoaderFrom](gcsRef)
+
+	job, err := loader.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]() != nil {
+		return fmt.Errorf("job completed with error: %v", status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]())
+	}
+	return nil
+}
+
+--- 탭: tabpanel-자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko];
+import com.google.cloud.bigquery.LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+
+// Sample to load Avro data from Cloud Storage into a new BigQuery table
+public class LoadAvroFromGCS {
+
+  public static void runLoadAvroFromGCS() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String sourceUri = "gs://cloud-samples-data/bigquery/us-states/us-states.avro";
+    loadAvroFromGCS(datasetName, tableName, sourceUri);
+  }
+
+  public static void loadAvroFromGCS(String datasetName, String tableName, String sourceUri) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(datasetName, tableName);
+      LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko] loadConfig =
+          LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko].of(tableId, sourceUri, FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko].avro [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko#com_google_cloud_bigquery_FormatOptions_avro__]());
+
+      // Load data from a GCS Avro file into the table
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] job = bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](JobInfo.of(loadConfig));
+      // Blocks until this load table job completes its execution, either failing or succeeding.
+      job = job.waitFor [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_waitFor_com_google_cloud_bigquery_BigQueryRetryConfig_com_google_cloud_RetryOption____]();
+      if (job.isDone [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_isDone__]()) {
+        System.out.println("Avro from GCS successfully loaded in a table");
+      } else {
+        System.out.println(
+            "BigQuery was unable to load into the table due to an error:"
+                + job.getStatus().getError());
+      }
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Column not added during load append \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client libraries
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const {Storage} = require('@google-cloud/storage [https://cloud.google.com/nodejs/docs/reference/storage/latest/overview.html?hl=ko]');
+
+// Instantiate clients
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+const storage = new Storage();
+
+/**
+ * This sample loads the Avro file at
+ * https://storage.googleapis.com/cloud-samples-data/bigquery/us-states/us-states.avro
+ *
+ * TODO(developer): Replace the following lines with the path to your file.
+ */
+const bucketName = 'cloud-samples-data';
+const filename = 'bigquery/us-states/us-states.avro';
+
+async function loadTableGCSAvro() {
+  // Imports a GCS file into a table with Avro source format.
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const datasetId = 'my_dataset';
+  // const tableId = 'us_states';
+
+  // Configure the load job. For full list of options, see:
+  // https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad
+  const jobConfigurationLoad = {
+    load: {sourceFormat: 'AVRO'},
+  };
+
+  // Load data from a Google Cloud Storage file into the table
+  const [job] = await bigquery
+    .dataset(datasetId)
+    .table(tableId)
+    .load [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/table.html?hl=ko](storage.bucket(bucketName).file(filename), jobConfigurationLoad);
+
+  // load() waits for the job to finish
+  console.log(`Job ${job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id} completed.`);
+
+  // Check the job's status for errors
+  const errors = job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].status.errors;
+  if (errors && errors.length > 0) {
+    throw errors;
+  }
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set table_id to the ID of the table to create.
+# table_id = "your-project.your_dataset.your_table_name
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](source_format=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SourceFormat [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.SourceFormat.html?hl=ko].AVRO)
+uri = "gs://cloud-samples-data/bigquery/us-states/us-states.avro"
+
+load_job = client.load_table_from_uri [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_uri](
+    uri, table_id, job_config=job_config
+)  # Make an API request.
+
+load_job.result()  # Waits for the job to complete.
+
+destination_table = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id)
+print("Loaded {} rows.".format(destination_table.num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows]))
+Avro 데이터에서 JSON 데이터 추출
+Avro 데이터가 JSON 데이터 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#json_type]로 BigQuery에 로드되도록 하는 방법에는 두 가지가 있습니다.
+sqlType을 JSON으로 설정하여 Avro 스키마에 주석을 추가합니다. 예를 들어 다음 Avro 스키마로 데이터를 로드하면 json_field 열은 JSON 유형으로 읽힙니다.
+{
+    "type": {"type": "string", "sqlType": "JSON"},
+    "name": "json_field"
+}
+BigQuery 대상 테이블 스키마를 명시적으로 지정하고 열 유형을 JSON으로 설정합니다. 자세한 내용은 스키마 지정 [https://cloud.google.com/bigquery/docs/schemas?hl=ko]을 참조하세요.
+Avro 스키마 또는 BigQuery 테이블 스키마에서 JSON을 유형으로 지정하지 않으면 데이터가 STRING으로 읽힙니다.
+테이블에 Avro 데이터 추가 또는 덮어쓰기
+소스 파일에서 또는 쿼리 결과를 추가하여 테이블에 추가 데이터를 로드할 수 있습니다.
+Google Cloud 콘솔에서 쓰기 환경설정 옵션을 사용하여 소스 파일 또는 쿼리 결과에서 데이터를 로드할 때 수행할 작업을 지정합니다.
+추가 데이터를 테이블에 로드할 때 다음 옵션을 사용할 수 있습니다.
+Console 옵션 bq 도구 플래그 BigQuery API 속성 설명
+비어 있으면 쓰기 지원되지 않음 WRITE_EMPTY 테이블이 비어 있는 경우에만 데이터를 씁니다.
+테이블에 추가 --noreplace 또는 --replace=false. --[no]replace를 지정하지 않으면 기본값은 추가임 WRITE_APPEND (기본값 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationLoad.FIELDS.write_disposition]) 데이터를 테이블 끝에 추가합니다.
+테이블 덮어쓰기 --replace 또는 --replace=true WRITE_TRUNCATE 새 데이터를 쓰기 전에 테이블의 기존 데이터를 모두 지웁니다. 이 작업은 테이블 스키마, 행 수준 보안을 삭제하고 Cloud KMS 키도 삭제합니다.
+기존 테이블에 데이터를 로드하는 경우 로드 작업에서 데이터를 추가하거나 테이블을 덮어쓸 수 있습니다.
+참고: 이 페이지에서는 파티션을 나눈 테이블 추가 또는 덮어쓰기에 대해서는 다루지 않습니다. 파티션을 나눈 테이블을 추가하고 덮어쓰는 방법은 파티션을 나눈 테이블 데이터 추가 및 덮어쓰기 [https://cloud.google.com/bigquery/docs/managing-partitioned-table-data?hl=ko#append-overwrite]를 참조하세요.
+Avro 데이터가 있는 테이블을 추가하거나 덮어쓰려면 다음 안내를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 패널에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+more_vert 작업 옵션을 펼치고 열기를 클릭합니다.
+세부정보 패널에서 테이블 만들기add_box를 클릭합니다.
+테이블 만들기 페이지의 소스 섹션에서 다음을 수행합니다.
+
+
+다음 항목으로 테이블 만들기에서 Cloud Storage를 선택합니다.
+소스 필드에서 Cloud Storage URI [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#gcs-uri]를 찾아보거나 직접 입력합니다. Google Cloud 콘솔에서는 URI를 여러 개 포함할 수 없지만 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]는 지원됩니다. Cloud Storage 버킷은 추가하거나 덮어쓰려는 테이블이 포함된 데이터 세트와 같은 위치에 있어야 합니다.
+
+ 
+파일 형식으로 Avro를 선택합니다.
+
+테이블 만들기 페이지의 대상 섹션에서 다음을 수행합니다.
+
+
+데이터 세트 이름에서 적절한 데이터 세트를 선택합니다.
+
+ 
+테이블 이름 필드에 BigQuery에서 추가하거나 덮어쓰려는 테이블의 이름을 입력합니다.
+테이블 유형이 기본 테이블로 설정되어 있는지 확인합니다.
+
+스키마 섹션은 별도의 설정이 필요하지 않습니다. 스키마는 Avro 파일에서 자체 기술됩니다.
+참고: 추가하거나 덮어쓸 때 테이블 스키마를 수정할 수 있습니다. 로드 작업 시 지원되는 스키마 변경에 대한 자세한 내용은 테이블 스키마 수정 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]을 참조하세요.
+파티션 및 클러스터 설정에서 기본값을 그대로 둡니다. 추가하거나 덮어쓰는 방법으로 테이블을 파티션을 나눈 테이블 또는 클러스터링된 테이블로 변환할 수 없습니다. Google Cloud 콘솔은 로드 작업에서 파티션을 나눈 테이블 또는 클러스터링된 테이블 추가 또는 덮어쓰기를 지원하지 않습니다.
+고급 옵션을 클릭합니다.
+
+
+쓰기 환경설정에서 테이블에 추가 또는 테이블 덮어쓰기를 선택합니다.
+알 수 없는 값의 경우 알 수 없는 값 무시를 해제된 상태로 둡니다.
+이 옵션은 CSV 및 JSON 파일에만 적용됩니다.
+Cloud Key Management Service 키 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 사용하려면 암호화에서 고객 관리 키를 클릭합니다.
+Google-owned and managed key 설정을 그대로 두면 BigQuery에서 저장 데이터를 암호화 [https://cloud.google.com/security/encryption/default-encryption?hl=ko]합니다.
+
+테이블 만들기를 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#sql] ---
+LOAD DATA DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/load-statements?hl=ko]을 사용합니다.
+다음 예시에서는 Avro 파일을 mytable 테이블에 추가합니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+LOAD DATA INTO mydataset.mytable
+FROM FILES (
+  format = 'avro',
+  uris = ['gs://bucket/path/file.avro']);
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#bq] ---
+bq load 명령어를 --replace 플래그와 함께 입력하여 테이블을 덮어씁니다. --noreplace 플래그를 사용하여 데이터를 테이블에 추가합니다. 플래그를 지정하지 않으면 기본값은 데이터 추가입니다. --source_format 플래그를 입력하고 AVRO로 설정합니다. Avro 스키마는 자체 설명적 소스 데이터로부터 자동으로 가져오므로 스키마 정의를 제공할 필요가 없습니다.
+참고: 추가하거나 덮어쓸 때 테이블 스키마를 수정할 수 있습니다. 로드 작업 시 지원되는 스키마 변경에 대한 자세한 내용은 테이블 스키마 수정 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]을 참조하세요.
+(선택사항) --location 플래그를 지정하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]로 설정합니다.
+
+이 외에 다음과 같은 선택적 플래그가 있습니다.
+
+
+--destination_kms_key: 테이블 데이터 암호화에 사용되는 Cloud KMS 키입니다.
+
+
+bq --location=location load \
+--[no]replace \
+--source_format=format \
+dataset.table \
+path_to_source
+
+다음을 바꿉니다.
+
+
+location은 사용자의 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]입니다.
+--location 플래그는 선택사항입니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+format은 AVRO입니다.
+dataset는 기존 데이터 세트입니다.
+table은 데이터를 로드하는 테이블 이름입니다.
+path_to_source는 정규화된 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri] 또는 쉼표로 구분된 URI 목록이며 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]도 지원됩니다.
+
+
+예를 들면 다음과 같습니다.
+
+다음 명령어는 gs://mybucket/mydata.avro에서 데이터를 로드하고 mydataset에 있는 mytable이라는 테이블을 덮어씁니다.
+    bq load \
+    --replace \
+    --source_format=AVRO \
+    mydataset.mytable \
+    gs://mybucket/mydata.avro
+
+다음 명령어는 gs://mybucket/mydata.avro에서 데이터를 로드하고 mydataset에 있는 mytable이라는 테이블에 데이터를 추가합니다.
+    bq load \
+    --noreplace \
+    --source_format=AVRO \
+    mydataset.mytable \
+    gs://mybucket/mydata.avro
+
+bq 명령줄 도구를 사용하여 파티션을 나눈 테이블 추가 및 덮어쓰기에 대한 자세한 내용은 파티션을 나눈 테이블 데이터 추가 및 덮어쓰기 [https://cloud.google.com/bigquery/docs/managing-partitioned-table-data?hl=ko#append-overwrite]를 참조하세요.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#api] ---
+Cloud Storage의 소스 데이터를 가리키는 load 작업을 만듭니다.
+(선택사항) 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 있는 location 속성에 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]를 지정합니다.
+source URIs 속성은 gs://bucket/object 형식으로 정규화되어야 합니다. 여러 URI를 쉼표로 구분된 목록으로 포함할 수 있습니다. 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]도 지원됩니다.
+configuration.load.sourceFormat 속성을 AVRO로 설정하여 데이터 형식을 지정합니다.
+configuration.load.writeDisposition 속성을 WRITE_TRUNCATE 또는 WRITE_APPEND로 설정하여 쓰기 환경설정을 지정합니다.
+
+--- 탭: tabpanel-go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// importAvroTruncate demonstrates loading Apache Avro data from Cloud Storage into a table
+// and overwriting/truncating existing data in the table.
+func importAvroTruncate(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	gcsRef := bigquery.NewGCSReference [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_GCSReference_NewGCSReference]("gs://cloud-samples-data/bigquery/us-states/us-states.avro")
+	gcsRef.SourceFormat = bigquery.Avro [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_CSV_Avro_JSON_DatastoreBackup_GoogleSheets_Bigtable_Parquet_ORC_TFSavedModel_XGBoostBooster_Iceberg]
+	loader := client.Dataset(datasetID).Table(tableID).LoaderFrom [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Table_LoaderFrom](gcsRef)
+	// Default for import jobs is to append data to a table.  WriteTruncate
+	// specifies that existing data should instead be replaced/overwritten.
+	loader.WriteDisposition = bigquery.WriteTruncate [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_WriteAppend_WriteTruncate_WriteEmpty]
+
+	job, err := loader.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]() != nil {
+		return fmt.Errorf("job completed with error: %v", status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]())
+	}
+	return nil
+}
+
+--- 탭: tabpanel-자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko];
+import com.google.cloud.bigquery.LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+
+// Sample to overwrite the BigQuery table data by loading a AVRO file from GCS
+public class LoadAvroFromGCSTruncate {
+
+  public static void runLoadAvroFromGCSTruncate() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String sourceUri = "gs://cloud-samples-data/bigquery/us-states/us-states.avro";
+    loadAvroFromGCSTruncate(datasetName, tableName, sourceUri);
+  }
+
+  public static void loadAvroFromGCSTruncate(
+      String datasetName, String tableName, String sourceUri) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(datasetName, tableName);
+      LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko] loadConfig =
+          LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko].newBuilder(tableId, sourceUri)
+              .setFormatOptions(FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko].avro [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko#com_google_cloud_bigquery_FormatOptions_avro__]())
+              // Set the write disposition to overwrite existing table data
+              .setWriteDisposition(JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko].WriteDisposition.WRITE_TRUNCATE)
+              .build();
+
+      // Load data from a GCS Avro file into the table
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] job = bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](JobInfo.of(loadConfig));
+      // Blocks until this load table job completes its execution, either failing or succeeding.
+      job = job.waitFor [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_waitFor_com_google_cloud_bigquery_BigQueryRetryConfig_com_google_cloud_RetryOption____]();
+      if (job.isDone [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_isDone__]()) {
+        System.out.println("Table is successfully overwritten by AVRO file loaded from GCS");
+      } else {
+        System.out.println(
+            "BigQuery was unable to load into the table due to an error:"
+                + job.getStatus().getError());
+      }
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Column not added during load append \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client libraries
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const {Storage} = require('@google-cloud/storage [https://cloud.google.com/nodejs/docs/reference/storage/latest/overview.html?hl=ko]');
+
+// Instantiate clients
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+const storage = new Storage();
+
+/**
+ * This sample loads the Avro file at
+ * https://storage.googleapis.com/cloud-samples-data/bigquery/us-states/us-states.avro
+ *
+ * TODO(developer): Replace the following lines with the path to your file.
+ */
+const bucketName = 'cloud-samples-data';
+const filename = 'bigquery/us-states/us-states.avro';
+
+async function loadTableGCSAvroTruncate() {
+  /**
+   * Imports a GCS file into a table and overwrites
+   * table data if table already exists.
+   */
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const datasetId = 'my_dataset';
+  // const tableId = 'us_states';
+
+  // Configure the load job. For full list of options, see:
+  // https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad
+  const jobConfigurationLoad = {
+    load: {
+      sourceFormat: 'AVRO',
+      writeDisposition: 'WRITE_TRUNCATE',
+    },
+  };
+
+  // Load data from a Google Cloud Storage file into the table
+  const [job] = await bigquery
+    .dataset(datasetId)
+    .table(tableId)
+    .load [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/table.html?hl=ko](storage.bucket(bucketName).file(filename), jobConfigurationLoad);
+
+  // load() waits for the job to finish
+  console.log(`Job ${job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id} completed.`);
+
+  // Check the job's status for errors
+  const errors = job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].status.errors;
+  if (errors && errors.length > 0) {
+    throw errors;
+  }
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import io
+
+from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set table_id to the ID of the table to create.
+# table_id = "your-project.your_dataset.your_table_name
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](
+    schema=[
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("name", "STRING"),
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("post_abbr", "STRING"),
+    ],
+)
+
+body = io.BytesIO(b"Washington,WA")
+client.load_table_from_file [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_file](body, table_id, job_config=job_config).result()
+previous_rows = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id).num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows]
+assert previous_rows > 0
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](
+    write_disposition=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].WriteDisposition [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.WriteDisposition.html?hl=ko].WRITE_TRUNCATE [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.WriteDisposition.html?hl=ko#google_cloud_bigquery_enums_WriteDisposition_WRITE_TRUNCATE],
+    source_format=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SourceFormat [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.SourceFormat.html?hl=ko].AVRO,
+)
+
+uri = "gs://cloud-samples-data/bigquery/us-states/us-states.avro"
+load_job = client.load_table_from_uri [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_uri](
+    uri, table_id, job_config=job_config
+)  # Make an API request.
+
+load_job.result()  # Waits for the job to complete.
+
+destination_table = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id)
+print("Loaded {} rows.".format(destination_table.num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows]))
+하이브 파티션을 나눈 Avro 데이터 로드
+BigQuery는 Cloud Storage에 저장되는 파티션을 나눈 하이브 Avro 데이터 로드를 지원하고, 하이브 파티션 열을 대상 BigQuery 관리 테이블의 열로 채웁니다. 자세한 내용은 외부에서 파티션을 나눈 Cloud Storage 데이터 로드 [https://cloud.google.com/bigquery/docs/hive-partitioned-loads-gcs?hl=ko]를 참조하세요.
+Avro 변환
+BigQuery는 Avro 데이터 유형을 다음과 같은 BigQuery 데이터 유형으로 변환합니다.
+기본 유형
+logicalType 속성 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#logical-types]이 없는 Avro 데이터 유형 BigQuery 데이터 유형 참고
+null BigQuery는 이 값을 무시함
+boolean 불리언
+int 정수
+long 정수
+float FLOAT
+double FLOAT
+바이트 BYTES
+문자열 STRING UTF-8 전용
+논리 유형
+기본적으로 BigQuery는 대부분의 유형에 대해 logicalType 속성을 무시하고 대신 기본 Avro 유형을 사용합니다. Avro 논리 유형을 해당하는 BigQuery 데이터 유형으로 변환하려면 --use_avro_logical_types 플래그를 bq 명령줄 도구를 사용하는 true로 설정하거나, jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] 메서드를 호출하여 로드 작업을 만들 때 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 useAvroLogicalTypes 속성을 설정합니다.
+아래 표에는 Avro 논리 유형과 변환되는 해당 BigQuery 데이터 유형이 나와 있습니다.
+Avro 논리 유형 BigQuery 데이터 유형: 논리 유형 사용 중지됨 BigQuery 데이터 유형: 논리 유형 사용 설정됨
+date 정수 날짜
+time-millis 정수 시간
+time-micros INTEGER(LONG에서 변환됨) 시간
+timestamp-millis INTEGER(LONG에서 변환됨) 타임스탬프
+timestamp-micros INTEGER(LONG에서 변환됨) 타임스탬프
+local-timestamp-millis INTEGER(LONG에서 변환됨) DATETIME
+local-timestamp-micros INTEGER(LONG에서 변환됨) DATETIME
+기간 BYTES(크기가 12인 fixed 유형에서 변환됨) BYTES(크기가 12인 fixed 유형에서 변환됨)
+decimal NUMERIC, BIGNUMERIC 또는 STRING(Decimal 논리 유형 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#decimal_logical_type] 참조) NUMERIC, BIGNUMERIC 또는 STRING(Decimal 논리 유형 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro?hl=ko#decimal_logical_type] 참조)
+Avro 데이터 유형에 대한 자세한 내용은 Apache Avro™ 1.8.2 사양 [https://avro.apache.org/docs/1.8.2/spec.html]을 참조하세요.
+참고: BigQuery에서 Avro로 내보낼 때 DATETIME은 BigQuery로 다시 가져올 때 DATETIME으로 인식되지 않는 커스텀 논리 시간을 가진 STRING으로 내보내집니다.
+날짜 논리 유형
+로드하려는 Avro 파일에서 날짜 논리 유형을 다음 형식으로 지정해야 합니다.
+{
+       "type": {"logicalType": "date", "type": "int"},
+       "name": "date_field"
+}
+Decimal 논리 유형
+Decimal 논리 유형은 NUMERIC, BIGNUMERIC, STRING 유형으로 변환할 수 있습니다. 변환된 유형은 decimal 논리 유형 및 지정된 십진수 대상 유형의 정밀도 및 확장 매개변수에 따라 다릅니다. 십진수 대상 유형을 다음과 같이 지정합니다.
+jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] API를 사용하는 로드 작업 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko]의 경우: JobConfigurationLoad.decimalTargetTypes [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationLoad.FIELDS.decimal_target_types] 필드를 사용합니다.
+bq 명령줄 도구의 bq load [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_load] 명령어를 사용하는 로드 작업 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko]의 경우: --decimal_target_types [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#flags_and_arguments_9] 플래그를 사용합니다.
+외부 소스가 있는 테이블 [https://cloud.google.com/bigquery/external-data-sources?hl=ko]에 대한 쿼리의 경우: ExternalDataConfiguration.decimalTargetTypes [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#ExternalDataConfiguration.FIELDS.decimal_target_types] 필드를 사용합니다.
+DDL로 생성된 영구 외부 테이블 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko]: decimal_target_types [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#external_table_option_list] 옵션을 사용합니다.
+이전 버전과의 호환성을 위해, decimal 대상 유형이 지정되지 않은 경우 decimal 논리 유형이 있는 bytes 열을 포함하는 Avro 파일을 기존 테이블의 BYTES 열에 로드하세요. 이 경우 Avro 파일의 열에 있는 decimal 논리 유형은 무시됩니다. 이 변환 모드는 지원 중단되었으며 향후 삭제될 수 있습니다.
+Avro decimal 논리 유형에 대한 자세한 내용은 Apache Avro™ 1.8.2 사양 [https://avro.apache.org/docs/1.8.2/spec.html#Decimal]을 참조하세요.
+시간 논리 유형
+로드할 Avro 파일에서 시간 논리 유형을 다음 형식 중 하나로 지정해야 합니다.
+밀리초 정밀도:
+{
+       "type": {"logicalType": "time-millis", "type": "int"},
+       "name": "time_millis_field"
+}
+마이크로초 정밀도:
+{
+       "type": {"logicalType": "time-micros", "type": "int"},
+       "name": "time_micros_field"
+}
+타임스탬프 논리 유형
+로드할 Avro 파일에서 타임스탬프 논리 유형을 다음 형식 중 하나로 지정해야 합니다.
+밀리초 정밀도:
+{
+       "type": {"logicalType": "timestamp-millis", "type": "long"},
+       "name": "timestamp_millis_field"
+}
+마이크로초 정밀도:
+{
+       "type": {"logicalType": "timestamp-micros", "type": "long"},
+       "name": "timestamp_micros_field"
+}
+Local-Timestamp 논리 유형
+로드할 Avro 파일에서 Local-Timestamp 논리 유형을 다음 형식 중 하나로 지정해야 합니다.
+밀리초 정밀도:
+{
+       "type": {"logicalType": "local-timestamp-millis", "type": "long"},
+       "name": "local_timestamp_millis_field"
+}
+마이크로초 정밀도:
+{
+       "type": {"logicalType": "local-timestamp-micros", "type": "long"},
+       "name": "local_timestamp_micros_field"
+}
+복합 유형
+Avro 데이터 유형 BigQuery 데이터 유형 참고
+record RECORD
+별칭은 무시됩니다.
+문서가 필드 설명 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#column_descriptions]으로 변환됩니다.
+기본값은 읽기 시간에 설정됩니다.
+순서가 무시됩니다.
+재귀 필드가 삭제됩니다. 재귀 필드에서 첫 번째 수준의 중첩만 유지됩니다.
+enum STRING
+문자열은 enum의 심볼 값입니다.
+별칭은 무시됩니다.
+문서가 필드 설명 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#column_descriptions]으로 변환됩니다.
+배열 반복 필드 배열의 배열은 지원되지 않습니다. NULL 형식만 포함된 배열은 무시됩니다.
+map<T> RECORD BigQuery는 Avro map <T> 필드를 두 필드(키, 값)가 포함된 반복 RECORD로 변환합니다. BigQuery는 키를 STRING으로 저장하고 값을 BigQuery의 해당 데이터 유형으로 변환합니다.
+union
+Null 허용 필드
+RECORD(Null 허용 필드 목록 포함)
+union에 null이 아닌 유형이 하나뿐이라면 null 허용 필드로 변환됩니다.
+그렇지 않으면 null 허용 필드 목록이 있는 RECORD로 변환됩니다. 이 필드 중 하나만 읽기 시점에 설정됩니다.
+고정 BYTES
+별칭은 무시됩니다.
+크기는 무시됩니다.
+도움이 되었나요?
+의견 보내기

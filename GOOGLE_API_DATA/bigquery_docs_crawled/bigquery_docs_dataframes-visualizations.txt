@@ -1,0 +1,153 @@
+Source URL: https://cloud.google.com/bigquery/docs/dataframes-visualizations
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+히스토그램 [https://cloud.google.com/bigquery/docs/dataframes-visualizations?hl=ko#histogram]
+선 차트 [https://cloud.google.com/bigquery/docs/dataframes-visualizations?hl=ko#line-chart]
+영역 차트 [https://cloud.google.com/bigquery/docs/dataframes-visualizations?hl=ko#area-chart]
+막대 차트 [https://cloud.google.com/bigquery/docs/dataframes-visualizations?hl=ko#bar-chart]
+분산형 차트 [https://cloud.google.com/bigquery/docs/dataframes-visualizations?hl=ko#scatter-plot]
+BigQuery DataFrames를 사용하여 그래프 시각화
+bookmark_border
+이 문서에서는 BigQuery DataFrames 시각화 라이브러리를 사용하여 다양한 유형의 그래프를 그리는 방법을 보여줍니다.
+bigframes.pandas API [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.pandas?hl=ko]는 Python을 위한 전체 도구 생태계를 제공합니다. 이 API는 고급 통계 작업을 지원하며, BigQuery DataFrames에서 생성된 집계를 시각화할 수 있습니다. BigQuery DataFrames에서 내장 샘플링 작업이 있는 pandas DataFrame으로 전환할 수도 있습니다.
+히스토그램
+다음 예시에서는 bigquery-public-data.ml_datasets.penguins 테이블에서 데이터를 읽어 펭귄 부리 깊이 분포에 대한 히스토그램을 플롯합니다.
+import bigframes.pandas as bpd
+
+penguins = bpd.read_gbq("bigquery-public-data.ml_datasets.penguins")
+penguins["culmen_depth_mm"].plot.hist(bins=40)
+선 차트
+다음 예에서는 bigquery-public-data.noaa_gsod.gsod2021 테이블의 데이터를 사용하여 연중 중앙값 온도 변화의 선 차트를 플롯합니다.
+import bigframes.pandas as bpd
+
+noaa_surface = bpd.read_gbq("bigquery-public-data.noaa_gsod.gsod2021")
+
+# Calculate median temperature for each day
+noaa_surface_median_temps = noaa_surface[["date", "temp"]].groupby("date").median()
+
+noaa_surface_median_temps.plot.line()
+영역 차트
+다음 예에서는 bigquery-public-data.usa_names.usa_1910_2013 테이블을 사용하여 미국 역사상 이름의 인기를 추적하고 Mary, Emily, Lisa 이름에 중점을 둡니다.
+import bigframes.pandas as bpd
+
+usa_names = bpd.read_gbq("bigquery-public-data.usa_names.usa_1910_2013")
+
+# Count the occurences of the target names each year. The result is a dataframe with a multi-index.
+name_counts = (
+    usa_names[usa_names["name"].isin(("Mary", "Emily", "Lisa"))]
+    .groupby(("year", "name"))["number"]
+    .sum()
+)
+
+# Flatten the index of the dataframe so that the counts for each name has their own columns.
+name_counts = name_counts.unstack(level=1).fillna(0)
+
+name_counts.plot.area(stacked=False, alpha=0.5)
+막대 차트
+다음 예에서는 bigquery-public-data.ml_datasets.penguins 테이블을 사용하여 펭귄 성별의 분포를 시각화합니다.
+import bigframes.pandas as bpd
+
+penguins = bpd.read_gbq("bigquery-public-data.ml_datasets.penguins")
+
+penguin_count_by_sex = (
+    penguins[penguins["sex"].isin(("MALE", "FEMALE"))]
+    .groupby("sex")["species"]
+    .count()
+)
+penguin_count_by_sex.plot.bar()
+분산형 차트
+다음 예에서는 bigquery-public-data.new_york_taxi_trips.tlc_yellow_trips_2021 테이블을 사용하여 택시 요금과 이동 거리 간의 관계를 살펴봅니다.
+import bigframes.pandas as bpd
+
+taxi_trips = bpd.read_gbq(
+    "bigquery-public-data.new_york_taxi_trips.tlc_yellow_trips_2021"
+).dropna()
+
+# Data Cleaning
+taxi_trips = taxi_trips[
+    taxi_trips["trip_distance"].between(0, 10, inclusive="right")
+]
+taxi_trips = taxi_trips[taxi_trips["fare_amount"].between(0, 50, inclusive="right")]
+
+# If you are using partial ordering mode, you will also need to assign an order to your dataset.
+# Otherwise, the next line can be skipped.
+taxi_trips = taxi_trips.sort_values("pickup_datetime")
+
+taxi_trips.plot.scatter(x="trip_distance", y="fare_amount", alpha=0.5)
+대규모 데이터 세트 시각화
+BigQuery DataFrames는 시각화를 위해 데이터를 로컬 머신에 다운로드합니다. 다운로드할 데이터 포인트 수는 기본적으로 1,000개로 제한됩니다. 데이터 포인트 수가 상한을 초과하면 BigQuery DataFrames는 상한과 동일한 수의 데이터 포인트를 무작위로 샘플링합니다.
+다음 예와 같이 그래프를 플롯할 때 sampling_n 매개변수를 설정하여 이 상한을 재정의할 수 있습니다.
+import bigframes.pandas as bpd
+
+noaa_surface = bpd.read_gbq("bigquery-public-data.noaa_gsod.gsod2021")
+
+# Calculate median temperature for each day
+noaa_surface_median_temps = noaa_surface[["date", "temp"]].groupby("date").median()
+
+noaa_surface_median_temps.plot.line(sampling_n=40)
+참고: BigQuery DataFrames는 히스토그램을 위해 서버 측에서 데이터를 버킷화하므로 sampling_n 매개변수는 히스토그램에 영향을 미치지 않습니다.
+Pandas 및 Matplotlib 매개변수를 사용한 고급 플로팅
+BigQuery DataFrames의 플로팅 라이브러리는 Pandas와 Matplotlib로 구동되므로 Pandas에서와 마찬가지로 더 많은 매개변수를 전달하여 그래프를 미세 조정할 수 있습니다. 다음 섹션에서는 예를 설명합니다.
+subplots를 사용한 이름 인기 추세
+영역 차트 예시 [https://cloud.google.com/bigquery/docs/dataframes-visualizations?hl=ko#area-chart]의 이름 기록 데이터를 사용하여 다음 예시에서는 plot.area() 함수 호출에서 subplots=True를 설정하여 각 이름에 대한 개별 그래프를 만듭니다.
+import bigframes.pandas as bpd
+
+usa_names = bpd.read_gbq("bigquery-public-data.usa_names.usa_1910_2013")
+
+# Count the occurences of the target names each year. The result is a dataframe with a multi-index.
+name_counts = (
+    usa_names[usa_names["name"].isin(("Mary", "Emily", "Lisa"))]
+    .groupby(("year", "name"))["number"]
+    .sum()
+)
+
+# Flatten the index of the dataframe so that the counts for each name has their own columns.
+name_counts = name_counts.unstack(level=1).fillna(0)
+
+name_counts.plot.area(subplots=True, alpha=0.5)
+여러 측정기준이 있는 택시 운행 분산형 차트
+분산형 차트 예시 [https://cloud.google.com/bigquery/docs/dataframes-visualizations?hl=ko#scatter-plot]의 데이터를 사용하여 다음 예에서는 x축과 y축의 라벨 이름을 바꾸고, 점 크기에 passenger_count 매개변수를 사용하고, tip_amount 매개변수로 색상 점을 사용하고, 그림 크기를 조정합니다.
+import bigframes.pandas as bpd
+
+taxi_trips = bpd.read_gbq(
+    "bigquery-public-data.new_york_taxi_trips.tlc_yellow_trips_2021"
+).dropna()
+
+# Data Cleaning
+taxi_trips = taxi_trips[
+    taxi_trips["trip_distance"].between(0, 10, inclusive="right")
+]
+taxi_trips = taxi_trips[taxi_trips["fare_amount"].between(0, 50, inclusive="right")]
+
+# If you are using partial ordering mode, you also need to assign an order to your dataset.
+# Otherwise, the next line can be skipped.
+taxi_trips = taxi_trips.sort_values("pickup_datetime")
+
+taxi_trips["passenger_count_scaled"] = taxi_trips["passenger_count"] * 30
+
+taxi_trips.plot.scatter(
+    x="trip_distance",
+    xlabel="trip distance (miles)",
+    y="fare_amount",
+    ylabel="fare amount (usd)",
+    alpha=0.5,
+    s="passenger_count_scaled",
+    label="passenger_count",
+    c="tip_amount",
+    cmap="jet",
+    colorbar=True,
+    legend=True,
+    figsize=(15, 7),
+    sampling_n=1000,
+)
+다음 단계
+BigQuery DataFrames 사용 방법 [https://cloud.google.com/bigquery/docs/use-bigquery-dataframes?hl=ko] 알아보기
+dbt에서 BigQuery DataFrames를 사용하는 방법 [https://cloud.google.com/bigquery/docs/dataframes-dbt?hl=ko] 알아보기
+BigQuery DataFrames API 참조 [https://cloud.google.com/python/docs/reference/bigframes/latest/summary_overview?hl=ko] 살펴보기
+도움이 되었나요?
+의견 보내기

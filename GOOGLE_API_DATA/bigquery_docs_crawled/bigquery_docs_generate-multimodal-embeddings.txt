@@ -1,0 +1,407 @@
+Source URL: https://cloud.google.com/bigquery/docs/generate-multimodal-embeddings
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필요한 역할 [https://cloud.google.com/bigquery/docs/generate-multimodal-embeddings?hl=ko#required_roles]
+비용 [https://cloud.google.com/bigquery/docs/generate-multimodal-embeddings?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/generate-multimodal-embeddings?hl=ko#before_you_begin]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/generate-multimodal-embeddings?hl=ko#create_a_dataset]
+객체 테이블 만들기 [https://cloud.google.com/bigquery/docs/generate-multimodal-embeddings?hl=ko#create_the_object_table]
+멀티모달 임베딩 생성 및 검색
+bookmark_border
+이 튜토리얼에서는 BigQuery와 Vertex AI를 사용하여 이미지와 텍스트의 멀티모달 임베딩을 생성한 후 이러한 임베딩을 사용하여 텍스트-이미지 시맨틱 검색을 실행하는 방법을 보여줍니다.
+이 튜토리얼에서는 다음 태스크를 다룹니다.
+Cloud Storage 버킷의 이미지 데이터에 대해 BigQuery 객체 테이블 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko] 생성하기
+BigQuery의 Colab Enterprise 노트북 [https://cloud.google.com/bigquery/docs/notebooks-introduction?hl=ko]을 사용하여 이미지 데이터를 탐색하기
+Vertex AI multimodalembedding 파운데이션 모델 [https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models?hl=ko#foundation_model_apis]을 타겟팅하는 BigQuery ML 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko] 만들기
+원격 모델을 ML.GENERATE_EMBEDDING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding?hl=ko]와 함께 사용하여 객체 테이블의 이미지에서 임베딩 생성하기
+임베딩 생성 오류 수정
+(선택사항) 이미지 임베딩의 색인을 생성하기 위한 벡터 색인 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko] 만들기
+지정된 검색 문자열의 텍스트 임베딩 만들기
+VECTOR_SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search]를 사용하여 텍스트 임베딩과 유사한 이미지 임베딩에 대한 시맨틱 검색 수행하기
+노트북을 사용하여 결과 시각화하기
+이 튜토리얼에서는 퍼블릭 Cloud Storage gcs-public-data--met 버킷 [https://console.cloud.google.com/storage/browser/gcs-public-data--met;tab=objects?amp%3BforceOnObjectsSortingFiltering=false&hl=ko]에서 제공되는 메트로폴리탄 미술관 [https://www.metmuseum.org/]의 공개 도메인 아트 이미지를 사용합니다.
+필요한 역할
+이 튜토리얼을 실행하려면 다음 Identity and Access Management(IAM) 역할이 필요합니다.
+BigQuery 데이터 세트, 연결, 모델, 노트북을 만들고 사용하기: BigQuery Studio 관리자(roles/bigquery.studioAdmin)
+연결의 서비스 계정에 권한 부여: 프로젝트 IAM 관리자(roles/resourcemanager.projectIamAdmin)
+이러한 사전 정의된 역할에는 이 문서의 작업을 수행하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 확장하세요.
+필수 권한
+
+
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko]을 사용하여 이 권한을 부여받을 수도 있습니다.
+비용
+이 문서에서는 비용이 청구될 수 있는 Google Cloud구성요소( )를 사용합니다.
+BigQuery ML: You incur costs for the data that you process in BigQuery.
+Vertex AI: You incur costs for calls to the Vertex AI service that's represented by the remote model.
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+BigQuery 가격 책정에 대한 자세한 내용은 BigQuery 문서의 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]을 참조하세요.
+Vertex AI 가격 책정에 대한 자세한 내용은 Vertex AI 가격 책정 [https://cloud.google.com/vertex-ai/pricing?hl=ko#generative_ai_models] 페이지를 참조하세요.
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, and Vertex AI APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Caiplatform.googleapis.com&hl=ko]
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/generate-multimodal-embeddings?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/generate-multimodal-embeddings?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/generate-multimodal-embeddings?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/generate-multimodal-embeddings?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+객체 테이블 만들기
+공개 Cloud Storage gcs-public-data--met 버킷 [https://console.cloud.google.com/storage/browser/gcs-public-data--met;tab=objects?amp%3BforceOnObjectsSortingFiltering=false&hl=ko]의 미술 이미지에 대한 객체 테이블을 만듭니다. 객체 테이블을 사용하면 Cloud Storage에서 이미지를 이동하지 않고도 분석할 수 있습니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE EXTERNAL TABLE `bqml_tutorial.met_images`
+WITH CONNECTION DEFAULT
+OPTIONS
+  ( object_metadata = 'SIMPLE',
+    uris = ['gs://gcs-public-data--met/*']
+  );
+이미지 데이터 탐색
+BigQuery에서 Colab Enterprise 노트북 [https://cloud.google.com/colab/docs/introduction?hl=ko]을 만들어 이미지 데이터를 탐색합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+BigQuery 편집기를 사용하여 노트북을 만듭니다 [https://cloud.google.com/bigquery/docs/create-notebooks?hl=ko#create-notebook-console].
+노트북을 기본 런타임에 연결 [https://cloud.google.com/bigquery/docs/create-notebooks?hl=ko#connect_to_the_default_runtime]합니다.
+노트북을 설정합니다.
+노트북에 코드 셀을 추가합니다.
+다음 코드를 복사하여 코드 셀에 붙여넣습니다.
+#@title Set up credentials
+
+from google.colab import auth
+auth.authenticate_user()
+print('Authenticated')
+
+PROJECT_ID='
+PROJECT_ID'
+from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko](PROJECT_ID)
+PROJECT_ID를 이 튜토리얼에서 사용 중인 프로젝트의 이름으로 바꿉니다.
+코드 셀을 실행합니다.
+테이블 표시 사용 설정:
+노트북에 코드 셀을 추가합니다.
+다음 코드를 복사하여 코드 셀에 붙여넣습니다.
+#@title Enable data table display
+%load_ext google.colab.data_table
+코드 셀을 실행합니다.
+이미지를 표시하는 함수를 만듭니다.
+노트북에 코드 셀을 추가합니다.
+다음 코드를 복사하여 코드 셀에 붙여넣습니다.
+#@title Util function to display images
+import io
+from PIL import Image
+import matplotlib.pyplot as plt
+import tensorflow as tf
+
+def printImages(results):
+ image_results_list = list(results)
+ amt_of_images = len(image_results_list)
+
+ fig, axes = plt.subplots(nrows=amt_of_images, ncols=2, figsize=(20, 20))
+ fig.tight_layout()
+ fig.subplots_adjust(hspace=0.5)
+ for i in range(amt_of_images):
+   gcs_uri = image_results_list[i][0]
+   text = image_results_list[i][1]
+   f = tf.io.gfile.GFile(gcs_uri, 'rb')
+   stream = io.BytesIO(f.read())
+   img = Image.open(stream)
+   axes[i, 0].axis('off')
+   axes[i, 0].imshow(img)
+   axes[i, 1].axis('off')
+   axes[i, 1].text(0, 0, text, fontsize=10)
+ plt.show()
+코드 셀을 실행합니다.
+이미지를 표시합니다.
+노트북에 코드 셀을 추가합니다.
+다음 코드를 복사하여 코드 셀에 붙여넣습니다.
+#@title Display Met images
+
+inspect_obj_table_query = """
+SELECT uri, content_type
+FROM bqml_tutorial.met_images
+WHERE content_type = 'image/jpeg'
+Order by uri
+LIMIT 10;
+"""
+printImages(client.query(inspect_obj_table_query))
+코드 셀을 실행합니다.
+결과는 다음과 비슷하게 표시됩니다.
+노트북을 met-image-analysis로 저장합니다.
+원격 모델 만들기
+호스팅된 Vertex AI 멀티모달 임베딩 모델을 나타내는 원격 모델을 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.multimodal_embedding_model`
+  REMOTE WITH CONNECTION DEFAULT
+  OPTIONS (ENDPOINT = 'multimodalembedding@001');
+쿼리가 완료되는 데 몇 초 정도 걸리며 그 이후에는 multimodal_embedding_model 모델이 탐색기 창의 bqml_tutorial 데이터 세트에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+이미지 임베딩 생성
+ML.GENERATE_EMBEDDING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding?hl=ko]를 사용하여 객체 테이블의 이미지에서 임베딩을 생성한 후 다음 단계에서 사용할 테이블에 쓰기를 합니다. 임베딩 생성은 비용이 많이 드는 작업이므로 서브쿼리는 601,294개 이미지의 전체 데이터 세트를 임베딩하는 대신 LIMIT 절을 포함하여 임베딩 생성을 10,000개 이미지로 제한합니다. 또한 이렇게 하면 이미지 수를 ML.GENERATE_EMBEDDING 함수의 25,000개 한도 미만으로 유지할 수 있습니다. 이 쿼리는 실행되는 데 약 40분이 소요됩니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE TABLE `bqml_tutorial.met_image_embeddings`
+AS
+SELECT *
+FROM
+  ML.GENERATE_EMBEDDING(
+    MODEL `bqml_tutorial.multimodal_embedding_model`,
+    (SELECT * FROM `bqml_tutorial.met_images` WHERE content_type = 'image/jpeg' LIMIT 10000))
+임베딩 생성 오류 수정
+임베딩 생성 오류를 확인하고 수정합니다. 임베딩 생성은 Vertex AI의 생성형 AI 할당량 [https://cloud.google.com/vertex-ai/generative-ai/docs/quotas?hl=ko] 또는 서비스를 사용할 수 없어 실패할 수 있습니다.
+ML.GENERATE_EMBEDDING 함수는 ml_generate_embedding_status 열에 오류 세부정보를 반환합니다. 임베딩 생성이 성공하면 이 열은 비어 있고, 임베딩 생성이 실패한 경우 오류 메시지가 포함됩니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행하여 임베딩 생성 실패가 있는지 확인합니다.
+SELECT DISTINCT(ml_generate_embedding_status),
+  COUNT(uri) AS num_rows
+FROM bqml_tutorial.met_image_embeddings
+GROUP BY 1;
+오류가 있는 행이 반환되면 임베딩 생성이 실패한 행을 삭제합니다.
+DELETE FROM `bqml_tutorial.met_image_embeddings`
+WHERE ml_generate_embedding_status = 'A retryable error occurred: RESOURCE_EXHAUSTED error from remote service/endpoint.';
+벡터 색인 만들기
+원하는 경우 CREATE VECTOR INDEX 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_vector_index_statement]을 사용하여 met_images_embeddings 테이블의 ml_generate_embedding_result 열에 met_images_index 벡터 색인을 만들 수 있습니다. 벡터 색인을 사용하면 벡터 검색을 보다 신속하게 수행하고 재현율을 줄여 더 나은 근사치의 결과를 반환합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE
+  VECTOR INDEX `met_images_index`
+ON
+  bqml_tutorial.met_image_embeddings(ml_generate_embedding_result)
+  OPTIONS (
+    index_type = 'IVF',
+    distance_type = 'COSINE');
+벡터 색인은 비동기적으로 생성됩니다. 벡터 색인이 생성되었는지 확인하려면 INFORMATION_SCHEMA.VECTOR_INDEXES 뷰 [https://cloud.google.com/bigquery/docs/information-schema-vector-indexes?hl=ko]를 쿼리하고 coverage_percentage 값이 0보다 큰 것과 last_refresh_time 값이 NULL이 아닌 것을 확인합니다.
+SELECT table_name, index_name, index_status,
+  coverage_percentage, last_refresh_time, disable_reason
+FROM bqml_tutorial.INFORMATION_SCHEMA.VECTOR_INDEXES
+WHERE index_name = 'met_images_index';
+검색 텍스트의 임베딩 생성
+지정된 텍스트 검색 문자열에 해당하는 이미지를 검색하려면 먼저 해당 문자열의 텍스트 임베딩을 만들어야 합니다. 동일한 원격 모델을 사용하여 이미지 임베딩을 만드는 데 사용한 텍스트 임베딩을 생성한 후 다음 단계에서 사용할 테이블에 텍스트 임베딩을 씁니다. 검색 문자열은 pictures of white or cream colored dress from victorian era입니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE TABLE `bqml_tutorial.search_embedding`
+AS
+SELECT * FROM ML.GENERATE_EMBEDDING(
+  MODEL `bqml_tutorial.multimodal_embedding_model`,
+  (
+    SELECT 'pictures of white or cream colored dress from victorian era' AS content
+  )
+);
+텍스트-이미지 시맨틱 검색 실행
+VECTOR_SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search]를 사용하여 텍스트 임베딩으로 표현되는 검색 문자열에 가장 적합한 이미지를 시맨틱 검색합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행하여 시맨틱 검색을 수행하고 결과를 테이블에 씁니다.
+CREATE OR REPLACE TABLE `bqml_tutorial.vector_search_results` AS
+SELECT base.uri AS gcs_uri, distance
+FROM
+  VECTOR_SEARCH(
+    TABLE `bqml_tutorial.met_image_embeddings`,
+    'ml_generate_embedding_result',
+    TABLE `bqml_tutorial.search_embedding`,
+    'ml_generate_embedding_result',
+    top_k => 3);
+시맨틱 검색 결과 시각화
+노트북을 사용하여 시맨틱 검색 결과를 시각화합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+앞에서 만든 met-image-analysis 노트북을 엽니다.
+벡터 검색 결과를 시각화합니다.
+노트북에 코드 셀을 추가합니다.
+다음 코드를 복사하여 코드 셀에 붙여넣습니다.
+query = """
+  SELECT * FROM `bqml_tutorial.vector_search_results`
+  ORDER BY distance;
+"""
+
+printImages(client.query(query))
+코드 셀을 실행합니다.
+결과는 다음과 비슷하게 표시됩니다.
+삭제
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+도움이 되었나요?
+의견 보내기

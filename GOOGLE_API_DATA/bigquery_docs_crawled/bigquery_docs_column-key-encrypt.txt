@@ -1,0 +1,267 @@
+Source URL: https://cloud.google.com/bigquery/docs/column-key-encrypt
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+소개 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#introduction]
+사용 사례 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#use_cases]
+비확정적 함수 구문 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#non-deterministic_functions]
+확정적 함수 구문 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#deterministic_functions]
+역할 및 권한 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#roles]
+제한사항 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#limitations]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#work-with-keyset]
+키 관리 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#key_management]
+Cloud KMS를 사용한 열 수준 암호화
+bookmark_border
+Cloud Key Management Service(Cloud KMS) [https://cloud.google.com/kms/docs/concepts?hl=ko]를 사용하여 BigQuery 테이블 내의 값을 암호화하는 키를 암호화할 수 있습니다. Cloud KMS 키 세트 [https://cloud.google.com/bigquery/docs/aead-encryption-concepts?hl=ko#keysets] 또는 래핑된 키 세트 [https://cloud.google.com/bigquery/docs/aead-encryption-concepts?hl=ko#wrapped_keysets]와 함께 AEAD 암호화 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko]를 사용하여 열 수준에서 두 번째 보호 레이어를 제공할 수 있습니다.
+소개
+추가적인 보안 레이어를 제공하기 위해 Cloud KMS는 두 번째 키 암호화 키(KEK)로 데이터 암호화 키(DEK)를 암호화합니다. BigQuery에서 일반 텍스트 키 세트 대신 암호화된 키 세트를 참조하면 키 노출의 위험을 줄일 수 있습니다. KEK는 Cloud KMS에 안전하게 저장되고 Identity and Access Management(IAM) 역할 및 권한을 사용하여 관리되는 대칭 암호화 키 세트입니다.
+BigQuery는 확정적 암호화와 비확정적 암호화 함수를 지원합니다. 확정적 암호화를 사용하면 저장된 데이터와 추가 인증 데이터(선택사항)가 모두 동일한 경우 암호문은 동일합니다. 이렇게 하면 암호화된 열을 기준으로 집계 및 조인을 지원할 수 있습니다. 비확정적 암호화의 경우 저장된 암호문은 암호화된 데이터에 관계없이 고유하므로 클러스터링, 집계, 조인을 방지합니다.
+쿼리 실행 시 KEK의 Cloud KMS 리소스 경로와 래핑된 DEK의 암호문을 제공합니다. BigQuery는 Cloud KMS를 호출하여 DEK를 래핑 해제한 다음 해당 키를 사용하여 쿼리의 데이터를 복호화합니다. 래핑되지 않은 DEK 버전은 쿼리 기간에만 메모리에 저장된 후 폐기됩니다.
+Cloud 외부 키 관리자 [https://cloud.google.com/kms/docs/ekm?hl=ko]가 지원되는 리전 [https://cloud.google.com/kms/docs/ekm?hl=ko#regions]에서 Cloud KMS를 사용하는 경우 Cloud KMS에서 Cloud EKM 기반 키를 사용할 수 있습니다.
+참고: Cloud EKM 키를 사용하면 각 키 액세스에 추가 지연 시간이 발생할 수 있습니다.
+사용 사례
+Cloud KMS 키를 사용한 암호화 사용 사례는 다음과 같습니다.
+키 세트를 일반 텍스트로 저장하지 않고 BigQuery에 저장해야 하는 외부 암호화 데이터 그런 다음 테이블에서 데이터를 내보내거나 SQL 쿼리로 복호화할 수 있습니다.
+BigQuery의 암호화된 데이터에 대한 '이중 액세스 제어' 데이터를 일반 텍스트로 읽으려면 사용자에게 테이블과 암호화 키 모두에 대한 권한을 부여해야 합니다.
+사용자 권한 매트릭스
+테이블에 대한 권한 테이블에 대한 권한 없음
+키에 대한 권한 암호화된 데이터를 읽고 복호화합니다. 액세스 권한이 없습니다.
+키에 대한 권한 없음 암호화된 데이터를 읽습니다. 액세스 권한이 없습니다.
+사용자가 KMS 키에 액세스할 수 있고 래핑된 키 세트에 액세스할 수 있는 경우, SQL 함수는 키 세트를 래핑 해제하고 암호문을 복호화할 수 있습니다. 사용자는 Cloud KMS REST API [https://cloud.google.com/kms/docs/reference/rest?hl=ko] 또는 CLI [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 사용하여 키 세트를 래핑 해제할 수도 있습니다.
+다음 쿼리 샘플은 KMS SQL 함수를 사용하여 비확정적 암호문을 복호화합니다.
+SELECT
+  AEAD.DECRYPT_STRING(
+    KEYS.KEYSET_CHAIN(@kms_resource_name, @first_level_keyset),
+    ciphertext,
+    additional_authenticated_data)
+FROM
+  ciphertext_table
+WHERE
+  ...
+사용 사례 예시
+우편번호가 민감한 정보로 간주되는 구현을 가정해 보겠습니다. 우편번호 데이터는 AEAD 암호화 함수를 사용하여 BigQuery 테이블에 삽입할 수 있으므로 Zipcode 열을 암호화합니다. 이 예시에서는 래핑된 키 세트 관리 함수와 함께 AEAD.ENCRYPT 함수를 사용합니다. KEYS.KEYSET_CHAIN 함수는 KEK를 사용하여 디지털 암호화 키를 암호화하고 AEAD.ENCRYPT 함수는 정보를 KMS로 전달합니다.
+암호화 및 복호화용 키 세트 체인은 데이터 암호화 키(DEK)가 암호화되거나 KEK로 래핑되고 해당 KEK로 전달되도록 합니다. 래핑된 DEK는 SQL 함수 내에서 복호화되거나 래핑 해제된 후 데이터를 암호화하거나 복호화하는 데 사용됩니다.
+AEAD 비확정적 함수는 테이블에서 실행 중인 쿼리의 함수를 사용하여 해당 데이터에 액세스하면 데이터를 복호화할 수 있습니다.
+AEAD 확정적 함수는 테이블에서 실행 중인 쿼리에서 함수를 사용하여 액세스할 때 데이터를 복호화하고 암호화된 데이터를 사용하여 집계 및 조인을 지원합니다.
+비확정적 함수 구문
+비확정적 함수 사용 시 지원되는 구문은 다음과 같습니다.
+AEAD.ENCRYPT(
+  KEYS.KEYSET_CHAIN(kms_resource_name, first_level_keyset),
+  plaintext,
+  additional_authenticated_data)
+AEAD.DECRYPT_STRING(
+  KEYS.KEYSET_CHAIN(kms_resource_name, first_level_keyset),
+  ciphertext,
+  additional_authenticated_data)
+AEAD.DECRYPT_BYTES(
+  KEYS.KEYSET_CHAIN(kms_resource_name, first_level_keyset),
+  ciphertext,
+  additional_authenticated_data)
+AEAD.DECRYPT_BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#aeaddecrypt_bytes], AEAD.ENCRYPT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#aeadencrypt], AEAD.DECRYPT_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#aeaddecrypt_string], KEYS.KEYSET_CHAIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#keyskeyset_chain] 함수 구문을 참조하세요.
+확정적 함수 구문
+확정적 함수 사용에 지원되는 구문은 다음과 같습니다.
+DETERMINISTIC_ENCRYPT(
+  KEYS.KEYSET_CHAIN(kms_resource_name, first_level_keyset),
+  plaintext,
+  additional_data)
+DETERMINISTIC_DECRYPT_STRING(
+  KEYS.KEYSET_CHAIN(kms_resource_name, first_level_keyset),
+  ciphertext,
+  additional_data)
+DETERMINISTIC_DECRYPT_BYTES(
+  KEYS.KEYSET_CHAIN(kms_resource_name, first_level_keyset),
+  ciphertext,
+  additional_data)
+DETERMINISTIC_DECRYPT_BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#deterministic_decrypt_bytes], DETERMINISTIC_ENCRYPT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#deterministic_encrypt], DETERMINISTIC_DECRYPT_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#deterministic_decrypt_string], KEYS.KEYSET_CHAIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#keyskeyset_chain] 함수 구문을 참조하세요.
+역할 및 권한
+Cloud KMS의 역할 목록은 Cloud KMS 권한 및 역할 [https://cloud.google.com/kms/docs/reference/permissions-and-roles?hl=ko#predefined]을 참조하세요.
+제한사항
+Cloud KMS를 사용한 암호화에는 다음과 같은 제한 사항이 있습니다.
+Cloud KMS 키는 쿼리와 동일한 리전 또는 멀티 리전 [https://cloud.google.com/kms/docs/locations?hl=ko]으로 제한됩니다. 전역 Cloud KMS 키 사용은 안정성상의 이유로 허용되지 않습니다.
+KEYS.ROTATE_KEYSET 함수를 사용하여 래핑된 키 세트를 순환할 수 없습니다.
+BigQuery 쿼리의 상수 매개변수는 진단 쿼리 계획 [https://cloud.google.com/bigquery/docs/query-plan-explanation?hl=ko]에서 사용자에게 표시됩니다. 이 요소가 KEYSET_CHAIN 함수의 kms_resource_name 및 first_level_keyset 매개변수에 영향을 줄 수 있습니다. 키는 일반 텍스트로 노출되지 않으며 래핑된 키 세트를 복호화하려면 Cloud KMS 키에 대한 권한이 필요합니다. 이러한 접근 방식을 사용하면 사용자에게 키 세트를 복호화할 권한이 없는 경우 진단 쿼리 계획을 통해 키가 노출되지 않습니다.
+유형 기반 보안 분류와 함께 사용할 경우 열 수준 암호화에는 다음과 같은 제한사항이 있습니다.
+열 수준 보안: 사용자는 액세스가 허용된 열의 데이터만 복호화하거나 암호화할 수 있습니다.
+행 수준 보안: 사용자는 액세스가 허용된 행의 데이터만 복호화할 수 있습니다.
+키 데이터가 일반 텍스트로 전송되는 원시 암호화 함수의 성능과 비교하여 열 수준 SQL 함수는 성능에 큰 영향을 미치지 않습니다.
+시작하기 전에
+Cloud KMS 키, 키 세트, 암호화된 테이블, 확정적 및 비확정적 함수로 작업하려면 다음을 수행해야 합니다(아직 수행하지 않은 경우).
+Google Cloud 프로젝트를 만듭니다 [https://cloud.google.com/resource-manager/docs/creating-managing-projects?hl=ko#creating_a_project].
+BigQuery 데이터세트 만들기 [https://cloud.google.com/bigquery/docs/datasets?hl=ko#create-dataset]
+Cloud KMS 키링을 만듭니다 [https://cloud.google.com/kms/docs/creating-keys?hl=ko#create_a_key_ring].
+소프트웨어 또는 하드웨어 보안 모듈(HSM) [https://cloud.google.com/kms/docs/hsm?hl=ko] 보호 수준으로 암호화된 열의 Cloud KMS 키를 만듭니다 [https://cloud.google.com/kms/docs/creating-keys?hl=ko#create_a_key].
+Cloud KMS 키, 암호화, 복호화에 사용할 수 있는 사용자 권한을 부여합니다 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#roles].
+다음 개념은 다음 섹션에서 참조되므로 기록해 두세요.
+PROJECT_ID: Google Cloud 프로젝트 이름입니다.
+DATASET_NAME: BigQuery 데이터 세트의 이름입니다.
+LOCATION_ID: BigQuery 데이터 세트의 위치입니다.
+TABLE_NAME: BigQuery 테이블의 이름입니다.
+KEY_RING_ID: Cloud KMS 키링의 이름입니다.
+KEY_ID: Cloud KMS 키의 이름입니다.
+KMS_KEY: 다음 형식의 Cloud KMS 키(KEK)입니다.
+'gcp-kms://projects/
+PROJECT_ID/locations/
+LOCATION_ID/keyRings/
+KEY_RING_ID/cryptoKeys/
+KEY_ID'
+다음은 Cloud KMS 키의 예시입니다.
+'gcp-kms://projects/myProject/locations/us/keyRings/myKeyRing/cryptoKeys/myKeyName'
+KMS_KEY_SHORT: KMS_KEY와 비슷하지만 다음 형식입니다.
+projects/
+PROJECT_ID/locations/
+LOCATION_ID/keyRings/
+KEY_RING_ID/cryptoKeys/
+KEY_ID
+KEYSET_DECODED: BYTES 시퀀스로 디코딩된 키 세트입니다. 출력은 디코딩된 래핑 키 세트의 출력과 유사합니다.
+키 세트 함수는 키 세트를 바이트로 반환하지만 사용자 출력은 인코딩된 문자열로 표시됩니다. 인코딩된 키 세트를 디코딩된 키 세트로 변환하려면 Cloud KMS 키 세트 디코딩 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#decode-wrapped-keyset]을 참조하세요.
+KEYSET_ENCODED: STRING으로 인코딩된 키 세트입니다. 출력은 인코딩된 래핑 키 세트와 유사합니다.
+인코딩된 키 세트를 디코딩된 키 세트로 변환하려면 Cloud KMS 키 세트 디코딩 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#decode-wrapped-keyset]을 참조하세요.
+WRAPPED_KEYSET_DECODED: BYTES 시퀀스로 디코딩된 래핑 키 세트입니다. 다음은 이러한 출력의 예시입니다.
+b'\x0a$\x00\xa6\xee\x12Y\x8d|l"\xf7\xfa\xc6\xeafM\xdeefy\xe9\x7f\xf2z\xb3M\
+xf6"\xd0\xe0Le\xa8\x8e\x0fR\xed\x12\xb7\x01\x00\xf0\xa80\xbd\xc1\x07Z\\
+\xd0L<\x80A0\x9ae\xfd(9\x1e\xfa\xc8\x93\xc7\xe8\...'
+래핑된 키 세트 함수는 래핑된 키 세트를 바이트로 반환하지만 사용자 출력은 인코딩된 문자열로 표시됩니다. 인코딩된 래핑 키 세트를 디코딩된 래핑 키 세트로 변환하려면 Cloud KMS 키 세트 디코딩 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#decode-wrapped-keyset]을 참조하세요.
+WRAPPED_KEYSET_ENCODED: STRING으로 인코딩된 래핑 키 세트입니다. 다음은 이러한 출력의 예시입니다.
+'CiQApu4SWTozQ7lNwITxpEvGlo5sT2rv1tyuSv3UAMtoTq/lhDwStwEA8KgwvX7CpVVzhWWMkRw
+WZNr3pf8uBIlzHeunCy8ZsQ6CofQYFpiBRBB6k/QqATbiFV+3opnDk/6dBL/S8OO1WoDC+DdD9
+uzEFwqt5D20lTXCkGWFv1...'
+인코딩된 래핑 키 세트를 디코딩된 래핑 키 세트로 변환하려면 Cloud KMS 키 세트 디코딩 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#decode-wrapped-keyset]을 참조하세요.
+키 관리
+다음 섹션에는 Cloud KMS 키로 수행할 수 있는 일반적인 작업이 포함되어 있습니다.
+키 세트 만들기
+래핑된 키 세트 또는 원시 키 세트를 만들 수 있습니다. 이렇게 하려면 다음 섹션의 단계를 완료하세요.
+원시 키 세트 만들기
+다음 쿼리를 실행하여 DETERMINISTIC_AEAD_AES_SIV_CMAC_256 유형의 키 세트를 만듭니다.
+SELECT KEYS.NEW_KEYSET('DETERMINISTIC_AEAD_AES_SIV_CMAC_256') AS raw_keyset
+래핑된 키 세트 만들기
+다음 쿼리를 실행하여 DETERMINISTIC_AEAD_AES_SIV_CMAC_256 유형의 키로 Cloud KMS 래핑 키 세트를 만듭니다.
+SELECT KEYS.NEW_WRAPPED_KEYSET(
+  
+KMS_KEY,
+  'DETERMINISTIC_AEAD_AES_SIV_CMAC_256')
+키 세트 디코딩
+키 세트를 반환하는 SQL 함수는 키 세트를 BYTES 형식으로 생성하지만 사용자에게 표시되는 결과는 STRING 형식으로 인코딩되고 표시됩니다. 이 인코딩된 문자열을 리터럴 키 암호화 함수로 사용할 수 있는 디코딩된 바이트 시퀀스로 변환하려면 다음 쿼리를 사용하세요.
+래핑된 키 세트 디코딩
+다음 쿼리를 실행하여 Cloud KMS 래핑 키 세트를 디코딩합니다.
+SELECT FORMAT('%T', FROM_BASE64(
+WRAPPED_KEYSET_ENCODED'))
+원시 키 세트 디코딩
+다음 쿼리를 실행하여 원시 키 세트를 디코딩합니다.
+SELECT FORMAT('%T', FROM_BASE64(
+KEYSET_ENCODED'))
+래핑된 키 세트 래핑
+다음 쿼리를 실행하여 Cloud KMS 래핑 키 세트를 새 Cloud KMS 키로 래핑합니다. KMS_KEY_CURRENT는 키 세트를 암호화하는 데 사용되는 새 KMS_KEY를 나타냅니다. KMS_KEY_NEW는 키 세트를 암호화하는 데 사용되는 새 KMS_KEY를 나타냅니다.
+SELECT KEYS.REWRAP_KEYSET(
+  
+KMS_KEY_CURRENT,
+  
+KMS_KEY_NEW,
+  
+WRAPPED_KEYSET_DECODED)
+래핑된 키 세트 순환
+다음 쿼리를 실행하여 DETERMINISTIC_AEAD_AES_SIV_CMAC_256 유형의 키로 Cloud KMS 래핑 키 세트를 순환합니다.
+SELECT KEYS.ROTATE_WRAPPED_KEYSET(
+  
+KMS_KEY,
+  
+WRAPPED_KEYSET_DECODED,
+  'DETERMINISTIC_AEAD_AES_SIV_CMAC_256')
+래핑된 키 세트에서 원시 키 세트 생성
+일부 암호화 함수에는 원시 키 세트가 필요합니다. Cloud KMS 래핑 키 세트를 복호화하여 원시 키 세트를 생성하려면 다음 단계를 완료하세요.
+래핑된 키 세트를 만듭니다 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#wrap-keyset].
+bq 명령줄 도구에서 다음 명령어를 입력하여 래핑된 키 세트를 keyset_to_unwrap이라는 파일에 저장하고, 래핑된 키 세트를 복호화하고, KEYSET_DECODED 형식으로 출력을 생성합니다.
+echo 
+WRAPPED_KEYSET_ENCODED | base64 -d > /tmp/decoded_wrapped_key
+gcloud kms decrypt \
+--ciphertext-file=/tmp/decoded_wrapped_key \
+--key=
+KMS_KEY_SHORT \
+--plaintext-file=/tmp/keyset_to_unwrap.dec \
+--project=
+PROJECT_ID
+od -An --format=o1 /tmp/keyset_to_unwrap.dec | tr ' ' '\'
+원시 키 세트에서 래핑된 키 세트 생성
+일부 암호화 함수에는 Cloud KMS 래핑 키 세트가 필요합니다. 원시 키 세트를 암호화하여 래핑된 키 세트를 생성하려면 다음 단계를 완료합니다.
+원시 키 세트를 만듭니다 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#raw-keyset].
+bq 명령줄 도구에서 다음 명령어를 입력하여 원시 키 세트를 keyset_to_wrap이라는 파일에 저장하고, 원시 키 세트를 암호화하고, WRAPPED_KEYSET_DECODED 형식으로 출력을 생성합니다.
+echo 
+KEYSET_ENCODED | base64 -d > /tmp/decoded_key
+gcloud kms encrypt \
+--plaintext-file=/tmp/decoded_key \
+--key=
+KMS_KEY_SHORT \
+--ciphertext-file=/tmp/keyset_to_wrap.dec \
+--project=
+PROJECT_ID
+od -An --format=o1 /tmp/keyset_to_wrap.dec | tr ' ' '\'
+DLP 함수의 래핑된 키 생성
+DLP 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dlp_functions?hl=ko]의 경우 암호화 키가 필요하며 이 키를 사용하여 래핑된 키를 가져옵니다.
+새 암호화 키를 생성하려면 명령줄 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko]에서 다음 명령어를 실행하세요. 키 크기는 16, 24, 32바이트가 될 수 있습니다. 다음 예시에서는 16바이트 키를 사용합니다.
+openssl rand 16 > rand.key.16.bin
+생성된 16바이트 키를 KMS 키 [https://cloud.google.com/sdk/gcloud/reference/kms/encrypt?hl=ko]로 래핑합니다. 아래 예시를 참조하세요.
+KEYRING=projects/myproject/locations/us/keyRings/kms-test
+KEY=projects/myproject/locations/us/keyRings/kms-test/cryptoKeys/test-Kek
+PROJECT="myproject"
+
+gcloud kms encrypt --project $PROJECT --location us --keyring $KEYRING --key $KEY --plaintext-file ./rand.key.16.bin --ciphertext-file ./rand.key.16.wrapped
+이제 래핑된 키의 BYTES 리터럴 또는 래핑된 키의 base64 형식을 가져올 수 있습니다.
+바이트 리터럴
+username:~/tmp$ od -b ./rand.key.16.wrapped | cut -d ' ' -f 2- | head -n -1 | sed  -e 's/^/ /' | tr ' ' '\'
+출력은 다음과 같이 표시됩니다.
+\012\044\000\325\155\264\153\246\071\172\130\372\305\103\047\342\356\061\077\014\030\126\147\041\126\150\012\036\020\202\215\044\267\310\331\014\116\233\022\071\000\363\344\230\067\274\007\340\273\016\212\151\226\064\200\377\303\207\103\147\052\267\035\350\004\147\365\251\271\133\062\251\246\152\177\017\005\270\044\141\211\116\337\043\035\263\122\340\110\333\266\220\377\247\204\215\233
+Base64 형식
+username:~/tmp$ base64 ./rand.key.16.wrapped
+출력은 다음과 같이 표시됩니다.
+CiQA1W20a6Y5elj6xUMn4u4xPwwYVmchVmgKHhCCjSS3yNkMTpsSOQDz5Jg3vAfguw6KaZY0gP/Dh0NnKrcd6ARn9am5WzKppmp/DwW4JGGJTt8jHbNS4EjbtpD/p4SNmw==
+키 세트의 키 수 가져오기
+다음 쿼리를 실행하여 원시 키 세트의 키 수를 가져옵니다.
+래핑된 키 세트로 작업하는 경우 먼저 원시 키 세트를 생성 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#generate-raw-keyset]합니다.
+원시 키 세트로 다음 쿼리를 실행합니다.
+SELECT KEYS.KEYSET_LENGTH(
+KEYSET_DECODED) as key_count;
+키 세트의 JSON 표현 가져오기
+다음 쿼리를 실행하여 원시 키 세트의 JSON 표현을 봅니다.
+래핑된 키 세트로 작업하는 경우 먼저 원시 키 세트를 생성 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#generate-raw-keyset]합니다.
+원시 키 세트로 다음 쿼리를 실행합니다.
+SELECT KEYS.KEYSET_TO_JSON(
+KEYSET_DECODED);
+암호화 및 복호화
+원시 키 세트 또는 래핑된 키 세트를 사용하여 테이블의 열을 암호화할 수 있습니다. 또한 열에 확정적 또는 비확정적 암호화를 사용할 수 있습니다. 이 섹션의 예시에서는 래핑된 키 세트를 사용하지만 래핑된 키 세트를 원시 키 세트로 바꿀 수 있습니다.
+래핑된 키 세트로 열을 확정적으로 암호화
+다음 쿼리를 실행하여 테이블을 만들고 encrypted_content라는 열에 확정적 암호화를 사용하여 Cloud KMS 래핑 키 세트를 저장합니다.
+래핑된 키 세트를 만듭니다 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#wrap-keyset].
+래핑된 키 세트로 열을 암호화합니다.
+CREATE OR REPLACE TABLE 
+DATASET_NAME.
+TABLE_NAME AS
+  SELECT DETERMINISTIC_ENCRYPT(
+    KEYS.KEYSET_CHAIN(
+KMS_KEY, 
+WRAPPED_KEYSET_DECODED),
+    'plaintext',
+    '') AS encrypted_content
+래핑된 키 세트로 열을 확정적으로 복호화
+Cloud KMS 래핑 키 세트를 사용하여 암호화된 콘텐츠가 포함된 열을 확정적으로 복호화하려면 다음 쿼리를 실행합니다. 이 쿼리는 encrypted_content라는 열이 있는 테이블을 참조한다고 가정합니다.
+SELECT DETERMINISTIC_DECRYPT_STRING(
+  KEYS.KEYSET_CHAIN(
+KMS_KEY, 
+WRAPPED_KEYSET_DECODED),
+  encrypted_content,
+  '')
+FROM 
+DATASET_NAME.
+TABLE_NAME
+래핑되지 않은 키 세트로 열을 비확정적으로 암호화
+래핑된 키 세트로 열을 확정적으로 암호화 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#determine-encrypt-column]를 참조하세요. 하지만 DETERMINISTIC_ENCRYPT를 AEAD.ENCRYPT로 바꿉니다. 키 세트가 AEAD_AES_GCM_256 유형인지 확인하세요.
+래핑되지 않은 키 세트로 비확정적으로 열 복호화
+래핑된 키 세트로 열을 확정적으로 복호화 [https://cloud.google.com/bigquery/docs/column-key-encrypt?hl=ko#determine-decrypt-column]를 참조하되, DETERMINISTIC_DECRYPT_STRING를 AEAD.DECRYPT_STRING로 바꿉니다. 키 세트가 AEAD_AES_GCM_256 유형인지 확인하세요.
+다음 단계
+Cloud KMS [https://cloud.google.com/kms/docs/resource-hierarchy?hl=ko]에 대해 자세히 알아보기 이 주제에는 Google Cloud의 열 수준 암호화에 대한 개념 정보가 포함되어 있습니다.
+BigQuery의 AEAD 암호화 [https://cloud.google.com/bigquery/docs/aead-encryption-concepts?hl=ko] 자세히 알아보기. 이 주제에는 BigQuery의 열 수준 암호화에 대한 개념 정보가 포함되어 있습니다.
+BigQuery용 AEAD 암호화 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko] 자세히 알아보기. 이 주제에는 BigQuery에서 열 수준 암호화에 사용할 수 있는 모든 SQL 함수가 포함되어 있습니다.
+도움이 되었나요?
+의견 보내기

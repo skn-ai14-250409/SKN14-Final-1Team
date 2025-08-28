@@ -1,0 +1,449 @@
+Source URL: https://cloud.google.com/bigquery/docs/user-defined-functions
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+SQL UDF [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#sql-udf-structure]
+템플릿 SQL UDF 매개변수 [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#templated-sql-udf-parameters]
+스칼라 서브 쿼리 [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#scalar_subqueries]
+SQL 표현식의 기본 프로젝트 [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#default_project_in_sql_expressions]
+자바스크립트 UDF [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#javascript-udf-structure]
+지원되는 JavaScript UDF 데이터 유형 [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#supported-javascript-udf-data-types]
+따옴표 규칙 [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#quoting-rules]
+JavaScript 라이브러리 포함 [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#including-javascript-libraries]
+사용자 정의 함수
+bookmark_border
+사용자 정의 함수(UDF)를 사용하면 SQL 표현식 또는 JavaScript 코드를 사용하여 함수를 만들 수 있습니다. UDF는 입력으로 구성된 열을 받아 입력을 기반으로 작업을 수행하고 작업의 결과를 값으로 반환합니다.
+UDF를 영구 UDF 또는 임시 UDF로 정의할 수 있습니다. 영구 UDF는 여러 쿼리에서 재사용할 수 있지만 임시 UDF는 단일 쿼리 범위에만 존재합니다.
+참고: 영구 UDF는 소유자 간에 공유되는 경우에 호출하는 것이 안전합니다. UDF는 데이터를 변형하거나, 외부 시스템과 통신하거나, Google Cloud Observability 또는 유사한 애플리케이션에 로그를 전송할 수 없습니다.
+UDF를 만들려면 CREATE FUNCTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_function_statement] 문을 사용합니다. 영구 사용자 정의 함수를 삭제하려면 DROP FUNCTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#drop_function_statement] 문을 사용합니다. 임시 사용자 정의 함수는 쿼리가 완료되는 즉시 만료됩니다. DROP FUNCTION 문은 멀티 문 쿼리 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko] 및 프로시져 [https://cloud.google.com/bigquery/docs/procedures?hl=ko]의 임시 UDF에서만 지원됩니다.
+legacy SQL의 UDF에 대한 자세한 내용은 legacy SQL의 사용자 정의 함수 [https://cloud.google.com/bigquery/docs/user-defined-functions-legacy?hl=ko]를 참조하세요.
+SQL UDF
+다음 예시에서는 AddFourAndDivide라는 임시 SQL UDF를 만들고 SELECT 문 내에서 UDF를 호출합니다.
+CREATE TEMP FUNCTION AddFourAndDivide(x INT64, y INT64)
+RETURNS FLOAT64
+AS (
+  (x + 4) / y
+);
+
+SELECT
+  val, AddFourAndDivide(val, 2)
+FROM
+  UNNEST([2,3,5,8]) AS val;
+이 예시는 다음 출력을 생성합니다.
++-----+-----+
+| val | f0_ |
++-----+-----+
+|   2 | 3.0 |
+|   3 | 3.5 |
+|   5 | 4.5 |
+|   8 | 6.0 |
++-----+-----+
+다음 예시에서는 영구 UDF와 동일한 함수를 만듭니다.
+CREATE FUNCTION mydataset.AddFourAndDivide(x INT64, y INT64)
+RETURNS FLOAT64
+AS (
+  (x + 4) / y
+);
+이 UDF는 영구적이므로 함수의 데이터 세트를 지정해야 합니다(이 예시에서는 mydataset). CREATE FUNCTION 문을 실행한 후에는 쿼리에서 함수를 호출할 수 있습니다.
+SELECT
+  val, mydataset.AddFourAndDivide(val, 2)
+FROM
+  UNNEST([2,3,5,8,12]) AS val;
+템플릿 SQL UDF 매개변수
+유형이 ANY TYPE인 매개변수는 함수가 호출될 때 인두 개 이상의 인수 유형과 일치할 수 있습니다.
+매개변수 두 개 이상이 ANY TYPE 유형이면 BigQuery는 이러한 인수 간의 유형 관계를 적용하지 않습니다.
+함수 반환 유형은 ANY TYPE일 수 없습니다. 생략하거나(sql_expression에 따라 자동으로 결정되어야 함) 명시적 유형이어야 합니다.
+함수 정의와 호환되지 않는 유형의 함수 인수를 전달하면 호출 시 오류가 발생합니다.
+다음 예시에서는 템플릿 매개변수를 사용하는 SQL UDF를 보여줍니다.
+CREATE TEMP FUNCTION addFourAndDivideAny(x ANY TYPE, y ANY TYPE)
+AS (
+  (x + 4) / y
+);
+
+SELECT
+  addFourAndDivideAny(3, 4) AS integer_input,
+  addFourAndDivideAny(1.59, 3.14) AS floating_point_input;
+이 예시는 다음 출력을 생성합니다.
++----------------+-----------------------+
+| integer_input  |  floating_point_input |
++----------------+-----------------------+
+| 1.75           | 1.7802547770700636    |
++----------------+-----------------------+
+다음 예시에서는 템플릿 매개변수를 사용하여 모든 유형의 배열에서 마지막 요소를 반환합니다.
+CREATE TEMP FUNCTION lastArrayElement(arr ANY TYPE)
+AS (
+  arr[ORDINAL(ARRAY_LENGTH(arr))]
+);
+
+SELECT
+  lastArrayElement(x) AS last_element
+FROM (
+  SELECT [2,3,5,8,13] AS x
+);
+이 예시는 다음 출력을 생성합니다.
++--------------+
+| last_element |
++--------------+
+| 13           |
++--------------+
+스칼라 서브 쿼리
+SQL UDF는 스칼라 서브 쿼리 [https://cloud.google.com/bigquery/docs/reference/standard-sql/subqueries?hl=ko#scalar_subquery_concepts] 값을 반환할 수 있습니다. 스칼라 서브 쿼리는 단일 열을 선택해야 합니다.
+다음 예시에서는 스칼라 서브 쿼리를 사용하여 사용자 테이블에서 특정 연령의 사용자 수를 계산하는 SQL UDF를 보여줍니다.
+CREATE TEMP TABLE users
+AS (
+  SELECT
+    1 AS id, 10 AS age
+  UNION ALL
+  SELECT
+    2 AS id, 30 AS age
+  UNION ALL
+  SELECT
+    3 AS id, 10 AS age
+);
+
+CREATE TEMP FUNCTION countUserByAge(userAge INT64)
+AS (
+  (SELECT COUNT(1) FROM users WHERE age = userAge)
+);
+
+SELECT
+  countUserByAge(10) AS count_user_age_10,
+  countUserByAge(20) AS count_user_age_20,
+  countUserByAge(30) AS count_user_age_30;
+이 예시는 다음 출력을 생성합니다.
++-------------------+-------------------+-------------------+
+| count_user_age_10 | count_user_age_20 | count_user_age_30 |
++-------------------+-------------------+-------------------+
+|                 2 |                 0 |                 1 |
++-------------------+-------------------+-------------------+
+SQL 표현식의 기본 프로젝트
+SQL UDF의 본문에서 테이블 또는 뷰와 같은 BigQuery 항목에 대한 모든 참조는 프로젝트 ID를 포함해야 합니다. 단, 해당 항목이 UDF가 포함된 동일한 프로젝트에 있는 경우에는 예외입니다.
+예를 들어 다음 문을 살펴보겠습니다.
+CREATE FUNCTION project1.mydataset.myfunction()
+AS (
+  (SELECT COUNT(*) FROM mydataset.mytable)
+);
+이 문을 project1에서 실행하고 mydataset.mytable이 project1에 있는 경우 문은 성공합니다. 하지만 이 문을 다른 프로젝트에서 실행하면 문이 실패합니다. 오류를 수정하려면 테이블 참조에 프로젝트 ID를 포함합니다.
+CREATE FUNCTION project1.mydataset.myfunction()
+AS (
+  (SELECT COUNT(*) FROM project1.mydataset.mytable)
+);
+다른 프로젝트의 항목 또는 함수를 만드는 위치인 데이터 세트를 참조할 수도 있습니다.
+CREATE FUNCTION project1.mydataset.myfunction()
+AS (
+  (SELECT COUNT(*) FROM project2.another_dataset.another_table)
+);
+자바스크립트 UDF
+JavaScript UDF를 사용하면 SQL 쿼리에서 JavaScript로 작성된 코드를 호출할 수 있습니다. JavaScript UDF는 일반적으로 표준 SQL 쿼리에 비해 더 많은 슬롯 리소스를 사용하므로 작업 성능이 저하됩니다. 함수를 SQL로 표현할 수 있는 경우 코드를 표준 SQL 쿼리 작업으로 실행하는 것이 더 최적화된 경우가 많습니다.
+다음 예시에서는 JavaScript UDF를 보여줍니다. 원시 문자열 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#string_and_bytes_literals] 내에서 JavaScript 코드는 따옴표로 둘러싸여 있습니다.
+CREATE TEMP FUNCTION multiplyInputs(x FLOAT64, y FLOAT64)
+RETURNS FLOAT64
+LANGUAGE js
+AS r"""
+  return x*y;
+""";
+
+WITH numbers AS
+  (SELECT 1 AS x, 5 as y
+  UNION ALL
+  SELECT 2 AS x, 10 as y
+  UNION ALL
+  SELECT 3 as x, 15 as y)
+SELECT x, y, multiplyInputs(x, y) AS product
+FROM numbers;
+이 예시는 다음 출력을 생성합니다.
++-----+-----+--------------+
+| x   | y   | product      |
++-----+-----+--------------+
+| 1   | 5   | 5            |
+| 2   | 10  | 20           |
+| 3   | 15  | 45           |
++-----+-----+--------------+
+다음 예시에서는 지정된 JSON 문자열의 foo이라는 모든 필드의 값을 합산합니다.
+CREATE TEMP FUNCTION SumFieldsNamedFoo(json_row STRING)
+RETURNS FLOAT64
+LANGUAGE js
+AS r"""
+  function SumFoo(obj) {
+    var sum = 0;
+    for (var field in obj) {
+      if (obj.hasOwnProperty(field) && obj[field] != null) {
+        if (typeof obj[field] == "object") {
+          sum += SumFoo(obj[field]);
+        } else if (field == "foo") {
+          sum += obj[field];
+        }
+      }
+    }
+    return sum;
+  }
+  var row = JSON.parse(json_row);
+  return SumFoo(row);
+""";
+
+WITH Input AS (
+  SELECT
+    STRUCT(1 AS foo, 2 AS bar, STRUCT('foo' AS x, 3.14 AS foo) AS baz) AS s,
+    10 AS foo
+  UNION ALL
+  SELECT
+    NULL,
+    4 AS foo
+  UNION ALL
+  SELECT
+    STRUCT(NULL, 2 AS bar, STRUCT('fizz' AS x, 1.59 AS foo) AS baz) AS s,
+    NULL AS foo
+)
+SELECT
+  TO_JSON_STRING(t) AS json_row,
+  SumFieldsNamedFoo(TO_JSON_STRING(t)) AS foo_sum
+FROM Input AS t;
+이 예시에서는 다음 출력을 생성합니다.
++---------------------------------------------------------------------+---------+
+| json_row                                                            | foo_sum |
++---------------------------------------------------------------------+---------+
+| {"s":{"foo":1,"bar":2,"baz":{"x":"foo","foo":3.14}},"foo":10}       | 14.14   |
+| {"s":null,"foo":4}                                                  | 4       |
+| {"s":{"foo":null,"bar":2,"baz":{"x":"fizz","foo":1.59}},"foo":null} | 1.59    |
++---------------------------------------------------------------------+---------+
+지원되는 JavaScript UDF 데이터 유형
+일부 SQL 유형에서는 JavaScript 유형에 직접 매핑되지만 다른 유형에서는 그렇지 않습니다. BigQuery는 다음 방법으로 유형을 표현합니다.
+BigQuery 데이터 유형 JavaScript 데이터 유형
+ARRAY ARRAY
+BOOL 부울
+BYTES base64로 인코딩된 STRING
+FLOAT64 숫자
+NUMERIC, BIGNUMERIC NUMERIC 또는 BIGNUMERIC 값을 정확하게 IEEE 754 부동 소수점 [https://en.wikipedia.org/wiki/Floating-point_arithmetic#IEEE_754:_floating_point_in_modern_computers] 값으로 표현할 수 있고 소수 부분이 없으면 이 값은 NUMBER로 인코딩됩니다. 이러한 값의 범위는 [-253, 253]입니다. 그렇지 않으면 값이 문자열로 인코딩됩니다.
+STRING STRING
+STRUCT 각 STRUCT 필드가 이름이 지정된 필드인 OBJECT입니다.
+TIMESTAMP 타임스탬프의 microsecond 부분을 포함하는 마이크로초 필드가 포함된 DATE입니다.
+DATE DATE
+JSON
+JSON OBJECTS, ARRAY, VALUES는 해당하는 JavaScript OBJECTS, ARRAYS, and VALUES로 변환됩니다.
+JavaScript는 INT64 값을 지원하지 않습니다. [-253, 253] 범위의 JSON 숫자만 정확하게 변환됩니다. 그렇지 않으면 숫자 값이 반올림되어 정밀도가 떨어질 수 있습니다.
+JavaScript는 64비트 정수 유형을 지원하지 않으므로 INT64는 JavaScript UDF의 입력 유형으로 지원되지 않습니다. 대신 FLOAT64를 사용하여 정수 값을 숫자로 표현하거나 STRING을 사용하여 정수 값을 문자열로 표현할 수 있습니다.
+BigQuery는 INT64를 JavaScript UDF의 반환 유형으로 지원합니다. 이 경우 JavaScript 함수 본문은 JavaScript 숫자 또는 문자열을 반환할 수 있습니다. 그런 다음 BigQuery가 이들 유형 중 하나를 INT64로 변환합니다.
+JavaScript UDF의 반환 값이 Promise [https://tc39.es/ecma262/#sec-promise-objects]인 경우, BigQuery는 Promise가 결정될 때까지 Promise를 기다립니다. Promise가 처리 상태로 결정되면 BigQuery는 결과를 반환합니다. Promise가 거부 상태로 결정되면 BigQuery는 오류를 반환합니다.
+따옴표 규칙
+JavaScript 코드는 따옴표로 묶어야 합니다. 1줄 코드 스니펫의 경우 표준 따옴표 문자열을 사용할 수 있습니다.
+CREATE TEMP FUNCTION plusOne(x FLOAT64)
+RETURNS FLOAT64
+LANGUAGE js
+AS "return x+1;";
+
+SELECT val, plusOne(val) AS result
+FROM UNNEST([1, 2, 3, 4, 5]) AS val;
+이 예시는 다음 출력을 생성합니다.
++-----------+-----------+
+| val       | result    |
++-----------+-----------+
+| 1         | 2.0       |
+| 2         | 3.0       |
+| 3         | 4.0       |
+| 4         | 5.0       |
+| 5         | 6.0       |
++-----------+-----------+
+스니펫에 따옴표가 포함되었거나 스니펫이 여러 줄로 구성된 경우에는 삼중 따옴표 블록을 사용합니다.
+CREATE TEMP FUNCTION customGreeting(a STRING)
+RETURNS STRING
+LANGUAGE js
+AS r"""
+  var d = new Date();
+  if (d.getHours() < 12) {
+    return 'Good Morning, ' + a + '!';
+  } else {
+    return 'Good Evening, ' + a + '!';
+  }
+""";
+
+SELECT customGreeting(names) AS everyone
+FROM UNNEST(['Hannah', 'Max', 'Jakob']) AS names;
+이 예시는 다음 출력을 생성합니다.
++-----------------------+
+| everyone              |
++-----------------------+
+| Good Morning, Hannah! |
+| Good Morning, Max!    |
+| Good Morning, Jakob!  |
++-----------------------+
+JavaScript 라이브러리 포함
+OPTIONS 섹션을 사용하여 JavaScript UDF를 확장할 수 있습니다. 이 섹션에서는 UDF의 외부 코드 라이브러리를 지정할 수 있습니다.
+CREATE TEMP FUNCTION myFunc(a FLOAT64, b STRING)
+RETURNS STRING
+LANGUAGE js
+  OPTIONS (
+    library=['gs://my-bucket/path/to/lib1.js', 'gs://my-bucket/path/to/lib2.js'])
+AS r"""
+  // Assumes 'doInterestingStuff' is defined in one of the library files.
+  return doInterestingStuff(a, b);
+""";
+
+SELECT myFunc(3.14, 'foo');
+앞의 예시에서 lib1.js, lib2.js의 코드는 UDF의 [external_code] 섹션에서 모든 코드에 사용될 수 있습니다.
+JavaScript UDF 권장사항
+입력 사전 필터링
+입력을 JavaScript UDF로 전달하기 전에 필터링할 수 있으면 쿼리 속도가 빨라지고 비용이 낮아집니다.
+영구적인 변경 가능 상태 금지
+JavaScript UDF 호출에서는 변경 가능 상태를 저장하거나 액세스하지 않는 것이 좋습니다. 예를 들어 다음 패턴을 사용하지 마세요.
+-- Avoid this pattern
+CREATE FUNCTION temp.mutable()
+RETURNS INT64
+LANGUAGE js
+AS r"""
+  var i = 0; // Mutable state
+  function dontDoThis() {
+    return ++i;
+  }
+  return dontDoThis()
+""";
+효율적인 메모리 사용
+JavaScript 처리 환경은 쿼리당 사용 가능한 메모리가 제한되어 있습니다. 로컬 상태를 너무 많이 누적하는 JavaScript UDF 쿼리는 메모리 소진으로 인해 실패할 수 있습니다.
+루틴 승인
+UDF를 루틴으로 승인할 수 있습니다. 승인된 루틴을 사용하면 결과를 생성한 기본 테이블에 대해 액세스 권한을 부여하지 않고도 특정 사용자 또는 그룹에 쿼리 결과를 공유할 수 있습니다. 예를 들어 승인된 루틴은 데이터에 대한 집계를 계산하거나 테이블 값을 조회하고 이 값을 계산에 사용할 수 있습니다. 자세한 내용은 승인된 루틴 [https://cloud.google.com/bigquery/docs/authorized-routines?hl=ko]을 참조하세요.
+UDF에 설명 추가
+UDF에 설명을 추가하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 패널에서 프로젝트와 데이터 세트를 펼친 후 함수를 선택합니다.
+세부정보 창에서 mode_edit 루틴 세부정보 수정을 클릭하여 설명 텍스트를 수정합니다.
+대화상자의 상자에 설명을 입력하거나 기존 설명을 수정합니다. 저장을 클릭하여 새 설명 텍스트를 저장합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#sql] ---
+함수 설명을 업데이트하려면 CREATE FUNCTION DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_function_statement]을 사용하여 함수를 다시 만들고 OPTIONS 목록에서 description 필드를 설정합니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE OR REPLACE FUNCTION mydataset.my_function(...)
+AS (
+  ...
+) OPTIONS (
+  description = 'DESCRIPTION'
+);
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+커스텀 마스킹 루틴 만들기
+참고: 특정 BigQuery 버전으로 생성된 예약을 사용하는 경우에는 이 기능을 사용하지 못할 수 있습니다. 각 버전에서 사용 설정된 기능에 대한 자세한 내용은 BigQuery 버전 소개 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]를 참조하세요.
+커스텀 마스킹 루틴 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko#custom_mask]에서 사용할 UDF를 만들 수 있습니다. 전용 데이터 세트를 만들고 마스킹 UDF를 관리하기 위한 적절한 IAM 권한을 설정해야 합니다. 커스텀 마스킹 루틴은 다음 요구사항을 충족해야 합니다.
+커스텀 마스킹 루틴은 SQL UDF여야 합니다.
+OPTIONS 함수에서 data_governance_type 옵션을 DATA_MASKING으로 설정해야 합니다.
+커스텀 마스킹 루틴은 다음 함수를 지원합니다:
+AEAD.DECRYPT_BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#aeaddecrypt_bytes] KEYS.KEYSET_CHAIN을 사용한 AEAD 암호화 함수(원시 키 사용은 지원되지 않음)
+AEAD.DECRYPT_STRING, [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#aeaddecrypt_string] KEYS.KEYSET_CHAIN을 사용한 AEAD 암호화 함수(원시 키 사용은 지원되지 않음)
+AEAD.ENCRYPT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#aeadencrypt] keyset_chain을 사용한 AEAD 암호화 함수(원시 키 사용은 지원되지 않음)
+CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast] 변환 함수
+CONCAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#concat] 문자열 함수
+CURRENT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#current_datetime] 날짜/시간 함수
+CURRENT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#current_date] 날짜 함수
+CURRENT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#current_timestamp] 타임스탬프 함수
+CURRENT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#current_time] 시간 함수
+DETERMINISTIC_DECRYPT_BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#deterministic_decrypt_bytes] KEYS.KEYSET_CHAIN을 사용한 AEAD 암호화 함수(원시 키 사용은 지원되지 않음)
+DETERMINISTIC_DECRYPT_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#deterministic_decrypt_string] KEYS.KEYSET_CHAIN을 사용한 AEAD 암호화 함수(원시 키 사용은 지원되지 않음)
+DETERMINISTIC_ENCRYPT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#deterministic_encrypt] KEYS.KEYSET_CHAIN을 사용한 AEAD 암호화 함수(원시 키 사용은 지원되지 않음)
+FARM_FINGERPRINT [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#farm_fingerprint] 해시 함수
+FROM_BASE32 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_base32] 문자열 함수
+FROM_BASE64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_base64] 문자열 함수
+FROM_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_hex] 문자열 함수
+GENERATE_UUID [https://cloud.google.com/bigquery/docs/reference/standard-sql/utility-functions?hl=ko#generate_uuid] 유틸리티 함수
+KEYS.KEYSET_CHAIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/aead_encryption_functions?hl=ko#keyskeyset_chain] AEAD 암호화 함수
+LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#length] 문자열 함수
+MD5 [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#md5] 해시 함수
+REGEXP_REPLACE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_replace] 문자열 함수
+REGEX_EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract] 문자열 함수
+REPLACE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#replace] 문자열 함수
+SAFE_CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#safe_casting] 변환 함수
+SHA1 [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#sha1] 해시 함수
+SHA256 [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#sha256] 해시 함수
+SHA512 [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#sha512] 해시 함수
+STARTS_WITH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#starts_with] 문자열 함수
+SUBSTRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#substring] 문자열 함수
+SUBSTR [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#substr] 문자열 함수
+TO_BASE32 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_base32] 문자열 함수
+TO_BASE64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_base64] 문자열 함수
+TO_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_hex] 문자열 함수
+커스텀 마스킹 루틴은 GEOGRAPHY 및 STRUCT를 제외하고 BigQuery 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko] 내에서 입력 없음 또는 하나의 입력을 허용할 수 있습니다. GEOGRAPHY 및 STRUCT는 커스텀 마스킹 루틴에 지원되지 않습니다.
+템플릿 SQL UDF 매개변수 [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#templated-sql-udf-parameters]는 지원되지 않습니다.
+입력이 제공되는 경우 입력 및 출력 데이터 유형이 동일해야 합니다.
+출력 유형을 제공해야 합니다.
+다른 UDF, 서브 쿼리, 테이블 또는 뷰는 정의 본문에서 참조할 수 없습니다.
+마스킹 루틴을 만든 후에는 루틴을 표준 함수로 변경할 수 없습니다. 즉, data_governance_type 옵션이 DATA_MASKING으로 설정된 경우 DDL 문 또는 API 호출을 사용하여 data_governance_type을 변경할 수 없습니다.
+커스텀 마스킹 루틴은 CASE [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#case] 및 CASE expr [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#case_expr] 문을 지원합니다. 다음 연산자는 CASE 및 CASE expr 문에 사용할 수 있습니다.
+Comparison Operators [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators] - <, <=, >, >=, =, !=, IN
+Logical Operators [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#logical_operators] - AND, OR, NOT
+IS Operator [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#is_operators]
+예를 들어 사용자의 주민등록번호를 XXX-XX-XXXX로 대체하는 마스킹 루틴은 다음과 같이 표시될 수 있습니다.
+  CREATE OR REPLACE FUNCTION SSN_Mask(ssn STRING) RETURNS STRING
+  OPTIONS (data_governance_type="DATA_MASKING") AS (
+  SAFE.REGEXP_REPLACE(ssn, '[0-9]', 'X') # 123-45-6789 -> XXX-XX-XXXX
+  );
+다음 예시에서는 SHA256 [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#sha256] 함수를 사용하여 사용자가 제공한 솔트 [https://en.wikipedia.org/wiki/Salt_(cryptography)]로 해싱합니다.
+CREATE OR REPLACE FUNCTION `
+project.dataset.masking_routine1`(
+  ssn STRING)
+RETURNS STRING OPTIONS (data_governance_type = 'DATA_MASKING')
+AS (
+  CAST(SHA256(CONCAT(ssn, '
+salt')) AS STRING format 'HEX')
+);
+다음 예시에서는 DATETIME 열을 상수 값으로 마스킹합니다.
+CREATE OR REPLACE FUNCTION `
+project.dataset.masking_routine2`(
+  column DATETIME)
+RETURNS DATETIME OPTIONS (data_governance_type = 'DATA_MASKING')
+AS (
+  SAFE_CAST('2023-09-07' AS DATETIME)
+);
+가장 좋은 방법은 가능하면 SAFE [https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-reference?hl=ko#safe_prefix] 접두사를 사용하여 오류 메시지를 통해 원시 데이터가 노출되지 않도록 하는 것입니다.
+커스텀 마스킹 루틴을 만든 후에는 데이터 정책 만들기 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko#create_data_policies]에서 마스킹 규칙으로 사용할 수 있습니다.
+커뮤니티 제공 함수
+커뮤니티 제공 UDF는 공개 데이터 세트 bigquery-public-data.persistent_udfs 및 오픈소스 bigquery-utils GitHub 저장소 [https://github.com/GoogleCloudPlatform/bigquery-utils]에서 사용할 수 있습니다. 탐색기 창에서 bigquery-public-data 프로젝트를 별표표시 [https://cloud.google.com/bigquery/docs/quickstarts/query-public-dataset-console?hl=ko#open_a_public_dataset]한 후 해당 프로젝트 내에 중첩된 persistent_udfs 데이터 세트를 펼치면 Google Cloud 콘솔의 모든 커뮤니티 UDF [https://github.com/GoogleCloudPlatform/bigquery-utils/tree/master/udfs/community]가 표시됩니다.
+VPC 서비스 제어 경계 내에서 커뮤니티에서 제공한 함수에 대한 액세스 허용
+VPC 서비스 제어가 사용 설정되어 있고 BigQuery가 보호된 서비스인 프로젝트의 경우 bigquery-public-data 프로젝트(프로젝트 ID: 1057666841514)에 이그레스 규칙을 정의해야 합니다.
+이 규칙은 다음 작업을 사용 설정해야 합니다.
+bigquery.routines.get(루틴 사용)
+bigquery.tables.getData(BigQuery 테이블 쿼리용)
+다음 코드는 YAML 구성 예시를 보여줍니다.
+  - egressFrom:
+      identityType: ANY_IDENTITY
+    egressTo:
+      operations:
+      - serviceName: 'bigquery.googleapis.com'
+        methodSelectors:
+        - permission: 'bigquery.routines.get'
+        - permission: 'bigquery.tables.getData'
+      resources:
+      - projects/1057666841514 # bigquery-public-data
+이 저장소의 UDF에 기여를 원하는 경우 UDF 기여 [https://github.com/GoogleCloudPlatform/bigquery-utils/blob/master/udfs/CONTRIBUTING.md]를 참조하세요.
+제한사항
+임시 및 영구 사용자 정의 함수에는 다음 제한사항이 적용됩니다.
+DOM 객체 Window, Document, Node와 이를 필요로 하는 함수는 지원되지 않습니다.
+JavaScript 함수는 샌드박스 환경 내에서 작동하며, 기본 시스템 코드를 사용하는 함수는 제한된 시스템 호출로 인해 실패할 수 있습니다.
+JavaScript UDF가 시간 초과되어 쿼리를 완료하지 못할 수 있습니다. 시간 제한은 5분 정도로 짧을 수 있지만 함수가 소비하는 사용자 CPU 시간과 JavaScript 함수에 대한 입력 및 출력 크기를 포함한 여러 요소에 따라 달라질 수 있습니다.
+JavaScript의 비트 연산은 32비트만 처리합니다.
+UDF에는 특정 비율 제한과 할당량 제한이 적용됩니다. 자세한 내용은 UDF 제한사항 [https://cloud.google.com/bigquery/quotas?hl=ko#udf_limits]을 참조하세요.
+영구 사용자 정의 함수에는 다음 제한사항이 적용됩니다.
+각 데이터 세트에는 이름이 같은 영구 UDF 한 개만 포함할 수 있습니다. 그러나 이름이 동일한 데이터 세트의 테이블 이름과 동일한 UDF를 만들 수 있습니다.
+다른 영구 UDF 또는 논리 뷰에서 영구 UDF를 참조하는 경우 데이터 세트로 이름을 검증해야 합니다. 예를 들면 다음과 같습니다.
+CREATE FUNCTION mydataset.referringFunction() AS (mydataset.referencedFunction());
+임시 사용자 정의 함수에는 다음 제한사항이 적용됩니다.
+임시 UDF를 만들 때 function_name에는 마침표를 포함할 수 없습니다.
+뷰와 영구 UDF는 임시 UDF를 참조할 수 없습니다.
+도움이 되었나요?
+의견 보내기
