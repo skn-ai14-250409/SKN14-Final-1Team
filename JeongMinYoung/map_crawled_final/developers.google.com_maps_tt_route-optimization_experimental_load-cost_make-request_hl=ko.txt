@@ -1,0 +1,93 @@
+Source URL: https://developers.google.com/maps/tt/route-optimization/experimental/load-cost/make-request?hl=ko
+Title: 부하 비용으로 요청
+
+부하 비용으로 요청
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 제품 또는 기능은 실험용(GA 이전) 버전입니다.
+GA 이전 제품과 기능에 대한 지원이 제한될 수 있으며 GA 이전 제품과 기능의 변경사항이 다른 GA 이전 버전과 호환되지 않을 수 있습니다. GA 이전 버전 제품 또는 서비스에는 Google Maps Platform 서비스별 약관 [https://cloud.google.com/maps-platform/terms/maps-service-terms?hl=ko]이 적용됩니다. 자세한 내용은 출시 단계 설명 [https://developers.google.com/maps/launch-stages?hl=ko]을 참고하세요.
+
+방문 간에 차량이 운반하는 하중을 최적화 도구에서 고려하도록 하려면 하중 비용을 포함하여 요청하세요. 발생한 비용은 운반된 ShipmentRoute.VehicleLoad의 양과 전환 거리 또는 기간 (각각 cost_per_kilometer 또는 cost_per_traveled_hour 사용)에 따라 달라집니다.
+
+부하 비용이 포함된 최소한의 요청 예시
+
+다음은 로드 비용이 포함된 요청의 일부 예입니다. 이 예에서 단일 차량은 총 weightKg 하중을 1, 000kg까지만 운반할 수 있으며, 운반된 weightKg 하중이 500kg을 초과하면 킬로미터당 1 비용 단위가 발생합니다.
+
+"model": {
+"vehicles": [{
+"loadLimits": {
+"weightKg": {
+"maxLoad": "1000",
+"costPerKilometer": {
+"loadThreshold": "500",
+"costPerUnitAboveThreshold": 1
+
+따라서 차량이 10km에 걸쳐 weightKg 600을 운반하는 경우 계산은 다음과 같습니다.
+(600 - 500) * 10 * 1 = 1000 cost units
+
+적재 비용은 무거운 하중을 운반할 때 차량 에너지 사용량 증가 또는 과도한 차량 적재로 인해 발생하는 차량 마모와 같은 다양한 개념을 모델링하는 데 사용할 수 있습니다.
+
+로드 비용이 포함된 또 다른 요청 예시
+
+다음은 기준점 위와 아래 모두에서 이동 시간당 비용을 부과하는 로드 비용의 또 다른 예입니다.
+
+"model": {
+"vehicles": [{
+"loadLimits": {
+"weightLbs": {
+"maxLoad": "1000",
+"costPerTraveledHour": {
+"loadThreshold": "900",
+"costPerUnitAboveThreshold": 10,
+"costPerUnitBelowThreshold": 1
++ min(carried load, load threshold) * time * cost per unit below threshold
+
+따라서 차량이 5시간 동안 weightLbs 부하 950을 운반하는 경우 계산은 다음과 같습니다.
+max(950 - 900, 0) * 5 * 10 + min(950, 900) * 5 * 1 = 7000
+
+이 예시에서 weightLbs 로드 비용의 load_threshold은 max_load에 가깝습니다. cost_per_unit_above_threshold는 차량이 특히 무거운 짐을 싣고 이동할 때 이동 시간당 높은 비용을 적용하여 차량의 마모를 늘리거나 연료를 과도하게 소비할 수 있는 경로에 불이익을 줍니다.
+cost_per_unit_below_threshold는 차량이 운반하는 단위 중량당 비용을 기준점까지 추가하여 차량이 더 많은 하중을 운반할 때 연료 소비량이 증가함을 나타냅니다.
+
+자주 묻는 질문(FAQ)
+
+다음은 로드 비용에 대해 자주 묻는 질문입니다.
+
+| 질문 | 답변 |
+| --- | --- |
+| 적재 비용은 어디에서 지정하나요? | Vehicle.LoadLimit에서 로드 비용을 지정합니다. |
+| 적재 비용은 배송과 어떻게 매칭되나요? | 중량 또는 부피와 같은 차량의 적재 한도 유형과 적재 수요 유형이 일치하는 배송에는 적재 비용이 적용됩니다. 로드 유형은 로드 요구사항 및 제한에 설명된 대로 임의의 문자열입니다. |
+| 로드 비용은 어떻게 표현되나요? | 로드 비용은 전환 거리 또는 시간으로 표현됩니다. cost_per_kilometer를 사용하여 거리 측면에서 비용을 지정하고 cost_per_traveled_hour를 사용하여 기간 측면에서 비용을 지정합니다. |
+| 로드 비용은 언제 적용되나요? | 차량 부하가 부하 비용의 load_threshold와 비교됩니다. cost_per_unit_above_threshold가 지정된 경우 max(0, load - load_threshold) 공식을 사용하여 load_threshold 위의 차량 하중에 비례하여 비용이 추가됩니다. cost_per_unit_below_threshold가 지정된 경우 load_threshold 아래의 차량 적재량에 비례하여 비용이 추가됩니다. min(load, load_threshold) 공식을 사용합니다. |
+| 로드 비용 매개변수의 기본값은 무엇인가요? | load_threshold, cost_per_unit_above_threshold, cost_per_unit_below_threshold는 기본적으로 모두 0입니다. |
+| 로드 비용은 어떤 단위로 표시되나요? | 로드 비용은 global_duration_cost_per_hour 또는 Shipment.penalty_cost와 같은 다른 모든 비용 매개변수와 동일한 무차원 단위로 표현됩니다. |
+| 응답에서 로드 비용은 어디에서 찾을 수 있나요? | 발생한 로드 비용은 응답 메시지의 metrics 및 route_metrics 속성에 표시됩니다. 예를 들어 발생한 cost_per_kilometer은 model.vehicles.load_limits.cost_per_kilometer로 표시됩니다. |
+
+로드 비용에 대한 자세한 설명은 참조 문서(REST [https://developers.google.com/maps/tt/route-optimization/experimental/load-cost/reference/rest/v1/ShipmentModel?hl=ko#LoadCost], gRPC [https://developers.google.com/maps/tt/route-optimization/experimental/load-cost/reference/rpc/google.maps.routeoptimization.v1?hl=ko#loadcost])를 참고하세요.
+
+예: OptimizeTours 요청하기
+
+OptimizeTours 요청은 REST [https://developers.google.com/maps/tt/route-optimization/experimental/load-cost/reference/rest/v1/projects/optimizeTours?hl=ko] 또는 gRPC [https://developers.google.com/maps/tt/route-optimization/experimental/load-cost/reference/rpc/google.maps.routeoptimization.v1?hl=ko#routeoptimization]를 사용하여 할 수도 있습니다.
+
+요청하기 전에 다음 매개변수를 환경에 적합한 값으로 바꿉니다.
+
+OAuth 사용 [https://developers.google.com/maps/documentation/route-optimization/oauth-token?hl=ko]에 설명된 대로 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/provide-credentials-adc?hl=ko]가 구성되어 있는지 확인합니다.
+PROJECT_NUMBER_OR_ID를 클라우드 프로젝트 번호 또는 ID로 설정합니다.
+
+다음 명령어는 Route Optimization API에 OptimizeTours 요청을 전송하고 동기식으로 응답을 수신합니다.
+
+curl -X POST 'https://routeoptimization.googleapis.com/v1/projects/PROJECT_NUMBER_OR_ID:optimizeTours' \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
+--data @- << EOM
+"model": {
+"shipments": [
+"deliveries": [
+"arrivalLocation": {
+"latitude": 37.789456,
+"longitude": -122.390192
+참고: 이 예에서는 --data @-를 사용하여 표준 입력에서 요청을 읽습니다. --data @Filename을 사용하여 파일에서 읽습니다.
+
+요청이 완료되면 응답 메시지가 전송됩니다.

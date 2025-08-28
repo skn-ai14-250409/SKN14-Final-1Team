@@ -1,0 +1,183 @@
+Source URL: https://developers.google.com/maps/documentation/route-optimization/timeouts?hl=ko
+Title: 제한 시간 및 기한
+
+의견 보내기
+
+제한 시간 및 기한
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 문서에서는 Route Optimization API 요청의 제한 시간 및 기한 설정을 구성하는 방법을 설명합니다. 이러한 값을 설정하지 않거나 잘못 설정하면 연결 또는 응답 품질 문제가 발생할 수 있습니다.
+
+요청 본문에서 제한 시간을 정의하고 요청 헤더에서 기한을 정의합니다. 경로 최적화 API는 이러한 매개변수로 정의된 시간 제한 내에서 요청을 처리하며 가장 짧은 시간 값을 따릅니다.
+
+제한 시간과 기한을 구성하면 다음과 같은 방법으로 처리 시간을 관리할 수 있습니다.
+
+처리 시간 증가:
+
+복잡성이 높은 요청을 해결합니다.
+더 높은 품질의 대답을 얻습니다.
+
+처리 시간 감소:
+
+복잡성이 낮은 요청을 기본값보다 빠르게 해결합니다.
+요청을 더 짧은 시간에 해결하지만 응답의 품질이 낮아집니다.
+
+참고: 시간 제한 및 기한 매개변수는 solvingMode [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.solving_mode]이 기본값인 DEFAULT_SOLVE로 설정된 경우에만 적용됩니다. VALIDATE_ONLY, DETECT_SOME_INFEASIBLE_SHIPMENTS, TRANSFORM_AND_RETURN_REQUEST와 같은 다른 solvingMode 옵션은 일반적으로 훨씬 빠르기 때문에 시간 제한 조정이 필요하지 않습니다.
+
+시간 제한 및 기한 요구사항 이해
+
+시간 제한과 기한을 구성하기 전에 이 섹션을 검토하여 엔드포인트와 프로토콜 선택이 이러한 설정에 미치는 영향을 이해하고 있는지 확인하세요.
+
+다음 가이드라인을 통해 목표에 적합한 설정을 사용하고 있는지 확인할 수 있습니다.
+
+연속적이고 반복적인 요청과 해결 시간이 길어질수록 이점이 있는 복잡한 요청에는 차단되지 않는 엔드포인트를 사용하세요.
+품질 절충을 수용하면서 작은 요청에 차단 엔드포인트를 사용하여 결과를 빠르게 제공합니다.
+특히 프로덕션 애플리케이션의 일상적인 워크플로에는 gRPC를 사용합니다.
+테스트, 실험 또는 일회성 요청에는 REST를 사용합니다.
+
+아래 버튼을 클릭하여 이 문서의 어떤 섹션이 설정과 가장 관련이 있는지 파악하는 데 도움이 되는 다이어그램을 확인하세요.
+
+별도의 탭에서 다이어그램 열기open_in_new [https://developers.google.com/static/maps/documentation/route-optimization/images/timeouts-diagram.svg?hl=ko]
+
+timeout 매개변수 설정
+
+요청 본문에서 timeout [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.timeout] 매개변수의 값을 설정하여 서버가 응답을 반환하기 전에 요청에 대해 작업하는 최대 시간을 지정합니다. API가 할당된 최대 시간에 도달하기 전에 최적의 솔루션을 찾으면 실제 소요 시간이 할당된 시간보다 짧을 수 있습니다.
+
+기간 프로토콜 버퍼 [https://protobuf.dev/reference/protobuf/google.protobuf/#duration]를 사용하여 timeout [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.timeout] 매개변수를 설정합니다. 이는 1초에서 1,800초까지의 기간(초)입니다.
+allowLargeDeadlineDespiteInterruptionRisk [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.allow_large_deadline_despite_interruption_risk]를 사용하여 이 값을 최대 3,600초까지 늘립니다.
+
+권장 timeout 값
+
+다음 표에는 요청 복잡성과 배송 및 차량 수에 따라 권장되는 timeout [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.timeout] 값이 나와 있습니다.
+
+| 배송 및 차량 수 | 제약 없음 | 시간대 및 적재 제약 조건이 느슨하거나 경로가 긴 경우 | 시간 제약, 적재 제약, 복잡한 제약 또는 매우 긴 경로 |
+| --- | --- | --- | --- |
+| 1 ~ 8 | 2초 | 2초 | 5초 |
+| 9 - 32 | 5초 | 10초 | 20초 |
+| 33~100개 | 15초 | 30초 | 60s |
+| 101~1,000개 | 45초 | 90년대 | 180초 |
+| 1,001~10,000명 | 120초 | 360초 | 900초 |
+| 10,001명 이상 | 10,000건의 배송당 60초 + 120초 | 10,000건의 배송당 360 | 10,000건의 배송당 900초 |
+
+기한 설정
+
+요청 헤더에 기한을 설정하여 Route Optimization API가 요청을 처리하는 데 걸리는 최대 시간을 정의합니다. 다음 하위 섹션에서는 REST 및 gRPC 요청의 기한을 설정하는 방법을 설명합니다.
+
+REST 요청
+
+REST를 사용하여 차단 엔드포인트를 호출할 때 복잡한 요청에는 너무 짧은 경우가 많은 기본값인 60초를 초과하여 기한을 연장할 수 있습니다. 요청 본문에 더 긴 기한을 이미 지정한 경우에도 이렇게 해야 합니다. 기본 기한이 요청 본문에 설정된 timeout 값 중 60초보다 큰 값을 재정의하기 때문입니다.
+
+X-Server-Timeout 요청 헤더를 설정하여 기본값인 60초를 초과하는 기한을 설정합니다. 요청 본문과 달리 헤더의 값은 초 단위이지만 's' 접미사가 없습니다. 이 헤더에 설정할 수 있는 최댓값은 timeout [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.timeout] 매개변수의 제한사항과 일치합니다.
+
+다음 코드 샘플은 X-Server-Timeout가 1800초로 설정된 HTTP 헤더를 보여줍니다.
+curl -X POST 'https://routeoptimization.googleapis.com/v1/projects/:optimizeTours' \
+-H "Content-Type: application/json" \
+-H "X-Server-Timeout: 1800" \
+-H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
+--data @- << EOM
+"model": {
+...
+
+클라이언트 라이브러리 및 gRPC 요청
+
+클라이언트 라이브러리나 gRPC를 사용하는 경우 기한을 구성할 필요가 없습니다. 이러한 기능을 사용할 때의 기본 기한은 3,600초이며, 이는 이 API의 최대 요청 시간입니다. 요청 본문에서 timeout 속성만 설정하여 해결 시간을 구성합니다.
+
+시간 제한 및 기한에 영향을 미치는 매개변수
+
+다음 매개변수는 제한 시간과 기한이 작동하는 방식에 영향을 미칩니다.
+
+allowLargeDeadlineDespiteInterruptionRisk를 사용하여 최대 요청 기한을 제어합니다.
+searchMode를 사용하여 지연 시간과 솔루션 품질의 균형을 맞추면서 검색 동작을 정의합니다.
+
+allowLargeDeadlineDespiteInterruptionRisk
+
+allowLargeDeadlineDespiteInterruptionRisk [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.allow_large_deadline_despite_interruption_risk] 매개변수는 최대 요청 기한을 3,600초로 늘립니다. 이 매개변수가 설정되지 않은 경우 시간 제한 및 기한 매개변수의 최댓값은 1800초입니다.
+
+allowLargeDeadline DespiteInterruptionRisk [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.allow_large_deadline_despite_interruption_risk]을 true로 설정하여 제한 시간 및 기한 매개변수의 값을 최대 3,600초까지 늘립니다.
+참고: allowLargeDeadline DespiteInterruptionRisk [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.allow_large_deadline_despite_interruption_risk]을 true로 설정하면 긴 요청이 중단될 위험이 더 높다는 점을 인정하는 것이며, 이로 인해 유효한 결과 대신 오류가 발생할 수 있습니다.
+allowLargeDeadline DespiteInterruptionRisk [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.allow_large_deadline_despite_interruption_risk]에 허용되는 값은 다음과 같습니다.
+
+true: 중단 위험을 인지하면서 제한 시간 및 기한 매개변수의 최대값을 3,600초로 늘립니다.
+false (기본값): 제한 시간 및 기한 매개변수의 최대값을 1,800초로 유지합니다.
+
+3, 600초보다 긴 제한 시간이 필요하다고 생각되면 Google 담당자에게 문의하세요.
+
+searchMode
+
+searchMode [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.search_mode] 매개변수는 옵티마이저가 솔루션을 검색하는 방식을 제어하므로 더 빠른 응답 (낮은 지연 시간) 또는 더 높은 품질의 솔루션에 우선순위를 지정할 수 있습니다.
+
+솔루션 품질을 우선시하면 최적화 도구에서 고품질 솔루션을 찾는 데 상당한 시간이 걸립니다. 이러한 긴 요청의 경우 연결 문제를 방지하기 위해 더 긴 제한 시간을 설정하고 차단되지 않는 엔드포인트를 사용하는 것이 좋습니다.
+
+searchMode [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko#body.request_body.FIELDS.search_mode]에 허용되는 값은 다음과 같습니다.
+
+SEARCH_MODE_UNSPECIFIED (기본값): 지정되지 않은 검색 모드로, RETURN_FAST과 동일합니다.
+RETURN_FAST: 첫 번째 적절한 해결책을 찾은 후 검색을 중지합니다.
+CONSUME_ALL_AVAILABLE_TIME: 더 나은 해결책을 찾는 데 사용 가능한 시간을 모두 사용합니다. 최적의 솔루션을 일찍 찾으면 API가 사용 가능한 시간을 모두 사용하지 않습니다.
+
+활성 상태 유지 핑 사용 설정
+
+제한 시간이 60초보다 긴 차단 엔드포인트에 요청을 할 때 연결 유지 핑은 응답을 기다리는 동안 연결이 끊어지지 않도록 합니다. 활성 상태 유지 핑은 연결 활동을 유지하고 연결 손실을 감지하고 방지하기 위해 전송되는 작은 패킷입니다.
+
+사용하는 API 프로토콜에 따라 다음 매개변수를 구성합니다.
+
+REST: TCP 연결 수준에서 연결 유지를 구성합니다.
+gRPC: 기본 TCP 소켓 또는 gRPC 프로토콜에서 직접 연결 유지 핑을 구성합니다.
+
+다음 섹션에서는 두 프로토콜 모두에 대해 연결 유지 핑을 설정하는 방법을 설명합니다.
+
+REST 연결 유지
+
+REST를 사용할 때 연결 유지 핑을 구성하는 방법은 HTTP 클라이언트 라이브러리에 따라 다릅니다. curl과 같은 클라이언트 라이브러리 및 도구는 특정 구성 옵션을 제공하거나 핑을 자동으로 사용 설정할 수 있습니다.
+
+라이브러리가 기본 TCP 소켓을 노출하는 경우 SO_KEEPALIVE와 같은 옵션을 사용하여 TCP 소켓에서 직접 연결 유지 핑을 구성할 수 있습니다. setsockopt()와 같은 함수 또는 이에 상응하는 함수를 사용하여 이를 실행합니다.
+
+이 GitHub에 호스팅된 함수 [https://github.com/googlemaps/js-route-optimization-app/blob/fb99a7f531da506304658cbe058303651a5d56bf/python/gmpro/json/cfr_api.py#L95]는 Python 내장 HTTP 클라이언트에 대해 올바르게 설정하는 방법을 보여줍니다.
+
+TCP 수준 연결 유지에 관한 자세한 내용은 TLDP 연결 유지 개요 [https://tldp.org/HOWTO/TCP-Keepalive-HOWTO/overview.html] 또는 HTTP 클라이언트 라이브러리 문서를 참고하세요.
+
+gRPC 연결 유지
+
+gRPC는 프로토콜의 일부로 자체 내장된 연결 유지 메커니즘을 제공합니다. 클라이언트 언어로 이를 설정하는 방법은 gRPC 연결 유지 가이드 [https://grpc.io/docs/guides/keepalive/]를 참고하세요.
+
+참고: gRPC 서버는 핑을 너무 많이 보내는 클라이언트를 거부할 수 있습니다. 활성 유지 핑 빈도를 너무 높게 설정하지 마세요.
+
+keepalive가 포함된 gRPC 샘플 요청
+
+다음 예시에서는 Python 클라이언트 라이브러리와 gRPC 수준의 연결 유지 핑을 사용하여 optimizeTours [https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours?hl=ko] 요청을 만드는 방법을 보여줍니다.
+from google.maps import routeoptimization_v1 as ro
+from google.maps.routeoptimization_v1.services.route_optimization.transports import grpc as grpc_transport
+import sys
+
+_REQUEST_TIMEOUT_SECONDS = 1800
+_KEEPALIVE_PING_SECONDS = 30
+
+def create_channel(*args, **kwargs):
+raw_options = kwargs.pop("options", ())
+options = dict(raw_options)
+options["grpc.keepalive_time_ms"] = _KEEPALIVE_PING_SECONDS * 1000
+options["grpc.keepalive_timeout_ms"] = 5000
+# Allow any number of pings between the request and the response.
+options["grpc.http2.max_pings_without_data"] = 0
+print(f"Using options: {options}", file=sys.stderr)
+return grpc_transport.RouteOptimizationGrpcTransport.create_channel(
+*args,
+options=list(options.items()),
+**kwargs,
+
+def create_grpc_transport(*args, **kwargs):
+if "channel" in kwargs:
+raise ValueError(
+"`channel` is overridden by this function, and must not be provided."
+return grpc_transport.RouteOptimizationGrpcTransport(
+*args,
+channel=create_channel,
+**kwargs,
+
+def run_optimize_tours(request):
+client = ro.RouteOptimizationClient(transport=create_grpc_transport)
+return client.optimize_tours(request, timeout=_REQUEST_TIMEOUT_SECONDS)
+
+의견 보내기

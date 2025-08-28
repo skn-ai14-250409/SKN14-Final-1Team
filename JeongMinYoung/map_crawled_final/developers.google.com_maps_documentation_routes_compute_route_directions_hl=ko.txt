@@ -1,0 +1,162 @@
+Source URL: https://developers.google.com/maps/documentation/routes/compute_route_directions?hl=ko
+Title: 경로 찾기
+
+의견 보내기
+
+경로 찾기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+유럽 경제 지역 (EEA) 개발자
+
+청구서 수신 주소가 유럽 경제 지역에 있는 경우 2025년 7월 8일부터 서비스 사용 시 Google Maps Platform EEA 서비스 약관 [https://cloud.google.com/terms/maps-platform/eea?hl=ko]이 적용됩니다. 기능은 리전에 따라 다릅니다.
+자세히 알아보기 [https://developers.google.com/maps/comms/eea/faq?hl=ko]
+
+computeRoutes [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko] 메서드 (REST)에 HTTP POST 요청을 전송하거나 ComputeRoutes [https://developers.google.com/maps/documentation/routes/reference/rpc/google.maps.routing.v2?hl=ko#google.maps.routing.v2.Routes.ComputeRoutes] 메서드 (gRPC)를 호출하여 Routes API Compute Routes를 사용하여 경로를 가져올 수 있습니다.
+
+다음 예는 computeRoutes 메서드에 대한 REST 요청의 URL을 보여줍니다.
+
+https://routes.googleapis.com/directions/v2:computeRoutes
+
+JSON 요청 본문 [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko#request-body]에 요청 옵션을 포함합니다. 요청 본문에는 출발지 및 도착지 위치와 경로에 설정할 옵션이 포함됩니다. 자세한 내용은 위치 지정 [https://developers.google.com/maps/documentation/routes/specify_location?hl=ko] 및 사용 가능한 경로 옵션 [https://developers.google.com/maps/documentation/routes/route-opt?hl=ko]을 참고하세요.
+
+응답에는 HTTP gRPC 헤더 X-Goog-FieldMask를 사용하여 URL 매개변수 $fields 또는 field 정보를 사용하여 응답 필드 마스크에 지정한 필드가 포함됩니다. 자세한 내용은 반환할 정보 선택하기 [https://developers.google.com/maps/documentation/routes/choose_fields?hl=ko]를 참고하세요.
+
+대중교통 경로 요청의 예는 예: 대중교통 경로 가져오기 [https://developers.google.com/maps/documentation/routes/transit-route?hl=ko#transit-route-example]를 참고하세요.
+
+예: HTTP 경로 요청
+
+다음 코드는 computeRoutes [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko] 요청의 요청 본문을 구성하는 방법을 보여줍니다. 이 예에서는 소스 및 대상 위치를 설정하고 다음을 지정합니다.
+
+DRIVE의 travelMode 및 교통 상황을 고려한 운전 경로
+metric 거리 단위가 적용된 en-US 언어입니다. 이러한 환경설정은 요청된 경우만 현지화된 값에 적용됩니다.
+distanceMeters는 항상 측정항목으로 제공됩니다.
+응답에서 다음 필드를 반환하도록 지정하는 X-Goog-FieldMask 헤더의 응답 필드 마스크입니다.
+
+routes.duration
+routes.distanceMeters
+routes.polyline.encodedPolyline
+
+참고: 응답에 반환된 폴리라인을 디코딩하고 지도에서 경로를 보려면 대화형 폴리라인 인코더 유틸리티 [https://developers.google.com/maps/documentation/utilities/polylineutility?hl=ko]에서 디코딩 유틸리티를 사용하세요.
+curl -X POST -d '{
+"origin":{
+"location":{
+"latLng":{
+"latitude": 37.419734,
+"longitude": -122.0827784
+package main
+
+import (
+"context"
+"crypto/tls"
+"fmt"
+"log"
+"time"
+
+routespb "google.golang.org/genproto/googleapis/maps/routing/v2"
+"google.golang.org/genproto/googleapis/type/latlng"
+"google.golang.org/grpc"
+"google.golang.org/grpc/credentials"
+"google.golang.org/grpc/metadata"
+
+const (
+fieldMask  = "*"
+apiKey     = "INSERT_API_KEY_HERE"
+serverAddr = "routes.googleapis.com:443"
+
+func main() {
+config := tls.Config{}
+conn, err := grpc.Dial(serverAddr,
+grpc.WithTransportCredentials(credentials.NewTLS(&config)))
+if err != nil {
+log.Fatalf("Failed to connect: %v", err)
+client := routespb.NewRoutesClient(conn)
+ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+ctx = metadata.AppendToOutgoingContext(ctx, "X-Goog-Api-Key", apiKey)
+ctx = metadata.AppendToOutgoingContext(ctx, "X-Goog-Fieldmask", fieldMask)
+defer cancel()
+
+import com.google.maps.routing.v2.*;
+import com.google.type.LatLng;
+import io.grpc.CallOptions;
+import io.grpc.Channel;
+import io.grpc.ClientCall;
+import io.grpc.ClientInterceptor;
+import io.grpc.ClientInterceptors;
+import io.grpc.ForwardingClientCall;
+import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
+import io.grpc.StatusRuntimeException;
+import io.grpc.netty.NettyChannelBuilder;
+import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class RoutesClient {
+private static final Logger logger = Logger.getLogger(RoutesInterceptor.class.getName());
+private static Metadata.Key<String> API_KEY_HEADER = Metadata.Key.of("x-goog-api-key",
+Metadata.ASCII_STRING_MARSHALLER);
+private static Metadata.Key<String> FIELD_MASK_HEADER = Metadata.Key.of("x-goog-fieldmask",
+Metadata.ASCII_STRING_MARSHALLER);
+
+public RoutesInterceptor(String apiKey) {
+this.apiKey = apiKey;
+CallOptions callOptions, Channel next) {
+logger.info("Intercepted " + method.getFullMethodName());
+ClientCall<ReqT, RespT> call = next.newCall(method, callOptions);
+call = new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(call) {
+@Override
+public void start(Listener<RespT> responseListener, Metadata headers) {
+headers.put(API_KEY_HEADER, apiKey);
+super.start(responseListener, headers);
+private final RoutesGrpc.RoutesBlockingStub blockingStub;
+
+public RoutesClient(Channel channel) {
+blockingStub = RoutesGrpc.newBlockingStub(channel);
+.setLocation(Location.newBuilder().setLatLng(LatLng.newBuilder().setLatitude(lat).setLongitude(lng)))
+.build();
+ComputeRoutesRequest request = ComputeRoutesRequest.newBuilder()
+.setOrigin(createWaypointForLatLng(37.420761, -122.081356))
+.setDestination(createWaypointForLatLng(37.420999, -122.086894)).setTravelMode(RouteTravelMode.DRIVE)
+.setRoutingPreference(RoutingPreference.TRAFFIC_AWARE).setComputeAlternativeRoutes(true)
+.setRouteModifiers(
+RouteModifiers.newBuilder().setAvoidTolls(false).setAvoidHighways(true).setAvoidFerries(true))
+.setPolylineQuality(PolylineQuality.OVERVIEW).build();
+ComputeRoutesResponse response;
+try {
+logger.info("About to send request: " + request.toString());
+response = blockingStub.withDeadlineAfter(2000, TimeUnit.MILLISECONDS).computeRoutes(request);
+return;
+ComputeRouteMatrixRequest request = ComputeRouteMatrixRequest.newBuilder()
+.addOrigins(RouteMatrixOrigin.newBuilder().setWaypoint(createWaypointForLatLng(37.420761, -122.081356))
+.setRouteModifiers(RouteModifiers.newBuilder().setAvoidTolls(false).setAvoidHighways(true)
+.setAvoidFerries(true)))
+.addOrigins(RouteMatrixOrigin.newBuilder().setWaypoint(createWaypointForLatLng(37.403184, -122.097371)))
+.addDestinations(RouteMatrixDestination.newBuilder()
+.setWaypoint(createWaypointForLatLng(37.420999, -122.086894)))
+.addDestinations(RouteMatrixDestination.newBuilder()
+.setWaypoint(createWaypointForLatLng(37.383047, -122.044651)))
+.setTravelMode(RouteTravelMode.DRIVE).setRoutingPreference(RoutingPreference.TRAFFIC_AWARE).build();
+Iterator<RouteMatrixElement> elements;
+try {
+logger.info("About to send request: " + request.toString());
+elements = blockingStub.withDeadlineAfter(2000, TimeUnit.MILLISECONDS).computeRouteMatrix(request);
+return;
+String apiKey = System.getenv("INSERT_API_KEY_HERE");
+
+Channel channel = NettyChannelBuilder.forAddress("routes.googleapis.com", 443).build();
+channel = ClientInterceptors.intercept(channel, new RoutesInterceptor(apiKey));
+
+RoutesClient client = new RoutesClient(channel);
+client.computeRoutes();
+client.computeRouteMatrix();
+C#을 사용하는 예는 Google.Maps.Routing.V2 [https://googleapis.dev/dotnet/Google.Maps.Routing.V2/latest/index.html]를 참고하세요.
+
+Node.js
+metadata.set("X-Goog-Fieldmask", fieldMask);
+metadata.set("Content-Type", "application/json");
+callback(null, metadata);
+call_creds,
