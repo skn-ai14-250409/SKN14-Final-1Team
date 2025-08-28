@@ -1,0 +1,223 @@
+Source URL: https://developers.google.com/maps/documentation/routes/eco-routes?hl=ko
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Web Services [https://developers.google.com/maps/web-services?hl=ko]
+Routes API [https://developers.google.com/maps/documentation/routes?hl=ko]
+의견 보내기
+친환경 경로 찾기
+유럽 경제 지역 (EEA) 개발자
+이 제품 또는 기능은 미리보기(GA 이전) 버전입니다. GA 이전 제품과 기능은 지원이 제한적일 수 있으며, GA 이전 제품과 기능에 대한 변경사항은 다른 GA 이전 버전과 호환되지 않을 수 있습니다. GA 이전 버전 제품 및 서비스에는 Google Maps Platform 서비스별 약관 [https://cloud.google.com/maps-platform/terms/maps-service-terms?hl=ko]이 적용됩니다. 자세한 내용은 출시 단계 설명 [https://developers.google.com/maps/launch-stages?hl=ko]을 참고하세요.
+참고: 친환경 경로는 Routes API의 Compute Routes Matrix 기능에서 지원되지 않습니다.
+기본적으로 Routes API는 기본 경로를 반환합니다. 즉, 연료나 에너지 효율성을 고려하지 않은 경로입니다. 친환경 라우팅을 사용 설정해도 응답에는 기본 경로가 계속 표시됩니다. 또한 차량의 엔진 유형에 따라 연비 또는 에너지 효율이 가장 높은 경로를 보여주는 친환경 경로도 확인할 수 있습니다.
+Routes API에서 반환하는 친환경 경로는 전체 경로에서 연료 소비를 줄이는 데 최적화되어 있습니다. 이 API는 실시간 교통정보, 도로 상황 등의 다른 요인과 함께 차량의 엔진 유형을 사용하여 친환경 경로를 선택합니다. 연비 또는 에너지 효율이 높은 경로일수록 자동차의 연료 또는 에너지 사용량과 CO2 배출량이 적습니다.
+예를 들어 경유 차량의 상대적 연비는 고속도로 주행 시 가장 높은 경우가 많습니다. 하이브리드 차량과 전기자동차는 가다 서기를 반복하는 도심 주행, 경사로 주행처럼 재생 제동을 광범위하고 유용하게 활용할 수 있는 환경에서 효율이 계속해서 높아지는 경향이 있습니다.
+API가 전체 경로의 예상 연료 소비량을 반환하도록 요청할 수도 있습니다. 연료 소비량 추정치는 정확한 차량의 명시적인 연료 사용량 추정치가 아닌 다양한 경로를 비교하는 방법으로 사용하세요.
+참고: 친환경 경로를 요청할 때뿐만 아니라 모든 경로의 예상 연료 소비량을 요청할 수 있습니다.
+Google 지도에서 연료 효율을 추정하는 방법
+Routes API는 미국 에너지부의 국립 재생에너지 연구소 [https://www.nrel.gov/]의 통계와 유럽 환경청의 데이터를 바탕으로 연비를 추정합니다. 이 계산에는 다음과 같이 연료 및 에너지 사용량과 CO2 배출량에 영향을 미치는 요소가 포함됩니다.
+내가 있는 지역의 평균 차량 연료 또는 에너지 소비량
+경로에 있는 언덕의 가파른 정도
+가다 서기를 반복하는 교통상황 패턴
+도로 유형(예: 지역 도로 또는 고속도로)
+Routes API는 기본 경로와 도착 시간이 거의 같으면 연비 또는 에너지 효율이 가장 우수한 경로를 반환합니다. 연료 또는 에너지 절감량이 너무 적거나 주행 시간이 크게 늘어나면 비교가 가능하도록 각 경로의 상대적 연료 또는 에너지 절감량이 API에 표시됩니다.
+친환경 경로 탐색 기술에 대해 자세히 알아보기(PDF) [https://www.gstatic.com/gumdrop/sustainability/google-maps-eco-friendly-routing.pdf]
+기본 요건
+친환경 경로 탐색을 사용하거나 연료 소비량을 추정하려면 다음 단계를 따르세요.
+라우팅 환경설정으로 TRAFFIC_AWARE_OPTIMAL를 지정해야 합니다. 이 모드에서는 서버가 도로망을 더 철저하게 검색하여 최적의 경로를 찾습니다. 자세한 내용은 품질과 지연 시간 구성 [https://developers.google.com/maps/documentation/routes/config_trade_offs?hl=ko]을 참고하세요.
+travelMode를 DRIVE로 설정해야 합니다. 다른 이동 수단에 대한 요청은 오류를 반환합니다.
+지원되는 지역 [https://developers.google.com/maps/documentation/routes/eco-routes?hl=ko#supported-regions]에서 출발 웨이포인트의 위치를 설정해야 합니다. 그렇지 않으면 API가 오류를 반환합니다.
+경로에 중간 경로 지점이 포함될 수 없습니다.
+결제
+일반적으로 Google Maps Platform에서는 미리보기 기능 사용에 대해 요금을 청구하지 않습니다. 그러나 친환경 경로 탐색 및 연료 소비량 추정에는 TRAFFIC_AWARE_OPTIMAL를 경로 탐색 환경설정으로 지정해야 하므로 SKU: Compute Routes Pro [https://developers.google.com/maps/documentation/routes/usage-and-billing?hl=ko#compute-routes-pro-sku]를 기준으로 요금이 청구됩니다.
+Routes API의 결제 자세히 알아보기 [https://developers.google.com/maps/documentation/routes/usage-and-billing?hl=ko]
+친환경 경로 요청
+친환경 경로 계산을 요청하려면 요청에 다음 속성을 설정합니다.
+VehicleEmissionType [https://developers.google.com/maps/documentation/routes/reference/rest/v2/RouteModifiers?hl=ko#vehicleemissiontype]에 정의된 값(DIESEL, GASOLINE, ELECTRIC, HYBRID)을 사용하여 차량의 emissionType를 지정합니다. 기본값은 GASOLINE입니다.
+requestedReferenceRoutes를 FUEL_EFFICIENT로 설정합니다.
+친환경 경로와 연결된 응답 속성을 반환하도록 지정하는 응답 필드 마스크를 설정합니다.
+routes.routeLabels: 각 경로를 DEFAULT_ROUTE, FUEL_EFFICIENT 또는 DEFAULT_ROUTE_ALTERNATE로 식별합니다.
+routes.routeToken: Navigation SDK [https://developers.google.com/maps/documentation/navigation?hl=ko]에 전달하여 맞춤 경로를 검색할 수 있는 경로 토큰입니다.
+친환경 요청 예시
+다음 코드는 친환경 경로 요청을 보여줍니다. 이 예에서는 응답 필드 마스크를 사용하여 routes.distanceMeters 및 routes.duration 속성과 함께 친환경 경로와 연결된 응답 속성을 반환합니다.
+curl -X POST -H 'content-type: application/json' -d '{
+  "origin": {
+    "location": {
+      "latLng": {
+        "latitude": 41.76904801292959,
+        "longitude": -72.67374935684933
+      }
+    }
+  },
+  "destination": {
+    "location": {
+      "latLng": {
+        "latitude": 41.823042361105024,
+        "longitude": -71.40933143059424
+      }
+    }
+  },
+  "routeModifiers": {
+    "vehicleInfo": {
+      "emissionType": "GASOLINE"
+    }
+  },
+  "travelMode":"DRIVE",
+  "routingPreference": "TRAFFIC_AWARE_OPTIMAL",
+  "requestedReferenceRoutes": ["FUEL_EFFICIENT"]
+}' \
+-H 'Content-Type: application/json' -H 'X-Goog-Api-Key: YOUR_API_KEY' \
+-H 'X-Goog-FieldMask: routes.distanceMeters,routes.duration,routes.routeLabels,routes.routeToken' \
+'https://routes.googleapis.com/directions/v2:computeRoutes'
+친환경 응답 예시
+위의 computeRoutes 호출은 기본 경로와 연료 효율적인 경로라는 두 경로가 포함된 JSON 응답을 생성합니다. 응답에서 각 항목의 의미는 다음과 같습니다.
+기본 경로의 경우 routeLabels 배열 속성에 DEFAULT_ROUTE가 포함됩니다.
+친환경 경로의 경우 routeLabels 배열 속성에 FUEL_EFFICIENT가 포함됩니다.
+요청에서 computeAlternativeRoutes를 true로 설정하여 대체 경로 [https://developers.google.com/maps/documentation/routes/alternative-routes?hl=ko]를 계산하면 routeLabels 배열 속성에 DEFAULT_ROUTE_ALTERNATE가 포함됩니다.
+{
+    "routes": [
+        {
+            "distanceMeters": 138939,
+            "duration": "5412s",
+            "routeToken": "CoYJCpoIC…0n9S1cu",
+            "routeLabels": [
+                "DEFAULT_ROUTE"
+            ]
+        },
+        {
+            "distanceMeters": 116887,
+            "duration": "5631s",
+            "routeToken": "CuEHCu0G…xqm",
+            "routeLabels": [
+                "FUEL_EFFICIENT"
+            ]
+        }
+    ]
+}
+현재 운전 조건 및 기타 요인으로 인해 기본 경로와 친환경 경로가 동일할 수 있습니다. 이 경우 routeLabels에는 DEFAULT_ROUTE 및 FUEL_EFFICIENT 라벨이 모두 포함됩니다.
+{
+  "routes": [
+    {
+      "distanceMeters": 45875,
+      "duration": "2655s",
+      "routeToken": "CvcDCos…6I40",
+      "routeLabels": [
+        "DEFAULT_ROUTE",
+        "FUEL_EFFICIENT"
+      ]
+    }
+  ]
+}
+경로의 연료 사용량 추정
+메서드에 전체 경로의 예상 연료 사용량을 마이크로리터 단위로 반환하도록 요청할 수 있습니다. 경로의 예상 연료 사용량을 응답에 추가하려면 다음 단계를 따르세요.
+extraComputations 배열 필드를 FUEL_CONSUMPTION로 설정하여 연료 사용량 계산을 사용 설정합니다.
+VehicleEmissionType [https://developers.google.com/maps/documentation/routes/reference/rest/v2/RouteModifiers?hl=ko#vehicleemissiontype]에 정의된 값(DIESEL, GASOLINE, ELECTRIC, HYBRID)을 사용하여 차량의 emissionType를 지정합니다. 기본값은 GASOLINE입니다.
+emissionType가 HYBRID이면 API는 전기 및 연료 소비량을 마이크로리터 단위의 연료로 변환합니다.
+emissionType가 ELECTRIC이면 API는 전기 소비량을 마이크로리터 단위의 연료로 변환합니다.
+연료 사용량과 연결된 응답 속성을 반환하도록 지정하는 응답 필드 마스크(routes.travelAdvisory.fuelConsumptionMicroliters)를 설정합니다.
+다음 예에서는 친환경 경로가 포함된 요청의 일부로 예상 연료 사용량을 요청합니다.
+참고: 연료 소비량을 추정하기 위해 친환경 경로를 요청하지 않아도 됩니다. 예를 들어 기본 경로만 요청할 때 또는 대체 경로를 요청할 때 연료 소모량을 요청할 수 있습니다.
+curl -X POST -H 'content-type: application/json' -d '{
+  "origin": {
+    "location": {
+      "latLng": {
+        "latitude": 41.76904801292959,
+        "longitude": -72.67374935684933
+      }
+    }
+  },
+  "destination": {
+    "location": {
+      "latLng": {
+        "latitude": 41.823042361105024,
+        "longitude": -71.40933143059424
+      }
+    }
+  },
+  "routeModifiers": {
+    "vehicleInfo": {
+      "emissionType": "GASOLINE"
+    }
+  },
+  "travelMode":"DRIVE",
+  "routingPreference": "TRAFFIC_AWARE_OPTIMAL",
+  "extraComputations": ["FUEL_CONSUMPTION"],
+  "requestedReferenceRoutes": ["FUEL_EFFICIENT"]
+}' \
+-H 'Content-Type: application/json' -H 'X-Goog-Api-Key: YOUR_API_KEY' \
+-H 'X-Goog-FieldMask: routes.distanceMeters,routes.duration,routes.routeLabels,routes.routeToken,routes.travelAdvisory.fuelConsumptionMicroliters' \
+'https://routes.googleapis.com/directions/v2:computeRoutes'
+응답에는 기본 경로와 친환경 경로의 예상 연료 소비량이 모두 포함됩니다.
+{
+    "routes": [
+        {
+            "distanceMeters": 138939,
+            "duration": "5412s",
+            "travelAdvisory": {
+                "fuelConsumptionMicroliters": "11019554"
+            },
+            "routeToken": "CoYJCpoIC…0n9S1cu",
+            "routeLabels": [
+                "DEFAULT_ROUTE"
+            ]
+        },
+        {
+            "distanceMeters": 116887,
+            "duration": "5631s",
+            "travelAdvisory": {
+                "fuelConsumptionMicroliters": "9572436"
+            },
+            "routeToken": "CuEHCu0G…xqm",
+            "routeLabels": [
+                "FUEL_EFFICIENT"
+            ]
+        }
+    ]
+}
+지원되는 리전
+Google Maps Platform팀에서는 Google API 서비스의 서비스 지역을 전 세계로 확대하기 위해 지속적으로 노력하고 있습니다. 다음 목록에는 친환경 경로의 최신 적용 범위 세부정보가 국가별로 나와 있습니다.
+알바니아(AL)
+오스트리아(AT)
+벨기에(BE)
+보스니아·헤르체고비나(BA)
+불가리아(BG)
+캐나다(CA)
+크로아티아(HR)
+키프로스(CY)
+체코(CZ)
+덴마크(DK)
+에스토니아(EE)
+핀란드(FI)
+프랑스(FR)
+독일(DE)
+그리스(GR)
+헝가리(HU)
+아이슬란드(IS)
+아일랜드(IE)
+이탈리아(IT)
+코소보(XK)
+라트비아(LV)
+리히텐슈타인(LI)
+리투아니아(LT)
+룩셈부르크(LU)
+몰타(MT)
+몬테네그로(ME)
+네덜란드(NL)
+북마케도니아(MK)
+노르웨이(NO)
+폴란드(PL)
+포르투갈(PT)
+루마니아(RO)
+세르비아(RS)
+슬로바키아(SK)
+슬로베니아(SI)
+스페인(ES)
+스웨덴(SE)
+스위스(CH)
+튀르키예(TR)
+영국(GB)
+미국(US)
+의견 보내기

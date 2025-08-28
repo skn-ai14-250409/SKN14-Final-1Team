@@ -1,0 +1,87 @@
+Source URL: https://firebase.google.com/docs/auth/cpp/manage-users?hl=ko
+Title: Firebase에서 사용자 관리하기
+
+의견 보내기
+
+Firebase에서 사용자 관리하기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+사용자 생성
+
+Firebase 프로젝트에서 신규 사용자를 생성할 때는 CreateUserWithEmailAndPassword [https://firebase.google.com/docs/auth/cpp/password-auth?hl=ko#create_a_password-based_account] 메서드를 호출하는 방법과 Google 로그인 [https://firebase.google.com/docs/auth/cpp/google-signin?hl=ko] 또는 Facebook 로그인 [https://firebase.google.com/docs/auth/cpp/facebook-login?hl=ko]과 같은 제휴 ID 공급업체를 이용해 사용자의 최초 로그인을 처리하는 방법이 있습니다.
+
+또한 Firebase Console [https://console.firebase.google.com/?hl=ko] '인증' 섹션의 '사용자' 페이지에서 비밀번호 인증을 사용하는 신규 사용자를 생성할 수도 있습니다.
+
+현재 로그인한 사용자 가져오기
+
+현재 사용자를 가져올 때 권장하는 방법은 다음과 같이 Auth 객체에 리스너를 설정하는 것입니다.
+
+class MyAuthStateListener : public firebase::auth::AuthStateListener {
+public:
+void OnAuthStateChanged(firebase::auth::Auth* auth) override {
+MyAuthStateListener state_change_listener;
+auth->AddAuthStateListener(&state_change_listener);
+
+리스너를 사용하면 현재 사용자를 가져올 때 Auth 객체가 중간 단계(초기화 등)인 상황이 발생하지 않습니다.
+
+current_user를 호출하여 현재 로그인한 사용자를 가져올 수도 있습니다. 사용자가 로그인 상태가 아니라면 사용자의 is_valid 메서드가 false를 반환합니다.
+참고: Auth 객체의 초기화가 완료되지 않았기 때문에 current_user가 유효하지 않을 수 있습니다. 리스너를 사용해 사용자의 로그인 상태를 추적하면 이런 상황을 처리할 필요가 없습니다.
+사용자 인증 정보 유지
+
+사용자 인증 정보는 사용자가 로그인한 후에 로컬 키 저장소에 저장됩니다.  사용자 인증 정보의 로컬 캐시는 사용자가 로그아웃하면 삭제됩니다.  다음과 같이 키 저장소는 플랫폼에 따라 다릅니다.
+
+Apple 플랫폼: Keychain Services [https://developer.apple.com/documentation/security/keychain_services]
+Android: Android Keystore [https://developer.android.com/training/articles/keystore?hl=ko]
+Windows: Credential Management API [https://docs.microsoft.com/en-us/windows/desktop/secauthn/authentication-functions#low-level-credentials-management-functions]
+OS X: Keychain Services [https://developer.apple.com/documentation/security/keychain_services]
+Linux: 사용자가 설치해야 하는 libsecret [https://developer.gnome.org/libsecret/]
+
+사용자 프로필 가져오기
+
+사용자의 프로필 정보를 가져오려면 firebase::auth::User 인스턴스의 접근자 메서드를 사용합니다. 예를 들면 다음과 같습니다.
+
+it != user.provider_data().end(); ++it) {
+profile.photo_url = "https://example.com/jane-q-user/profile.jpg";
+user.UpdateUserProfile(profile).OnCompletion(
+[](const firebase::Future<void>& completed_future, void* user_data) {
+UpdateEmail 메서드로 사용자의 이메일 주소를 설정할 수 있습니다. 예를 들면 다음과 같습니다.
+
+.OnCompletion(
+[](const firebase::Future<void>& completed_future,
+void* user_data) {
+SendEmailVerification 메서드로 사용자에게 주소 인증 메일을 보낼 수 있습니다. 예를 들면 다음과 같습니다.
+
+[](const firebase::Future<void>& completed_future, void* user_data) {
+UpdatePassword 메서드로 사용자의 비밀번호를 설정할 수 있습니다. 예를 들면 다음과 같습니다.
+
+.OnCompletion(
+[](const firebase::Future<void>& completed_future,
+void* user_data) {
+SendPasswordResetEmail 메서드로 사용자에게 비밀번호 재설정 이메일을 보낼 수 있습니다. 예를 들면 다음과 같습니다.
+
+.OnCompletion(
+[](const firebase::Future<void>& completed_future,
+void* user_data) {
+
+또한 Firebase Console [https://console.firebase.google.com/?hl=ko] '인증' 섹션의 '이메일 템플릿' 페이지에서 이메일 템플릿을 맞춤설정할 수 있습니다.
+Firebase 고객센터의 이메일 템플릿 [https://support.google.com/firebase/answer/7000714?hl=ko] 항목을 참조하세요.
+
+또한 Firebase Console에서 비밀번호 재설정 이메일을 보낼 수도 있습니다.
+
+사용자 삭제하기
+
+Delete 메서드로 사용자 계정을 삭제할 수 있습니다. 예를 들면 다음과 같습니다.
+
+[](const firebase::Future<void>& completed_future, void* user_data) {
+if (completed_future.error() == 0) {
+
+if (user.is_valid()) {
+user.Reauthenticate(credential)
+.OnCompletion(
+[](const firebase::Future<void>& completed_future,
+void* user_data) {
+if (completed_future.error() == 0) {
+printf("User re-authenticated.");

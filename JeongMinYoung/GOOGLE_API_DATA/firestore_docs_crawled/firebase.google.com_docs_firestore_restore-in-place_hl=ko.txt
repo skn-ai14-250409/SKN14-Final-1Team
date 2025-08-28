@@ -1,0 +1,77 @@
+Source URL: https://firebase.google.com/docs/firestore/restore-in-place?hl=ko
+Title: 인플레이스 복원 수행
+
+의견 보내기
+
+인플레이스 복원 수행
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지에서는 백업의 데이터를 백업의 소스 데이터베이스와 동일한 이름의 데이터베이스로 복원하는 방법을 설명합니다.
+이 페이지를 읽기 전에 데이터 백업 및 복원 [https://firebase.google.com/docs/firestore/backups?hl=ko]을 숙지해야 합니다.
+
+인플레이스 복원
+
+인플레이스 복원을 사용하면 원본 데이터베이스가 계속 유지된 상태로 백업에서 백업을 만든 소스 데이터베이스로 데이터베이스를 복원할 수 있습니다. 인플레이스 복원을 사용하면 트래픽 재라우팅이나 다른 이름으로 데이터베이스를 만드는 것을 방지할 수 있습니다.
+경고: 인플레이스 복원 프로세스를 시작하면 원본 데이터베이스는 영구적으로 삭제되며 이 작업은 실행취소할 수 없습니다.
+복원 작업은 이미 존재하지 않는 대상 데이터베이스를 사용해야 합니다. 하지만 소스 데이터베이스를 삭제한 다음 백업에서 소스 데이터베이스와 동일한 이름의 새로운 데이터베이스로 복원하여 인플레이스 복원을 시뮬레이션할 수 있습니다.
+
+인플레이스 복원 수행
+
+인플레이스 복원을 수행하려면 다음 단계를 따르세요.
+
+복원 작업에 사용할 백업을 식별합니다.
+기존 데이터베이스를 삭제합니다.
+삭제된 데이터베이스의 백업 및 데이터베이스 ID를 사용하여 복원 작업을 완료합니다.
+
+주의: 앱이 네이티브 모드의 Cloud Firestore 클라이언트 라이브러리를 사용하고 클라이언트에서 오프라인 캐시를 사용하면 인플레이스 복원이 쓰기를 삭제하는 대신 쓰기를 복원된 데이터베이스로 플러시할 수 있습니다. 이러한 상황은 삭제된 데이터베이스에 연결된 클라이언트가 오프라인 상태가 되고 오프라인 상태에서 인플레이스 복원을 수행할 때 캐시에 쓰기가 누적되면 발생할 수 있습니다.
+시작하기 전에
+
+인플레이스 복원 프로세스를 시작하기 전에 다음 단계를 완료하는 것이 좋습니다.
+
+삭제할 데이터베이스의 데이터를 내보냅니다 [https://firebase.google.com/firestore/native/docs/manage-data/export-import?hl=ko#export_data].
+
+삭제된 데이터베이스를 복구해야 하는 경우 내보내기 작업에서 데이터를 가져옵니다 [https://firebase.google.com/firestore/native/docs/manage-data/export-import?hl=ko#import_data].
+삭제된 데이터베이스를 동일한 데이터베이스 ID로 복구하려면 실행 중인 복원 작업이 완료될 때까지 기다린 후 다음을 수행합니다.
+
+데이터베이스 ID가 있는 기존 데이터베이스를 삭제하고 5분 이상 대기
+데이터베이스 ID로 새 데이터베이스 만들기
+가져오기 작업 시작
+
+데이터베이스의 색인 구성을 검색하고 복사합니다. 내보내기 작업은 색인 정의를 캡처하지 않습니다. 인플레이스 복원 작업을 완료한 후 색인 구성을 사용하여 색인을 다시 만듭니다. 다음 명령어를 사용하여 데이터베이스의 색인 구성을 가져옵니다.
+
+gcloud firestore indexes composite list [https://cloud.google.com/sdk/gcloud/reference/firestore/indexes/composite/list?hl=ko]를 사용하여 복합 색인 목록을 가져옵니다.
+gcloud firestore indexes composite list --database=DATABASE_ID
+
+DATABASE_ID를 데이터베이스의 ID로 바꿉니다.
+gcloud firestore indexes fields list [https://cloud.google.com/sdk/gcloud/reference/firestore/indexes/fields/list?hl=ko]를 사용하여 단일 필드(기본 제공) 색인 예외 목록을 가져옵니다.
+gcloud firestore indexes fields list --database=DATABASE_ID
+
+인플레이스 복원 수행
+
+인플레이스 복원 작업을 수행하려면 다음 단계를 완료하세요. 이 프로세스는 데이터베이스를 삭제하는 시점과 복원 작업이 완료된 시점 사이에 다운타임이 필요합니다.
+
+복원 작업이 시작되면 작업을 취소할 수 없으므로 작업이 완료될 때까지 기다려야 합니다. 복원 작업이 작업에 사용된 데이터베이스 ID를 즉시 차지합니다.
+
+gcloud alpha firestore backups list [https://cloud.google.com/sdk/gcloud/reference/alpha/firestore/backups/list?hl=ko] 명령어를 사용하여 복원 작업에 사용할 백업을 식별하고 리소스 이름을 기록해 둡니다. 리소스 이름의 형식은 다음과 같습니다.
+projects/PROJECT_ID/locations/LOCATION/backups/BACKUP_ID
+
+gcloud firestore databases delete 명령어를 사용하여 기존 데이터베이스를 삭제합니다.
+gcloud firestore databases delete --database='DATABASE_ID'
+
+DATABASE_ID를 데이터베이스 ID로 바꿉니다.
+데이터베이스 ID를 다시 사용할 수 있도록 데이터베이스를 삭제한 후 5분 이상 기다립니다. gcloud alpha firestore databases restore [https://cloud.google.com/sdk/gcloud/reference/alpha/firestore/databases/restore?hl=ko] 명령어를 사용하여 복원 작업을 시작합니다.
+gcloud alpha firestore databases restore \
+--source-backup=projects/PROJECT_ID/locations/LOCATION/backups/BACKUP_ID \
+--destination-database='DATABASE_ID'
+
+DATABASE_ID를 데이터베이스 ID로 바꿉니다.
+
+다음 단계
+
+백업 일정 및 복원 작업 자세히 알아보기 [https://firebase.google.com/docs/firestore/backups?hl=ko]
+PITR(point-in-time recovery) 구성에 대해 알아보기 [https://firebase.google.com/docs/firestore/pitr?hl=ko]
+
+의견 보내기

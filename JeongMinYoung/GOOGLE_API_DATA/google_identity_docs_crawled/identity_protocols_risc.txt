@@ -1,0 +1,421 @@
+Source URL: https://developers.google.com/identity/protocols/risc
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Identity [https://developers.google.com/identity?hl=ko]
+Cross-Account Protection (RISC) [https://developers.google.com/identity/protocols/risc?hl=ko]
+의견 보내기
+계정 간 보안으로 사용자 계정 보호하기
+bookmark_border
+이 페이지의 내용
+개요 [https://developers.google.com/identity/protocols/risc?hl=ko#overview]
+기본 요건 [https://developers.google.com/identity/protocols/risc?hl=ko#prerequisite]
+API Console에서 프로젝트 설정 [https://developers.google.com/identity/protocols/risc?hl=ko#set_up_a_project_in_the]
+이벤트 수신기 엔드포인트 만들기 [https://developers.google.com/identity/protocols/risc?hl=ko#create_an_event_receiver_endpoint]
+1. 보안 이벤트 토큰 디코딩 및 검증 [https://developers.google.com/identity/protocols/risc?hl=ko#decode_set]
+2. 보안 이벤트 처리 [https://developers.google.com/identity/protocols/risc?hl=ko#handle_events]
+OAuth 토큰 식별자 [https://developers.google.com/identity/protocols/risc?hl=ko#token_identifiers]
+지원되는 이벤트 유형 [https://developers.google.com/identity/protocols/risc?hl=ko#supported_event_types]
+앱에서 사용자가 Google을 사용하여 계정에 로그인할 수 있도록 하는 경우 교차 계정 보호 서비스에서 제공하는 보안 이벤트 알림을 수신하고 이에 응답하여 이러한 공유 사용자의 계정 보안을 개선할 수 있습니다.
+이러한 알림은 사용자의 Google 계정에 대한 주요 변경사항을 알려주며, 이는 앱의 계정에도 보안 영향을 미칠 수 있습니다. 예를 들어 사용자의 Google 계정이 도용되면 이메일 계정 복구 또는 싱글 사인온 사용을 통해 앱의 사용자 계정이 손상될 수 있습니다.
+이러한 이벤트의 위험 가능성을 완화할 수 있도록 Google에서는 보안 이벤트 토큰이라는 서비스 객체를 전송합니다. 이러한 토큰은 보안 이벤트의 유형과 발생 시간, 영향을 받는 사용자의 식별자 등 매우 적은 정보만 노출하지만 이를 사용하여 적절한 조치를 취할 수 있습니다. 예를 들어 사용자의 Google 계정이 도용된 경우 해당 사용자의'Google로 로그인'을 일시적으로 사용 중지하고 계정 복구 이메일이 사용자의 Gmail 주소로 전송되지 않도록 할 수 있습니다.
+계정 간 보안은 OpenID Foundation에서 개발한 RISC 표준 [https://openid.net/wg/sse/]을 기반으로 합니다.
+중요: 이 데이터는 Google API 서비스 약관 [https://developers.google.com/terms?hl=ko] 및 추가 RISC 서비스 약관 [https://console.cloud.google.com/tos?id=risc&hl=ko] ('RISC 약관')에 따라 제공됩니다. 이러한 신호는 보안, 사기 방지, 세션 관리 목적으로만 사용할 수 있습니다. RISC 약관을 검토하고 준수하세요. 그렇지 않으면 프로젝트 또는 계정이 정지될 수 있습니다.
+참고: 교차 계정 보호는 현재 Google Workspace (이전 명칭: G Suite) 사용자의 보안 이벤트를 전송하지 않습니다.
+개요
+앱 또는 서비스에서 계정 간 보안을 사용하려면 다음 작업을 완료해야 합니다.
+API Console에서 프로젝트를 설정합니다.
+Google에서 보안 이벤트 토큰을 전송할 이벤트 수신기 엔드포인트를 만듭니다. 이 엔드포인트는 수신된 토큰을 검증한 다음 원하는 방식으로 보안 이벤트에 응답합니다.
+Google에 엔드포인트를 등록하여 보안 이벤트 토큰을 수신합니다.
+기본 요건
+서비스가 프로필 정보 또는 이메일 주소에 액세스할 수 있는 권한을 부여한 Google 사용자의 보안 이벤트 토큰만 수신합니다. profile 또는 email 범위를 요청하여 이 권한을 얻을 수 있습니다. 최신 Google로 로그인 [https://developers.google.com/identity/gsi/web?hl=ko] 또는 기존 Google 로그인 [https://developers.google.com/identity/sign-in/web/sign-in?hl=ko] SDK는 기본적으로 이러한 범위를 요청하지만 기본 설정을 사용하지 않거나 Google의 OpenID Connect 엔드포인트 [https://developers.google.com/identity/protocols/oauth2/openid-connect?hl=ko]에 직접 액세스하는 경우 이러한 범위 중 하나 이상을 요청해야 합니다.
+API Console에서 프로젝트 설정
+보안 이벤트 토큰을 수신하기 전에 서비스 계정을 만들고API Console 프로젝트에서 RISC API를 사용 설정해야 합니다. 앱에서 Google 로그인과 같은 Google 서비스에 액세스하는 데 사용하는 것과 동일한API Console 프로젝트를 사용해야 합니다.
+서비스 계정을 만들려면 다음 안내를 따르세요.
+API Console Credentials page [https://console.developers.google.com/apis/credentials?project=_&hl=ko]을 엽니다. 메시지가 표시되면 앱에서 Google 서비스에 액세스하는 데 사용하는API Console프로젝트를 선택합니다.
+사용자 인증 정보 만들기 > 서비스 계정을 클릭합니다.
+이 안내 [https://cloud.google.com/iam/docs/granting-roles-to-service-accounts?hl=ko]에 따라 RISC 구성 관리자 역할(roles/riscconfigs.admin [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#riscconfigs.admin])이 있는 새 서비스 계정을 만듭니다.
+새로 만든 서비스 계정의 키를 만듭니다. JSON 키 유형을 선택한 다음 만들기를 클릭합니다. 키가 생성되면 서비스 계정 사용자 인증 정보가 포함된 JSON 파일을 다운로드합니다. 이 파일을 안전한 곳에 보관하되 이벤트 수신자 엔드포인트에서 액세스할 수 있도록 하세요.
+중요: 서비스 계정 키를 신중하게 관리하지 않으면 보안 위험이 될 수 있습니다. 권장사항 [https://cloud.google.com/iam/docs/best-practices-for-managing-service-account-keys?hl=ko]에 따라 서비스 계정 키를 보호하세요.
+프로젝트의 사용자 인증 정보 페이지에 있는 동안 Google 계정으로 로그인 또는 Google 로그인 (기존)에 사용하는 클라이언트 ID도 기록해 둡니다. 일반적으로 지원하는 플랫폼별로 클라이언트 ID가 있습니다. 다음 섹션에 설명된 대로 보안 이벤트 토큰을 검증하려면 이러한 클라이언트 ID가 필요합니다.
+RISC API를 사용 설정하려면 다음 단계를 따르세요.
+API Console에서 RISC API 페이지 [https://console.developers.google.com/apis/library/risc.googleapis.com?hl=ko]를 엽니다. Google 서비스에 액세스하는 데 사용하는 프로젝트가 여전히 선택되어 있는지 확인합니다.
+RISC 약관 [https://console.cloud.google.com/tos?id=risc&hl=ko]을 읽고 요구사항을 이해합니다.
+조직 소유 프로젝트에 API를 사용 설정하는 경우 조직을 RISC 약관에 바인딩할 권한이 있는지 확인하세요.
+RISC 약관에 동의하는 경우에만 사용 설정을 클릭하세요.
+이벤트 수신기 엔드포인트 만들기
+Google로부터 보안 이벤트 알림을 수신하려면 HTTPS POST 요청을 처리하는 HTTPS 엔드포인트를 만듭니다. 이 엔드포인트를 등록하면 (아래 참고) Google에서 보안 관련 활동 토큰이라는 암호화 서명된 문자열을 엔드포인트에 게시하기 시작합니다. 보안 관련 활동 토큰은 단일 보안 관련 활동에 관한 정보를 포함하는 서명된 JWT입니다.
+중요: 테스트 중에도 엔드포인트가 수신된 정보를 RISC 서비스 약관 [https://console.cloud.google.com/tos?id=risc&hl=ko]을 준수하는 방식으로 저장하고 합리적인 기간 내에 삭제해야 합니다.
+엔드포인트에서 수신하는 각 보안 이벤트 토큰에 대해 먼저 토큰을 검증하고 디코딩한 다음 서비스에 적합한 방식으로 보안 이벤트를 처리합니다. 악의적인 행위자의 악성 공격을 방지하려면 디코딩하기 전에 이벤트 토큰을 검증하는 것이 필수입니다. 다음 섹션에서는 이러한 작업을 설명합니다.
+1. 보안 이벤트 토큰 디코딩 및 검증
+보안 이벤트 토큰은 특정 종류의 JWT이므로 jwt.io [https://jwt.io/]에 나열된 것과 같은 JWT 라이브러리를 사용하여 디코딩하고 유효성을 검사할 수 있습니다. 어떤 라이브러리를 사용하든 토큰 검증 코드는 다음을 수행해야 합니다.
+https://accounts.google.com/.well-known/risc-configuration에서 확인할 수 있는 Google의 RISC 구성 문서에서 교차 계정 보호 발급자 식별자 (issuer)와 서명 키 인증서 URI (jwks_uri)를 가져옵니다.
+원하는 JWT 라이브러리를 사용하여 보안 이벤트 토큰의 헤더에서 서명 키 ID를 가져옵니다.
+Google 서명 키 인증서 문서에서 이전 단계에서 가져온 키 ID를 사용하여 공개 키를 가져옵니다. 문서에 찾고 있는 ID가 있는 키가 포함되어 있지 않으면 보안 이벤트 토큰이 유효하지 않을 수 있으므로 엔드포인트에서 HTTP 오류 400을 반환해야 합니다.
+원하는 JWT 라이브러리를 사용하여 다음을 확인합니다.
+보안 이벤트 토큰은 이전 단계에서 가져온 공개 키를 사용하여 서명됩니다.
+토큰의 aud 클레임이 앱의 클라이언트 ID 중 하나입니다.
+토큰의 iss 클레임이 RISC 검색 문서에서 가져온 발급자 식별자와 일치합니다. 보안 이벤트 토큰은 이전 이벤트를 나타내므로 만료되지 않으므로 토큰의 만료 (exp)를 확인할 필요가 없습니다.
+예를 들면 다음과 같습니다.
+--- 탭: 자바 [https://developers.google.com/identity/protocols/risc?hl=ko#%EC%9E%90%EB%B0%94] ---
+java-jwt [https://github.com/auth0/java-jwt] 및 jwks-rsa-java [https://github.com/auth0/jwks-rsa-java] 사용:
+public DecodedJWT validateSecurityEventToken(String token) {
+    DecodedJWT jwt = null;
+    try {
+        // In a real implementation, get these values from
+        // https://accounts.google.com/.well-known/risc-configuration
+        String issuer = "accounts.google.com";
+        String jwksUri = "https://www.googleapis.com/oauth2/v3/certs";
+
+        // Get the ID of the key used to sign the token.
+        DecodedJWT unverifiedJwt = JWT.decode(token);
+        String keyId = unverifiedJwt.getKeyId();
+
+        // Get the public key from Google.
+        JwkProvider googleCerts = new UrlJwkProvider(new URL(jwksUri), null, null);
+        PublicKey publicKey = googleCerts.get(keyId).getPublicKey();
+
+        // Verify and decode the token.
+        Algorithm rsa = Algorithm.RSA256((RSAPublicKey) publicKey, null);
+        JWTVerifier verifier = JWT.require(rsa)
+                .withIssuer(issuer)
+                // Get your apps' client IDs from the API console:
+                // https://console.developers.google.com/apis/credentials?project=_
+                .withAudience("123456789-abcedfgh.apps.googleusercontent.com",
+                              "123456789-ijklmnop.apps.googleusercontent.com",
+                              "123456789-qrstuvwx.apps.googleusercontent.com")
+                .acceptLeeway(Long.MAX_VALUE)  // Don't check for expiration.
+                .build();
+        jwt = verifier.verify(token);
+    } catch (JwkException e) {
+        // Key not found. Return HTTP 400.
+    } catch (InvalidClaimException e) {
+
+    } catch (JWTDecodeException exception) {
+        // Malformed token. Return HTTP 400.
+    } catch (MalformedURLException e) {
+        // Invalid JWKS URI.
+    }
+    return jwt;
+}
+
+--- 탭: Python [https://developers.google.com/identity/protocols/risc?hl=ko#python] ---
+import json
+import jwt       # pip install pyjwt
+import requests  # pip install requests
+
+def validate_security_token(token, client_ids):
+    # Get Google's RISC configuration.
+    risc_config_uri = 'https://accounts.google.com/.well-known/risc-configuration'
+    risc_config = requests.get(risc_config_uri).json()
+
+    # Get the public key used to sign the token.
+    google_certs = requests.get(risc_config['jwks_uri']).json()
+    jwt_header = jwt.get_unverified_header(token)
+    key_id = jwt_header['kid']
+    public_key = None
+    for key in google_certs['keys']:
+        if key['kid'] == key_id:
+            public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
+    if not public_key:
+        raise Exception('Public key certificate not found.')
+        # In this situation, return HTTP 400
+
+    # Decode the token, validating its signature, audience, and issuer.
+    try:
+        token_data = jwt.decode(token, public_key, algorithms='RS256',
+                                options={'verify_exp': False},
+                                audience=client_ids, issuer=risc_config['issuer'])
+    except:
+        raise
+        # Validation failed. Return HTTP 400.
+    return token_data
+
+# Get your apps' client IDs from the API console:
+# https://console.developers.google.com/apis/credentials?project=_
+client_ids = ['123456789-abcedfgh.apps.googleusercontent.com',
+              '123456789-ijklmnop.apps.googleusercontent.com',
+              '123456789-qrstuvwx.apps.googleusercontent.com']
+token_data = validate_security_token(token, client_ids)
+토큰이 유효하고 성공적으로 디코딩된 경우 HTTP 상태 202를 반환합니다. 그런 다음 토큰으로 표시된 보안 이벤트를 처리합니다.
+2. 보안 이벤트 처리
+디코딩된 보안 이벤트 토큰은 다음 예와 같습니다.
+{
+  "iss": "https://accounts.google.com/",
+  "aud": "123456789-abcedfgh.apps.googleusercontent.com",
+  "iat": 1508184845,
+  "jti": "756E69717565206964656E746966696572",
+  "events": {
+    "https://schemas.openid.net/secevent/risc/event-type/account-disabled": {
+      "subject": {
+        "subject_type": "iss-sub",
+        "iss": "https://accounts.google.com/",
+        "sub": "7375626A656374"
+      },
+      "reason": "hijacking"
+    }
+  }
+}
+iss 및 aud 클레임은 토큰의 발급자 (Google)와 토큰의 의도된 수신자 (서비스)를 나타냅니다. 이전 단계에서 이러한 소유권을 확인했습니다.
+jti 클레임은 단일 보안 이벤트를 식별하는 문자열이며 스트림에 고유합니다. 이 식별자를 사용하여 수신한 보안 이벤트를 추적할 수 있습니다.
+events 클레임에는 토큰이 나타내는 보안 이벤트에 관한 정보가 포함됩니다. 이 클레임은 이벤트 유형 식별자에서 이 이벤트와 관련된 사용자를 지정하는 subject 클레임으로, 그리고 사용 가능한 이벤트에 관한 추가 세부정보로의 매핑입니다.
+subject 클레임은 사용자의 고유 Google 계정 ID (sub)로 특정 사용자를 식별합니다. 이 Google 계정 ID는 최신 Google 로그인 (JavaScript [https://developers.google.com/identity/gsi/web/reference/js-reference?hl=ko#CredentialResponse], HTML [https://developers.google.com/identity/gsi/web/reference/html-reference?hl=ko#id-token-handler-endpoint]) 라이브러리, 기존 Google 로그인 [https://developers.google.com/identity/sign-in/web/backend-auth?hl=ko] 라이브러리 또는 OpenID Connect [https://developers.google.com/identity/protocols/oauth2/openid-connect?hl=ko#obtainuserinfo]에서 발급한 JWT ID 토큰에 포함된 식별자 (sub)와 동일합니다. 클레임의 subject_type이 id_token_claims인 경우 사용자의 이메일 주소가 포함된 email 필드도 포함될 수 있습니다.
+events 클레임의 정보를 사용하여 지정된 사용자의 계정에서 이벤트 유형에 적절한 조치를 취합니다.
+OAuth 토큰 식별자
+개별 토큰에 관한 OAuth 이벤트의 경우 토큰 주체 [https://openid.net/specs/oauth-event-types-1_0-01.html#subject-identifier-token] 식별자 유형에 다음 필드가 포함됩니다.
+token_type: refresh_token만 지원됩니다.
+token_identifier_alg: 가능한 값은 아래 표를 참고하세요.
+token: 아래 표를 참고하세요.
+token_identifier_alg 토큰
+prefix 토큰의 처음 16자입니다.
+hash_base64_sha512_sha512 SHA-512를 사용한 토큰의 이중 해시입니다.
+이러한 이벤트와 통합하는 경우 이벤트가 수신될 때 빠르게 일치하도록 이러한 가능한 값을 기반으로 토큰을 색인하는 것이 좋습니다.
+지원되는 이벤트 유형
+계정 간 보안은 다음 유형의 보안 이벤트를 지원합니다.
+이벤트 유형 속성 대응 방법
+https://schemas.openid.net/secevent/risc/event-type/sessions-revoked 필수: 현재 열려 있는 세션을 종료하여 사용자의 계정을 다시 보호합니다.
+https://schemas.openid.net/secevent/oauth/event-type/tokens-revoked
+필수: 토큰이 Google 로그인용인 경우 현재 열려 있는 세션을 종료합니다. 또한 사용자에게 대체 로그인 방법을 설정하도록 제안할 수도 있습니다.
+권장: 토큰이 다른 Google API에 대한 액세스용인 경우 저장된 사용자의 OAuth 토큰을 삭제합니다.
+https://schemas.openid.net/secevent/oauth/event-type/token-revoked 토큰 식별자는 OAuth 토큰 식별자 [https://developers.google.com/identity/protocols/risc?hl=ko#token_identifiers] 섹션을 참고하세요.
+필수: 해당 갱신 토큰을 저장하는 경우 이를 삭제하고 다음에 액세스 토큰이 필요할 때 사용자에게 다시 동의를 요청합니다.
+https://schemas.openid.net/secevent/risc/event-type/account-disabled reason=hijacking,
+reason=bulk-account
+필수: 계정이 사용 중지된 이유가 hijacking인 경우 현재 열려 있는 세션을 종료하여 사용자의 계정을 다시 보호합니다.
+권장: 계정이 사용 중지된 이유가 bulk-account인 경우 서비스에서 사용자의 활동을 분석하고 적절한 후속 조치를 결정합니다.
+권장: 이유가 제공되지 않은 경우 사용자의 Google 계정과 연결된 이메일 주소 (일반적으로 Gmail 계정이지만 필수는 아님)를 사용하여 사용자의 Google 로그인을 사용 중지하고 계정 복구를 사용 중지합니다. 사용자에게 대체 로그인 방법을 제공합니다.
+https://schemas.openid.net/secevent/risc/event-type/account-enabled 권장: 사용자의 Google 로그인 기능을 다시 사용 설정하고 사용자의 Google 계정 이메일 주소로 계정 복구를 다시 사용 설정합니다.
+https://schemas.openid.net/secevent/risc/event-type/account-credential-change-required 권장: 서비스에서 의심스러운 활동을 살펴보고 적절한 조치를 취하세요.
+https://schemas.openid.net/secevent/risc/event-type/verification state=state 권장: 테스트 토큰이 수신되었음을 로깅합니다.
+중복 및 누락된 이벤트
+계정 간 보안은 전송되지 않은 것으로 간주되는 이벤트를 다시 전송하려고 시도합니다. 따라서 동일한 이벤트를 여러 번 수신할 수 있습니다. 이로 인해 사용자에게 불편을 주는 작업이 반복될 수 있는 경우 jti 클레임 (이벤트의 고유 식별자)을 사용하여 이벤트를 중복 삭제하는 것이 좋습니다. Google Cloud Dataflow [https://cloud.google.com/dataflow/?hl=ko]와 같은 외부 도구를 사용하면 중복 제거 데이터 흐름을 실행하는 데 도움이 될 수 있습니다.
+이벤트는 재시도가 제한적으로 제공되므로 수신기가 장기간 다운되면 일부 이벤트를 영구적으로 놓칠 수 있습니다.
+수신기 등록
+보안 이벤트를 수신하려면 RISC API를 사용하여 수신기 엔드포인트를 등록하세요. RISC API 호출에는 승인 토큰이 포함되어야 합니다.
+앱 사용자에 대해서만 보안 이벤트가 수신되므로 아래 설명된 단계의 전제 조건으로 GCP 프로젝트에 OAuth 동의 화면이 구성 [https://support.google.com/cloud/answer/6158849?hl=ko]되어 있어야 합니다.
+1. 승인 토큰 생성
+RISC API의 승인 토큰을 생성하려면 다음 클레임으로 JWT를 만드세요.
+{
+  "iss": SERVICE_ACCOUNT_EMAIL,
+  "sub": SERVICE_ACCOUNT_EMAIL,
+  "aud": "https://risc.googleapis.com/google.identity.risc.v1beta.RiscManagementService",
+  "iat": CURRENT_TIME,
+  "exp": CURRENT_TIME + 3600
+}
+서비스 계정 키를 만들 때 다운로드한 JSON 파일에서 찾을 수 있는 서비스 계정의 비공개 키를 사용하여 JWT에 서명합니다.
+예를 들면 다음과 같습니다.
+--- 탭: 자바 [https://developers.google.com/identity/protocols/risc?hl=ko#%EC%9E%90%EB%B0%94] ---
+java-jwt [https://github.com/auth0/java-jwt] 및 Google 인증 라이브러리 [https://github.com/googleapis/google-auth-library-java] 사용:
+public static String makeBearerToken() {
+    String token = null;
+    try {
+        // Get signing key and client email address.
+        FileInputStream is = new FileInputStream("your-service-account-credentials.json");
+        ServiceAccountCredentials credentials =
+               (ServiceAccountCredentials) GoogleCredentials.fromStream(is);
+        PrivateKey privateKey = credentials.getPrivateKey();
+        String keyId = credentials.getPrivateKeyId();
+        String clientEmail = credentials.getClientEmail();
+
+        // Token must expire in exactly one hour.
+        Date issuedAt = new Date();
+        Date expiresAt = new Date(issuedAt.getTime() + 3600000);
+
+        // Create signed token.
+        Algorithm rsaKey = Algorithm.RSA256(null, (RSAPrivateKey) privateKey);
+        token = JWT.create()
+                .withIssuer(clientEmail)
+                .withSubject(clientEmail)
+                .withAudience("https://risc.googleapis.com/google.identity.risc.v1beta.RiscManagementService")
+                .withIssuedAt(issuedAt)
+                .withExpiresAt(expiresAt)
+                .withKeyId(keyId)
+                .sign(rsaKey);
+    } catch (ClassCastException e) {
+        // Credentials file doesn't contain a service account key.
+    } catch (IOException e) {
+        // Credentials file couldn't be loaded.
+    }
+    return token;
+}
+
+--- 탭: Python [https://developers.google.com/identity/protocols/risc?hl=ko#python] ---
+import json
+import time
+
+import jwt  # pip install pyjwt
+
+def make_bearer_token(credentials_file):
+    with open(credentials_file) as service_json:
+        service_account = json.load(service_json)
+        issuer = service_account['client_email']
+        subject = service_account['client_email']
+        private_key_id = service_account['private_key_id']
+        private_key = service_account['private_key']
+    issued_at = int(time.time())
+    expires_at = issued_at + 3600
+    payload = {'iss': issuer,
+               'sub': subject,
+               'aud': 'https://risc.googleapis.com/google.identity.risc.v1beta.RiscManagementService',
+               'iat': issued_at,
+               'exp': expires_at}
+    encoded = jwt.encode(payload, private_key, algorithm='RS256',
+                         headers={'kid': private_key_id})
+    return encoded
+
+auth_token = make_bearer_token('your-service-account-credentials.json')
+이 승인 토큰은 1시간 동안 RISC API 호출을 하는 데 사용할 수 있습니다. 토큰이 만료되면 RISC API 호출을 계속하기 위해 새 토큰을 생성합니다.
+참고: OAuth 2.0으로 서비스 계정 승인 [https://developers.google.com/identity/protocols/oauth2/service-account?hl=ko]을 할 수도 있지만 위에 설명된 JWT 기반 접근 방식이 더 간단하며 네트워크 왕복이 필요하지 않습니다. 서비스 계정 승인을 사용하기로 결정한 경우 요청해야 하는 범위는 액세스 토큰 범위 [https://developers.google.com/identity/protocols/risc?hl=ko#token_scopes] 섹션을 참고하세요.
+2. RISC 스트림 구성 API 호출
+이제 승인 토큰이 있으므로 RISC API를 사용하여 수신기 엔드포인트를 등록하는 등 프로젝트의 보안 이벤트 스트림을 구성할 수 있습니다.
+이렇게 하려면 https://risc.googleapis.com/v1beta/stream:update에 HTTPS POST 요청을 실행하여 수신자 엔드포인트와 관심 있는 보안 이벤트 유형 [https://developers.google.com/identity/protocols/risc?hl=ko#supported_event_types]을 지정합니다.
+POST /v1beta/stream:update HTTP/1.1
+Host: risc.googleapis.com
+Authorization: Bearer AUTH_TOKEN
+
+{
+  "delivery": {
+    "delivery_method":
+      "https://schemas.openid.net/secevent/risc/delivery-method/push",
+    "url": RECEIVER_ENDPOINT
+  },
+  "events_requested": [
+    SECURITY_EVENT_TYPES
+  ]
+}
+예를 들면 다음과 같습니다.
+--- 탭: Java [https://developers.google.com/identity/protocols/risc?hl=ko#java] ---
+public static void configureEventStream(final String receiverEndpoint,
+                                        final List<String> eventsRequested,
+                                        String authToken) throws IOException {
+    ObjectMapper jsonMapper = new ObjectMapper();
+    String streamConfig = jsonMapper.writeValueAsString(new Object() {
+        public Object delivery = new Object() {
+            public String delivery_method =
+                    "https://schemas.openid.net/secevent/risc/delivery-method/push";
+            public String url = receiverEndpoint;
+        };
+        public List<String> events_requested = eventsRequested;
+    });
+
+    HttpPost updateRequest = new HttpPost("https://risc.googleapis.com/v1beta/stream:update");
+    updateRequest.addHeader("Content-Type", "application/json");
+    updateRequest.addHeader("Authorization", "Bearer " + authToken);
+    updateRequest.setEntity(new StringEntity(streamConfig));
+
+    HttpResponse updateResponse = new DefaultHttpClient().execute(updateRequest);
+    Header[] responseContentTypeHeaders = updateResponse.getHeaders("Content-Type");
+    StatusLine responseStatus = updateResponse.getStatusLine();
+    int statusCode = responseStatus.getStatusCode();
+    HttpEntity entity = updateResponse.getEntity();
+    // Now handle response
+}
+
+// ...
+
+configureEventStream(
+        "https://your-service.example.com/security-event-receiver",
+        Arrays.asList(
+                "https://schemas.openid.net/secevent/risc/event-type/account-credential-change-required",
+                "https://schemas.openid.net/secevent/risc/event-type/account-disabled"),
+        authToken);
+
+--- 탭: Python [https://developers.google.com/identity/protocols/risc?hl=ko#python] ---
+import requests
+
+def configure_event_stream(auth_token, receiver_endpoint, events_requested):
+    stream_update_endpoint = 'https://risc.googleapis.com/v1beta/stream:update'
+    headers = {'Authorization': 'Bearer {}'.format(auth_token)}
+    stream_cfg = {'delivery': {'delivery_method': 'https://schemas.openid.net/secevent/risc/delivery-method/push',
+                               'url': receiver_endpoint},
+                  'events_requested': events_requested}
+    response = requests.post(stream_update_endpoint, json=stream_cfg, headers=headers)
+    response.raise_for_status()  # Raise exception for unsuccessful requests
+
+configure_event_stream(auth_token, 'https://your-service.example.com/security-event-receiver',
+                       ['https://schemas.openid.net/secevent/risc/event-type/account-credential-change-required',
+                        'https://schemas.openid.net/secevent/risc/event-type/account-disabled'])
+요청이 HTTP 200을 반환하면 이벤트 스트림이 성공적으로 구성된 것이며 수신기 엔드포인트가 보안 이벤트 토큰 수신을 시작해야 합니다. 다음 섹션에서는 스트림 구성과 엔드포인트를 테스트하여 모든 항목이 올바르게 작동하는지 확인하는 방법을 설명합니다.
+현재 스트림 구성 가져오기 및 업데이트
+향후 스트림 구성을 수정하려면 https://risc.googleapis.com/v1beta/stream에 승인된 GET 요청을 보내 현재 스트림 구성을 가져오고, 응답 본문을 수정한 후, 위에서 설명한 대로 수정된 구성을 https://risc.googleapis.com/v1beta/stream:update에 다시 게시하면 됩니다.
+이벤트 스트림 중지 및 재개
+Google에서 이벤트 스트림을 중지해야 하는 경우 요청 본문에 { "status": "disabled" }를 포함하여 https://risc.googleapis.com/v1beta/stream/status:update에 승인된 POST 요청을 전송합니다. 스트림이 비활성화된 동안 Google은 엔드포인트로 이벤트를 전송하지 않으며 보안 이벤트가 발생할 때 이를 버퍼링하지 않습니다. 이벤트 스트림을 다시 사용 설정하려면 동일한 엔드포인트에 { "status": "enabled" }을 POST합니다.
+3. 선택사항: 스트림 구성 테스트
+이벤트 스트림을 통해 확인 토큰을 전송하여 스트림 구성과 수신기 엔드포인트가 올바르게 작동하는지 확인할 수 있습니다. 이 토큰에는 토큰이 엔드포인트에서 수신되었는지 확인하는 데 사용할 수 있는 고유한 문자열이 포함될 수 있습니다. 이 흐름을 사용하려면 수신자를 등록 [https://developers.google.com/identity/protocols/risc?hl=ko#register_receiver]할 때 https://schemas.openid.net/secevent/risc/event-type/verification 이벤트 유형을 구독해야 합니다.
+인증 토큰을 요청하려면 https://risc.googleapis.com/v1beta/stream:verify에 승인된 HTTPS POST 요청을 전송합니다. 요청 본문에서 식별 문자열을 지정합니다.
+{
+  "state": "ANYTHING"
+}
+예를 들면 다음과 같습니다.
+--- 탭: Java [https://developers.google.com/identity/protocols/risc?hl=ko#java] ---
+public static void testEventStream(final String stateString,
+                                   String authToken) throws IOException {
+    ObjectMapper jsonMapper = new ObjectMapper();
+    String json = jsonMapper.writeValueAsString(new Object() {
+        public String state = stateString;
+    });
+
+    HttpPost updateRequest = new HttpPost("https://risc.googleapis.com/v1beta/stream:verify");
+    updateRequest.addHeader("Content-Type", "application/json");
+    updateRequest.addHeader("Authorization", "Bearer " + authToken);
+    updateRequest.setEntity(new StringEntity(json));
+
+    HttpResponse updateResponse = new DefaultHttpClient().execute(updateRequest);
+    Header[] responseContentTypeHeaders = updateResponse.getHeaders("Content-Type");
+    StatusLine responseStatus = updateResponse.getStatusLine();
+    int statusCode = responseStatus.getStatusCode();
+    HttpEntity entity = updateResponse.getEntity();
+    // Now handle response
+}
+
+// ...
+
+testEventStream("Test token requested at " + new Date().toString(), authToken);
+
+--- 탭: Python [https://developers.google.com/identity/protocols/risc?hl=ko#python] ---
+import requests
+import time
+
+def test_event_stream(auth_token, nonce):
+    stream_verify_endpoint = 'https://risc.googleapis.com/v1beta/stream:verify'
+    headers = {'Authorization': 'Bearer {}'.format(auth_token)}
+    state = {'state': nonce}
+    response = requests.post(stream_verify_endpoint, json=state, headers=headers)
+    response.raise_for_status()  # Raise exception for unsuccessful requests
+
+test_event_stream(auth_token, 'Test token requested at {}'.format(time.ctime()))
+요청이 성공하면 등록한 엔드포인트로 인증 토큰이 전송됩니다. 그런 다음 엔드포인트에서 단순히 로깅하여 인증 토큰을 처리하는 경우 로그를 검사하여 토큰이 수신되었는지 확인할 수 있습니다.
+오류 코드 참조
+RISC API는 다음 오류를 반환할 수 있습니다.
+오류 코드 오류 메시지 권장 조치
+400 스트림 구성에 $fieldname 필드가 포함되어야 합니다. https://risc.googleapis.com/v1beta/stream:update 엔드포인트에 대한 요청이 잘못되었거나 파싱할 수 없습니다. 요청에 $fieldname을 포함하세요.
+401 승인되지 않았습니다. 승인에 실패했습니다. 요청에 승인 토큰 [https://developers.google.com/identity/protocols/risc?hl=ko#auth_token]을 첨부했고 토큰이 유효하며 만료되지 않았는지 확인하세요.
+403 전송 엔드포인트는 HTTPS URL이어야 합니다. 전송 엔드포인트 (즉, RISC 이벤트가 전송될 것으로 예상되는 엔드포인트)는 HTTPS여야 합니다. RISC 이벤트는 HTTP URL로 전송되지 않습니다.
+403 기존 스트림 구성에 RISC용 사양 준수 전송 방법이 없습니다. Google Cloud 프로젝트에 이미 RISC 구성이 있어야 합니다. Firebase를 사용하고 Google 로그인이 사용 설정된 경우 Firebase에서 프로젝트의 RISC를 관리하므로 맞춤 구성을 만들 수 없습니다. Firebase 프로젝트에 Google 로그인을 사용하지 않는 경우 사용 중지한 후 한 시간 후에 다시 업데이트해 보세요.
+403 프로젝트를 찾을 수 없습니다. 올바른 프로젝트에 올바른 서비스 계정을 사용하고 있는지 확인합니다. 삭제된 프로젝트와 연결된 서비스 계정을 사용하고 있을 수 있습니다. 프로젝트와 연결된 모든 서비스 계정을 확인하는 방법 [https://cloud.google.com/iam/docs/service-accounts-list-edit?hl=ko#listing_service_accounts]을 알아보세요.
+403 서비스 계정에 RISC 구성에 액세스할 권한이 필요함 프로젝트로 이동하여 API Console 이 안내 [https://cloud.google.com/iam/docs/granting-roles-to-service-accounts?hl=ko]에 따라 프로젝트를 호출하는 서비스 계정에 'RISC 구성 관리자' 역할(roles/riscconfigs.admin [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#riscconfigs.admin])을 할당합니다.
+403 스트림 관리 API는 서비스 계정에서만 호출해야 합니다. 서비스 계정으로 Google API를 호출하는 방법 [https://developers.google.com/identity/protocols/oauth2/service-account?hl=ko]에 대한 자세한 내용은 여기를 참고하세요.
+403 전송 엔드포인트가 프로젝트의 도메인에 속하지 않습니다. 모든 프로젝트에는 승인된 도메인 [https://support.google.com/cloud/answer/6158849?hl=ko#authorized-domains]이 있습니다. 전송 엔드포인트 (즉, RISC 이벤트가 전송될 것으로 예상되는 엔드포인트)가 이러한 도메인 중 하나에서 호스팅되지 않는 경우 엔드포인트의 도메인을 해당 집합에 추가해야 합니다.
+403 이 API를 사용하려면 프로젝트에 하나 이상의 OAuth 클라이언트가 구성되어 있어야 합니다. RISC는 Google 로그인 [https://developers.google.com/identity?hl=ko]을 지원하는 앱을 빌드하는 경우에만 작동합니다. 이 연결에는 OAuth 클라이언트가 필요합니다. 프로젝트에 OAuth 클라이언트가 없으면 RISC가 유용하지 않을 수 있습니다. Google API에 OAuth를 사용하는 방법 [https://developers.google.com/identity/protocols/oauth2?hl=ko]을 자세히 알아보세요.
+403
+지원되지 않는 상태입니다.
+상태가 잘못되었습니다.
+현재는 스트림 상태 'enabled' 및 'disabled'만 지원됩니다.
+404
+프로젝트에 RISC 구성이 없습니다.
+프로젝트에 기존 RISC 구성이 없으므로 상태를 업데이트할 수 없습니다.
+https://risc.googleapis.com/v1beta/stream:update 엔드포인트를 호출하여 새 스트림 구성을 만듭니다.
+4XX/5XX 상태를 업데이트할 수 없음 자세한 내용은 세부 오류 메시지를 확인하세요.
+액세스 토큰 범위
+RISC API에 인증하는 데 액세스 토큰을 사용하기로 결정한 경우 애플리케이션이 요청해야 하는 범위는 다음과 같습니다.
+엔드포인트 범위
+https://risc.googleapis.com/v1beta/stream/status https://www.googleapis.com/auth/risc.status.readonly 또는 https://www.googleapis.com/auth/risc.status.readwrite
+https://risc.googleapis.com/v1beta/stream/status:update https://www.googleapis.com/auth/risc.status.readwrite
+https://risc.googleapis.com/v1beta/stream https://www.googleapis.com/auth/risc.configuration.readonly 또는 https://www.googleapis.com/auth/risc.configuration.readwrite
+https://risc.googleapis.com/v1beta/stream:update https://www.googleapis.com/auth/risc.configuration.readwrite
+https://risc.googleapis.com/v1beta/stream:verify https://www.googleapis.com/auth/risc.verify
+도움이 필요하신가요?
+먼저 오류 코드 참조 [https://developers.google.com/identity/protocols/risc?hl=ko#error_codes] 섹션을 확인하세요. 그래도 궁금한 점이 있으면 #SecEvents [https://stackoverflow.com/questions/tagged/SecEvents] 태그를 사용하여 Stack Overflow에 게시하세요.
+의견 보내기

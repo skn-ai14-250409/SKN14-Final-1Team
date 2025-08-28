@@ -1,0 +1,108 @@
+Source URL: https://developers.google.com/workspace/gmail/api/guides/push
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+홈 [https://developers.google.com/?hl=ko]
+Google Workspace [https://developers.google.com/workspace?hl=ko]
+Gmail [https://developers.google.com/workspace/gmail?hl=ko]
+가이드 [https://developers.google.com/workspace/gmail/api/guides?hl=ko]
+도움이 되었나요?
+의견 보내기
+푸시 알림
+bookmark_border
+이 페이지의 내용
+개요
+초기 Cloud Pub/Sub 설정
+기본 요건
+주제 만들기
+구독 만들기
+주제에 게시 권한 부여
+Gmail 편지함 업데이트 받기
+시계 요청
+개요
+Gmail API는 Gmail 편지함의 변경사항을 확인할 수 있는 서버 푸시 알림을 제공합니다. 이 기능을 사용하여 애플리케이션의 성능을 개선할 수 있습니다. 이를 통해 리소스가 변경되었는지 확인하기 위해 리소스를 폴링하는 데 드는 추가 네트워크 및 컴퓨팅 비용을 없앨 수 있습니다. 편지함이 변경될 때마다 Gmail API는 백엔드 서버 애플리케이션에 알림을 보냅니다.
+참고: 사용자 소유 기기(예: 설치된 앱, 모바일 기기 또는 브라우저)에 대한 알림의 경우 업데이트를 가져오는 데는 폴링 기반 동기화 가이드 [https://developers.google.com/workspace/gmail/api/guides/sync?hl=ko]가 여전히 권장됩니다.
+초기 Cloud Pub/Sub 설정
+Gmail API는 Cloud Pub/Sub API [https://cloud.google.com/pubsub/overview?hl=ko]를 사용하여 푸시 알림을 전송합니다. 이를 통해 단일 구독 엔드포인트에서 웹훅 및 폴링을 비롯한 다양한 방법으로 알림을 받을 수 있습니다.
+기본 요건
+나머지 설정을 완료하려면 Cloud Pub/Sub 기본 요건 [https://cloud.google.com/pubsub/prereqs?hl=ko]을 충족한 후 Cloud Pub/Sub 클라이언트를 설정 [https://cloud.google.com/pubsub/configure?hl=ko]하세요.
+주제 만들기
+Cloud Pub/Sub 클라이언트를 사용하여 Gmail API가 알림을 전송해야 하는 주제를 만듭니다 [https://cloud.google.com/pubsub/publisher?hl=ko#create]. 주제 이름은 프로젝트에서 선택한 이름일 수 있습니다 (예: projects/myproject/topics/*와 일치). 여기서 myproject는 Google Developers Console에 프로젝트에 대해 나열된 프로젝트 ID입니다.
+구독 만들기
+Cloud Pub/Sub 구독자 가이드 [https://cloud.google.com/pubsub/subscriber?hl=ko]에 따라 만든 주제에 대한 구독을 설정합니다. 구독 유형을 웹훅 푸시 (즉, HTTP POST 콜백) 또는 풀 (즉, 앱에서 시작됨)로 구성합니다. 업데이트 알림을 수신할 이메일 주소입니다.
+주제에 게시 권한 부여
+Cloud Pub/Sub를 사용하려면 주제에 알림을 게시할 권한을 Gmail에 부여해야 합니다.
+이렇게 하려면 gmail-api-push@system.gserviceaccount.com에 publish 권한을 부여해야 합니다. 리소스 수준 액세스 제어 안내 [https://cloud.google.com/pubsub/access_control?hl=ko#set_topic_level_access]에 따라 Cloud Pub/Sub 개발자 콘솔 권한 인터페이스 [https://console.cloud.google.com/project/_/cloudpubsub/topicList?hl=ko]를 사용하여 이를 수행할 수 있습니다.
+Gmail 편지함 업데이트 받기
+초기 Cloud Pub/Sub 설정이 완료되면 편지함 업데이트 알림을 전송하도록 Gmail 계정을 구성합니다.
+시계 요청
+Gmail 계정이 Cloud Pub/Sub 주제로 알림을 전송하도록 구성하려면 Gmail API 클라이언트를 사용하여 다른 Gmail API 호출과 마찬가지로 Gmail 사용자 편지함에서 watch [https://developers.google.com/workspace/gmail/api/v1/reference/users/watch?hl=ko]를 호출하면 됩니다. 이렇게 하려면 위에서 만든 주제 이름과 watch 요청의 기타 옵션(예: 필터링할 labels [https://developers.google.com/workspace/gmail/api/guides/labels?hl=ko])을 제공합니다. 예를 들어 받은편지함이 변경될 때마다 알림을 받으려면 다음 단계를 따르세요.
+--- 탭: 프로토콜 ---
+POST "https://www.googleapis.com/gmail/v1/users/me/watch"
+Content-type: application/json
+
+{
+  topicName: "projects/myproject/topics/mytopic",
+  labelIds: ["INBOX"],
+  labelFilterBehavior: "INCLUDE",
+}
+
+--- 탭: Python ---
+request = {
+  'labelIds': ['INBOX'],
+  'topicName': 'projects/myproject/topics/mytopic',
+  'labelFilterBehavior': 'INCLUDE'
+}
+gmail.users().watch(userId='me', body=request).execute()
+시계 응답
+watch [https://developers.google.com/workspace/gmail/api/v1/reference/users/watch?hl=ko] 요청이 성공하면 다음과 같은 응답이 표시됩니다.
+{
+  historyId: 1234567890
+  expiration: 1431990098200
+}
+사용자의 현재 메일함 historyId historyId 이후의 모든 변경사항은 클라이언트에 알림이 전송됩니다. 이 historyId 전에 변경사항을 처리해야 하는 경우 동기화 가이드 [https://developers.google.com/workspace/gmail/api/guides/sync?hl=ko]를 참고하세요.
+또한 watch 호출이 성공하면 알림이 Cloud Pub/Sub 주제로 즉시 전송되어야 합니다.
+watch 호출에서 오류가 발생하면 세부정보에 문제의 소스가 설명되어야 합니다. 일반적으로 Cloud Pub/Sub 주제 및 구독 설정에 문제가 있습니다. Cloud Pub/Sub 문서 [https://cloud.google.com/pubsub/docs?hl=ko]를 참고하여 설정이 올바른지 확인하고 주제 및 구독 문제 디버깅에 대한 도움을 받으세요.
+편지함 감시 갱신
+최소 7일마다 watch [https://developers.google.com/workspace/gmail/api/v1/reference/users/watch?hl=ko]을 다시 호출해야 합니다. 그렇지 않으면 사용자 업데이트 수신이 중지됩니다. 하루에 한 번 watch를 호출하는 것이 좋습니다. watch 응답에는 watch 만료의 타임스탬프가 있는 만료 필드도 있습니다.
+알림 수신
+watch와 일치하는 메일함 업데이트가 발생할 때마다 애플리케이션은 변경사항을 설명하는 알림 메시지를 수신합니다.
+푸시 구독을 구성한 경우 서버에 대한 웹훅 알림은 PubsubMessage [https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage?hl=ko]을 준수합니다.
+POST https://yourserver.example.com/yourUrl
+Content-type: application/json
+
+{
+  message:
+  {
+    // This is the actual notification data, as base64url-encoded JSON.
+    data: "eyJlbWFpbEFkZHJlc3MiOiAidXNlckBleGFtcGxlLmNvbSIsICJoaXN0b3J5SWQiOiAiMTIzNDU2Nzg5MCJ9",
+
+    // This is a Cloud Pub/Sub message id, unrelated to Gmail messages.
+    "messageId": "2070443601311540",
+
+    // This is the publish time of the message.
+    "publishTime": "2021-02-26T19:13:55.749Z",
+  }
+
+  subscription: "projects/myproject/subscriptions/mysubscription"
+}
+HTTP POST 본문은 JSON이며 실제 Gmail 알림 페이로드는 message.data 필드에 있습니다. message.data 필드는 base64url로 인코딩된 문자열로, 이 문자열은 이메일 주소와 사용자의 새 메일함 기록 ID가 포함된 JSON 객체로 디코딩됩니다.
+{"emailAddress": "user@example.com", "historyId": "9876543210"}
+그런 다음 동기화 가이드 [https://developers.google.com/workspace/gmail/api/guides/sync?hl=ko#partial]에 따라 history.list [https://developers.google.com/workspace/gmail/api/v1/reference/users/history/list?hl=ko]를 사용하여 사용자의 마지막으로 알려진 historyId 이후의 변경사항 세부정보를 가져올 수 있습니다.
+예를 들어 history.list [https://developers.google.com/workspace/gmail/api/v1/reference/users/history/list?hl=ko]을 사용하여 초기 watch [https://developers.google.com/workspace/gmail/api/v1/reference/users/watch?hl=ko] 호출과 이전 예에 공유된 알림 메시지 수신 사이에 발생한 변경사항을 식별하려면 1234567890을 history.list에 startHistoryId로 전달합니다. 그런 다음 9876543210는 향후 사용 사례를 위해 마지막으로 알려진 historyId로 유지될 수 있습니다.
+풀 구독을 구성한 경우 메시지 수신에 관한 자세한 내용은 Cloud Pub/Sub 구독자 풀 가이드 [https://cloud.google.com/pubsub/docs/pull?hl=ko]의 코드 샘플을 참고하세요.
+알림에 응답하기
+모든 알림을 확인해야 합니다. 웹훅 푸시 전송 [https://cloud.google.com/pubsub/docs/push?hl=ko]을 사용하는 경우 성공적으로 응답 (예: HTTP 200)하면 알림이 확인됩니다.
+가져오기 전송(REST 가져오기 [https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull?hl=ko], RPC 가져오기 [https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1?hl=ko#google.pubsub.v1.PullRequest] 또는 RPC StreamingPull [https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1?hl=ko#streamingpullrequest])을 사용하는 경우 승인 호출(REST [https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/acknowledge?hl=ko] 또는 RPC [https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1?hl=ko#acknowledgerequest])을 따라야 합니다. 공식 RPC 기반 클라이언트 라이브러리를 사용하여 비동기식 [https://cloud.google.com/pubsub/docs/pull?hl=ko#asynchronous-pull] 또는 동기식 [https://cloud.google.com/pubsub/docs/pull?hl=ko#synchronous_pull]으로 메시지를 승인하는 방법에 관한 자세한 내용은 Cloud Pub/Sub 구독자 풀 가이드 [https://cloud.google.com/pubsub/docs/pull?hl=ko]의 코드 샘플을 참고하세요.
+알림이 확인되지 않으면 (예: 웹훅 콜백에서 오류가 반환되거나 시간이 초과됨) Cloud Pub/Sub에서 나중에 알림을 다시 시도합니다.
+편지함 업데이트 중지
+메일함의 업데이트 수신을 중지하려면 stop [https://developers.google.com/workspace/gmail/api/reference/rest/v1/users/stop?hl=ko]를 호출하세요. 몇 분 이내에 모든 새 알림이 중지됩니다.
+제한사항
+최대 알림 비율
+모니터링되는 각 Gmail 사용자의 최대 알림 비율은 1초당 1개 이벤트입니다. 이 비율을 초과하는 사용자 알림은 삭제됩니다. 알림을 처리할 때 다른 알림을 트리거하여 알림 루프가 시작되지 않도록 주의하세요.
+안정성
+일반적으로 모든 알림은 몇 초 내에 안정적으로 전송되어야 하지만, 극단적인 상황에서는 알림이 지연되거나 삭제될 수 있습니다. 푸시 메시지를 수신하지 않더라도 애플리케이션이 계속 동기화되도록 이 가능성을 적절하게 처리해야 합니다. 예를 들어 사용자에게 알림이 없는 기간이 지난 후 주기적으로 history.list [https://developers.google.com/workspace/gmail/api/v1/reference/users/history/list?hl=ko]를 호출하도록 대체합니다.
+Cloud Pub/Sub 제한사항
+Cloud Pub/Sub API에도 자체 제한사항이 있으며, 자세한 내용은 가격 [https://cloud.google.com/pubsub/pricing?hl=ko] 및 할당량 [https://cloud.google.com/pubsub/quotas?hl=ko] 문서에 나와 있습니다.
+도움이 되었나요?
+의견 보내기

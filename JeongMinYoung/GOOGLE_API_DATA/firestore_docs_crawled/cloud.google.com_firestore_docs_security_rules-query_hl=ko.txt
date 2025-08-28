@@ -1,0 +1,127 @@
+Source URL: https://cloud.google.com/firestore/docs/security/rules-query?hl=ko
+Title: 안전하게 데이터 쿼리
+
+의견 보내기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+안전하게 데이터 쿼리
+
+이 페이지에서는 보안 규칙 구조화 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko]와 보안 규칙 조건 작성 [https://cloud.google.com/firestore/native/docs/security/rules-conditions?hl=ko]의 개념을 바탕으로 Firestore 보안 규칙에서 쿼리를 활용하는 방법을 설명합니다. 작성할 수 있는 쿼리에 보안 규칙이 어떤 영향을 미치는지 자세히 살펴보고 쿼리에서 보안 규칙과 동일한 제약조건을 사용하게 하는 방법을 설명합니다. 또한 limit 및 orderBy와 같은 쿼리 속성을 기준으로 쿼리를 허용 또는 거부하도록 보안 규칙을 작성하는 방법도 설명합니다.
+
+참고: 서버 클라이언트 라이브러리는 모든 Firestore 보안 규칙을 우회하고 대신 Google 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/production?hl=ko]를 통해 인증합니다.
+서버 클라이언트 라이브러리, REST 또는 RPC API를 사용하는 경우 Firestore용 Identity and Access Management (IAM) [https://cloud.google.com/firestore/docs/security/iam?hl=ko]를 설정해야 합니다.
+
+규칙과 필터의 차이
+
+쿼리를 작성하여 문서를 검색할 때 보안 규칙은 필터가 아니므로 전부 쿼리하거나 전혀 쿼리하지 않는다는 점에 유의해야 합니다. 시간과 리소스를 절약하기 위해 Firestore는 모든 문서의 실제 필드 값 대신 잠재적인 결과 세트로 쿼리를 평가합니다. 쿼리가 클라이언트가 읽을 수 없는 문서를 반환할 가능성이 있으면 전체 요청이 실패합니다.
+참고: 이 동작은 개별 문서 검색이 아닌 컬렉션에서 문서를 한 개 이상 검색하는 쿼리에 적용됩니다. 문서 하나를 검색하는 데 문서 ID를 사용하면 Firestore는 보안 규칙과 실제 문서 속성을 사용하여 문서를 읽고 요청을 평가합니다.
+쿼리 및 보안 규칙
+
+아래 예시에서 볼 수 있듯이 보안 규칙의 제약조건에 맞게 쿼리를 작성해야 합니다.
+참고: 문서를 반환하는 일반 쿼리와 집계 쿼리 [https://cloud.google.com/firestore/native/docs/query-data/aggregation-queries?hl=ko] 모두에 동일한 규칙이 적용됩니다. 즉, 보안 규칙은 데이터 반환 방식이 아니라 허용되는 조건을 제어합니다.
+auth.uid를 기반으로 문서 보호 및 쿼리
+
+다음 예시는 쿼리를 작성하여 보안 규칙으로 보호하는 문서를 가져오는 방법을 보여줍니다. story 문서의 컬렉션이 포함된 데이터베이스를 예로 들어보겠습니다.
+
+/stories/{storyid}
+content: "Once upon a time...",
+author: "some_auth_id",
+published: false
+
+현재 사용자가 모든 story 문서의 실제 작성자인 경우에도 쿼리가 실패합니다. 이러한 동작이 발생하는 이유는 Firestore가 보안 규칙을 적용할 때 데이터베이스에 있는 문서의 실제 속성이 아니라 잠재적인 결과 세트로 쿼리를 평가하기 때문입니다. 쿼리에 보안 규칙을 위반하는 문서가 포함될 가능성이 있으면 쿼리가 실패합니다.
+
+반면에 다음 쿼리는 성공하는데, 그 이유는 보안 규칙과 동일한 제약조건을 author 필드에 포함하기 때문입니다.
+
+유효: 쿼리 제약조건이 보안 규칙 제약조건과 일치합니다.
+
+필드를 기준으로 문서 보안 적용 및 쿼리
+
+쿼리와 규칙의 상호작용을 더 자세히 보여주기 위해 아래 보안 규칙은 모든 사용자가 published 필드가 true로 설정된 story 문서를 읽을 수 있도록 stories 컬렉션의 읽기 액세스 권한을 확장합니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /stories/{storyid} {
+
+쿼리 제약조건 .where("published", "==", true)는 resource.data.published가 모든 결과에 대해 true라고 보장합니다. 따라서 이 쿼리는 보안 규칙을 충족하며 데이터를 읽을 수 있습니다.
+
+쿼리 OR회
+
+규칙 집합에 대해 논리적 OR 쿼리(or, in, array-contains-any)를 평가할 때 Firestore는 각 비교 값을 개별적으로 평가합니다. 각 비교 값은 보안 규칙 제약조건을 충족해야 합니다. 다음 규칙의 경우를 예로 들어보겠습니다.
+match /mydocuments/{doc} {
+allow read: if resource.data.x > 5;
+or(where("x", "==", 1),
+where("x", "==", 6)
+
+query(db.collection("mydocuments"),
+where("x", "in", [1, 3, 6, 42, 99])
+
+유효: 쿼리가 모든 잠재적 문서에 대해 x > 5의 조건을 보장합니다.
+query(db.collection("mydocuments"),
+or(where("x", "==", 6),
+where("x", "==", 42)
+
+query(db.collection("mydocuments&quot;),
+where("x", "in", [6, 42, 99, 105, 200])
+
+쿼리의 제약조건 평가
+
+또한 보안 규칙은 제약조건을 기준으로 쿼리를 허용하거나 거부할 수 있습니다.
+request.query [https://firebase.google.com/docs/reference/rules/rules.firestore.Request?hl=ko] 변수에는 쿼리의 limit, offset, orderBy 속성이 포함됩니다. 예를 들어 보안 규칙은 가져오는 최대 문서 수를 특정 범위로 제한하지 않는 쿼리를 거부할 수 있습니다.
+allow list: if request.query.limit <= 10;
+참고: read 규칙을 get 규칙 및 list 규칙으로 나눌 수 있습니다 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko#granular_operations]. get 규칙은 문서 하나에 대한 요청에, list 규칙은 컬렉션에 대한 쿼리와 요청에 적용됩니다.
+다음 규칙 세트는 쿼리에 적용된 제약조건을 평가하는 보안 규칙을 작성하는 방법을 보여줍니다. 이 예시는 다음 변경사항을 포함하여 이전 stories 규칙 세트를 확장합니다.
+
+규칙 세트가 읽기 규칙을 get 및 list 규칙으로 분리합니다.
+get 규칙은 문서 검색을 공개 문서나 사용자가 작성한 문서로 제한합니다.
+list 규칙은 get과 동일한 제한사항을 쿼리에 적용합니다. 또한 쿼리 한도를 확인한 다음 한도가 없거나 10을 초과하는 쿼리를 거부합니다.
+규칙 세트에서 코드 중복을 피하기 위해 authorOrPublished() 함수를 정의합니다.
+
+service cloud.firestore {
+
+match /databases/{database}/documents {
+
+match /stories/{storyid} {
+
+그런데 현재 사용자에게 모든 포럼에 있는 자신의 글을 표시하려면 어떻게 해야 할까요?
+컬렉션 그룹 쿼리 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#collection-group-query]를 사용하여 모든 posts 컬렉션에서 결과를 검색할 수 있습니다.
+참고: 이 쿼리에는 컬렉션 그룹 범위가 지정된 posts 컬렉션에서 필드 author에 대한 색인이 필요합니다. 이 색인을 사용 설정하지 않은 경우 쿼리가 오류 링크를 반환하며, 이 링크를 따라가면 필요한 색인을 만들 수 있습니다.
+보안 규칙에서 posts 컬렉션 그룹에 대한 read 또는 list 규칙을 작성하여 이 쿼리를 허용해야 합니다.
+rules_version = '2';
+service cloud.firestore {
+
+match /databases/{database}/documents {
+
+service cloud.firestore {
+
+match /databases/{database}/documents {
+
+누구나 모든 포럼에서 저자의 게시된 글을 검색할 수 있습니다.
+db.collectionGroup("posts").where("author", "==", "some_auth_id";).where('published', '==', true).get()
+
+저자는 모든 포럼에서 게시된 글과 게시되지 않은 글을 모두 검색할 수 있습니다.
+
+컬렉션 그룹 및 문서 경로를 기반으로 문서 보호 및 쿼리
+
+경우에 따라 문서 경로를 기반으로 컬렉션 그룹 쿼리를 제한할 수 있습니다. 이러한 제한사항을 만들려면 필드를 기반으로 문서를 보호하고 쿼리할 때 동일한 기법을 사용하면 됩니다.
+
+여러 주식 및 암호화폐 교환 중에 각 사용자의 트랜잭션을 추적하는 애플리케이션을 살펴보겠습니다.
+
+/users/{userid}/exchange/{exchangeid}/transactions/{transaction}
+amount: 100,
+exchange: 'some_exchange_name',
+timestamp: April 1, 2019 at 12:00:00 PM UTC-7,
+user: "some_auth_id",
+
+문서 경로에 특정 /users/{userid}가 포함된 문서로 제한된 컬렉션 그룹 쿼리를 작성합니다. 예를 들면 다음과 같습니다.
+
+한 사용자가 다른 사용자의 transaction 문서를 검색할 수 없도록 transactions 컬렉션 그룹의 모든 쿼리에 이 제한사항을 적용합니다.
+
+이러한 제한사항을 보안 규칙에 적용하고 user 필드에 대한 데이터 유효성 검사를 포함합니다.
+rules_version = '2';
+service cloud.firestore {
+
+match /databases/{database}/documents {
+
+match /{path=**}/transactions/{transaction} {
