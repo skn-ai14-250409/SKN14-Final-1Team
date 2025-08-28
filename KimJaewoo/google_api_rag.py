@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 class GoogleAPIDocumentProcessor:
     def __init__(self,
                  api_data_dir: str = "./GOOGLE_API_DATA",
-                 db_dir: str = "./chroma_google_api_db_gpt"):
+                 db_dir: str = "./chroma_google_api_db"):
         self.api_data_dir = Path(api_data_dir)
         self.db_dir = db_dir
         self.documents: List[Document] = []
@@ -139,7 +139,7 @@ if __name__ == "__main__":
         # 데이터가 저장된 상위 폴더 및 DB를 저장할 경로를 지정
         processor = GoogleAPIDocumentProcessor(
             api_data_dir='../GOOGLE_API_DATA',
-            db_dir='./chroma_google_api_db_gpt'
+            db_dir='./chroma_google_api_db'
         )
         # DB 구축 실행
         print("=" * 60)
