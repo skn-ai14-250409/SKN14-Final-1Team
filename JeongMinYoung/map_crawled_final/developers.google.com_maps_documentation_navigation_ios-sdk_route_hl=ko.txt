@@ -1,0 +1,210 @@
+Source URL: https://developers.google.com/maps/documentation/navigation/ios-sdk/route?hl=ko
+Title: 경로 탐색
+
+의견 보내기
+
+경로 탐색
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 가이드에 따라 iOS용 Navigation SDK를 사용하여 앱 내에서 단일 목적지까지의 경로를 표시하세요.
+
+개요
+
+프로젝트 설정 [https://developers.google.com/maps/documentation/navigation/ios-sdk/config?hl=ko] 섹션에 설명된 대로 탐색 SDK를 앱에 통합합니다.
+GMSMapView [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Classes/GMSMapView?hl=ko]를 구성합니다.
+사용자에게 이용약관에 동의하고 위치 서비스와 백그라운드 알림을 승인하라는 메시지를 표시합니다.
+하나 이상의 대상을 포함하는 배열을 만듭니다.
+GMSNavigator [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Classes/GMSNavigator?hl=ko]를 정의하여 내비게이션 세부 경로 안내를 제어합니다.
+
+setDestinations [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Classes/GMSNavigator?hl=ko#-setdestinations:callback:]을 사용하여 대상을 추가합니다.
+isGuidanceActive [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Classes/GMSNavigator?hl=ko#guidanceactive]을 true로 설정하여 내비게이션을 시작합니다.
+simulateLocationsAlongExistingRoute [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Classes/GMSLocationSimulator?hl=ko#-simulatelocationsalongexistingroute]를 사용하여 테스트, 디버깅, 앱 데모를 위해 경로를 따라 차량의 진행 상황을 시뮬레이션합니다.
+
+참고: 탐색 중에 화면이 어두워지거나 꺼지지 않도록 하려면 앱에서 유휴 타이머를 사용 중지 [https://developer.apple.com/documentation/uikit/uiapplication/1623070-idletimerdisabled]해야 합니다. Navigation SDK에서는 이를 자동으로 처리하지 않습니다. 유휴 타이머를 사용 중지하려면
+[UIApplication sharedApplication].idleTimerDisabled = YES;를 호출하세요.
+코드 보기
+
+탐색 뷰 컨트롤러의 Swift 코드를 표시하거나 숨깁니다.
+
+/*
+* Copyright 2017 Google Inc. All rights reserved.
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*      http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
+import GoogleNavigation
+import UIKit
+
+class ViewController: UIViewController {
+
+GMSNavigationServices.showTermsAndConditionsDialogIfNeeded(
+withCompanyName: companyName
+) { termsAccepted in
+if termsAccepted {
+self.mapView.settings.compassButton = true
+
+makeButton()
+GMSNavigationWaypoint.init(
+placeID: "ChIJnUYTpNASkFQR_gSty5kyoUk",
+destinations.append(
+GMSNavigationWaypoint.init(
+placeID: "ChIJJ326ROcSkFQRBfUzOL2DSbo",
+
+mapView.navigator?.setDestinations(
+destinations
+) { routeStatus in
+guard routeStatus == .OK else {
+print("Handle route statuses that are not OK.")
+return
+self.mapView.locationSimulator?.simulateLocationsAlongExistingRoute()
+self.mapView.cameraMode = .following
+navButton.alpha = 0.5
+navButton.setTitle("Start navigation", for: .normal)
+navButton.addTarget(self, action: #selector(startNav), for: .touchUpInside)
+self.mapView.addSubview(navButton)
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*      http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
+#import "ViewController.h"
+@import GoogleNavigation;
+
+@interface ViewController ()
+@end
+
+@implementation ViewController {
+GMSMapView *_mapView;
+CLLocationManager *_locationManager;
+
+NSString *companyName = @"Ride Sharing Co.";
+[GMSNavigationServices
+showTermsAndConditionsDialogIfNeededWithCompanyName:companyName
+callback:^(BOOL termsAccepted) {
+if (termsAccepted) {
+_mapView.settings.compassButton = YES;
+
+UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+UNAuthorizationOptions options = UNAuthorizationOptionAlert;
+[center requestAuthorizationWithOptions:options
+completionHandler:^(BOOL granted, NSError *_Nullable error) {
+if (!error && granted) {
+NSLog(@"iOS Notification Permission: newly Granted");
+NSLog(@"iOS Notification Permission: Failed or Denied");
+
+[self makeButton];
+NSArray<GMSNavigationWaypoint *> *destinations =
+@[[[GMSNavigationWaypoint alloc] initWithPlaceID:@"ChIJnUYTpNASkFQR_gSty5kyoUk"
+[[GMSNavigationWaypoint alloc] initWithPlaceID:@"ChIJJ326ROcSkFQRBfUzOL2DSbo"
+_mapView.navigator.guidanceActive = YES;
+_mapView.navigator.sendsBackgroundNotifications = YES;
+_mapView.cameraMode = GMSNavigationCameraModeFollowing;
+UIButton *navButton = [UIButton buttonWithType:UIButtonTypeCustom];
+[navButton addTarget:self
+action:@selector(startNav)
+[navButton setBackgroundColor:[UIColor blueColor]];
+navButton.frame = CGRectMake(5.0, 150.0, 100.0, 35.0);
+[_mapView addSubview:navButton];
+Navigation SDK는 위치 서비스를 사용하며, 이 서비스에는 사용자 승인이 필요합니다. 위치 서비스를 사용 설정하고 승인 대화상자를 표시하려면 다음 단계를 따르세요.
+
+NSLocationAlwaysUsageDescription [https://developer.apple.com/library/content/documentation/General/Reference/InfoPlistKeyReference/Articles/CocoaKeys.html#//apple_ref/doc/uid/TP40009251-SW18] 키를 Info.plist에 추가합니다.
+값에는 앱에 위치 서비스가 필요한 이유를 간략하게 설명합니다. 예: '이 앱은 경로 안내를 위해 위치 서비스를 사용할 수 있는 권한이 필요합니다.'
+승인 대화상자를 표시하려면 위치 관리자 인스턴스의 requestAlwaysAuthorization()를 호출합니다.
+
+Swift
+self.locationManager.requestAlwaysAuthorization()
+
+Objective-C
+[_locationManager requestAlwaysAuthorization];
+
+백그라운드 안내를 위한 알림 승인
+
+앱이 백그라운드에서 실행될 때 알림을 제공하려면 Navigation SDK에 사용자 권한이 필요합니다. 사용자에게 이러한 알림을 표시할 권한을 묻는 다음 코드를 추가합니다.
+
+Swift
+UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) {
+granted, error in
+Objective-C
+UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+UNAuthorizationOptions options = UNAuthorizationOptionAlert;
+[center requestAuthorizationWithOptions:options
+completionHandler:
+^(
+BOOL granted,
+NSError *_Nullable error) {
+if (!error && granted) {
+NSLog(@"iOS Notification Permission: newly Granted");
+NSLog(@"iOS Notification Permission: Failed or Denied");
+GMSNavigationServices.showTermsAndConditionsDialogIfNeeded(
+with: termsAndConditionsOptions) { termsAccepted in
+if termsAccepted {
+self.mapView.settings.compassButton = true
+
+Objective-C
+GMSNavigationTermsAndConditionsOptions *termsAndConditionsOptions = [[GMSNavigationTermsAndConditionsOptions alloc] initWithCompanyName:@"Ride Sharing Co."];
+
+[GMSNavigationServices
+showTermsAndConditionsDialogIfNeededWithOptions:termsAndConditionsOptions
+callback:^(BOOL termsAccepted) {
+if (termsAccepted) {
+_mapView.settings.compassButton = YES;
+
+UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+UNAuthorizationOptions options = UNAuthorizationOptionAlert;
+[center requestAuthorizationWithOptions:options
+completionHandler:
+^(
+BOOL granted,
+NSError *_Nullable error) {
+if (!error && granted) {
+NSLog(@"iOS Notification Permission: newly Granted");
+NSLog(@"iOS Notification Permission: Failed or Denied");
+func startNav() {
+self.mapView.locationSimulator?.simulateLocationsAlongExistingRoute()
+self.mapView.cameraMode = .following
+Objective-C
+- (void)startNav {
+NSArray<GMSNavigationWaypoint *> *destinations =
+@[[[GMSNavigationWaypoint alloc] initWithPlaceID:@"ChIJnUYTpNASkFQR_gSty5kyoUk"
+[[GMSNavigationWaypoint alloc] initWithPlaceID:@"ChIJJ326ROcSkFQRBfUzOL2DSbo"
+_mapView.navigator.guidanceActive = YES;
+_mapView.cameraMode = GMSNavigationCameraModeFollowing;
+self.mapView.travelMode = .cycling
+
+Objective-C
+_mapView.travelMode = GMSNavigationTravelModeCycling;
+
+피할 도로 설정
+
+avoidsHighways 및 avoidsTolls BOOL 속성을 사용하여 경로에서 고속도로 또는 유료 도로를 제외합니다.
+
+Swift
+self.mapView.navigator?.avoidsTolls = true
+
+Objective-C
+_mapView.navigator.avoidsTolls = YES;
+
+PlaceID 찾기
+
+PlaceID Finder [https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder?hl=ko]를 사용하여 경로 목적지에 사용할 장소 ID를 찾을 수 있습니다. GMSNavigationWaypoint [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Classes/GMSNavigationWaypoint?hl=ko]가 있는 placeID에서 대상을 추가합니다.
+
+플로팅 텍스트
+
+Google 저작자 표시가 가려지지 않는 한 앱의 어느 곳에나 플로팅 텍스트를 추가할 수 있습니다. Navigation SDK는 지도상의 위도/경도 또는 라벨에 텍스트를 고정하는 기능을 지원하지 않습니다. 자세한 내용은 정보 창 [https://developers.google.com/maps/documentation/ios-sdk/infowindows?hl=ko#maps_ios_markers_info_window_title-objective-c]을 참고하세요.
+
+의견 보내기

@@ -1,0 +1,245 @@
+Source URL: https://developers.google.com/maps/documentation/places/ios-sdk/app-check?hl=ko
+Title: App Check를 사용하여 API 키 보호
+bookmark_border
+
+의견 보내기
+
+이 페이지의 내용앱 체크가 나에게 적합한가요?구현 단계 개요앱 체크 통합을 계획할 때 고려사항앱을 앱 체크와 통합기본 요건 및 요구사항1단계: 앱에 Firebase 추가2단계: 앱 체크 라이브러리 추가 및 앱 체크 초기화3단계: 토큰 제공자 추가4단계: Places API 및 App Check API 초기화5단계: 디버깅 사용 설정 (선택사항)6단계: 앱 요청 모니터링 및 시정 조치 결정
+
+플랫폼 선택:
+
+Android [https://developers.google.com/maps/documentation/places/android-sdk/app-check?hl=ko]
+
+iOS [https://developers.google.com/maps/documentation/places/ios-sdk/app-check?hl=ko]
+
+JavaScript [https://developers.google.com/maps/documentation/javascript/maps-app-check?hl=ko]
+
+App Check를 사용하여 API 키 보호
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Firebase 앱 체크 [https://firebase.google.com/docs/app-check?hl=ko]는 정상적인 앱 이외의 소스에서 발생하는 트래픽을 차단하여 앱에서 Google Maps Platform으로의 호출을 보호합니다. 이를 위해 App Attest [https://developer.apple.com/documentation/devicecheck/establishing_your_app_s_integrity]와 같은 증명 제공자로부터 토큰을 확인합니다. 앱을 앱 체크와 통합하면 악의적인 요청을 방지하여 승인되지 않은 API 호출에 대한 요금이 청구되지 않습니다.
+
+앱 체크가 나에게 적합한가요?
+
+대부분의 경우 App Check가 권장되지만 다음 경우에는 App Check가 필요하지 않거나 지원되지 않습니다.
+
+원본 Places SDK를 사용하고 있습니다. App Check는 Places SDK (신규)에서만 지원됩니다.
+
+비공개 또는 실험용 앱 앱에 공개적으로 액세스할 수 없는 경우 앱 확인이 필요하지 않습니다.
+앱이 서버 간으로만 사용되는 경우 앱 확인은 필요하지 않습니다. 하지만 GMP와 통신하는 서버가 모바일 앱과 같은 공개 클라이언트에서 사용되는 경우 GMP 대신 App Check를 사용하여 해당 서버를 보호 [https://firebase.google.com/docs/app-check/custom-resource-backend?hl=ko]하는 것이 좋습니다.
+
+앱 체크의 권장 증명 제공자는 증명 제공자가 보안이 취약하거나 신뢰할 수 없는 것으로 간주하는 기기에서는 작동하지 않습니다. 이러한 기기를 지원해야 하는 경우 맞춤 증명 서비스를 배포하면 됩니다. 자세한 내용은 안내 [https://firebase.google.com/docs/app-check/ios/custom-resource?hl=ko]를 참고하세요.
+
+구현 단계 개요
+대략적으로 앱을 앱 확인과 통합하는 단계는 다음과 같습니다.
+
+앱에 Firebase를 추가합니다.
+앱 체크 라이브러리를 추가하고 초기화합니다.
+앱에 토큰 제공자를 추가합니다.
+Places 및 앱 체크 API를 초기화합니다.
+디버깅을 사용 설정합니다.
+앱 요청을 모니터링하고 시행 여부를 결정합니다.
+
+App Check와 통합하면 Firebase 콘솔에서 백엔드 트래픽 측정항목을 확인할 수 있습니다. 이러한 측정항목은 유효한 앱 체크 토큰이 포함되었는지 여부에 따라 요청을 분류합니다. 자세한 내용은 Firebase 앱 체크 문서 [https://firebase.google.com/docs/app-check/monitor-metrics?hl=ko]를 참고하세요.
+
+대부분의 요청이 합법적인 소스에서 발생하고 사용자가 앱 체크 구현이 포함된 최신 버전의 앱으로 업데이트한 것이 확실하면 시행을 사용 설정할 수 있습니다. 적용이 사용 설정되면 앱 체크에서 유효한 앱 체크 토큰이 없는 모든 트래픽을 거부합니다.
+
+참고: 앱 체크 시행은 기본적으로 사용 설정되어 있지 않습니다.
+
+앱 체크 통합을 계획할 때 고려사항
+
+통합을 계획할 때 고려해야 할 사항은 다음과 같습니다.
+
+Google에서 권장하는 증명 제공자인 DeviceCheck [https://developer.apple.com/documentation/devicecheck] 또는 App Attest [https://developer.apple.com/documentation/devicecheck/establishing_your_app_s_integrity]에는 Apple에서 설정한 할당량과 제한이 적용됩니다.맞춤 증명 제공업체를 사용할 수도 있지만 이는 고급 사용 사례입니다. 자세한 내용은 Firebase 앱 체크 문서 [https://firebase.google.com/docs/app-check/custom-provider?hl=ko]를 참고하세요.
+
+앱 사용자는 시작 시 약간의 지연 시간을 경험하게 됩니다. 하지만 이후에는 주기적인 재증명이 백그라운드에서 이루어지므로 사용자에게 더 이상 지연 시간이 발생하지 않습니다. 시작 시 정확한 지연 시간은 선택한 증명 제공업체에 따라 달라집니다.
+앱 체크 토큰이 유효한 시간 (수명, TTL)에 따라 재증명의 빈도가 결정됩니다. 이 기간은 Firebase Console에서 구성할 수 있습니다. 재증명은 TTL의 약 절반이 경과하면 발생합니다. 자세한 내용은 증명 제공업체의 Firebase 문서 [https://firebase.google.com/docs/app-check?hl=ko#get_started]를 참고하세요.
+
+앱을 앱 체크와 통합
+
+참고: 더 빠르게 도움을 받으세요. 이 프로세스의 Firebase 관련 부분에 대한 지원은 Firebase 지원 [https://firebase.google.com/support?hl=ko]을 참고하세요. iOS용 Google Places SDK 관련 지원은 Google Maps Platform 지원 [https://developers.google.com/maps/support?hl=ko]을 참고하세요.
+
+기본 요건 및 요구사항
+
+Places SDK 버전 9.2 이상이 설치된 앱
+앱의 번들 ID [https://developer.apple.com/documentation/appstoreconnectapi/bundle-ids]입니다.
+Apple Member Center의 Membership(멤버십)에 있는 팀 ID입니다.
+기기 확인을 사용하려는 경우 비공개 키 파일 [https://developer.apple.com/help/account/configure-app-capabilities/create-a-devicecheck-private-key/] 및 키 ID [https://developer.apple.com/account/resources]
+
+Cloud Console에서 앱의 소유자여야 합니다.
+Cloud 콘솔의 앱 프로젝트 ID가 필요합니다.
+
+1단계: 앱에 Firebase 추가
+
+Firebase 개발자 문서의 안내 [https://firebase.google.com/docs/ios/setup?hl=ko]에 따라 앱에 Firebase를 추가합니다.
+
+앱을 등록하면 구성 파일 GoogleService-Info.plist이 제공됩니다. 이 파일을 수정하지 않고 앱의 루트 수준에 추가합니다.
+
+참고: Firebase 개발자 문서 [https://firebase.google.com/docs/ios/setup?hl=ko#initialize-firebase]의 5단계에서 AppDelegate 파일에 Firebase 모듈을 추가할 때 다음 모듈을 추가하세요.
+--- 탭: iOS용 Places Swift SDK [None] ---
+import FirebaseCore
+import FirebaseAppCheck
+import GooglePlacesSwift
+
+--- 탭: Swift [None] ---
+import FirebaseCore
+import FirebaseAppCheck
+import GooglePlaces
+
+--- 탭: Objective-C [None] ---
+@import FirebaseCore;
+@import FirebaseAppCheck;
+@import GooglePlaces;
+
+2단계: 앱 체크 라이브러리 추가 및 앱 체크 초기화
+
+Firebase는 각 기본 증명 제공업체에 대한 안내를 제공합니다. 이 안내에서는 Firebase 프로젝트를 설정하고 앱에 App Check 라이브러리를 추가하는 방법을 보여줍니다. 제공된 코드 샘플에 따라 App Check를 초기화하세요.
+
+Firebase 안내에 따라 앱 체크 라이브러리를 추가합니다.
+
+App Attest 안내 [https://firebase.google.com/docs/app-check/ios/app-attest-provider?hl=ko#install-sdk]를 참고하세요.
+기기 확인 안내 [https://firebase.google.com/docs/app-check/ios/devicecheck-provider?hl=ko]
+
+앱 체크를 초기화합니다.
+
+App Attest를 사용하는 경우 App Attest에 관한 Firebase 개발자 문서 [https://firebase.google.com/docs/app-check/ios/app-attest-provider?hl=ko#swift]를 따르세요.
+Firebase 앱 체크 안내 [https://firebase.google.com/docs/app-check/ios/app-attest-provider?hl=ko#swift]에 따라 AppCheckProviderFactory 구현을 만들고 AppDelegate 파일에 추가합니다.
+
+--- 탭: iOS용 Places Swift SDK [None] ---
+AppCheck.setAppCheckProviderFactory(providerFactory)
+
+--- 탭: Swift [None] ---
+AppCheck.setAppCheckProviderFactory(providerFactory)
+
+--- 탭: Objective-C [None] ---
+YourAppCheckProviderFactory *providerFactory =
+[[YourAppCheckProviderFactory alloc] init];
+[FIRAppCheck setAppCheckProviderFactory:providerFactory];
+
+기기 확인을 사용하는 경우 AppDelegate에 다음을 추가합니다.
+--- 탭: iOS용 Places Swift SDK [None] ---
+AppCheck.setAppCheckProviderFactory(DeviceCheckProviderFactory())
+
+--- 탭: Swift [None] ---
+AppCheck.setAppCheckProviderFactory(DeviceCheckProviderFactory())
+
+--- 탭: Objective-C [None] ---
+[FIRAppCheck setAppCheckProviderFactory:providerFactory];
+
+3단계: 토큰 제공자 추가
+
+앱의 루트 수준에서 AppCheckTokenProvider 파일 (Objective-C를 사용하는 경우 AppCheckTokenProvider.h 및 AppCheckTokenProvider.m 파일 두 개)을 만듭니다.
+
+다음 가져오기 문과 클래스 정의를 추가합니다.
+
+--- 탭: iOS용 Places Swift SDK [None] ---
+import Foundation
+import GooglePlacesSwift
+
+struct TokenProvider: AppCheckTokenProvider {
+func fetchAppCheckToken() async throws -> String {
+return try await AppCheck.appCheck().token(forcingRefresh: false).token
+import Foundation
+import GooglePlaces
+
+class AppCheckTokenProvider: NSObject, GMSPlacesAppCheckTokenProvider {
+func fetchAppCheckToken() async throws -> String {
+return try await AppCheck.appCheck().token(forcingRefresh: false).token
+@import GooglePlaces;
+
+@interface AppCheckTokenProvider : NSObject <GMSPlacesAppCheckTokenProvider>
+@end
+
+@implementation AppCheckTokenProvider
+
+- (void)fetchAppCheckTokenWithCompletion:(nonnull GMSAppCheckTokenCompletion)completion {
+[[FIRAppCheck appCheck]
+tokenForcingRefresh:NO
+completion:^(FIRAppCheckToken *_Nullable token, NSError *_Nullable error) {
+if (token) {
+completion(token.token, nil);
+AppDelegate 파일에서 Places API를 초기화합니다.
+--- 탭: iOS용 Places Swift SDK [None] ---
+PlacesClient.provideAPIKey("YOUR_API_KEY")
+
+--- 탭: Swift [None] ---
+GMSPlacesClient.provideAPIKey("YOUR_API_KEY")
+
+--- 탭: Objective-C [None] ---
+[GMSPlacesClient provideAPIKey:@"YOUR_API_KEY"];
+
+그런 다음 앱 체크 API를 초기화합니다.
+--- 탭: iOS용 Places Swift SDK [None] ---
+PlacesClient.setAppCheckTokenProvider(AppCheckTokenProvider())
+
+--- 탭: Swift [None] ---
+GMSPlacesClient.setAppCheckTokenProvider(AppCheckTokenProvider())
+
+--- 탭: Objective-C [None] ---
+[GMSPlacesClient setAppCheckTokenProvider:[[AppCheckTokenProvider alloc] init]];
+
+5단계: 디버깅 사용 설정 (선택사항)
+
+로컬에서 앱을 개발 및 테스트하거나 지속적 통합 (CI) 환경에서 앱을 실행하려면 디버그 비밀을 사용하여 유효한 앱 체크 토큰을 획득하는 앱의 디버그 빌드를 만들면 됩니다. 이렇게 하면 디버그 빌드에서 실제 증명 제공자를 사용하지 않아도 됩니다.
+
+시뮬레이터 또는 테스트 기기에서 앱을 테스트하려면 다음 단계를 따르세요.
+
+앱 체크 디버그 제공자 팩토리를 만들고 설정합니다.
+이 코드 샘플은 디버깅 및 프로덕션 시나리오를 모두 처리합니다.
+
+--- 탭: iOS용 Places Swift SDK [None] ---
+#if targetEnvironment(simulator)
+FIRAppCheckDebugProviderFactory *providerFactory =
+[[FIRAppCheckDebugProviderFactory alloc] init];
+[FIRAppCheck setAppCheckProviderFactory:providerFactory];
+YourAppCheckProviderFactory *providerFactory =
+[[YourAppCheckProviderFactory alloc] init];
+[FIRAppCheck setAppCheckProviderFactory:providerFactory];
+Xcode 프로젝트에서 로깅을 사용 설정하고 앱을 실행한 후 로그에서 로컬 디버그 토큰을 찾습니다.
+이 토큰을 Firebase Console에 추가합니다.
+자세한 내용과 안내는 앱 체크 문서 [https://firebase.google.com/docs/app-check/ios/debug-provider?hl=ko#simulator]를 참고하세요.
+
+CI 환경에서 앱을 실행하려면 다음 단계를 따르세요.
+
+Firebase Console에서 디버그 토큰을 만들고 CI 시스템의 보안 키 저장소에 추가합니다.
+Xcode에서 이름이 FIRAAppCheckDebugToken이며 $(APP_CHECK_DEBUG_TOKEN) (또는 이와 유사한 값)으로 환경 변수를 테스트 스키마에 추가합니다.
+CI 테스트 스크립트에서 디버그 토큰을 환경 변수로 전달합니다.
+앱 체크 디버그 제공자 팩토리를 만들고 설정합니다.
+이 코드 샘플은 디버깅 및 프로덕션 시나리오를 모두 처리합니다.
+
+--- 탭: iOS용 Places Swift SDK [None] ---
+#if DEBUG
+AppCheck.setAppCheckProviderFactory(providerFactory)
+
+--- 탭: Swift [None] ---
+#if DEBUG
+AppCheck.setAppCheckProviderFactory(providerFactory)
+
+--- 탭: Objective-C [None] ---
+#if DEBUG
+id<FIRAppCheckProviderFactory> providerFactory =
+[[FIRAppCheckDebugProviderFactory alloc] init];
+#else  // DEBUG
+id<FIRAppCheckProviderFactory> providerFactory =
+[[YourAppCheckProviderFactory alloc] init];
+#endif  // DEBUG
+AppCheck.setAppCheckProviderFactory(providerFactory)
+
+자세한 내용과 안내는 앱 체크 문서 [https://firebase.google.com/docs/app-check/ios/debug-provider?hl=ko#ci]를 참고하세요.
+
+6단계: 앱 요청 모니터링 및 시정 조치 결정
+
+시행을 시작하기 전에 앱의 적법한 사용자를 방해하지 않는지 확인해야 합니다. 이렇게 하려면 앱 체크 측정항목 화면을 방문하여 앱 트래픽 중 인증된 트래픽, 오래된 트래픽, 불법 트래픽의 비율을 확인하세요. 대부분의 트래픽이 인증된 것으로 확인되면 시행을 사용 설정할 수 있습니다.
+
+자세한 내용과 안내는 Firebase 앱 체크 문서 [https://firebase.google.com/docs/app-check/monitor-metrics?hl=ko]를 참고하세요.
+
+App Check를 적용하기 전에 Cloud 프로젝트의 모든 웹 서비스 호출이 OAuth [https://developers.google.com/maps/documentation/places/web-service/oauth-token?hl=ko]를 사용하는지 확인하세요.
+
+도움이 되었나요?
+
+의견 보내기

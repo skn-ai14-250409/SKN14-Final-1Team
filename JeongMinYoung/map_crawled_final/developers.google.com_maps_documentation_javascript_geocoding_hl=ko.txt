@@ -1,0 +1,354 @@
+Source URL: https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko
+Title: 지오코딩 서비스
+
+의견 보내기
+
+지오코딩 서비스
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+참고: 서버 측 라이브러리
+
+이 페이지에서는 Maps JavaScript API와 함께 사용할 수 있는 클라이언트 측 서비스를 설명합니다.
+서버에서 Google 지도 웹 서비스를 사용하려면 Google 지도 서비스용 Node.js 클라이언트 [https://developers.google.com/maps/web-services/client-library?hl=ko]를 참고하세요. 이 링크의 페이지에는 Google 지도 서비스용 Java 클라이언트, Python 클라이언트, Go 클라이언트도 소개되어 있습니다.
+
+유럽 경제 지역 (EEA) 개발자
+
+청구서 수신 주소가 유럽 경제 지역에 있는 경우 2025년 7월 8일부터 서비스 사용 시 Google Maps Platform EEA 서비스 약관 [https://cloud.google.com/terms/maps-platform/eea?hl=ko]이 적용됩니다. 기능은 리전에 따라 다릅니다.
+자세히 알아보기 [https://developers.google.com/maps/comms/eea/faq?hl=ko]
+
+개요
+
+Maps JavaScript API 참조:
+지오코더 [https://developers.google.com/maps/documentation/javascript/reference/geocoder?hl=ko]도 참고하세요.
+
+지오코딩은 주소(예: '1600 Amphitheatre Parkway, Mountain View, CA')를 마커나 지도를 배치하는 데 사용할 수 있는 지리 좌표(예: 위도 37.423021 및 경도 -122.083739)로 변환하는 과정입니다.
+
+역 지오코딩은 지리 좌표를 인간이 읽을 수 있는 주소로 변환하는 과정입니다(역 지오코딩(주소 조회) [https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko#ReverseGeocoding] 참고).
+
+지오코더를 사용하여 지정된 장소 ID [https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko#place-id]의 주소를 찾을 수도 있습니다.
+
+Maps JavaScript API는 사용자 입력에서 동적으로 지오코딩 및 역 지오코딩하기 위한 지오코더 클래스 [https://developers.google.com/maps/documentation/javascript/reference/geocoder?hl=ko]를 제공합니다. 알려진 정적 주소를 지오코딩하려면 지오코딩 웹 서비스 [https://developers.google.com/maps/documentation/geocoding?hl=ko]를 참고하세요.
+
+시작하기
+
+Maps JavaScript API에서 지오코딩 서비스를 사용하려면 먼저 Maps JavaScript API를 위해 설정한 것과 동일한 프로젝트의 Google Cloud 콘솔에서 Geocoding API를 사용 설정해야 합니다.
+사용 설정된 API의 목록을 보려면 다음 단계를 따르세요.
+
+Google Cloud 콘솔 [https://console.cloud.google.com/project/_/apiui/apis/enabled?utm_source=Docs_EnabledAPIsView&hl=ko]로 이동합니다.
+
+프로젝트 선택 버튼을 클릭한 후 Maps JavaScript API를 위해 설정한 것과 동일한 프로젝트를 선택하고 열기를 클릭합니다.
+대시보드의 API 목록에서 Geocoding API를 찾습니다.
+목록에 API가 표시되면 완료된 것입니다. API가 표시되지 않으면 API를 사용 설정하세요.
+
+페이지 상단에서 API 사용 설정을 선택하여 라이브러리 탭을 표시합니다. 또는 왼쪽 사이드 메뉴에서 라이브러리를 선택합니다.
+Geocoding API를 검색한 후 결과 목록에서 선택합니다.
+
+사용 설정을 선택합니다. 과정이 완료되면 Geocoding API가 대시보드의 API 목록에 표시됩니다.
+
+가격 정보 및 정책
+가격 책정
+JavaScript 지오코딩 서비스의 가격 및 사용 정책에 대해 알아보려면 Geocoding API의 사용량 및 결제 [https://developers.google.com/maps/documentation/geocoding/usage-and-billing?hl=ko]를 참고하세요.
+
+정책
+지오코딩 서비스는 Geocoding API에 대한 정책 [https://developers.google.com/maps/documentation/geocoding/policies?hl=ko]에 따라 사용해야 합니다.
+
+지오코딩 요청
+
+Google 지도 API는 외부 서버를 호출해야 하므로 지오코딩 서비스 액세스는 비동기식입니다. 따라서 요청 완료 시 실행할 콜백 메서드를 전달해야 합니다. 이 콜백 메서드가 결과를 처리합니다. 지오코더에서 두 개 이상의 결과를 반환할 수도 있습니다.
+
+google.maps.Geocoder 생성자 객체를 사용하여 코드 내에서 Google 지도 API 지오코딩 서비스에 액세스합니다. Geocoder.geocode() 메서드는 지오코딩 서비스 요청을 시작하고 입력 용어가 포함된 GeocoderRequest 객체 리터럴 및 응답 수신 시 실행할 콜백 메서드를 전달합니다.
+
+GeocoderRequest 객체 리터럴에는 다음 필드가 포함됩니다.
+
+address: string,
+location: LatLng,
+placeId: string,
+bounds: LatLngBounds,
+componentRestrictions: GeocoderComponentRestrictions,
+region: string
+
+또는
+
+location - 인간이 읽을 수 있는 가장 가까운 주소를 얻으려는 LatLng (또는 LatLngLiteral). 지오코더가 역 지오코딩을 실행합니다.
+자세한 내용은 역 지오코딩 [https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko#ReverseGeocoding]을 참고하세요.
+
+또는
+
+placeId: 인간이 읽을 수 있는 가장 가까운 주소를 얻으려는 장소의 장소 ID입니다. 장소 ID의 주소 가져오기 [https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko#place-id]에 대해 자세히 알아보세요.
+
+매개변수 옵션:
+
+bounds - 지오코딩 결과가 더 눈에 띄게 편향되는 LatLngBounds [https://developers.google.com/maps/documentation/javascript/reference/coordinates?hl=ko#LatLngBounds]. bounds 매개변수는 지오코더의 결과에 영향을 줄 뿐이며 결과를 완전히 제한하지는 않습니다. 자세한 내용은 아래의 표시 영역 상세 검색 [https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko#GeocodingViewports]을 참고하세요.
+componentRestrictions - 결과를 특정 지역으로 제한하는 데 사용됩니다. 자세한 내용은 아래의 구성요소 필터링 [https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko#ComponentFiltering]을 참고하세요.
+region - 두 자리 유니코드 지역 하위 태그(숫자가 아님)로 지정되는 지역 코드. 대부분의 경우 이러한 태그는 익숙한 두 자리 ccTLD('최상위 도메인') 값에 직접 매핑됩니다.  region 매개변수는 지오코더의 결과에 영향을 줄 뿐이며 결과를 완전히 제한하지는 않습니다. 자세한 내용은 아래의 지역 코드 상세 검색 [https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko#GeocodingRegionCodes]을 참고하세요.
+extraComputations: 이 매개변수에 허용되는 유일한 값은 ADDRESS_DESCRIPTORS입니다. 자세한 내용은 주소 설명자 [https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko#GeocodingAddressDescriptors]를 참고하세요.
+fulfillOnZeroResults: 응답에서 ZERO_RESULT 상태에 대한 약속을 처리합니다. 지오코딩 결과가 0개이더라도 응답 수준 필드가 추가로 반환될 수 있으므로 이 작업이 필요할 수 있습니다. 자세한 내용은 검색 결과 없음 시 처리 [https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko#GeocodingFulfillOnZeroResults]를 참고하세요.
+
+지오코딩 응답
+
+지오코딩 서비스에는 지오코더의 결과를 가져올 때 실행할 콜백 메서드가 필요합니다. 이 콜백은 results 및 status 코드를 이 순서대로 보유할 두 매개변수를 전달해야 합니다.
+
+참고: 지오코딩 응답에는 응답 수준의 plus_code 및 address_descriptor 필드도 포함되지만 콜백을 통해 액세스할 수는 없습니다.address_descriptor  대신 약속을 통해 액세스해야 합니다.  자세한 내용은 검색 결과 없음 시 처리 [https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko#GeocodingFulfillOnZeroResults]를 참고하세요.
+
+지오코딩 결과
+
+GeocoderResult 객체는 단일 지오코딩 결과를 나타냅니다. 지오코드 요청이 여러 결과 객체를 반환할 수도 있습니다.
+
+results[]: {
+types[]: string,
+formatted_address: string,
+address_components[]: {
+short_name: string,
+long_name: string,
+postcode_localities[]: string,
+types[]: string
+이 주소는 대개 우편 주소와 일치합니다. 참고: 영국과 같은 일부 국가에서는 라이선스 제한으로 인해 실제 우편 주소의 배포가 허용되지 않습니다.
+
+형식이 지정된 주소는 하나 이상의 주소 구성요소로 논리적으로 구성됩니다. 예를 들어 주소 '111 8th Avenue, New York, NY'는 '111'(번지), '8th Avenue'(경로), 'New York'(도시) 및 'NY'(미국의 주)로 구성됩니다.
+
+형식이 지정된 주소를 프로그래매틱 방식으로 파싱하지 마세요. 대신 API 응답에 형식이 지정된 주소 필드 외에 포함되는 개별 주소 구성요소를 사용해야 합니다.
+
+address_components[]는 이 주소에 적용할 수 있는 별도의 구성요소가 포함된 배열입니다.
+각 주소 구성요소에는 일반적으로 다음과 같은 필드가 포함됩니다.
+
+types[]는 주소 구성요소의 유형을 나타내는 배열입니다. 지원되는 유형 [https://developers.google.com/maps/documentation/places/web-service/place-types?hl=ko]의 목록을 참고하세요.
+long_name은 지오코더에서 반환하는 주소 구성요소의 전체 텍스트 설명 또는 이름입니다.
+short_name은 주소 구성요소의 축약된 텍스트 이름입니다(해당하는 경우). 예를 들어 알래스카 주의 주소 구성요소에는 long_name 'Alaska'와 두 자리 우편 약어를 사용하는 short_name 'AK'가 포함될 수 있습니다.
+
+address_components[] 배열에 대한 다음 사실을 참고하세요.
+
+주소 구성요소의 배열에 formatted_address보다 더 많은 구성요소가 포함될 수도 있습니다.
+formatted_address에 포함된 것 외에 주소가 포함된 모든 정치적 독립체가 배열에 포함되는 것은 아닙니다. 특정 주소가 포함된 모든 정치적 독립체를 가져오려면 역 지오코딩을 사용하여 주소의 위도/경도를 매개변수로 요청에 전달해야 합니다.
+응답의 형식이 요청 간에 동일하게 유지되지 않을 수도 있습니다. 특히 address_components의 수는 요청된 주소에 따라 다르며 동일한 주소에 대해서도 시간이 지남에 따라 변경될 수 있습니다. 배열에서 구성요소의 위치가 변경될 수 있습니다.
+구성요소의 유형이 변경될 수 있습니다. 특정 구성요소가 이후 응답에서 누락될 수 있습니다.
+
+자세한 내용은 아래의 주소 유형 및 주소 구성요소 유형 [https://developers.google.com/maps/documentation/javascript/geocoding?hl=ko#GeocodingAddressTypes]을 참고하세요.
+
+partial_match는 지오코더가 원래 요청에 대해 정확히 일치하는 결과를 반환하지 않았지만 요청된 주소의 일부분과 일치할 수 있음을 나타냅니다. 원래 요청에 맞춤법 오류 또는 불완전한 주소가 포함되어 있는지 검사할 수도 있습니다.
+부분 일치는 요청에 전달되는 지역 내에 상세 주소가 존재하지 않는 경우 가장 자주 발생합니다. 요청이 동일한 지역에 있는 두 개 이상의 위치와 일치하는 경우에도 부분 일치가 반환될 수 있습니다.
+예를 들어 'Hillpar St, Bristol, UK'는 Henry Street 및 Henrietta Street 모두에 대해 부분 일치를 반환합니다. 요청에 맞춤법이 틀린 주소 구성요소가 포함된 경우에는 지오코딩 서비스에서 대체 주소를 제안할 수도 있습니다. 이러한 방식으로 실행된 제안도 부분 일치로 표시될 수 있습니다.
+
+place_id는 다른 Google API와 함께 사용할 수 있는 장소의 고유 식별자입니다. 예를 들어 place_id를 Google Places API [https://developers.google.com/maps/documentation/javascript/places?hl=ko] 라이브러리와 함께 사용하여 전화번호, 영업시간, 사용자 리뷰 등 지역 비즈니스의 세부정보를 가져올 수 있습니다. 장소 ID 개요 [https://developers.google.com/maps/documentation/javascript/place-id?hl=ko]를 참고하세요.
+
+postcode_localities[]는 우편번호에 포함된 모든 지역을 나타내는 배열이며 결과가 여러 지역이 포함된 우편번호인 경우에만 존재합니다.
+geometry에는 다음 정보가 포함됩니다.
+
+location에는 지오코딩된 위도, 경도 값이 포함됩니다.
+이 위치는 형식이 지정된 문자열이 아닌 LatLng 객체로 반환됩니다.
+location_type은 지정된 위치에 대한 추가 데이터를 저장합니다. 다음과 같은 값이 지원됩니다.
+
+ROOFTOP은 반환된 결과가 정확한 지오코드를 반영함을 나타냅니다.
+RANGE_INTERPOLATED는 반환된 결과가 일반적으로 도로에서 정확한 두 지점(예: 교차로) 간에 보간된 근사값을 반영함을 나타냅니다. 상세 주소에 옥상 지오코드를 사용할 수 없는 경우 일반적으로 보간된 결과가 반환됩니다.
+GEOMETRIC_CENTER는 반환된 결과가 다중선(예: 거리) 또는 다각형(지역)과 같이 결과의 도형 중심임을 나타냅니다.
+APPROXIMATE는 반환된 결과가 근사값임을 나타냅니다.
+
+viewport는 반환된 결과에 권장되는 표시 영역을 저장합니다.
+선택적으로 반환되는 bounds는 반환된 결과를 완전히 포함할 수 있는 LatLngBounds를 저장합니다.
+참고: 이러한 경계가 권장된 표시 영역과 일치하지 않을 수도 있습니다. 예를 들어 샌프란시스코에는 실질적으로 도시의 일부지만 표시 영역에 반환되면 안 되는 패럴론 섬 [https://en.wikipedia.org/wiki/Farallon_Islands]이 포함됩니다.
+
+주소는 지오코더에서 브라우저의 기본 언어 설정이나 language 매개변수를 사용하여 API JavaScript를 로드할 때 지정된 언어를 사용하여 반환합니다. 자세한 내용은 현지화 [https://developers.google.com/maps/documentation/javascript/localization?hl=ko]를 참고하세요.
+
+주소 유형 및 주소 구성요소 유형
+
+응답의 GeocoderResult [https://developers.google.com/maps/documentation/javascript/3.exp/reference?hl=ko#GeocoderResult]에 있는 types[] 배열은 주소 유형을 나타냅니다. 주소 유형의 예로는 상세 주소, 국가, 행정 구역이 있습니다. GeocoderAddressComponent [https://developers.google.com/maps/documentation/javascript/3.exp/reference?hl=ko#GeocoderAddressComponent]의 types 배열은 주소의 각 부분의 유형을 나타냅니다. 예에는 번지 또는 국가가 포함됩니다.
+
+주소에는 여러 유형이 있을 수 있습니다. 이러한 유형은 '태그'로 간주될 수 있습니다.
+예를 들어 많은 도시가 political 및 locality 유형으로 태그됩니다.
+
+주소 유형과 주소 구성요소 유형 배열 모두에서 다음과 같은 유형이 지원되고 반환됩니다.
+
+| 주소 유형 | 설명 |
+| --- | --- |
+| street_address | 정확한 상세 주소입니다. |
+| route | 이름이 지정된 경로 (예: 'US 101') |
+| intersection | 일반적으로 두 주요 도로의 주요 교차로입니다. |
+| political | 정치적 독립체입니다. 일반적으로 이 유형은 일부 정부 행정 구역의 폴리곤을 나타냅니다. |
+| country | 전국적인 정치적 독립체로 일반적으로 지오코더에서 반환하는 순위가 가장 높은 유형입니다. |
+| administrative_area_level_1 | 국가 수준 아래 첫 번째 행정 독립체입니다. 미국 내에서, 이러한 행정 레벨은 주입니다. 모든 국가에 이러한 행정 구역 수준이 표시되지는 않습니다. 대부분의 경우 administrative_area_level_1 짧은 이름은 ISO 3166-2 하위 구역이나 기타 널리 보급된 목록들과 거의 일치하지만 지오코딩 결과는 다양한 신호와 위치 데이터를 기반으로 하기 때문에 이러한 일치가 보장되지는 않습니다. |
+| administrative_area_level_2 | 국가 수준 아래 두 번째 행정 독립체입니다. 미국 내에서, 이러한 행정 레벨은 카운티입니다. 모든 국가에 이러한 행정 구역 수준이 표시되지는 않습니다. |
+| administrative_area_level_3 | 국가 수준 아래 세 번째 행정 독립체입니다. 이 유형은 하위 행정 구역을 나타냅니다. 모든 국가에 이러한 행정 구역 수준이 표시되지는 않습니다. |
+| administrative_area_level_4 | 국가 수준 아래 네 번째 행정 독립체입니다. 이 유형은 하위 행정 구역을 나타냅니다. 모든 국가에 이러한 행정 구역 수준이 표시되지는 않습니다. |
+| administrative_area_level_5 | 국가 수준 아래 다섯 번째 행정 독립체입니다. 이 유형은 하위 행정 구역을 나타냅니다. 모든 국가에 이러한 행정 구역 수준이 표시되지는 않습니다. |
+| administrative_area_level_6 | 국가 수준 아래 여섯 번째 행정 독립체입니다. 이 유형은 하위 행정 구역을 나타냅니다. 모든 국가에 이러한 행정 구역 수준이 표시되지는 않습니다. |
+| administrative_area_level_7 | 국가 수준 아래 일곱 번째 행정 독립체입니다. 이 유형은 하위 행정 구역을 나타냅니다. 모든 국가에 이러한 행정 구역 수준이 표시되지는 않습니다. |
+| colloquial_area | 일반적으로 사용되는 독립체의 대체 이름입니다. |
+| locality | 도시 또는 마을로 통합된 정치적 독립체입니다. |
+| sublocality | 지역 아래 첫 번째 행정 독립체입니다. 일부 위치의 경우 추가 유형 중 하나(sublocality_level_1~sublocality_level_5)를 받을 수도 있습니다. 각 하위 지역 수준은 하나의 행정 독립체입니다. 숫자가 클수록 더 작은 지역을 나타냅니다. |
+| neighborhood | 이름이 지정된 동네입니다. |
+| premise | 이름이 지정된 위치로, 일반적으로 공통된 이름을 가진 건물 또는 여러 건물입니다. |
+| subpremise | 아파트, 동/호수, 스위트와 같이 건물 수준 아래의 주소 지정이 가능한 항목입니다. |
+| plus_code | 위도와 경도에서 파생된 인코딩된 위치 참조입니다. Plus Code는 상세 주소가 없는 (건물에 번호가 지정되지 않거나 거리 이름이 없는) 장소의 상세 주소 대신 사용할 수 있습니다. 자세한 내용은 https://plus.codes를 참고하세요. |
+| postal_code | 국가 내에서 우편물을 보낼 때 사용되는 우편번호입니다. |
+| natural_feature | 유명한 자연 지형지물 |
+| airport | 공항 |
+| park | 이름이 지정된 공원입니다. |
+| point_of_interest | 이름이 지정된 관심 장소입니다. 일반적으로 이러한 '관심 장소'는 '엠파이어 스테이트 빌딩' 또는 '에펠탑'과 같이 다른 카테고리에 쉽게 포함되지 않는 유명한 지역 항목입니다. |
+
+빈 유형 목록은 특정 주소 요소에 대해 알려진 유형이 없다는 것을 나타냅니다 (예: 프랑스의 리외디).
+
+위의 유형 외에 아래의 유형이 주소 구성 요소에 포함될 수도 있습니다.
+
+참고: 이 목록은 전체 목록이 아니며 변경될 수 있습니다.
+
+위의 유형 외에도 아래에 나열된 유형이 주소 구성요소에 포함될 수도 있습니다.
+
+참고: 이 목록은 전체 목록이 아니며 변경될 수 있습니다.
+
+| 주소 구성요소 유형 | 설명 |
+| --- | --- |
+| floor | 건물 주소의 층입니다. |
+| establishment | 일반적으로 아직 분류되지 않은 장소입니다. |
+| landmark | 탐색을 돕기 위해 참조로 사용되는 주변 장소입니다. |
+| point_of_interest | 이름이 지정된 관심 장소입니다. |
+| parking | 주차장 또는 주차 시설 |
+| post_box | 특정 사서함 |
+| postal_town | 일부 국가에서 우편 주소에 사용되는 locality 및 sublocality와 같은 지리적 영역의 그룹입니다. |
+| room | 건물 주소의 방입니다. |
+| street_number | 정확한 번지입니다. |
+| bus_station, train_station, transit_station | 버스, 기차 또는 대중교통 정류장의 위치입니다. |
+
+상태 코드
+
+status 코드는 다음 값 중 하나를 반환할 수 있습니다.
+
+"OK"는 오류가 발생하지 않았음을 나타냅니다. 주소가 성공적으로 파싱되었고 한 개 이상의 지오코드가 반환되었습니다.
+"ZERO_RESULTS"는 지오코딩이 성공했지만 반환된 결과가 없음을 나타냅니다.
+지오코더가 존재하지 않는 address에 전달된 경우 이러한 결과가 발생할 수도 있습니다.
+"OVER_QUERY_LIMIT"는 할당량을 초과했음을 나타냅니다.
+"REQUEST_DENIED"는 요청이 거부되었음을 나타냅니다. 웹페이지에서 지오코더를 사용할 수 없습니다.
+"INVALID_REQUEST"는 일반적으로 쿼리(address, components 또는 latlng)가 누락되었음을 나타냅니다.
+"UNKNOWN_ERROR"는 서버 오류로 인해 요청을 처리하지 못했음을 나타냅니다. 다시 시도하면 요청이 성공할 수도 있습니다.
+"ERROR"는 요청 시간이 초과되었거나 Google 서버에 연결하는 데 문제가 발생했음을 나타냅니다. 다시 시도하면 요청이 성공할 수도 있습니다.
+
+이 예에서는 주소를 지오코딩하고 반환된 위도와 경도 값에 마커를 배치합니다. 핸들러는 익명 함수 리터럴로 전달됩니다.
+
+"types":["locality","political"],
+"formatted_address":"Toledo, España",
+"address_components":[{
+"long_name":"Toledo",
+"short_name":"Toledo",
+"types":["locality","political"]
+locality는 지역 및 하위 지역 유형과 일치하는 항목을 찾습니다.
+administrativeArea는 모든 행정 구역 수준과 일치하는 항목을 찾습니다.
+
+postalCode는 우편번호 및 우편번호 접두사와 일치하는 항목을 찾습니다.
+
+country는 국가 이름 또는 두 자리 ISO 3166-1 [https://en.wikipedia.org/wiki/ISO_3166-1] 국가 코드와 일치하는 항목을 찾습니다. 참고: API는 국가 정의에 대한 ISO 표준을 따르며 필터링은 해당하는 국가의 ISO 코드를 사용할 때 가장 잘 작동합니다.
+
+다음 예에서는 componentRestrictions [https://developers.google.com/maps/documentation/javascript/reference?hl=ko#GeocoderComponentRestrictions] 매개변수를 사용하여 country 및 postalCode를 기준으로 필터링하는 방법을 보여줍니다.
+
+function codeAddress() {
+geocoder.geocode({
+componentRestrictions: {
+country: 'AU',
+postalCode: '2000'
+.geocode({
+'location': latlng,
+'fulfillOnZeroResults': true,
+.geocode({
+'location': latlng,
+'extraComputations': ["ADDRESS_DESCRIPTORS"],
+"address_descriptor" : {
+"areas" : [
+"containment" : "OUTSKIRTS",
+"display_name" : {
+"language_code" : "en",
+"text" : "Turkman Gate"
+straight_line_distance_meters는 입력 좌표와 랜드마크 결과 간의 점 간 거리(단위: 미터)입니다.
+travel_distance_meters는 입력 좌표와 랜드마크 결과 간의 도로 네트워크를 사용하여 이동한 거리(도로 제한사항 무시)입니다(단위: 미터).
+spatial_relationship는 입력 좌표와 랜드마크 결과 간의 추정된 관계입니다.
+
+"NEAR"는 다음 중 어느 것에도 해당하지 않는 경우의 기본 관계입니다.
+입력 좌표가 랜드마크와 연결된 구조물의 경계 내에 포함되는 경우 "WITHIN"입니다.
+입력 좌표가 랜드마크 또는 랜드마크의 액세스 포인트에 바로 인접한 경우 "BESIDE"
+입력 좌표가 경로 반대편의 랜드마크와 정반대인 경우 "ACROSS_THE_ROAD"
+입력 좌표가 랜드마크와 동일한 경로에 있지만 "BESIDES" 또는 "ACROSS_THE_ROAD"가 아닌 경우 "DOWN_THE_ROAD"입니다.
+입력 좌표가 랜드마크와 직각 경로를 따라 있는 경우 (단일 회전으로 제한됨) "AROUND_THE_CORNER"입니다.
+입력 좌표가 지형지물과 공간적으로 가깝지만 액세스 포인트와는 멀리 떨어져 있는 경우 "BEHIND"
+
+types는 명소의 장소 유형 [https://developers.google.com/maps/documentation/javascript/supported_types?hl=ko#table1]입니다.
+
+areas 객체는 최대 3개의 응답을 포함하며, 동네, 하위 지역, 대규모 단지와 같이 작은 지역을 나타내는 장소로 제한됩니다. 요청된 좌표가 포함된 영역이 먼저 나열되며 가장 작은 영역부터 가장 큰 영역 순으로 정렬됩니다. 각 areas 결과에는 다음 값이 포함됩니다.
+
+place_id는 지역 결과의 장소 ID입니다. 장소 ID 개요 [https://developers.google.com/maps/documentation/javascript/place-id?hl=ko]를 참고하세요.
+display_name은 지역의 표시 이름으로 language_code 및 text를 포함합니다.
+containment는 입력 좌표와 영역 결과 간의 예상 포함 관계입니다.
+
+"NEAR"는 다음 중 어느 것에도 해당하지 않는 경우의 기본 관계입니다.
+입력 좌표가 영역 중앙에 가까울 때 "WITHIN"
+입력 좌표가 영역 가장자리에 가까울 때 "OUTSKIRTS"
+
+주소 설명자 노출 범위
+주소 설명어는 인도에서 GA 버전으로 제공됩니다. 인도에서 주소 설명자를 사용해도 추가 비용이 발생하지 않으며 사용량은 기존 Geocoding (India) Essentials SKU [https://developers.google.com/maps/billing-and-pricing/pricing-india?hl=ko#places-pricing]로 처리됩니다.
+
+의견
+
+이 기능은 모든 지역에서 사용할 수 있습니다. 인도에서는 정식 버전으로, 다른 모든 지역에서는 GA 이전 실험 버전 출시 단계에 있습니다. 의견을 보내주세요.
+
+인도 지역과 관련된 문제인 경우 지원팀 [https://developers.google.com/maps/documentation/geocoding/support?hl=ko#contact-maps-support]에 문의하세요.
+실험 버전에 관한 의견이 있으면 address-descriptors-feedback@google.com [mailto:address-descriptors-feedback@google.com]으로 이메일을 보내 주세요.
+자세한 내용은 주소 설명자 적용 범위 세부정보 [https://developers.google.com/maps/documentation/geocoding/address-descriptors/coverage?hl=ko]를 참고하세요.
+
+역 지오코딩(주소 조회)
+
+일반적으로 지오코딩이라는 용어는 사람이 읽을 수 있는 주소를 지도상의 위치로 변환하는 과정을 가리킵니다. 반대로 지도상의 위치를 사람이 읽을 수 있는 주소로 변환하는 과정은 역 지오코딩이라고 합니다.
+
+텍스트 address를 제공하는 대신 location 매개변수에 쉼표로 구분된 위도/경도 쌍을 제공합니다.
+
+참고: 요청에 componentRestrictions 매개변수를 포함하면 location 매개변수는 무시됩니다.
+
+다음 예에서는 위도/경도 값을 지오코딩하고 해당 위치로 지도의 중심을 이동하여 형식이 지정된 주소가 포함된 정보 창을 표시합니다.
+
+TypeScript
+function initMap(): void {
+geocoder: google.maps.Geocoder,
+map: google.maps.Map,
+infowindow: google.maps.InfoWindow
+) {
+.geocode({ location: latlng })
+.then((response) => {
+if (response.results[0]) {
+map.setZoom(11);
+
+infowindow.open(map, marker);
+function initMap() {
+.geocode({ location: latlng })
+.then((response) => {
+if (response.results[0]) {
+map.setZoom(11);
+
+infowindow.open(map, marker);
+
+address
+latLng
+location
+componentRestrictions
+
+다음 예에서는 장소 ID를 받아 해당하는 주소를 찾은 다음 그 위치에 지도의 중심을 맞춥니다. 또한 관련 장소의 형식이 지정된 주소를 보여주는 정보 창을 표시합니다.
+
+TypeScript
+geocoder: google.maps.Geocoder,
+map: google.maps.Map,
+infowindow: google.maps.InfoWindow
+) {
+
+geocoder
+.geocode({ placeId: placeId })
+.then(({ results }) => {
+if (results[0]) {
+map.setZoom(11);
+map.setCenter(results[0].geometry.location);
+
+position: results[0].geometry.location,
+infowindow.open(map, marker);
+.geocode({ placeId: placeId })
+.then(({ results }) => {
+if (results[0]) {
+map.setZoom(11);
+map.setCenter(results[0].geometry.location);
+
+position: results[0].geometry.location,
+infowindow.open(map, marker);

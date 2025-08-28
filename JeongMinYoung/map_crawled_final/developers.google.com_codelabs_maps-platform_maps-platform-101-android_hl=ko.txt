@@ -1,0 +1,500 @@
+Source URL: https://developers.google.com/codelabs/maps-platform/maps-platform-101-android?hl=ko
+Title: Android 앱에 지도 추가(Kotlin)
+
+Android 앱에 지도 추가(Kotlin)
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+1. 시작하기 전에
+
+이 Codelab에서는 Android용 Maps SDK를 앱과 통합하고 미국 캘리포니아주 샌프란시스코에 있는 자전거 매장을 표시하는 앱을 빌드하여 핵심 기능을 사용하는 방법을 알려줍니다.
+
+기본 요건
+
+Kotlin 및 Android 개발에 대한 기본 지식
+
+수행할 작업
+
+Android용 Maps SDK를 사용하여 Android 앱에 Google 지도를 추가합니다.
+마커를 추가, 맞춤설정 및 클러스터링합니다.
+지도에 다중선과 다각형을 그립니다.
+프로그래밍 방식으로 카메라의 시점을 조정합니다.
+
+준비물/필요한 사항
+
+Android용 Maps SDK [https://developers.google.com/maps/documentation/android-sdk/intro?hl=ko]
+결제가 사용 설정된 Google 계정
+Android 스튜디오 2020.3.1 [https://developer.android.com/studio?hl=ko] 이상
+Android 스튜디오에 Google Play 서비스 [https://developer.android.com/studio/intro/update.html?hl=ko#sdk-manager] 설치
+Android 4.2.2 이상 기반의 Google API 플랫폼을 실행하는 Android 기기 또는 Android Emulator [https://developer.android.com/studio/run/managing-avds?hl=ko](설치 단계는 Android Emulator에서 앱 실행 [https://developer.android.com/studio/run/emulator?hl=ko#install] 참조)
+
+2. 설정
+
+다음 사용 설정 단계에서는 Android용 Maps SDK를 사용 설정해야 합니다.
+Google Maps Platform 설정하기
+Google Cloud Platform 계정 및 결제가 사용 설정된 프로젝트가 없는 경우 Google Maps Platform 시작하기 [https://developers.google.com/maps/gmp-get-started?hl=ko] 가이드를 참고하여 결제 계정 및 프로젝트를 만듭니다.
+
+Cloud Console [https://console.cloud.google.com/?hl=ko]에서 프로젝트 드롭다운 메뉴를 클릭하고 이 Codelab에 사용할 프로젝트를 선택합니다.
+
+Google Cloud Marketplace [https://console.cloud.google.com/marketplace?hl=ko]에서 이 Codelab에 필요한 Google Maps Platform API 및 SDK를 사용 설정합니다. 사용 설정을 위해 이 동영상 [https://youtu.be/n1UorU1PALk] 또는 이 문서 [https://developers.google.com/maps/gmp-get-started?hl=ko#enable-api-sdk]에서 설명하고 있는 단계를 따르세요.
+Cloud Console의 사용자 인증 정보 [https://console.cloud.google.com/apis/credentials?hl=ko] 페이지에서 API 키를 생성합니다. 이 동영상 [https://youtu.be/2_HZObVbe-g] 또는 이 문서 [https://developers.google.com/maps/gmp-get-started?hl=ko#api-key]에서 설명하고 있는 단계를 따릅니다. Google Maps Platform에 대한 모든 요청에는 API 키가 필요합니다.
+
+3. 빠른 시작
+
+빠르게 시작할 수 있도록 이 Codelab을 따라 하는 데 도움이 되는 시작 코드가 있습니다. 해법으로 바로 넘어갈 수 있지만 모든 단계를 따라하면서 직접 빌드하려면 계속 읽으시기 바랍니다.
+
+git을 설치한 경우 저장소를 클론합니다.
+
+git clone https://github.com/googlecodelabs/maps-platform-101-android.git
+
+또는 다음 버튼을 클릭하여 소스 코드를 다운로드할 수도 있습니다.
+코드 받기 [https://github.com/googlecodelabs/maps-platform-101-android/archive/main.zip]
+
+코드를 받으면 Android 스튜디오의 starter 디렉터리 내에 있는 프로젝트를 엽니다.
+
+4. Google 지도 추가하기
+
+이 섹션에서는 앱을 실행할 때 로드되도록 Google 지도를 추가합니다.
+
+API 키 추가하기
+이전 단계에서 만든 API 키를 앱에 제공해야 Android용 Maps SDK에서 키를 앱과 연결할 수 있습니다.
+
+API 키를 제공하려면 프로젝트의 루트 디렉터리(gradle.properties 및 settings.gradle과 동일한 수준)에서 local.properties라는 파일을 엽니다.
+이 파일에서 내가 만든 API 키를 값으로 갖는 새 키 GOOGLE_MAPS_API_KEY를 정의합니다.
+
+local.properties
+GOOGLE_MAPS_API_KEY=YOUR_KEY_HERE
+
+local.properties는 Git 저장소의 .gitignore [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/.gitignore#L27] 파일에 나열되어 있습니다. 이는 API 키가 민감한 정보로 간주되고 가급적 소스 제어에 체크인하면 안 되기 때문입니다.
+
+다음으로, 앱 전체에서 사용할 수 있도록 API를 노출하려면 app/ 디렉터리에 있는 앱의 build.gradle 파일에 Secrets Gradle Plugin for Android [https://github.com/google/secrets-gradle-plugin] 플러그인을 포함하고 plugins 블록 내에 다음 줄을 추가합니다.
+
+앱 수준 build.gradle [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/build.gradle#L7]
+plugins {
+Google 지도 종속 항목 추가하기
+
+앱 내에서 API 키에 액세스할 수 있게 되었으므로, 다음 단계는 Android용 Maps SDK 종속 항목을 앱의 build.gradle 파일에 추가하는 것입니다.
+
+이 Codelab과 함께 제공되는 시작 프로젝트에서는 이 종속 항목이 이미 추가되어 있습니다.
+build.gradle [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/starter/app/build.gradle#L38]
+dependencies {
+android:id="@+id/map_fragment"
+android:layout_width="match_parent"
+android:layout_height="match_parent" />
+
+</FrameLayout>
+
+이 레이아웃에는 SupportMapFragment가 포함된 단일 FrameLayout이 있습니다. 이 프래그먼트에는 이후 단계에서 사용하는 기본 GoogleMaps 객체가 포함됩니다.
+
+마지막으로, app/src/main/java/com/google/codelabs/buildyourfirstmap에 있는 MainActivity 클래스를 업데이트합니다. 다음 코드를 추가하여 onCreate 메서드를 재정의하면 방금 만든 새 레이아웃으로 콘텐츠를 설정할 수 있습니다.
+
+MainActivity [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/MainActivity.kt#L35...L37]
+override fun onCreate(savedInstanceState: Bundle?) {
+super.onCreate(savedInstanceState)
+setContentView(R.layout.activity_main)
+<!-- ... -->
+map:mapId="YOUR_MAP_ID" />
+
+그런 다음 앱을 실행하여 선택한 스타일로 지도를 확인합니다.
+
+6. 마커 추가
+
+이 작업을 통해 지도에서 강조하려는 관심 장소를 나타내는 마커를 지도에 추가합니다. 먼저 시작 프로젝트에 제공된 장소 목록을 검색한 다음, 해당 장소를 지도에 추가합니다. 이 예에서는 자전거 매장입니다.
+
+GoogleMap 참조 가져오기
+먼저 메서드를 사용할 수 있도록 GoogleMap 객체에 대한 참조를 가져와야 합니다. 이렇게 하려면 setContentView() 호출 바로 다음에 있는 MainActivity.onCreate() 메서드에 다음 코드를 추가하세요.
+MainActivity.onCreate() [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/MainActivity.kt#L38...L40]
+val mapFragment = supportFragmentManager.findFragmentById(
+R.id.map_fragment
+) as? SupportMapFragment
+mapFragment?.getMapAsync { googleMap ->
+addMarkers(googleMap)
+
+import android.content.Context
+import com.google.codelabs.buildyourfirstmap.R
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.io.InputStream
+import java.io.InputStreamReader
+
+/**
+* Reads a list of place JSON objects from the file places.json
+*/
+class PlacesReader(private val context: Context) {
+
+/**
+* Reads the list of place JSON objects in the file places.json
+* and returns a list of Place objects
+*/
+fun read(): List<Place> {
+val itemType = object : TypeToken<List<PlaceResponse>>() {}.type
+val reader = InputStreamReader(inputStream)
+return gson.fromJson<List<PlaceResponse>>(reader, itemType).map {
+it.toPlace()
+PlacesReader(this).read()
+val name: String,
+val latLng: LatLng,
+val address: LatLng,
+val rating: Float
+
+지도에 마커 추가하기
+이제 장소 목록이 메모리에 로드되었으므로 다음 단계는 지도에 이러한 장소를 나타내는 것입니다.
+
+MainActivity에 addMarkers()라는 메서드를 만들고 다음과 같이 정의합니다.
+
+MainActivity.addMarkers() [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/MainActivity.kt#L117...L132]
+/**
+* Adds marker representations of the places list on the provided GoogleMap object
+*/
+private fun addMarkers(googleMap: GoogleMap) {
+places.forEach { place ->
+val marker = googleMap.addMarker(
+MarkerOptions()
+.title(place.name)
+.position(place.latLng)
+먼저 marker_info_contents.xml이라는 새 레이아웃 파일을 만듭니다.
+
+이렇게 하려면 Android 스튜디오의 프로젝트 뷰에서 app/src/main/res/layout 폴더를 마우스 오른쪽 버튼으로 클릭하고 새로 만들기 > 레이아웃 리소스 파일을 선택합니다.
+
+대화상자의 파일 이름 필드에 marker_info_contents를 입력하고 Root element 필드에 LinearLayout을 입력한 다음 확인을 클릭합니다.
+
+이 레이아웃 파일은 나중에 정보 창에 있는 내용을 나타내도록 확장됩니다.
+
+세로 LinearLayout 뷰 그룹 내에 세 개의 TextViews를 추가하는 다음 코드 스니펫의 내용을 복사하여 파일의 기본 코드에 덮어씁니다.
+
+marker_info_contents.xml [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/res/layout/marker_info_contents.xml]
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+xmlns:tools="http://schemas.android.com/tools"
+android:orientation="vertical"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:gravity="center_horizontal"
+android:padding="8dp">
+
+<TextView
+android:id="@+id/text_view_title"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:textColor="@android:color/black"
+android:textSize="18sp"
+android:textStyle="bold"
+tools:text="Title"/>
+
+<TextView
+android:id="@+id/text_view_address"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:textColor="@android:color/black"
+android:textSize="16sp"
+tools:text="123 Main Street"/>
+
+<TextView
+android:id="@+id/text_view_rating"
+android:layout_width="wrap_content"
+android:layout_height="wrap_content"
+android:textColor="@android:color/black"
+android:textSize="16sp"
+tools:text="Rating: 3"/>
+
+</LinearLayout>
+
+InfoWindowAdapter 구현 만들기
+맞춤 정보 창의 레이아웃 파일을 만든 후 다음 단계는 GoogleMap.InfoWindowAdapter [https://developers.google.com/android/reference/com/google/android/gms/maps/GoogleMap.InfoWindowAdapter?hl=ko] 인터페이스를 구현하는 것입니다. 이 인터페이스에는 getInfoWindow()와 getInfoContents()라는 두 가지 메서드가 포함됩니다. 두 메서드 모두 선택 사항인 View 객체를 반환하는데, 여기에서 전자는 창 자체를 맞춤설정하는 데 사용되고 후자는 내용을 맞춤설정하는 데 사용됩니다. 이 경우에는 getInfoWindow()에서 null을 반환하는 동안 두 가지를 모두 구현하고 getInfoContents()의 반환을 맞춤설정합니다. 이는 기본 창을 사용해야 함을 나타냅니다.
+
+Android 스튜디오에서 프로젝트 뷰의 app/src/main/java/com/google/codelabs/buildyourfirstmap 폴더를 마우스 오른쪽 버튼으로 클릭한 다음 새로 만들기 > Kotlin 파일/클래스를 선택하여 MainActivity와 동일한 패키지에 MarkerInfoWindowAdapter라는 새 Kotlin 파일을 만듭니다.
+
+대화상자에서 MarkerInfoWindowAdapter를 입력하고 파일이 강조 표시된 상태를 유지합니다.
+
+파일을 만들었으면 다음 코드 스니펫의 내용을 새 파일에 복사합니다.
+
+MarkerInfoWindowAdapter [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/MarkerInfoWindowAdapter.kt]
+import android.content.Context
+import android.view.LayoutInflater
+import android.view.View
+import android.widget.TextView
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.model.Marker
+import com.google.codelabs.buildyourfirstmap.place.Place
+
+class MarkerInfoWindowAdapter(
+private val context: Context
+) : GoogleMap.InfoWindowAdapter {
+override fun getInfoContents(marker: Marker?): View? {
+R.layout.marker_info_contents, null
+view.findViewById<TextView>(
+R.id.text_view_title
+).text = place.name
+view.findViewById<TextView>(
+R.id.text_view_address
+).text = place.address
+view.findViewById<TextView>(
+R.id.text_view_rating
+).text = "Rating: %.2f".format(place.rating)
+
+return view
+다음으로, marker_info_contents.xml 레이아웃이 확장되고 TextViews 포함에 관한 텍스트가 Place 태그로 설정됩니다.
+MainActivity 업데이트하기
+지금까지 만든 모든 구성요소를 연결하려면 MainActivity 클래스에 두 줄을 추가해야 합니다.
+먼저 getMapAsync 메서드 호출 내에 맞춤 InfoWindowAdapter, MarkerInfoWindowAdapter를 전달하려면 GoogleMap 객체의 setInfoWindowAdapter() 메서드를 호출하고 MarkerInfoWindowAdapter의 새 인스턴스를 만듭니다.
+
+getMapAsync() 람다 내에 있는 addMarkers() 메서드 호출 뒤에 다음 코드를 추가하여 이 작업을 수행합니다.
+
+MainActivity.onCreate() [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/MainActivity.kt#L52]
+
+마지막으로, 지도에 추가된 모든 마커에서 각 장소를 태그 속성으로 설정해야 합니다.
+
+이렇게 하려면 addMarkers() 함수의 places.forEach{} 호출을 다음과 같이 수정합니다.
+
+MainActivity.addMarkers() [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/MainActivity.kt#L122...L132]
+places.forEach { place ->
+val marker = googleMap.addMarker(
+MarkerOptions()
+.title(place.name)
+.position(place.latLng)
+.icon(bicycleIcon)
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.util.Log
+import androidx.annotation.ColorInt
+import androidx.annotation.DrawableRes
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.DrawableCompat
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+
+object BitmapHelper {
+/**
+* Demonstrates converting a [Drawable] to a [BitmapDescriptor],
+* for use as a marker icon. Taken from ApiDemos on GitHub:
+* https://github.com/googlemaps/android-samples/blob/main/ApiDemos/kotlin/app/src/main/java/com/example/kotlindemos/MarkerDemoActivity.kt
+*/
+fun vectorToBitmap(
+context: Context,
+@DrawableRes id: Int,
+@ColorInt color: Int
+): BitmapDescriptor {
+val vectorDrawable = ResourcesCompat.getDrawable(context.resources, id, null)
+if (vectorDrawable == null) {
+Log.e("BitmapHelper", "Resource not found")
+return BitmapDescriptorFactory.defaultMarker()
+vectorDrawable.intrinsicWidth,
+vectorDrawable.intrinsicHeight,
+Bitmap.Config.ARGB_8888
+val canvas = Canvas(bitmap)
+vectorDrawable.setBounds(0, 0, canvas.width, canvas.height)
+DrawableCompat.setTint(vectorDrawable, color)
+vectorDrawable.draw(canvas)
+return BitmapDescriptorFactory.fromBitmap(bitmap)
+BitmapHelper.vectorToBitmap(this, R.drawable.ic_directions_bike_black_24dp, color)
+MarkerOptions()
+.title(place.name)
+.position(place.latLng)
+.icon(bicycleIcon)
+
+앱을 실행하여 업데이트된 마커를 확인하세요.
+
+참고: 마커에서 맞춤설정할 수 있는 항목에 대한 자세한 내용은 마커 [https://developers.google.com/maps/documentation/android-sdk/marker?hl=ko]를 참고하세요.
+
+8. 마커 클러스터링
+
+지도를 확대/축소하는 정도에 따라 추가한 마커가 겹칠 수 있습니다. 중첩되어 있는 마커는 상호작용하기가 매우 까다로우며 많은 노이즈를 생성하므로 앱의 사용성에 영향을 미칩니다.
+
+이와 관련한 사용자 환경을 개선하려면 밀집하여 클러스터링된 큰 데이터 세트가 있을 때마다 마커 클러스터링을 구현하는 것이 좋습니다. 클러스터링을 사용하면 지도를 확대/축소할 때 가까이에 있는 마커가 다음과 같이 함께 클러스터링됩니다.
+
+이 기능을 구현하려면 Android용 Maps SDK 유틸리티 라이브러리 [https://developers.google.com/maps/documentation/android-sdk/utility?hl=ko]가 필요합니다.
+Android용 Maps SDK 유틸리티 라이브러리
+Android용 Maps SDK 유틸리티 라이브러리는 Android용 Maps SDK의 기능을 확장하기 위한 방편으로 생성되었습니다. 이는 마커 클러스터링, 히트맵, KML 및 GeoJson 지원, 다중선 인코딩 및 디코딩, 구면 기하학에 대한 몇몇 도우미 함수와 같은 고급 기능을 제공합니다.
+참고: Android용 Maps SDK 유틸리티 라이브러리의 큰 장점 중 하나는 GitHub에서 오픈소스로 제공 [https://github.com/googlemaps/android-maps-utils]된다는 점입니다. 이 라이브러리는 계속 발전하고 있으므로 제안이나 아이디어가 있으면 주저하지 말고 방문 및 기여해 주시기 바랍니다.
+
+build.gradle 업데이트하기
+유틸리티 라이브러리는 Android용 Maps SDK와 별도로 패키징되므로 build.gradle 파일에 추가 종속 항목을 추가해야 합니다.
+
+app/build.gradle 파일의 dependencies 섹션을 업데이트합니다.
+
+build.gradle [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/build.gradle#L45]
+implementation 'com.google.maps.android:android-maps-utils:1.1.0'
+
+이 줄을 추가한 후에는 프로젝트 동기화를 수행하여 새 종속 항목을 가져와야 합니다.
+
+클러스터링 구현하기
+앱에서 클러스터링을 구현하려면 다음 3가지 단계를 따르세요.
+
+ClusterItem 인터페이스를 구현합니다.
+DefaultClusterRenderer 클래스의 서브클래스를 만듭니다.
+ClusterManager를 만들고 항목을 추가합니다.
+
+ClusterItem 인터페이스 구현하기
+지도에서 클러스터형 마커를 나타내는 모든 객체는 ClusterItem 인터페이스를 구현해야 합니다. 이 경우, Place 모델이 ClusterItem을 준수해야 합니다. Place.kt 파일을 열어 다음과 같이 수정합니다.
+장소 [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/place/Place.kt]
+data class Place(
+val name: String,
+val latLng: LatLng,
+val address: String,
+val rating: Float
+) : ClusterItem {
+override fun getPosition(): LatLng =
+latLng
+
+override fun getTitle(): String =
+name
+
+override fun getSnippet(): String =
+address
+ClusterItem은 다음 세 가지 메서드를 정의합니다.
+
+getPosition() - 장소의 LatLng를 나타냅니다.
+getTitle() - 장소의 이름을 나타냅니다.
+getSnippet() - 장소의 주소를 나타냅니다.
+
+DefaultClusterRenderer 클래스의 서브클래스 만들기
+클러스터링을 구현하는 클래스인 ClusterManager는 화면을 이동하거나 지도를 확대/축소할 때 내부적으로 ClusterRenderer 클래스를 사용하여 클러스터 생성을 처리합니다. 기본적으로 ClusterRenderer를 구현하는 기본 렌더기인 DefaultClusterRenderer가 제공됩니다. 간단한 경우에는 이 렌더기로 충분합니다. 그러나 이 경우에는 마커를 맞춤설정해야 하므로 이 클래스를 확장하고 여기에 맞춤설정을 추가해야 합니다.
+com.google.codelabs.buildyourfirstmap.place 패키지에서 Kotlin 파일 PlaceRenderer.kt를 만들고 다음과 같이 정의합니다.
+PlaceRenderer [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/place/PlaceRenderer.kt]
+package com.google.codelabs.buildyourfirstmap.place
+
+import android.content.Context
+import androidx.core.content.ContextCompat
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.MarkerOptions
+import com.google.codelabs.buildyourfirstmap.BitmapHelper
+import com.google.codelabs.buildyourfirstmap.R
+import com.google.maps.android.clustering.ClusterManager
+import com.google.maps.android.clustering.view.DefaultClusterRenderer
+
+/**
+* A custom cluster renderer for Place objects.
+*/
+class PlaceRenderer(
+private val context: Context,
+map: GoogleMap,
+clusterManager: ClusterManager<Place>
+) : DefaultClusterRenderer<Place>(context, map, clusterManager) {
+
+/**
+* The icon to use for each cluster item
+*/
+private val bicycleIcon: BitmapDescriptor by lazy {
+val color = ContextCompat.getColor(context,
+R.color.colorPrimary
+BitmapHelper.vectorToBitmap(
+context,
+R.drawable.ic_directions_bike_black_24dp,
+color
+item: Place,
+markerOptions: MarkerOptions
+) {
+markerOptions.title(item.name)
+.position(item.latLng)
+.icon(bicycleIcon)
+ClusterManager를 만들고 항목 추가하기
+마지막으로 클러스터링을 사용하려면 MainActivity를 수정하여 ClusterManager를 인스턴스화하고 필요한 종속 항목을 제공해야 합니다. ClusterManager는 마커(ClusterItem 객체)를 내부적으로 추가하므로 마커를 지도에 직접 추가하는 대신 이 책임이 ClusterManager에 위임됩니다. 또한 ClusterManager는 내부적으로 setInfoWindowAdapter()도 호출하므로 맞춤 정보 창 설정은 ClusterManger의 MarkerManager.Collection 객체에서 실행해야 합니다.
+
+시작하려면 MainActivity.onCreate()의 getMapAsync() 호출에서 람다의 내용을 수정합니다.  addMarkers() 및 setInfoWindowAdapter() 호출을 주석 처리하고 대신 다음 단계에서 정의하는 addClusteredMarkers()라는 메서드를 호출합니다.
+
+MainActivity.onCreate() [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/MainActivity.kt#L49]
+mapFragment?.getMapAsync { googleMap ->
+
+clusterManager.renderer =
+PlaceRenderer(
+this,
+googleMap,
+clusterManager
+
+clusterManager.cluster()
+
+MainActivity의 addClusteredMarkers() 메서드에서 cluster()에 대한 호출 바로 뒤에 다음 줄을 추가합니다.
+
+MainActivity.addClusteredMarkers() [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/MainActivity.kt#L74]
+return@setOnClusterItemClickListener false
+circle = googleMap.addCircle(
+CircleOptions()
+.center(item.latLng)
+.radius(1000.0)
+.fillColor(ContextCompat.getColor(this, R.color.colorPrimaryTranslucent))
+.strokeColor(ContextCompat.getColor(this, R.color.colorPrimary))
+
+지금 앱을 실행하여 변경사항을 확인하세요.
+
+참고: GoogleMap.add 명명법은 지도에 그리는 일반적인 방법입니다. 궁금한 경우 Android 스튜디오의 GoogleMap 객체에서 .add를 입력하여 지도에 기능을 추가할 수 있는 모든 방법을 살펴보세요. 이렇게 하면 지원되는 모든 메서드가 자동 완성됩니다.
+
+10. 카메라 제어
+
+마지막 작업으로, 특정 지역을 중심으로 초점을 맞출 수 있는 몇 가지 카메라 제어 방식 [https://developers.google.com/maps/documentation/android-sdk/views?hl=ko]을 살펴봅니다.
+카메라 및 뷰
+앱을 실행하면 카메라가 아프리카 대륙을 표시합니다. 이때 추가한 마커를 찾으려면 번거롭게 샌프란시스코까지 화면을 이동한 후 확대/축소해야 합니다. 이는 세상을 탐색하는 재미있는 방법일 수 있지만 마커를 바로 표시하고자 하는 경우에는 유용하지 않습니다.
+이를 위해 카메라의 위치를 프로그래밍을 통해 설정하여 뷰가 원하는 곳의 중앙에 위치하게 할 수 있습니다.
+
+앱이 실행될 때 카메라 뷰를 조정하여 샌프란시스코로 초기화되도록 getMapAsync() 호출에 다음 코드를 추가해 보세요.
+
+MainActivity.onCreate() [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/MainActivity.kt#L42]
+mapFragment?.getMapAsync { googleMap ->
+places.forEach { bounds.include(it.latLng) }
+googleMap.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds.build(), 20))
+
+MainActivity.addClusteredMarkers() [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution/app/src/main/java/com/google/codelabs/buildyourfirstmap/MainActivity.kt#L80]
+Google Maps Platform Android SDK를 하나 이상 사용하는 Kotlin 앱의 경우, Kotlin 확장 프로그램 또는 KTX 라이브러리를 사용하면 코루틴, 확장 프로그램 속성/함수 등과 같은 Kotlin 언어 기능을 활용할 수 있습니다. 각 Google Maps SDK에는 아래와 같이 해당하는 KTX 라이브러리가 있습니다.
+
+이 작업에서는 Maps KTX 및 Maps Utils KTX 라이브러리를 앱에 사용하고 이전 작업의 구현을 리팩터링하여 앱에서 Kotlin 관련 언어 기능을 사용할 수 있도록 합니다.
+참고: Google Maps Platform KTX 라이브러리는 모두 GitHub에서 오픈소스로 제공됩니다. 자세한 내용은 android-maps-ktx [https://github.com/googlemaps/android-maps-ktx] 및 android-places-ktx [https://github.com/googlemaps/android-places-ktx]를 참고하세요.
+
+앱 수준 build.gradle 파일에 KTX 종속 항목 포함
+
+앱에서 Android용 Maps SDK와 Android용 Maps SDK 유틸리티 라이브러리를 모두 사용하므로 이러한 라이브러리에 해당하는 KTX 라이브러리를 포함해야 합니다. 이 작업에서는 AndroidX Lifecycle KTX 라이브러리에 있는 기능도 사용하므로 앱 수준 build.gradle 파일에 해당 종속 항목도 포함하세요.
+build.gradle [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution-ktx/app/build.gradle]
+dependencies {
+GoogleMap.addMarker() 및 GoogleMap.addCircle() 확장 함수 사용
+
+Maps KTX 라이브러리는 이전 단계에서 사용된 GoogleMap.addMarker(MarkerOptions) 및 GoogleMap.addCircle(CircleOptions)의 DSL 스타일 API 대안을 제공합니다. 앞서 언급한 API를 사용하려면 마커 또는 원의 옵션이 포함된 클래스를 구성해야 하지만 KTX 대안을 사용하면 제공된 람다에서 마커 또는 원 옵션을 설정할 수 있습니다.
+이러한 API를 사용하려면 MainActivity.addMarkers(GoogleMap) 및 MainActivity.addCircle(GoogleMap) 메서드를 업데이트하세요.
+MainActivity.addMarkers(GoogleMap) [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution-ktx/app/src/main/java/com/google/codelabs/buildyourfirstmap/MainActivity.kt#L133]
+/**
+* Adds markers to the map. These markers won't be clustered.
+*/
+private fun addMarkers(googleMap: GoogleMap) {
+places.forEach { place ->
+val marker = googleMap.addMarker {
+title(place.name)
+position(place.latLng)
+icon(bicycleIcon)
+circle = googleMap.addCircle {
+center(item.latLng)
+radius(1000.0)
+fillColor(ContextCompat.getColor(this@MainActivity, R.color.colorPrimaryTranslucent))
+strokeColor(ContextCompat.getColor(this@MainActivity, R.color.colorPrimary))
+SupportMapFragment.awaitMap() 및 GoogleMap.awaitMapLoad() 확장 정지 함수 사용
+
+Maps KTX 라이브러리는 코루틴 내에서 사용할 정지 함수 확장 프로그램도 제공합니다. 특히 SupportMapFragment.getMapAsync(OnMapReadyCallback) 및 GoogleMap.setOnMapLoadedCallback(OnMapLoadedCallback)의 정지 함수 대안이 있습니다. 이러한 대체 API를 사용하면 콜백을 전달할 필요가 없으며 대신 직렬 및 동기 방식으로 이러한 메서드의 응답을 수신할 수 있습니다.
+이러한 메서드는 정지 함수이므로 코루틴 내에서 사용해야 합니다. Lifecycle Runtime KTX [https://developer.android.com/jetpack/androidx/releases/lifecycle?hl=ko] 라이브러리는 적절한 수명 주기 이벤트에서 코루틴이 실행되고 중지되도록 수명 주기 인식 코루틴 범위를 제공하는 확장 프로그램을 제공합니다.
+이러한 개념을 결합하여 MainActivity.onCreate(Bundle) 메서드를 업데이트합니다.
+MainActivity.onCreate(Bundle) [https://github.com/googlecodelabs/maps-platform-101-android/blob/main/solution-ktx/app/src/main/java/com/google/codelabs/buildyourfirstmap/MainActivity.kt#L42]
+override fun onCreate(savedInstanceState: Bundle?) {
+super.onCreate(savedInstanceState)
+setContentView(R.layout.activity_main)
+val mapFragment =
+supportFragmentManager.findFragmentById(R.id.map_fragment) as SupportMapFragment
+lifecycleScope.launchWhenCreated {
+
+places.forEach { bounds.include(it.latLng) }
+googleMap.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds.build(), 20))
+
+addClusteredMarkers(googleMap)
+
+리팩터링된 변경사항을 사용하여 앱을 다시 빌드하세요.
+
+12. 축하합니다
+
+축하합니다. 많은 내용을 살펴봤습니다. 이제 Android용 Maps SDK에서 제공하는 핵심 기능에 대해 더 잘 이해하셨기를 바랍니다.
+자세히 알아보기
+
+Android용 Places SDK [https://developers.google.com/maps/documentation/places/android-sdk/overview?hl=ko]: 풍부한 장소 데이터 세트를 살펴보고 주변의 비즈니스를 탐색합니다.
+android-maps-ktx [https://github.com/googlemaps/android-maps-ktx]: Android용 Maps SDK 및 Android용 Maps SDK 유틸리티 라이브러리를 Kotlin 친화적인 방식으로 통합할 수 있는 오픈소스 라이브러리입니다.
+android-place-ktx [https://github.com/googlemaps/android-places-ktx]: Android용 Places SDK를 Kotlin 친화적인 방식으로 통합할 수 있는 오픈소스 라이브러리입니다.
+android-samples [https://github.com/googlemaps/android-samples]: 이 Codelab 등에서 다룬 모든 기능을 보여주는 GitHub의 샘플 코드입니다.
+Google Maps Platform으로 Android 앱을 빌드하는 추가 Kotlin Codelab [https://codelabs.developers.google.com/?product=googlemapsplatform&text=kotlin&hl=ko]

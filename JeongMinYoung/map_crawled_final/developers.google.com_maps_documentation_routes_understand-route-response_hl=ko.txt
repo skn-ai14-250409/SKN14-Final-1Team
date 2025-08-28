@@ -1,0 +1,138 @@
+Source URL: https://developers.google.com/maps/documentation/routes/understand-route-response?hl=ko
+Title: 경로 응답 검토
+
+의견 보내기
+
+경로 응답 검토
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+유럽 경제 지역 (EEA) 개발자
+
+청구서 수신 주소가 유럽 경제 지역에 있는 경우 2025년 7월 8일부터
+Google Maps Platform EEA 서비스 약관 [https://cloud.google.com/terms/maps-platform/eea?hl=ko]
+이 서비스 이용에 적용됩니다. 기능은 리전에 따라 다릅니다.
+자세히 알아보기 [https://developers.google.com/maps/comms/eea/faq?hl=ko]
+
+Routes API가 경로를 계산할 때는 사용자가 제공한 경유지와 구성 매개변수를 입력으로 사용합니다. 그러면 API는 기본 경로와 하나 이상의 대체 경로가 포함된 응답을 반환합니다.
+
+요청하는 필드에 따라 대답에 다양한 유형의 경로와 기타 데이터가 포함될 수 있습니다.
+
+| 응답에 포함하려면 | 이 문서를 참고하세요. |
+| --- | --- |
+| 차량의 엔진 유형에 따른 연비 또는 에너지 효율이 가장 높은 경로 | 친환경 경로 구성하기 |
+| 최대 3개의 대체 경로 | 대체 경로 요청 |
+| 전체 경로, 경로의 각 구간, 구간의 각 단계에 대한 다중선입니다. | 경로 다중선 요청 |
+| 운전자 또는 차량이 이용할 수 있는 통행료 할인 또는 패스를 고려한 예상 통행료입니다. | 통행료 계산 |
+| 언어 코드 및 측정 단위 (야드파운드법 또는 미터법)별 현지화된 응답입니다. | 현지화된 값 요청 |
+| 탐색 안내를 HTML 텍스트 문자열로 서식을 지정하려면 HTML_FORMATTED_NAVIGATION_INSTRUCTIONS을 extraComputations에 추가합니다. | 추가 계산 |
+
+입력 옵션의 전체 목록은 사용 가능한 경로 옵션 [https://developers.google.com/maps/documentation/routes/route-opt?hl=ko] 및 요청 본문 [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko#request-body]을 참고하세요.
+
+이 응답을 사용하여 고객이 요구사항에 적합한 경로를 선택하는 데 필요한 정보를 제공할 수 있습니다.
+참고: API에서 다양한 유형의 경로 요청을 처리하는 방식을 자세히 알아보려면 데모를 사용해 보세요 [https://developers.google.com/maps/documentation/routes/demo?hl=ko]. 데모를 사용하면 주소를 입력한 다음 시각화된 콘텐츠로 응답을 볼 수 있습니다.
+필드 마스크에 관한 정보
+
+경로를 계산하는 메서드를 호출할 때는 응답에서 반환할 필드를 정의하는 필드 마스크를 지정해야 합니다. 반환된 필드의 기본 목록은 없습니다. 이 목록을 생략하면 메서드에서 오류를 반환합니다.
+
+이 문서의 예시에서는 필드 마스크를 고려하지 않고 전체 응답 객체를 보여줍니다. 프로덕션 환경에서는 응답에 필드 마스크에 명시적으로 지정한 필드만 포함됩니다.
+
+자세한 내용은 반환할 정보 선택 [https://developers.google.com/maps/documentation/routes/choose_fields?hl=ko]을 참고하세요.
+
+저작권 표시 정보
+
+사용자에게 결과를 표시할 때는 다음 저작권 고지를 포함해야 합니다.
+
+Powered by Google, ©YEAR Google
+
+예를 들면 다음과 같습니다.
+
+Powered by Google, ©2023 Google
+
+경로, 구간, 단계 정보
+
+Routes API에서 반환된 응답을 살펴보기 전에 경로를 구성하는 구성요소를 이해해야 합니다.
+
+대답에는 다음 각 경로 구성요소에 관한 정보가 포함될 수 있습니다.
+
+경로: 출발지 경유지에서 중간 경유지를 거쳐 목적지 경유지까지의 전체 여정입니다. 경로는 하나 이상의 구간으로 구성됩니다.
+구간: 경로의 한 경유지에서 경로의 다음 경유지까지의 경로입니다. 각 구간은 하나 이상의 개별 단계로 구성됩니다.
+
+경로에는 각 경유지에서 다음 경유지까지의 경로에 대한 별도의 구간이 포함됩니다.
+예를 들어 경로에 하나의 출발지 경유지와 하나의 목적지 경유지가 포함된 경우 경로에는 하나의 구간이 포함됩니다. 출발지와 목적지 이후에 경로에 추가하는 각 추가 경유지(중간 경유지라고 함)에 대해 API는 별도의 구간을 추가합니다.
+
+API는 통과 중간 경유지에 대한 구간을 추가하지 않습니다. 예를 들어 출발지 경유지, 통과 중간 경유지, 목적지 경유지가 포함된 경로에는 경유지를 통과하면서 출발지에서 목적지까지의 구간이 하나만 포함됩니다. 통과 경유지에 관한 자세한 내용은 통과 경유지 정의 [https://developers.google.com/maps/documentation/routes/intermed_waypoints?hl=ko#define_a_pass-through_waypoint]를 참고하세요.
+단계: 경로의 구간을 따라가는 단일 안내입니다. 단계는 경로의 가장 작은 단위입니다. 예를 들어 단계에서 'Main Street에서 좌회전하세요'라고 표시할 수 있습니다.
+
+대답에 포함되는 내용
+
+API 응답을 나타내는 JSON 객체 [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko#response-body]에는 다음과 같은 최상위 속성이 포함됩니다.
+
+routes: Route [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko#Route] 유형의 요소 배열입니다.
+routes 배열에는 API에서 반환된 경로마다 하나의 요소가 포함됩니다.
+배열에는 기본 경로, 친환경 경로, 최대 3개의 대체 경로 등 최대 5개의 요소가 포함될 수 있습니다.
+geocodingResults: GeocodingResults [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko#geocodingresults] 유형의 요소 배열입니다.
+요청에서 주소 문자열 또는 플러스 코드로 지정한 모든 위치 (출발지, 목적지 또는 중간 경유지)에 대해 API는 장소 ID 조회를 실행합니다. 이 배열의 각 요소에는 위치에 해당하는 장소 ID가 포함됩니다. 요청에 장소 ID 또는 위도/경도 좌표로 지정된 위치는 포함되지 않습니다.
+장소 ID 또는 위도 및 경도 좌표를 사용하여 모든 위치를 지정한 경우 이 배열은 제공되지 않습니다.
+fallbackInfo(FallbackInfo [https://developers.google.com/maps/documentation/routes/reference/rest/v2/FallbackInfo?hl=ko] 유형)
+API가 모든 입력 속성에서 경로를 계산할 수 없는 경우 다른 계산 방법을 사용할 수 있습니다. 대체 모드가 사용되면 이 필드에는 대체 응답에 관한 자세한 정보가 포함됩니다. 그렇지 않으면 이 필드는 설정되지 않습니다.
+
+응답은 다음 형식을 갖습니다.
+
+],
+"legs": [
+object (RouteLeg)
+],
+"viewport": {
+object (Viewport)
+
+대답의 각 route에는 legs 배열이 포함되며, 각 legs 배열 요소는 RouteLeg [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko#routeleg] 유형입니다.
+배열의 각 구간은 경로를 따라 한 경유지에서 다음 경유지까지의 경로를 정의합니다. 경로에는 항상 구간이 하나 이상 포함됩니다.
+
+legs 속성에는 steps 배열에 있는 구간의 각 단계 정의가 포함됩니다. distanceMeters, duration, polyline와 같은 나머지 속성에는 구간에 관한 정보가 포함됩니다.
+
+"distanceMeters": integer,
+"duration": string,
+"staticDuration": string,
+"polyline": {
+object (Polyline)
+
+"navigationInstruction": {
+"maneuver": "TURN_SLIGHT_LEFT",
+"instructions": "Slight left (signs for I-90 W/Worcester)nParts of this road may be closed at certain times or days"
+
+request [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko#request-body]의 languageCode 매개변수를 사용하여 지원되는 언어 목록 [https://developers.google.com/maps/faq?hl=ko#languagesupport]에서 경로 언어를 명시적으로 설정합니다. Google에서는 지원되는 언어를 자주 업데이트하므로 이 목록에 모든 언어가 포함되지 않을 수도 있습니다.
+지정된 언어로 이름을 사용할 수 없는 경우 API는 가장 근접한 이름을 사용합니다.
+지정된 언어는 API가 반환하도록 선택한 결과 집합과 반환 순서에 영향을 줄 수 있습니다. 지오코더는 언어에 따라 약어를 다르게 해석합니다. 예를 들어 거리 유형의 약어나 한 언어에서는 유효하지만 다른 언어에서는 유효하지 않은 동의어가 있습니다. 예를 들어 utca와 tér는 헝가리어로 street의 동의어입니다.
+
+geocodingResults 배열 이해
+
+주소 문자열 또는 플러스 코드로 지정된 요청의 모든 위치 (출발지, 목적지 또는 중간 경유지)에 대해 API는 해당 장소 ID가 있는 가장 관련성 높은 위치를 찾으려고 시도합니다. geocodingResults [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko#geocodingresults] 배열의 각 요소에는 장소 ID로 위치를 포함하는 placeID 필드와 street_address, premise, airport과 같은 위치 유형을 지정하는 type 필드가 포함됩니다.
+참고: API에는 장소 ID 또는 위도 및 경도 좌표로 지정된 요청의 위치가 포함되지 않습니다. 모두 이러한 형식인 경우 이 배열은 제공되지 않습니다.
+geocodingResults 배열에는 다음 세 필드가 포함됩니다.
+
+origin: 주소 문자열 또는 Plus Code로 지정된 경우 출발지의 장소 ID입니다. 그렇지 않으면 이 필드가 응답에서 생략됩니다.
+destination: 주소 문자열 또는 플러스 코드로 지정된 경우 대상의 장소 ID입니다. 그렇지 않으면 이 필드가 응답에서 생략됩니다.
+intermediates: 주소 문자열 또는 Plus Code로 지정된 중간 경유지의 장소 ID가 포함된 배열입니다. 장소 ID 또는 위도 및 경도 좌표를 사용하여 중간 경유지를 지정하면 응답에서 생략됩니다. 응답의 intermediateWaypointRequestIndex 속성을 사용하여 요청의 중간 경유지가 응답의 장소 ID에 해당하는지 확인합니다.
+
+참고: 요청된 위치가 없거나 찾을 수 없는 경우에도 API는 응답에서 geocodingResults 배열을 채웁니다. 하지만 찾을 수 없는 위치에 대해 계산할 수 있는 경로가 없으므로 routes 배열은 비어 있습니다.
+"geocodingResults": {
+"origin": {
+"geocoderStatus": {},
+"type": [
+enum (Type)
+],
+"placeId": string
+],
+"placeId": string
+],
+"placeId": string
+],
+"placeId": string
+ComputeRoutes 메서드는 출발지 경유지에서 위치와 거리 단위를 추론합니다. 따라서 미국에서의 라우팅 요청의 경우 API는 en-US 언어와 IMPERIAL 단위를 추론합니다.
+
+ComputeRouteMatrix 메서드는 기본적으로 'en-US' 언어와 미터법 단위를 사용합니다.
+
+의견 보내기

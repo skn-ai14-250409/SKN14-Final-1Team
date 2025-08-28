@@ -1,0 +1,334 @@
+Source URL: https://developers.google.com/maps/documentation/places/android-sdk/autocomplete?hl=ko
+Title: Place Autocomplete
+
+의견 보내기
+
+Place Autocomplete
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+유럽 경제 지역 (EEA) 개발자
+
+청구서 수신 주소가 유럽 경제 지역에 있는 경우 2025년 7월 8일부터
+Google Maps Platform EEA 서비스 약관 [https://cloud.google.com/terms/maps-platform/eea?hl=ko]
+이 서비스 이용에 적용됩니다. 기능은 리전에 따라 다릅니다.
+자세히 알아보기 [https://developers.google.com/maps/comms/eea/faq?hl=ko]
+
+Android용 Places SDK의 자동 완성 서비스는 사용자 검색어에 대한 응답으로 장소 예상 검색어를 반환합니다. 사용자가 입력하면 자동 완성 서비스가 비즈니스, 주소, Plus Code [https://plus.codes/], 관심 장소와 같은 장소에 대한 추천을 반환합니다.
+
+다음과 같은 방식으로 자동완성을 앱에 추가할 수 있습니다.
+
+자동 완성 위젯을 추가 [https://developers.google.com/maps/documentation/places/android-sdk/legacy/autocomplete?hl=ko#add_an_autocomplete_widget]하여 개발 시간을 절감하고 일관된 사용자 경험을 보장합니다.
+프로그래매틱 방식으로 장소 예측을 가져와 [https://developers.google.com/maps/documentation/places/android-sdk/legacy/autocomplete?hl=ko#get_place_predictions_programmatically] 맞춤 사용자 환경을 만드세요.
+
+자동 완성 위젯 추가
+
+자동 완성 위젯은 자동 완성 기능이 내장된 검색 대화상자입니다. 사용자가 검색어를 입력하면 위젯에 선택할 수 있는 예상 장소 목록이 표시됩니다. 사용자가 선택하면 Place [https://developers.google.com/android/reference/com/google/android/gms/location/places/Place?hl=ko] 인스턴스가 반환되며, 앱에서 이를 사용하여 선택한 장소에 관한 세부정보를 가져올 수 있습니다.
+
+자동완성 위젯을 앱에 추가하기 위한 두 가지 옵션이 있습니다.
+
+옵션 1: AutocompleteSupportFragment 삽입하기 [https://developers.google.com/maps/documentation/places/android-sdk/legacy/autocomplete?hl=ko#option_1_embed_an_autocompletesupportfragment]
+옵션 2: 인텐트를 사용하여 자동 완성 활동 실행 [https://developers.google.com/maps/documentation/places/android-sdk/legacy/autocomplete?hl=ko#option_2_use_an_intent_to_launch_the_autocomplete_activity]
+
+옵션 1: AutocompleteSupportFragment 삽입
+
+앱에 AutocompleteSupportFragment를 추가하려면 다음 단계를 따르세요.
+
+활동의 XML 레이아웃에 프래그먼트를 추가합니다.
+활동이나 프래그먼트에 리스너를 추가합니다.
+
+활동에 AutocompleteSupportFragment 추가
+
+활동에 AutocompleteSupportFragment를 추가하려면 XML 레이아웃에 새 프래그먼트를 추가하세요. 예를 들면 다음과 같습니다.
+<fragment android:id="@+id/autocomplete_fragment"
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:name="com.google.android.libraries.places.widget.AutocompleteSupportFragment"
+/>
+
+기본적으로, 프래그먼트에는 테두리나 배경이 없습니다. 일관된 시각적 모양을 제공하려면 CardView [http://developer.android.com/training/material/lists-cards.html?hl=ko]와 같은 다른 레이아웃 요소 내에 프래그먼트를 중첩합니다.
+자동 완성 프래그먼트를 사용하고 onActivityResult를 재정의해야 하는 경우 super.onActivityResult를 호출해야 합니다. 그렇지 않으면 프래그먼트가 제대로 작동하지 않습니다.
+
+활동에 PlaceSelectionListener 추가
+
+PlaceSelectionListener는 사용자 선택에 대한 응답으로 장소를 반환하는 작업을 처리합니다. 다음 코드는 프래그먼트에 대한 참조를 만들고 리스너를 AutocompleteSupportFragment에 추가하는 것을 보여줍니다.
+
+Kotlin
+supportFragmentManager.findFragmentById(R.id.autocomplete_fragment)
+as AutocompleteSupportFragment
+
+AutocompleteSupportFragment autocompleteFragment = (AutocompleteSupportFragment)
+getSupportFragmentManager().findFragmentById(R.id.autocomplete_fragment);
+
+Log.i(TAG, "Place: " + place.getName() + ", " + place.getId());
+Log.i(TAG, "An error occurred: " + status);
+
+.build(this)
+startAutocomplete.launch(intent)
+
+자바
+List<Place.Field> fields = Arrays.asList(Place.Field.ID, Place.Field.NAME);
+
+Intent intent = new Autocomplete.IntentBuilder(AutocompleteActivityMode.FULLSCREEN, fields)
+.build(this);
+startAutocomplete.launch(intent);
+
+인텐트를 사용하여 자동 완성 위젯을 실행할 때 오버레이 또는 전체 화면 표시 모드 중에서 선택할 수 있습니다. 다음 스크린샷은 각 디스플레이 모드를 보여줍니다.
+
+그림 1: 오버레이 모드의 자동 완성 위젯
+
+그림 2: 전체 화면 모드의 자동 완성 위젯
+
+인텐트 결과에 콜백 등록
+
+사용자가 장소를 선택했을 때 알림을 받으려면 다음 예와 같이 활동을 실행하고 결과도 처리하는 registerForActivityResult() 런처를 정의합니다. 사용자가 예상 목록에서 선택했다면 결과 객체에 포함된 인텐트에서 전송됩니다. 인텐트는 Autocomplete.IntentBuilder로 빌드되었기 때문에 메서드 Autocomplete.getPlaceFromIntent()가 인텐트에서 Place 객체를 추출할 수 있습니다.
+
+Kotlin
+private val startAutocomplete =
+registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
+if (result.resultCode == Activity.RESULT_OK) {
+val intent = result.data
+if (intent != null) {
+val place = Autocomplete.getPlaceFromIntent(intent)
+Log.i(
+TAG, "Place: ${place.name}, ${place.id}"
+Log.i(TAG, "User canceled autocomplete")
+new ActivityResultContracts.StartActivityForResult(),
+result -> {
+if (result.getResultCode() == Activity.RESULT_OK) {
+Intent intent = result.getData();
+if (intent != null) {
+Place place = Autocomplete.getPlaceFromIntent(intent);
+Log.i(TAG, "Place: ${place.getName()}, ${place.getId()}");
+Log.i(TAG, "User canceled autocomplete");
+TypeFilter.GEOCODE - 비즈니스 대신 지오코딩 결과만 반환합니다. 지정된 위치가 명확하지 않은 경우 이 요청을 사용하여 결과를 구분합니다.
+TypeFilter.ADDRESS - 정확한 주소가 있는 자동 완성 결과만 반환합니다. 사용자가 완전히 지정된 주소를 찾고 있다는 사실을 알고 있는 경우 이 유형을 사용합니다.
+TypeFilter.ESTABLISHMENT - 비즈니스인 장소만 반환합니다.
+TypeFilter.REGIONS - 다음 유형 중 하나와 일치하는 장소만 반환합니다.
+LOCALITY
+SUBLOCALITY
+POSTAL_CODE
+COUNTRY
+ADMINISTRATIVE_AREA_LEVEL_1
+ADMINISTRATIVE_AREA_LEVEL_2
+TypeFilter.CITIES – LOCALITY 또는 ADMINISTRATIVE_AREA_LEVEL_3와 일치하는 결과만 반환합니다.
+
+선택사항: 요청의 출처 위치를 지정하는 LatLng입니다.
+setOrigin() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/FindAutocompletePredictionsRequest.Builder?hl=ko#setOrigin(com.google.android.gms.maps.model.LatLng)]을 호출하면 서비스는 응답의 각 자동 완성 예측에 대해 지정된 원점으로부터의 거리 (distanceMeters)를 미터 단위로 반환합니다.
+
+장소 유형에 대한 자세한 내용은 장소 유형 [https://developers.google.com/maps/documentation/places/android-sdk/supported_types?hl=ko#table3] 가이드를 참고하세요.
+
+아래 예는 PlacesClient.findAutocompletePredictions() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/PlacesClient?hl=ko#findAutocompletePredictions(com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest)]의 전체 호출을 보여줍니다.
+
+Kotlin
+
+LatLng(-33.880490, 151.184363),
+LatLng(-33.858754, 151.229596)
+FindAutocompletePredictionsRequest.builder()
+Log.i(TAG, prediction.placeId)
+Log.i(TAG, prediction.getPrimaryText(null).toString())
+AutocompleteSessionToken token = AutocompleteSessionToken.newInstance();
+
+RectangularBounds bounds = RectangularBounds.newInstance(
+new LatLng(-33.880490, 151.184363),
+new LatLng(-33.858754, 151.229596));
+FindAutocompletePredictionsRequest request = FindAutocompletePredictionsRequest.builder()
+
+placesClient.findAutocompletePredictions(request).addOnSuccessListener((response) -> {
+for (AutocompletePrediction prediction : response.getAutocompletePredictions()) {
+Log.i(TAG, prediction.getPlaceId());
+Log.i(TAG, prediction.getPrimaryText(null).toString());
+ApiException apiException = (ApiException) exception;
+Log.e(TAG, "Place not found: " + apiException.getStatusCode());
+CharacterStyle 파라미터는 선택사항입니다. 강조 표시가 필요하지 않으면 null로 설정합니다.
+getPrimaryText(CharacterStyle) [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/AutocompletePrediction?hl=ko#getPrimaryText(android.text.style.CharacterStyle)]은 장소를 설명하는 기본 텍스트를 반환합니다. 일반적으로 장소의 이름입니다. 예: '에펠탑', '피트 스트리트 123번지'
+getSecondaryText(CharacterStyle) [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/AutocompletePrediction?hl=ko#getSecondaryText(android.text.style.CharacterStyle)]은 장소 설명의 보조 텍스트를 반환합니다. 이는 자동 완성 예측을 표시할 때 두 번째 줄로 유용합니다. 예: 'Avenue Anatole France, Paris, France', 'Sydney, New South Wales'
+getPlaceId() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/AutocompletePrediction?hl=ko#getPlaceId()]은
+예측된 장소의 장소 ID를 반환합니다. 장소 ID는 장소를 고유하게 나타내는 텍스트 식별자이며, 이를 사용하여 나중에 Place [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/Place?hl=ko] 객체를 다시 가져올 수 있습니다. Android용 Places SDK의 장소 ID에 관한 자세한 내용은 장소 세부정보 [https://developers.google.com/maps/documentation/places/android-sdk/place-details?hl=ko]를 참고하세요. 장소 ID에 관한 일반적인 내용은 장소 ID 개요 [https://developers.google.com/maps/documentation/places/android-sdk/place-id?hl=ko]를 참고하세요.
+getPlaceTypes() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/AutocompletePrediction?hl=ko#getPlaceTypes()]는 이 장소와 연결된 장소 유형 목록을 반환합니다.
+getDistanceMeters() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/AutocompletePrediction?hl=ko#getDistanceMeters()]은 이 장소와 요청에 지정된 원점 사이의 직선 거리(미터)를 반환합니다.
+
+참고: PlacesClient 초기화에 관한 자세한 내용은 Places API 클라이언트 초기화 [https://developers.google.com/maps/documentation/places/android-sdk/config?hl=ko#connect-client]를 참고하세요.
+
+CancellationToken [https://developers.google.com/android/reference/com/google/android/gms/tasks/CancellationToken?hl=ko]을 사용하여 요청 클래스 (예: FetchPlaceRequest)에 대한 요청을 취소할 수 있습니다. 취소는 최선의 방식으로 이루어집니다.
+취소 요청이 발행되면 응답이 반환되지 않습니다.
+취소 토큰을 발급해도 특정 요청이 취소된다고 보장할 수 없으며, 응답이 반환되지 않더라도 요청에 대한 요금이 청구될 수 있습니다.
+
+세션 토큰
+
+세션 토큰은 사용자 자동 완성 검색의 쿼리 및 선택 단계를 결제 목적의 개별 세션으로 그룹화합니다. 세션은 사용자가 쿼리를 입력하기 시작하면 시작되고 장소를 선택하면 종료됩니다. 세션마다 여러 개의 쿼리가 포함될 수 있으며 하나의 장소가 선택됩니다. 세션이 종료되면 토큰이 더 이상 유효하지 않습니다. 앱에서 각 세션에 대해 새 토큰을 생성해야 합니다. 모든 프로그래매틱 자동 완성 세션에 세션 토큰을 사용하는 것이 좋습니다 (프래그먼트를 삽입하거나 인텐트를 사용하여 자동 완성을 실행하면 API에서 이를 자동으로 처리함).
+
+Android용 Places SDK는 AutocompleteSessionToken [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/AutocompleteSessionToken?hl=ko]를 사용하여 각 세션을 식별합니다. 앱은 새 세션을 시작할 때 새 세션 토큰을 전달한 다음, 후속 fetchPlace() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/PlacesClient?hl=ko#fetchPlace(com.google.android.libraries.places.api.net.FetchPlaceRequest)] 호출에서 동일한 토큰을 장소 ID와 함께 전달하여 사용자가 선택한 장소의 장소 세부정보를 가져와야 합니다.
+팁: 앱에서 자동 완성 위젯 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete?hl=ko#add_an_autocomplete_widget]을 사용하는 경우 위젯이 백그라운드에서 세션을 자동으로 처리하므로 세션을 구현할 필요가 없습니다.
+세션 토큰에 대해 자세히 알아보기 [https://developers.google.com/maps/documentation/places/android-sdk/session-tokens?hl=ko]
+
+자동 완성 결과 제한
+
+자동 완성 결과를 특정 지리적 지역으로 제한하거나 결과를 하나 이상의 장소 유형 또는 최대 5개 국가로 필터링할 수 있습니다. 이러한 제약 조건을 자동 완성 활동, AutocompleteSupportFragment, 프로그래매틱 자동 완성 API에 적용할 수 있습니다.
+
+결과를 제한하려면 다음 단계를 따르세요.
+
+정의된 지역 내 결과를 선호하려면 setLocationBias()를 호출하세요(정의된 지역 외부의 결과가 반환될 수도 있음).
+정의된 지역 내의 결과만 표시하려면 setLocationRestriction()를 호출하세요 (정의된 지역 내의 결과만 반환됨).
+특정 장소 유형을 준수하는 결과만 반환하려면 setTypesFilter()를 호출하세요 (예: TypeFilter.ADDRESS를 지정하면 정확한 주소가 있는 결과만 반환됨).
+최대 5개의 지정된 국가 내의 결과만 반환하려면 setCountries()를 호출합니다. 국가는 2자리 ISO 3166-1 Alpha-2 호환 국가 코드 [https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2]로 전달해야 합니다.
+
+특정 지역에 편중된 결과
+
+자동 완성 결과를 특정 지리적 지역으로 편향시키려면 setLocationBias()를 호출하여 RectangularBounds [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/RectangularBounds?hl=ko]를 전달합니다.
+다음 코드 예는 프래그먼트 인스턴스에서 setLocationBias()을 호출하여 자동 완성 추천을 오스트레일리아 시드니 지역으로 편향시키는 방법을 보여줍니다.
+
+Kotlin
+autocompleteFragment.setLocationBias(
+RectangularBounds.newInstance(
+LatLng(-33.880490, 151.184363),
+LatLng(-33.858754, 151.229596)
+
+자바
+autocompleteFragment.setLocationBias(RectangularBounds.newInstance(
+new LatLng(-33.880490, 151.184363),
+new LatLng(-33.858754, 151.229596)));
+
+결과를 특정 지역으로 제한
+
+자동 완성 결과를 특정 지리적 지역으로 제한하려면 setLocationRestriction()를 호출하여 RectangularBounds [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/RectangularBounds?hl=ko]를 전달하세요.
+다음 코드 예는 프래그먼트 인스턴스에서 setLocationRestriction()을 호출하여 자동 완성 제안을 오스트레일리아 시드니 지역으로 편향시키는 방법을 보여줍니다.
+
+Kotlin
+autocompleteFragment.setLocationRestriction(
+RectangularBounds.newInstance(
+LatLng(-33.880490, 151.184363),
+LatLng(-33.858754, 151.229596)
+
+자바
+autocompleteFragment.setLocationRestriction(RectangularBounds.newInstance(
+new LatLng(-33.880490, 151.184363),
+new LatLng(-33.858754, 151.229596)));
+
+참고: 이 제한은 경로 전체에만 적용됩니다. 직사각형 경계 외부에 있는 종합적인 결과는 위치 제한과 겹치는 경로를 기반으로 반환될 수도 있습니다.
+
+장소 유형 또는 유형 컬렉션으로 결과 필터링
+
+자동 완성 요청의 결과를 특정 장소 유형만 반환하도록 제한할 수 있습니다. 장소 유형 [https://developers.google.com/maps/documentation/places/android-sdk/legacy/supported_types?hl=ko]의 표 1, 2, 3에 나열된 장소 유형 또는 유형 모음을 사용하여 필터를 지정합니다. 아무것도 지정하지 않으면 모든 유형이 반환됩니다.
+
+자동 완성 결과를 필터링하려면 setTypesFilter() [https://developers.google.com/maps/documentation/places/android-sdk/legacy/reference/com/google/android/libraries/places/widget/AutocompleteSupportFragment?hl=ko#setTypesFilter(java.util.List%3Cjava.lang.String%3E)]를 호출하여 필터를 설정합니다.
+
+유형 또는 유형 컬렉션 필터를 지정하려면 다음 단계를 따르세요.
+
+setTypesFilter()를 호출하고 장소 유형 [https://developers.google.com/maps/documentation/places/android-sdk/legacy/supported_types?hl=ko]에 표시된 표 1과 표 2의 type 값을 최대 5개까지 지정합니다. 유형 값은 PlaceTypes [https://developers.google.com/maps/documentation/places/android-sdk/legacy/reference/com/google/android/libraries/places/api/model/PlaceTypes?hl=ko]의 상수로 정의됩니다.
+setTypesFilter()를 호출하고 장소 유형 [https://developers.google.com/maps/documentation/places/android-sdk/legacy/supported_types?hl=ko]에 표시된 표 3에서 유형 모음을 지정합니다. 컬렉션 값은 PlaceTypes [https://developers.google.com/maps/documentation/places/android-sdk/legacy/reference/com/google/android/libraries/places/api/model/PlaceTypes?hl=ko]의 상수로 정의됩니다.
+
+이 요청에서는 표 3의 단일 유형만 허용됩니다. 표 3의 값을 지정하는 경우 표 1이나 표 2의 값은 지정할 수 없습니다. 이 경우 오류가 발생합니다.
+
+다음 코드 예시에서는 AutocompleteSupportFragment에서 setTypesFilter()를 호출하고 여러 유형 값을 지정합니다.
+
+Kotlin
+autocompleteFragment.setTypesFilter(listOf("landmark", "restaurant", "store"))
+
+자바
+autocompleteFragment.setTypesFilter(Arrays.asList("landmark", "restaurant", "store"));
+
+다음 코드 예시는 AutocompleteSupportFragment에서 setTypesFilter()를 호출하여 유형 컬렉션을 지정하여 정확한 주소가 있는 결과만 반환하는 필터를 설정하는 방법을 보여줍니다.
+
+Kotlin
+autocompleteFragment.setTypesFilter(listOf(PlaceTypes.ADDRESS))
+
+자바
+autocompleteFragment.setTypesFilter(Arrays.asList(PlaceTypes.ADDRESS, PlaceTypes.ESTABLISHMENT));
+
+다음 코드 예시는 IntentBuilder에서 setTypesFilter()를 호출하여 유형 컬렉션을 지정하여 정확한 주소가 있는 결과만 반환하는 필터를 설정하는 방법을 보여줍니다.
+
+Kotlin
+val intent = Autocomplete.IntentBuilder(AutocompleteActivityMode.FULLSCREEN, fields)
+.setTypesFilter(listOf(PlaceTypes.ADDRESS))
+.build(this)
+
+자바
+Intent intent = new Autocomplete.IntentBuilder(
+AutocompleteActivityMode.FULLSCREEN, fields)
+.setTypesFilter(Arrays.asList(PlaceTypes.ADDRESS))
+.build(this);
+
+국가별로 결과 필터링
+
+자동 완성 결과를 최대 5개 국가로 필터링하려면 setCountries() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/widget/AutocompleteSupportFragment?hl=ko#setCountries(java.lang.String...)]를 호출하여 국가 코드 [https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2]를 설정하세요.
+그런 다음, 필터를 프래그먼트나 인텐트에 전달합니다. 국가는 2자리 ISO 3166-1 Alpha-2 호환 국가 코드 [https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2]로 전달해야 합니다.
+
+다음 코드 예시는 AutocompleteSupportFragment에서 setCountries()을 호출하여 지정된 국가 내의 결과만 반환하는 필터를 설정하는 방법을 보여줍니다.
+
+Kotlin
+autocompleteFragment.setCountries("AU", "NZ")
+
+자바
+autocompleteFragment.setCountries("AU", "NZ");
+
+사용량 한도
+
+Android용 Places SDK를 비롯한 Places API 사용량이 더 이상 일일 최대 요청 수 (QPD)로 제한되지 않습니다. 단, 다음과 같은 사용량 한도는 계속 적용됩니다.
+
+비율 제한은 6,000 QPM (분당 요청수)입니다. 동일한 프로젝트의 사용자 인증 정보를 사용하는 모든 애플리케이션의 클라이언트 측 요청과 서버 측 요청의 합계로 계산됩니다.
+
+앱에 특성 표시
+
+앱에서 자동 완성 서비스를 프로그래매틱 방식으로 사용하는 경우 UI에 'Google 제공' 저작자 표시를 표시하거나 Google 브랜드 지도 내에 표시해야 합니다.
+앱에서 자동 완성 위젯을 사용하는 경우 추가 조치가 필요하지 않습니다(필요한 저작자 표시가 기본적으로 표시됨).
+ID로 장소를 가져온 후 [https://developers.google.com/maps/documentation/places/android-sdk/place-details?hl=ko#get-place] 추가 장소 정보를 가져와 표시하는 경우 서드 파티 저작자 표시도 표시해야 합니다.
+
+자세한 내용은 저작자 표시 [https://developers.google.com/maps/documentation/places/android-sdk/attributions?hl=ko]에 관한 문서를 참고하세요.
+
+Place Autocomplete (기존) 최적화
+
+이 섹션에서는 Place Autocomplete (Legacy) 서비스를 최대한 활용하는 데 도움이 되는 권장사항을 설명합니다.
+
+다음은 일반 가이드라인입니다.
+
+작동하는 사용자 인터페이스를 개발하는 가장 빠른 방법은 Maps JavaScript API 장소 자동 완성 (기존) 위젯 [https://developers.google.com/maps/documentation/javascript/places-autocomplete?hl=ko#add-autocomplete], Android용 Places SDK 장소 자동 완성 (기존) 위젯 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete?hl=ko#add_an_autocomplete_widget] 또는 iOS용 Places SDK 장소 자동 완성 (기존) UI 컨트롤 [https://developers.google.com/maps/documentation/places/ios-sdk/autocomplete?hl=ko#adding_an_autocomplete_ui_control]을 사용하는 것입니다.
+처음부터 기본적인 Place Autocomplete (Legacy) 데이터 필드 [https://developers.google.com/maps/documentation/places/android-sdk/legacy/place-data-fields?hl=ko]를 이해합니다.
+
+위치 상세 검색 및 위치 제한 필드는 선택사항이지만 자동 완성 성능에 상당한 영향을 미칠 수 있습니다.
+API가 오류를 반환하는 경우 오류 처리를 사용하여 앱의 성능이 적절히 저하되도록 합니다.
+선택된 항목이 없을 때 앱에서 처리하고 사용자에게 계속할 수 있는 방법을 제공하도록 합니다.
+
+비용 최적화 권장사항
+
+기본 비용 최적화
+
+Place Autocomplete (Legacy) 서비스 사용 비용을 최적화하려면 장소 세부정보 (Legacy) 및 Place Autocomplete (Legacy) 위젯에서 필드 마스크를 사용하여 필요한 장소 데이터 필드 [https://developers.google.com/maps/documentation/places/android-sdk/legacy/place-data-fields?hl=ko]만 반환하세요.
+
+고급 비용 최적화
+
+요청당 가격 [https://developers.google.com/maps/billing-and-pricing/sku-details?hl=ko#ac-per-request]에 액세스하고 장소 세부정보 (레거시) 대신 선택된 장소에 대한 Geocoding API 결과 [https://developers.google.com/maps/documentation/geocoding/overview?hl=ko#results]를 요청하려면 Place Autocomplete (레거시)를 프로그래매틱 방식으로 구현해 보세요. Geocoding API와 연결된 요청당 가격은 다음 두 조건이 모두 충족되는 경우 세션당(세션 기반) 가격보다 비용 효과적입니다.
+
+사용자가 선택한 장소의 위도/경도 또는 주소만 필요한 경우 Geocoding API는 장소 세부정보 (기존) 호출보다 낮은 비용으로 이 정보를 제공합니다.
+사용자가 평균 네 개 이하의 Place Autocomplete (레거시) 예상 검색어 요청 내에서 자동 완성 예상 검색어를 선택하면 요청당 가격이 세션당 가격보다 비용 효과적일 수 있습니다.
+
+요구에 맞는 Place Autocomplete (기존) 구현을 선택하는 데 도움이 필요하면 다음 질문에 대한 답변에 해당하는 탭을 선택하세요.
+애플리케이션에 선택된 예상 검색어의 주소 및 위도/경도 이외의 정보가 필요한가요?
+[TAB_GROUP_PLACEHOLDER_0]
+
+비용은 Google Maps Platform 가격 목록 [https://developers.google.com/maps/billing-and-pricing/pricing?hl=ko]을 참고하세요.
+
+성능 권장사항
+
+다음 가이드라인에서는 Place Autocomplete (기존) 성능을 최적화하는 방법을 설명합니다.
+
+Place Autocomplete (Legacy) 구현에 국가별 제한사항, 위치 상세 검색 [https://developers.google.com/maps/documentation/places/web-service/autocomplete?hl=ko#location_biasing], (프로그래매틱 구현의 경우) 언어 환경설정을 추가합니다. 위젯은 사용자의 브라우저 또는 휴대기기에서 언어 환경설정을 선택하므로 언어 환경설정이 필요하지 않습니다.
+
+Place Autocomplete (기존)에 지도와 함께 제공된 경우 지도 표시 영역별로 위치를 상세 검색할 수 있습니다.
+예상 검색어 중 원하는 결과 주소가 없어 사용자가 Place Autocomplete (Legacy) 예상 검색어 중 하나를 선택하지 않는 경우 원래 사용자 입력을 재사용하여 더 관련성 높은 결과를 얻을 수 있습니다.
+사용자가 주소 정보만 입력할 것으로 예상되는 경우 Geocoding API [https://developers.google.com/maps/documentation/geocoding/overview?hl=ko] 호출 시 원래 사용자 입력을 재사용합니다.
+사용자가 이름 또는 주소로 특정 장소에 대한 쿼리를 입력할 것으로 예상되는 경우 Find Place (Legacy) 요청 [https://developers.google.com/maps/documentation/places/web-service/search?hl=ko#FindPlaceRequests]을 사용합니다.
+특정 지역에서만 결과가 예상되는 경우 위치 상세 검색 [https://developers.google.com/maps/documentation/places/web-service/autocomplete?hl=ko#location_biasing]을 사용합니다.
+다음과 같은 경우에는 Geocoding API로 대체하는 것이 가장 좋습니다.
+건물 내 특정 단위 또는 아파트 주소와 같은 하위 구역 주소를 입력하는 사용자 예를 들어 체코 주소인 'Stroupežnického 3191/17, Praha'를 바탕으로 Place Autocomplete (기존)에서 부분 예측이 이루어집니다.
+사용자가 뉴욕시의 '23-30 29th St, Queens' 또는 하와이 카우아이섬의 '47-380 Kamehameha Hwy, Kaneohe'처럼 도로 구간 접두사가 있는 주소를 입력하는 경우
+
+문제 해결
+
+다양한 오류가 발생할 수 있지만 앱에서 경험할 가능성이 가장 큰 오류는 일반적으로 구성 오류 (예: 잘못된 API 키가 사용되었거나 API 키가 잘못 구성됨) 또는 할당량 오류 (앱이 할당량을 초과함)로 인해 발생합니다. 할당량에 대한 자세한 내용은 사용량 한도 [https://developers.google.com/maps/documentation/places/android-sdk/usage-and-billing?hl=ko]를 참고하세요.
+
+자동 완성 컨트롤 사용 시 발생하는 오류는 onActivityResult() 콜백에 반환됩니다. Autocomplete.getStatus()를 호출하여 결과의 상태 메시지를 가져옵니다.
+
+의견 보내기
