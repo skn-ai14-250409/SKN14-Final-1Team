@@ -1,0 +1,190 @@
+Source URL: https://cloud.google.com/bigquery/docs/object-table-introduction
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+객체 테이블 스키마
+사용 사례
+이점
+서명된 URL
+액세스 제어
+객체 테이블 소개
+bookmark_border
+이 문서에서는 Cloud Storage의 구조화되지 않은 데이터 객체에 대한 읽기 전용 테이블인 객체 테이블을 설명합니다.
+객체 테이블을 사용하면 Cloud Storage에서 구조화되지 않은 데이터를 분석할 수 있습니다. BigQuery ML을 사용하여 원격 함수로 분석하거나 추론을 수행한 다음 이러한 작업 결과를 BigQuery의 나머지 구조화된 데이터와 조인할 수 있습니다.
+BigLake 테이블과 마찬가지로 객체 테이블은 액세스 위임을 사용하여 Cloud Storage 객체에 대한 액세스로부터 객체 테이블에 대한 액세스를 분리합니다. 서비스 계정과 연결된 외부 연결 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko]은 Cloud Storage에 연결하는 데 사용되므로 사용자에게 객체 테이블에 대한 액세스 권한만 부여하면 됩니다. 이렇게 하면 행 수준 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko] 보안을 적용하고 사용자가 액세스할 수 있는 객체를 관리할 수 있습니다.
+객체 테이블 스키마
+객체 테이블은 지정된 Cloud Storage 버킷의 구조화되지 않은 데이터 객체에 대한 메타데이터 색인을 제공합니다. 테이블의 각 행은 객체와 관련되며, 테이블 열은 Cloud Storage에서 생성된 커스텀 메타데이터 [https://cloud.google.com/storage/docs/metadata?hl=ko#custom-metadata] 등의 객체 메타데이터와 관련됩니다.
+객체 테이블에는 파일 콘텐츠를 원시 바이트로 나타내는 data 유사 열이 포함되며 이는 객체 테이블이 생성될 때 자동으로 채워집니다. 이 유사 열은 이미지 데이터에 대한 추론을 실행할 때 ML.DECODE_IMAGE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-decode-image?hl=ko]에서 사용됩니다. data 유사 열은 쿼리에 포함할 수 없으며 객체 테이블 스키마의 일부로 나타나지 않습니다.
+다음 표에서는 객체 테이블에서 사용되는 고정 스키마를 설명합니다.
+필드 이름 유형 모드 설명
+uri STRING null 허용 uri: gs://bucket_name/[folder_name/]object_name 형식의 객체 URI(Uniform Resource Identifier)입니다.
+generation 정수 null 허용 이 객체의 세대 [https://cloud.google.com/storage/docs/metadata?hl=ko#generation-number](generation)로, 객체 버전을 식별합니다.
+content_type STRING null 허용 객체 데이터의 Content-Type [https://cloud.google.com/storage/docs/metadata?hl=ko#content-type]으로, 미디어 종류를 식별합니다. 객체가 Content-Type 없이 저장되면 애플리케이션/옥텟 스트림으로 제공됩니다.
+size 정수 null 허용 바이트 단위의 데이터 Content-Length [https://datatracker.ietf.org/doc/html/rfc7230#section-3.3.2]입니다.
+md5_hash STRING null 허용 base64 [https://datatracker.ietf.org/doc/html/rfc4648#section-4]를 사용하여 인코딩된 데이터의 MD5 해시 [https://wikipedia.org/wiki/MD5]입니다. MD5 해시 사용에 대한 자세한 내용은 Cloud Storage 객체 메타데이터 [https://cloud.google.com/storage/docs/metadata?hl=ko#md5]를 참조하세요.
+updated TIMESTAMP null 허용 객체의 메타데이터가 마지막으로 수정된 시간입니다.
+metadata RECORD 반복 객체의 커스텀 메타데이터 [https://cloud.google.com/storage/docs/metadata?hl=ko#custom-metadata]입니다. 각 메타데이터 조각은 metadata 필드의 (metadata.)name 및 (metadata.)value 필드에서 키-값 쌍으로 표시됩니다.
+(metadata.)name STRING null 허용 개별 메타데이터 항목의 키입니다.
+(metadata.)value STRING null 허용 개별 메타데이터 항목의 값입니다.
+객체 테이블의 행은 다음과 유사합니다.
+------------------------------------------------------------------------------------------------------------------------------------------------
+|  uri                 | generation | content_type | size  | md5_hash   | updated                        | metadata...name | metadata...value  |
+—-----------------------------------------------------------------------------------------------------------------------------------------------
+| gs://mybucket/a.jpeg | 165842…    | image/jpeg   | 26797 | 8c33be10f… | 2022-07-21 17:35:40.148000 UTC | null            | null              |
+—-----------------------------------------------------------------------------------------------------------------------------------------------
+| gs://mybucket/b.bmp  | 305722…    | image/bmp    | 57932 | 44eb90cd1… | 2022-05-14 12:09:38.114000 UTC | null            | null              |
+—-----------------------------------------------------------------------------------------------------------------------------------------------
+사용 사례
+다른 BigQuery 테이블을 쿼리할 때와 같은 방식으로 객체 테이블의 메타데이터를 쿼리할 수 있습니다. 그러나 객체 테이블의 기본 사용 사례는 구조화되지 않은 데이터를 분석할 수 있도록 하는 것입니다. BigQuery ML을 사용하여 TensorFlow, TensorFlow Lite, PyTorch 모델로 이미지 객체 테이블에서 추론을 실행 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko]할 수 있습니다. 또한 원격 함수 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko]를 사용하여 원하는 거의 모든 방식으로 구조화되지 않은 데이터를 분석 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko]할 수도 있습니다. 예를 들어 Cloud Vision [https://cloud.google.com/vision/docs?hl=ko]으로 이미지를 분석할 수 있는 원격 함수 또는 Apache Tika [https://tika.apache.org/]로 PDF 문서에서 메타데이터를 추출할 수 있는 원격 함수를 만들 수 있습니다.
+다음 표에서는 객체 테이블 데이터에서 머신러닝 작업 수행에 사용할 수 있는 통합 지점을 설명합니다.
+통합 설명 사용 사례 튜토리얼
+가져온 BigQuery ML 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/inference-overview?hl=ko#inference_using_imported_models] TensorFlow [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-tensorflow?hl=ko], TensorFlow Lite [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-tflite?hl=ko], ONNX [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-onnx?hl=ko] 모델을 BigQuery ML로 가져와 BigQuery에서 로컬 추론을 실행합니다. 지원되는 제한사항 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko#limitations]에 부합하는 오픈소스 또는 커스텀 모델을 사용 중입니다. 튜토리얼: 특성 벡터 모델을 사용하여 객체 테이블에서 추론 실행 [https://cloud.google.com/bigquery/docs/inference-tutorial-mobilenet?hl=ko]
+Cloud Run 함수 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko] Cloud Run 함수를 사용하여 서비스 또는 호스팅된 모델을 호출합니다. 가장 일반적인 통합입니다. Compute Engine, Google Kubernetes Engine 또는 기타 고객 소유 인프라에서 모델을 자체 호스팅하고 있습니다.
+ML.ANNOTATE_IMAGE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-annotate-image?hl=ko] Cloud Vision API를 사용하여 이미지에 주석을 작성합니다. Vision API 선행 학습된 모델을 사용하여 이미지에 주석을 추가하려고 합니다. ML.ANNOTATE_IMAGE 함수로 이미지에 주석 추가 [https://cloud.google.com/bigquery/docs/annotate-image?hl=ko]
+ML.PROCESS_DOCUMENT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-process-document?hl=ko] Document AI API를 사용하여 문서 통계를 추출합니다. Document AI 선행 학습 또는 커스텀 문서 프로세서를 사용하려고 합니다. ML.PROCESS_DOCUMENT 함수를 사용하여 문서 처리 [https://cloud.google.com/bigquery/docs/process-document?hl=ko]
+ML.TRANSCRIBE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-transcribe?hl=ko] Speech-to-Text API를 사용하여 오디오 파일을 텍스트로 변환합니다. Speech-to-Text 선행 학습 또는 커스텀 음성 인식기를 사용하려고 합니다. ML.TRANSCRIBE 함수를 사용하여 오디오 파일을 텍스트로 변환 [https://cloud.google.com/bigquery/docs/transcribe?hl=ko]
+결과를 다른 구조화된 데이터와 조인하려면 분석 결과에서 뷰 또는 테이블을 만들면 됩니다. 예를 들어 다음 문은 추론 결과를 기반으로 테이블을 만듭니다.
+CREATE TABLE my_dataset.my_inference_results AS
+SELECT uri, content_type, vision_feature
+FROM ML.PREDICT(
+  MODEL my_dataset.vision_model,
+  SELECT ML.DECODE_IMAGE(data) AS vision_input
+  FROM my_dataset.object_table
+);
+테이블을 만든 후에는 다음과 같이 표준 또는 커스텀 메타데이터 필드를 기반으로 다른 테이블과 조인할 수 있습니다.
+SELECT a.vision_feature, a.uri, b.description
+FROM my_dataset.my_inference_results a
+JOIN my_dataset.image_description b
+ON a.uri = b.uri;
+또한 검색 색인을 생성 [https://cloud.google.com/bigquery/docs/search-index?hl=ko]하여 분석 결과에 대한 검색을 강화할 수 있습니다. 예를 들어 다음 문은 PDF 파일에서 추출된 데이터에 대한 검색 색인을 만듭니다.
+CREATE SEARCH INDEX my_index ON pdf_text_extract(ALL COLUMNS);
+그러고 나면 색인을 사용하여 결과에서 필요한 항목을 찾을 수 있습니다.
+SELECT * FROM pdf_text_extract WHERE SEARCH(pdf_text, 'Google');
+이점
+BigQuery에서 기본적으로 구조화되지 않은 데이터를 분석하면 다음과 같은 이점이 있습니다.
+모델 요구사항에 맞게 이미지 크기를 조정하는 등의 사전 처리 단계를 자동화하면 수동 작업을 줄일 수 있습니다.
+간단하고 익숙한 SQL 인터페이스를 사용하면 구조화되지 않은 데이터로 작업할 수 있습니다.
+새로운 형태의 컴퓨팅을 프로비저닝할 필요 없이 기존 BigQuery 슬롯을 활용하여 비용을 절약할 수 있습니다.
+서명된 URL
+객체가 나타내는 데이터에 액세스하려면 서명된 URL을 생성합니다. 서명된 URL을 사용하여 객체 데이터를 직접 볼 수 있으며, 객체 테이블 데이터에 사용할 수 있도록 서명된 URL을 원격 함수에 전달 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko]할 수도 있습니다.
+다음 예시와 같이 EXTERNAL_OBJECT_TRANSFORM 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/table-functions-built-in?hl=ko#external_object_transform]를 사용하여 서명된 URL을 생성합니다.
+SELECT uri, signed_url
+FROM EXTERNAL_OBJECT_TRANSFORM(TABLE `mydataset.myobjecttable`, ['SIGNED_URL']);
+그러면 다음과 비슷한 결과가 반환됩니다.
+---------------------------------------------------------------------------------------------------
+|  uri                 | signed_url                                                               |
+—--------------------------------------------------------------------------------------------------
+| gs://mybucket/a.docx | https://storage.googleapis.com/mybucket/a.docx?X-Goog-Signature=abcd&... |
+—-------------------------------------------------------------------------------------------------
+| gs://mybucket/b.pdf  | https://storage.googleapis.com/mybucket/b.pdf?X-Goog-Signature=wxyz&...  |
+—--------------------------------------------------------------------------------------------------
+객체 테이블에서 생성되어 서명된 URL을 가진 모든 사용자 또는 프로시져는 해당 객체를 읽을 수 있습니다. 생성된 서명된 URL은 6시간 후에 만료됩니다. 자세한 내용은 Cloud Storage 서명된 URL [https://cloud.google.com/storage/docs/access-control/signed-urls?hl=ko]을 참조하세요.
+액세스 제어
+객체 테이블은 BigLake를 기반으로 빌드되므로 서비스 계정을 기반으로 외부 연결 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko]을 사용하여 Cloud Storage 데이터에 액세스합니다. 이렇게 하면 액세스 위임을 통해 기본 객체 저장소에 대한 액세스와 테이블에 대한 액세스를 분리합니다. 객체의 데이터와 메타데이터에 액세스하고 테이블에 표시하려면 서비스 계정 권한을 부여합니다. 테이블에만 사용자 권한을 부여합니다. 이 경우 Identity and Access Management(IAM) 및 행 수준 보안 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko]을 사용하여 데이터 액세스를 관리할 수 있습니다.
+객체 테이블은 액세스 권한 위임을 사용하는 다른 테이블과 다릅니다. 여기에서 객체 테이블 행에 대한 액세스 권한이 있으면 기본 파일 콘텐츠에 대한 액세스 권한이 부여됩니다. 사용자는 객체에 직접 액세스할 수 없지만 파일 콘텐츠를 볼 수 있도록 서명된 URL [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko#signed_urls]을 생성할 수 있습니다. 예를 들어 사용자가 flower.jpg 이미지 파일을 나타내는 객체 테이블 행에 액세스할 수 있는 경우 서명된 URL을 생성하여 파일을 표시하고 데이지의 사진임을 확인할 수 있습니다.
+객체 테이블에 행 수준 액세스 정책을 설정하면 선택한 행의 객체 메타데이터와 해당 행으로 표시되는 객체에 대한 사용자 또는 그룹의 액세스가 제한됩니다. 예를 들어 다음 문은 사용자 Alice에게 2022년 6월 25일 이전에 생성된 객체를 나타내는 행에 대해서만 액세스 권한을 부여합니다.
+CREATE ROW ACCESS POLICY before_20220625
+ON my_dataset.my_object_table
+GRANT TO ("user:alice@example.com")
+FILTER USING (updated < TIMESTAMP("2022-06-25"));
+이 행 수준 액세스 정책을 적용하면 Alice가 다음과 같은 결과를 얻을 수 있습니다.
+SELECT * FROM my_dataset.my_object_table; 쿼리를 실행하면 2022년 6월 25일 이전의 updated 값이 있는 행만 반환됩니다.
+my_dataset.my_object_table에 대한 추론을 실행하면 2022년 6월 25일 이전의 updated 값이 있는 객체에 대한 예측만 반환됩니다.
+my_dataset.my_object_table의 서명된 URL을 생성하면 2022년 6월 25일 이전의 updated 값이 있는 객체의 URL만 생성됩니다.
+커스텀 메타데이터를 사용하여 객체 테이블 행에 대한 액세스를 제한할 수도 있습니다. 예를 들어 다음 문은 객체가 개인 식별 정보를 포함하지 않는 것으로 태그된 행만 액세스하도록 users 그룹을 제한합니다.
+CREATE ROW ACCESS POLICY no_pii
+ON my_dataset.my_object_table
+GRANT TO ("group:users@example.com")
+FILTER USING (ARRAY_LENGTH(metadata)=1
+AND metadata[OFFSET(0)].name="no_pii")
+보안 모델
+객체 테이블 관리 및 사용에는 일반적으로 다음과 같은 조직 역할이 포함됩니다.
+데이터 레이크 관리자. 이러한 관리자는 일반적으로 Cloud Storage 버킷 및 객체에서 Identity and Access Management(IAM) 정책을 관리합니다.
+데이터 웨어하우스 관리자. 이러한 관리자는 일반적으로 테이블을 생성, 삭제, 업데이트합니다.
+데이터 분석가. 일반적으로 분석가는 데이터를 읽고 쿼리를 실행합니다.
+데이터 레이크 관리자는 연결을 만들어 데이터 웨어하우스 관리자와 공유해야 합니다. 그런 다음 데이터 웨어하우스 관리자가 테이블을 생성하고, 적절한 액세스 제어를 설정하고, 테이블을 데이터 분석기와 공유합니다.
+주의: 데이터 분석가에게 다음 권한이 부여되면 안 됩니다.
+Cloud Storage에서 직접 객체를 읽을 수 있는 권한(스토리지 객체 뷰어 IAM 역할 [https://cloud.google.com/storage/docs/access-control/iam-roles?hl=ko] 참조): 데이터 웨어하우스 관리자가 설정한 액세스 제어를 데이터 분석가가 우회할 수 있습니다.
+(BigQuery 연결 관리자처럼) 테이블을 연결에 결합할 수 있는 권한
+권한이 부여되면 액세스가 제어되지 않는 새로운 BigLake 테이블을 데이터 분석가가 만들어 데이터 웨어하우스 관리자가 설정한 제어를 우회할 수 있습니다.
+지원되는 객체 파일
+모든 유형의 구조화되지 않은 데이터 파일에 대해 객체 테이블을 만들 수 있으며, 모든 유형의 구조화되지 않은 데이터에 사용할 수 있는 원격 함수를 만들 수 있습니다. 그러나 BigQuery ML을 사용하여 추론을 수행하기 위해서는 여러 크기 및 유형 요구사항을 충족하는 이미지 파일에만 객체 테이블을 덮어쓸 수 있습니다. 자세한 내용은 제한사항 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko#limitations]을 참조하세요.
+성능을 위한 메타데이터 캐싱
+캐시된 메타데이터를 사용하여 객체 테이블에 대한 추론 및 기타 유형의 분석을 향상시킬 수 있습니다. 메타데이터 캐싱은 객체 테이블이 다수의 객체를 참조하는 경우에 특히 유용합니다. BigQuery는 CMETA를 분산 메타데이터 시스템으로 사용하여 대규모 테이블을 효율적으로 처리합니다. CMETA는 시스템 테이블을 통해 액세스할 수 있는 열 및 블록 수준의 세분화된 메타데이터를 제공합니다. 이 시스템은 데이터 액세스 및 처리를 최적화하여 쿼리 성능을 개선하는 데 도움이 됩니다. 대용량 테이블에서 쿼리 성능을 더욱 가속화하기 위해 BigQuery는 메타데이터 캐시를 유지합니다. CMETA 새로고침 작업은 이 캐시를 최신 상태로 유지합니다.
+메타데이터에는 파일 이름, 파티셔닝 정보, 행 수와 같은 파일의 물리적 메타데이터가 포함됩니다. 테이블에서 메타데이터 캐싱을 사용 설정할지 여부를 선택할 수 있습니다. 파일 수가 더 많고 Apache Hive 파티션 필터가 포함된 쿼리는 메타데이터 캐싱의 이점을 극대화할 수 있습니다.
+메타데이터 캐싱을 사용 설정하지 않으면 테이블의 쿼리에서 외부 데이터 소스를 읽어 객체 메타데이터를 가져와야 합니다. 이 데이터를 읽으면 쿼리 지연 시간이 늘어나므로 외부 데이터 소스에서 수백만 개의 파일을 나열하는 데 몇 분 정도 걸릴 수 있습니다. 메타데이터 캐싱을 사용 설정하면 쿼리가 외부 데이터 소스에서 파일을 나열하지 않고 파티션과 파일 프루닝을 더 빠르게 수행할 수 있습니다.
+이 기능을 제어하는 두 가지 속성은 다음과 같습니다.
+최대 비활성은 쿼리에서 캐시된 메타데이터를 사용하는 시점을 지정합니다.
+메타데이터 캐시 모드는 메타데이터가 수집되는 방식을 지정합니다.
+메타데이터 캐싱을 사용 설정했으면 테이블 작업에 허용되는 메타데이터 비활성 간격을 최대한으로 지정합니다. 예를 들어 1시간 간격을 지정하면 이전 한 시간 내에 새로고침된 경우 테이블 작업에 캐시된 메타데이터가 사용됩니다. 캐시된 메타데이터가 이보다 오래된 경우 작업이 Cloud Storage에서 메타데이터를 대신 검색하도록 되돌아갑니다. 비활성 간격은 30분부터 7일까지로 지정할 수 있습니다.
+BigLake 또는 객체 테이블에 메타데이터 캐싱을 사용 설정하면 BigQuery에서 메타데이터 생성 새로고침 작업을 트리거합니다. 캐시를 자동 또는 수동으로 새로고침하도록 선택할 수 있습니다.
+자동 새로고침의 경우 일반적으로 30분에서 60분 사이로 시스템에서 정의된 간격으로 캐시가 새로고침됩니다. Cloud Storage의 파일이 무작위 간격으로 추가, 삭제, 수정될 경우에는 캐시를 자동으로 새로고침하는 것이 좋습니다. 추출-변환-로드 작업이 끝날 때 새로고침을 트리거할 때와 같이 새로고침 시간을 제어해야 할 경우에는 수동 새로고침을 사용합니다.
+수동 새로고침의 경우 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 프로시져 [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache]를 실행하여 요구사항을 충족하는 일정에 따라 메타데이터 캐시를 새로고침합니다. Cloud Storage의 파일이 파이프라인 출력과 같이 알려진 간격으로 추가, 삭제, 수정될 경우에는 캐시를 수동으로 새로고침하는 것이 좋습니다.
+여러 번의 수동 새로고침을 동시에 수행하면 하나만 성공합니다.
+메타데이터 캐시는 새로고침되지 않을 경우 7일 후 만료됩니다.
+수동 및 자동 캐시 새로고침 모두 INTERACTIVE [https://cloud.google.com/bigquery/docs/running-queries?hl=ko] 쿼리 우선순위로 실행됩니다.
+BACKGROUND 예약 사용
+자동 새로고침을 사용하는 경우 메타데이터 캐시 새로고침 작업을 실행하는 프로젝트에 대해 예약 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko]을 만든 후 BACKGROUND 작업 유형으로 할당 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#assignments]을 만드는 것이 좋습니다. BACKGROUND 예약을 사용하면 새로고침 작업이 전용 리소스 풀을 사용하므로 새로고침 작업이 사용자 쿼리와 경쟁하지 않으며 사용할 수 있는 리소스가 충분하지 않은 경우 작업이 실패할 가능성을 줄여줍니다.
+공유 슬롯 풀을 사용해도 추가 비용이 들지 않지만 대신 BACKGROUND 예약을 사용하면 전용 리소스 풀을 할당하여 더 일관된 성능을 제공하고 BigQuery의 새로고침 작업 안정성과 전반적인 쿼리 효율성을 개선할 수 있습니다.
+설정하기 전 비활성 간격 및 메타데이터 캐싱 모드 값이 상호작용하는 방식을 고려해야 합니다. 다음 예를 고려하세요.
+테이블에 대해 메타데이터 캐시를 수동으로 새로고침할 때 비활성 간격을 2일로 설정하면 테이블 작업에 캐시된 메타데이터가 사용되도록 하려면 BQ.REFRESH_EXTERNAL_METADATA_CACHE 시스템 프로시저를 2일 이내 간격으로 실행해야 합니다.
+테이블에 대해 메타데이터 캐시를 자동으로 새로고침할 때 비활성 간격을 30분으로 설정한 경우 메타데이터 캐시 새로고침이 일반적인 30분~60분 기간보다 길어지면 테이블에 대한 작업 중 일부에서 Cloud Storage 읽기가 수행될 수 있습니다.
+메타데이터 새로고침 작업에 대한 정보를 보려면 다음 예시에 표시된 것처럼 INFORMATION_SCHEMA.JOBS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 쿼리합니다.
+SELECT *
+FROM `region-us.INFORMATION_SCHEMA.JOBS_BY_PROJECT`
+WHERE job_id LIKE '%metadata_cache_refresh%'
+AND creation_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 6 HOUR)
+ORDER BY start_time DESC
+LIMIT 10;
+자세한 내용은 메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/metadata-caching?hl=ko]을 참조하세요.
+메타데이터 캐싱 옵션 설정에 대한 자세한 내용은 객체 테이블 만들기 [https://cloud.google.com/bigquery/docs/object-tables?hl=ko#create-object-table]를 참조하세요.
+제한사항
+객체 테이블은 Cloud Storage의 구조화되지 않은 데이터 객체에 매핑되므로 읽기 전용입니다. 객체 테이블을 변경하거나 객체 테이블 데이터를 수정할 수 없습니다.
+legacy SQL 또는 AWS 및 Microsoft Azure와 같은 다른 클라우드 환경에서는 객체 테이블이 지원되지 않습니다.
+BigQuery ML을 사용하여 추론을 수행하려면 사용하는 모델과 객체 테이블이 제한사항 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko#limitations]에 설명된 요구사항을 충족해야 합니다.
+객체 테이블이 포함된 쿼리는 10GB를 초과하는 객체 메타데이터에 액세스할 수 없습니다. 예를 들어 서명된 URL을 통해 객체 테이블 및 객체 데이터의 메타데이터 열 조합으로부터 100TB에 액세스하는 쿼리의 경우에는 100TB 중 10GB만 메타데이터 열에서 온 것일 수 있습니다.
+객체 테이블에는 다른 모든 BigQuery 외부 테이블과 동일한 제한사항이 적용됩니다. 자세한 내용은 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko#external_tables]을 참조하세요.
+객체 테이블에 대한 쿼리에는 다른 모든 BigQuery 쿼리와 동일한 제한사항이 적용됩니다. 자세한 내용은 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko#query_jobs]을 참조하세요.
+객체 테이블에서 구조화되지 않은 데이터를 처리하는 원격 함수에는 다른 모든 원격 함수와 동일한 제한사항 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#limitations]이 적용됩니다.
+객체 테이블의 객체에 대해 생성되어 서명된 URL은 쿼리 실행 시간 제한 [https://cloud.google.com/bigquery/quotas?hl=ko#query_jobs]인 6시간 후에 만료됩니다.
+BigQuery ML을 사용한 추론은 주문형 가격 책정 또는 Standard 버전에서 지원되지 않습니다.
+다음 함수는 주문형 가격 책정 또는 Standard 버전에서 지원되지 않습니다.
+ML.CONVERT_COLOR_SPACE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-convert-color-space?hl=ko]
+ML.CONVERT_IMAGE_TYPE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-convert-image-type?hl=ko]
+ML.RESIZE_IMAGE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-resize-image?hl=ko]
+비용
+비용은 객체 테이블의 다음 측면과 관련이 있습니다.
+테이블 쿼리
+메타데이터 캐시 새로고침 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko#metadata_caching_for_performance]
+슬롯 예약 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko]이 있으면 외부 테이블 쿼리 요금은 청구되지 않습니다. 대신 이러한 쿼리에 슬롯이 소비됩니다.
+다음 표에서는 가격 책정 모델이 이러한 비용 적용 방식에 미치는 영향을 보여줍니다.
+
+주문형 가격 책정
+Standard, Enterprise, Enterprise Plus 버전
+
+쿼리
+사용자 쿼리로 처리되는 바이트 수에 대한 요금이 청구 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]됩니다.
+QUERY 작업 유형의 예약 할당 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko#assignments]에 포함된 슬롯 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]은 쿼리 시간 중에 소비됩니다.
+
+메타데이터 캐시 수동 새로고침
+캐시 새로고침을 위해 처리되는 바이트 수에 대한 요금이 청구 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]됩니다.
+QUERY 작업 유형의 예약 할당 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko#assignments]에 포함된 슬롯 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]은 캐시 새로고침 중에 소비됩니다.
+
+메타데이터 캐시 자동 새로고침
+캐시 새로고침을 위해 처리되는 바이트 수에 대한 요금이 청구 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]됩니다.
+BACKGROUND 작업 유형의 예약 할당 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko#assignments]에 포함된 슬롯 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]은 캐시 새로고침 중에 소비됩니다.
+
+메타데이터 캐시 새로고침에 사용 가능한 BACKGROUND 예약이 없으면 Enterprise 또는 Enterprise Plus 버전을 사용하는 경우 BigQuery가 대신 QUERY 예약의 슬롯을 자동으로 사용합니다.
+Cloud Storage [https://cloud.google.com/storage/pricing?hl=ko], Amazon S3 [https://aws.amazon.com/s3/pricing/], Azure Blob Storage [https://azure.microsoft.com/pricing/details/storage/blobs/]의 스토리지 및 데이터 액세스도 각 제품의 가격 책정 가이드라인에 따라 요금이 청구됩니다.
+Analytics Hub에서 객체 테이블 사용
+객체 테이블은 Analytics Hub와 호환됩니다. 객체 테이블이 포함된 데이터 세트는 Analytics Hub 목록 [https://cloud.google.com/bigquery/docs/analytics-hub-introduction?hl=ko#listings]으로 게시할 수 있습니다. Analytics Hub 구독자는 연결된 데이터 세트 [https://cloud.google.com/bigquery/docs/analytics-hub-introduction?hl=ko#linked_datasets]라고 하는 읽기 전용 데이터 세트를 프로젝트에 프로비저닝하는 이러한 목록을 구독할 수 있습니다. 구독자는 모든 객체 테이블을 포함하여 연결된 데이터 세트의 모든 테이블을 쿼리할 수 있습니다. 자세한 내용은 목록 구독 [https://cloud.google.com/bigquery/docs/analytics-hub-view-subscribe-listings?hl=ko#subscribe-listings]을 참조하세요.
+다음 단계
+객체 테이블을 만드는 방법 [https://cloud.google.com/bigquery/docs/object-tables?hl=ko] 알아보기
+이미지 객체 테이블에서 추론 실행 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko] 방법 알아보기
+원격 함수를 사용하여 객체 테이블 분석 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko] 방법 알아보기
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,214 @@
+Source URL: https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko#limitations]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko#before_you_begin]
+쿼리 결과 내보내기 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko#export_query_results]
+문제 해결 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko#troubleshooting]
+다음 단계 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko#whats_next]
+쿼리 결과를 Amazon S3로 내보내기
+bookmark_border
+이 문서에서는 BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko]을 대상으로 실행되는 쿼리 결과를 Amazon Simple Storage Service(Amazon S3) 버킷으로 내보내는 방법을 설명합니다.
+BigQuery와 Amazon S3 간의 데이터 흐름 방식에 대한 자세한 내용은 데이터 내보내기 시 데이터 흐름 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#export-data]을 참조하세요.
+제한사항
+Amazon S3 및 Blob Storage를 기반으로 BigLake 테이블에 적용되는 전체 제한사항 목록은 제한사항 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#limitations]을 참조하세요.
+시작하기 전에
+다음 리소스가 있는지 확인합니다.
+Amazon S3 버킷에 액세스하기 위한 연결 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko]
+Amazon S3 BigLake 테이블 [https://cloud.google.com/bigquery/docs/omni-aws-create-external-table?hl=ko]
+올바른 Amazon Web Services(AWS) Identity and Access Management(IAM) 정책:
+Amazon S3 버킷에 데이터를 쓸 수 있는 PutObject 권한이 있어야 합니다. 자세한 내용은 BigQuery용 AWS IAM 정책 만들기 [https://cloud.google.com/bigquery/docs/omni-aws-create-connection?hl=ko#creating-aws-iam-policy]를 참조하세요.
+용량 기반 가격 책정 모델 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]을 사용하는 경우 프로젝트에 BigQuery Reservation API [https://console.cloud.google.com/apis/library/bigqueryreservation.googleapis.com?hl=ko]를 사용 설정했는지 확인합니다. 가격 책정에 대한 자세한 내용은 BigQuery Omni 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqomni]을 참조하세요.
+쿼리 결과 내보내기
+BigQuery Omni는 기존 콘텐츠와 관계없이 지정된 Amazon S3 위치에 씁니다. 내보내기 쿼리에서 기존 데이터를 덮어쓰거나 쿼리 결과를 기존 데이터와 혼합할 수 있습니다. 쿼리 결과를 비어 있는 Amazon S3 버킷으로 내보내는 것이 좋습니다.
+쿼리를 실행하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko#sql] ---
+쿼리 편집기 필드에 GoogleSQL 내보내기 쿼리를 입력합니다.
+GoogleSQL은 Google Cloud 콘솔의 기본 구문입니다.
+
+
+
+
+
+참고: 기본 프로젝트를 재정의하려면 --project_id=PROJECT_ID 파라미터를 사용하세요. PROJECT_ID를 Google Cloud 프로젝트의 ID로 바꿉니다.
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+   EXPORT DATA WITH CONNECTION `CONNECTION_REGION.CONNECTION_NAME`
+   OPTIONS(uri="s3://BUCKET_NAME/PATH", format="FORMAT", ...)
+   AS QUERY
+
+
+다음을 바꿉니다.
+
+
+CONNECTION_REGION: 연결이 생성된 리전
+CONNECTION_NAME: Amazon S3 버킷에 쓰는 데 필요한 권한으로 만든 연결 이름
+BUCKET_NAME: 데이터를 쓰려는 Amazon S3 버킷
+PATH: 내보낸 파일을 쓰려는 경로. 경로 문자열의 리프 디렉터리에 정확히 와일드 카드(*) 하나가 포함되어야 합니다(예: ../aa/*, ../aa/b*c, ../aa/*bc, ../aa/bc*). BigQuery는 내보낸 파일 수에 따라 *를 0000..N으로 바꿉니다.
+ BigQuery에서 파일 수와 크기를 결정합니다. BigQuery에서 파일 2개를 내보내려는 경우 첫 번째 파일의 파일 이름에 있는 *가 000000000000으로 바뀌고 두 번째 파일의 파일 이름에 있는 *가 000000000001로 바뀝니다.
+FORMAT: 지원되는 형식은 JSON, AVRO, CSV, PARQUET입니다.
+QUERY: BigLake 테이블에 저장된 데이터를 분석하는 쿼리입니다.
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko#%EC%9E%90%EB%B0%94] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko];
+
+// Sample to export query results to Amazon S3 bucket
+public class ExportQueryResultsToS3 {
+
+  public static void main(String[] args) throws InterruptedException {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String datasetName = "MY_DATASET_NAME";
+    String externalTableName = "MY_EXTERNAL_TABLE_NAME";
+    // connectionName should be in the format of connection_region.connection_name. e.g.
+    // aws-us-east-1.s3-write-conn
+    String connectionName = "MY_CONNECTION_REGION.MY_CONNECTION_NAME";
+    // destinationUri must contain exactly one * anywhere in the leaf directory of the path string
+    // e.g. ../aa/*, ../aa/b*c, ../aa/*bc, and ../aa/bc*
+    // BigQuery replaces * with 0000..N depending on the number of files exported.
+    // BigQuery determines the file count and sizes.
+    String destinationUri = "s3://your-bucket-name/*";
+    String format = "EXPORT_FORMAT";
+    // Export result of query to find states starting with 'W'
+    String query =
+        String.format(
+            "EXPORT DATA WITH CONNECTION `%s` OPTIONS(uri='%s', format='%s') "
+              + "AS SELECT * FROM %s.%s.%s WHERE name LIKE 'W%%'",
+            connectionName, destinationUri, format, projectId, datasetName, externalTableName);
+    exportQueryResultsToS3(query);
+  }
+
+  public static void exportQueryResultsToS3(String query) throws InterruptedException {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko] results = bigquery.query [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_query_com_google_cloud_bigquery_QueryJobConfiguration_com_google_cloud_bigquery_BigQuery_JobOption____](QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko].of(query));
+
+      results
+          .iterateAll [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko#com_google_cloud_bigquery_TableResult_iterateAll__]()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s,", val.toString())));
+
+      System.out.println("Query results exported to Amazon S3 successfully.");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+문제 해결
+quota failure 관련 오류가 발생하면 쿼리에 용량을 예약했는지 확인합니다. 슬롯 예약에 대한 자세한 내용은 이 문서의 시작하기 전에 [https://cloud.google.com/bigquery/docs/omni-aws-export-results-to-s3?hl=ko#before_you_begin]를 참조하세요.
+다음 단계
+BigQuery Omni [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko] 알아보기
+테이블 데이터 내보내기 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko] 방법 알아보기
+Amazon S3에 저장된 데이터 쿼리 [https://cloud.google.com/bigquery/docs/query-aws-data?hl=ko] 방법 알아보기
+BigQuery Omni의 VPC 서비스 제어 설정 [https://cloud.google.com/bigquery/docs/omni-vpc-sc?hl=ko] 방법 알아보기
+도움이 되었나요?
+의견 보내기

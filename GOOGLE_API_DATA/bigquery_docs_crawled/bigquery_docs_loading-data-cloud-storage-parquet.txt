@@ -1,0 +1,1996 @@
+Source URL: https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#limitations]
+입력 파일 요구사항 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#input_file_requirements]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#before_you_begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#required_permissions]
+Cloud Storage에서 데이터를 로드할 수 있는 권한 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#permissions-load-data-from-cloud-storage]
+Cloud Storage에서 Parquet 데이터 로드
+bookmark_border
+이 페이지에서는 Cloud Storage의 Parquet 데이터를 BigQuery로 로드하는 방법을 간략하게 설명합니다.
+Parquet [http://parquet.apache.org/]는 Apache Hadoop 생태계에서 널리 사용하는 오픈소스 열 기반 데이터 형식입니다.
+Cloud Storage에서 Parquet 데이터를 로드할 때는 새 테이블 또는 파티션에 데이터를 로드하거나 기존 테이블 또는 파티션에 추가 또는 덮어쓸 수 있습니다. BigQuery에 로드한 데이터는 Capacitor [https://cloud.google.com/blog/products/gcp/inside-capacitor-bigquerys-next-generation-columnar-storage-format?hl=ko]용 열 형식(BigQuery의 스토리지 형식)으로 변환됩니다.
+Cloud Storage에서 BigQuery 테이블로 데이터를 로드하는 경우 테이블을 포함한 데이터 세트는 Cloud Storage 버킷과 같은 리전이나 멀티 리전 위치에 있어야 합니다.
+로컬 파일에서 Parquet 데이터를 로드하는 방법에 대한 자세한 내용은 로컬 파일에서 데이터 로드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko]를 참조하세요.
+제한사항
+Cloud Storage 버킷에서 BigQuery로 데이터를 로드할 때는 다음과 같은 제한사항이 적용됩니다.
+BigQuery는 외부 데이터 소스의 데이터 일관성을 보장하지 않습니다. 쿼리가 실행되는 동안 기본 데이터가 변경되면 예상치 못한 동작이 발생할 수 있습니다.
+BigQuery는 Cloud Storage 객체 버전 관리 [https://cloud.google.com/storage/docs/object-versioning?hl=ko]를 지원하지 않습니다. Cloud Storage URI에 세대 번호를 포함하면 로드 작업이 실패합니다.
+로드할 파일의 스키마가 다르면 Cloud Storage URI에 와일드 카드를 사용할 수 없습니다. 열 위치 차이로 인해 다른 스키마에 해당하게 됩니다.
+입력 파일 요구사항
+BigQuery에 Parquet 파일을 로드할 때 resourcesExceeded 오류를 방지하려면 다음 가이드라인을 따르세요.
+행 크기를 50MB 이하로 유지합니다.
+입력 데이터에 100개가 넘는 열이 포함된 경우 페이지 크기를 기본 페이지 크기(1 * 1024 * 1024바이트)보다 작게 줄이는 것이 좋습니다. 이는 상당한 압축을 사용하는 경우에 특히 유용합니다.
+최적의 성능을 위해 행 그룹 크기를 16MiB 이상으로 설정합니다. 행 그룹 크기가 작을수록 I/O가 증가하고 로드 및 쿼리 속도가 느려집니다.
+시작하기 전에
+이 문서의 각 태스크를 수행하는 데 필요한 권한을 사용자에게 제공하는 Identity and Access Management(IAM) 역할을 부여하고 데이터를 저장할 데이터 세트를 만듭니다.
+필수 권한
+데이터를 BigQuery로 로드하려면 로드 작업을 실행하고 데이터를 BigQuery 테이블과 파티션으로 로드할 수 있는 IAM 권한이 필요합니다. Cloud Storage에서 데이터를 로드할 경우 데이터가 포함된 버킷에 액세스할 수 있는 IAM 권한도 필요합니다.
+데이터를 BigQuery로 로드할 수 있는 권한
+데이터를 새 BigQuery 테이블이나 파티션으로 로드하거나 기존 테이블 또는 파티션을 추가하거나 덮어쓰려면 다음 IAM 권한이 필요합니다.
+bigquery.tables.create
+bigquery.tables.updateData
+bigquery.tables.update
+bigquery.jobs.create
+다음과 같이 사전 정의된 각 IAM 역할에는 데이터를 BigQuery 테이블이나 파티션에 로드하기 위해 필요한 권한이 포함되어 있습니다.
+roles/bigquery.dataEditor
+roles/bigquery.dataOwner
+roles/bigquery.admin(bigquery.jobs.create 권한 포함)
+bigquery.user(bigquery.jobs.create 권한 포함)
+bigquery.jobUser(bigquery.jobs.create 권한 포함)
+또한 bigquery.datasets.create 권한이 있으면 만들 데이터 세트에서 로드 작업을 사용하여 테이블을 만들고 업데이트할 수 있습니다.
+BigQuery의 IAM 역할과 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/access-control?hl=ko]을 참조하세요.
+Cloud Storage에서 데이터를 로드할 수 있는 권한
+Cloud Storage 버킷에서 데이터를 로드하는 데 필요한 권한을 얻으려면 관리자에게 버킷의 스토리지 관리자 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.admin](roles/storage.admin) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이 사전 정의된 역할에는 Cloud Storage 버킷에서 데이터를 로드하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+데이터 세트 생성
+데이터를 저장할 BigQuery 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]를 만듭니다.
+Parquet 스키마
+Parquet 파일을 BigQuery로 로드하면 테이블 스키마는 자체 설명적 소스 데이터에서 자동으로 검색됩니다. BigQuery가 소스 데이터에서 스키마를 검색할 때는 알파벳순으로 마지막 파일이 사용됩니다.
+예를 들어 Cloud Storage에 다음 Parquet 파일이 있다고 가정해 보겠습니다.
+gs://mybucket/00/
+  a.parquet
+  z.parquet
+gs://mybucket/01/
+  b.parquet
+bq 명령줄 도구로 이 명령어를 실행하면 모든 파일(쉼표로 구분된 목록)이 로드되고 스키마가 mybucket/01/b.parquet에서 파생됩니다.
+bq load \
+--source_format=PARQUET \
+dataset.table \
+"gs://mybucket/00/*.parquet","gs://mybucket/01/*.parquet"
+서로 다른 스키마가 있는 여러 Parquet 파일을 로드하는 경우 여러 스키마에 지정된 동일한 열은 각 스키마 정의에서 모드 [https://cloud.google.com/bigquery/docs/schemas?hl=ko#modes]가 동일해야 합니다.
+BigQuery가 스키마를 감지하면 일부 Parquet 데이터 유형은 GoogleSQL SQL 구문과 호환되도록 BigQuery 데이터 유형으로 변환됩니다. 자세한 내용은 Parquet 변환 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#parquet_conversions]을 참조하세요.
+외부 테이블을 만들기 위한 테이블 스키마를 제공하려면 BigQuery API의 referenceFileSchemaUri 속성을 설정하거나 bq 명령줄 도구의
+--reference_file_schema_uri 매개변수를 참조 파일의 URL로 설정합니다.
+예를 들면 --reference_file_schema_uri="gs://mybucket/schema.parquet"입니다.
+Parquet 압축
+BigQuery는 Parquet 파일 콘텐츠에 대해 다음과 같은 압축 코덱을 지원합니다.
+GZip
+LZO_1C
+LZO_1X
+LZ4_RAW
+Snappy
+ZSTD
+새 테이블에 Parquet 데이터 로드
+다음 중 하나를 사용하여 새 테이블에 Parquet 데이터를 로드할 수 있습니다.
+Google Cloud 콘솔
+bq 명령줄 도구의 bq load 명령어
+jobs.insert API 메서드 및 load 작업 구성
+클라이언트 라이브러리
+Cloud Storage에서 Parquet 데이터를 새 BigQuery 테이블로 로드하려면 다음 안내를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+    BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+
+탐색기 창에서 프로젝트를 펼친 후 데이터 세트를 선택합니다.
+데이터 세트 정보 섹션에서 add_box 테이블 만들기를 클릭합니다.
+ 테이블 만들기 패널에서 다음 세부정보를 지정합니다. 
+
+
+  
+
+
+
+소스 섹션의 다음 항목으로 테이블 만들기 목록에서 Google Cloud Storage를 선택합니다.
+  그런 후 다음 작업을 수행합니다.
+  
+    Cloud Storage 버킷에서 파일을 선택하거나 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]를 입력합니다.
+              Google Cloud 콘솔에는 URI 여러 개가 포함될 수 없지만 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]는 지원됩니다. Cloud Storage 버킷은 생성, 추가 또는 덮어쓰려는 테이블이 포함된 데이터 세트와 동일한 위치에 있어야 합니다.
+      
+
+      
+
+
+
+
+
+    파일 형식으로 Parquet를 선택합니다.
+  
+
+    
+
+
+
+
+
+대상 섹션에서 다음 세부정보를 지정합니다.데이터 세트에서 테이블을 만들 데이터 세트를 선택합니다.
+  테이블 필드에 만들려는 테이블의 이름을 입력합니다.
+  테이블 유형 필드가 기본 테이블로 설정되어 있는지 확인합니다.
+  
+
+
+
+
+    스키마 섹션은 그대로 놔둡니다. 스키마는 Parquet 파일에서 자체 기술됩니다.
+
+
+
+
+  
+  
+
+
+
+  
+  선택사항: 파티션 및 클러스터 설정을 지정합니다. 자세한 내용은 파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko] 및 클러스터링된 테이블 만들기 및 사용 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]을 참조하세요.
+    
+  
+
+
+
+   
+
+
+
+
+고급 옵션을 클릭하고 다음을 수행합니다.
+
+
+
+
+
+  
+  쓰기 환경설정에서 비어 있으면 쓰기를 선택한 상태로 둡니다. 이 옵션은 새 테이블을 만들어 데이터를 로드합니다.
+  
+
+  
+
+  테이블 스키마에 없는 행의 값을 무시하려면 알 수 없는 값을 선택합니다.
+
+  
+  Cloud Key Management Service 키 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 사용하려면 암호화에서 고객 관리 키를 클릭합니다.
+        Google-managed key 설정을 그대로 두면 BigQuery에서 저장 데이터를 암호화 [https://cloud.google.com/security/encryption/default-encryption?hl=ko]합니다.
+
+  
+  
+
+
+
+테이블 만들기를 클릭합니다.
+
+
+참고:Google Cloud 콘솔을 사용하여 빈 테이블에 데이터를 로드하면 라벨, 설명, 테이블 만료 시간 또는 파티션 만료 시간을 추가할 수 없습니다.테이블을 만든 후에 테이블의 만료 시간, 설명, 라벨을 업데이트할 수 있지만, Google Cloud 콘솔을 사용하여 테이블을 만든 후에 파티션 만료 시간을 추가할 수는 없습니다. 자세한 내용은 테이블 관리 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko]를 참조하세요.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#sql] ---
+LOAD DATA DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/load-statements?hl=ko]을 사용합니다.
+다음 예시에서는 Parquet 파일을 새 테이블인 mytable에 로드합니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+LOAD DATA OVERWRITE mydataset.mytable
+FROM FILES (
+  format = 'PARQUET',
+  uris = ['gs://bucket/path/file.parquet']);
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#bq] ---
+bq load 명령어를 사용하고, --source_format 플래그로 PARQUET를 지정하고, Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]를 포함합니다.
+단일 URI, 쉼표로 구분된 URI 목록 또는 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]가 포함된 URI를 포함할 수 있습니다.
+
+(선택사항) --location 플래그를 지정하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]로 설정합니다.
+
+이 외에 다음과 같은 선택적 플래그가 있습니다.
+
+
+--time_partitioning_type: 테이블에 시간 기준 파티션 나누기를 사용 설정하고 파티션 유형을 설정합니다. 가능한 값은 HOUR, DAY, MONTH, YEAR입니다. DATE, DATETIME, TIMESTAMP 열을 기준으로 파티션을 나눈 테이블을 만드는 경우 이 플래그는 선택사항입니다. 시간 기준 파티션 나누기의 기본 파티션 유형은 DAY입니다. 기존 테이블의 파티션 나누기 사양을 변경할 수 없습니다.
+--time_partitioning_expiration: 시간 기준 파티션을 삭제할 시간을 초 단위로 지정하는 정수입니다. 만료 시간은 파티션의 UTC 날짜에 정수 값을 더한 값입니다.
+--time_partitioning_field: 파티션을 나눈 테이블을 만드는 데 사용되는 DATE 또는 TIMESTAMP 열입니다. 이 값 없이 시간 기준 파티션 나누기를 사용 설정하면 수집 시간으로 파티션을 나눈 테이블이 생성됩니다.
+--require_partition_filter: 이 옵션을 사용 설정하면 사용자는 쿼리할 파티션을 지정하는 WHERE 절을 포함해야 합니다.
+파티션 필터를 필수항목으로 설정하면 비용을 줄이고 성능은 높일 수 있습니다.
+자세한 내용은 쿼리에 파티션 필터 필요 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko]를 참조하세요.
+--clustering_fields: 클러스터링된 테이블 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]을 만드는 데 사용된 쉼표로 구분된 열 이름(최대 4개) 목록입니다.
+--destination_kms_key: 테이블 데이터 암호화에 사용되는 Cloud KMS 키입니다.
+--column_name_character_map: 유연한 열 이름 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#flexible-column-names]을 사용 설정하는 옵션을 사용하여 열 이름의 문자 범위와 처리를 정의합니다.
+자세한 내용은 load_option_list [https://cloud.google.com/bigquery/docs/reference/standard-sql/load-statements?hl=ko#load_option_list]를 참조하세요.
+지원되는 문자와 지원되지 않는 문자에 대한 자세한 내용은 유연한 열 이름 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#flexible-column-names]을 참고하세요.
+
+파티션을 나눈 테이블에 대한 자세한 내용은 다음을 참조하세요.
+
+
+파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko]
+
+
+클러스터링된 테이블에 대한 자세한 내용은 다음을 참조하세요.
+
+
+클러스터링된 테이블 만들기 및 사용 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]
+
+
+테이블 암호화에 대한 자세한 내용은 다음을 참조하세요.
+
+
+Cloud KMS 키로 데이터 보호 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]
+
+
+
+BigQuery에 Parquet 데이터를 로드하려면 다음 명령어를 입력하세요.
+
+bq --location=LOCATION load \
+--source_format=FORMAT \
+DATASET.TABLE \
+PATH_TO_SOURCE
+
+다음을 바꿉니다.
+
+
+LOCATION: 사용자 위치입니다. --location 플래그는 선택사항입니다. 예를 들어 도쿄 리전에서 BigQuery를 사용하는 경우에는 플래그 값을 asia-northeast1로 설정할 수 있습니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+FORMAT: PARQUET.
+DATASET: 기존 데이터 세트입니다.
+TABLE: 데이터를 로드할 테이블의 이름입니다.
+PATH_TO_SOURCE: 정규화된 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri] 또는 쉼표로 구분된 URI 목록이며 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]도 지원됩니다.
+
+
+예:
+
+다음 명령어는 gs://mybucket/mydata.parquet에서 mydataset에 있는 mytable이라는 이름의 테이블로 데이터를 로드합니다.
+    bq load \
+    --source_format=PARQUET \
+    mydataset.mytable \
+    gs://mybucket/mydata.parquet
+
+다음 명령어는 gs://mybucket/mydata.parquet에서 mydataset에 있는 mytable이라는 수집 시간으로 파티션을 나눈 테이블에 데이터를 로드합니다.
+    bq load \
+    --source_format=PARQUET \
+    --time_partitioning_type=DAY \
+    mydataset.mytable \
+    gs://mybucket/mydata.parquet
+
+다음 명령어는 gs://mybucket/mydata.parquet에서 mydataset에 있는 mytable이라는 파티션을 나눈 테이블에 데이터를 로드합니다. 테이블의 파티션은 mytimestamp 열을 기준으로 나뉩니다.
+    bq load \
+    --source_format=PARQUET \
+    --time_partitioning_field mytimestamp \
+    mydataset.mytable \
+    gs://mybucket/mydata.parquet
+
+다음 명령어는 gs://mybucket/에 있는 여러 파일에서 mydataset에 있는 mytable이라는 테이블로 데이터를 로드합니다. Cloud Storage URI는 와일드 카드를 사용합니다.
+    bq load \
+    --source_format=PARQUET \
+    mydataset.mytable \
+    gs://mybucket/mydata*.parquet
+
+다음 명령어는 gs://mybucket/에 있는 여러 파일에서 mydataset에 있는 mytable이라는 테이블로 데이터를 로드합니다. 명령어에는 와일드 카드를 사용하는 쉼표로 구분된 Cloud Storage URI 목록이 포함됩니다.
+    bq load \
+    --source_format=PARQUET \
+    mydataset.mytable \
+    "gs://mybucket/00/*.parquet","gs://mybucket/01/*.parquet"
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#api] ---
+Cloud Storage의 소스 데이터를 가리키는 load 작업을 만듭니다.
+(선택사항) 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 있는 location 속성에 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]를 지정합니다.
+source URIs 속성은 gs://BUCKET/OBJECT 형식으로 정규화되어야 합니다.
+각 URI는 '*' 와일드 카드 문자 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards] 하나를 포함할 수 있습니다.
+sourceFormat 속성을 PARQUET로 설정하여 Parquet 데이터 형식을 지정합니다.
+작업 상태를 확인하려면 jobs.get(JOB_ID*) [https://cloud.google.com/bigquery/docs/reference/v2/jobs/get?hl=ko]를 호출하여 JOB_ID를 초기 요청에서 반환된 작업의 ID로 바꿉니다.
+
+
+status.state = DONE이면 작업이 성공적으로 완료된 것입니다.
+status.errorResult 속성이 있으면 요청이 실패한 것이며, 해당 객체에 무엇이 잘못되었는지 설명하는 정보가 포함됩니다.
+요청이 실패하면 테이블이 생성되지 않고 데이터가 로드되지 않습니다.
+status.errorResult가 없으면 작업은 성공적으로 완료되었지만 일부 행 가져오기 문제와 같은 심각하지 않은 오류가 발생했을 수 있다는 의미입니다. 심각하지 않은 오류는 반환된 작업 객체의 status.errors 속성에 나열됩니다.
+
+
+
+API 참고:
+
+
+로드 작업은 원자적이며 일관적입니다. 로드 작업이 실패하면 어떤 데이터도 사용할 수 없으며, 로드 작업이 성공하면 모든 데이터를 사용할 수 있습니다.
+jobs.insert를 호출하여 로드 작업을 만들 때는 고유 ID를 생성하여 jobReference.jobId로 전달하는 것이 가장 좋습니다. 클라이언트가 알려진 작업 ID로 폴링하거나 재시도할 수 있으므로 이 방법은 네트워크 장애 시에 더욱 안정적입니다.
+특정 작업 ID에 대한 jobs.insert 호출은 멱등성을 가집니다. 동일한 작업 ID에 대해 원하는 만큼 재시도할 수 있으며 이러한 작업 중 최대 하나가 성공하게 됩니다.
+
+--- 탭: tabpanel-go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// importParquet demonstrates loading Apache Parquet data from Cloud Storage into a table.
+func importParquet(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	gcsRef := bigquery.NewGCSReference [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_GCSReference_NewGCSReference]("gs://cloud-samples-data/bigquery/us-states/us-states.parquet")
+	gcsRef.SourceFormat = bigquery.Parquet [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_CSV_Avro_JSON_DatastoreBackup_GoogleSheets_Bigtable_Parquet_ORC_TFSavedModel_XGBoostBooster_Iceberg]
+	gcsRef.AutoDetect = true
+	loader := client.Dataset(datasetID).Table(tableID).LoaderFrom [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Table_LoaderFrom](gcsRef)
+
+	job, err := loader.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]() != nil {
+		return fmt.Errorf("job completed with error: %v", status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]())
+	}
+	return nil
+}
+
+--- 탭: tabpanel-java ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko];
+import com.google.cloud.bigquery.LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+import java.math.BigInteger;
+
+public class LoadParquet {
+
+  public static void runLoadParquet() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    loadParquet(datasetName);
+  }
+
+  public static void loadParquet(String datasetName) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      String sourceUri = "gs://cloud-samples-data/bigquery/us-states/us-states.parquet";
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(datasetName, "us_states");
+
+      LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko] configuration =
+          LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko].builder(tableId, sourceUri)
+              .setFormatOptions(FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko].parquet [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko#com_google_cloud_bigquery_FormatOptions_parquet__]())
+              .build();
+
+      // For more information on Job see:
+      // https://googleapis.dev/java/google-cloud-clients/latest/index.html?com/google/cloud/bigquery/package-summary.html
+      // Load the table
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] job = bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](JobInfo.of(configuration));
+
+      // Blocks until this load table job completes its execution, either failing or succeeding.
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] completedJob = job.waitFor [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_waitFor_com_google_cloud_bigquery_BigQueryRetryConfig_com_google_cloud_RetryOption____]();
+      if (completedJob == null) {
+        System.out.println("Job not executed since it no longer exists.");
+        return;
+      } else if (completedJob.getStatus().getError() != null) {
+        System.out.println(
+            "BigQuery was unable to load the table due to an error: \n"
+                + job.getStatus().getError());
+        return;
+      }
+
+      // Check number of rows loaded into the table
+      BigInteger numRows = bigquery.getTable [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_getTable_com_google_cloud_bigquery_TableId_com_google_cloud_bigquery_BigQuery_TableOption____](tableId).getNumRows();
+      System.out.printf("Loaded %d rows. \n", numRows);
+
+      System.out.println("GCS parquet loaded successfully.");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("GCS Parquet was not loaded. \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client libraries
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const {Storage} = require('@google-cloud/storage [https://cloud.google.com/nodejs/docs/reference/storage/latest/overview.html?hl=ko]');
+
+// Instantiate clients
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+const storage = new Storage();
+
+/**
+ * This sample loads the Parquet file at
+ * https://storage.googleapis.com/cloud-samples-data/bigquery/us-states/us-states.parquet
+ *
+ * TODO(developer): Replace the following lines with the path to your file.
+ */
+const bucketName = 'cloud-samples-data';
+const filename = 'bigquery/us-states/us-states.parquet';
+
+async function loadTableGCSParquet() {
+  // Imports a GCS file into a table with Parquet source format.
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const datasetId = 'my_dataset';
+  // const tableId = 'my_table';
+
+  // Configure the load job. For full list of options, see:
+  // https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad
+  const metadata = {
+    sourceFormat: 'PARQUET',
+    location: 'US',
+  };
+
+  // Load data from a Google Cloud Storage file into the table
+  const [job] = await bigquery
+    .dataset(datasetId)
+    .table(tableId)
+    .load [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/table.html?hl=ko](storage.bucket(bucketName).file(filename), metadata);
+
+  // load() waits for the job to finish
+  console.log(`Job ${job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id} completed.`);
+
+  // Check the job's status for errors
+  const errors = job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].status.errors;
+  if (errors && errors.length > 0) {
+    throw errors;
+  }
+}
+
+--- 탭: tabpanel-php ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 PHP 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery PHP API 참고 문서 [https://cloud.google.com/php/docs/reference/cloud-bigquery/latest/BigQueryClient?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\Core\ExponentialBackoff;
+
+/** Uncomment and populate these variables in your code */
+// $projectId  = 'The Google project ID';
+// $datasetId  = 'The BigQuery dataset ID';
+
+// instantiate the bigquery table service
+$bigQuery = new BigQueryClient([
+    'projectId' => $projectId,
+]);
+$dataset = $bigQuery->dataset($datasetId);
+$table = $dataset->table('us_states');
+
+// create the import job
+$gcsUri = 'gs://cloud-samples-data/bigquery/us-states/us-states.parquet';
+$loadConfig = $table->loadFromStorage($gcsUri)->sourceFormat('PARQUET');
+$job = $table->runJob($loadConfig);
+// poll the job until it is complete
+$backoff = new ExponentialBackoff(10);
+$backoff->execute(function () use ($job) {
+    print('Waiting for job to complete' . PHP_EOL);
+    $job->reload();
+    if (!$job->isComplete()) {
+        throw new Exception('Job has not yet completed', 500);
+    }
+});
+// check if the job has errors
+if (isset($job->info()['status']['errorResult'])) {
+    $error = $job->info()['status']['errorResult']['message'];
+    printf('Error running job: %s' . PHP_EOL, $error);
+} else {
+    print('Data imported successfully' . PHP_EOL);
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    
+Client.load_table_from_uri() [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client?hl=ko#google_cloud_bigquery_client_Client_load_table_from_uri] 메서드를 사용하여 Cloud Storage에서 로드 작업을 시작합니다. Parquet를 사용하려면 LoadJobConfig.source_format [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_source_format] 속성을 문자열 PARQUET로 설정하고 작업 구성을 job_config 인수로 load_table_from_uri() 메서드에 전달합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set table_id to the ID of the table to create.
+# table_id = "your-project.your_dataset.your_table_name"
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](
+    source_format=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SourceFormat [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.SourceFormat.html?hl=ko].PARQUET,
+)
+uri = "gs://cloud-samples-data/bigquery/us-states/us-states.parquet"
+
+load_job = client.load_table_from_uri [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_uri](
+    uri, table_id, job_config=job_config
+)  # Make an API request.
+
+load_job.result()  # Waits for the job to complete.
+
+destination_table = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id)
+print("Loaded {} rows.".format(destination_table.num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows]))
+Parquet 데이터로 테이블에 추가 또는 덮어쓰기
+소스 파일에서 또는 쿼리 결과를 추가하여 테이블에 추가 데이터를 로드할 수 있습니다.
+Google Cloud 콘솔에서 쓰기 환경설정 옵션을 사용하여 소스 파일 또는 쿼리 결과에서 데이터를 로드할 때 수행할 작업을 지정합니다.
+추가 데이터를 테이블에 로드할 때 다음 옵션을 사용할 수 있습니다.
+Console 옵션 bq 도구 플래그 BigQuery API 속성 설명
+비어 있으면 쓰기 지원되지 않음 WRITE_EMPTY 테이블이 비어 있는 경우에만 데이터를 씁니다.
+테이블에 추가 --noreplace 또는 --replace=false. --[no]replace를 지정하지 않으면 기본값은 추가임 WRITE_APPEND (기본값 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationLoad.FIELDS.write_disposition]) 데이터를 테이블 끝에 추가합니다.
+테이블 덮어쓰기 --replace 또는 --replace=true WRITE_TRUNCATE 새 데이터를 쓰기 전에 테이블의 기존 데이터를 모두 지웁니다. 이 작업은 테이블 스키마, 행 수준 보안을 삭제하고 Cloud KMS 키도 삭제합니다.
+기존 테이블에 데이터를 로드하는 경우 로드 작업에서 데이터를 추가하거나 테이블을 덮어쓸 수 있습니다.
+다음 중 하나를 사용하여 테이블을 추가하거나 덮어쓸 수 있습니다.
+Google Cloud 콘솔
+bq 명령줄 도구의 bq load 명령어
+jobs.insert API 메서드 및 load 작업 구성
+클라이언트 라이브러리
+참고: 이 페이지에서는 파티션을 나눈 테이블 추가 또는 덮어쓰기에 대해서는 다루지 않습니다. 파티션을 나눈 테이블을 추가하고 덮어쓰는 방법은 파티션을 나눈 테이블 데이터 추가 및 덮어쓰기 [https://cloud.google.com/bigquery/docs/managing-partitioned-table-data?hl=ko#append-overwrite]를 참조하세요.
+Parquet 데이터가 있는 테이블을 추가하거나 덮어쓰려면 다음 안내를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+    BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+
+탐색기 창에서 프로젝트를 펼친 후 데이터 세트를 선택합니다.
+데이터 세트 정보 섹션에서 add_box 테이블 만들기를 클릭합니다.
+ 테이블 만들기 패널에서 다음 세부정보를 지정합니다. 
+
+
+  
+
+
+
+소스 섹션의 다음 항목으로 테이블 만들기 목록에서 Google Cloud Storage를 선택합니다.
+  그런 후 다음 작업을 수행합니다.
+  
+    Cloud Storage 버킷에서 파일을 선택하거나 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri]를 입력합니다.
+              Google Cloud 콘솔에는 URI 여러 개가 포함될 수 없지만 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]는 지원됩니다. Cloud Storage 버킷은 생성, 추가 또는 덮어쓰려는 테이블이 포함된 데이터 세트와 동일한 위치에 있어야 합니다.
+      
+
+      
+
+
+
+
+
+    파일 형식으로 Parquet를 선택합니다.
+  
+
+    
+    참고: 테이블을 추가하거나 덮어쓸 때 해당 테이블 스키마를 수정할 수 있습니다. 로드 작업 시 지원되는 스키마 변경에 대한 자세한 내용은 테이블 스키마 수정 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]을 참조하세요.
+  
+  
+
+
+
+
+
+대상 섹션에서 다음 세부정보를 지정합니다.데이터 세트에서 테이블을 만들 데이터 세트를 선택합니다.
+  테이블 필드에 만들려는 테이블의 이름을 입력합니다.
+  테이블 유형 필드가 기본 테이블로 설정되어 있는지 확인합니다.
+  
+
+
+
+
+    스키마 섹션은 그대로 놔둡니다. 스키마는 Parquet 파일에서 자체 기술됩니다.
+
+
+
+
+  
+   참고: 테이블을 추가하거나 덮어쓸 때 해당 테이블 스키마를 수정할 수 있습니다. 로드 작업 시 지원되는 스키마 변경에 대한 자세한 내용은 테이블 스키마 수정 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]을 참조하세요.
+     
+  
+  
+
+
+
+  
+  선택사항: 파티션 및 클러스터 설정을 지정합니다. 자세한 내용은 파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko] 및 클러스터링된 테이블 만들기 및 사용 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]을 참조하세요.
+     추가하거나 덮어쓰는 방법으로 파티션을 나눈 테이블 또는 클러스터링된 테이블로 변환할 수 없습니다. Google Cloud 콘솔은 로드 작업에서 파티션을 나눈 테이블 또는 클러스터링된 테이블 추가 또는 덮어쓰기를 지원하지 않습니다. 
+  
+
+
+
+   
+
+
+
+
+고급 옵션을 클릭하고 다음을 수행합니다.
+
+
+
+
+
+  
+  쓰기 환경설정에서 테이블에 추가 또는 테이블 덮어쓰기를 선택합니다.
+  
+
+  
+
+  테이블 스키마에 없는 행의 값을 무시하려면 알 수 없는 값을 선택합니다.
+
+  
+  Cloud Key Management Service 키 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 사용하려면 암호화에서 고객 관리 키를 클릭합니다.
+        Google-managed key 설정을 그대로 두면 BigQuery에서 저장 데이터를 암호화 [https://cloud.google.com/security/encryption/default-encryption?hl=ko]합니다.
+
+  
+  
+
+
+
+테이블 만들기를 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#sql] ---
+LOAD DATA DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/load-statements?hl=ko]을 사용합니다.
+다음 예시에서는 Parquet 파일을 mytable 테이블에 추가합니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+LOAD DATA INTO mydataset.mytable
+FROM FILES (
+  format = 'PARQUET',
+  uris = ['gs://bucket/path/file.parquet']);
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#bq] ---
+bq load 명령어를 --replace 플래그와 함께 입력하여 테이블을 덮어씁니다. --noreplace 플래그를 사용하여 데이터를 테이블에 추가합니다. 플래그를 지정하지 않으면 기본값은 데이터 추가입니다. --source_format 플래그를 입력하고 PARQUET로 설정합니다. Parquet 스키마는 자체 설명적 소스 데이터에서 자동으로 검색되므로 스키마 정의를 제공할 필요가 없습니다.
+참고: 추가하거나 덮어쓸 때 테이블 스키마를 수정할 수 있습니다. 로드 작업 시 지원되는 스키마 변경에 대한 자세한 내용은 테이블 스키마 수정 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]을 참조하세요.
+(선택사항) --location 플래그를 지정하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]로 설정합니다.
+
+이 외에 다음과 같은 선택적 플래그가 있습니다.
+
+
+--destination_kms_key: 테이블 데이터 암호화에 사용되는 Cloud KMS 키입니다.
+
+
+bq --location=LOCATION load \
+--[no]replace \
+--source_format=FORMAT \
+DATASET.TABLE \
+PATH_TO_SOURCE
+
+다음을 바꿉니다.
+
+
+location: 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]입니다.
+--location 플래그는 선택사항입니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+format: PARQUET.
+dataset: 기존 데이터 세트입니다.
+table: 데이터를 로드할 테이블의 이름입니다.
+path_to_source: 정규화된 Cloud Storage URI [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#gcs-uri] 또는 쉼표로 구분된 URI 목록이며 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]도 지원됩니다.
+
+
+예:
+
+다음 명령어는 gs://mybucket/mydata.parquet에서 데이터를 로드하고 mydataset에 있는 mytable이라는 테이블을 덮어씁니다.
+    bq load \
+    --replace \
+    --source_format=PARQUET \
+    mydataset.mytable \
+    gs://mybucket/mydata.parquet
+
+다음 명령어는 gs://mybucket/mydata.parquet에서 데이터를 로드하고 mydataset에 있는 mytable이라는 테이블에 데이터를 추가합니다.
+    bq load \
+    --noreplace \
+    --source_format=PARQUET \
+    mydataset.mytable \
+    gs://mybucket/mydata.parquet
+
+bq 명령줄 도구를 사용하여 파티션을 나눈 테이블 추가 및 덮어쓰기에 대한 자세한 내용은 파티션을 나눈 테이블 데이터 추가 및 덮어쓰기 [https://cloud.google.com/bigquery/docs/managing-partitioned-table-data?hl=ko#append-overwrite]를 참조하세요.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#api] ---
+Cloud Storage의 소스 데이터를 가리키는 load 작업을 만듭니다.
+(선택사항) 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 있는 location 속성에 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]를 지정합니다.
+source URIs 속성은 gs://BUCKET/OBJECT 형식으로 정규화되어야 합니다. 여러 URI를 쉼표로 구분된 목록으로 포함할 수 있습니다. 와일드 카드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#load-wildcards]도 지원됩니다.
+configuration.load.sourceFormat 속성을 PARQUET로 설정하여 데이터 형식을 지정합니다.
+configuration.load.writeDisposition 속성을 WRITE_TRUNCATE 또는 WRITE_APPEND로 설정하여 쓰기 환경설정을 지정합니다.
+
+--- 탭: tabpanel-go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// importParquetTruncate demonstrates loading Apache Parquet data from Cloud Storage into a table
+// and overwriting/truncating existing data in the table.
+func importParquetTruncate(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	gcsRef := bigquery.NewGCSReference [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_GCSReference_NewGCSReference]("gs://cloud-samples-data/bigquery/us-states/us-states.parquet")
+	gcsRef.SourceFormat = bigquery.Parquet [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_CSV_Avro_JSON_DatastoreBackup_GoogleSheets_Bigtable_Parquet_ORC_TFSavedModel_XGBoostBooster_Iceberg]
+	gcsRef.AutoDetect = true
+	loader := client.Dataset(datasetID).Table(tableID).LoaderFrom [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Table_LoaderFrom](gcsRef)
+	loader.WriteDisposition = bigquery.WriteTruncate [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_WriteAppend_WriteTruncate_WriteEmpty]
+
+	job, err := loader.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]() != nil {
+		return fmt.Errorf("job completed with error: %v", status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err]())
+	}
+	return nil
+}
+
+--- 탭: tabpanel-java ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko].WriteDisposition [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.WriteDisposition.html?hl=ko];
+import com.google.cloud.bigquery.LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+import java.math.BigInteger;
+
+public class LoadParquetReplaceTable {
+
+  public static void runLoadParquetReplaceTable() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    loadParquetReplaceTable(datasetName);
+  }
+
+  public static void loadParquetReplaceTable(String datasetName) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      // Imports a GCS file into a table and overwrites table data if table already exists.
+      // This sample loads CSV file at:
+      // https://storage.googleapis.com/cloud-samples-data/bigquery/us-states/us-states.csv
+      String sourceUri = "gs://cloud-samples-data/bigquery/us-states/us-states.parquet";
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(datasetName, "us_states");
+
+      // For more information on LoadJobConfiguration see:
+      // https://googleapis.dev/java/google-cloud-clients/latest/com/google/cloud/bigquery/LoadJobConfiguration.Builder.html
+      LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko] configuration =
+          LoadJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.LoadJobConfiguration.html?hl=ko].builder(tableId, sourceUri)
+              .setFormatOptions(FormatOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko].parquet [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FormatOptions.html?hl=ko#com_google_cloud_bigquery_FormatOptions_parquet__]())
+              // Set the write disposition to overwrite existing table data.
+              .setWriteDisposition(WriteDisposition [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.WriteDisposition.html?hl=ko].WRITE_TRUNCATE)
+              .build();
+
+      // For more information on Job see:
+      // https://googleapis.dev/java/google-cloud-clients/latest/index.html?com/google/cloud/bigquery/package-summary.html
+      // Load the table
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] job = bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](JobInfo.of(configuration));
+
+      // Load data from a GCS parquet file into the table
+      // Blocks until this load table job completes its execution, either failing or succeeding.
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] completedJob = job.waitFor [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_waitFor_com_google_cloud_bigquery_BigQueryRetryConfig_com_google_cloud_RetryOption____]();
+      if (completedJob == null) {
+        System.out.println("Job not executed since it no longer exists.");
+        return;
+      } else if (completedJob.getStatus().getError() != null) {
+        System.out.println(
+            "BigQuery was unable to load into the table due to an error: \n"
+                + job.getStatus().getError());
+        return;
+      }
+
+      // Check number of rows loaded into the table
+      BigInteger numRows = bigquery.getTable [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_getTable_com_google_cloud_bigquery_TableId_com_google_cloud_bigquery_BigQuery_TableOption____](tableId).getNumRows();
+      System.out.printf("Loaded %d rows. \n", numRows);
+
+      System.out.println("GCS parquet overwrote existing table successfully.");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Table extraction job was interrupted. \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client libraries
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const {Storage} = require('@google-cloud/storage [https://cloud.google.com/nodejs/docs/reference/storage/latest/overview.html?hl=ko]');
+
+// Instantiate clients
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+const storage = new Storage();
+
+/**
+ * This sample loads the CSV file at
+ * https://storage.googleapis.com/cloud-samples-data/bigquery/us-states/us-states.csv
+ *
+ * TODO(developer): Replace the following lines with the path to your file.
+ */
+const bucketName = 'cloud-samples-data';
+const filename = 'bigquery/us-states/us-states.parquet';
+
+async function loadParquetFromGCSTruncate() {
+  /**
+   * Imports a GCS file into a table and overwrites
+   * table data if table already exists.
+   */
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const datasetId = "my_dataset";
+  // const tableId = "my_table";
+
+  // Configure the load job. For full list of options, see:
+  // https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationLoad
+  const metadata = {
+    sourceFormat: 'PARQUET',
+    // Set the write disposition to overwrite existing table data.
+    writeDisposition: 'WRITE_TRUNCATE',
+    location: 'US',
+  };
+
+  // Load data from a Google Cloud Storage file into the table
+  const [job] = await bigquery
+    .dataset(datasetId)
+    .table(tableId)
+    .load [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/table.html?hl=ko](storage.bucket(bucketName).file(filename), metadata);
+  // load() waits for the job to finish
+  console.log(`Job ${job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id} completed.`);
+
+  // Check the job's status for errors
+  const errors = job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].status.errors;
+  if (errors && errors.length > 0) {
+    throw errors;
+  }
+}
+
+--- 탭: tabpanel-php ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 PHP 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery PHP API 참고 문서 [https://cloud.google.com/php/docs/reference/cloud-bigquery/latest/BigQueryClient?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\Core\ExponentialBackoff;
+
+/** Uncomment and populate these variables in your code */
+// $projectId = 'The Google project ID';
+// $datasetId = 'The BigQuery dataset ID';
+// $tableID = 'The BigQuery table ID';
+
+// instantiate the bigquery table service
+$bigQuery = new BigQueryClient([
+    'projectId' => $projectId,
+]);
+$table = $bigQuery->dataset($datasetId)->table($tableId);
+
+// create the import job
+$gcsUri = 'gs://cloud-samples-data/bigquery/us-states/us-states.parquet';
+$loadConfig = $table->loadFromStorage($gcsUri)->sourceFormat('PARQUET')->writeDisposition('WRITE_TRUNCATE');
+$job = $table->runJob($loadConfig);
+
+// poll the job until it is complete
+$backoff = new ExponentialBackoff(10);
+$backoff->execute(function () use ($job) {
+    print('Waiting for job to complete' . PHP_EOL);
+    $job->reload();
+    if (!$job->isComplete()) {
+        throw new Exception('Job has not yet completed', 500);
+    }
+});
+
+// check if the job has errors
+if (isset($job->info()['status']['errorResult'])) {
+    $error = $job->info()['status']['errorResult']['message'];
+    printf('Error running job: %s' . PHP_EOL, $error);
+} else {
+    print('Data imported successfully' . PHP_EOL);
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+     기존 테이블에 행을 추가하려면 LoadJobConfig.write_disposition 속성 [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_write_disposition]을 WRITE_APPEND [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.WriteDisposition?hl=ko#google.cloud.bigquery.enums.WriteDisposition.WRITE_APPEND]로 설정합니다.
+
+기존 테이블의 행을 바꾸려면 LoadJobConfig.write_disposition 속성 [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_write_disposition]을 WRITE_TRUNCATE [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.WriteDisposition?hl=ko#google.cloud.bigquery.enums.WriteDisposition.WRITE_TRUNCATE]로 설정합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import io
+
+from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set table_id to the ID of the table to create.
+# table_id = "your-project.your_dataset.your_table_name
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](
+    schema=[
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("name", "STRING"),
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SchemaField [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.schema.SchemaField.html?hl=ko]("post_abbr", "STRING"),
+    ],
+)
+
+body = io.BytesIO(b"Washington,WA")
+client.load_table_from_file [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_file](body, table_id, job_config=job_config).result()
+previous_rows = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id).num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows]
+assert previous_rows > 0
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].LoadJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig.html?hl=ko](
+    write_disposition=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].WriteDisposition [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.WriteDisposition.html?hl=ko].WRITE_TRUNCATE [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.WriteDisposition.html?hl=ko#google_cloud_bigquery_enums_WriteDisposition_WRITE_TRUNCATE],
+    source_format=bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].SourceFormat [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.enums.SourceFormat.html?hl=ko].PARQUET,
+)
+
+uri = "gs://cloud-samples-data/bigquery/us-states/us-states.parquet"
+load_job = client.load_table_from_uri [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_load_table_from_uri](
+    uri, table_id, job_config=job_config
+)  # Make an API request.
+
+load_job.result()  # Waits for the job to complete.
+
+destination_table = client.get_table [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_table](table_id)
+print("Loaded {} rows.".format(destination_table.num_rows [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table.html?hl=ko#google_cloud_bigquery_table_Table_num_rows]))
+하이브 파티션을 나눈 Parquet 데이터 로드
+BigQuery는 Cloud Storage에 저장되는 파티션을 나눈 하이브 Parquet 데이터 로드를 지원하고, 하이브 파티션 열을 대상 BigQuery 관리 테이블의 열로 채웁니다. 자세한 내용은 외부에서 파티션을 나눈 데이터 로드 [https://cloud.google.com/bigquery/docs/hive-partitioned-loads-gcs?hl=ko]를 참조하세요.
+Parquet 변환
+이 섹션에서는 Parquet 데이터를 로드할 때 BigQuery가 여러 데이터 유형을 파싱하는 방법을 설명합니다.
+일부 Parquet 데이터 유형(예: INT32, INT64, BYTE_ARRAY, FIXED_LEN_BYTE_ARRAY)은 여러 BigQuery 데이터 유형으로 변환될 수 있습니다. BigQuery가 Parquet 데이터 유형을 올바르게 변환하도록 하려면 Parquet 파일에 적절한 데이터 유형을 지정합니다.
+예를 들어 Parquet INT32 데이터 유형을 BigQuery DATE 데이터 유형으로 변환하려면 다음을 지정합니다.
+optional int32 date_col (DATE);
+BigQuery는 Parquet 데이터 유형을 다음 섹션에 설명된 BigQuery 데이터 유형으로 변환합니다.
+유형 변환
+Parquet 유형 Parquet 논리 유형 BigQuery 데이터 유형
+BOOLEAN 없음 부울
+INT32 없음, INTEGER(UINT_8, UINT_16, UINT_32, INT_8, INT_16, INT_32) INT64
+INT32 DECIMAL [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#decimal_logical_type] NUMERIC, BIGNUMERIC, STRING
+INT32 DATE DATE
+INT64 없음, INTEGER(UINT_64, INT_64) INT64
+INT64 DECIMAL [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#decimal_logical_type] NUMERIC, BIGNUMERIC, STRING
+INT64 TIMESTAMP, precision=MILLIS (TIMESTAMP_MILLIS) TIMESTAMP
+INT64 TIMESTAMP, precision=MICROS (TIMESTAMP_MICROS) TIMESTAMP
+INT96 없음 TIMESTAMP
+FLOAT 없음 FLOAT64
+DOUBLE 없음 FLOAT64
+BYTE_ARRAY 없음 BYTES
+BYTE_ARRAY STRING(UTF8) STRING
+FIXED_LEN_BYTE_ARRAY DECIMAL [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#decimal_logical_type] NUMERIC, BIGNUMERIC, STRING
+FIXED_LEN_BYTE_ARRAY 없음 BYTES
+중첩된 그룹은 STRUCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#struct_type] 유형으로 변환됩니다. 다른 Parquet 유형 및 변환 유형 조합은 지원되지 않습니다.
+부호 없는 논리 유형
+Parquet UINT_8, UINT_16, UINT_32, UINT_64 유형은 부호가 없습니다. BigQuery는 부호 있는 BigQuery INTEGER 열에 이러한 유형의 값을 로드할 때 부호 없는 유형으로 처리합니다. UINT_64의 경우 부호 없는 값이 INTEGER의 최댓값(9,223,372,036,854,775,807)을 초과하면 오류가 반환됩니다.
+Decimal 논리 유형
+Decimal 논리 유형은 NUMERIC, BIGNUMERIC, STRING 유형으로 변환할 수 있습니다. 변환된 유형은 decimal 논리 유형 및 지정된 십진수 대상 유형의 정밀도 및 확장 매개변수에 따라 다릅니다. 십진수 대상 유형을 다음과 같이 지정합니다.
+jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] API를 사용하는 로드 작업 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko]의 경우: JobConfigurationLoad.decimalTargetTypes [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationLoad.FIELDS.decimal_target_types] 필드를 사용합니다.
+bq 명령줄 도구의 bq load [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_load] 명령어를 사용하는 로드 작업 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko]의 경우: --decimal_target_types [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#flags_and_arguments_9] 플래그를 사용합니다.
+외부 소스가 있는 테이블 [https://cloud.google.com/bigquery/external-data-sources?hl=ko]에 대한 쿼리의 경우: ExternalDataConfiguration.decimalTargetTypes [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#ExternalDataConfiguration.FIELDS.decimal_target_types] 필드를 사용합니다.
+DDL로 생성된 영구 외부 테이블 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko]의 경우: decimal_target_types [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#external_table_option_list] 옵션을 사용합니다.
+Enum 논리 유형
+Enum 논리 유형은 STRING 또는 BYTES로 변환할 수 있습니다. 변환된 대상 유형을 다음과 같이 지정합니다.
+jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] API를 사용하는 로드 작업 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko]의 경우: JobConfigurationLoad.parquetOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationLoad.FIELDS.parquet_options] 필드를 사용합니다.
+bq 명령줄 도구의 bq load [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_load] 명령어를 사용하는 로드 작업 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko]의 경우: --parquet_enum_as_string [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#parquet_enum_as_string_flag] 플래그를 사용합니다.
+bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mk]로 만든 영구 외부 테이블의 경우: --parquet_enum_as_string [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-table] 플래그를 사용합니다.
+List 논리 유형
+Parquet LIST 논리 유형에 스키마 추론을 사용 설정할 수 있습니다. BigQuery는 LIST 노드가 표준 양식 [https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#lists]인지 아니면 하위 호환성 규칙 [https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#backward-compatibility-rules]에 기술된 양식 중 하나인지 확인합니다.
+// standard form
+<optional | required> group <name> (LIST) {
+  repeated group list {
+    <optional | required> <element-type> element;
+  }
+}
+표준 양식인 경우 변환된 스키마의 LIST 노드에 해당하는 필드는 노드에 다음 스키마가 있는 것처럼 처리됩니다.
+repeated <element-type> <name>
+'list' 및 'element' 노드가 생략되었습니다.
+jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] API를 사용하는 로드 작업 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko]의 경우: JobConfigurationLoad.parquetOptions 필드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationLoad.FIELDS.parquet_options]를 사용합니다.
+bq 명령줄 도구의 bq load [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_load] 명령어를 사용하는 로드 작업 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko]의 경우: --parquet_enable_list_inference 플래그 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#parquet_enable_list_inference_flag]를 사용합니다.
+bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mk]로 만든 영구 외부 테이블의 경우: --parquet_enable_list_inference 플래그 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-table]를 사용합니다.
+CREATE EXTERNAL TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_table_statement]으로 만든 영구 외부 테이블의 경우: enable_list_inference 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#external_table_option_list]을 사용합니다.
+지리 공간 데이터
+BigQuery 스키마를 GEOGRAPHY 유형으로 지정하여 STRING 열에 WKT [https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry], 16진수로 인코딩된 WKB [https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry] 또는 GeoJSON [https://geojson.org/]이 포함된 Parquet 파일이나 BYTE_ARRAY 열에 WKB [https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry]가 포함된 Parquet 파일을 로드할 수 있습니다. 자세한 내용은 지리 공간 데이터 로드 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#loading_geospatial_data]를 참조하세요.
+GeoParquet [https://geoparquet.org/] 파일도 로드할 수 있습니다. 이 경우 기본적으로 GeoParquet 메타데이터로 설명된 열은 GEOGRAPHY 유형으로 해석됩니다. 명시적 스키마를 제공하여 원시 WKB 데이터를 BYTES 열에 로드할 수도 있습니다. 자세한 내용은 GeoParquet 파일 로드 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko#loading_geoparquet_files]를 참조하세요.
+열 이름 변환
+열 이름은 문자(a~z, A~Z), 숫자(0~9) 또는 밑줄(_)을 포함할 수 있으며 문자나 밑줄로 시작해야 합니다. 유연한 열 이름을 사용하는 경우 BigQuery는 숫자로 열 이름을 시작할 수 있습니다. BigQuery Storage Read API 또는 BigQuery Storage Write API에서 유연한 열 이름을 사용하면 특별한 처리가 필요하므로 숫자로 열을 시작할 때 주의해야 합니다. 유연한 열 이름 지원에 대한 자세한 내용은 유연한 열 이름 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#flexible-column-names]을 참조하세요.
+열 이름 최대 길이는 300자(영문 기준)입니다. 열 이름에 다음과 같은 프리픽스를 사용할 수 없습니다.
+_TABLE_
+_FILE_
+_PARTITION
+_ROW_TIMESTAMP
+__ROOT__
+_COLIDENTIFIER
+중복 열 이름은 대소문자가 다르더라도 허용되지 않습니다. 예를 들어 Column1 열과 column1 열은 동일하다고 간주됩니다. 열 이름 지정 규칙에 대한 자세한 내용은 GoogleSQL 참조의 열 이름 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#column_names]을 참조하세요.
+테이블 이름(예: test)이 열 이름 중 하나와 동일한 경우(예: test) SELECT 표현식은 test 열을 다른 모든 테이블 열이 포함된 STRUCT로 해석합니다. 이러한 충돌을 방지하려면 다음 방법 중 하나를 사용합니다.
+테이블과 테이블 열에 동일한 이름을 사용해서는 안 됩니다.
+테이블에 다른 별칭을 할당합니다. 예를 들어 다음 쿼리는 테이블 별칭 t를 project1.dataset.test 테이블에 할당합니다.
+SELECT test FROM project1.dataset.test AS t;
+열을 참조할 때 테이블 이름을 포함합니다. 예를 들면 다음과 같습니다.
+SELECT test.test FROM project1.dataset.test;
+유연한 열 이름
+영어 외 언어의 문자와 추가 기호에 대한 확장된 액세스를 포함하여 더욱 유연하게 열 이름을 지정할 수 있습니다. 유연한 열 이름이 따옴표로 묶인 식별자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#quoted_identifiers]인 경우 백틱(`) 문자를 사용하여 묶어야 합니다.
+유연한 열 이름은 다음 문자를 지원합니다.
+유니코드 정규 표현식 \p{L} [https://www.unicode.org/reports/tr44/#General_Category_Values]로 표현되는 모든 언어의 문자
+유니코드 정규 표현식 \p{N} [https://www.unicode.org/reports/tr44/#General_Category_Values]로 표현되는 모든 언어의 숫자
+유니코드 정규 표현식 \p{Pc} [https://www.unicode.org/reports/tr44/#General_Category_Values]로 표현되는 밑줄을 포함한 모든 커넥터 구두점 문자
+유니코드 정규 표현식 \p{Pd} [https://www.unicode.org/reports/tr44/#General_Category_Values]로 표현되는 하이픈 또는 대시
+유니코드 정규 표현식 \p{M} [https://www.unicode.org/reports/tr44/#General_Category_Values]로 표현되는 다른 문자를 포함하기 위한 표시 (예: 악센트, 움라우트 또는 바깥쪽 상자)
+다음과 같은 특수문자가 지원됩니다.
+유니코드 정규 표현식 \u0026로 표현되는 앰퍼샌드(&)
+유니코드 정규 표현식 \u0025로 표현되는 퍼센트 기호(%)
+유니코드 정규 표현식 \u003D로 표현되는 등호(=)
+유니코드 정규 표현식 \u002B로 표현되는 더하기 기호(+)
+유니코드 정규 표현식 \u003A로 표현되는 콜론(:)
+유니코드 정규 표현식 \u0027로 표현되는 아포스트로피(')
+유니코드 정규 표현식 \u003C로 표현되는 미만 기호(<)
+유니코드 정규 표현식 \u003E로 표현되는 초과 기호(>)
+유니코드 정규 표현식 \u0023으로 표현되는 숫자 기호(#)
+유니코드 정규 표현식 \u007c로 표현되는 세로 선(|)
+공백.
+유연한 열 이름은 다음과 같은 특수문자를 지원하지 않습니다.
+유니코드 정규 표현식 \u0021로 표현되는 느낌표(!)
+유니코드 정규 표현식 \u0022로 표현되는 따옴표(")
+유니코드 정규 표현식 \u0024로 표현되는 달러 기호($)
+유니코드 정규 표현식 \u0028로 표현되는 왼쪽 괄호(()
+유니코드 정규 표현식 \u0029로 표현되는 오른쪽 괄호())
+유니코드 정규 표현식 \u002A로 표현되는 별표(*)
+유니코드 정규 표현식 \u002C로 표현되는 쉼표(,)
+유니코드 정규 표현식 \u002E로 표현되는 마침표(.) 열 이름 문자 맵을 사용하는 경우 Parquet 파일 열 이름에서 마침표는 밑줄로 대체되지 않습니다. 자세한 내용은 유연한 열 제한사항 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#limitations_2]을 참조하세요.
+유니코드 정규 표현식 \u002F로 표현되는 슬래시(/)
+유니코드 정규 표현식 \u003B로 표현되는 세미콜론(;)
+유니코드 정규 표현식 \u003F로 표현되는 물음표(?)
+유니코드 정규 표현식 \u0040으로 표현되는 골뱅이 부호(@)
+유니코드 정규 표현식 \u005B로 표현되는 왼쪽 대괄호([)
+유니코드 정규 표현식 \u005C로 표현되는 백슬래시(\)
+유니코드 정규 표현식 \u005D로 표현되는 오른쪽 대괄호(])
+유니코드 정규 표현식 \u005E로 표현되는 곡절 악센트(^)
+유니코드 정규 표현식 \u0060으로 표현되는 강세 부호(`)
+유니코드 정규 표현식 \u007B로 표현되는 왼쪽 중괄호{{)
+유니코드 정규 표현식 \u007D로 표현되는 오른쪽 중괄호(})
+유니코드 정규 표현식 \u007E로 표현되는 물결표(~)
+추가 가이드라인은 열 이름 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#column_names]을 참조하세요.
+확장된 열 문자는 BigQuery Storage Read API와 BigQuery Storage Write API 모두에서 지원됩니다. BigQuery Storage Read API에서 확장된 유니코드 문자 목록을 사용하려면 플래그를 설정해야 합니다. displayName 속성을 사용하여 열 이름을 가져올 수 있습니다. 다음 예시에서는 Python 클라이언트에서 플래그를 설정하는 방법을 보여줍니다.
+from google.cloud.bigquery_storage import types
+requested_session = types.ReadSession()
+
+#set avro serialization options for flexible column.
+options = types.AvroSerializationOptions()
+options.enable_display_name_attribute = True
+requested_session.read_options.avro_serialization_options = options
+BigQuery Storage Write API에서 확장된 유니코드 문자 목록을 사용하려면 JsonStreamWriter 작성자 객체를 사용하지 않는 한 column_name 표기법으로 스키마를 제공해야 합니다. 다음 예시에서는 스키마를 제공하는 방법을 보여줍니다.
+syntax = "proto2";
+package mypackage;
+// Source protos located in github.com/googleapis/googleapis
+import "google/cloud/bigquery/storage/v1/annotations.proto";
+
+message FlexibleSchema {
+  optional string item_name_column = 1
+  [(.google.cloud.bigquery.storage.v1.column_name) = "name-列"];
+  optional string item_description_column = 2
+  [(.google.cloud.bigquery.storage.v1.column_name) = "description-列"];
+}
+이 예시에서 item_name_column 및 item_description_column은 프로토콜 버퍼 [https://protobuf.dev/]의 이름 지정 규칙을 준수해야 하는 자리표시자 이름입니다. column_name 주석은 항상 자리표시자 이름보다 우선 적용됩니다.
+제한사항
+외부 테이블 [https://cloud.google.com/bigquery/docs/external-tables?hl=ko]에서는 유연한 열 이름이 지원되지 않습니다.
+열 이름에 마침표(.)가 있는 열이 포함된 Parquet 파일을 로드할 수 없습니다.
+Parquet 파일의 열 이름은 BigQuery에 로드될 때 대소문자를 구분하지 않는 것으로 처리됩니다. 대소문자를 구분하지 않는 이름이 동일하면 충돌이 발생합니다. 이 문제를 방지하려면 중복된 열 이름 중 하나에 밑줄을 추가하거나 로드하기 전에 열 이름을 변경하세요.
+Parquet 파일 디버깅
+로드 작업이 데이터 오류로 실패하면 PyArrow [https://arrow.apache.org/docs/python/index.html]를 사용해서 Parquet 데이터 파일이 손상되었는지 확인할 수 있습니다. PyArrow가 파일을 읽지 못하면 BigQuery 로드 작업에서 파일이 거부될 수 있습니다. 다음 예시에서는 PyArrow를 사용하여 Parquet 파일의 콘텐츠를 읽는 방법을 보여줍니다.
+from pyarrow import parquet as pq
+
+# Read the entire file
+pq.read_table('your_sample_file.parquet')
+# Read specific columns
+pq.read_table('your_sample_file.parquet',columns=['some_column', 'another_column'])
+# Read the metadata of specific columns
+file_metadata=pq.read_metadata('your_sample_file.parquet')
+for col in file_metadata.row_group(0).to_dict()['columns']:
+    print col['column_path_in_schema']
+    print col['num_values']
+자세한 내용은 PyArrow 문서 [https://arrow.apache.org/docs/python/index.html]를 참조하세요.
+도움이 되었나요?
+의견 보내기

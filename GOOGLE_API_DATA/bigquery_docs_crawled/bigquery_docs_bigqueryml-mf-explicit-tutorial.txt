@@ -1,0 +1,1253 @@
+Source URL: https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+행렬 분해 모델을 사용하여 명시적 의견을 기반으로 추천 생성
+bookmark_border
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#before-you-begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#required_permissions]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#create_a_dataset]
+이 튜토리얼에서는 행렬 분해 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-matrix-factorization?hl=ko]을 만들고 movielens1m [https://grouplens.org/datasets/movielens/1m/] 데이터 세트의 고객 영화 평가를 사용하여 학습하는 방법을 설명합니다. 그런 다음 행렬 분해 모델을 사용하여 사용자에게 영화를 추천합니다.
+고객이 제공한 평점을 사용하여 모델을 학습시키는 것을 명시적 피드백을 사용한 학습이라고 합니다. 명시적 피드백을 학습 데이터로 사용하는 경우 행렬 분해 모델은 Alternating Least Squares(ALS) 알고리즘 [https://en.wikipedia.org/wiki/Matrix_completion#Alternating_least_squares_minimization]을 사용하여 학습됩니다.
+중요: 행렬 분해 모델을 사용하려면 예약이 있어야 합니다. 자세한 내용은 가격 책정 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-matrix-factorization?hl=ko#pricing]을 참조하세요.
+목표
+이 튜토리얼에서는 다음 작업을 완료하는 방법을 안내합니다.
+CREATE MODEL 문을 사용하여 행렬 분해 모델을 만듭니다.
+ML.EVALUATE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]를 사용하여 모델을 평가합니다.
+ML.RECOMMEND 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-recommend?hl=ko]와 함께 모델을 사용하여 사용자에게 영화 추천을 생성합니다.
+비용
+이 튜토리얼에서는 비용이 청구될 수 있는 다음과 같은 Google Cloud구성요소를 사용합니다.
+BigQuery
+BigQuery ML
+BigQuery 비용에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지를 참조하세요.
+BigQuery ML 비용에 대한 자세한 내용은 BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]을 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery는 새 프로젝트에서 자동으로 사용 설정됩니다. 기존 프로젝트에서 BigQuery를 활성화하려면 다음으로 이동합니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create IAM 권한이 필요합니다.
+모델을 만들려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 권한이 필요합니다.
+bigquery.models.getData
+bigquery.jobs.create
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+Movielens 데이터 업로드
+movielens1m 데이터를 BigQuery에 업로드합니다.
+--- 탭: CLI [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#cli] ---
+다음 단계에 따라 bq 명령줄 도구 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko]를 사용하여 movielens1m 데이터를 업로드합니다.
+
+
+Cloud Shell을 엽니다.
+
+Cloud Shell 활성화 [https://console.cloud.google.com/bigquery?cloudshell=true&hl=ko] 
+평점 데이터를 ratings 테이블에 업로드합니다. 명령줄에 다음 쿼리를 붙여넣고 Enter를 누릅니다.
+curl -O 'http://files.grouplens.org/datasets/movielens/ml-1m.zip'
+unzip ml-1m.zip
+sed 's/::/,/g' ml-1m/ratings.dat > ratings.csv
+bq load --source_format=CSV bqml_tutorial.ratings ratings.csv \
+  user_id:INT64,item_id:INT64,rating:FLOAT64,timestamp:TIMESTAMP
+
+영화 데이터를 movies 테이블에 업로드합니다. 명령줄에 다음 쿼리를 붙여넣고 Enter를 누릅니다.
+sed 's/::/@/g' ml-1m/movies.dat > movie_titles.csv
+bq load --source_format=CSV --field_delimiter=@ \
+bqml_tutorial.movies movie_titles.csv \
+movie_id:INT64,movie_title:STRING,genre:STRING
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+먼저 bqclient = google.cloud.bigquery.Client()로 Client 객체를 만든 다음 이전 단계에서 만든 데이터 세트에 movielens1m 데이터를 로드합니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import io
+import zipfile
+
+import google.api_core.exceptions
+import requests
+
+try:
+    # Check if you've already created the Movielens tables to avoid downloading
+    # and uploading the dataset unnecessarily.
+    bqclient.get_table("bqml_tutorial.ratings")
+    bqclient.get_table("bqml_tutorial.movies")
+except google.api_core.exceptions.NotFound:
+    # Download the https://grouplens.org/datasets/movielens/1m/ dataset.
+    ml1m = requests.get("http://files.grouplens.org/datasets/movielens/ml-1m.zip")
+    ml1m_file = io.BytesIO(ml1m.content)
+    ml1m_zip = zipfile.ZipFile(ml1m_file)
+
+    # Upload the ratings data into the ratings table.
+    with ml1m_zip.open("ml-1m/ratings.dat") as ratings_file:
+        ratings_content = ratings_file.read()
+
+    ratings_csv = io.BytesIO(ratings_content.replace(b"::", b","))
+    ratings_config = google.cloud.bigquery.LoadJobConfig()
+    ratings_config.source_format = "CSV"
+    ratings_config.write_disposition = "WRITE_TRUNCATE"
+    ratings_config.schema = [
+        google.cloud.bigquery.SchemaField("user_id", "INT64"),
+        google.cloud.bigquery.SchemaField("item_id", "INT64"),
+        google.cloud.bigquery.SchemaField("rating", "FLOAT64"),
+        google.cloud.bigquery.SchemaField("timestamp", "TIMESTAMP"),
+    ]
+    bqclient.load_table_from_file(
+        ratings_csv, "bqml_tutorial.ratings", job_config=ratings_config
+    ).result()
+
+    # Upload the movie data into the movies table.
+    with ml1m_zip.open("ml-1m/movies.dat") as movies_file:
+        movies_content = movies_file.read()
+
+    movies_csv = io.BytesIO(movies_content.replace(b"::", b"@"))
+    movies_config = google.cloud.bigquery.LoadJobConfig()
+    movies_config.source_format = "CSV"
+    movies_config.field_delimiter = "@"
+    movies_config.write_disposition = "WRITE_TRUNCATE"
+    movies_config.schema = [
+        google.cloud.bigquery.SchemaField("movie_id", "INT64"),
+        google.cloud.bigquery.SchemaField("movie_title", "STRING"),
+        google.cloud.bigquery.SchemaField("genre", "STRING"),
+    ]
+    bqclient.load_table_from_file(
+        movies_csv, "bqml_tutorial.movies", job_config=movies_config
+    ).result()
+모델 만들기
+행렬 분해 모델을 만들고 ratings 테이블의 데이터로 학습시킵니다. 모델은 고객이 제공한 영화 평점을 기반으로 모든 사용자-항목 쌍의 평점을 예측하도록 학습됩니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#sql] ---
+다음 CREATE MODEL 문은 다음 열을 사용하여 추천을 생성합니다.
+
+
+user_id: 사용자 ID입니다.
+item_id: 영화 ID입니다.
+rating: 사용자가 항목에 지정한 1~5의 명시적 평점
+
+
+모델을 만들려면 다음 단계를 따르세요.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+CREATE OR REPLACE MODEL `bqml_tutorial.mf_explicit`
+OPTIONS (
+  MODEL_TYPE = 'matrix_factorization',
+  FEEDBACK_TYPE = 'explicit',
+  USER_COL = 'user_id',
+  ITEM_COL = 'item_id',
+  L2_REG = 9.83,
+  NUM_FACTORS = 34)
+AS
+SELECT
+user_id,
+item_id,
+rating
+FROM `bqml_tutorial.ratings`;
+
+쿼리를 완료하는 데 약 10분이 소요되며 이후에는 mf_explicit 모델이 탐색기 창에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 표시되지 않습니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from bigframes.ml import decomposition
+import bigframes.pandas as bpd
+
+# Load data from BigQuery
+bq_df = bpd.read_gbq(
+    "bqml_tutorial.ratings", columns=("user_id", "item_id", "rating")
+)
+
+# Create the Matrix Factorization model
+model = decomposition.MatrixFactorization(
+    num_factors=34,
+    feedback_type="explicit",
+    user_col="user_id",
+    item_col="item_id",
+    rating_col="rating",
+    l2_reg=9.83,
+)
+model.fit(bq_df)
+model.to_gbq(
+    your_model_id, replace=True  # For example: "bqml_tutorial.mf_explicit"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+코드를 완료하는 데 약 10분이 소요되며 이후에는 mf_explicit 모델이 탐색기 창에 표시됩니다.
+학습 통계 가져오기
+원하는 경우Google Cloud 콘솔에서 모델의 학습 통계를 볼 수 있습니다.
+머신러닝 알고리즘은 다양한 파라미터를 사용하여 모델을 여러 번 반복한 후 손실 [https://en.wikipedia.org/wiki/Loss_function]을 최소화하는 모델 버전을 선택하여 모델을 빌드합니다. 이 프로세스를 경험적 위험 최소화라고 합니다. 모델의 학습 통계를 사용하면 모델의 각 반복과 관련된 손실을 확인할 수 있습니다.
+모델의 학습 통계를 보려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 프로젝트를 펼치고 bqml_tutorial 데이터 세트를 펼친 다음 모델 폴더를 펼칩니다.
+mf_explicit 모델을 클릭한 다음 학습 탭을 클릭합니다.
+보기 옵션 섹션에서 테이블을 클릭합니다. 결과는 다음과 비슷하게 표시됩니다.
++-----------+--------------------+--------------------+
+| Iteration | Training Data Loss | Duration (seconds) |
++-----------+--------------------+--------------------+
+|  11       | 0.3943             | 42.59              |
++-----------+--------------------+--------------------+
+|  10       | 0.3979             | 27.37              |
++-----------+--------------------+--------------------+
+|   9       | 0.4038             | 40.79              |
++-----------+--------------------+--------------------+
+|  ...      | ...                | ...                |
++-----------+--------------------+--------------------+
+학습 데이터 손실 열은 모델 학습 후 계산된 손실 측정항목을 나타냅니다. 행렬 분해 모델이므로 이 열에는 평균 제곱 오차 [https://developers.google.com/machine-learning/glossary/?hl=ko#MSE]가 표시됩니다.
+ML.TRAINING_INFO 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-train?hl=ko]를 사용하여 모델 학습 통계를 확인할 수도 있습니다.
+모델 평가
+모델에서 반환된 예측 영화 평점을 학습 데이터의 실제 사용자 영화 평점과 비교하여 모델의 성능을 평가합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#sql] ---
+ML.EVALUATE 함수를 사용하여 모델을 평가합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+SELECT
+*
+FROM
+ML.EVALUATE(
+  MODEL `bqml_tutorial.mf_explicit`,
+  (
+    SELECT
+      user_id,
+      item_id,
+      rating
+    FROM
+      `bqml_tutorial.ratings`
+  ));
+
+결과는 다음과 비슷하게 표시됩니다.
+
++---------------------+---------------------+------------------------+-----------------------+--------------------+--------------------+
+| mean_absolute_error | mean_squared_error  | mean_squared_log_error | median_absolute_error |      r2_score      | explained_variance |
++---------------------+---------------------+------------------------+-----------------------+--------------------+--------------------+
+| 0.48494444327829156 | 0.39433706592870565 |   0.025437895793637522 |   0.39017059802629905 | 0.6840033369412044 | 0.6840033369412264 |
++---------------------+---------------------+------------------------+-----------------------+--------------------+--------------------+
+
+
+평가 결과에서 중요 측정항목은 R2 [https://en.wikipedia.org/wiki/Coefficient_of_determination] 점수입니다.
+R2 점수는 선형 회귀 예측이 실제 데이터에 가까운지 알 수 있는 통계 척도입니다. 0 값은 모델이 평균 주위 응답 데이터의 변동성을 전혀 설명하지 못한다는 것을 나타냅니다. 1 값은 모델이 평균 주위 응답 데이터의 변동성을 모두 설명한다는 것을 나타냅니다.
+
+ML.EVALUATE 함수 출력에 관한 자세한 내용은 행렬 분해 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko#matrix_factorization_models]을 참고하세요.
+
+
+또한 입력 데이터를 제공하지 않고 ML.EVALUATE를 호출할 수도 있습니다. 그러면 학습 중에 계산된 평가 측정항목을 사용합니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+model.score() [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.decomposition.MatrixFactorization?hl=ko#bigframes_ml_decomposition_MatrixFactorization_score]을 호출하여 모델을 평가합니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # Evaluate the model using the score() function
+model.score(bq_df)
+# Output:
+# mean_absolute_error	mean_squared_error	mean_squared_log_error	median_absolute_error	r2_score	explained_variance
+# 0.485403	                0.395052	        0.025515	            0.390573	        0.68343	        0.68343
+사용자-항목 쌍의 하위 집합에 대한 예측 평점 가져오기
+5명의 사용자에 대해 각 영화의 예측 평점을 가져옵니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#sql] ---
+ML.RECOMMEND 함수를 사용하여 예측 평점을 가져옵니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+SELECT
+*
+FROM
+ML.RECOMMEND(
+  MODEL `bqml_tutorial.mf_explicit`,
+  (
+    SELECT
+      user_id
+    FROM
+      `bqml_tutorial.ratings`
+    LIMIT 5
+  ));
+
+결과는 다음과 비슷하게 표시됩니다.
+
++--------------------+---------+---------+
+| predicted_rating   | user_id | item_id |
++--------------------+---------+---------+
+| 4.2125303962491873 | 4       | 3169    |
++--------------------+---------+---------+
+| 4.8068920531981263 | 4       | 3739    |
++--------------------+---------+---------+
+| 3.8742203494732403 | 4       | 3574    |
++--------------------+---------+---------+
+| ...                | ...     | ...     |
++--------------------+---------+---------+
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+model.predict() [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.decomposition.MatrixFactorization?hl=ko#bigframes_ml_decomposition_MatrixFactorization_predict]을 호출하여 예측 평점을 가져옵니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # Use predict() to get the predicted rating for each movie for 5 users
+subset = bq_df[["user_id"]].head(5)
+predicted = model.predict(subset)
+print(predicted)
+# Output:
+#   predicted_rating	user_id	 item_id	rating
+# 0	    4.206146	     4354	  968	     4.0
+# 1	    4.853099	     3622	  3521	     5.0
+# 2	    2.679067	     5543	  920	     2.0
+# 3	    4.323458	     445	  3175	     5.0
+# 4	    3.476911	     5535	  235	     4.0
+추천 생성
+예측 평점을 사용하여 각 사용자에 대해 상위 5개의 추천 영화를 생성합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#sql] ---
+추천을 생성하려면 다음 단계를 따르세요.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+예측된 평점을 테이블에 씁니다. 쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+CREATE OR REPLACE TABLE `bqml_tutorial.recommend`
+AS
+SELECT
+*
+FROM
+ML.RECOMMEND(MODEL `bqml_tutorial.mf_explicit`);
+예측 평점을 영화 정보와 조인하고 사용자별 상위 5개 결과를 선택합니다. 쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+
+  SELECT
+    user_id,
+    ARRAY_AGG(STRUCT(movie_title, genre, predicted_rating) ORDER BY predicted_rating DESC LIMIT 5)
+  FROM
+    (
+      SELECT
+        user_id,
+        item_id,
+        predicted_rating,
+        movie_title,
+        genre
+      FROM
+        `bqml_tutorial.recommend`
+      JOIN
+        `bqml_tutorial.movies`
+        ON
+          item_id = movie_id
+    )
+  GROUP BY
+    user_id;
+
+결과는 다음과 비슷하게 표시됩니다.
+
+  +---------+-------------------------------------+------------------------+--------------------+
+  | user_id | f0_movie_title                      | f0_genre               | predicted_rating   |
+  +---------+-------------------------------------+------------------------+--------------------+
+  | 4597    | Song of Freedom (1936)              | Drama                  | 6.8495752907364009 |
+  |         | I Went Down (1997)                  | Action/Comedy/Crime    | 6.7203235758772877 |
+  |         | Men With Guns (1997)                | Action/Drama           | 6.399407352232001  |
+  |         | Kid, The (1921)                     | Action                 | 6.1952890198126731 |
+  |         | Hype! (1996)                        | Documentary            | 6.1895766097451475 |
+  +---------+-------------------------------------+------------------------+--------------------+
+  | 5349    | Fandango (1985)                     | Comedy                 | 9.944574012151549  |
+  |         | Breakfast of Champions (1999)       | Comedy                 | 9.55661860430112   |
+  |         | Funny Bones (1995)                  | Comedy                 | 9.52778917835076   |
+  |         | Paradise Road (1997)                | Drama/War              | 9.1643621767929133 |
+  |         | Surviving Picasso (1996)            | Drama                  | 8.807353289233772  |
+  +---------+-------------------------------------+------------------------+--------------------+
+  | ...     | ...                                 | ...                    | ...                |
+  +---------+-------------------------------------+------------------------+--------------------+
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/bigqueryml-mf-explicit-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+model.predict() [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.decomposition.MatrixFactorization?hl=ko#bigframes_ml_decomposition_MatrixFactorization_predict]을 호출하여 예측 평점을 가져옵니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # import bigframes.bigquery as bbq
+
+# Load movies
+movies = bpd.read_gbq("bqml_tutorial.movies")
+
+# Merge the movies df with the previously created predicted df
+merged_df = bpd.merge(predicted, movies, left_on="item_id", right_on="movie_id")
+
+# Separate users and predicted data, setting the index to 'movie_id'
+users = merged_df[["user_id", "movie_id"]].set_index("movie_id")
+
+# Take the predicted data and sort it in descending order by 'predicted_rating', setting the index to 'movie_id'
+sort_data = (
+    merged_df[["movie_title", "genre", "predicted_rating", "movie_id"]]
+    .sort_values(by="predicted_rating", ascending=False)
+    .set_index("movie_id")
+)
+
+# re-merge the separated dfs by index
+merged_user = sort_data.join(users, how="outer")
+
+# group the users and set the user_id as the index
+merged_user.groupby("user_id").head(5).set_index("user_id").sort_index()
+print(merged_user)
+# Output:
+# 	            movie_title	                genre	        predicted_rating
+# user_id
+#   1	    Saving Private Ryan (1998)	Action|Drama|War	    5.19326
+#   1	        Fargo (1996)	       Crime|Drama|Thriller	    4.996954
+#   1	    Driving Miss Daisy (1989)	    Drama	            4.983671
+#   1	        Ben-Hur (1959)	       Action|Adventure|Drama	4.877622
+#   1	     Schindler's List (1993)	   Drama|War	        4.802336
+#   2	    Saving Private Ryan (1998)	Action|Drama|War	    5.19326
+#   2	        Braveheart (1995)	    Action|Drama|War	    5.174145
+#   2	        Gladiator (2000)	      Action|Drama	        5.066372
+#   2	        On Golden Pond (1981)	     Drama	            5.01198
+#   2	    Driving Miss Daisy (1989)	     Drama	            4.983671
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트를 유지하고 개별 리소스를 삭제하세요.
+만든 프로젝트를 삭제할 수 있습니다.
+또는 프로젝트를 유지하고 데이터 세트를 삭제할 수 있습니다.
+데이터 세트 삭제
+프로젝트를 삭제하면 프로젝트의 데이터 세트와 테이블이 모두 삭제됩니다. 프로젝트를 다시 사용하려면 이 튜토리얼에서 만든 데이터 세트를 삭제할 수 있습니다.
+필요한 경우 Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+앞서 만든 bqml_tutorial 데이터 세트를 탐색에서 선택합니다.
+창의 오른쪽에 있는 데이터 세트 삭제를 클릭합니다. 데이터 세트, 테이블, 모든 데이터가 삭제됩니다.
+데이터 세트 삭제 대화상자에서 데이터 세트 이름(bqml_tutorial)을 입력하고 삭제를 클릭하여 삭제 명령어를 확인합니다.
+프로젝트 삭제
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+암시적 피드백을 기반으로 행렬 분해 모델 만들어 보기 [https://cloud.google.com/bigquery/docs/bigqueryml-mf-implicit-tutorial?hl=ko]
+BigQuery ML 개요는 BigQuery ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]를 참조하세요.
+머신러닝에 대한 자세한 내용은 머신러닝 단기집중과정 [https://developers.google.com/machine-learning/crash-course/?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

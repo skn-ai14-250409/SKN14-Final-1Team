@@ -1,0 +1,764 @@
+Source URL: https://cloud.google.com/bigquery/docs/cached-results
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#limitations]
+가격 및 할당량 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#pricing_and_quotas]
+쿼리 캐싱 예외 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#cache-exceptions]
+캐시 처리된 결과 저장 방식 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#how_cached_results_are_stored]
+교차 사용자 캐싱 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#cross-user-caching]
+캐시 처리된 쿼리 결과 사용
+bookmark_border
+BigQuery는 모든 쿼리 결과를 테이블에 작성합니다. 이 테이블은 사용자(대상 테이블)에 의해 명시적으로 식별된 테이블이거나 캐시 처리된 임시 결과 테이블일 수 있습니다. 정확히 동일한 쿼리를 다시 실행하면 BigQuery에서 캐시 처리된 테이블의 결과를 반환합니다(있는 경우). 캐시 처리된 임시 결과 테이블은 사용자 및 프로젝트별로 유지관리됩니다. 버전에 따라 동일한 프로젝트에서 쿼리를 실행하는 다른 사용자의 캐시 처리된 결과 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#cross-user-caching]에 액세스할 수 있습니다. 캐시 처리된 쿼리 결과 테이블에서는 스토리지 비용이 발생하지 않지만 영구 테이블에 쿼리 결과를 쓰면 데이터 저장 [https://cloud.google.com/bigquery/pricing?hl=ko#storage] 요금이 청구됩니다.
+대화형 및 일괄 쿼리 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko]가 모두 포함된 모든 쿼리 결과가 일부 예외 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#cache-exceptions]를 제외하고 약 24시간 동안 임시 테이블에 캐시 처리됩니다.
+제한사항
+쿼리 캐시 사용 시 다음 제한사항이 적용됩니다.
+중복 쿼리를 실행하면 BigQuery가 캐시 처리된 결과를 다시 사용하려고 시도합니다. 캐시에서 데이터를 검색하려면 중복 쿼리 텍스트가 원본 쿼리와 같아야 합니다.
+쿼리 결과를 캐시 처리된 결과 테이블에 유지하려면 결과 집합이 최대 응답 크기보다 작아야 합니다. 큰 결과 집합 관리에 대한 자세한 내용은 큰 쿼리 결과 반환 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#large-results]을 참조하세요.
+DML [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko] 문을 포함한 캐시 처리된 결과 테이블은 타겟팅할 수 없습니다.
+현재 시맨틱스에서 허용되더라도 종속 작업의 입력으로 캐시 처리된 결과를 사용하지 않는 것이 좋습니다. 예를 들어 캐시 테이블의 결과를 검색하는 쿼리 작업을 제출해서는 안 됩니다. 대신 이름이 지정된 대상 테이블에 결과를 작성합니다. 데이터 세트 수준의 defaultTableExpirationMs 속성과 같은 기능을 사용하면 지정된 기간 후에 데이터가 자동으로 만료되어 간편하게 정리할 수 있습니다.
+가격 및 할당량
+캐시된 쿼리 결과는 임시 테이블로 저장됩니다. 임시 테이블에 캐시된 쿼리 결과를 저장하는 비용은 청구되지 않습니다. 캐시 처리된 결과 테이블에서 쿼리 결과를 검색하면 작업 통계 속성 statistics.query.cacheHit가 true로 반환되며 쿼리 요금이 청구되지 않습니다. 캐시 처리된 결과를 사용하는 쿼리에는 요금이 청구되지 않지만 BigQuery 할당량 정책 [https://cloud.google.com/bigquery/quota-policy?hl=ko]이 쿼리에 적용됩니다. 비용 절감뿐만 아니라 BigQuery에서 결과 집합을 계산할 필요가 없으므로 캐시 처리된 결과를 사용하는 쿼리 속도가 현저히 빠릅니다.
+쿼리 캐싱 예외
+다음과 같은 경우 쿼리 결과가 캐시 처리되지 않습니다.
+대상 테이블이 작업 구성, Google Cloud 콘솔, bq 명령줄 도구 또는 API에 지정된 경우
+전에 결과가 캐시 처리된 후로 참조된 테이블 또는 논리 뷰가 하나라도 변경된 경우
+새 행이 도착하지 않았더라도 쿼리에서 참조하는 테이블 중 하나에서 최근 스트리밍 삽입을 수신한 경우(테이블에 쓰기 최적화 스토리지의 데이터가 있음)
+쿼리에서 날짜 및 시간 함수(예: CURRENT_TIMESTAMP(), CURRENT_DATE 및 SESSION_USER()와 같은 다른 함수) 등의 비확정 함수를 사용하여 쿼리 실행 시기에 따라 다른 값을 반환하는 경우
+와일드 카드 [https://cloud.google.com/bigquery/docs/querying-wildcard-tables?hl=ko]를 사용해 여러 테이블을 쿼리하는 경우
+캐시 처리된 결과가 만료된 경우 - 일반적인 캐시 수명은 24시간이지만 결과를 캐시 처리하는 것이 최선이므로 더 일찍 무효화될 수 있습니다.
+쿼리가 Cloud Storage 이외의 외부 데이터 소스 [https://cloud.google.com/bigquery/external-data-sources?hl=ko]를 대상으로 실행되는 경우 (Cloud Storage의 GoogleSQL 쿼리는 캐시된 쿼리 결과에서 지원됩니다.)
+행 수준 보안 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko]으로 보호되는 테이블에 대해 쿼리가 실행되는 경우에는 결과가 캐시되지 않습니다.
+열 수준 보안 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko]으로 보호되는 테이블에 대해 쿼리가 실행되는 경우에는 결과가 캐시되지 않을 수 있습니다.
+캐시 처리된 결과 저장 방식
+쿼리를 실행하면 익명 데이터 세트라고 하는 특수한 유형의 숨겨진 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko#hidden_datasets]에 캐시된 임시 결과 테이블이 생성됩니다. IAM 리소스 계층 구조 모델에서 권한(프로젝트 및 조직 권한)을 상속하는 정규화 데이터 세트와 달리 익명 데이터 세트에 대한 액세스는 소유자로 제한됩니다. 익명 데이터 세트의 소유자란 캐시 처리된 결과가 생성된 쿼리를 실행한 사용자를 말합니다. 또한 프로젝트에서 bigquery.jobs.create 권한을 검사하여 사용자에게 프로젝트 액세스 권한이 있는지 확인합니다.
+BigQuery는 익명 데이터 세트 공유를 지원하지 않습니다. 쿼리 결과를 공유할 생각이라면 익명 데이터 세트에 저장된 캐시 처리된 결과를 사용하지 마세요. 대신 이름이 지정된 대상 테이블에 결과를 기록하세요.
+쿼리를 실행하는 사용자가 데이터 세트 및 캐시 처리된 결과 테이블에 대한 모든 액세스 권한을 가지고 있지만 이를 종속 작업의 입력으로 사용하지 않는 것이 좋습니다.
+익명 데이터 세트 이름은 밑줄로 시작됩니다. 이렇게 하면 Google Cloud 콘솔의 데이터 세트 목록에 표시되지 않습니다. bq 명령줄 도구나 API를 사용하여 익명 데이터 세트를 나열하고 익명 데이터 세트 액세스 제어를 감사할 수 있습니다.
+익명 데이터 세트를 포함한 데이터 세트 나열 및 가져오기에 대한 자세한 내용은 데이터 세트 나열 [https://cloud.google.com/bigquery/docs/listing-datasets?hl=ko]을 참조하세요.
+교차 사용자 캐싱
+Enterprise 또는 Enterprise Plus 버전 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]을 사용 중이고 다른 사용자의 프로젝트에서 캐시 처리된 쿼리를 실행하는 데 필요한 권한이 있는 경우 BigQuery가 캐시 처리된 결과를 생성합니다. 캐시 처리된 결과가 개인 익명 데이터 세트에 복사되고 쿼리를 실행한 후 24시간 동안 유지됩니다. 단일 사용자 캐싱에 적용되는 한도와 예외가 교차 사용자 캐싱에도 적용됩니다.
+캐시 처리된 결과 검색 중지
+캐시 처리된 결과 사용 옵션에서는 쿼리되는 테이블이 변경되지 않은 한, 이전에 실행된 동일 쿼리의 결과를 다시 사용합니다. 캐시 처리된 결과의 사용은 반복되는 쿼리에 한해 유용합니다. 새 쿼리의 경우 캐시 처리된 결과 사용 옵션이 기본적으로 사용 설정되어 있으나 효과는 없습니다.
+캐시 처리된 결과 사용 옵션을 사용 중지한 상태에서 쿼리를 반복하면 캐시 처리된 기존 결과를 덮어씁니다. 이 경우 BigQuery에서 쿼리 결과를 계산해야 하며 쿼리 요금이 부과됩니다. 이는 벤치마킹 시나리오에 특히 유용합니다.
+캐시 처리된 결과의 검색을 사용 중지하고 쿼리 작업의 실시간 평가를 강제 적용하려면 쿼리 작업의 configuration.query.useQueryCache 속성을 false로 설정하면 됩니다.
+캐시 처리된 결과 사용 옵션을 사용 중지하는 방법:
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔을 엽니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+새 쿼리 작성을 클릭합니다.
+쿼리 편집기 텍스트 영역에 유효한 SQL 쿼리를 입력합니다.
+더보기를 클릭하고 쿼리 설정을 선택합니다.
+
+
+ 
+
+캐시 환경설정에서 캐시 처리된 결과 사용을 선택 해제합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#bq] ---
+nouse_cache 플래그를 사용하여 쿼리 캐시를 덮어씁니다. 다음 예시에서는 BigQuery에서 캐시 처리된 기존 결과를 사용하지 않고 쿼리를 강제로 처리합니다.
+ bq query \
+ --nouse_cache \
+ --batch \
+ 'SELECT
+    name,
+    count
+  FROM
+    `my-project`.mydataset.names_2013
+  WHERE
+    gender = "M"
+  ORDER BY
+    count DESC
+  LIMIT
+    6'
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#api] ---
+기존 캐시 처리된 결과를 사용하지 않고 쿼리를 처리하려면 query 작업 구성에서 useQueryCache 속성을 false로 설정합니다.
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryDisableCache demonstrates issuing a query and requesting that the query cache is bypassed.
+func queryDisableCache(w io.Writer, projectID string) error {
+	// projectID := "my-project-id"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query(
+		"SELECT corpus FROM `bigquery-public-data.samples.shakespeare` GROUP BY corpus;")
+	q.DisableQueryCache = true
+	// Location must match that of the dataset(s) referenced in the query.
+	q.Location = "US"
+
+	// Run the query and print results when the query job is completed.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err(); err != nil {
+		return err
+	}
+	it, err := job.Read(ctx)
+	for {
+		var row []bigquery.Value
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+--- 탭: tabpanel-자바 ---
+기존 캐시 처리된 결과를 사용하지 않고 쿼리를 처리하려면 QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration?hl=ko]을 만들 때 쿼리 캐시 사용 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_setUseQueryCache_java_lang_Boolean_]을 false로 설정합니다.
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.TableResult;
+
+// Sample to running a query with the cache disabled.
+public class QueryDisableCache {
+
+  public static void runQueryDisableCache() {
+    String query = "SELECT corpus FROM `bigquery-public-data.samples.shakespeare` GROUP BY corpus;";
+    queryDisableCache(query);
+  }
+
+  public static void queryDisableCache(String query) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      QueryJobConfiguration queryConfig =
+          QueryJobConfiguration.newBuilder(query)
+              // Disable the query cache to force live query evaluation.
+              .setUseQueryCache(false)
+              .build();
+
+      TableResult results = bigquery.query(queryConfig);
+
+      results
+          .iterateAll()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s,", val.toString())));
+
+      System.out.println("Query disable cache performed successfully.");
+    } catch (BigQueryException | InterruptedException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery');
+
+async function queryDisableCache() {
+  // Queries the Shakespeare dataset with the cache disabled.
+
+  // Create a client
+  const bigquery = new BigQuery();
+
+  const query = `SELECT corpus
+    FROM \`bigquery-public-data.samples.shakespeare\`
+    GROUP BY corpus`;
+  const options = {
+    query: query,
+    // Location must match that of the dataset(s) referenced in the query.
+    location: 'US',
+    useQueryCache: false,
+  };
+
+  // Run the query as a job
+  const [job] = await bigquery.createQueryJob(options);
+  console.log(`Job ${job.id} started.`);
+
+  // Wait for the query to finish
+  const [rows] = await job.getQueryResults();
+
+  // Print the results
+  console.log('Rows:');
+  rows.forEach(row => console.log(row));
+}
+
+--- 탭: tabpanel-php ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 PHP 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery PHP API 참고 문서 [https://cloud.google.com/php/docs/reference/cloud-bigquery/latest/BigQueryClient?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  use Google\Cloud\BigQuery\BigQueryClient;
+
+/** Uncomment and populate these variables in your code */
+// $projectId = 'The Google project ID';
+// $query = 'SELECT id, view_count FROM `bigquery-public-data.stackoverflow.posts_questions`';
+
+// Construct a BigQuery client object.
+$bigQuery = new BigQueryClient([
+    'projectId' => $projectId,
+]);
+
+// Set job configs
+$jobConfig = $bigQuery->query($query);
+$jobConfig->useQueryCache(false);
+
+// Extract query results
+$queryResults = $bigQuery->runQuery($jobConfig);
+
+$i = 0;
+foreach ($queryResults as $row) {
+    printf('--- Row %s ---' . PHP_EOL, ++$i);
+    foreach ($row as $column => $value) {
+        printf('%s: %s' . PHP_EOL, $column, json_encode($value));
+    }
+}
+printf('Found %s row(s)' . PHP_EOL, $i);
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery
+
+# Construct a BigQuery client object.
+client = bigquery.Client()
+
+job_config = bigquery.QueryJobConfig(use_query_cache=False)
+sql = """
+    SELECT corpus
+    FROM `bigquery-public-data.samples.shakespeare`
+    GROUP BY corpus;
+"""
+query_job = client.query(sql, job_config=job_config)  # Make an API request.
+
+for row in query_job:
+    print(row)
+캐시 사용 보장
+jobs.insert [https://cloud.google.com/bigquery/docs/reference/v2/jobs/insert?hl=ko] 메서드를 사용하여 쿼리를 실행하는 경우, query 작업 구성의 createDisposition 속성을 CREATE_NEVER로 설정하여 캐시된 결과를 사용할 수 없으면 쿼리 작업이 강제로 실패하도록 할 수 있습니다.
+쿼리 결과가 캐시에 없으면 NOT_FOUND 오류가 반환됩니다.
+--- 탭: bq [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#bq] ---
+쿼리 캐시의 결과를 요청하려면 --require_cache 플래그를 사용합니다. 다음 예시에서는 결과가 캐시에 있는 경우 BigQuery에서 쿼리를 강제로 처리합니다.
+ bq query \
+ --require_cache \
+ --batch \
+ 'SELECT
+    name,
+    count
+  FROM
+    `my-project`.mydataset.names_2013
+  WHERE
+    gender = "M"
+  ORDER BY
+    count DESC
+  LIMIT
+    6'
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#api] ---
+기존 캐시 처리된 결과로 쿼리를 처리하려면 query 작업 구성에서 createDisposition 속성 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationQuery.FIELDS.create_disposition]을 CREATE_NEVER로 설정합니다.
+캐시 사용 확인
+BigQuery에서 캐시를 사용하여 결과를 반환했는지 확인하려면 다음 방법 중 하나를 사용합니다.
+Google Cloud 콘솔을 사용합니다. 쿼리 결과로 이동하여 작업 정보를 클릭합니다. 처리된 바이트에 0B(결과 캐시됨)가 표시됩니다.
+BigQuery API [https://cloud.google.com/bigquery/docs/reference/v2?hl=ko]를 사용합니다. 쿼리 결과의 cacheHit 속성이 true로 설정됩니다.
+열 수준 보안이 미치는 영향
+기본적으로 BigQuery는 앞에서 언급한 예외 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko#cache-exceptions]를 사용하여 쿼리 결과를 24시간 동안 캐시합니다. 열 수준 보안 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko]으로 보호되는 테이블에 대한 쿼리는 캐시되지 않을 수 있습니다. BigQuery에서 결과를 캐시하면 24시간 캐시 수명이 적용됩니다.
+정책 태그에 사용된 세분화된 Data Catalog 리더 역할에서 그룹 또는 사용자를 삭제해도 24시간 캐시는 무효화되지 않습니다. 세분화된 Data Catalog 리더 액세스 통제그룹 자체에 대한 변경사항은 즉시 적용되지만 변경사항이 캐시를 무효화하지는 않습니다.
+사용자가 쿼리를 실행한 경우 화면의 사용자에게 쿼리 결과가 계속 표시됩니다. 사용자는 최근 24시간 동안 데이터에 대한 액세스 권한이 사라져도 캐시에서 결과를 검색할 수 있습니다.
+정책 태그의 Data Catalog 세분화된 권한의 리더 역할에서 사용자가 삭제된 후 24시간 동안 사용자는 이전에 볼 수 있었던 데이터에 대해서만 캐시된 데이터에 액세스할 수 있습니다. 행이 테이블에 추가되면 결과가 캐시된 경우에도 추가된 행이 사용자에게 표시되지 않습니다.
+도움이 되었나요?
+의견 보내기

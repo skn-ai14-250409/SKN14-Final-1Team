@@ -1,0 +1,244 @@
+Source URL: https://cloud.google.com/bigquery/docs/managing-row-level-security
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#limitations]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#before_you_begin]
+행 수준 액세스 정책 만들기 또는 업데이트 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#create_or_update_a_row-level_access_policy]
+필수 권한 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#required_permissions]
+행 수준 액세스 정책 만들기 또는 업데이트 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#create-policy]
+행 수준 보안 사용
+bookmark_border
+이 문서에서는 BigQuery의 행 수준 보안을 사용하여 데이터에 대한 액세스를 테이블 행 수준에서 제한하는 방법을 설명합니다. 이 문서를 읽기 전에 BigQuery 행 수준 보안 소개 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko]를 참조하여 행 수준 보안에 대한 개요를 숙지하세요.
+행 수준 액세스 정책을 사용하여 다음 태스크를 수행할 수 있습니다.
+테이블에서 행 수준 액세스 정책 만들기 또는 업데이트 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#create-policy]
+테이블에서 행 수준 액세스 정책 결합 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#combine_row-level_access_policies]
+테이블의 행 수준 액세스 정책 나열 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#list-policy]
+테이블에서 행 수준 액세스 정책을 삭제 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#delete-policy]합니다.
+행 수준 액세스 정책으로 테이블 쿼리 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#query-policy]
+참고: 외부 ID 공급업체 [https://cloud.google.com/iam/docs/workforce-identity-federation?hl=ko]에서 사용자의 액세스 권한을 관리할 때는 user:kiran@example.com, group:support@example.com, domain:example.com과 같은 Google 계정 주 구성원 식별자 인스턴스를 적절한 직원 ID 제휴 주 구성원 식별자 [https://cloud.google.com/iam/docs/principal-identifiers?hl=ko]로 바꾸세요.
+제한사항
+Google Cloud 콘솔에서 테이블을 선택하면 미리보기 탭에 행 액세스 정책이 있는 테이블의 미리보기가 표시되지 않습니다. 테이블 콘텐츠를 보려면 쿼리를 실행합니다.
+시작하기 전에
+사용자에게 이 문서의 각 작업을 수행하는 데 필요한 권한을 부여하는 Identity and Access Management(IAM) 역할을 부여합니다. 태스크를 수행하는 데 필요한 권한(있는 경우)이 태스크의 '필요한 권한' 섹션에 나열됩니다.
+행 수준 액세스 정책 만들기 또는 업데이트
+데이터 정의 언어(DDL) 문을 사용하여 BigQuery의 테이블에서 행 수준 액세스 정책을 만들거나 업데이트할 수 있습니다.
+필수 권한
+BigQuery 테이블에 행 수준 액세스 정책을 만들려면 다음 IAM 권한이 필요합니다.
+bigquery.rowAccessPolicies.create
+bigquery.rowAccessPolicies.setIamPolicy
+bigquery.tables.getData(대상 테이블 및 부여된 서브 쿼리 행 수준 액세스 정책에서 참조된 테이블)
+(DDL 쿼리 작업 실행을 위한) bigquery.jobs.create
+BigQuery 테이블에서 행 수준 액세스 정책을 업데이트하려면 다음 IAM 권한이 필요합니다.
+bigquery.rowAccessPolicies.update
+bigquery.rowAccessPolicies.setIamPolicy
+bigquery.tables.getData(대상 테이블 및 부여된 서브 쿼리 행 수준 액세스 정책에서 참조된 테이블)
+(DDL 쿼리 작업 실행을 위한) bigquery.jobs.create
+다음과 같은 사전 정의된 각 IAM 역할에는 행 수준 액세스 정책을 만들고 업데이트하는 데 필요한 권한이 포함되어 있습니다.
+roles/bigquery.admin
+roles/bigquery.dataOwner
+bigquery.filteredDataViewer 역할
+행 수준 액세스 정책을 만들면 BigQuery는 수혜자 목록의 구성원에게 bigquery.filteredDataViewer 역할을 자동으로 부여합니다. Google Cloud 콘솔에서 테이블의 행 수준 액세스 정책을 나열 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#list-policy]하면 이 역할이 정책 수혜자 목록의 구성원과 연결되어 표시됩니다.
+주의: IAM을 통해 리소스에 bigquery.filteredDataViewer 역할을 직접 적용하지 마세요. bigquery.filteredDataViewer는 시스템 관리 역할입니다. 행 수준 액세스 정책을 사용해서만 역할을 부여하세요. 자세한 내용은 행 수준 보안 권장사항 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko#filtered-data-viewer]을 참조하세요.
+행 수준 액세스 정책 만들기 또는 업데이트
+행 수준 액세스 정책을 만들거나 업데이트하려면 다음 DDL 문 중 하나를 사용합니다.
+CREATE ROW ACCESS POLICY는 새 행 수준 액세스 정책을 만듭니다.
+CREATE ROW ACCESS POLICY IF NOT EXISTS는 지정된 테이블에 이름이 같은 행 수준 액세스 정책이 아직 없으면 새 행 수준 액세스 정책을 만듭니다.
+CREATE OR REPLACE ROW ACCESS POLICY 문은 지정된 테이블에 이름이 같은 행 수준 액세스 정책으로 기존 행 수준 액세스 정책을 업데이트합니다.
+주의할 사항:
+테이블의 각 행 수준 액세스 정책은 이름이 고유해야 합니다.
+WHERE 절과 마찬가지로 filter_expression은 grantee_list의 구성원에게 표시하려는 데이터와 일치합니다.
+grantee_list 목록에 일련의 사용자 및 그룹을 쉼표로 구분하고 각각 따옴표로 묶어서 결합할 수 있습니다.
+JSON 열 [https://cloud.google.com/bigquery/docs/json-data?hl=ko]에서는 행 수준 액세스 정책을 적용할 수 없습니다. 행 수준 보안의 추가 제한사항을 자세히 알아보려면 제한사항 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko#limitations]을 참조하세요.
+예시
+새 행 액세스 정책을 만듭니다. 테이블에 대한 액세스는 abc@example.com 사용자로 제한됩니다. region = 'APAC'에 해당하는 행만 표시됩니다.
+CREATE ROW ACCESS POLICY apac_filter
+ON project.dataset.my_table
+GRANT TO ('user:abc@example.com')
+FILTER USING (region = 'APAC');
+대신 example@exampleproject.iam.gserviceaccount.com 서비스 계정에 적용되도록 액세스 정책을 업데이트합니다.
+CREATE OR REPLACE ROW ACCESS POLICY apac_filter
+ON project.dataset.my_table
+GRANT TO ('serviceAccount:example@exampleproject.iam.gserviceaccount.com')
+FILTER USING (region = 'APAC');
+사용자와 두 그룹에 액세스를 부여하는 행 액세스 정책을 만듭니다.
+CREATE ROW ACCESS POLICY sales_us_filter
+ON project.dataset.my_table
+GRANT TO ('user:john@example.com',
+          'group:sales-us@example.com',
+          'group:sales-managers@example.com')
+FILTER USING (region = 'US');
+allAuthenticatedUsers를 피부여자로 행 액세스 정책 만들기
+CREATE ROW ACCESS POLICY us_filter
+ON project.dataset.my_table
+GRANT TO ('allAuthenticatedUsers')
+FILTER USING (region = 'US');
+현재 사용자를 기준으로 하는 필터로 행 액세스 정책 만들기
+CREATE ROW ACCESS POLICY my_row_filter
+ON dataset.my_table
+GRANT TO ('domain:example.com')
+FILTER USING (email = SESSION_USER());
+ARRAY 유형의 열에 대한 필터로 행 액세스 정책 만들기
+CREATE ROW ACCESS POLICY my_reports_filter
+ON project.dataset.my_table
+GRANT TO ('domain:example.com')
+FILTER USING (SESSION_USER() IN UNNEST(reporting_chain));
+하위 쿼리를 사용하여 행 액세스 정책을 만들어 여러 정책을 사용자별로 구성된 지역 비교로 대체합니다.
+lookup_table 테이블을 참조하세요.
++-----------------+--------------+
+|      email      |    region    |
++-----------------+--------------+
+| xyz@example.com | europe-west1 |
+| abc@example.com | us-west1     |
+| abc@example.com | us-west2     |
++-----------------+--------------+
+CREATE OR REPLACE ROW ACCESS POLICY apac_filter
+ON project.dataset.my_table
+GRANT TO ('domain:example.com')
+FILTER USING (region IN (
+    SELECT
+      region
+    FROM
+      lookup_table
+    WHERE
+      email = SESSION_USER()));
+lookup_table에 하위 쿼리를 사용하면 여러 행 액세스 정책을 만들지 않아도 됩니다. 예를 들어 앞의 문은 쿼리 수가 더 적지만 다음과 동일한 결과를 반환합니다.
+CREATE OR REPLACE ROW ACCESS POLICY apac_filter
+ON project.dataset.my_table
+GRANT TO ('user:abc@example.com')
+FILTER USING (region IN ('us-west1', 'us-west2'));
+
+CREATE OR REPLACE ROW ACCESS POLICY apac_filter
+ON project.dataset.my_table
+GRANT TO ('user:xyz@example.com')
+FILTER USING (region = 'europe-west1');
+구문 및 사용 가능한 옵션에 대한 자세한 내용은 CREATE ROW ACCESS POLICY DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_row_access_policy_statement] 참조를 확인하세요.
+행 수준 액세스 정책 조합
+2개 이상의 행 수준 액세스 정책이 사용자 또는 그룹에 동일한 테이블에 대해 액세스 권한을 부여하는 경우 사용자 또는 그룹이 해당 정책에 포함된 모든 데이터에 액세스할 수 있습니다. 예를 들어 다음 정책은 my_table 테이블의 지정된 행에 대한 abc@example.com 액세스 권한을 사용자에게 부여합니다.
+CREATE ROW ACCESS POLICY shoes
+ON project.dataset.my_table
+GRANT TO ('user:abc@example.com')
+FILTER USING (product_category = 'shoes');
+CREATE OR REPLACE ROW ACCESS POLICY blue_products
+ON project.dataset.my_table
+GRANT TO ('user:abc@example.com')
+FILTER USING (color = 'blue');
+앞의 예시에서 abc@example.com 사용자는 product_category 필드가 shoes로 설정된 my_table 테이블의 행에 액세스할 수 있고 abc@example.com이 color 필드가 blue로 설정된 행에도 액세스할 수 있습니다. 예를 들어 abc@example.com은 빨간 신발과 파란 자동차에 대한 정보가 있는 행에 액세스할 수 있습니다.
+이 액세스는 다음과 같은 단일 행 수준 액세스 정책으로 제공된 액세스와 동일합니다.
+CREATE ROW ACCESS POLICY shoes_and_blue_products
+ON project.dataset.my_table
+GRANT TO ('user:abc@example.com')
+FILTER USING (product_category = 'shoes' OR color = 'blue');
+반면에 2개 이상의 true 조건에 종속된 액세스를 지정하려면 AND 연산자와 함께 필터를 사용합니다. 예를 들어 다음 행 수준 액세스 정책은 product_category 필드가 shoes로 설정되었고 color 필드가 blue로 설정된 행에 대해서만 abc@example.com에 액세스 권한을 부여합니다.
+CREATE ROW ACCESS POLICY blue_shoes
+ON project.dataset.my_table
+GRANT TO ('user:abc@example.com')
+FILTER USING (product_category = 'shoes' AND color = 'blue');
+이전 행 수준 액세스 정책에서 abc@example.com은 파란색 신발에 대한 정보에 액세스할 수 있지만 빨간색 신발 또는 파란색 자동차에 대해서는 액세스할 수 없습니다.
+테이블 행 수준 액세스 정책 나열
+Google Cloud 콘솔, bq 명령줄 도구 또는 RowAccessPolicies.List API 메서드를 사용하여 테이블의 모든 행 수준 액세스 정책을 나열하고 볼 수 있습니다.
+필수 권한
+BigQuery 테이블에서 행 수준 액세스 정책을 나열하려면 bigquery.rowAccessPolicies.list IAM 권한이 필요합니다.
+BigQuery 테이블에서 행 수준 액세스 정책의 멤버를 보려면 bigquery.rowAccessPolicies.getIamPolicy IAM 권한이 필요합니다.
+다음과 같은 사전 정의된 각 IAM 역할에는 행 수준 액세스 정책을 나열하고 확인하기 위해 필요한 권한이 포함되어 있습니다.
+roles/bigquery.admin
+roles/bigquery.dataOwner
+BigQuery의 IAM 역할과 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/access-control?hl=ko]을 참조하세요.
+테이블 행 수준 액세스 정책 나열
+행 수준 액세스 정책을 나열하려면 다음을 수행합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#%EC%BD%98%EC%86%94] ---
+행 수준 액세스 정책을 보려면 Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+테이블 이름을 클릭하여 세부정보를 확인한 후 행 액세스 정책 보기를 클릭합니다.
+
+ 
+행 액세스 정책 패널이 열리면 테이블의 모든 행 수준 액세스 정책의 이름 및 각 정책에 대한 filter_expression의 목록이 표시됩니다.
+
+ 
+행 수준 액세스 정책의 영향을 받는 모든 역할 및 사용자를 보려면 정책 옆에 있는 보기를 클릭합니다. 예를 들어 다음 이미지의 보기 권한 패널에서 피부여자 목록 구성원에게 bigquery.filteredDataViewer 역할 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#filtered-data-viewer-role]이 있음을 확인할 수 있습니다.
+
+ 중요: 정책에 구성원을 추가하고 정책에서 구성원을 삭제하는 기능은 DDL 문을 통해서만 지원됩니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#bq] ---
+bq ls 명령어를 입력하고 --row_access_policies 플래그를 제공합니다.
+데이터 세트와 테이블 이름이 필요합니다.
+    bq ls --row_access_policies dataset.table
+
+예를 들어 다음 명령어는 ID가 my_dataset인 데이터 세트에서 my_table이라는 테이블의 행 수준 액세스 정책에 대한 정보를 나열합니다.
+    bq ls --row_access_policies my_dataset.my_table
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#api] ---
+REST API 참조 섹션에서 RowAccessPolicies.List 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/rowAccessPolicies/list?hl=ko]를 사용합니다.
+행 수준 액세스 정책 삭제
+해당 권한이 있는 경우 DDL 문을 사용하여 테이블에서 하나 또는 모든 행 수준 액세스 정책을 삭제할 수 있습니다.
+필수 권한
+행 수준 액세스 정책을 삭제하려면 다음 IAM 권한이 필요합니다.
+bigquery.rowAccessPolicies.delete
+bigquery.rowAccessPolicies.setIamPolicy
+(DDL 쿼리 작업 실행을 위한) bigquery.jobs.create
+테이블에서 모든 행 수준 액세스 정책을 동시에 삭제하려면 다음 IAM 권한이 필요합니다.
+bigquery.rowAccessPolicies.delete
+bigquery.rowAccessPolicies.setIamPolicy
+bigquery.rowAccessPolicies.list
+(DDL 쿼리 작업 실행을 위한) bigquery.jobs.create
+다음과 가은 사전 정의된 각 IAM 역할에는 행 수준 액세스 정책을 삭제하기 위해 필요한 권한이 포함되어 있습니다.
+roles/bigquery.admin
+roles/bigquery.dataOwner
+BigQuery의 IAM 역할과 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/access-control?hl=ko]을 참조하세요.
+행 수준 액세스 정책 삭제
+테이블에서 행 액세스 정책을 삭제하려면 다음 DDL 문을 사용합니다.
+DROP ROW ACCESS POLICY 문은 지정된 테이블에서 행 수준 액세스 정책을 삭제합니다.
+지정된 테이블에 행 액세스 정책이 있는 경우 DROP ROW ACCESS POLICY IF EXISTS 문은 행 수준 액세스 정책을 삭제합니다.
+DROP ALL ROW ACCESS POLICIES 문은 지정된 테이블에서 모든 행 수준 액세스 정책을 삭제합니다.
+중요: DROP ROW ACCESS POLICY를 사용하여 테이블에서 마지막 행 수준 액세스 정책을 삭제할 수 없습니다. 그렇게 하면 오류가 발생합니다. 테이블의 마지막 행 수준 액세스 정책을 삭제하려면 대신 DROP ALL ROW ACCESS POLICIES를 사용해야 합니다. 테이블에서 마지막 행 수준 액세스 정책 삭제에 대한 자세한 내용은 행 수준 보안 권장사항 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko#avoid_inadvertent_access_when_re-creating_row-level_access_policies]을 참조하세요.
+예시
+테이블에서 행 수준 액세스 정책을 삭제합니다.
+DROP ROW ACCESS POLICY my_row_filter ON project.dataset.my_table;
+테이블에서 모든 행 수준 액세스 정책을 삭제합니다.
+DROP ALL ROW ACCESS POLICIES ON project.dataset.my_table;
+행 수준 액세스 정책 삭제에 대한 자세한 내용은 DROP ROW ACCESS POLICY DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#drop_row_access_policy_statement] 참조를 확인하세요.
+행 액세스 정책으로 테이블 쿼리
+해당 테이블에서 행 액세스 정책의 grantee_list에 있더라도 이를 쿼리할 수 있으려면 사용자에게 먼저 BigQuery 테이블에 대한 액세스 권한이 있어야 합니다. 이 권한이 없으면 access denied 오류와 함께 쿼리가 실패합니다.
+필수 권한
+행 수준 액세스 정책으로 BigQuery 테이블을 쿼리하려면 테이블에 대한 bigquery.tables.getData 권한이 있어야 합니다. bigquery.rowAccessPolicies.getFilteredData 권한도 필요합니다.
+사전 정의된 역할로 이러한 권한을 얻으려면 IAM을 통해 테이블에 대한 roles/bigquery.dataViewer [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.dataViewer] 역할을 부여받고 행 수준 액세스 정책을 통해 테이블에 대한 roles/bigquery.filteredDataViewer [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#filtered-data-viewer-role] IAM 역할을 부여받아야 합니다.
+주의: IAM을 통해 리소스에 bigquery.filteredDataViewer 역할을 직접 적용하지 마세요. bigquery.filteredDataViewer는 시스템 관리 역할입니다. 행 수준 액세스 정책을 사용해서만 역할을 부여하세요. 자세한 내용은 행 수준 보안 권장사항 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko#filtered-data-viewer]을 참조하세요.
+열 수준 보안 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko]을 사용하는 모든 관련 열에 대해 datacatalog.categories.fineGrainedGet 권한이 있어야 합니다. 사전 정의된 역할로 이 권한을 얻으려면 datacatalog.categoryFineGrainedReader 역할이 필요합니다.
+쿼리 결과 보기
+Google Cloud 콘솔에서 행 수준 액세스 정책이 있는 테이블을 쿼리하면 BigQuery에 결과가 행 수준 액세스 정책별로 필터링되었을 수 있다는 배너 알림이 표시됩니다. 이 알림은 정책 피부여자 목록의 구성원인 경우에도 표시됩니다.
+작업 통계
+Job API를 사용하여 행 수준 액세스 정책이 있는 테이블을 쿼리하면 BigQuery는 쿼리가 행 액세스 정책이 있는 테이블을 읽는지 여부를 Job 응답 객체에 표시합니다.
+예
+이 Job 객체 응답은 간단한 설명을 위해 일부 내용만 표시되어 있습니다.
+{
+  "configuration": {
+    "jobType": "QUERY",
+    "query": {
+      "priority": "INTERACTIVE",
+      "query": "SELECT * FROM dataset.table",
+      "useLegacySql": false
+    }
+  },
+  ...
+  "statistics": {
+    ...
+    rowLevelSecurityStatistics: {
+      rowLevelSecurityApplied: true
+    },
+    ...
+  },
+  "status": {
+    "state": "DONE"
+  },
+  ...
+}
+다음 단계
+행 수준 보안이 다른 BigQuery 기능 및 서비스와 연동하는 방법에 대한 자세한 내용은 다른 BigQuery 기능과 함께 행 수준 보안 사용 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko]을 참조하세요.
+행 수준 보안에 대한 권장사항은 BigQuery의 행 수준 보안 권장사항 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

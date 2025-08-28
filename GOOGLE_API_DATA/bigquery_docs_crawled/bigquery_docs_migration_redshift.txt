@@ -1,0 +1,699 @@
+Source URL: https://cloud.google.com/bigquery/docs/migration/redshift
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#before_you_begin]
+필수 권한 설정 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#set_required_permissions]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#create_a_dataset]
+Amazon Redshift 클러스터에 대한 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#grant_access_redshift_cluster]
+Amazon S3 버킷에 대한 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#grant-access]
+별도의 마이그레이션 큐로 워크로드 제어 구성 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#configure_workload_control_with_a_separate_migration_queue]
+전송 정보 수집 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#gather_transfer_information]
+데이터 평가 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#assess_your_data]
+Amazon Redshift에서 스키마 및 데이터 마이그레이션
+bookmark_border
+이 문서에서는 공개 IP 주소를 사용하여 Amazon Redshift에서 BigQuery로 데이터를 마이그레이션하는 프로세스를 설명합니다.
+BigQuery Data Transfer Service를 사용하여 Amazon Redshift 데이터 웨어하우스의 데이터를 BigQuery로 복사할 수 있습니다. 이 서비스는 GKE의 마이그레이션 에이전트와 연결되어 Amazon Redshift에서 Amazon S3 버킷의 스테이징 영역으로 언로드 작업을 트리거합니다. 그런 다음 BigQuery Data Transfer Service는 Amazon S3 버킷의 데이터를 BigQuery로 전송합니다.
+다음 다이어그램은 마이그레이션 중에 Amazon Redshift 데이터 웨어하우스와 BigQuery 사이의 전체적인 데이터 흐름을 나타낸 것입니다.
+비공개 IP 주소를 사용하여 가상 프라이빗 클라우드(VPC)를 통해 Redshift 인스턴스의 데이터를 전송하려면 VPC로 Amazon Redshift 데이터 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/redshift-vpc?hl=ko]을 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery and BigQuery Data Transfer Service APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigquerydatatransfer.googleapis.com&hl=ko]
+필수 권한 설정
+Amazon Redshift 전송을 생성하기 전에 할 일
+전송을 만드는 주 구성원에게 전송 작업이 포함된 다음 권한이 있는지 확인하세요.
+전송을 만들 bigquery.transfers.update 권한
+대상 데이터 세트에 대한 bigquery.datasets.get 및 bigquery.datasets.update 권한
+roles/bigquery.admin 사전 정의된 Identity and Access Management(IAM)역할에는 bigquery.transfers.update, bigquery.datasets.update, bigquery.datasets.get 권한이 포함됩니다. BigQuery Data Transfer Service의 IAM 역할에 대한 자세한 내용은 액세스 제어 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+Amazon S3의 문서를 참조하여 전송을 사용 설정하는 데 필요한 권한을 구성했는지 확인합니다. Amazon S3 소스 데이터에 최소한 AWS 관리 정책 AmazonS3ReadOnlyAccess [https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_manage.html#attach-managed-policy-console]가 적용되어야 합니다.
+데이터 세트 만들기
+데이터를 저장할 BigQuery 데이터 세트를 만듭니다 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]. 테이블을 만들 필요는 없습니다.
+Amazon Redshift 클러스터에 대한 액세스 권한 부여
+SQL 클라이언트의 인바운드 규칙 구성 [https://docs.aws.amazon.com/redshift/latest/gsg/new-user.html#rs-gsg-authorize-cluster-access]의 안내에 따라 다음 IP 주소를 허용 목록에 추가합니다. 데이터 세트의 위치에 해당하는 IP 주소를 허용 목록에 포함하거나 아래 표의 모든 IP 주소를 허용 목록에 포함할 수 있습니다. 이 Google 소유의 IP 주소는 Amazon Redshift 데이터 마이그레이션용으로 예약되어 있습니다.
+주의: BigQuery와 Amazon Redshift 간의 통신은 Google 소유의 다음 IP 주소를 통해 이루어집니다. 그러나 Amazon S3에서 BigQuery로의 데이터 이동은 공용 인터넷을 통해 이루어집니다.
+리전 위치
+리전 설명 리전 이름 IP 주소
+미주
+오하이오 주 콜럼부스 us-east5 34.162.72.184
+34.162.173.185
+34.162.205.205
+34.162.81.45
+34.162.182.149
+34.162.59.92
+34.162.157.190
+34.162.191.145
+Dallas us-south1 34.174.172.89
+34.174.40.67
+34.174.5.11
+34.174.96.109
+34.174.148.99
+34.174.176.19
+34.174.253.135
+34.174.129.163
+아이오와 us-central1 34.121.70.114
+34.71.81.17
+34.122.223.84
+34.121.145.212
+35.232.1.105
+35.202.145.227
+35.226.82.216
+35.225.241.102
+라스베이거스 us-west4 34.125.53.201
+34.125.69.174
+34.125.159.85
+34.125.152.1
+34.125.195.166
+34.125.50.249
+34.125.68.55
+34.125.91.116
+로스앤젤레스 us-west2 35.236.59.167
+34.94.132.139
+34.94.207.21
+34.94.81.187
+34.94.88.122
+35.235.101.187
+34.94.238.66
+34.94.195.77
+멕시코 northamerica-south1 34.51.6.35
+34.51.7.113
+34.51.12.83
+34.51.10.94
+34.51.11.219
+34.51.11.52
+34.51.2.114
+34.51.15.251
+몬트리올 northamerica-northeast1 34.95.20.253
+35.203.31.219
+34.95.22.233
+34.95.27.99
+35.203.12.23
+35.203.39.46
+35.203.116.49
+35.203.104.223
+북 버지니아 us-east4 35.245.95.250
+35.245.126.228
+35.236.225.172
+35.245.86.140
+35.199.31.35
+35.199.19.115
+35.230.167.48
+35.245.128.132
+35.245.111.126
+35.236.209.21
+오리건 us-west1 35.197.117.207
+35.199.178.12
+35.197.86.233
+34.82.155.140
+35.247.28.48
+35.247.31.246
+35.247.106.13
+34.105.85.54
+솔트레이크시티 us-west3 34.106.37.58
+34.106.85.113
+34.106.28.153
+34.106.64.121
+34.106.246.131
+34.106.56.150
+34.106.41.31
+34.106.182.92
+상파울루 southamerica-east1 35.199.88.228
+34.95.169.140
+35.198.53.30
+34.95.144.215
+35.247.250.120
+35.247.255.158
+34.95.231.121
+35.198.8.157
+산티아고 southamerica-west1 34.176.188.48
+34.176.38.192
+34.176.205.134
+34.176.102.161
+34.176.197.198
+34.176.223.236
+34.176.47.188
+34.176.14.80
+사우스캐롤라이나 us-east1 35.196.207.183
+35.237.231.98
+104.196.102.222
+35.231.13.201
+34.75.129.215
+34.75.127.9
+35.229.36.137
+35.237.91.139
+토론토 northamerica-northeast2 34.124.116.108
+34.124.116.107
+34.124.116.102
+34.124.116.80
+34.124.116.72
+34.124.116.85
+34.124.116.20
+34.124.116.68
+유럽
+벨기에 europe-west1 35.240.36.149
+35.205.171.56
+34.76.234.4
+35.205.38.234
+34.77.237.73
+35.195.107.238
+35.195.52.87
+34.76.102.189
+베를린 europe-west10 34.32.28.80
+34.32.31.206
+34.32.19.49
+34.32.33.71
+34.32.15.174
+34.32.23.7
+34.32.1.208
+34.32.8.3
+핀란드 europe-north1 35.228.35.94
+35.228.183.156
+35.228.211.18
+35.228.146.84
+35.228.103.114
+35.228.53.184
+35.228.203.85
+35.228.183.138
+프랑크푸르트 europe-west3 35.246.153.144
+35.198.80.78
+35.246.181.106
+35.246.211.135
+34.89.165.108
+35.198.68.187
+35.242.223.6
+34.89.137.180
+런던 europe-west2 35.189.119.113
+35.189.101.107
+35.189.69.131
+35.197.205.93
+35.189.121.178
+35.189.121.41
+35.189.85.30
+35.197.195.192
+마드리드 europe-southwest1 34.175.99.115
+34.175.186.237
+34.175.39.130
+34.175.135.49
+34.175.1.49
+34.175.95.94
+34.175.102.118
+34.175.166.114
+밀라노 europe-west8 34.154.183.149
+34.154.40.104
+34.154.59.51
+34.154.86.2
+34.154.182.20
+34.154.127.144
+34.154.201.251
+34.154.0.104
+네덜란드 europe-west4 35.204.237.173
+35.204.18.163
+34.91.86.224
+34.90.184.136
+34.91.115.67
+34.90.218.6
+34.91.147.143
+34.91.253.1
+파리 europe-west9 34.163.76.229
+34.163.153.68
+34.155.181.30
+34.155.85.234
+34.155.230.192
+34.155.175.220
+34.163.68.177
+34.163.157.151
+스톡홀름 europe-north2 34.51.133.48
+34.51.136.177
+34.51.128.140
+34.51.141.252
+34.51.139.127
+34.51.142.55
+34.51.134.218
+34.51.138.9
+토리노 europe-west12 34.17.15.186
+34.17.44.123
+34.17.41.160
+34.17.47.82
+34.17.43.109
+34.17.38.236
+34.17.34.223
+34.17.16.47
+바르샤바 europe-central2 34.118.72.8
+34.118.45.245
+34.118.69.169
+34.116.244.189
+34.116.170.150
+34.118.97.148
+34.116.148.164
+34.116.168.127
+취리히 europe-west6 34.65.205.160
+34.65.121.140
+34.65.196.143
+34.65.9.133
+34.65.156.193
+34.65.216.124
+34.65.233.83
+34.65.168.250
+아시아 태평양
+델리 asia-south2 34.126.212.96
+34.126.212.85
+34.126.208.224
+34.126.212.94
+34.126.208.226
+34.126.212.232
+34.126.212.93
+34.126.212.206
+홍콩 asia-east2 34.92.245.180
+35.241.116.105
+35.220.240.216
+35.220.188.244
+34.92.196.78
+34.92.165.209
+35.220.193.228
+34.96.153.178
+자카르타 asia-southeast2 34.101.79.105
+34.101.129.32
+34.101.244.197
+34.101.100.180
+34.101.109.205
+34.101.185.189
+34.101.179.27
+34.101.197.251
+멜버른 australia-southeast2 34.126.196.95
+34.126.196.106
+34.126.196.126
+34.126.196.96
+34.126.196.112
+34.126.196.99
+34.126.196.76
+34.126.196.68
+뭄바이 asia-south1 34.93.67.112
+35.244.0.1
+35.200.245.13
+35.200.203.161
+34.93.209.130
+34.93.120.224
+35.244.10.12
+35.200.186.100
+오사카 asia-northeast2 34.97.94.51
+34.97.118.176
+34.97.63.76
+34.97.159.156
+34.97.113.218
+34.97.4.108
+34.97.119.140
+34.97.30.191
+서울 asia-northeast3 34.64.152.215
+34.64.140.241
+34.64.133.199
+34.64.174.192
+34.64.145.219
+34.64.136.56
+34.64.247.158
+34.64.135.220
+싱가포르 asia-southeast1 34.87.12.235
+34.87.63.5
+34.87.91.51
+35.198.197.191
+35.240.253.175
+35.247.165.193
+35.247.181.82
+35.247.189.103
+시드니 australia-southeast1 35.189.33.150
+35.189.38.5
+35.189.29.88
+35.189.22.179
+35.189.20.163
+35.189.29.83
+35.189.31.141
+35.189.14.219
+타이완 asia-east1 35.221.201.20
+35.194.177.253
+34.80.17.79
+34.80.178.20
+34.80.174.198
+35.201.132.11
+35.201.223.177
+35.229.251.28
+35.185.155.147
+35.194.232.172
+도쿄 asia-northeast1 34.85.11.246
+34.85.30.58
+34.85.8.125
+34.85.38.59
+34.85.31.67
+34.85.36.143
+34.85.32.222
+34.85.18.128
+34.85.23.202
+34.85.35.192
+중동
+Dammam me-central2 34.166.20.177
+34.166.10.104
+34.166.21.128
+34.166.19.184
+34.166.20.83
+34.166.18.138
+34.166.18.48
+34.166.23.171
+도하 me-central1 34.18.48.121
+34.18.25.208
+34.18.38.183
+34.18.33.25
+34.18.21.203
+34.18.21.80
+34.18.36.126
+34.18.23.252
+텔아비브 me-west1 34.165.184.115
+34.165.110.74
+34.165.174.16
+34.165.28.235
+34.165.170.172
+34.165.187.98
+34.165.85.64
+34.165.245.97
+아프리카
+요하네스버그 africa-south1 34.35.11.24
+34.35.10.66
+34.35.8.32
+34.35.3.248
+34.35.2.113
+34.35.5.61
+34.35.7.53
+34.35.3.17
+다중 리전 위치
+멀티 리전 설명 멀티 리전 이름 IP 주소
+유럽 연합 회원국 [https://europa.eu/european-union/about-eu/countries_en]의 데이터 센터1 EU 34.76.156.158
+34.76.156.172
+34.76.136.146
+34.76.1.29
+34.76.156.232
+34.76.156.81
+34.76.156.246
+34.76.102.206
+34.76.129.246
+34.76.121.168
+미국의 데이터 센터 US 35.185.196.212
+35.197.102.120
+35.185.224.10
+35.185.228.170
+35.197.5.235
+35.185.206.139
+35.197.67.234
+35.197.38.65
+35.185.202.229
+35.185.200.120
+1 EU 멀티 리전에 있는 데이터는 europe-west2(런던) 또는 europe-west6(취리히) 데이터 센터에 저장되지 않습니다.
+Amazon S3 버킷에 대한 액세스 권한 부여
+Amazon Redshift 데이터를 BigQuery로 전송할 때 스테이징 영역으로 사용할 Amazon S3 버킷이 있어야 합니다. 자세한 내용은 Amazon 문서 [https://aws.amazon.com/premiumsupport/knowledge-center/create-access-key/]를 참조하세요.
+전용 Amazon IAM 사용자를 만들고 이 사용자에게만 Amazon Redshift에 대한 읽기 액세스 권한과 Amazon S3에 대한 읽기/쓰기 액세스 권한을 부여하는 것이 좋습니다. 이 단계를 수행하려면 다음 정책을 적용할 수 있습니다.
+Amazon IAM 사용자 액세스 키 쌍 [https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html]을 만듭니다.
+별도의 마이그레이션 큐로 워크로드 제어 구성
+선택적으로 마이그레이션용 Amazon Redshift 큐를 정의 [https://docs.aws.amazon.com/redshift/latest/dg/cm-c-modifying-wlm-configuration.html]하여 마이그레이션에 사용되는 리소스를 제한하고 구분할 수 있습니다. 최대 동시 실행 쿼리 수를 사용하여 이 마이그레이션 큐를 구성할 수 있습니다. 그런 다음 특정 마이그레이션 사용자 그룹 [https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_GROUP.html]을 큐와 연결하고 BigQuery로 데이터를 전송하도록 마이그레이션을 설정할 때 이러한 사용자 인증 정보를 사용할 수 있습니다. 전송 서비스만 마이그레이션 큐에 액세스할 수 있습니다.
+전송 정보 수집
+BigQuery Data Transfer Service로 마이그레이션을 설정하는 데 필요한 정보를 수집합니다.
+이 지침을 따라 JDBC URL을 확인 [https://docs.aws.amazon.com/redshift/latest/mgmt/configure-jdbc-connection.html#obtain-jdbc-url]하세요.
+Amazon Redshift 데이터베이스에 대한 적절한 권한이 있는 사용자의 사용자 이름과 비밀번호를 가져옵니다.
+Amazon S3 버킷에 대한 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#grant_access_to_your_amazon_s3_bucket]의 안내에 따라 AWS 액세스 키 쌍을 가져옵니다.
+전송에 사용할 Amazon S3 버킷의 URI를 가져옵니다. 불필요한 비용이 발생하지 않도록 이 버킷에 대해 라이프 사이클 [https://docs.aws.amazon.com/AmazonS3/latest/user-guide/create-lifecycle.html] 정책을 설정하는 것이 좋습니다. 모든 데이터를 BigQuery로 전송하는 데 충분한 시간을 확보하려면 만료 시간을 24시간으로 설정하는 것이 좋습니다.
+데이터 평가
+데이터 전송 과정에서 BigQuery Data Transfer Service는 Amazon Redshift의 데이터를 CSV 파일로 Cloud Storage에 씁니다. 이 파일에 ASCII 0 문자가 포함되어 있으면 BigQuery에 로드할 수 없습니다. 데이터를 평가하여 문제가 될 수 있는지 판단하는 것이 좋습니다. 문제가 될 경우 데이터를 Parquet 파일로 Amazon S3에 내보낸 후 BigQuery Data Transfer Service를 사용하여 이 파일을 가져오면 문제를 해결할 수 있습니다. 자세한 내용은 Amazon S3 전송 개요 [https://cloud.google.com/bigquery/docs/s3-transfer-intro?hl=ko]를 참고하세요.
+Amazon Redshift 전송 설정
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+데이터 전송을 클릭합니다.
+전송 만들기를 클릭합니다.
+소스 유형 섹션의 소스 목록에서 마이그레이션: Amazon Redshift를 선택합니다.
+전송 구성 이름 섹션에서 전송 이름(예: My migration)을 표시 이름 필드에 입력합니다. 표시 이름은 나중에 수정해야 할 경우에 대비해 전송을 식별할 수 있는 값이면 됩니다.
+대상 설정 섹션의 데이터 세트 목록에서 만든 데이터 세트 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#create_a_dataset]를 선택합니다.
+데이터 소스 세부정보 섹션에서 다음을 수행합니다.
+
+
+Amazon Redshift의 JDBC 연결 URL에 Amazon Redshift 클러스터에 액세스하는 데 사용할 JDBC URL [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#jdbc_url]을 입력합니다.
+Username of your database(데이터베이스 사용자 이름)에 마이그레이션하려는 Amazon Redshift 데이터베이스의 사용자 이름을 입력합니다.
+Password of your database(데이터베이스 비밀번호)에 데이터베이스 비밀번호를 입력합니다.
+참고: Amazon 사용자 인증 정보를 제공하면, BigQuery Data Transfer Service가 전송을 위해 사용자의 데이터에 액세스하는 제한된 목적으로만 에이전트 역할을 수행하는 데 동의하는 것입니다.
+액세스 키 ID 및 보안 비밀 액세스 키에 S3 버킷에 대한 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#grant_access_to_your_S3_bucket]에서 확인한 액세스 키 쌍을 입력합니다.
+Amazon S3 URI에 스테이징 영역으로 사용할 S3 버킷의 URI [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#s3_uri]를 입력합니다.
+Amazon Redshift Schema에 마이그레이션하려는 Amazon Redshift Schema를 입력합니다.
+Table name patterns(테이블 이름 패턴)에 스키마에서 테이블 이름 일치에 사용할 이름이나 패턴을 지정합니다. 정규식을 사용하여 패턴을 <table1Regex>;<table2Regex> 형식으로 지정할 수 있습니다. 이 패턴은 Java 정규 표현식 문법을 따라야 합니다. 예를 들면 다음과 같습니다.
+
+
+lineitem;ordertb는 lineitem 및 ordertb라는 테이블과 일치합니다.
+.*은 모든 테이블을 찾습니다.
+
+
+지정된 스키마에서 모든 테이블을 마이그레이션하려면 이 필드를 비워 둡니다.
+주의: 테이블이 매우 큰 경우 테이블을 한 번에 하나씩 전송하는 것이 좋습니다.
+BigQuery에는 로드 작업당 15TB의 로드 할당량 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#quotas_and_limits]이 있습니다.
+VPC 및 예약된 IP 범위의 경우 필드를 비워 둡니다.
+
+서비스 계정 메뉴에서Google Cloud 프로젝트와 연결된 서비스 계정에서 서비스 계정 [https://cloud.google.com/iam/docs/service-account-overview?hl=ko]을 선택합니다. 사용자 인증 정보를 사용하는 대신 서비스 계정을 전송에 연결할 수 있습니다. 데이터 전송에서 서비스 계정을 사용하는 방법에 대한 자세한 내용은 서비스 계정 사용 [https://cloud.google.com/bigquery/docs/use-service-accounts?hl=ko]을 참조하세요.
+
+
+제휴 ID [https://cloud.google.com/iam/docs/workforce-identity-federation?hl=ko]로 로그인한 경우 서비스 계정이 전송을 만드는 데 필요합니다. Google 계정 [https://cloud.google.com/iam/docs/principals-overview?hl=ko#google-account]으로 로그인한 경우 전송에 사용되는 서비스 계정은 선택사항입니다.
+서비스 계정에는 필수 권한 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#set_required_permissions]이 있어야 합니다.
+
+선택사항: 알림 옵션 섹션에서 다음을 수행합니다.
+
+
+전환을 클릭하여 이메일 알림을 사용 설정합니다. 이 옵션을 사용 설정하면 전송 실행이 실패할 때 전송 관리자에게 이메일 알림이 발송됩니다.
+Pub/Sub 주제 선택에서 주제 [https://cloud.google.com/pubsub/docs/overview?hl=ko#types] 이름을 선택하거나 주제 만들기를 클릭합니다. 이 옵션은 전송에 대한 Pub/Sub 실행 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko]을 구성합니다.
+
+저장을 클릭합니다.
+ Google Cloud 콘솔에 이 전송의 리소스 이름을 포함하여 모든 전송 설정 세부사항이 표시됩니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#bq] ---
+bq mk 명령어를 입력하고 전송 생성 플래그 --transfer_config를 지정합니다. 다음 플래그도 필요합니다.
+
+
+--project_id
+--data_source
+--target_dataset
+--display_name
+--params
+
+
+bq mk \
+    --transfer_config \
+    --project_id=project_id \
+    --data_source=data_source \
+    --target_dataset=dataset \
+    --display_name=name \
+    --service_account_name=service_account \
+    --params='parameters'
+
+각 항목의 의미는 다음과 같습니다.
+
+
+project_id는 Google Cloud 프로젝트 ID입니다. --project_id를 지정하지 않으면 기본 프로젝트가 사용됩니다.
+data_source는 데이터 소스(redshift)입니다.
+dataset는 전송 구성을 위한 BigQuery 대상 데이터 세트입니다.
+name은 전송 구성의 표시 이름입니다. 전송 이름은 나중에 수정해야 할 경우를 대비해 전송을 식별할 수 있는 값이면 됩니다.
+service_account: 전송을 인증하는 데 사용되는 서비스 계정 이름입니다. 서비스 계정은 전송을 만드는 데 사용한 것과 동일한 project_id가 소유해야 하며 모든 필수 권한 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#set_required_permissions]이 있어야 합니다.
+parameters에는 JSON 형식으로 생성된 전송 구성의 매개변수가 있습니다. 예를 들면 --params='{"param":"param_value"}'입니다.
+
+
+Amazon Redshift 전송 구성에 필요한 매개변수는 다음과 같습니다.
+
+
+jdbc_url: Amazon Redshift 클러스터를 찾는 데 사용할 JDBC 연결 URL
+database_username: 지정된 테이블을 언로드하기 위해 데이터베이스에 액세스하는 데 사용할 사용자 이름
+database_password: 지정된 테이블을 언로드하기 위해 데이터베이스에 액세스하는 데 사용할 사용자 이름의 비밀번호
+access_key_id: AWS에 대한 요청에 서명하기 위한 액세스 키 ID
+secret_access_key: AWS에 대한 요청에 서명하기 위한 액세스 키 ID에 사용되는 보안 비밀 액세스 키
+s3_bucket: 's3://'로 시작하며 사용할 임시 파일의 프리픽스를 지정하는 Amazon S3 URI
+redshift_schema: 마이그레이션할 모든 테이블이 포함된 Amazon Redshift 스키마
+table_name_patterns: 세미콜론(;)으로 구분된 테이블 이름 패턴. 테이블 패턴은 마이그레이션할 테이블의 정규 표현식입니다. 지정하지 않을 경우 데이터베이스 스키마의 모든 테이블이 마이그레이션됩니다.
+
+
+예를 들어 다음 명령어는 이름이 mydataset인 대상 데이터 세트와 ID가 google.com:myproject인 프로젝트를 사용하여 My Transfer라는 Amazon Redshift 전송을 만듭니다.
+bq mk \
+    --transfer_config \
+    --project_id=myproject \
+    --data_source=redshift \
+    --target_dataset=mydataset \
+    --display_name='My Transfer' \
+    --params='{"jdbc_url":"jdbc:postgresql://test-example-instance.sample.us-west-1.redshift.amazonaws.com:5439/dbname","database_username":"my_username","database_password":"1234567890","access_key_id":"A1B2C3D4E5F6G7H8I9J0","secret_access_key":"1234567890123456789012345678901234567890","s3_bucket":"s3://bucket/prefix","redshift_schema":"public","table_name_patterns":"table_name"}'
+참고: 현재는 명령줄 도구를 사용하여 알림을 구성할 수 없습니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#api] ---
+projects.locations.transferConfigs.create [https://cloud.google.com/bigquery-transfer/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs/create?hl=ko] 메서드를 사용하고 TransferConfig [https://cloud.google.com/bigquery-transfer/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs?hl=ko#TransferConfig] 리소스의 인스턴스를 지정합니다.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko#%EC%9E%90%EB%B0%94] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.gax.rpc.ApiException [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.rpc.ApiException.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko];
+import com.google.protobuf.Struct [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.html?hl=ko];
+import com.google.protobuf.Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko];
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+// Sample to create redshift transfer config
+public class CreateRedshiftTransfer {
+
+  public static void main(String[] args) throws IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    final String projectId = "MY_PROJECT_ID";
+    String datasetId = "MY_DATASET_ID";
+    String datasetRegion = "US";
+    String jdbcUrl = "MY_JDBC_URL_CONNECTION_REDSHIFT";
+    String dbUserName = "MY_USERNAME";
+    String dbPassword = "MY_PASSWORD";
+    String accessKeyId = "MY_AWS_ACCESS_KEY_ID";
+    String secretAccessId = "MY_AWS_SECRET_ACCESS_ID";
+    String s3Bucket = "MY_S3_BUCKET_URI";
+    String redShiftSchema = "MY_REDSHIFT_SCHEMA";
+    String tableNamePatterns = "*";
+    String vpcAndReserveIpRange = "MY_VPC_AND_IP_RANGE";
+    Map<String, Value> params = new HashMap<>();
+    params.put("jdbc_url", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(jdbcUrl).build());
+    params.put("database_username", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(dbUserName).build());
+    params.put("database_password", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(dbPassword).build());
+    params.put("access_key_id", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(accessKeyId).build());
+    params.put("secret_access_key", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(secretAccessId).build());
+    params.put("s3_bucket", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(s3Bucket).build());
+    params.put("redshift_schema", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(redShiftSchema).build());
+    params.put("table_name_patterns", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(tableNamePatterns).build());
+    params.put(
+        "migration_infra_cidr", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(vpcAndReserveIpRange).build());
+    TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] transferConfig =
+        TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko].newBuilder()
+            .setDestinationDatasetId(datasetId)
+            .setDatasetRegion [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.Builder.html?hl=ko#com_google_cloud_bigquery_datatransfer_v1_TransferConfig_Builder_setDatasetRegion_java_lang_String_](datasetRegion)
+            .setDisplayName("Your Redshift Config Name")
+            .setDataSourceId("redshift")
+            .setParams(Struct [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.html?hl=ko].newBuilder().putAllFields [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.Builder.html?hl=ko#com_google_protobuf_Struct_Builder_putAllFields_java_util_Map_java_lang_String_com_google_protobuf_Value__](params).build())
+            .setSchedule("every 24 hours")
+            .build();
+    createRedshiftTransfer(projectId, transferConfig);
+  }
+
+  public static void createRedshiftTransfer(String projectId, TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] transferConfig)
+      throws IOException {
+    try (DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko] client = DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko].create()) {
+      ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko] parent = ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko].of(projectId);
+      CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko] request =
+          CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko].newBuilder()
+              .setParent(parent.toString [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko#com_google_cloud_bigquery_datatransfer_v1_ProjectName_toString__]())
+              .setTransferConfig(transferConfig)
+              .build();
+      TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] config = client.createTransferConfig(request);
+      System.out.println("Cloud redshift transfer created successfully :" + config.getName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko#com_google_cloud_bigquery_datatransfer_v1_TransferConfig_getName__]());
+    } catch (ApiException [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.rpc.ApiException.html?hl=ko] ex) {
+      System.out.print("Cloud redshift transfer was not created." + ex.toString());
+    }
+  }
+}
+동일한 Amazon Redshift 테이블에 전송을 여러 개 만들면 데이터가 동일한 BigQuery 대상 테이블에 추가됩니다. 이 데이터는 삭제되거나 덮어 써지지 않습니다.
+할당량 및 한도
+BigQuery에는 테이블별 로드 작업당 15TB의 로드 할당량이 있습니다. 내부적으로 Amazon Redshift는 테이블 데이터를 압축하므로 내보낸 테이블 크기는 Amazon Redshift가 보고한 테이블 크기보다 큽니다. 15TB보다 큰 테이블을 마이그레이션하려면 먼저 Cloud Customer Care [https://cloud.google.com/bigquery/docs/getting-support?hl=ko]에 문의하시기 바랍니다.
+이 서비스를 사용하면 Google 외부에서 비용이 발생할 수 있습니다. 자세한 내용은 Amazon Redshift [https://aws.amazon.com/redshift/pricing/] 및 Amazon S3 [https://aws.amazon.com/s3/pricing/] 가격 책정 페이지를 참조하세요.
+Amazon S3의 일관성 모델 [https://cloud.google.com/bigquery/docs/s3-transfer-intro?hl=ko#consistency_considerations]로 인해 일부 파일이 BigQuery로의 전송에 포함되지 않을 수 있습니다.
+다음 단계
+VPC로 Amazon Redshift 비공개 인스턴스 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/redshift-vpc?hl=ko] 알아보기
+BigQuery Data Transfer Service [https://cloud.google.com/bigquery-transfer/docs/transfer-service-overview?hl=ko] 자세히 알아보기
+SQL 일괄 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]으로 SQL 코드 마이그레이션
+도움이 되었나요?
+의견 보내기

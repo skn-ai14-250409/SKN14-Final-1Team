@@ -1,0 +1,174 @@
+Source URL: https://cloud.google.com/bigquery/docs/materialized-views-intro
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+사용 사례 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#use_cases]
+스마트 조정 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#smart-tuning]
+다른 BigQuery 기법과 비교 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#comparison]
+승인된 구체화된 뷰 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#authorized_materialized_views]
+다른 BigQuery 기능과 상호작용 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#interaction]
+구체화된 뷰 소개
+bookmark_border
+구체화된 뷰는 SQL 쿼리 결과를 주기적으로 저장하는 미리 계산된 뷰입니다. 구체화된 뷰는 쿼리 결과를 저장하여 쿼리와 관련된 총 처리 시간과 요금을 줄일 수 있습니다. 각 쿼리에 대해 스캔할 데이터 양이 줄어들기 때문입니다. BigQuery는 백그라운드에서 업데이트를 계산하여 구체화된 뷰가 최신 데이터를 제공하는지 확인합니다. 이 프로세스는 여러 고려사항 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko#incremental_updates]에 따라 기본 테이블에서 변경된 데이터만 사용하여 증분식 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko#incremental_updates]으로 실행됩니다. 구체화된 뷰는 직접 쿼리될 수도 있고, BigQuery에서 기본 테이블에 대한 쿼리를 최적화하는 데 사용될 수도 있습니다.
+구체화된 뷰의 주요 특징은 다음과 같습니다.
+유지보수 불필요. 기본 테이블이 변경되면 구체화된 뷰가 백그라운드에서 미리 계산됩니다. 기본 테이블의 모든 증분된 데이터 변경사항은 사용자 작업 없이도 구체화된 뷰에 자동으로 추가됩니다.
+최신 데이터. 구체화된 뷰는 최신 데이터를 반환합니다. 기본 테이블 변경사항으로 인해 구체화된 뷰가 무효화될 경우 기본 테이블에서 데이터를 직접 읽습니다. 기본 테이블 변경사항으로 인해 구체화된 뷰가 무효화되지 않으면 구체화된 뷰에서 나머지 데이터를 읽고 기본 테이블에서 변경사항만 읽습니다.
+스마트 조정 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko#smart_tuning]. 구체화된 뷰를 쿼리하여 기본 테이블에 대한 쿼리 중 일부를 확인할 수 있으면 성능 및 효율성 개선을 위해 구체화된 뷰를 사용하도록 BigQuery가 쿼리 경로를 다시 지정합니다.
+사용 사례
+구체화된 뷰는 높은 계산 비용과 작은 데이터 세트 결과로 쿼리를 최적화할 수 있습니다. 구체화된 뷰의 이점이 있는 프로세스에는 추출, 변환, 로드(ETL) 프로세스 또는 비즈니스 인텔리전스(BI) 파이프라인의 쿼리와 같이 예측 가능하고 반복되는 쿼리로 상당한 처리가 필요한 온라인 분석 처리(OLAP) 작업이 포함됩니다.
+다음 사용 사례는 구체화된 뷰의 가치를 강조해서 보여줍니다. 다음 작업을 자주 수행해야 할 경우 구체화된 뷰는 쿼리 성능 향상에 도움이 됩니다.
+데이터 사전 집계. 스트리밍 데이터를 집계합니다.
+데이터 사전 필터링. 테이블의 특정 하위 집합만 읽는 쿼리를 실행합니다.
+데이터 사전 조인. 특히 큰 테이블과 작은 테이블 사이의 쿼리 조인.
+데이터 재클러스터링. 기본 테이블과 다른 클러스터링 스킴을 활용하는 쿼리를 실행합니다.
+스마트 조정
+구체화된 뷰를 사용하면 쿼리를 수정하지 않고도 쿼리의 성능을 투명하게 개선할 수 있습니다. 구체화된 뷰를 사용하여 BI 도구에서 생성된 쿼리와 같이 일반적인 패턴이 있는 쿼리 집합을 최적화할 수 있습니다. 자세한 내용은 구체화된 뷰 사용 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko#smart_tuning]을 참조하세요.
+다른 BigQuery 기법과 비교
+다음 표에서는 BigQuery 캐싱, 예약된 쿼리, 논리적 뷰, 구체화된 뷰 사이의 유사점과 차이점을 요약해서 보여줍니다.
+구성요소 캐싱 예약된 쿼리 논리적 뷰 구체화된 뷰
+컴퓨팅 최적화 예 아니요 아니요 예
+쿼리 지원 전체 전체 전체 제한됨 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#supported-mvs]1
+파티션 나누기 및 클러스터링 아니요 예 해당 사항 없음 예
+증분 새로고침 아니요 아니요 아니요 예
+추가 스토리지 아니요 예 아니요 예
+쿼리 재작성 아니요 아니요 아니요 예
+유지보수 비용 아니요 예 해당 사항 없음 예
+데이터 비활성 아니요 예 아니요 선택사항2
+1 --allow_non_incremental_definition 옵션 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#non-incremental]은 광범위한 SQL 쿼리를 지원하여 구체화된 뷰를 만듭니다.
+2 --max_staleness 옵션 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#max_staleness]은 자주 변경되는 대규모 데이터 세트를 처리할 때 비용을 제어하면서 지속적으로 고성능을 제공합니다.
+승인된 구체화된 뷰
+승인된 구체화된 뷰를 만들어 소스 데이터 세트의 데이터 하위 집합을 보조 데이터 세트의 뷰에 공유할 수 있습니다. 그런 다음 공유된 데이터를 볼 수 있는 특정 사용자 및 그룹(주 구성원)과 이 뷰를 공유할 수 있습니다. 주 구성원은 뷰에서 제공하는 데이터를 쿼리할 수 있지만 소스 데이터 세트에 직접 액세스할 수는 없습니다.
+승인된 뷰와 승인된 구체화된 뷰는 동일한 방식으로 승인됩니다. 자세한 내용은 승인된 뷰 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko]를 참조하세요.
+다른 BigQuery 기능과 상호작용
+다음 BigQuery 기능은 구체화된 뷰에서 투명하게 작동합니다.
+쿼리 계획 설명 [https://cloud.google.com/bigquery/docs/query-plan-explanation?hl=ko]: 쿼리 계획에는 스캔되는 구체화된 뷰(있는 경우)가 무엇인지 반영되고 구체화된 뷰 및 결합된 기본 테이블에서 읽은 바이트 수가 표시됩니다.
+쿼리 캐싱 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko]: BigQuery가 구체화된 뷰를 사용하여 다시 작성하는 쿼리 결과는 일반적인 제한(결정적 함수 사용, 기본 테이블에 대한 스트리밍 없음 등)에 따라 캐시될 수 있습니다.
+비용 제한 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#restrict-bytes-billed]: 청구되는 최대 바이트 수 값이 설정되었고, 쿼리가 이 제한을 벗어나서 더 많은 바이트 수를 읽을 경우에는 쿼리에 구체화된 뷰, 기본 테이블 또는 둘 다 사용되는지 여부에 관계없이 비용이 발생하지 않고 쿼리가 실패합니다.
+테스트 실행을 사용한 비용 예상 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#perform-dry-run]: 테스트 실행에서는 사용 가능한 구체화된 뷰를 사용해서 쿼리 재작성 로직을 반복하고 비용 예상을 제공합니다. 이 기능을 사용하면 특정 쿼리가 구체화된 뷰를 사용하는지 여부를 테스트하는 방법으로 사용할 수 있습니다.
+BigLake 메타데이터 캐시 지원 테이블
+BigLake 메타데이터 캐시 지원 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]을 통한 구체화된 뷰는 Cloud Storage 및 Amazon Simple Storage Service(Amazon S3)에 저장된 구조화된 데이터를 참조할 수 있습니다. 이 구체화된 뷰는 자동 새로고침 및 스마트 조정의 이점을 포함하여 BigQuery 관리형 스토리지 테이블에 대한 구체화된 뷰처럼 작동합니다. 다른 이점으로는 BigQuery 외부에 저장된 데이터의 사전 집계, 사전 필터링, 사전 조인이 있습니다. BigLake 테이블에 대한 구체화된 뷰는 BigQuery 관리형 스토리지 [https://cloud.google.com/bigquery/docs/storage_overview?hl=ko]에 저장되며 BigQuery 관리형 스토리지의 모든 특성을 포함합니다.
+참고: 캐시된 메타데이터가 있는 BigLake 테이블에 대한 구체화된 뷰가 새로고침되면 구체화된 뷰의 캐시된 데이터에 가장 최근의 메타데이터 캐시 생성에 이르기까지 외부 테이블의 모든 업데이트가 포함됩니다.
+Amazon S3 BigLake 테이블을 통해 구체화된 뷰를 만드는 경우 BigQuery 데이터와의 조인에 구체화된 뷰의 데이터를 사용할 수 없습니다. 조인에 구체화된 뷰의 Amazon S3 데이터를 사용하려면 구체화된 뷰의 복제본 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#materialized_view_replicas]을 만듭니다. 승인된 구체화된 뷰 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko]를 기반으로만 구체화된 뷰 복제본을 만들 수 있습니다.
+구체화된 뷰 복제본
+BigQuery를 사용하면 Amazon Simple Storage Service(Amazon S3), Apache Iceberg 또는 Salesforce Data Cloud 데이터를 통해 BigLake 메타데이터 캐시 지원 테이블에서 구체화된 뷰를 만들 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#cache-enabled_tables_with_materialized_views] 수 있습니다.
+구체화된 뷰 복제본을 사용하면 데이터 이그레스 비용을 방지하고 쿼리 성능을 향상시키는 동시에 쿼리에서 Amazon S3, Iceberg 또는 Data Cloud 구체화된 뷰 데이터를 사용할 수 있습니다. 구체화된 뷰 복제본은 지원되는 BigQuery 리전 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#supported_regions]의 데이터 세트에 Amazon S3, Iceberg 또는 Data Cloud 데이터를 복제하여 작동하므로 데이터를 BigQuery에서 로컬로 사용할 수 있습니다.
+구체화된 뷰 복제본을 만드는 [https://cloud.google.com/bigquery/docs/materialized-view-replicas-create?hl=ko] 방법을 알아보세요.
+데이터 최신 상태
+구체화된 뷰 복제본이 생성되면 복제 프로세스는 변경사항에 대한 소스 구체화된 뷰를 폴링하고 데이터를 구체화된 뷰 복제본에 복제합니다. CREATE MATERIALIZED VIEW AS REPLICA OF 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_materialized_view_as_replica_of_statement]의 replication_interval_seconds 옵션에 지정된 간격으로 데이터가 복제됩니다.
+복제 간격 외에도 구체화된 뷰 복제본 데이터의 최신 상태는 소스 구체화된 뷰를 새로 고치는 빈도와 구체화된 뷰에서 사용하는 Amazon S3, Iceberg 또는 Data Cloud 테이블의 메타데이터 캐시를 새로 고치는 빈도에 따라 영향을 받습니다.
+Google Cloud 콘솔을 사용하여 구체화된 뷰 복제본 및 해당 리소스의 데이터 최신 상태를 확인할 수 있습니다.
+구체화된 뷰 복제본의 최신 상태를 보려면 구체화된 뷰 복제본의 세부정보 창에서 최종 수정 시간 필드를 확인합니다.
+소스 구체화된 뷰의 최신 상태를 보려면 구체화된 뷰의 세부정보 창에서 최종 수정 시간 필드를 확인합니다.
+소스 Amazon S3, Iceberg 또는 Data Cloud 테이블 메타데이터 캐시의 최신 상태를 보려면 구체화된 뷰의 세부정보 창에서 최대 비활성 필드를 확인합니다.
+지원되는 리전
+구체화된 뷰 복제본을 만들 때 다음 표의 위치 매핑을 사용합니다.
+소스 구체화된 뷰의 위치 구체화된 뷰 복제본의 위치
+aws-us-east-1 US 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions] 또는 다음 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#regions] 중 하나:
+northamerica-northeast1
+northamerica-northeast2
+us-central1
+us-east1
+us-east4
+us-east5
+us-south1
+us-west1
+us-west2
+us-west3
+us-west4
+aws-us-west-2 US 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions] 또는 다음 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#regions] 중 하나:
+northamerica-northeast1
+northamerica-northeast2
+us-central1
+us-east1
+us-east4
+us-east5
+us-south1
+us-west1
+us-west2
+us-west3
+us-west4
+aws-eu-west-1 EU 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions] 또는 다음 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#regions] 중 하나:
+europe-central2
+europe-north1
+europe-southwest1
+europe-west1
+europe-west2
+europe-west3
+europe-west4
+europe-west6
+europe-west8
+europe-west9
+europe-west10
+aws-ap-northeast-2 다음 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#regions] 중 하나:
+asia-east1
+asia-east2
+asia-northeast1
+asia-northeast2
+asia-northeast3
+asia-south1
+asia-south2
+asia-southeast1
+aws-ap-southeast-2 다음 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#regions] 중 하나:
+australia-southeast1
+australia-southeast2
+제한사항
+기본 테이블 참조 한도 및 기타 제한사항이 적용될 수 있습니다. 구체화된 뷰 한도에 대한 자세한 내용은 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#materialized_view_limits]를 참조하세요.
+구체화된 뷰 데이터는 COPY, EXPORT, LOAD, WRITE 또는 데이터 조작 언어(DML) 문과 같은 작업을 사용하여 직접 업데이트하거나 조작할 수 없습니다.
+동일한 이름의 구체화된 뷰로 기존 구체화된 뷰를 바꿀 수 없습니다.
+구체화된 뷰가 생성된 후에는 뷰 SQL을 업데이트할 수 없습니다.
+구체화된 뷰는 기본 테이블과 동일한 조직에 있어야 하고 프로젝트가 조직에 속하지 않는 경우에는 동일한 프로젝트에 있어야 합니다.
+구체화된 뷰는 제한된 SQL 문법과 제한된 집계 함수 집합을 사용합니다. 자세한 내용은 지원되는 구체화된 뷰 [https://cloud.google.com/bigquery/docs/materialized-views?hl=ko#supported-mvs]를 참조하세요.
+구체화된 뷰는 다른 구체화된 뷰 위에 중첩될 수 없습니다.
+구체화된 뷰는 외부 또는 와일드 카드 테이블, 논리적 뷰1 또는 스냅샷을 쿼리할 수 없습니다.
+구체화된 뷰에는 GoogleSQL 언어만 지원됩니다.
+구체화된 뷰에 대한 설명을 설정할 수 있지만 구체화된 뷰의 개별 열에 대한 설명은 설정할 수 없습니다.
+구체화된 뷰를 먼저 삭제하지 않고 기본 테이블을 삭제하면 구체화된 뷰에 대한 쿼리와 새로고침이 실패합니다. 기본 테이블을 다시 만들려면 구체화된 뷰도 다시 만들어야 합니다.
+구체화된 뷰에 변경 데이터 캡처가 사용 설정된 [https://cloud.google.com/bigquery/docs/change-data-capture?hl=ko] 기본 테이블이 있는 경우 해당 테이블은 구체화된 뷰와 동일한 쿼리에서 참조할 수 없습니다.
+1논리적 뷰 참조 지원은 미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages] 버전입니다. 자세한 내용은 논리적 뷰 참조 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#reference_logical_views]를 참조하세요.
+BigLake 테이블에 대한 구체화된 뷰의 제한사항
+구체화된 뷰의 파티셔닝은 지원되지 않습니다. 기본 테이블에서는 Hive 파티셔닝을 사용할 수 있지만 구체화된 뷰 스토리지는 BigLake 테이블에서 파티션을 나눌 수 없습니다. 즉, 기본 테이블이 삭제되면 구체화된 뷰가 완전히 새로고침됩니다. 자세한 내용은 증분 업데이트 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko#incremental_updates]를 참조하세요.
+구체화된 뷰의 -max_staleness 옵션 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#max_staleness] 값이 BigLake 기본 테이블의 값보다 커야 합니다.
+BigQuery 관리형 테이블과 BigLake 테이블 간의 조인은 단일 구체화된 뷰 정의에서 지원되지 않습니다.
+BigQuery BI Engine은 BigLake 테이블을 기반으로 한 구체화된 뷰의 가속을 지원하지 않습니다.
+구체화된 뷰 복제본의 제한사항
+행 수준 보안 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko] 또는 열 수준 보안 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko]을 사용하는 테이블을 기반으로 하는 구체화된 뷰에는 구체화된 뷰 복제본을 만들 수 없습니다.
+소스 구체화된 뷰 또는 구체화된 뷰 복제본에는 고객 관리 암호화 키(CMEK) [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 사용할 수 없습니다.
+메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/metadata-caching?hl=ko]을 사용하는 테이블을 기반으로 하는 구체화된 뷰에만 구체화된 뷰 복제본을 만들 수 있습니다.
+지정된 소스 구체화된 뷰에 대해 구체화된 뷰 복제본 하나만 만들 수 있습니다.
+승인된 구체화된 뷰 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko]의 구체화된 뷰 복제본만 만들 수 있습니다.
+구체화된 뷰 가격 책정
+비용은 구체화된 뷰의 다음 측면과 관련이 있습니다.
+구체화된 뷰 쿼리
+구체화된 뷰를 새로고침할 때와 같은 구체화된 뷰 유지관리 자동 새로고침 비용은 뷰가 상주하는 프로젝트에 청구됩니다. 수동 새로고침 비용은 수동 새로고침 작업이 실행되는 프로젝트에 청구됩니다. 유지보수 비용 제어에 대한 자세한 내용은 작업 유지보수 새로고침 [https://cloud.google.com/bigquery/docs/materialized-views-manage?hl=ko#refresh]을 참조하세요.
+구체화된 뷰 테이블 저장
+구성요소 주문형 가격 책정 용량 기반 가격 책정
+쿼리 구체화된 뷰로 처리된 바이트 및 기본 테이블의 모든 필수 부분1 쿼리 시에 슬롯이 소비됩니다.
+유지보수 새로고침 시 처리되는 바이트 새로고침 시에 슬롯이 소비됩니다.
+스토리지 구체화된 뷰에 저장된 바이트 구체화된 뷰에 저장된 바이트
+1가능한 경우 BigQuery는 뷰를 새로고침한 마지막 시간 이후의 변경사항만 읽습니다. 자세한 내용은 증분 업데이트 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko#incremental_updates]를 참조하세요.
+스토리지 비용 세부정보
+구체화된 뷰에서 AVG, ARRAY_AGG, APPROX_COUNT_DISTINCT 집계 값에 대해서는 최종 값이 직접 저장되지 않습니다. 대신 BigQuery가 최종 값 생성에 사용되는 중간 스케치로 구체화된 뷰를 내부적으로 저장합니다.
+예를 들어 다음 명령어로 생성된 구체화된 뷰를 보세요.
+CREATE MATERIALIZED VIEW 
+project-id.
+my_dataset.
+my_mv_table AS
+SELECT date, AVG(net_paid) AS avg_paid
+FROM 
+project-id.
+my_dataset.
+my_base_table
+GROUP BY date
+avg_paid 열이 사용자에게 NUMERIC 또는 FLOAT64로 렌더링되지만, 내부적으로는 BYTES로 저장되어, 해당 콘텐츠가 고유 형식의 중간 스케치로 저장됩니다. 데이터 크기 계산 [https://cloud.google.com/bigquery/pricing?hl=ko#data]에서 이 열은 BYTES로 취급됩니다.
+구체화된 뷰 복제본 비용
+구체화된 뷰 복제본을 사용하면 컴퓨팅, 아웃바운드 데이터 전송, 스토리지 비용이 발생합니다.
+다음 단계
+구체화된 뷰 만들기 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko]
+구체화된 뷰 사용 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko]
+구체화된 뷰 관리 [https://cloud.google.com/bigquery/docs/materialized-views-manage?hl=ko]
+도움이 되었나요?
+의견 보내기

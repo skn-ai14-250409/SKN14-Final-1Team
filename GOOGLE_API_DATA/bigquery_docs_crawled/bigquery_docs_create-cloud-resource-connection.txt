@@ -1,0 +1,622 @@
+Source URL: https://cloud.google.com/bigquery/docs/create-cloud-resource-connection
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#before_you_begin]
+위치 고려사항 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#location_consideration]
+Cloud 리소스 연결 만들기 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection]
+서비스 계정에 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#access-storage]
+사용자와 연결 공유 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#share_connections]
+다음 단계 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#whats_next]
+Cloud 리소스 연결 만들기 및 설정
+bookmark_border
+BigQuery 관리자는 데이터 분석가가 다음 작업을 수행할 수 있도록 Cloud 리소스 연결을 만들 수 있습니다.
+BigLake 테이블을 사용하여 Cloud Storage 정형 데이터를 쿼리 [https://cloud.google.com/bigquery/docs/query-cloud-storage-using-biglake?hl=ko]합니다. BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko]을 사용하면 액세스 위임을 통해 외부 데이터를 쿼리할 수 있습니다.
+객체 테이블 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko]을 사용하여 Cloud Storage에서 비정형 데이터를 쿼리 [https://cloud.google.com/bigquery/docs/object-tables?hl=ko]합니다.
+Cloud Run Functions 또는 Cloud Run에서 지원되는 언어로 원격 함수를 구현 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko]합니다.
+Spanner 외부 데이터 세트를 사용하여 Spanner 데이터 쿼리 [https://cloud.google.com/bigquery/docs/spanner-external-datasets?hl=ko] Cloud 리소스 연결이 있는 Spanner 외부 데이터 세트를 사용하면 액세스 위임을 통해 외부 데이터 소스를 쿼리할 수 있습니다.
+연결에 관한 자세한 내용은 연결 소개 [https://cloud.google.com/bigquery/docs/connections-api-intro?hl=ko]를 참조하세요.
+시작하기 전에
+BigQuery Connection API 사용 설정하기
+API 사용 설정하기 [https://console.cloud.google.com/apis/library/bigqueryconnection.googleapis.com?hl=ko]
+Cloud 리소스 연결을 만드는 데 필요한 권한을 얻으려면 관리자에게 다음 IAM 역할을 부여해 달라고 요청하세요.
+프로젝트에 대한 BigQuery 연결 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.connectionAdmin] (roles/bigquery.connectionAdmin)
+버킷에 대한 스토리지 객체 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.objectViewer] (roles/storage.objectViewer)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+Cloud Storage 기반의 BigLake 테이블 [https://cloud.google.com/bigquery/docs/query-cloud-storage-using-biglake?hl=ko]을 사용하여 구조화된 데이터를 쿼리하거나 객체 테이블 [https://cloud.google.com/bigquery/docs/object-tables?hl=ko]을 사용하여 구조화되지 않은 데이터를 쿼리하려는 경우 연결과 연결된 서비스 계정에도 외부 데이터가 포함된 버킷에 대한 스토리지 뷰어(roles/storage.viewer) 역할이 있어야 합니다.
+사용 중인 Google Cloud SDK 버전이 366.0.0 이상인지 확인합니다.
+gcloud version
+필요한 경우 Google Cloud SDK를 업데이트 [https://cloud.google.com/sdk/docs/quickstart?hl=ko]합니다.
+위치 고려사항
+Cloud Storage를 사용하여 데이터 파일을 저장하는 경우 최적의 성능을 위해 멀티 리전 버킷이 아닌 Cloud Storage 단일 리전 [https://cloud.google.com/storage/docs/locations?hl=ko#available-locations] 또는 이중 리전 [https://cloud.google.com/storage/docs/locations?hl=ko#location-dr] 버킷을 사용하는 것이 좋습니다.
+Cloud 리소스 연결 만들기
+BigLake는 연결을 사용하여 Cloud Storage에 액세스합니다. 단일 테이블 또는 테이블 그룹에서 이 연결을 사용할 수 있습니다.
+기본 연결이 구성되어 있거나 BigQuery 관리자 역할이 있는 경우 이 단계를 건너뛸 수 있습니다.
+원격 모델이 사용할 클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 만들고 연결의 서비스 계정을 가져옵니다. 이전 단계에서 만든 데이터 세트와 동일한 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에 연결을 만듭니다.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 add 데이터 추가를 클릭합니다.
+
+ 
+
+데이터 추가 대화상자가 열립니다.
+필터링 기준 창의 데이터 소스 유형 섹션에서 비즈니스 애플리케이션을 선택합니다.
+
+또는 데이터 소스 검색 필드에 Vertex AI를 입력할 수 있습니다.
+추천 데이터 소스 섹션에서 Vertex AI를 클릭합니다.
+Vertex AI 모델: BigQuery 페더레이션 솔루션 카드를 클릭합니다.
+연결 유형 목록에서 Vertex AI 원격 모델, 원격 함수, BigLake(Cloud 리소스)를 선택합니다.
+연결 ID 필드에 연결 이름을 입력합니다.
+연결 만들기를 클릭합니다.
+연결로 이동을 클릭합니다.
+연결 정보 창에서 나중의 단계에 사용할 서비스 계정 ID를 복사합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#bq] ---
+명령줄 환경에서 연결을 만듭니다.
+
+bq mk --connection --location=REGION --project_id=PROJECT_ID \
+    --connection_type=CLOUD_RESOURCE CONNECTION_ID
+
+--project_id 매개변수는 기본 프로젝트를 재정의합니다.
+
+다음을 바꿉니다.
+
+
+REGION: 연결 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#supported_locations]
+PROJECT_ID: Google Cloud 프로젝트 ID
+CONNECTION_ID: 연결의 ID
+
+
+연결 리소스를 만들면 BigQuery가 고유한 시스템 서비스 계정을 만들고 이를 연결에 연계합니다.
+
+문제 해결: 다음 연결 오류가 발생하면 Google Cloud SDK를 업데이트 [https://cloud.google.com/sdk/docs/quickstart?hl=ko]하세요.
+
+Flags parsing error: flag --connection_type=CLOUD_RESOURCE: value should be one of...
+
+이후 단계에서 사용할 수 있도록 서비스 계정 ID를 가져와 복사합니다.
+
+bq show --connection PROJECT_ID.REGION.CONNECTION_ID
+
+출력은 다음과 유사합니다.
+
+name                          properties
+1234.REGION.CONNECTION_ID     {"serviceAccountId": "connection-1234-9u56h9@gcp-sa-bigquery-condel.iam.gserviceaccount.com"}
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#terraform] ---
+google_bigquery_connection [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_connection] 리소스를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 US 리전에 my_cloud_resource_connection이라는 Cloud 리소스 연결을 만듭니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# This queries the provider for project information.
+data "google_project" "default" {}
+
+# This creates a cloud resource connection in the US region named my_cloud_resource_connection.
+# Note: The cloud resource nested object has only one output field - serviceAccountId.
+resource "google_bigquery_connection" "default" {
+  connection_id = "my_cloud_resource_connection"
+  project       = data.google_project.default.project_id
+  location      = "US"
+  cloud_resource {}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+서비스 계정에 액세스 권한 부여
+원격 함수를 만들려면 Cloud Run Functions 또는 Cloud Run에 필요한 역할을 부여 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#grant_permission_on_function]해야 합니다.
+Cloud Storage에 연결하려면 BigQuery가 사용자를 대신하여 파일에 액세스할 수 있도록 새 연결에 Cloud Storage에 대한 읽기 전용 액세스 권한을 부여해야 합니다.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#%EC%BD%98%EC%86%94] ---
+서비스 계정이 Cloud Storage 버킷에 액세스할 수 있도록 연결 리소스 서비스 계정에 스토리지 객체 뷰어 IAM 역할 [https://cloud.google.com/storage/docs/access-control/iam-roles?hl=ko](roles/storage.objectViewer)을 부여하는 것이 좋습니다.
+
+
+IAM 및 관리자 페이지로 이동합니다.
+
+IAM 및 관리자로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko] 
+person_add 추가를 클릭합니다.
+
+주 구성원 추가 대화상자가 열립니다.
+새 주 구성원 필드에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 Cloud Storage를 선택한 후 스토리지 객체 뷰어를 선택합니다.
+저장을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#gcloud] ---
+gcloud storage buckets add-iam-policy-binding 명령어 [https://cloud.google.com/sdk/gcloud/reference/storage/buckets/add-iam-policy-binding?hl=ko]를 사용합니다.
+
+gcloud storage buckets add-iam-policy-binding gs://BUCKET \
+--member=serviceAccount:MEMBER \
+--role=roles/storage.objectViewer
+
+
+다음을 바꿉니다.
+
+
+BUCKET: 스토리지 버킷의 이름입니다.
+MEMBER: 이전에 복사한 서비스 계정 ID
+
+
+자세한 내용은 버킷 수준 정책에 주 구성원 추가 [https://cloud.google.com/storage/docs/access-control/using-iam-permissions?hl=ko#bucket-add]를 참조하세요.
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#terraform] ---
+google_bigquery_connection [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_connection] 리소스를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 Cloud 리소스 연결의 서비스 계정에 IAM 역할 액세스 권한을 부여합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# This queries the provider for project information.
+data "google_project" "default" {}
+
+# This creates a cloud resource connection in the US region named my_cloud_resource_connection.
+# Note: The cloud resource nested object has only one output field - serviceAccountId.
+resource "google_bigquery_connection" "default" {
+  connection_id = "my_cloud_resource_connection"
+  project       = data.google_project.default.project_id
+  location      = "US"
+  cloud_resource {}
+}
+
+## This grants IAM role access to the service account of the connection created in the previous step.
+resource "google_project_iam_member" "connectionPermissionGrant" {
+  project = data.google_project.default.project_id
+  role    = "roles/storage.objectViewer"
+  member  = "serviceAccount:${google_bigquery_connection.default.cloud_resource[0].service_account_id}"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+참고: 사용자를 BigLake 테이블로 마이그레이션 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#upgrade-external-tables-to-biglake-tables]하는 경우 Cloud Storage에 직접 액세스하지 못하도록 해당 사용자의 권한을 삭제하세요. 직접 파일 액세스를 사용하면 사용자가 BigLake 테이블에 설정된 거버넌스 정책(예: 행 및 열 수준 보안 등)을 우회할 수 있습니다.
+사용자와 연결 공유
+데이터를 쿼리하고 연결을 관리할 수 있도록 사용자에게 다음 역할을 부여할 수 있습니다.
+roles/bigquery.connectionUser: 사용자가 연결을 사용하여 외부 데이터 소스에 연결하고 쿼리를 실행할 수 있습니다.
+roles/bigquery.connectionAdmin: 사용자가 연결을 관리할 수 있습니다.
+BigQuery의 IAM 역할과 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/access-control?hl=ko]을 참조하세요.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+
+이러한 연결은 프로젝트의 외부 연결 그룹에 나열됩니다.
+탐색기 창에서 프로젝트 이름 > 외부 연결 > 연결을 클릭합니다.
+세부정보 창에서 공유를 클릭하여 연결을 공유합니다.
+다음 작업을 수행합니다.
+
+
+연결 권한 대화상자에서 주 구성원을 추가하거나 수정하여 다른 주 구성원과 연결을 공유합니다.
+저장을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#bq] ---
+bq 명령줄 도구로 연결을 공유할 수 없습니다.
+연결을 공유하려면 Google Cloud 콘솔 또는 BigQuery Connections API 메서드를 사용하여 연결을 공유합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#api] ---
+BigQuery 연결 REST API 참조 섹션의 projects.locations.connections.setIAM 메서드 [https://cloud.google.com/bigquery/docs/reference/bigqueryconnection/rest/v1/projects.locations.connections?hl=ko#methods]를 사용하고 policy 리소스의 인스턴스를 지정합니다.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#%EC%9E%90%EB%B0%94] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.resourcenames.ResourceName [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.resourcenames.ResourceName.html?hl=ko];
+import com.google.cloud.bigquery.connection.v1.ConnectionName [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.ConnectionName.html?hl=ko];
+import com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko];
+import com.google.iam.v1.Binding [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.html?hl=ko];
+import com.google.iam.v1.Policy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.html?hl=ko];
+import com.google.iam.v1.SetIamPolicyRequest [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.html?hl=ko];
+import java.io.IOException;
+
+// Sample to share connections
+public class ShareConnection {
+
+  public static void main(String[] args) throws IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String location = "MY_LOCATION";
+    String connectionId = "MY_CONNECTION_ID";
+    shareConnection(projectId, location, connectionId);
+  }
+
+  static void shareConnection(String projectId, String location, String connectionId)
+      throws IOException {
+    try (ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko] client = ConnectionServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigqueryconnection.v1.ConnectionServiceClient.html?hl=ko].create()) {
+      ResourceName [https://cloud.google.com/java/docs/reference/api-common/latest/com.google.api.resourcenames.ResourceName.html?hl=ko] resource = ConnectionName [https://cloud.google.com/java/docs/reference/google-cloud-bigqueryconnection/latest/com.google.cloud.bigquery.connection.v1.ConnectionName.html?hl=ko].of(projectId, location, connectionId);
+      Binding [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.html?hl=ko] binding =
+          Binding [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.html?hl=ko].newBuilder()
+              .addMembers [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Binding.Builder.html?hl=ko#com_google_iam_v1_Binding_Builder_addMembers_java_lang_String_]("group:example-analyst-group@google.com")
+              .setRole("roles/bigquery.connectionUser")
+              .build();
+      Policy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.html?hl=ko] policy = Policy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.html?hl=ko].newBuilder().addBindings [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.Policy.Builder.html?hl=ko#com_google_iam_v1_Policy_Builder_addBindings_com_google_iam_v1_Binding_](binding).build();
+      SetIamPolicyRequest [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.html?hl=ko] request =
+          SetIamPolicyRequest [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.html?hl=ko].newBuilder()
+              .setResource(resource.toString())
+              .setPolicy [https://cloud.google.com/java/docs/reference/proto-google-iam-v1/latest/com.google.iam.v1.SetIamPolicyRequest.Builder.html?hl=ko#com_google_iam_v1_SetIamPolicyRequest_Builder_setPolicy_com_google_iam_v1_Policy_](policy)
+              .build();
+      client.setIamPolicy(request);
+      System.out.println("Connection shared successfully");
+    }
+  }
+}
+다음 단계
+다양한 연결 유형 [https://cloud.google.com/bigquery/docs/connections-api-intro?hl=ko] 알아보기
+연결 관리 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko] 알아보기
+BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko] 알아보기
+BigLake 테이블을 만드는 방법 [https://cloud.google.com/bigquery/docs/query-cloud-storage-using-biglake?hl=ko] 알아보기
+외부 테이블을 BigLake 테이블로 업그레이드하는 방법 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko#upgrade-external-tables-to-biglake-tables] 알아보기
+객체 테이블 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko] 및 객체 테이블을 만드는 방법 [https://cloud.google.com/bigquery/docs/object-tables?hl=ko] 알아보기
+원격 함수 구현 방법 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko] 알아보기
+Spanner 외부 데이터 세트를 만드는 [https://cloud.google.com/bigquery/docs/spanner-external-datasets?hl=ko#create_an_external_dataset] 방법을 알아보세요.
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,502 @@
+Source URL: https://cloud.google.com/bigquery/docs/use-bigquery-dataframes
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필요한 역할 [https://cloud.google.com/bigquery/docs/use-bigquery-dataframes?hl=ko#permissions]
+설치 옵션 구성 [https://cloud.google.com/bigquery/docs/use-bigquery-dataframes?hl=ko#configure_installation_options]
+위치 및 프로젝트 [https://cloud.google.com/bigquery/docs/use-bigquery-dataframes?hl=ko#location_and_project]
+데이터 처리 위치 [https://cloud.google.com/bigquery/docs/use-bigquery-dataframes?hl=ko#data_processing_location]
+BigQuery DataFrames 버전 2.0으로 마이그레이션 [https://cloud.google.com/bigquery/docs/use-bigquery-dataframes?hl=ko#version-2]
+BigQuery DataFrames 사용
+bookmark_border
+BigQuery DataFrames는 BigQuery 엔진을 기반으로 하는 Pythonic DataFrame 및 머신러닝(ML) API를 제공합니다. BigQuery DataFrames는 오픈소스 패키지입니다. pip install --upgrade bigframes를 실행하여 최신 버전을 설치할 수 있습니다.
+BigQuery DataFrames는 다음 세 가지 라이브러리를 제공합니다.
+bigframes.pandas: BigQuery에서 데이터를 분석하고 조작하는 데 사용할 수 있는 pandas API [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.pandas?hl=ko]를 제공합니다. 몇 가지 가져오기만 변경하면 많은 워크로드를 pandas에서 bigframe으로 이전할 수 있습니다. bigframes.pandas API는 테라바이트 규모의 BigQuery 데이터 처리를 지원하도록 확장할 수 있으며, BigQuery 쿼리 엔진을 사용하여 계산을 실행합니다.
+bigframes.bigquery: pandas에 상응하는 함수가 없는 여러 BigQuery SQL 함수를 제공합니다.
+bigframes.ml: ML용 scikit-learn API와 유사한 API를 제공합니다. BigQuery DataFrames의 ML 기능을 사용하면 데이터를 사전 처리한 후 해당 데이터로 모델을 학습할 수 있습니다. 또한 이러한 작업을 함께 연결하여 데이터 파이프라인을 만들 수 있습니다.
+필요한 역할
+이 문서의 태스크를 완료하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트에 대한 다음 IAM 역할을 부여해 달라고 요청하세요.
+BigQuery 작업 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.jobUser](roles/bigquery.jobUser)
+BigQuery 읽기 세션 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.readSessionUser](roles/bigquery.readSessionUser)
+BigQuery 노트북에서 BigQuery DataFrames 사용.
+BigQuery 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.user](roles/bigquery.user)
+노트북 런타임 사용자 [https://cloud.google.com/iam/docs/roles-permissions/aiplatform?hl=ko#aiplatform.notebookRuntimeUser](roles/aiplatform.notebookRuntimeUser)
+코드 생성자 [https://cloud.google.com/iam/docs/roles-permissions/dataform?hl=ko#dataform.codeCreator](roles/dataform.codeCreator)
+BigQuery DataFrames 원격 함수 사용:
+BigQuery 데이터 편집자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataEditor](roles/bigquery.dataEditor)
+BigQuery 연결 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.connectionAdmin](roles/bigquery.connectionAdmin)
+Cloud Functions 개발자 [https://cloud.google.com/iam/docs/roles-permissions/cloudfunctions?hl=ko#cloudfunctions.developer](roles/cloudfunctions.developer)
+서비스 계정 사용자 [https://cloud.google.com/iam/docs/roles-permissions/iam?hl=ko#iam.serviceAccountUser](roles/iam.serviceAccountUser)
+스토리지 객체 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.objectViewer](roles/storage.objectViewer)
+BigQuery DataFrames ML 원격 모델 사용: BigQuery 연결 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.connectionAdmin](roles/bigquery.connectionAdmin)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+또한 BigQuery DataFrames 원격 함수 또는 BigQuery DataFrames ML 원격 모델을 사용하는 경우에는 기본 BigQuery 연결을 사용할 때는 프로젝트 IAM 관리자 역할 [https://cloud.google.com/iam/docs/roles-permissions/resourcemanager?hl=ko#resourcemanager.projectIamAdmin](roles/resourcemanager.projectIamAdmin)이 필요하고 사전 구성된 연결을 사용할 때는 브라우저 역할 [https://cloud.google.com/iam/docs/roles-permissions/browser?hl=ko#browser](roles/browser)이 필요합니다. bigframes.pandas.options.bigquery.skip_bq_connection_check 옵션을 True로 설정하여 이 요구사항을 피할 수 있습니다. 이 경우 존재 또는 권한 확인 없이 연결(기본 또는 사전 구성)을 그대로 사용합니다. 사전 구성된 연결을 사용하고 연결 확인을 건너뛰는 경우 다음을 확인합니다.
+연결이 올바른 위치에 생성됩니다.
+BigQuery DataFrames 원격 함수를 사용하는 경우 서비스 계정에 프로젝트에 대한 Cloud Run 호출자 역할 [https://cloud.google.com/iam/docs/roles-permissions/run?hl=ko#run.invoker](roles/run.invoker)이 있습니다.
+BigQuery DataFrames ML 원격 모델을 사용하는 경우 서비스 계정에 프로젝트에 대한 Vertex AI 사용자 역할 [https://cloud.google.com/iam/docs/roles-permissions/aiplatform?hl=ko#aiplatform.user](roles/aiplatform.user)이 있습니다.
+노트북, Python REPL 또는 명령줄과 같은 대화형 환경에서 최종 사용자 인증을 수행할 때 BigQuery DataFrames에서 필요한 경우 인증을 요청하는 메시지를 표시합니다. 그렇지 않은 경우 다양한 환경에서 애플리케이션 기본 사용자 인증 정보를 설정하는 방법 [https://cloud.google.com/docs/authentication/provide-credentials-adc?hl=ko]을 참조하세요.
+설치 옵션 구성
+BigQuery DataFrames를 설치한 후 다음 옵션을 지정할 수 있습니다.
+위치 및 프로젝트
+BigQuery DataFrames를 사용할 위치 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes._config.bigquery_options.BigQueryOptions?hl=ko#bigframes__config_bigquery_options_BigQueryOptions_location]와 프로젝트 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes._config.bigquery_options.BigQueryOptions?hl=ko#bigframes__config_bigquery_options_BigQueryOptions_project]를 지정해야 합니다.
+다음 방법으로 노트북에서 위치와 프로젝트를 정의할 수 있습니다.
+import bigframes.pandas as bpd
+
+PROJECT_ID = "bigframes-dev"  # @param {type:"string"}
+REGION = "US"  # @param {type:"string"}
+
+# Set BigQuery DataFrames options
+# Note: The project option is not required in all environments.
+# On BigQuery Studio, the project ID is automatically detected.
+bpd.options.bigquery.project = PROJECT_ID
+
+# Note: The location option is not required.
+# It defaults to the location of the first table or query
+# passed to read_gbq(). For APIs where a location can't be
+# auto-detected, the location defaults to the "US" location.
+bpd.options.bigquery.location = REGION
+데이터 처리 위치
+BigQuery DataFrames는 BigQuery 서비스에서 데이터를 유지하고 처리하는 등 확장성을 고려하여 설계되었습니다. 그러나 Series 객체 또는 DataFrame의 .to_pandas()를 호출하여 데이터를 클라이언트 머신의 메모리로 가져올 수 있습니다. 이 경우 클라이언트 머신의 메모리 제한이 적용됩니다.
+BigQuery DataFrames 버전 2.0으로 마이그레이션
+BigQuery DataFrames 버전 2.0에서는 BigQuery DataFrames API의 보안 및 성능을 개선하고, 새로운 기능을 추가하며, 중대한 변경사항을 도입합니다. 이 문서에서는 변경사항을 설명하고 이전 안내를 제공합니다. BigQuery DataFrames의 최신 버전 1.x를 사용하여 2.0 버전을 설치하기 전에 이러한 권장사항을 적용할 수 있습니다.
+BigQuery DataFrames 버전 2.0에는 다음과 같은 이점이 있습니다.
+allow_large_results가 기본적으로 False로 설정되어 있으므로 클라이언트에 결과를 반환하는 쿼리를 실행하면 더 빠른 쿼리와 더 적은 수의 테이블이 생성됩니다. 이렇게 하면 특히 물리적 바이트 청구를 사용하는 경우 스토리지 비용을 줄일 수 있습니다.
+BigQuery DataFrames에서 배포된 원격 함수의 기본 보안이 개선되었습니다.
+BigQuery DataFrames 버전 2.0 설치
+중단을 방지하려면 requirements.txt 파일(예: bigframes==1.42.0) 또는 pyproject.toml 파일(예: dependencies = ["bigframes = 1.42.0"])에서 특정 버전의 BigQuery DataFrames를 고정합니다. 최신 버전을 사용해 볼 준비가 되면 pip install --upgrade bigframes를 실행하여 최신 버전의 BigQuery DataFrames를 설치할 수 있습니다.
+allow_large_results 옵션 사용
+BigQuery에는 쿼리 작업에 대한 최대 응답 크기 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#query_jobs]가 있습니다. BigQuery DataFrames 버전 2.0부터 BigQuery DataFrames는 peek(), to_pandas(), to_pandas_batches()와 같이 클라이언트에 결과를 반환하는 메서드에서 기본적으로 이 제한을 적용합니다. 작업이 큰 결과를 반환하는 경우 BigQueryOptions 객체에서 allow_large_results를 True로 설정하여 중단 변경사항을 방지할 수 있습니다. 이 옵션은 BigQuery DataFrames 버전 2.0에서 기본적으로 False로 설정됩니다.
+import bigframes.pandas as bpd
+
+bpd.options.bigquery.allow_large_results = True
+to_pandas() 및 다른 메서드에서 allow_large_results 매개변수를 사용하여 allow_large_results 옵션을 재정의할 수 있습니다. 예를 들면 다음과 같습니다.
+bf_df = bpd.read_gbq(query)
+# ... other operations on bf_df ...
+pandas_df = bf_df.to_pandas(allow_large_results=True)
+@remote_function 데코레이터 사용
+BigQuery DataFrames 버전 2.0에서는 @remote_function 데코레이터의 기본 동작을 일부 변경합니다.
+모호한 매개변수에 대해서는 키워드 인수를 적용
+의도하지 않은 매개변수에 값을 전달하지 않도록 하기 위해 BigQuery DataFrames 버전 2.0 이상에서는 다음 매개변수에 키워드 인수를 사용하도록 적용합니다.
+bigquery_connection
+reuse
+name
+packages
+cloud_function_service_account
+cloud_function_kms_key_name
+cloud_function_docker_repository
+max_batching_rows
+cloud_function_timeout
+cloud_function_max_instances
+cloud_function_vpc_connector
+cloud_function_memory_mib
+cloud_function_ingress_settings
+이러한 매개변수를 사용할 때는 매개변수 이름을 제공합니다. 예를 들면 다음과 같습니다.
+@remote_function(
+  name="my_remote_function",
+  ...
+)
+def my_remote_function(parameter: int) -> str:
+  return str(parameter)
+서비스 계정 설정
+버전 2.0부터 BigQuery DataFrames는 더 이상 배포하는 Cloud Run Functions에 기본적으로 Compute Engine 서비스 계정을 사용하지 않습니다. 배포하는 함수의 권한을 제한하려면 다음 단계를 따르세요.
+최소 권한으로 서비스 계정을 만듭니다 [https://cloud.google.com/iam/docs/service-accounts-create?hl=ko].
+@remote_function 데코레이터의 cloud_function_service_account 매개변수에 서비스 계정 이메일을 제공합니다.
+예를 들면 다음과 같습니다.
+@remote_function(
+  cloud_function_service_account="my-service-account@my-project.iam.gserviceaccount.com",
+  ...
+)
+def my_remote_function(parameter: int) -> str:
+  return str(parameter)
+Compute Engine 서비스 계정을 사용하려면 @remote_function 데코레이터의 cloud_function_service_account 매개변수를 "default"로 설정하면 됩니다. 예를 들면 다음과 같습니다.
+# This usage is discouraged. Use only if you have a specific reason to use the
+# default Compute Engine service account.
+@remote_function(cloud_function_service_account="default", ...)
+def my_remote_function(parameter: int) -> str:
+  return str(parameter)
+인그레스 설정
+버전 2.0부터 BigQuery DataFrames는 "internal-only"에 배포하는 Cloud Run functions의 인그레스 설정 [https://cloud.google.com/functions/docs/networking/network-settings?hl=ko#ingress_settings]을 설정합니다. 이전에는 인그레스 설정이 기본적으로 "all"로 설정되었습니다. @remote_function 데코레이터의 cloud_function_ingress_settings 매개변수를 설정하여 인그레스 설정을 변경할 수 있습니다. 예를 들면 다음과 같습니다.
+@remote_function(cloud_function_ingress_settings="internal-and-gclb", ...)
+def my_remote_function(parameter: int) -> str:
+  return str(parameter)
+커스텀 엔드포인트 사용
+2.0 미만의 BigQuery DataFrames 버전에서는 리전에서 지역 서비스 엔드포인트 [https://cloud.google.com/vpc/docs/regional-service-endpoints?hl=ko#bigquery] 및 bigframes.pandas.options.bigquery.use_regional_endpoints = True를 지원하지 않는 경우 BigQuery DataFrames가 위치 엔드포인트 [https://cloud.google.com/storage/docs/locational-endpoints?hl=ko]로 대체되었습니다. BigQuery DataFrames 버전 2.0에서는 이 대체 동작이 삭제됩니다. 버전 2.0에서 위치 엔드포인트에 연결하려면 bigframes.pandas.options.bigquery.client_endpoints_override 옵션을 설정하세요. 예를 들면 다음과 같습니다.
+import bigframes.pandas as bpd
+
+bpd.options.bigquery.client_endpoints_override = {
+  "bqclient": "https://
+LOCATION-bigquery.googleapis.com",
+  "bqconnectionclient": "
+LOCATION-bigqueryconnection.googleapis.com",
+  "bqstoragereadclient": "
+LOCATION-bigquerystorage.googleapis.com",
+}
+연결하려는 BigQuery 위치의 이름으로 LOCATION을 바꿉니다.
+bigframes.ml.llm 모듈 사용
+BigQuery DataFrames 버전 2.0에서 GeminiTextGenerator의 기본 model_name이 "gemini-2.0-flash-001"로 업데이트되었습니다. 향후 기본 모델이 변경될 경우 중단을 방지하기 위해 model_name을 직접 제공하는 것이 좋습니다.
+import bigframes.ml.llm
+
+model = bigframes.ml.llm.GeminiTextGenerator(model_name="gemini-2.0-flash-001")
+데이터 조작
+다음 섹션에서는 BigQuery DataFrames의 데이터 조작 기능을 설명합니다. bigframes.bigquery 라이브러리에 설명된 함수를 확인할 수 있습니다.
+pandas API
+BigQuery DataFrames의 주목할 만한 특징은 bigframes.pandas API [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.pandas?hl=ko]가 Pandas 라이브러리의 API와 유사하게 설계되었다는 점입니다. 이 설계를 사용하면 데이터 조작 작업에 익숙한 문법 패턴을 적용할 수 있습니다. BigQuery DataFrames API를 통해 정의된 작업은 서버 측에서 실행되므로 BigQuery 내에 저장된 데이터에 직접 작동하고 BigQuery 외부로 데이터 세트를 전송할 필요가 없습니다.
+BigQuery DataFrames에서 지원되는 Pandas API를 확인하려면 지원되는 Pandas API [https://cloud.google.com/python/docs/reference/bigframes/latest/supported_pandas_apis?hl=ko]를 참고하세요.
+데이터 검사 및 조작
+bigframes.pandas API를 사용하여 데이터 검사 및 계산 작업을 수행할 수 있습니다. 다음 코드 샘플은 bigframes.pandas 라이브러리를 사용하여 body_mass_g 열을 검사하고 평균 body_mass를 계산하며 species로 평균 body_mass를 계산합니다.
+import bigframes.pandas as bpd
+
+# Load data from BigQuery
+query_or_table = "bigquery-public-data.ml_datasets.penguins"
+bq_df = bpd.read_gbq(query_or_table)
+
+# Inspect one of the columns (or series) of the DataFrame:
+bq_df["body_mass_g"]
+
+# Compute the mean of this series:
+average_body_mass = bq_df["body_mass_g"].mean()
+print(f"average_body_mass: {average_body_mass}")
+
+# Find the heaviest species using the groupby operation to calculate the
+# mean body_mass_g:
+(
+    bq_df["body_mass_g"]
+    .groupby(by=bq_df["species"])
+    .mean()
+    .sort_values(ascending=False)
+    .head(10)
+)
+BigQuery 라이브러리
+BigQuery 라이브러리는 Pandas에 상응하는 함수가 없는 BigQuery SQL 함수를 제공합니다. 다음 섹션에서는 몇 가지 예시를 보여줍니다.
+배열 값 처리
+bigframes.bigquery 라이브러리의 bigframes.bigquery.array_agg() 함수를 사용하여 groupby 작업 후 값을 집계할 수 있습니다.
+import bigframes.bigquery as bbq
+import bigframes.pandas as bpd
+
+s = bpd.Series([0, 1, 2, 3, 4, 5])
+
+# Group values by whether they are divisble by 2 and aggregate them into arrays
+bbq.array_agg(s.groupby(s % 2 == 0))
+# False    [1 3 5]
+# True     [0 2 4]
+# dtype: list<item: int64>[pyarrow]
+array_length() 및 array_to_string() 배열 함수를 사용할 수도 있습니다.
+구조체 Series 객체 만들기
+bigframes.bigquery 라이브러리의 bigframes.bigquery.struct() 함수를 사용하여 DataFrame의 열마다 하위 필드가 있는 새 구조체 Series 객체를 만들 수 있습니다.
+import bigframes.bigquery as bbq
+import bigframes.pandas as bpd
+
+# Load data from BigQuery
+query_or_table = "bigquery-public-data.ml_datasets.penguins"
+bq_df = bpd.read_gbq(query_or_table)
+
+# Create a new STRUCT Series with subfields for each column in a DataFrames.
+lengths = bbq.struct(
+    bq_df[["culmen_length_mm", "culmen_depth_mm", "flipper_length_mm"]]
+)
+
+lengths.peek()
+# 146 {'culmen_length_mm': 51.1, 'culmen_depth_mm': ...
+# 278 {'culmen_length_mm': 48.2, 'culmen_depth_mm': ...
+# 337 {'culmen_length_mm': 36.4, 'culmen_depth_mm': ...
+# 154 {'culmen_length_mm': 46.5, 'culmen_depth_mm': ...
+# 185 {'culmen_length_mm': 50.1, 'culmen_depth_mm': ...
+# dtype: struct[pyarrow]
+타임스탬프를 Unix epoch로 변환
+bigframes.bigquery 라이브러리의 bigframes.bigquery.unix_micros() 함수를 사용하여 타임스탬프를 Unix 마이크로초로 변환할 수 있습니다.
+import pandas as pd
+
+import bigframes.bigquery as bbq
+import bigframes.pandas as bpd
+
+# Create a series that consists of three timestamps: [1970-01-01, 1970-01-02, 1970-01-03]
+s = bpd.Series(pd.date_range("1970-01-01", periods=3, freq="d", tz="UTC"))
+
+bbq.unix_micros(s)
+# 0               0
+# 1     86400000000
+# 2    172800000000
+# dtype: Int64
+unix_seconds() 및 unix_millis() 시간 함수를 사용할 수도 있습니다.
+SQL 스칼라 함수 사용
+bigframes.bigquery 라이브러리의 bigframes.bigquery.sql_scalar() 함수를 사용하여 단일 열 표현식을 나타내는 임의의 SQL 구문에 액세스할 수 있습니다.
+import bigframes.bigquery as bbq
+import bigframes.pandas as bpd
+
+# Load data from BigQuery
+query_or_table = "bigquery-public-data.ml_datasets.penguins"
+
+# The sql_scalar function can be used to inject SQL syntax that is not supported
+# or difficult to express with the bigframes.pandas APIs.
+bq_df = bpd.read_gbq(query_or_table)
+shortest = bbq.sql_scalar(
+    "LEAST({0}, {1}, {2})",
+    columns=[
+        bq_df["culmen_depth_mm"],
+        bq_df["culmen_length_mm"],
+        bq_df["flipper_length_mm"],
+    ],
+)
+
+shortest.peek()
+#         0
+# 149 18.9
+# 33 16.3
+# 296 17.2
+# 287 17.0
+# 307 15.0
+# dtype: Float64
+맞춤 Python 함수
+BigQuery DataFrames를 사용하면 맞춤 Python 함수를 BigQuery DataFrames 객체에서 대규모로 실행할 수 있는 BigQuery 아티팩트로 변환할 수 있습니다. 이 확장성 지원을 사용하면 BigQuery DataFrames 및 SQL API로 가능한 것 이상의 작업을 실행할 수 있으므로 오픈소스 라이브러리를 활용할 수 있습니다. 이 확장성 메커니즘의 두 가지 변형은 다음 섹션에 설명되어 있습니다.
+사용자 정의 함수(UDF)
+UDF(프리뷰 [https://cloud.google.com/products/?hl=ko#product-launch-stages])를 사용하면 맞춤 Python 함수를 Python UDF [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko]로 변환할 수 있습니다. 사용 예시는 영구 Python UDF 만들기 [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#bigquery-dataframes]를 참고하세요.
+BigQuery DataFrames에서 UDF를 만들면 지정된 데이터 세트에 BigQuery 루틴이 Python UDF로 생성됩니다. 지원되는 전체 매개변수는 udf [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.pandas?hl=ko#bigframes_pandas_udf]를 참고하세요.
+삭제
+Google Cloud 콘솔 또는 다른 도구에서 직접 클라우드 아티팩트를 정리하는 것 외에도 bigframes.pandas.get_global_session().bqclient.delete_routine(routine_id) 명령어를 사용하여 명시적 이름 인수로 생성된 BigQuery DataFrames UDF를 정리할 수 있습니다.
+요구사항
+BigQuery DataFrames UDF를 사용하려면 프로젝트에서 BigQuery API [https://console.cloud.google.com/apis/library/bigquery.googleapis.com?hl=ko]를 사용 설정합니다. 프로젝트에 bigquery_connection 매개변수를 제공하는 경우 BigQuery Connection API [https://console.cloud.google.com/apis/library/bigqueryconnection.googleapis.com?hl=ko]도 사용 설정해야 합니다.
+제한사항
+UDF의 코드는 독립적이어야 합니다. 즉, 함수 본문 외부에 정의된 가져오기 또는 변수에 대한 참조를 포함해서는 안 됩니다.
+UDF의 코드는 클라우드에서 코드가 실행되는 환경이므로 Python 3.11과 호환되어야 합니다.
+함수 코드에서 사소한 변경사항(예: 변수 이름 변경 또는 새 줄 삽입)을 적용한 후 UDF 정의 코드를 다시 실행하면 이러한 변경사항이 함수 동작에 중요하지 않더라도 UDF가 다시 생성됩니다.
+사용자 코드는 BigQuery 루틴에 대한 읽기 액세스 권한이 있는 사용자에게 표시되므로 민감한 콘텐츠는 주의해서만 포함해야 합니다.
+한 프로젝트에 BigQuery 위치에 Cloud Run Functions를 한 번에 최대 1,000개까지 사용할 수 있습니다.
+BigQuery DataFrames UDF는 사용자 정의 BigQuery Python 함수를 배포하며 관련 제한사항 [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#python-udf-limitation]이 적용됩니다.
+원격 함수
+BigQuery DataFrames를 사용하면 맞춤 스칼라 함수를 BigQuery 원격 함수 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko]로 변환할 수 있습니다. 사용 예시는 원격 함수 만들기 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#bigquery-dataframes]를 참고하세요. 지원되는 전체 매개변수는 remote_function [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.pandas?hl=ko#bigframes_pandas_remote_function]을 참고하세요.
+BigQuery DataFrames에서 원격 함수를 만들면 다음이 생성됩니다.
+Cloud Run functions [https://cloud.google.com/run/docs/functions-with-run?hl=ko]
+BigQuery 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]. 기본적으로 bigframes-default-connection이라는 연결이 사용됩니다. 원하는 경우 사전 구성된 BigQuery 연결을 사용할 수 있습니다. 이 경우 연결 만들기가 생략됩니다. 기본 연결의 서비스 계정에 Cloud Run 역할 [https://cloud.google.com/iam/docs/roles-permissions/run?hl=ko#run.invoker](roles/run.invoker)이 부여됩니다.
+BigQuery 연결로 만든 Cloud Run functions를 사용하는 BigQuery 원격 함수
+BigQuery 연결은 커스텀 함수 정의에 제공한 이름을 사용하여 BigQuery DataFrames 세션과 동일한 위치에 생성됩니다. 연결을 보고 관리하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+원격 함수를 만든 프로젝트를 선택합니다.
+탐색기 창에서 해당 프로젝트를 펼친 다음 외부 연결을 펼칩니다.
+BigQuery 원격 함수는 지정한 데이터 세트 또는 숨겨진 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko#hidden_datasets] 유형인 익명 데이터 세트에 생성됩니다. 원격 함수를 만들 때 이름을 설정하지 않으면 BigQuery DataFrames는 bigframes 프리픽스로 시작하는 기본 이름을 적용합니다. 사용자가 지정한 데이터 세트에서 만든 원격 함수를 보고 관리하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+원격 함수를 만든 프로젝트를 선택합니다.
+탐색기 창에서 해당 프로젝트를 펼치고 원격 함수를 만든 데이터 세트를 펼친 다음 루틴을 펼칩니다.
+Cloud Run functions를 보고 관리하려면 다음 단계를 따르세요.
+Cloud Run 페이지로 이동합니다.
+Cloud Run으로 이동 [https://console.cloud.google.com/project/_/run?hl=ko]
+함수를 만든 프로젝트를 선택합니다.
+사용 가능한 서비스 목록에서 함수 배포 유형을 기준으로 필터링합니다.
+BigQuery DataFrames에서 만든 함수를 식별하려면 bigframes 접두사가 있는 함수 이름을 찾습니다.
+삭제
+Cloud 아티팩트를 Google Cloud 콘솔 또는 다른 도구로 직접 정리하는 것 외에도 명시적인 이름 인수 없이 생성된 BigQuery 원격 함수와 연결된 Cloud Run Functions를 다음과 같은 방법으로 삭제할 수 있습니다.
+BigQuery DataFrames 세션의 경우 session.close() 명령어 사용
+기본 BigQuery DataFrames 세션의 경우 bigframes.pandas.close_session() 명령어 사용
+session_id가 포함된 이전 세션의 경우 bigframes.pandas.clean_up_by_session_id(session_id) 명령어 사용
+명시적 이름 인수로 생성된 BigQuery 원격 함수와 연결된 Cloud Run functions도 bigframes.pandas.get_global_session().bqclient.delete_routine(routine_id) 명령어를 사용하여 정리할 수 있습니다.
+요구사항
+BigQuery DataFrames 원격 함수를 사용하려면 다음 API를 사용 설정해야 합니다.
+BigQuery API(bigquery.googleapis.com) [https://cloud.google.com/bigquery/docs/reference/rest?hl=ko]
+BigQuery Connection API(bigqueryconnection.googleapis.com) [https://cloud.google.com/bigquery/docs/reference/bigqueryconnection/rest?hl=ko]
+Cloud Functions API(cloudfunctions.googleapis.com) [https://cloud.google.com/functions/docs/reference/rest?hl=ko]
+Cloud Run Admin API(run.googleapis.com) [https://cloud.google.com/run/docs/reference/rest?hl=ko]
+Artifact Registry API(artifactregistry.googleapis.com) [https://cloud.google.com/artifact-registry/docs/reference/rest?hl=ko]
+Cloud Build API(cloudbuild.googleapis.com) [https://cloud.google.com/build/docs/api/reference/rest?hl=ko]
+Compute Engine API(compute.googleapis.com) [https://cloud.google.com/compute/docs/reference/rest/v1?hl=ko]
+Cloud Resource Manager API(cloudresourcemanager.googleapis.com) [https://cloud.google.com/resource-manager/reference/rest?hl=ko]
+bigframes.pandas.options.bigquery.skip_bq_connection_check 옵션을 True로 설정하여 이 요구사항을 피할 수 있습니다. 이 경우 연결의 존재를 확인하거나 권한을 확인하지 않고 연결(기본 또는 사전 구성)을 그대로 사용합니다.
+제한사항
+원격 함수를 처음 만들 때 사용할 수 있게 되기까지 약 90초가 걸립니다. 패키지 종속 항목을 추가하면 지연 시간이 늘어날 수 있습니다.
+함수 코드 주변에서 사소한 변경사항(예: 변수 이름 변경, 새 줄 삽입, 노트북에 새 셀 삽입)을 적용한 후 원격 함수 정의 코드를 다시 실행하면 이러한 변경사항이 함수 동작에 영향을 미치지 않더라도 원격 함수가 다시 생성될 수 있습니다.
+사용자 코드는 Cloud Run functions에 대한 읽기 액세스 권한이 있는 사용자에게 표시되므로 민감한 콘텐츠는 주의해서만 포함해야 합니다.
+한 프로젝트에 리전에서 한 번에 최대 1,000개의 Cloud Run functions를 보유할 수 있습니다. 자세한 내용은 할당량 [https://cloud.google.com/functions/quotas?hl=ko]을 참조하세요.
+ML 및 AI
+다음 섹션에서는 BigQuery DataFrame의 ML 및 AI 기능을 설명합니다. 이러한 기능은 bigframes.ml 라이브러리를 사용합니다.
+ML 위치
+bigframes.ml 라이브러리는 BigQuery ML과 동일한 위치를 지원합니다. BigQuery ML 모델 예측 및 기타 ML 함수는 모든 BigQuery 리전에서 지원됩니다. 모델 학습 지원은 리전마다 다릅니다. 자세한 내용은 BigQuery ML 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko#bqml-loc]를 참조하세요.
+데이터 사전 처리
+bigframes.ml.preprocessing 모듈 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.preprocessing?hl=ko] 및 bigframes.ml.compose 모듈 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.compose?hl=ko]을 사용해 에스티메이터(모델)에서 사용하는 데이터를 준비할 Transformer를 만듭니다. BigQuery DataFrames는 다음과 같은 변환을 제공합니다.
+bigframes.ml.preprocessing 모듈에서 KBinsDiscretizer 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.compose.ColumnTransformer?hl=ko]를 사용하여 연속 데이터를 간격으로 비닝합니다.
+bigframes.ml.preprocessing 모듈의 LabelEncoder 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.preprocessing.LabelEncoder?hl=ko]를 사용하여 타겟 라벨을 정수 값으로 정규화합니다.
+bigframes.ml.preprocessing 모듈에서 MaxAbsScaler 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.preprocessing.MaxAbsScaler?hl=ko]를 사용하여 각 특성을 최대 절댓값까지 [-1, 1] 범위로 확장합니다.
+bigframes.ml.preprocessing 모듈에서 MinMaxScaler 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.preprocessing.MinMaxScaler?hl=ko]를 사용하여 각 특성을 [0, 1] 범위로 확장하여 특성을 표준화합니다.
+bigframes.ml.preprocessing 모듈에서 StandardScaler 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.preprocessing.StandardScaler?hl=ko]를 사용하여 평균을 삭제하고 단위 분산으로 확장하여 특성을 표준화합니다.
+bigframes.ml.preprocessing 모듈에서 OneHotEncoder 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.preprocessing.OneHotEncoder?hl=ko]를 사용하여 범주형 값을 숫자 형식으로 변환합니다.
+bigframes.ml.compose 모듈에서 ColumnTransformer 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.compose.ColumnTransformer?hl=ko]를 사용하여 DataFrames 열에 Transformer를 적용합니다.
+모델 학습
+BigQuery DataFrames에서 모델을 학습시키는 추정기를 만들 수 있습니다.
+클러스터링 모델
+bigframes.ml.cluster 모듈 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.cluster?hl=ko]을 사용하여 클러스터링 모델에 대한 에스티메이터를 만들 수 있습니다.
+KMeans 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.cluster.KMeans?hl=ko]를 사용하여 K-평균 클러스터링 모델을 만듭니다. 이러한 모델은 데이터 세분화에 사용됩니다. 고객 세그먼트 식별을 예로 들 수 있습니다. k-평균은 비지도 학습 기법이므로 모델 학습에는 라벨이 필요 없으며 데이터를 학습 데이터와 평가 데이터로 분할할 필요도 없습니다.
+bigframes.ml.cluster 모듈을 사용하여 클러스터링 모델에 대한 에스티메이터를 만들 수 있습니다.
+다음 코드 샘플은 bigframes.ml.cluster KMeans 클래스를 사용하여 데이터 세분화를 위한 K-평균 클러스터링 모델을 만드는 방법을 보여줍니다.
+from bigframes.ml.cluster import KMeans
+import bigframes.pandas as bpd
+
+# Load data from BigQuery
+query_or_table = "bigquery-public-data.ml_datasets.penguins"
+bq_df = bpd.read_gbq(query_or_table)
+
+# Create the KMeans model
+cluster_model = KMeans(n_clusters=10)
+cluster_model.fit(bq_df["culmen_length_mm"], bq_df["sex"])
+
+# Predict using the model
+result = cluster_model.predict(bq_df)
+# Score the model
+score = cluster_model.score(bq_df)
+분해 모델
+bigframes.ml.decomposition 모듈 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.decomposition?hl=ko]을 사용하여 분해 모델에 대한 에스티메이터를 만들 수 있습니다.
+PCA 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.decomposition.PCA?hl=ko]를 사용하여 주요 구성요소 분석(PCA) 모델을 만듭니다. 이러한 모델을 사용하여 주요 구성요소를 계산하고 이를 사용하여 데이터에 기초하여 변경을 수행합니다. 이렇게 하면 각 데이터 포인트를 처음 몇 개의 주요 구성요소에만 투영하여 저차원 데이터를 얻고 데이터 변형을 가능한 한 많이 보존하여 차원 수가 줄어듭니다.
+앙상블 모델
+bigframes.ml.ensemble 모듈 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.ensemble?hl=ko]을 사용하여 앙상블 모델에 대한 에스티메이터를 만들 수 있습니다.
+RandomForestClassifier 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.ensemble.RandomForestClassifier?hl=ko]를 사용하여 랜덤 포레스트 분류기 모델을 만듭니다. 이 모델을 사용하여 분류를 위한 여러 학습 방법 결정 트리를 생성하세요.
+RandomForestRegressor 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.ensemble.RandomForestRegressor?hl=ko]를 사용하여 랜덤 포레스트 회귀 모델을 만듭니다. 이러한 모델을 사용하여 회귀를 위한 여러 학습 방법 결정 트리를 생성합니다.
+XGBClassifier 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.ensemble.XGBClassifier?hl=ko]를 사용하여 그래디언트 부스팅 트리 분류기 모델을 만듭니다. 이 모델을 사용하여 분류를 위한 여러 학습 방법 결정 트리를 생성합니다.
+XGBRegressor 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.ensemble.XGBRegressor?hl=ko]를 사용하여 그래디언트 부스팅 트리 회귀 모델을 만듭니다. 이 모델을 사용하여 회귀를 위한 여러 학습 방법 결정 트리를 추가적으로 생성합니다.
+예측 모델
+bigframes.ml.forecasting 모듈 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.forecasting?hl=ko]을 사용하여 예측 모델에 대한 에스티메이터를 만들 수 있습니다.
+ARIMAPlus 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.forecasting.ARIMAPlus?hl=ko]를 사용하여 시계열 예측 모델을 만듭니다.
+가져온 모델
+bigframes.ml.imported 모듈 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.imported?hl=ko]을 사용하여 가져온 모델에 대한 에스티메이터를 만들 수 있습니다.
+ONNXModel 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.imported.ONNXModel?hl=ko]를 사용하여 ONNX(Open Neural Network Exchange) 모델을 가져옵니다.
+TensorFlowModel 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.imported.TensorFlowModel?hl=ko]를 사용하여 TensorFlow 모델을 가져옵니다.
+XGBoostModel 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.imported.XGBoostModel?hl=ko]를 사용하여 XGBoostModel 모델을 가져옵니다.
+선형 모델
+bigframes.ml.linear_model 모듈 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.linear_model?hl=ko]을 사용하여 선형 모델에 대한 에스티메이터를 만듭니다.
+LinearRegression 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.linear_model.LinearRegression?hl=ko]를 사용하여 선형 회귀 모델을 만듭니다. 이러한 모델은 예측에 사용됩니다. 예를 들어 특정 날짜의 상품 판매량을 예측하는 경우가 있습니다.
+LogisticRegression 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.linear_model.LogisticRegression?hl=ko]를 사용하여 로지스틱 회귀 모델을 만듭니다. 입력이 low-value, medium-value, high-value인지 여부 등 2개 이상의 가능한 값을 분류하는 데 이러한 모델을 사용합니다.
+다음 코드 샘플은 bigframes.ml을 사용하여 다음을 수행하는 방법을 보여줍니다.
+BigQuery에서 데이터 로드
+학습 데이터 정리 및 준비
+bigframes.ml.LinearRegression [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.linear_model.LinearRegression?hl=ko] 회귀 모델 만들기 및 적용
+from bigframes.ml.linear_model import LinearRegression
+import bigframes.pandas as bpd
+
+# Load data from BigQuery
+query_or_table = "bigquery-public-data.ml_datasets.penguins"
+bq_df = bpd.read_gbq(query_or_table)
+
+# Filter down to the data to the Adelie Penguin species
+adelie_data = bq_df[bq_df.species == "Adelie Penguin (Pygoscelis adeliae)"]
+
+# Drop the species column
+adelie_data = adelie_data.drop(columns=["species"])
+
+# Drop rows with nulls to get training data
+training_data = adelie_data.dropna()
+
+# Specify your feature (or input) columns and the label (or output) column:
+feature_columns = training_data[
+    ["island", "culmen_length_mm", "culmen_depth_mm", "flipper_length_mm", "sex"]
+]
+label_columns = training_data[["body_mass_g"]]
+
+test_data = adelie_data[adelie_data.body_mass_g.isnull()]
+
+# Create the linear model
+model = LinearRegression()
+model.fit(feature_columns, label_columns)
+
+# Score the model
+score = model.score(feature_columns, label_columns)
+
+# Predict using the model
+result = model.predict(test_data)
+대규모 언어 모델
+bigframes.ml.llm 모듈 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.llm?hl=ko]을 사용하여 LLM에 대한 에스티메이터를 만들 수 있습니다.
+GeminiTextGenerator 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.llm.GeminiTextGenerator?hl=ko]를 사용하여 Gemini 텍스트 생성기 모델을 만듭니다. 텍스트 생성 작업에 이러한 모델을 사용합니다.
+bigframes.ml.llm [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.llm?hl=ko] 모듈을 사용하여 원격 대규모 언어 모델(LLM)에 대한 에스티메이터를 만듭니다.
+다음 코드 샘플은 bigframes.ml.llm GeminiTextGenerator [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.llm.GeminiTextGenerator?hl=ko] 클래스를 사용하여 코드 생성을 위한 Gemini 모델을 생성하는 방법을 보여줍니다.
+from bigframes.ml.llm import GeminiTextGenerator
+import bigframes.pandas as bpd
+
+# Create the Gemini LLM model
+session = bpd.get_global_session()
+connection = f"{PROJECT_ID}.{REGION}.{CONN_NAME}"
+model = GeminiTextGenerator(
+    session=session, connection_name=connection, model_name="gemini-2.0-flash-001"
+)
+
+df_api = bpd.read_csv("gs://cloud-samples-data/vertex-ai/bigframe/df.csv")
+
+# Prepare the prompts and send them to the LLM model for prediction
+df_prompt_prefix = "Generate Pandas sample code for DataFrame."
+df_prompt = df_prompt_prefix + df_api["API"]
+
+# Predict using the model
+df_pred = model.predict(df_prompt.to_frame(), max_output_tokens=1024)
+원격 모델
+BigQuery DataFrames ML 원격 모델(bigframes.ml.remote 또는 bigframes.ml.llm)을 사용하려면 다음 API를 사용 설정해야 합니다.
+BigQuery API(bigquery.googleapis.com) [https://cloud.google.com/bigquery/docs/reference/rest?hl=ko]
+BigQuery Connection API(bigqueryconnection.googleapis.com) [https://cloud.google.com/bigquery/docs/reference/bigqueryconnection/rest?hl=ko]
+Vertex AI API(aiplatform.googleapis.com) [https://cloud.google.com/vertex-ai/docs/reference/rest?hl=ko]
+Cloud Resource Manager API(cloudresourcemanager.googleapis.com) [https://cloud.google.com/resource-manager/reference/rest?hl=ko]
+bigframes.pandas.options.bigquery.skip_bq_connection_check 옵션을 True로 설정하여 이 요구사항을 피할 수 있습니다. 이 경우 연결의 존재를 확인하거나 권한을 확인하지 않고 연결(기본 또는 사전 구성)을 그대로 사용합니다.
+BigQuery DataFrames에서 원격 모델을 만들면 BigQuery 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]이 생성됩니다. 기본적으로 bigframes-default-connection이라는 연결이 사용됩니다. 원하는 경우 사전 구성된 BigQuery 연결을 사용할 수 있습니다. 이 경우 연결 만들기가 생략됩니다. 기본 연결의 서비스 계정에 프로젝트에 대한 Vertex AI 사용자 역할 [https://cloud.google.com/iam/docs/roles-permissions/aiplatform?hl=ko#aiplatform.user](roles/aiplatform.user)이 부여됩니다.
+파이프라인 만들기
+bigframes.ml.pipeline 모듈 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.pipeline?hl=ko]을 사용하여 ML 파이프라인을 만들 수 있습니다. 파이프라인을 사용하면 서로 다른 매개변수를 설정하여 함께 교차 검증할 여러 ML 단계를 조합할 수 있습니다. 이렇게 하면 코드가 간소화되고 데이터 전처리 단계와 추정기를 함께 배포할 수 있습니다.
+파이프라인 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.pipeline.Pipeline?hl=ko]를 사용하여 최종 추정기로 변환 파이프라인을 만듭니다.
+모델 선택
+bigframes.ml.model_selection 모듈 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.model_selection?hl=ko] 모듈을 사용하여 학습 및 테스트 데이터 세트를 분할하고 최적의 모델을 선택합니다.
+다음 코드 샘플과 같이 train_test_split 함수 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.model_selection?hl=ko#bigframes_ml_model_selection_train_test_split]를 사용하여 데이터를 학습 세트와 테스트(평가) 세트로 분할합니다.
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+다음 코드 샘플과 같이 KFold 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.model_selection.KFold?hl=ko] 및 KFold.split 메서드 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.model_selection.KFold?hl=ko#bigframes_ml_model_selection_KFold_split]를 사용하여 다중 폴드 학습 및 테스트 세트를 만들어 모델을 학습하고 평가합니다. 이 기능은 소규모 데이터 세트에 유용합니다.
+kf = KFold(n_splits=5)
+for i, (X_train, X_test, y_train, y_test) in enumerate(kf.split(X, y)):
+# Train and evaluate models with training and testing sets
+다음 코드 샘플과 같이 cross_validate 함수 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.model_selection?hl=ko#bigframes_ml_model_selection_cross_validate]를 사용하여 다중 폴드 학습 및 테스트 세트를 자동으로 만들고, 모델을 학습 및 평가하고, 각 폴드의 결과를 가져옵니다.
+scores = cross_validate(model, X, y, cv=5)
+성능 최적화
+이 섹션에서는 BigQuery DataFrames 성능을 최적화하는 방법을 설명합니다.
+부분 순서 지정 모드
+BigQuery DataFrames는 순서 지정 모드 기능을 제공합니다. ordering_mode 속성을 partial로 설정하여 더 효율적인 쿼리를 생성합니다.
+partial 순서 지정 모드는 모든 행에 대한 총 순서를 만드는 기본 strict 모드와 대조됩니다. 총 순서는 DataFrame.iloc 속성을 사용하여 행에 순서 기반 액세스를 제공하여 BigQuery DataFrames와 Pandas의 호환성을 높입니다. 그러나 총 순서와 해당 순서에 대한 기본 순차 색인을 사용하면 열 필터나 행 필터가 read_gbq 및 read_gbq_table 함수에 파라미터로 적용되지 않는 한 스캔되는 바이트 수가 줄어들지 않습니다. DataFrame의 모든 행에 대한 총 순서를 제공하기 위해 BigQuery DataFrames는 모든 행의 해시를 만듭니다. 이로 인해 행 및 열 필터를 무시하는 전체 데이터 스캔이 발생할 수 있습니다.
+ordering_mode 속성을 partial로 설정하면 BigQuery DataFrame이 모든 행에 대한 총 순서를 생성하지 않습니다. 또한 부분 순서 지정 모드는 DataFrame.iloc 속성과 같이 모든 행에 대한 총 순서가 필요한 기능을 사용 중지합니다. 부분 순서 지정 모드는 DefaultIndexKind [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.enums?hl=ko#defaultindexkind]를 순서에 따른 순차 색인이 아닌 null 색인으로 설정합니다.
+ordering_mode 속성을 partial로 설정하여 DataFrame을 필터링하면 BigQuery DataFrames에서 더 이상 순차 색인에 누락된 행을 계산할 필요가 없으므로 더 빠르고 효율적인 쿼리가 생성됩니다. BigQuery DataFrames API는 엄격한 순서 지정 모드의 기본 환경과 마찬가지로 여전히 익숙한 Pandas API입니다. 그러나 부분 순서 지정 모드는 일반적인 Pandas 동작과 다릅니다. 예를 들어 부분 순서 지정 모드는 색인별 암시적 조인을 실행하지 않습니다.
+부분 순서 지정 모드와 엄격한 순서 지정 모드 모두에서 사용한 BigQuery 리소스의 비용을 지불합니다. 그러나 클러스터 및 파티션 열의 행 필터는 처리되는 바이트 수를 줄여주므로 대규모 클러스터링된 테이블 및 파티션을 나눈 테이블을 사용할 때 부분 순서 지정 모드를 사용하면 비용을 줄일 수 있습니다.
+참고: BigQuery DataFrames는 클라이언트 측 라이브러리이므로 BigQuery API, bq 명령줄 도구 또는 Terraform에는 부분 순서 지정 모드가 적용되지 않습니다.
+사용
+부분 순서 지정을 사용하려면 다음 코드 샘플과 같이 BigQuery DataFrames로 다른 작업을 수행하기 전에 ordering_mode를 partial로 설정하세요.
+import bigframes.pandas as bpd
+
+bpd.options.bigquery.ordering_mode = "partial"
+부분 순서 지정 모드에는 순차 색인이 없으므로 관련 없는 BigQuery DataFrames는 암시적으로 조인되지 않습니다. 대신 DataFrame.merge 메서드를 명시적으로 호출하여 서로 다른 테이블 표현식에서 파생된 두 개의 BigQuery DataFrame을 조인해야 합니다.
+Series.unique() 및 Series.drop_duplicates() 기능은 부분 순서 지정 모드와 호환되지 않습니다. 대신 다음과 같이 groupby 메서드를 사용하여 고유한 값을 찾습니다.
+# Avoid order dependency by using groupby instead of drop_duplicates.
+unique_col = df.groupby(["column"], as_index=False).size().drop(columns="size")
+부분 순서 지정 모드를 사용하면 DataFrame.head(n) 및 Series.head(n) 함수의 출력이 모든 호출에서 멱등성을 가질 것이라고 보장할 수 없습니다. 임의의 소규모 데이터 샘플을 다운로드하려면 DataFrame.peek() 또는 Series.peek() 메서드를 사용하세요.
+ordering_mode = "partial" 속성을 사용하는 자세한 튜토리얼은 부분 순서 지정 모드 사용을 보여주는 이 BigQuery DataFrames 노트북 [https://github.com/googleapis/python-bigquery-dataframes/blob/main/notebooks/dataframes/pypi.ipynb]을 참조하세요.
+문제 해결
+부분 순서 지정 모드의 DataFrame에는 항상 순서 지정이나 색인이 있는 것은 아니므로 일부 pandas 호환 메서드를 사용할 때 다음과 같은 문제가 발생할 수 있습니다.
+순서 필요 오류
+일부 기능(예: DataFrame.head() 및 DataFrame.iloc 함수)에는 순서 지정이 필요합니다. 순서 지정이 필요한 기능 목록은 지원되는 Pandas API [https://cloud.google.com/python/docs/reference/bigframes/latest/supported_pandas_apis?hl=ko]의 순서 지정 필요 열을 참조하세요.
+객체에 순서가 없으면 다음과 같은 OrderRequiredError 메시지와 함께 작업이 실패합니다.
+OrderRequiredError: Op iloc requires an ordering. Use .sort_values or .sort_index to provide an ordering.
+오류 메시지에 설명된 대로 DataFrame.sort_values() [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.dataframe.DataFrame?hl=ko#bigframes_dataframe_DataFrame_sort_values] 메서드를 사용하여 순서를 지정하면 열을 기준으로 정렬할 수 있습니다. DataFrame.groupby() [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.dataframe.DataFrame?hl=ko#bigframes_dataframe_DataFrame_groupby] 작업과 같은 다른 작업은 키별로 그룹에 대한 총 순서를 암시적으로 제공합니다.
+순서 지정이 모든 행에 대해 완전히 안정적인 총 순서로 결정할 수 없는 경우 후속 작업에서 다음과 같은 AmbiguousWindowWarning 메시지로 경고를 표시할 수 있습니다.
+AmbiguousWindowWarning: Window ordering may be ambiguous, this can cause unstable results.
+워크로드에서 비결정론적 결과를 수용할 수 있거나 제공한 순서가 총 순서인지 수동으로 확인할 수 있는 경우 다음과 같이 AmbiguousWindowWarning 메시지를 필터링할 수 있습니다.
+import warnings
+
+import bigframes.exceptions
+
+warnings.simplefilter(
+    "ignore", category=bigframes.exceptions.AmbiguousWindowWarning
+)
+null 색인 오류
+일부 기능(예: DataFrame.unstack() 및 Series.interpolate() 속성)에는 색인이 필요합니다. 색인이 필요한 기능 목록은 지원되는 Pandas API [https://cloud.google.com/python/docs/reference/bigframes/latest/supported_pandas_apis?hl=ko]의 색인 필요 열을 참조하세요.
+부분 순서 지정 모드와 함께 색인이 필요한 작업을 사용하면 작업에서 다음과 같은 NullIndexError 메시지를 발생시킵니다.
+NullIndexError: DataFrame cannot perform interpolate as it has no index. Set an index using set_index.
+오류 메시지에 설명된 대로 DataFrame.set_index() [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.dataframe.DataFrame?hl=ko#bigframes_dataframe_DataFrame_set_index] 메서드를 사용하여 색일을 제공하면 열을 기준으로 정렬할 수 있습니다. DataFrame.groupby() [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.dataframe.DataFrame?hl=ko#bigframes_dataframe_DataFrame_groupby] 작업과 같은 다른 작업은 as_index=False 파라미터가 설정되지 않는 한 키별로 그룹에 대한 색인을 암시적으로 제공합니다.
+다음 단계
+BigQuery DataFrames 데이터 유형 시스템 [https://cloud.google.com/bigquery/docs/dataframes-data-types?hl=ko] 알아보기
+BigQuery DataFrames 세션 및 I/O [https://cloud.google.com/bigquery/docs/dataframes-sessions-io?hl=ko] 알아보기
+BigQuery DataFrames를 사용하여 그래프를 시각화 [https://cloud.google.com/bigquery/docs/dataframes-visualizations?hl=ko]하는 방법 알아보기
+Gemini로 BigQuery DataFrames 코드를 생성 [https://cloud.google.com/bigquery/docs/write-sql-gemini?hl=ko#dataframe]하는 방법 알아보기
+BigQuery DataFrames를 사용하여 PyPI의 패키지 다운로드를 분석 [https://github.com/googleapis/python-bigquery-dataframes/blob/main/notebooks/dataframes/pypi.ipynb]하는 방법 알아보기
+GitHub에서 BigQuery DataFrames 소스 코드 [https://github.com/googleapis/python-bigquery-dataframes], 샘플 노트북 [https://github.com/googleapis/python-bigquery-dataframes/tree/main/notebooks], 샘플 [https://github.com/googleapis/python-bigquery-dataframes/tree/main/samples/snippets] 살펴보기
+BigQuery DataFrames API 참조 [https://cloud.google.com/python/docs/reference/bigframes/latest/summary_overview?hl=ko] 살펴보기
+도움이 되었나요?
+의견 보내기

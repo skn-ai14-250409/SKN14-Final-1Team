@@ -1,0 +1,355 @@
+Source URL: https://cloud.google.com/bigquery/docs/pipe-syntax-guide
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+파이프 쿼리 구문 작업
+bookmark_border
+출시 노트
+이 페이지의 내용
+기본 구문 [https://cloud.google.com/bigquery/docs/pipe-syntax-guide?hl=ko#basic_syntax]
+표준 구문과의 주요 차이점 [https://cloud.google.com/bigquery/docs/pipe-syntax-guide?hl=ko#key_differences_from_standard_syntax]
+사용 사례 [https://cloud.google.com/bigquery/docs/pipe-syntax-guide?hl=ko#use_cases]
+파이프 구문의 추가 기능 [https://cloud.google.com/bigquery/docs/pipe-syntax-guide?hl=ko#additional_features_in_pipe_syntax]
+EXTEND 파이프 연산자 [https://cloud.google.com/bigquery/docs/pipe-syntax-guide?hl=ko#extend-pipe-operator]
+SET 파이프 연산자 [https://cloud.google.com/bigquery/docs/pipe-syntax-guide?hl=ko#set-pipe-operator]
+DROP 파이프 연산자 [https://cloud.google.com/bigquery/docs/pipe-syntax-guide?hl=ko#drop-pipe-operator]
+RENAME 파이프 연산자 [https://cloud.google.com/bigquery/docs/pipe-syntax-guide?hl=ko#rename-pipe-operator]
+파이프 쿼리 구문은 쿼리를 더 쉽게 읽고, 쓰고, 유지할 수 있도록 설계된 선형 쿼리 구조를 지원하는 GoogleSQL 확장 프로그램입니다. GoogleSQL을 작성하는 모든 곳에서 파이프 구문을 사용할 수 있습니다.
+파이프 구문은 기존 GoogleSQL 쿼리 구문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko] 또는 표준 구문과 동일한 작업(예: 선택, 집계 및 그룹화, 조인, 필터링)을 지원하지만 작업을 어떤 순서로든지 원하는 수만큼 적용할 수 있습니다. 파이프 구문의 선형 구조를 사용하면 쿼리 구문의 순서가 결과 테이블을 빌드하는 데 취해진 논리적 단계의 순서와 일치하도록 쿼리를 작성할 수 있습니다.
+파이프 구문을 사용하는 쿼리는 이에 상응하는 표준 구문 쿼리와 동일한 방식으로 가격이 책정되고 실행되며 최적화됩니다. 파이프 구문을 사용하여 쿼리를 작성할 때는 가이드라인에 따라 비용을 추정 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko]하고 쿼리 계산을 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko]하세요.
+표준 구문은 읽고, 쓰고, 유지하기가 어려울 수 있는 문제가 있습니다. 다음 표는 파이프 구문이 이러한 문제를 해결하는 방법을 보여줍니다.
+표준 구문 파이프 구문
+절은 특정 순서로 표시되어야 합니다. 파이프 연산자는 어떤 순서로든 적용할 수 있습니다.
+다단계 집계가 있는 쿼리와 같이 더 복잡한 쿼리에는 일반적으로 CTE 또는 중첩된 하위 쿼리가 필요합니다. 더 복잡한 쿼리는 일반적으로 쿼리 끝에 파이프 연산자를 추가하여 표현합니다.
+집계 중에 열은 SELECT, GROUP BY, ORDER BY 절에서 반복됩니다. 열은 집계당 한 번만 나열할 수 있습니다.
+파이프 구문으로 복잡한 쿼리를 단계별로 빌드하려면 파이프 구문을 사용하여 데이터 분석 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko]을 참고하세요. 전체 구문 세부정보는 파이프 쿼리 구문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#pipe_query_syntax] 참고 문서를 참조하세요.
+기본 구문
+파이프 구문에서 쿼리는 표준 SQL 쿼리 또는 FROM 절로 시작합니다. 예를 들어 FROM MyTable와 같은 독립형 FROM 절은 유효한 파이프 구문입니다. 그러면 표준 SQL 쿼리의 결과 또는 FROM 절의 테이블을 파이프 기호 |>에 입력으로 전달하고 그 뒤에 파이프 연산자 이름과 해당 연산자의 인수를 차례로 추가할 수 있습니다. 파이프 연산자는 어떤 방식으로든 테이블을 변환하며, 이 변환의 결과는 다른 파이프 연산자에 전달될 수 있습니다.
+쿼리에서 파이프 연산자를 원하는 만큼 사용하여 열을 선택, 정렬, 필터링, 조인 또는 집계할 수 있습니다. 파이프 연산자의 이름은 표준 구문의 연산자와 일치하며 일반적으로 동작도 동일합니다. 표준 구문과 파이프 구문의 주요 차이점은 쿼리를 구성하는 방식입니다. 쿼리로 표현되는 로직이 더 복잡해지더라도 깊이 중첩된 하위 쿼리를 사용하지 않고도 파이프 연산자의 선형 시퀀스로 쿼리를 표현할 수 있으므로 더 쉽게 읽고 이해할 수 있습니다.
+파이프 구문에는 다음과 같은 주요 특징이 있습니다.
+파이프 구문의 각 파이프 연산자는 파이프 기호 |>, 연산자 이름, 인수로 구성됩니다.
+|> operator_name argument_list
+파이프 연산자는 유효한 쿼리 끝에 추가할 수 있습니다.
+파이프 연산자는 어떤 순서로든, 몇 번이든 적용할 수 있습니다.
+파이프 구문은 쿼리, 뷰, 테이블 값 함수, 기타 컨텍스트 등 표준 구문이 지원되는 모든 위치에서 작동합니다.
+파이프 구문은 동일한 쿼리에서 표준 구문과 혼합하여 사용될 수 있습니다. 예를 들어 하위 쿼리는 상위 쿼리와 다른 구문을 사용할 수 있습니다.
+파이프 연산자는 파이프 앞에 있는 테이블에 있는 모든 별칭을 볼 수 있습니다.
+쿼리는 FROM 절로 시작 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#from_queries]할 수 있으며, 원하는 경우 FROM 절 뒤에 파이프 연산자를 추가할 수 있습니다.
+다음 테이블을 참조하세요.
+CREATE OR REPLACE TABLE mydataset.Produce AS (
+  SELECT 'apples' AS item, 2 AS sales, 'fruit' AS category
+  UNION ALL
+  SELECT 'apples' AS item, 7 AS sales, 'fruit' AS category
+  UNION ALL
+  SELECT 'carrots' AS item, 0 AS sales, 'vegetable' AS category
+  UNION ALL
+  SELECT 'bananas' AS item, 15 AS sales, 'fruit' AS category);
+다음 쿼리에는 각각 쿼리를 순차적으로 빌드하는 방법을 보여주는 유효한 파이프 구문이 포함되어 있습니다.
+쿼리는 FROM 절로 시작 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#from_queries]할 수 있으며 파이프 기호를 포함할 필요가 없습니다.
+-- View the table.
+FROM mydataset.Produce;
+
+/*---------+-------+-----------+
+ | item    | sales | category  |
+ +---------+-------+-----------+
+ | apples  | 7     | fruit     |
+ | apples  | 2     | fruit     |
+ | carrots | 0     | vegetable |
+ | bananas | 15    | fruit     |
+ +---------+-------+-----------*/
+WHERE 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#where_pipe_operator]를 사용하여 필터링할 수 있습니다.
+-- Filter items with no sales.
+FROM mydataset.Produce
+|> WHERE sales > 0;
+
+/*---------+-------+-----------+
+ | item    | sales | category  |
+ +---------+-------+-----------+
+ | apples  | 7     | fruit     |
+ | apples  | 2     | fruit     |
+ | bananas | 15    | fruit     |
+ +---------+-------+-----------*/
+집계를 실행하려면 AGGREGATE 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#aggregate_pipe_operator], 임의 개수의 집계 함수, GROUP BY 절을 차례로 사용합니다. GROUP BY 절은 AGGREGATE 파이프 연산자의 일부이며 파이프 기호(|>)로 구분되지 않습니다.
+-- Compute total sales by item.
+FROM mydataset.Produce
+|> WHERE sales > 0
+|> AGGREGATE SUM(sales) AS total_sales, COUNT(*) AS num_sales
+   GROUP BY item;
+
+/*---------+-------------+-----------+
+ | item    | total_sales | num_sales |
+ +---------+-------------+-----------+
+ | apples  | 9           | 2         |
+ | bananas | 15          | 1         |
+ +---------+-------------+-----------*/
+이제 각 항목의 ID가 포함된 다음 테이블이 있다고 가정해 보겠습니다.
+CREATE OR REPLACE TABLE mydataset.ItemData AS (
+  SELECT 'apples' AS item, '123' AS id
+  UNION ALL
+  SELECT 'bananas' AS item, '456' AS id
+  UNION ALL
+  SELECT 'carrots' AS item, '789' AS id
+);
+JOIN 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#join_pipe_operator]를 사용하여 이전 쿼리의 결과를 이 테이블과 조인하여 각 항목의 ID를 포함할 수 있습니다.
+FROM mydataset.Produce
+|> WHERE sales > 0
+|> AGGREGATE SUM(sales) AS total_sales, COUNT(*) AS num_sales
+   GROUP BY item
+|> JOIN mydataset.ItemData USING(item);
+
+/*---------+-------------+-----------+-----+
+ | item    | total_sales | num_sales | id  |
+ +---------+-------------+-----------+-----+
+ | apples  | 9           | 2         | 123 |
+ | bananas | 15          | 1         | 456 |
+ +---------+-------------+-----------+-----*/
+표준 구문과의 주요 차이점
+파이프 구문은 다음과 같은 점에서 표준 구문과 다릅니다.
+쿼리는 FROM 절로 시작 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#from_queries]할 수 있습니다.
+SELECT 파이프 연산자는 집계를 실행하지 않습니다. 대신 AGGREGATE 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#aggregate_pipe_operator]를 사용해야 합니다.
+필터링은 항상 어디서나 적용할 수 있는 WHERE 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#where_pipe_operator]를 사용하여 실행됩니다. HAVING 및 QUALIFY를 대체하는 WHERE 파이프 연산자는 집계 또는 윈도우 함수의 결과를 필터링할 수 있습니다.
+자세한 내용은 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#pipe_operators]의 전체 목록을 참조하세요.
+사용 사례
+파이프 구문의 일반적인 사용 사례는 다음과 같습니다.
+임시 분석 및 점진적 쿼리 빌드: 논리적 작업 순서를 통해 쿼리를 더 쉽게 작성하고 디버그할 수 있습니다. 파이프 기호 |>까지의 쿼리 프리픽스는 유효한 쿼리이며, 이를 통해 긴 쿼리의 중간 결과를 볼 수 있습니다. 생산성 향상으로 조직 전반의 개발 프로세스를 가속화할 수 있습니다.
+로그 분석: 로그 분석 사용자들 사이에서 인기 있는 다른 유형의 파이프와 유사한 구문이 있습니다. 파이프 구문은 사용자에게 로그 애널리틱스 [https://cloud.google.com/logging/docs/log-analytics?hl=ko#analytics] 및 BigQuery 온보딩을 간소화하는 익숙한 구조를 제공합니다.
+파이프 구문의 추가 기능
+몇 가지 예외를 제외하고 파이프 구문은 표준 구문이 동일한 구문으로 지원하는 모든 연산자를 지원합니다. 또한 파이프 구문은 추가 파이프 연산자를 도입하고 집계 및 조인에 수정된 구문을 사용합니다. 다음 섹션에서는 이러한 연산자를 설명합니다. 지원되는 모든 연산자는 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#pipe_operators]의 전체 목록을 참고하세요.
+EXTEND 파이프 연산자
+EXTEND 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#extend_pipe_operator]를 사용하면 계산된 열을 현재 테이블에 추가할 수 있습니다. EXTEND 파이프 연산자는 SELECT *, new_column 문에 비슷하지만 열 별칭을 참조할 때 더 유연합니다.
+다음 테이블에는 각 사람의 시험 점수 2개가 포함되어 있습니다.
+CREATE OR REPLACE TABLE mydataset.Scores AS (
+  SELECT 'Alex' AS student, 9 AS score1, 10 AS score2, 10 AS points_possible
+  UNION ALL
+  SELECT 'Dana' AS student, 5 AS score1, 7 AS score2, 10 AS points_possible);
+
+/*---------+--------+--------+-----------------+
+ | student | score1 | score2 | points_possible |
+ +---------+--------+--------+-----------------+
+ | Alex    | 9      | 10     | 10              |
+ | Dana    | 5      | 7      | 10              |
+ +---------+--------+--------+-----------------*/
+각 학생이 시험에서 받은 평균 원시 점수와 평균 비율 점수를 계산하려고 한다고 가정해 보겠습니다. 표준 구문에서는 SELECT 문에 있는 이후 열이 이전 별칭을 볼 수 없습니다. 하위 쿼리를 피하려면 평균 표현식을 반복해야 합니다.
+SELECT student,
+  (score1 + score2) / 2 AS average_score,
+  (score1 + score2) / 2 / points_possible AS average_percent
+FROM mydataset.Scores;
+EXTEND 파이프 연산자는 이전에 사용된 별칭을 참조할 수 있으므로 쿼리를 더 읽기 쉽게 만들고 오류가 발생할 가능성을 줄일 수 있습니다.
+FROM mydataset.Scores
+|> EXTEND (score1 + score2) / 2 AS average_score
+|> EXTEND average_score / points_possible AS average_percent
+|> SELECT student, average_score, average_percent;
+
+/*---------+---------------+-----------------+
+ | student | average_score | average_percent |
+ +---------+---------------+-----------------+
+ | Alex    | 9.5           | .95             |
+ | Dana    | 6.0           | 0.6             |
+ +---------+---------------+-----------------*/
+SET 파이프 연산자
+SET 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#set_pipe_operator]를 사용하면 현재 테이블의 열 값을 바꿀 수 있습니다. SET 파이프 연산자는 SELECT * REPLACE (expression AS column) 문과 유사합니다. 열 이름을 테이블 별칭으로 지정하여 원래 값을 참조할 수 있습니다.
+FROM (SELECT 3 AS x, 5 AS y)
+|> SET x = 2 * x;
+
+/*---+---+
+ | x | y |
+ +---+---+
+ | 6 | 5 |
+ +---+---*/
+DROP 파이프 연산자
+DROP 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#drop_pipe_operator]를 사용하면 현재 테이블에서 열을 삭제할 수 있습니다. DROP 파이프 연산자는 SELECT * EXCEPT(column) 문과 유사합니다. 열을 삭제한 후에도 테이블 별칭으로 열 이름을 지정하여 원래 값을 계속 참조할 수 있습니다.
+FROM (SELECT 1 AS x, 2 AS y) AS t
+|> DROP x;
+
+/*---+
+ | y |
+ +---+
+ | 2 |
+ +---*/
+RENAME 파이프 연산자
+RENAME 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#rename_pipe_operator]를 사용하면 현재 테이블의 열 이름을 바꿀 수 있습니다. RENAME 파이프 연산자는 SELECT * EXCEPT(old_column), old_column AS new_column 문과 유사합니다.
+FROM (SELECT 1 AS x, 2 AS y, 3 AS z) AS t
+|> RENAME y AS w;
+
+/*---+---+---+
+ | x | w | z |
+ +---+---+---+
+ | 1 | 2 | 3 |
+ +---+---+---*/
+AGGREGATE 파이프 연산자
+파이프 구문에서 집계를 실행하려면 AGGREGATE 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#aggregate_pipe_operator], 임의 개수의 집계 함수, GROUP BY 절을 차례로 사용합니다. SELECT 절에서 열을 반복할 필요는 없습니다.
+이 섹션의 예시에서는 Produce 테이블을 사용합니다.
+CREATE OR REPLACE TABLE mydataset.Produce AS (
+  SELECT 'apples' AS item, 2 AS sales, 'fruit' AS category
+  UNION ALL
+  SELECT 'apples' AS item, 7 AS sales, 'fruit' AS category
+  UNION ALL
+  SELECT 'carrots' AS item, 0 AS sales, 'vegetable' AS category
+  UNION ALL
+  SELECT 'bananas' AS item, 15 AS sales, 'fruit' AS category);
+
+/*---------+-------+-----------+
+ | item    | sales | category  |
+ +---------+-------+-----------+
+ | apples  | 7     | fruit     |
+ | apples  | 2     | fruit     |
+ | carrots | 0     | vegetable |
+ | bananas | 15    | fruit     |
+ +---------+-------+-----------*/
+FROM mydataset.Produce
+|> AGGREGATE SUM(sales) AS total, COUNT(*) AS num_records
+   GROUP BY item, category;
+
+/*---------+-----------+-------+-------------+
+ | item    | category  | total | num_records |
+ +---------+-----------+-------+-------------+
+ | apples  | fruit     | 9     | 2           |
+ | carrots | vegetable | 0     | 1           |
+ | bananas | fruit     | 15    | 1           |
+ +---------+-----------+-------+-------------*/
+집계 직후에 결과를 정렬할 준비가 되었다면 GROUP BY 절에서 정렬하려는 열을 ASC 또는 DESC로 표시할 수 있습니다. 표시되지 않은 열은 정렬되지 않습니다.
+모든 열을 정렬하려면 GROUP BY 절을 기본적으로 모든 열을 오름차순으로 정렬하는 GROUP AND ORDER BY 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#shorthand_order_pipe_syntax]로 대체하면 됩니다. 내림차순으로 정렬하려는 열 뒤에 DESC를 지정할 수 있습니다. 예를 들어 다음 세 쿼리는 동일합니다.
+-- Use a separate ORDER BY clause.
+FROM mydataset.Produce
+|> AGGREGATE SUM(sales) AS total, COUNT(*) AS num_records
+   GROUP BY category, item
+|> ORDER BY category DESC, item;
+-- Explicitly mark how to order columns in the GROUP BY clause.
+FROM mydataset.Produce
+|> AGGREGATE SUM(sales) AS total, COUNT(*) AS num_records
+   GROUP BY category DESC, item ASC;
+-- Only mark descending columns in the GROUP AND ORDER BY clause.
+FROM mydataset.Produce
+|> AGGREGATE SUM(sales) AS total, COUNT(*) AS num_records
+   GROUP AND ORDER BY category DESC, item;
+GROUP AND ORDER BY 절을 사용하면 두 곳에서 열 이름을 반복하지 않아도 됩니다.
+전체 테이블 집계를 수행하려면 GROUP BY()를 사용하거나 GROUP BY 절을 완전히 생략합니다.
+FROM mydataset.Produce
+|> AGGREGATE SUM(sales) AS total, COUNT(*) AS num_records;
+
+/*-------+-------------+
+ | total | num_records |
+ +-------+-------------+
+ | 24    | 4           |
+ +-------+-------------*/
+JOIN 파이프 연산자
+JOIN 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#join_pipe_operator]를 사용하면 현재 테이블을 다른 테이블과 조인할 수 있으며 CROSS, INNER, LEFT, RIGHT, FULL을 비롯한 표준 조인 작업 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#join_types]을 지원합니다.
+다음 예시에서는 Produce 및 ItemData 테이블을 참조합니다.
+CREATE OR REPLACE TABLE mydataset.Produce AS (
+  SELECT 'apples' AS item, 2 AS sales, 'fruit' AS category
+  UNION ALL
+  SELECT 'apples' AS item, 7 AS sales, 'fruit' AS category
+  UNION ALL
+  SELECT 'carrots' AS item, 0 AS sales, 'vegetable' AS category
+  UNION ALL
+  SELECT 'bananas' AS item, 15 AS sales, 'fruit' AS category);
+CREATE OR REPLACE TABLE mydataset.ItemData AS (
+  SELECT 'apples' AS item, '123' AS id
+  UNION ALL
+  SELECT 'bananas' AS item, '456' AS id
+  UNION ALL
+  SELECT 'carrots' AS item, '789' AS id
+);
+다음 예시에서는 USING 절을 사용하고 열 모호성을 방지합니다.
+FROM mydataset.Produce
+|> JOIN mydataset.ItemData USING(item)
+|> WHERE item = 'apples';
+
+/*--------+-------+----------+-----+
+ | item   | sales | category | id  |
+ +--------+-------+----------+-----+
+ | apples | 2     | fruit    | 123 |
+ | apples | 7     | fruit    | 123 |
+ +--------+-------+----------+-----*/
+ON 절의 열을 구분하는 등 현재 테이블의 열을 참조하려면 AS 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#as_pipe_operator]를 사용하여 현재 테이블의 별칭을 지정해야 합니다. 원하는 경우 조인된 테이블의 별칭을 지정할 수 있습니다. 후속 파이프 연산자 뒤에 두 별칭을 모두 참조할 수 있습니다.
+FROM mydataset.Produce
+|> AS produce_table
+|> JOIN mydataset.ItemData AS item_table
+   ON produce_table.item = item_table.item
+|> WHERE produce_table.item = 'bananas'
+|> SELECT item_table.item, sales, id;
+
+/*---------+-------+-----+
+ | item    | sales | id  |
+ +---------+-------+-----+
+ | bananas | 15    | 123 |
+ +---------+-------+-----*/
+조인의 오른쪽은 조인의 왼쪽을 볼 수 없으므로 현재 테이블을 자체적으로 조인할 수 없습니다. 예를 들어 다음 쿼리는 실패합니다.
+-- This query doesn't work.
+FROM mydataset.Produce
+|> AS produce_table
+|> JOIN produce_table AS produce_table_2 USING(item);
+수정된 테이블로 셀프 조인을 실행하려면 WITH 절 내에서 공통 테이블 표현식(CTE)을 사용하면 됩니다.
+WITH cte_table AS (
+  FROM mydataset.Produce
+  |> WHERE item = 'carrots'
+)
+FROM cte_table
+|> JOIN cte_table AS cte_table_2 USING(item);
+예
+고객 주문에 관한 정보가 포함된 다음 표를 살펴보세요.
+CREATE OR REPLACE TABLE mydataset.CustomerOrders AS (
+  SELECT 1 AS customer_id, 100 AS order_id, 'WA' AS state, 5 AS cost, 'clothing' AS item_type
+  UNION ALL
+  SELECT 1 AS customer_id, 101 AS order_id, 'WA' AS state, 20 AS cost, 'clothing' AS item_type
+  UNION ALL
+  SELECT 1 AS customer_id, 102 AS order_id, 'WA' AS state, 3 AS cost, 'food' AS item_type
+  UNION ALL
+  SELECT 2 AS customer_id, 103 AS order_id, 'NY' AS state, 16 AS cost, 'clothing' AS item_type
+  UNION ALL
+  SELECT 2 AS customer_id, 104 AS order_id, 'NY' AS state, 22 AS cost, 'housewares' AS item_type
+  UNION ALL
+  SELECT 2 AS customer_id, 104 AS order_id, 'WA' AS state, 45 AS cost, 'clothing' AS item_type
+  UNION ALL
+  SELECT 3 AS customer_id, 105 AS order_id, 'MI' AS state, 29 AS cost, 'clothing' AS item_type);
+주 및 상품 유형별로 재구매 고객이 지출한 평균 금액을 알고 싶다고 가정해 보겠습니다. 다음과 같이 쿼리를 작성할 수 있습니다.
+SELECT state, item_type, AVG(total_cost) AS average
+FROM
+  (
+    SELECT
+      SUM(cost) AS total_cost,
+      customer_id,
+      state,
+      item_type,
+      COUNT(*) OVER (PARTITION BY customer_id) AS num_orders
+    FROM mydataset.CustomerOrders
+    GROUP BY customer_id, state, item_type
+    QUALIFY num_orders > 1
+  )
+GROUP BY state, item_type
+ORDER BY state DESC, item_type ASC;
+쿼리를 위에서 아래로 읽으면 total_cost 열이 정의되기 전에 열이 발생합니다. 하위 쿼리 내에서도 열의 이름을 읽은 후에 열이 어느 테이블에서 가져온 것인지 확인합니다.
+이 쿼리를 이해하려면 안에서 밖으로 읽어야 합니다. state 및 item_type 열은 SELECT 및 GROUP BY 절에서 여러 번 반복된 후 ORDER BY 절에서 다시 반복됩니다.
+다음과 같은 등가 쿼리는 파이프 구문을 사용하여 작성됩니다.
+FROM mydataset.CustomerOrders
+|> AGGREGATE SUM(cost) AS total_cost, GROUP BY customer_id, state, item_type
+|> EXTEND COUNT(*) OVER (PARTITION BY customer_id) AS num_orders
+|> WHERE num_orders > 1
+|> AGGREGATE AVG(total_cost) AS average GROUP BY state DESC, item_type ASC;
+
+/*-------+------------+---------+
+ | state | item_type  | average |
+ +-------+------------+---------+
+ | WA    | clothing   | 35.0    |
+ | WA    | food       | 3.0     |
+ | NY    | clothing   | 16.0    |
+ | NY    | housewares | 22.0    |
+ +-------+------------+---------*/
+파이프 구문을 사용하면 원래 문제를 해결하기 위해 생각해 볼 수 있는 논리적 단계를 따라 쿼리를 작성할 수 있습니다. 쿼리의 구문 라인은 다음과 같은 논리적 단계에 해당합니다.
+고객 주문 테이블부터 시작합니다.
+주별로 각 고객이 각 유형의 상품에 지출한 금액을 확인합니다.
+각 고객의 주문 수를 집계합니다.
+결과를 재구매 고객으로 제한합니다.
+재구매 고객이 주별 및 상품 유형별로 지출하는 평균 금액을 확인합니다.
+제한사항
+파이프 연산자 뒤의 SELECT 문에 개인 정보 차등 보호 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#dp_clause]을 포함할 수 없습니다. 대신 표준 구문에서 개인 정보 차등 보호 절을 사용하고 쿼리 뒤에 파이프 연산자를 적용합니다.
+다음 단계
+파이프 구문을 사용하여 데이터 분석 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko]
+파이프 쿼리 구문 참조 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#pipe_query_syntax]
+표준 쿼리 구문 참조 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko]
+파이프 구문에 관한 VLDB 2024 [https://research.google/pubs/sql-has-problems-we-can-fix-them-pipe-syntax-in-sql/?hl=ko] 컨퍼런스 논문
+도움이 되었나요?
+의견 보내기

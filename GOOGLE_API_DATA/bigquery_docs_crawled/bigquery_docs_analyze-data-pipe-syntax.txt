@@ -1,0 +1,263 @@
+Source URL: https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#objectives]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#before_you_begin]
+테이블 데이터 보기 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#view_table_data]
+열 추가 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#add_columns]
+일일 데이터 집계 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#aggregate_daily_data]
+파이프 구문을 사용하여 데이터 분석
+bookmark_border
+이 튜토리얼에서는 파이프 구문을 사용하여 데이터를 분석하는 쿼리를 작성하는 방법을 보여줍니다.
+파이프 구문은 쿼리를 더 쉽게 읽고, 쓰고, 유지할 수 있도록 설계된 선형 쿼리 구조를 지원하는 GoogleSQL 확장 프로그램입니다. 파이프 구문은 파이프 기호 |>, 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#pipe_operators] 이름, 인수로 구성됩니다. 자세한 내용은 다음 리소스를 참조하세요.
+파이프 구문에 대한 소개는 파이프 쿼리 구문 사용 [https://cloud.google.com/bigquery/docs/pipe-syntax-guide?hl=ko]을 참고하세요.
+전체 구문 세부정보는 파이프 쿼리 구문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko] 참고 문서를 참조하세요.
+이 튜토리얼에서는 자전거 여행에 관한 데이터가 포함된 공개 bigquery-public-data.austin_bikeshare.bikeshare_trips 테이블 [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=austin_bikeshare&%3Bt=bikeshare_trips&%3Bpage=table&hl=ko]을 사용하여 파이프 구문으로 복잡한 쿼리를 빌드합니다.
+목표
+FROM 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#from_queries]로 쿼리를 시작하여 테이블 데이터를 확인합니다.
+EXTEND 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#extend_pipe_operator]를 사용하여 열을 추가합니다.
+AGGREGATE 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#extend_pipe_operator]를 사용하여 일별 및 주별로 데이터를 집계합니다.
+CROSS JOIN 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#join_pipe_operator]를 사용하여 슬라이딩 윈도우에서 데이터를 집계합니다.
+WHERE 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#where_pipe_operator]를 사용하여 데이터를 필터링합니다.
+다단계 집계를 실행할 때 파이프 구문의 선형 쿼리 구조를 표준 구문의 중첩된 쿼리 구조와 비교합니다.
+시작하기 전에
+BigQuery 공개 데이터 세트 사용을 시작하려면 프로젝트를 만들거나 선택해야 합니다. 매달 처리되는 데이터 중 최초 1TB는 무료이므로 결제를 사용 설정하지 않고 공개 데이터세트의 쿼리를 시작할 수 있습니다. 데이터 처리량이 무료 등급 [https://cloud.google.com/bigquery/pricing?hl=ko#free-tier]을 초과하면 결제 기능도 사용 설정해야 합니다.
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery는 새 프로젝트에서 자동으로 사용 설정됩니다. 기존 프로젝트에서 BigQuery를 활성화하려면 다음을 수행합니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+쿼리를 실행하는 다양한 방법에 대한 자세한 내용은 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko]을 참고하세요.
+테이블 데이터 보기
+bikeshare_trips 테이블에서 모든 데이터를 가져오려면 다음 쿼리를 실행합니다.
+--- 탭: 파이프 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%8C%8C%EC%9D%B4%ED%94%84-%EA%B5%AC%EB%AC%B8] ---
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`;
+
+--- 탭: 표준 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%91%9C%EC%A4%80-%EA%B5%AC%EB%AC%B8] ---
+SELECT *
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`;
+파이프 구문에서 쿼리는 SELECT 절 없이 FROM 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#from_queries]로 시작하여 표 결과를 반환할 수 있습니다.
+결과는 다음과 비슷합니다.
++----------+-----------------+---------+-----------+-------------------------+-----+
+| trip_id  | subscriber_type | bike_id | bike_type | start_time              | ... |
++----------+-----------------+---------+-----------+-------------------------+-----+
+| 28875008 | Pay-as-you-ride | 18181   | electric  | 2023-02-12 12:46:32 UTC | ... |
+| 28735401 | Explorer        | 214     | classic   | 2023-01-13 12:01:45 UTC | ... |
+| 29381980 | Local365        | 21803   | electric  | 2023-04-20 08:43:46 UTC | ... |
+| ...      | ...             | ...     | ...       | ...                     | ... |
++----------+-----------------+---------+-----------+-------------------------+-----+
+열 추가
+bikeshare_trips 테이블에서 start_time 열은 타임스탬프이지만 여행 날짜만 표시하는 열을 추가할 수 있습니다. 파이프 구문에서 열을 추가하려면 EXTEND 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#extend_pipe_operator]를 사용합니다.
+--- 탭: 파이프 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%8C%8C%EC%9D%B4%ED%94%84-%EA%B5%AC%EB%AC%B8] ---
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+|> EXTEND CAST(start_time AS DATE) AS date;
+
+--- 탭: 표준 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%91%9C%EC%A4%80-%EA%B5%AC%EB%AC%B8] ---
+SELECT *, CAST(start_time AS DATE) AS date
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`;
+결과는 다음과 비슷합니다.
++----------+-----------------+---------+-----------+-------------------------+------------+-----+
+| trip_id  | subscriber_type | bike_id | bike_type | start_time              | date       | ... |
++----------+-----------------+---------+-----------+-------------------------+------------+-----+
+| 28875008 | Pay-as-you-ride | 18181   | electric  | 2023-02-12 12:46:32 UTC | 2023-02-12 | ... |
+| 28735401 | Explorer        | 214     | classic   | 2023-01-13 12:01:45 UTC | 2023-01-13 | ... |
+| 29381980 | Local365        | 21803   | electric  | 2023-04-20 08:43:46 UTC | 2023-04-20 | ... |
+| ...      | ...             | ...     | ...       | ...                     | ...        | ... |
++----------+-----------------+---------+-----------+-------------------------+------------+-----+
+일일 데이터 집계
+날짜별로 그룹화하여 일별 총 운행 횟수와 사용된 자전거 수를 확인할 수 있습니다.
+COUNT 함수와 함께 AGGREGATE 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#aggregate_pipe_operator]를 사용하여 운행 횟수와 사용된 자전거 수를 찾습니다.
+GROUP BY 절을 사용하여 결과를 날짜별로 그룹화합니다.
+--- 탭: 파이프 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%8C%8C%EC%9D%B4%ED%94%84-%EA%B5%AC%EB%AC%B8] ---
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+|> EXTEND CAST(start_time AS DATE) AS date
+|> AGGREGATE
+     COUNT(*) AS trips,
+     COUNT(DISTINCT bike_id) AS distinct_bikes
+   GROUP BY date;
+
+--- 탭: 표준 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%91%9C%EC%A4%80-%EA%B5%AC%EB%AC%B8] ---
+SELECT
+  CAST(start_time AS DATE) AS date,
+  COUNT(*) AS trips,
+  COUNT(DISTINCT bike_id) AS distinct_bikes
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+GROUP BY date;
+결과는 다음과 비슷합니다.
++------------+-------+----------------+
+| date       | trips | distinct_bikes |
++------------+-------+----------------+
+| 2023-04-20 | 841   | 197            |
+| 2023-01-27 | 763   | 148            |
+| 2023-06-12 | 562   | 202            |
+| ...        | ...   | ...            |
++------------+-------+----------------+
+결과 정렬
+date 열을 기준으로 결과를 내림차순으로 정렬하려면 GROUP BY 절에 DESC [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#shorthand_order_pipe_syntax] 접미사를 추가합니다.
+--- 탭: 파이프 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%8C%8C%EC%9D%B4%ED%94%84-%EA%B5%AC%EB%AC%B8] ---
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+|> EXTEND CAST(start_time AS DATE) AS date
+|> AGGREGATE
+     COUNT(*) AS trips,
+     COUNT(DISTINCT bike_id) AS distinct_bikes
+   GROUP BY date DESC;
+
+--- 탭: 표준 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%91%9C%EC%A4%80-%EA%B5%AC%EB%AC%B8] ---
+SELECT
+  CAST(start_time AS DATE) AS date,
+  COUNT(*) AS trips,
+  COUNT(DISTINCT bike_id) AS distinct_bikes
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+GROUP BY date
+ORDER BY date DESC;
+결과는 다음과 비슷합니다.
++------------+-------+----------------+
+| date       | trips | distinct_bikes |
++------------+-------+----------------+
+| 2024-06-30 | 331   | 90             |
+| 2024-06-29 | 395   | 123            |
+| 2024-06-28 | 437   | 137            |
+| ...        | ...   | ...            |
++------------+-------+----------------+
+파이프 구문에서는 ORDER BY 파이프 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#order_by_pipe_operator]를 사용하지 않고 GROUP BY 절에 정렬 접미사를 직접 추가할 수 있습니다. GROUP BY 절에 접미사를 추가하는 것은 파이프 구문이 지원하는 여러 선택적 AGGREGATE를 사용한 약식 순서 지정 기능 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko#shorthand_order_pipe_syntax] 중 하나입니다. 표준 문법에서는 이 작업이 불가능하며 정렬을 위해 ORDER BY 절을 사용해야 합니다.
+주간 데이터 집계
+이제 매일 사용된 자전거 수에 관한 데이터가 있으므로 쿼리를 기반으로 각 7일 기간 동안 사용된 고유 자전거 수를 찾을 수 있습니다.
+일 대신 주를 표시하도록 테이블의 행을 업데이트하려면 GROUP BY 절에서 DATE_TRUNC 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc]를 사용하고 세부사항을 WEEK로 설정합니다.
+--- 탭: 파이프 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%8C%8C%EC%9D%B4%ED%94%84-%EA%B5%AC%EB%AC%B8] ---
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+|> EXTEND CAST(start_time AS DATE) AS date
+|> AGGREGATE
+    COUNT(*) AS trips,
+    COUNT(DISTINCT bike_id) AS distinct_bikes,
+GROUP BY DATE_TRUNC(date, WEEK) AS date DESC;
+
+--- 탭: 표준 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%91%9C%EC%A4%80-%EA%B5%AC%EB%AC%B8] ---
+SELECT
+  DATE_TRUNC(CAST(start_time AS DATE), WEEK) AS date,
+  COUNT(*) AS trips,
+  COUNT(DISTINCT bike_id) AS distinct_bikes,
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+GROUP BY date
+ORDER BY date DESC;
+결과는 다음과 비슷합니다.
++------------+-------+----------------+
+| date       | trips | distinct_bikes |
++------------+-------+----------------+
+| 2024-06-30 | 331   | 90             |
+| 2024-06-23 | 3206  | 213            |
+| 2024-06-16 | 3441  | 212            |
+| ...        | ...   | ...            |
++------------+-------+----------------+
+슬라이딩 윈도우에서 집계
+이전 섹션의 결과에는 시작일과 종료일 사이의 고정 윈도우(예: 2024-06-23~2024-06-29)의 이동이 표시됩니다. 대신 매일 시간이 지남에 따라 이동하는 7일 기간 동안 슬라이딩 윈도우에서 이동을 확인하는 것이 좋습니다. 즉, 특정 날짜에 대해 다음 주에 이루어진 운행 수와 사용된 자전거 수를 알고 싶을 수 있습니다.
+데이터에 슬라이딩 윈도우를 적용하려면 먼저 각 운행을 시작일로부터 6일 더 활성으로 복사합니다. 그런 다음 DATE_ADD 함수를 사용하여 활성 상태인 날짜를 계산합니다. 마지막으로 활성 상태인 각 날짜의 운행 및 자전거 ID를 집계합니다.
+데이터를 앞으로 복사하려면 GENERATE_ARRAY 함수와 교차 조인을 사용하세요.
+--- 탭: 파이프 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%8C%8C%EC%9D%B4%ED%94%84-%EA%B5%AC%EB%AC%B8] ---
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+|> EXTEND CAST(start_time AS DATE) AS date
+|> CROSS JOIN UNNEST(GENERATE_ARRAY(0, 6)) AS diff_days;
+
+--- 탭: 표준 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%91%9C%EC%A4%80-%EA%B5%AC%EB%AC%B8] ---
+SELECT *, CAST(start_time AS DATE) AS date
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+CROSS JOIN UNNEST(GENERATE_ARRAY(0, 6)) AS diff_days;
+GENERATE_ARRAY 함수는 7개의 요소(0~6)가 있는 배열을 만듭니다. CROSS JOIN UNNEST 작업은 각 행에 대해 0에서 6까지의 배열 요소 값 중 하나가 포함된 새 diff_days 열과 함께 각 행의 사본을 7개 만듭니다. diff_days 값을 원래 날짜에 대한 조정으로 사용하여 기간을 원래 날짜에서 최대 7일 후까지 해당 일수만큼 앞으로 이동할 수 있습니다.
+운행의 계산된 활성 날짜를 확인하려면 DATE_ADD 함수와 함께 EXTEND 파이프 연산자를 사용하여 시작 날짜와 diff_days 열의 값이 포함된 active_date 열을 만듭니다.
+--- 탭: 파이프 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%8C%8C%EC%9D%B4%ED%94%84-%EA%B5%AC%EB%AC%B8] ---
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+|> EXTEND CAST(start_time AS DATE) AS date
+|> CROSS JOIN UNNEST(GENERATE_ARRAY(0, 6)) AS diff_days
+|> EXTEND DATE_ADD(date, INTERVAL diff_days DAY) AS active_date;
+
+--- 탭: 표준 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%91%9C%EC%A4%80-%EA%B5%AC%EB%AC%B8] ---
+SELECT *, DATE_ADD(date, INTERVAL diff_days DAY) AS active_date
+FROM (
+  SELECT *, CAST(start_time AS DATE) AS date
+  FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+  CROSS JOIN UNNEST(GENERATE_ARRAY(0, 6)) AS diff_days)
+예를 들어 2024-05-20에 시작된 운행은 2024-05-26까지 매일 활성 상태로 간주됩니다.
+마지막으로, 운행 ID와 자전거 ID를 집계하고 active_date별로 그룹화합니다.
+--- 탭: 파이프 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%8C%8C%EC%9D%B4%ED%94%84-%EA%B5%AC%EB%AC%B8] ---
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+|> EXTEND CAST(start_time AS DATE) AS date
+|> CROSS JOIN UNNEST(GENERATE_ARRAY(0, 6)) AS diff_days
+|> EXTEND DATE_ADD(date, INTERVAL diff_days DAY) AS active_date
+|> AGGREGATE COUNT(DISTINCT bike_id) AS active_7d_bikes,
+            COUNT(trip_id) AS active_7d_trips
+GROUP BY active_date DESC;
+
+--- 탭: 표준 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%91%9C%EC%A4%80-%EA%B5%AC%EB%AC%B8] ---
+SELECT
+  DATE_ADD(date, INTERVAL diff_days DAY) AS active_date,
+  COUNT(DISTINCT bike_id) AS active_7d_bikes,
+  COUNT(trip_id) AS active_7d_trips
+FROM (
+  SELECT *, CAST(start_time AS DATE) AS date
+  FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+  CROSS JOIN UNNEST(GENERATE_ARRAY(0, 6)) AS diff_days)
+GROUP BY active_date
+ORDER BY active_date DESC;
+결과는 다음과 비슷합니다.
++-------------+-----------------+-----------------+
+| active_date | active_7d_bikes | active_7d_trips |
++-------------+-----------------+-----------------+
+| 2024-07-06  | 90              | 331             |
+| 2024-07-05  | 142             | 726             |
+| 2024-07-04  | 186             | 1163            |
+| ...         | ...             | ...             |
++-------------+-----------------+-----------------+
+미래 날짜 필터링
+위 쿼리에서 날짜는 데이터의 마지막 날짜에서 최대 6일 후까지 연장됩니다. 데이터 종료일을 초과하는 날짜를 필터링하려면 쿼리에서 최대 날짜를 설정하세요.
+OVER 절이 있는 윈도우 함수를 사용하여 테이블의 최대 날짜를 계산하는 또 다른 EXTEND 파이프 연산자를 추가합니다.
+WHERE 파이프 연산자를 사용하여 최대 날짜를 지난 생성된 행을 필터링합니다.
+--- 탭: 파이프 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%8C%8C%EC%9D%B4%ED%94%84-%EA%B5%AC%EB%AC%B8] ---
+FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+|> EXTEND CAST(start_time AS DATE) AS date
+|> EXTEND MAX(date) OVER () AS max_date
+|> CROSS JOIN UNNEST(GENERATE_ARRAY(0, 6)) AS diff_days
+|> EXTEND DATE_ADD(date, INTERVAL diff_days DAY) AS active_date
+|> WHERE active_date <= max_date
+|> AGGREGATE COUNT(DISTINCT bike_id) AS active_7d_bikes,
+             COUNT(trip_id) AS active_7d_trips
+   GROUP BY active_date DESC;
+
+--- 탭: 표준 구문 [https://cloud.google.com/bigquery/docs/analyze-data-pipe-syntax?hl=ko#%ED%91%9C%EC%A4%80-%EA%B5%AC%EB%AC%B8] ---
+SELECT
+  DATE_ADD(date, INTERVAL diff_days DAY) AS active_date,
+  COUNT(DISTINCT bike_id) AS active_7d_bikes,
+  COUNT(trip_id) AS active_7d_trips
+FROM(
+  SELECT *
+  FROM (
+    SELECT *,
+      DATE_ADD(date, INTERVAL diff_days DAY) AS active_date,
+      MAX(date) OVER () AS max_date
+    FROM(
+      SELECT *, CAST(start_time AS DATE) AS date,
+      FROM `bigquery-public-data.austin_bikeshare.bikeshare_trips`
+      CROSS JOIN UNNEST(GENERATE_ARRAY(0, 6)) AS diff_days))
+  WHERE active_date <= max_date)
+GROUP BY active_date
+ORDER BY active_date DESC;
+결과는 다음과 비슷합니다.
++-------------+-----------------+-----------------+
+| active_date | active_7d_bikes | active_7d_trips |
++-------------+-----------------+-----------------+
+| 2024-06-30  | 212             | 3031            |
+| 2024-06-29  | 213             | 3206            |
+| 2024-06-28  | 219             | 3476            |
+| ...         | ...             | ...             |
++-------------+-----------------+-----------------+
+다음 단계
+파이프 구문 작동 방식에 대한 자세한 내용은 파이프 쿼리 구문 사용 [https://cloud.google.com/bigquery/docs/pipe-syntax-guide?hl=ko]을 참고하세요.
+기술적인 자세한 내용은 파이프 쿼리 구문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/pipe-syntax?hl=ko] 참고 문서를 참고하세요.
+도움이 되었나요?
+의견 보내기

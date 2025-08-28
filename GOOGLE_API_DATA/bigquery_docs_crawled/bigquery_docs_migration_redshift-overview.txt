@@ -1,0 +1,223 @@
+Source URL: https://cloud.google.com/bigquery/docs/migration/redshift-overview
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+마이그레이션 전 태스크 [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#pre-migration_tasks]
+용량 계획 [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#capacity_planning]
+Google Cloud에서의 보안 [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#security]
+Google Cloud로 마이그레이션: 기본사항 [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#migration-basics]
+마이그레이션 도구 [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#migration_tools]
+파이프라인을 사용하여 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#migration_using_pipelines]
+데이터 마이그레이션을 위한 파트너 도구 [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#partner_tools_for_data_migration]
+Google Cloud로 마이그레이션: 상세 작업 보기 [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#migration-in-depth]
+Amazon Redshift에서 BigQuery로 마이그레이션: 개요
+bookmark_border
+이 문서에서는 다음 주제를 중심으로, Amazon Redshift에서 BigQuery로의 마이그레이션에 대한 안내를 제공합니다.
+마이그레이션 전략
+쿼리 최적화 및 데이터 모델링을 위한 권장사항
+문제해결 도움말
+사용자 채택 안내
+이 문서의 목표는 다음과 같습니다.
+기존 데이터 파이프라인을 재고하여 BigQuery를 최대한 활용할 수 있도록 지원하는 것을 비롯해 Amazon Redshift에서 BigQuery로 마이그레이션하는 조직에 대한 개략적인 안내를 제공합니다.
+BigQuery와 Amazon Redshift의 아키텍처를 비교하여 마이그레이션 중에 기존 기능을 구현할 방법을 결정할 수 있습니다. Google의 목표는 기능을 Amazon Redshift와 일대일로 매핑하는 것이 아닌 BigQuery를 통해 조직에서 사용할 수 있는 새로운 기능을 제공하는 것입니다.
+이 문서는 엔터프라이즈 아키텍트, 데이터베이스 관리자, 애플리케이션 개발자, IT 보안 전문가를 대상으로 합니다. 이 문서에서는 사용자가 Amazon Redshift에 익숙하다고 가정합니다.
+또한 일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]을 사용하여 SQL 스크립트를 일괄적으로 마이그레이션하거나 대화형 SQL 변환 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]을 사용하여 임시 쿼리를 변환할 수 있습니다. 두 SQL 변환 서비스에서 Amazon Redshift SQL을 완벽하게 지원합니다.
+마이그레이션 전 태스크
+성공적인 데이터 웨어하우스 마이그레이션을 보장하기 위해 프로젝트 타임라인의 초기에 마이그레이션 전략을 계획합니다. 이 방식을 사용하면 니즈에 맞는 Google Cloud 기능을 평가할 수 있습니다.
+용량 계획
+BigQuery는 슬롯을 사용하여 분석 처리량을 측정합니다. BigQuery 슬롯은 SQL 쿼리를 실행하는 데 필요한 Google의 독점적인 컴퓨팅 용량 단위입니다. BigQuery는 실행 시 쿼리에 필요한 슬롯 수를 지속적으로 계산하지만 공정한 스케줄러 [https://cloud.google.com/bigquery/docs/slots?hl=ko#fair_scheduling_in_bigquery]를 기준으로 쿼리에 슬롯을 할당합니다.
+BigQuery 슬롯의 용량을 계획할 때는 다음 가격 책정 모델 중에서 선택할 수 있습니다.
+주문형 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]: 주문형 가격 책정의 경우 BigQuery가 처리된 바이트 수(데이터 크기)에 따라 요금을 청구하므로 실행한 쿼리에 대해서만 비용을 지불합니다. BigQuery에서 데이터 크기를 확인하는 방법에 대한 자세한 내용은 데이터 크기 계산 [https://cloud.google.com/bigquery/pricing?hl=ko#data]을 참조하세요. 슬롯에 따라 기본 컴퓨팅 용량이 결정되므로 처리된 바이트 수 대신 필요한 슬롯 수에 따라 BigQuery 사용 요금을 지불할 수 있습니다. 기본적으로 모든Google Cloud 프로젝트는 최대 2,000개 슬롯으로 제한됩니다. BigQuery가 쿼리를 가속화하기 위해 이 한도를 초과하여 버스팅할 수 있지만 버스트가 보장되지는 않습니다.
+용량 기반 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]: 용량 기반 가격 책정을 사용하면 실행하는 쿼리에 의해 처리된 바이트에 대한 비용을 지불하는 대신 BigQuery 슬롯 예약 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko](최소 100개)을 구매할 수 있습니다. 일반적으로 소비를 예측할 수 있는 동시 보고 및 추출-로드-변환(ELT) 쿼리가 많은 엔터프라이즈 데이터 웨어하우스 작업 부하에는 용량 기반 가격 책정을 사용하는 것이 좋습니다.
+슬롯 추정에 도움이 되도록 Cloud Monitoring을 사용한 BigQuery 모니터링 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko]을 설정하고 BigQuery를 사용한 감사 로그를 분석 [https://cloud.google.com/bigquery/audit-logs?hl=ko]하는 것이 좋습니다. Looker Studio [https://lookerstudio.google.com/?hl=ko](여기서는 Looker Studio 대시보드의 오픈소스 예시 [https://github.com/GoogleCloudPlatform/professional-services/tree/master/examples/bigquery-audit-log]) 또는 Looker [https://looker.com/]를 사용하여 특히 쿼리 및 프로젝트 전반의 슬롯 사용량에 대한 BigQuery의 감사 로그 데이터를 시각화할 수 있습니다. BigQuery의 시스템 테이블 데이터를 사용하여 작업 및 예약 전반의 슬롯 사용률을 모니터링할 수도 있습니다(Looker Studio 대시보드의 오픈소스 예시 [https://github.com/GoogleCloudPlatform/bigquery-utils/tree/master/dashboards/system_tables] 참조). 슬롯 사용률을 정기적으로 모니터링하고 분석하면 Google Cloud에서 성장함에 따라 조직 니즈에 맞는 총 슬롯 수를 추정할 수 있습니다.
+예를 들어 처음에 4,000개의 BigQuery 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko]을 예약하여 100개의 중간 복잡성 쿼리를 동시에 실행한다고 가정해 보겠습니다. 쿼리 실행 계획에서 대기 시간이 길어지고 대시보드에 높은 슬롯 사용률이 표시되는 경우, 이는 워크로드를 지원하기 위해 추가 BigQuery 슬롯이 필요하다는 의미일 수 있습니다. 연간 또는 3년 약정을 통해 슬롯을 직접 구매하려면Google Cloud 콘솔이나 bq 명령줄 도구를 사용하여 BigQuery 예약을 시작 [https://cloud.google.com/bigquery/docs/reservations-get-started?hl=ko]하면 됩니다. 워크로드 관리, 쿼리 실행, BigQuery 아키텍처에 대한 자세한 내용은 Google Cloud로 마이그레이션: 상세 작업 보기 [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#migration-in-depth]를 참조하세요.
+Google Cloud에서의 보안
+다음 섹션에서는 일반적인 Amazon Redshift 보안 제어 및Google Cloud 환경에서 데이터 웨어하우스가 보호 상태를 유지하는데 도움이 되는 방법을 설명합니다.
+ID 및 액세스 관리
+Amazon Redshift에서 액세스 제어를 설정하려면 Amazon Redshift API 권한 정책을 작성하고 이를 Identity and Access Management(IAM) [https://cloud.google.com/iam?hl=ko] ID에 연결해야 합니다. Amazon Redshift API 권한은 클러스터 수준의 액세스를 제공하지만 클러스터보다 세부적인 액세스 수준을 제공하지 않습니다. 테이블 또는 뷰와 같은 리소스에 대해 더 세부적인 액세스가 필요하면 Amazon Redshift 데이터베이스에서 사용자 계정을 사용할 수 있습니다.
+BigQuery는 IAM을 사용하여 보다 세부적인 수준으로 리소스 액세스를 관리합니다. BigQuery에서 사용 가능한 리소스 유형은 조직, 프로젝트, 데이터 세트, 테이블, 열, 뷰입니다. Cloud IAM 정책 계층 구조에서 데이터 세트는 프로젝트의 하위 리소스입니다. 테이블은 이를 포함하는 데이터 세트에서 권한을 상속합니다.
+리소스에 대한 액세스 권한을 부여하려면 사용자, 그룹 또는 서비스 계정에 IAM 역할을 하나 이상 할당합니다. 조직 및 프로젝트 역할은 작업 실행 또는 프로젝트를 관리하는 능력에 영향을 주지만, 데이터세트 역할은 프로젝트의 내부 데이터에 액세스하거나 이를 수정하는 기능에 영향을 줍니다.
+IAM은 다음과 같은 유형의 역할을 제공합니다.
+사전 정의된 역할 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]은 일반적인 사용 사례와 액세스 제어 패턴을 지원합니다.
+커스텀 역할 [https://cloud.google.com/iam/docs/understanding-custom-roles?hl=ko]: 사용자 지정 권한 목록에 따라 세분화된 액세스 권한을 제공합니다.
+IAM 내에서 BigQuery는 테이블 수준 액세스 제어 [https://cloud.google.com/bigquery/docs/control-access-to-resources-iam?hl=ko]를 제공합니다. 테이블 수준 권한은 테이블 또는 뷰에 액세스할 수 있는 사용자, 그룹, 서비스 계정을 결정합니다. 사용자에게 전체 데이터 세트에 대한 액세스 권한을 부여하지 않고도 특정 테이블 또는 뷰에 대한 액세스 권한을 사용자에게 부여할 수 있습니다. 보다 세부적인 액세스를 위해 다음 보안 메커니즘 중 하나 이상을 구현할 할 수 있습니다.
+열 수준 액세스 제어 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko]: 데이터의 정책 태그 또는 유형 기반 분류를 사용하여 민감한 열에 대해 세분화된 액세스 권한을 제공합니다.
+열 수준 동적 데이터 마스킹 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko]: 사용자 그룹의 열 데이터를 선택적으로 가리지 않으면서 열에 대한 액세스는 계속 허용합니다.
+행 수준 보안 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko]: 사용자의 자격 조건을 기준으로 데이터를 필터링하고 테이블의 특정 행에 액세스하도록 허용할 수 있습니다.
+전체 디스크 암호화
+ID 및 액세스 관리 외에도 데이터 암호화는 데이터 보호를 위한 추가 방어 계층을 더합니다. 데이터 노출 시에도 암호화된 데이터는 읽을 수 없습니다.
+Amazon Redshift에서 저장 데이터 및 전송 중 데이터 모두에 대한 암호화는 기본적으로 사용 설정되지 않습니다. 클러스터가 실행될 때 또는 AWS Key Management Service 암호화를 사용하도록 기존 클러스터를 수정하여 저장 데이터에 대한 암호화를 명시적으로 사용 설정 [https://docs.aws.amazon.com/redshift/latest/mgmt/changing-cluster-encryption.html]해야 합니다. 전송 중 데이터에 대한 암호화 또한 명시적으로 사용 설정 [https://docs.aws.amazon.com/redshift/latest/mgmt/security-encryption-in-transit.html]해야 합니다.
+BigQuery는 소스 또는 기타 조건에 관계없이 기본적으로 저장 [https://cloud.google.com/security/encryption-at-rest?hl=ko] 및 전송 중 [https://cloud.google.com/security/encryption-in-transit?hl=ko]인 모든 데이터를 암호화하며 이 기능을 사용 중지할 수 없습니다. BigQuery는 Cloud Key Management Service [https://cloud.google.com/kms/docs?hl=ko]에서 키 암호화 키를 제어하고 관리하려는 경우 고객 관리 암호화 키(CMEK) [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]도 지원합니다.
+Google Cloud의 암호화에 대한 자세한 내용은 저장 데이터 암호화 [https://cloud.google.com/security/encryption-at-rest/default-encryption?hl=ko] 및 전송 중 데이터 암호화 [https://cloud.google.com/security/encryption-in-transit?hl=ko]에 대한 백서를 참조하세요.
+Google Cloud에서 전송 중인 데이터 [https://cloud.google.com/security/encryption-in-transit?hl=ko]의 경우 데이터는 Google에서 또는 Google을 대신하여 제어하는 물리적 경계 외부 [https://cloud.google.com/security/encryption-in-transit?hl=ko#physical_boundaries_of_a_network]로 이동할 때 암호화되고 인증됩니다. 이러한 경계 내에서 전송 중 데이터는 일반적으로 인증되지만 반드시 암호화될 필요는 없습니다.
+데이터 손실 방지
+규정 준수 요구사항에 따라Google Cloud에 저장할 수 있는 데이터가 제한될 수 있습니다. Sensitive Data Protection [https://cloud.google.com/sensitive-data-protection/docs?hl=ko]을 사용하여 BigQuery 테이블을 스캔 [https://cloud.google.com/bigquery/docs/scan-with-dlp?hl=ko]해 민감한 정보를 감지하고 분류할 수 있습니다. 민감한 정보가 감지되면 Sensitive Data Protection 익명화 변환에서 해당 데이터를 마스킹 또는 삭제하거나 모호하게 만들 수 있습니다 [https://cloud.google.com/bigquery/docs/scan-with-dlp?hl=ko].
+Google Cloud로 마이그레이션: 기본사항
+이 섹션을 참조하여 마이그레이션에 유용한 도구와 파이프라인을 사용하는 방법에 대해 자세히 알아보세요.
+마이그레이션 도구
+BigQuery Data Transfer Service는 Amazon Redshift에서 BigQuery로 직접 스키마와 데이터를 모두 마이그레이션하기 위한 자동화된 도구를 제공합니다. 다음 표에서는 Amazon Redshift에서 BigQuery로 마이그레이션을 도와주는 추가 도구를 보여줍니다.
+도구 목적
+BigQuery Data Transfer Service [https://cloud.google.com/bigquery-transfer?hl=ko] 이 완전 관리형 서비스를 사용하여 Amazon Redshift 데이터를 BigQuery로 자동 일괄 전송합니다.
+Storage Transfer Service [https://cloud.google.com/storage/transfer?hl=ko] 이 완전 관리형 서비스를 사용하여 Amazon S3 데이터를 Cloud Storage로 빠르게 가져오고 데이터 전송 반복 일정을 설정합니다.
+gcloud [https://cloud.google.com/sdk/gcloud/reference/storage?hl=ko] 명령줄 도구를 사용하여 Amazon S3 파일을 Cloud Storage에 복사합니다.
+bq 명령줄 도구 [https://cloud.google.com/bigquery/bq-command-line-tool?hl=ko] 이 명령줄 도구를 사용해서 BigQuery와 상호작용합니다. 일반적인 상호작용에는 BigQuery 테이블 스키마 만들기, Cloud Storage 데이터를 테이블에 로드, 쿼리 실행이 포함됩니다.
+Cloud Storage 클라이언트 라이브러리 [https://cloud.google.com/storage/docs/reference/libraries?hl=ko] Cloud Storage 클라이언트 라이브러리를 기반으로 빌드된 커스텀 도구를 사용하여 Amazon S3 파일을 Cloud Storage에 복사합니다.
+BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/libraries?hl=ko] BigQuery 클라이언트 라이브러리를 기반으로 빌드된 커스텀 도구를 사용하여 BigQuery와 상호작용합니다.
+BigQuery 쿼리 스케줄러 [https://cloud.google.com/bigquery/docs/scheduling-queries?hl=ko] 이 기본 제공되는 BigQuery 기능을 사용하여 반복되는 SQL 쿼리를 예약합니다.
+Cloud Composer [https://cloud.google.com/composer?hl=ko] 이 완전 관리형 Apache Airflow 환경을 사용하여 변환 및 BigQuery 로드 작업을 조정합니다.
+Apache Sqoop [https://sqoop.apache.org/] Sqoop 및 Amazon Redshift의 JDBC 드라이버를 사용하여 Hadoop 작업을 제출하면 Amazon Redshift에서 HDFS 또는 Cloud Storage로 데이터를 추출할 수 있습니다. Sqoop는 Dataproc 환경에서 실행됩니다.
+BigQuery Data Transfer Service 사용에 대한 자세한 내용은 Amazon Redshift에서 스키마 및 데이터 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko]을 참조하세요.
+파이프라인을 사용하여 마이그레이션
+Amazon Redshift에서 BigQuery로 데이터를 마이그레이션할 때는 사용 가능한 마이그레이션 도구에 따라 다른 경로가 사용될 수 있습니다. 이 섹션의 목록이 전부는 아니지만 데이터를 이동할 때 사용 가능한 다양한 데이터 파이프라인 패턴을 보여줍니다.
+파이프라인을 사용하여 BigQuery로 데이터를 마이그레이션하는 대략적인 방법은 데이터 파이프라인 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/pipelines?hl=ko]을 참조하세요.
+추출 및 로드(EL)
+Amazon Redshift 클러스터에서 BigQuery로 테이블 스키마 및 데이터를 자동으로 복사할 수 있는 BigQuery Data Transfer Service를 사용하여 EL 파이프라인을 완전히 자동화할 수 있습니다. 데이터 파이프라인 단계를 더 세부적으로 제어하려면 다음 섹션에 정의된 옵션을 사용하여 파이프라인을 만들면 됩니다.
+Amazon Redshift 파일 추출 사용
+Amazon Redshift 데이터를 Amazon S3로 내보냅니다 [https://docs.aws.amazon.com/redshift/latest/dg/t_Unloading_tables.html].
+다음 옵션 중 하나를 사용하여 Amazon S3에서 Cloud Storage로 데이터를 복사합니다.
+Storage Transfer Service [https://cloud.google.com/storage/transfer?hl=ko](권장)
+gcloud CLI [https://cloud.google.com/sdk/gcloud/reference/storage?hl=ko]
+Cloud Storage 클라이언트 라이브러리 [https://cloud.google.com/storage/docs/reference/libraries?hl=ko]
+다음 옵션 중 하나를 사용하여 Cloud Storage 데이터를 BigQuery에 로드합니다.
+BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview?hl=ko]
+bq 명령줄 도구 [https://cloud.google.com/bigquery/bq-command-line-tool?hl=ko]
+BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/libraries?hl=ko]
+Amazon Redshift JDBC 연결 사용
+다음 Google Cloud 제품 중 하나를 사용하여 Amazon Redshift JDBC 드라이버 [https://docs.aws.amazon.com/redshift/latest/mgmt/configure-jdbc-connection.html#download-jdbc-driver]를 통해 Amazon Redshift 데이터를 내보냅니다.
+Dataflow [https://cloud.google.com/dataflow/docs?hl=ko]
+Google 제공 템플릿: JDBC to BigQuery [https://cloud.google.com/dataflow/docs/guides/templates/provided-batch?hl=ko#java-database-connectivity-jdbc-to-bigquery]
+Cloud Data Fusion [https://cloud.google.com/data-fusion/docs?hl=ko]
+JDBC 드라이버 사용 [https://cloud.google.com/data-fusion/docs/how-to/using-jdbc-drivers?hl=ko]
+Dataproc [https://cloud.google.com/dataproc/docs?hl=ko]
+Apache Spark를 사용하여 JDBC를 통해 Amazon Redshift에 연결 [https://docs.databricks.com/spark/latest/data-sources/aws/amazon-redshift.html]
+Apache Spark 예시 [https://spark.apache.org/docs/latest/sql-data-sources-jdbc.html]
+Apache Spark로 BigQuery에 쓰기 [https://cloud.google.com/dataproc/docs/tutorials/bigquery-connector-spark-example?hl=ko#reading_and_writing_data_from_bigquery]
+Hadoop BigQuery 커넥터 [https://cloud.google.com/dataproc/docs/concepts/connectors/bigquery?hl=ko]
+Sqoop 및 Amazon Redshift JDBC 드라이버 [https://docs.aws.amazon.com/redshift/latest/mgmt/configure-jdbc-connection.html#download-jdbc-driver]를 사용하여 Amazon Redshift에서 Cloud Storage로 데이터 추출
+Dataproc 기반 Sqoop 예시 [https://medium.com/google-cloud/moving-data-with-apache-sqoop-in-google-cloud-dataproc-4056b8fa2600]
+추출, 변환, 로드(ETL)
+일부 데이터를 BigQuery에 로드하기 전에 변환하려면 추출 및 로드(EL) [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#extract_and_load_el] 섹션에 설명된 것과 동일한 파이프라인 권장사항에 따르고 BigQuery에 로드하기 전에 데이터를 변환하는 단계를 추가하세요.
+Amazon Redshift 파일 추출 사용
+Amazon Redshift 데이터를 Amazon S3로 내보냅니다 [https://docs.aws.amazon.com/redshift/latest/dg/t_Unloading_tables.html].
+다음 옵션 중 하나를 사용하여 Amazon S3에서 Cloud Storage로 데이터를 복사합니다.
+Storage Transfer Service [https://cloud.google.com/storage/transfer?hl=ko](권장)
+gcloud CLI [https://cloud.google.com/sdk/gcloud/reference/storage?hl=ko]
+Cloud Storage 클라이언트 라이브러리 [https://cloud.google.com/storage/docs/reference/libraries?hl=ko]
+다음 옵션을 사용하여 데이터를 변환하고 BigQuery에 로드합니다.
+Dataproc [https://cloud.google.com/dataproc/docs?hl=ko]
+Apache Spark를 사용하여 Cloud Storage에서 읽기 [https://cloud.google.com/dataproc/docs/tutorials/gcs-connector-spark-tutorial?hl=ko#prepare_the_spark_wordcount_job]
+Apache Spark를 사용하여 BigQuery에 쓰기 [https://cloud.google.com/dataproc/docs/tutorials/bigquery-connector-spark-example?hl=ko#reading_and_writing_data_from_bigquery]
+Hadoop Cloud Storage 커넥터 [https://cloud.google.com/dataproc/docs/concepts/connectors/cloud-storage?hl=ko]
+Hadoop BigQuery 커넥터 [https://cloud.google.com/dataproc/docs/concepts/connectors/bigquery?hl=ko]
+Dataflow [https://cloud.google.com/dataflow/docs?hl=ko]
+Cloud Storage에서 읽기 [https://beam.apache.org/documentation/programming-guide/#pipeline-io-reading-data]
+BigQuery에 쓰기 [https://beam.apache.org/documentation/io/built-in/google-bigquery/#writing-to-a-table]
+Google 제공 템플릿: Cloud Storage Text to BigQuery [https://cloud.google.com/dataflow/docs/guides/templates/provided-batch?hl=ko#gcstexttobigquery]
+Cloud Data Fusion [https://cloud.google.com/data-fusion/docs?hl=ko]
+Cloud Storage에서 읽기 [https://cloud.google.com/data-fusion/docs/tutorials/targeting-campaign-pipeline?hl=ko#load_the_customer_data]
+BigQuery에 쓰기 [https://cloud.google.com/data-fusion/docs/tutorials/targeting-campaign-pipeline?hl=ko#store_the_output_to]
+Trifacta 제공 Dataprep [https://docs.trifacta.com/Dataprep/en/product-overview.html]
+Cloud Storage에서 읽기 [https://docs.trifacta.com/Dataprep/en/platform/connections/connection-types/google-cloud-storage-access.html]
+BigQuery에 쓰기 [https://docs.trifacta.com/Dataprep/en/platform/connections/connection-types/bigquery-connections.html]
+Amazon Redshift JDBC 연결 사용
+추출 및 로드(EL) [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#extract_and_load_el] 섹션에 설명된 제품을 사용하여 BigQuery로 로드하기 전에 데이터를 변환하는 추가 단계를 추가합니다. BigQuery에 쓰기 전에 데이터를 변환하는 단계를 하나 이상 도입하도록 파이프라인을 수정합니다.
+Dataflow [https://cloud.google.com/dataflow/docs?hl=ko]
+JDBC to BigQuery [https://cloud.google.com/dataflow/docs/guides/templates/provided-batch?hl=ko#java-database-connectivity-jdbc-to-bigquery] 템플릿 코드를 클론하고 템플릿을 수정하여 Apache Beam 변환 [https://beam.apache.org/documentation/programming-guide/#transforms]을 추가합니다.
+Cloud Data Fusion [https://cloud.google.com/data-fusion/docs?hl=ko]
+CDAP 플러그인 [https://cdap.io/resources/plugins/]을 사용하여 데이터를 변환합니다.
+Dataproc [https://cloud.google.com/dataproc/docs?hl=ko]
+Spark SQL [https://spark.apache.org/docs/latest/sql-programming-guide.html] 또는 지원되는 Spark 언어(Scala [https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.package], Java [https://spark.apache.org/docs/latest/api/java/index.html], Python [https://spark.apache.org/docs/latest/api/python/index.html], R [https://spark.apache.org/docs/latest/api/R/index.html])의 자체 커스텀 코드를 사용하여 데이터를 변환합니다.
+추출, 로드, 변환(ELT)
+BigQuery 자체를 사용해서 데이터를 변환하여 추출 및 로드(EL) [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#extract_and_load_el] 옵션을 사용하여 데이터를 스테이징 테이블에 로드할 수 있습니다. 그런 후 해당 출력을 최종 프로덕션 테이블에 기록하는 SQL 쿼리를 사용하여 이 스테이징 테이블에 데이터를 변환할 수 있습니다.
+CDC(변경 데이터 캡처)
+변경 데이터 캡처 [https://wikipedia.org/wiki/Change_data_capture]는 데이터 변경사항을 추적하는 데 사용되는 여러 소프트웨어 디자인 패턴 중 하나입니다. 데이터 웨어하우스는 시간이 지남에 따라 다양한 소스 시스템의 데이터 및 변경사항을 수집하고 추적하는 데 사용되므로 데이터 웨어하우징에 자주 사용됩니다.
+데이터 마이그레이션을 위한 파트너 도구
+추출, 변환, 로드(ETL) 공간에는 여러 공급업체가 있습니다. 주요 파트너 목록과 제공 솔루션은 BigQuery 파트너 웹사이트 [https://cloud.google.com/bigquery/partners?hl=ko]를 참조하세요.
+Google Cloud로 마이그레이션: 상세 작업 보기
+이 섹션에서는 데이터 웨어하우스 아키텍처, 스키마, SQL 언어가 마이그레이션에 미치는 영향에 대해 자세히 알아보세요.
+아키텍처 비교
+BigQuery 및 Amazon Redshift 모두 대규모 병렬 처리(MPP) 아키텍처를 기반으로 합니다. 실행을 가속화하기 위해 쿼리가 여러 서버에 분산됩니다. 시스템 아키텍처와 관련해서 Amazon Redshift 및 BigQuery는 주로 데이터 저장 방법 및 쿼리 실행 방법이 다릅니다. BigQuery에서는 기본 하드웨어 및 구성이 추상화되어, 해당 스토리지 및 컴퓨팅에 따라 사용자의 개입 없이 데이터 웨어하우스 확장이 가능합니다.
+컴퓨팅, 메모리, 스토리지
+Amazon Redshift에서 CPU, 메모리, 디스크 스토리지는 Amazon Redshift 문서의 이 다이어그램 [https://docs.aws.amazon.com/redshift/latest/dg/c_high_level_system_architecture.html]에 표시된 것처럼 컴퓨팅 노드 [https://docs.aws.amazon.com/redshift/latest/dg/c_high_level_system_architecture.html]를 통해 함께 연결됩니다. 클러스터 성능 및 스토리지 용량은 구성되어야 하는 컴퓨팅 노드의 유형 및 수량에 따라 결정됩니다. 컴퓨팅 또는 스토리지를 변경하려면 완전히 새로운 클러스터를 만들고 데이터를 복사하는 프로세스(몇 시간 또는 최대 2일 이상 소요 [https://docs.aws.amazon.com/redshift/latest/mgmt/managing-cluster-operations.html])를 통해 클러스터 크기를 조정해야 합니다. Amazon Redshift는 또한 컴퓨팅과 스토리지를 분리하는 데 도움이 되는 관리형 스토리지가 포함된 RA3 노드를 제공합니다. RA3 카테고리에서 가장 큰 노드는 각 노드에 대해 최대 64TB 관리형 스토리지로 제한됩니다.
+BigQuery는 처음부터 컴퓨팅, 메모리, 스토리지를 하나로 결합하지 않고 각각 별도로 취급합니다.
+BigQuery 컴퓨팅은 쿼리 실행에 필요한 컴퓨팅 용량 단위인 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko]에 따라 정의됩니다. Google이 슬롯에 캡슐화된 전체 인프라를 관리하므로 BigQuery 워크로드에 적합한 슬롯 수량을 선택하는 것 이외의 다른 태스크를 수행할 필요가 없습니다. 데이터 웨어하우스에 대해 구입할 슬롯 수를 결정하는 데 도움이 필요하면 용량 계획 [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#capacity_planning]을 참조하세요. BigQuery 메모리는 Google에서 완전히 관리되는 Google 페타비트 네트워크에서 슬롯 계산을 위해 연결된 원격 분산 서비스 [https://cloud.google.com/blog/products/gcp/in-memory-query-execution-in-google-bigquery?hl=ko]를 통해 제공됩니다.
+BigQuery 및 Amazon Redshift 모두 열 형식의 스토리지를 사용하지만 BigQuery에서는 열 형식 스토리지에 대한 변형 및 고급 기술 [https://cloud.google.com/blog/products/gcp/inside-capacitor-bigquerys-next-generation-columnar-storage-format?hl=ko]을 사용합니다. 열을 인코딩하는 동안 데이터에 대한 다양한 통계가 지속되고 나중에 쿼리를 실행할 때 최적의 계획을 컴파일하고 가장 효율적인 런타임 알고리즘을 선택하기 위해 사용됩니다. BigQuery는 데이터가 자동으로 압축, 암호화, 복제, 분산되는 Google 분산 파일 시스템 [https://cloud.google.com/static/files/storage_architecture_and_challenges.pdf?hl=ko]에 데이터를 저장합니다. 이러한 작업은 모두 쿼리에 사용 가능한 컴퓨팅 성능에 영향을 주지 않고 수행됩니다. 컴퓨팅에서 스토리지를 분리하면 값비싼 컴퓨팅 리소스를 추가할 필요 없이 스토리지에서 수십 페타바이트를 원활하게 확장할 수 있습니다. 이 외에도 컴퓨팅과 스토리지를 분리할 때의 많은 이점 [https://cloud.google.com/blog/products/gcp/separation-of-compute-and-state-in-google-bigquery-and-cloud-dataflow-and-why-it-matters?hl=ko]이 있습니다.
+확대 또는 축소
+스토리지 또는 컴퓨팅이 제한되면 클러스터의 노드 수 또는 유형을 수정하여 Amazon Redshift 클러스터의 크기를 조정해야 합니다.
+Amazon Redshift 클러스터 크기 조정 [https://docs.aws.amazon.com/redshift/latest/mgmt/managing-cluster-operations.html]을 수행할 때는 두 가지 방법이 있습니다.
+기본 크기 조절: Amazon Redshift는 데이터가 복사되는 클러스터를 만듭니다. 이 프로세스는 대용량 데이터의 경우 몇 시간 또는 2~3일 이상 걸릴 수 있습니다.
+탄력적 크기 조정: 노드 수만 변경할 때는 쿼리가 일시적으로 중지되고 가능한 경우 연결이 열린 상태로 유지됩니다. 크기 조절 작업 중에 클러스터는 읽기 전용입니다. 탄력적 크기 조정은 일반적으로 10~15분 정도 걸리지만 일부 구성에서는 사용하지 못할 수 있습니다.
+BigQuery는 Platform as a Service(PaaS)이므로 최적화를 위해 보존할 BigQuery 슬롯 수를 고려해야 합니다. BigQuery 슬롯을 예약한 후 이러한 예약에 프로젝트를 할당합니다. 이러한 예약을 설정하는 방법은 용량 계획 [https://cloud.google.com/bigquery/docs/migration/redshift-overview?hl=ko#capacity_planning]을 참조하세요.
+쿼리 실행
+BigQuery 실행 엔진은 쿼리를 여러 단계(쿼리 계획)로 세분화하고, 단계를 실행하고(가능한 경우 동시 실행), 결과를 재조합하여 쿼리를 조정한다는 점에서 Amazon Redshift와 비슷합니다. Amazon Redshift는 정적 쿼리 계획을 생성하지만 BigQuery는 이와 달리 쿼리 실행에 따라 동적으로 쿼리 계획을 최적화합니다. BigQuery는 원격 메모리 서비스를 사용하여 데이터를 셔플하지만 Amazon Redshift는 로컬 컴퓨팅 노드 메모리를 사용하여 데이터를 셔플합니다. 쿼리 계획의 여러 단계에서 BigQuery의 중간 데이터 스토리지에 대해서는 Google BigQuery에서 메모리 내 쿼리 실행 [https://cloud.google.com/blog/products/gcp/in-memory-query-execution-in-google-bigquery?hl=ko]을 참조하세요.
+BigQuery의 워크로드 관리
+BigQuery는 워크로드 관리(WLM)를 위해 다음과 같은 제어 기능을 제공합니다.
+대화형 쿼리 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]: 최대한 빨리 실행됩니다(기본 설정).
+일괄 쿼리 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#batch]: 사용자를 대신하여 큐에 저장되고 BigQuery 공유 리소스 풀에서 유휴 리소스를 사용할 수 있는 즉시 시작됩니다.
+용량 기반 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]을 통한 슬롯 예약 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko]. 주문형 쿼리 비용을 지불하는 대신 예약 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko#reservations]이라는 슬롯 버킷을 동적으로 생성 및 관리 [https://cloud.google.com/bigquery/docs/reservations-tasks?hl=ko#create_a_reservation_with_dedicated_slots]하고 프로젝트, 폴더 또는 조직을 이러한 예약에 할당 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko#assignments]할 수 있습니다. 비용을 최소화하기 위해 가변형, 월간 또는 연간 약정에 따라 BigQuery 슬롯 약정 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko#commitments](최소 100개부터 시작)을 구매할 수 있습니다. 기본적으로 예약에서 실행되는 쿼리는 다른 예약의 유휴 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko#idle_slots]을 자동으로 사용합니다.
+다음 다이어그램에 표시된 것처럼 데이터 과학, ELT, 비즈니스 인텔리전스(BI)의 세 가지 워크로드 유형에서 공유하기 위해 총 1,000개 슬롯 약정 용량을 구입했다고 가정해보세요. 이러한 워크로드를 지원하기 위해서는 다음 예약을 만들 수 있습니다.
+슬롯 500개를 사용하는 ds 예약을 만들고 모든Google Cloud 데이터 과학 프로젝트를 해당 예약에 할당할 수 있습니다.
+300개 슬롯을 사용하여 elt 예약을 만들고, ELT 워크로드에 사용하는 프로젝트를 이 예약에 할당할 수 있습니다.
+200개 슬롯을 사용하여 bi 예약을 만들고 BI 도구에 연결된 프로젝트를 이 예약에 할당할 수 있습니다.
+이 설정은 다음 그래픽에 나와 있습니다.
+프로덕션 및 테스트와 같이 조직의 워크로드에 예약을 배포하는 대신 사용 사례에 따라 개별 팀 또는 부서에 예약을 할당할 수 있습니다.
+자세한 내용은 예약을 사용한 워크로드 관리 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko]를 참조하세요.
+Amazon Redshift의 워크로드 관리
+Amazon Redshift는 다음과 같은 두 가지 유형의 워크로드 관리(WLM)를 제공합니다.
+자동 [https://docs.aws.amazon.com/redshift/latest/dg/automatic-wlm.html]: 자동 WLM의 경우 Amazon Redshift가 쿼리 동시성 및 메모리 할당을 관리합니다. 서비스 클래스 식별자 100~107개를 사용하여 최대 8개의 큐가 생성됩니다. 자동 WLM은 쿼리에 필요한 리소스 양을 확인하고 워크로드를 기준으로 동시성을 조정합니다. 자세한 내용은 쿼리 우선순위 [https://docs.aws.amazon.com/redshift/latest/dg/query-priority.html]를 참조하세요.
+수동 [https://docs.aws.amazon.com/redshift/latest/dg/cm-c-defining-query-queues.html]: 반면에 수동 WLM의 경우 쿼리 동시성 및 메모리 할당을 위한 값을 지정해야 합니다. 수동 WLM의 기본값은 5개 쿼리에 대한 동시성이며 메모리가 5개 모두에 동일하게 분할되어 있습니다.
+동시성 확장 [https://docs.aws.amazon.com/redshift/latest/dg/concurrency-scaling.html]을 사용 설정하면 Amazon Redshift가 동시 읽기 쿼리를 늘려야 할 때 쿼리 클러스터를 추가합니다. 동시성 확장에는 몇 가지 리전 및 쿼리와 관련된 고려사항이 있습니다. 자세한 내용은 확장 후보 동시성 [https://docs.aws.amazon.com/redshift/latest/dg/concurrency-scaling.html].
+데이터 세트 및 테이블 구성
+BigQuery는 파티션 나누기, 클러스터링, 데이터 지역 등 데이터와 테이블을 구성하는 여러 가지 방법을 제공합니다. 이러한 구성을 사용하면 대규모 테이블을 유지하고 쿼리의 전체 데이터 로드 및 응답 시간을 단축할 수 있으며 데이터 워크로드의 운영 효율성이 향상됩니다.
+파티션 나누기
+파티션을 나눈 테이블은 파티션이라고 하는 세그먼트로 분할된 테이블로, 데이터를 보다 쉽게 관리하고 쿼리할 수 있게 해줍니다. 사용자는 일반적으로 큰 테이블을 작은 파티션 여러 개로 분할하며, 각 파티션에는 하루분의 데이터가 포함됩니다. 파티션 관리는 BigQuery가 쿼리당 적은 데이터를 스캔하는 데 도움이 되기 때문에 특정 기간에 쿼리할 때 BigQuery의 성능과 비용을 결정하는 중요한 요소입니다.
+BigQuery에는 3가지 유형의 테이블 파티션 나누기가 있습니다.
+수집 시간으로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko]: 데이터의 수집 시간을 기준으로 테이블이 파티션으로 구분됩니다.
+열을 기준으로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#date_timestamp_partitioned_tables]: TIMESTAMP 또는 DATE 열을 기준으로 테이블이 파티션으로 구분됩니다.
+정수 범위로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/creating-integer-range-partitions?hl=ko]: 정수 열을 기준으로 테이블이 파티션으로 구분됩니다.
+시간으로 파티션을 나눈 열 기반 테이블을 사용하면 바인딩된 열의 기존 데이터 필터링과 별개로 파티션 인식을 유지할 필요가 없습니다. 열 기준 시간으로 파티션을 나눈 테이블에 기록된 데이터는 데이터 값에 따라 적절한 파티션으로 자동 전달됩니다. 마찬가지로 파티션 나누기 열에서 필터를 나타내는 쿼리는 스캔되는 전체 데이터를 줄일 수 있으므로 주문형 쿼리의 성능이 향상되고 쿼리 비용이 절감됩니다.
+BigQuery 열 기반 파티션 나누기는 Amazon Redshift 열 기반 파티션 나누기와 비슷하지만 동기가 약간 다릅니다. Amazon Redshift는 열 기반 키 배포를 사용하여 동일한 컴퓨팅 노드 내에서 관련 데이터를 함께 저장하여 조인 및 집계 중 발생하는 데이터 셔플링을 최소화합니다. BigQuery는 스토리지를 컴퓨팅과 분리하여 열 기반 파티션 나누기를 사용해서 디스크에서 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko]이 읽는 데이터 양을 최소화합니다.
+슬롯 작업자가 디스크에서 데이터를 읽으면 BigQuery는 더 최적의 데이터 샤딩을 자동으로 결정하고 BigQuery의 인메모리 셔플 서비스를 사용하여 데이터를 빠르게 다시 파티션할 수 있습니다.
+자세한 내용은 파티션을 나눈 테이블 소개 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]를 참조하세요.
+클러스터링 및 키 정렬
+Amazon Redshift에서는 복합 [https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html#t_Sorting_data-compound] 또는 인터리브 처리 [https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html#t_Sorting_data-interleaved] 정렬 키로 테이블 열을 지정할 수 있습니다. BigQuery에서는 테이블을 클러스터링 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]하여 복합 정렬 키를 지정할 수 있습니다. BigQuery 클러스터 테이블은 테이블 스키마에 지정된 최대 4개 열의 콘텐츠를 기준으로 테이블 데이터가 자동으로 정렬되기 때문에 쿼리 성능을 향상시켜 줍니다. 이러한 열은 관련 데이터를 공동 배치하기 위해 사용됩니다. 데이터의 정렬 순서가 결정되기 때문에 지정하는 클러스터링 열의 순서가 중요합니다.
+클러스터링은 절을 필터링하는 데 사용하는 쿼리나 데이터를 집계하는 쿼리와 같은 특정 유형의 쿼리의 성능을 개선할 수 있습니다. 데이터가 쿼리 작업이나 로드 작업에 의해 클러스터링된 테이블에 작성될 때 BigQuery는 클러스터링 열의 값을 사용해 데이터를 자동으로 정렬합니다. 이러한 값은 BigQuery 스토리지의 여러 블록에 데이터를 정리하는 데 사용됩니다. 클러스터링 열을 기준으로 데이터를 필터링하는 절이 포함된 쿼리를 제출하면 BigQuery는 불필요한 데이터를 스캔하지 않도록 정렬된 블록을 사용합니다.
+마찬가지로, 클러스터링 열의 값을 기준으로 데이터를 집계하는 쿼리를 제출하면 정렬된 블록이 값이 유사한 행과 같은 위치에 배치되므로 성능이 향상됩니다.
+다음과 같은 경우 클러스터링을 사용합니다.
+복합 정렬 키가 Amazon Redshift 테이블에 구성되어 있습니다.
+쿼리에서 특정 열에 대해 필터링 또는 집계가 구성되어 있습니다.
+클러스터링과 파티션 나누기를 함께 사용하는 경우 날짜, 타임스탬프 또는 정수 열을 기준으로 데이터를 여러 파티션으로 나눈 다음 다양한 열 집합(최대 4개의 총 클러스터링 열)으로 클러스터링할 수 있습니다. 이 경우 각 파티션의 데이터는 클러스터링 열의 값을 기준으로 클러스터링됩니다.
+시스템 부하에 따라 Amazon Redshift에서 테이블에 정렬 키를 지정할 때 Amazon Redshift는 자체 클러스터의 컴퓨팅 용량을 사용하여 정렬을 자동으로 시작합니다. 큰 데이터 로드 이후와 같은 경우에 가능한 한 즉시 테이블 데이터를 완전히 정렬하려면 수동으로 VACUUM [https://docs.aws.amazon.com/redshift/latest/dg/r_VACUUM_command.html] 명령어를 실행해야 할 수도 있습니다. BigQuery는 이러한 정렬을 자동으로 처리 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko#automatic_reclustering]하며 할당된 BigQuery 슬롯을 사용하지 않습니다. 따라서 쿼리 성능에 영향을 주지 않습니다.
+클러스터링된 테이블 작업에 대한 자세한 내용은 클러스터링된 테이블 소개 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]를 참조하세요.
+배포 키
+Amazon Redshift는 배포 키를 사용하여 쿼리를 실행할 데이터 블록 위치를 최적화합니다. BigQuery는 쿼리 작업자를 통해 데이터 배포를 향상시키기 위해 쿼리가 실행되는 동안 쿼리 계획에서 단계를 자동으로 결정하고 추가하기 때문에 배포 키를 사용하지 않습니다.
+외부 소스
+Amazon Redshift Spectrum [https://docs.aws.amazon.com/redshift/latest/dg/c-using-spectrum.html]을 사용하여 Amazon S3에서 데이터를 쿼리하는 경우, 마찬가지로 BigQuery의 외부 데이터 원본 기능을 사용하여 Cloud Storage의 파일에서 직접 데이터를 쿼리 [https://cloud.google.com/bigquery/external-data-cloud-storage?hl=ko]할 수 있습니다.
+BigQuery는 Cloud Storage의 데이터를 쿼리하는 것 외에도 다음 제품에서 직접 쿼리 [https://cloud.google.com/bigquery/external-data-sources?hl=ko]할 수 있는 통합 쿼리 기능 [https://cloud.google.com/bigquery/docs/reference/standard-sql/federated_query_functions?hl=ko]을 제공합니다.
+Cloud SQL [https://cloud.google.com/bigquery/docs/cloud-sql-federated-queries?hl=ko](완전 관리형 MySQL 또는 PostgreSQL)
+Bigtable [https://cloud.google.com/bigquery/external-data-bigtable?hl=ko](완전 관리형 NoSQL)
+Google Drive [https://cloud.google.com/bigquery/external-data-drive?hl=ko] (CSV, JSON, Avro, Sheets)
+데이터 지역
+리전 및 멀티 리전 위치에 BigQuery 데이터 세트를 만들 수 있지만 Amazon Redshift는 리전 위치만 제공합니다. BigQuery는 요청에 참조된 데이터 세트를 기준으로 로드, 쿼리, 내보내기 작업을 실행할 위치를 결정합니다. 리전 및 멀티 리전 데이터 세트 작업에 대한 자세한 내용은 BigQuery 위치 고려사항을 참조하세요.
+BigQuery의 데이터 유형 매핑
+Amazon Redshift 데이터 유형은 BigQuery 데이터 유형과 다릅니다. BigQuery 데이터 유형에 대한 자세한 내용은 공식 문서 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko]를 참조하세요.
+BigQuery는 직접 Amazon Redshift 아날로그가 없는 다음 데이터 유형도 지원합니다.
+ARRAY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#array_type]
+BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bytes_type]
+GEOGRAPHY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#geography_type]
+TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type]
+STRUCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#struct_type]
+SQL 비교
+GoogleSQL [https://cloud.google.com/bigquery/docs/reference/standard-sql?hl=ko]은 SQL 2011 표준을 준수하며 중첩 및 반복 데이터 쿼리를 지원하는 확장 프로그램을 포함합니다. Amazon Redshift SQL은 PostgreSQL을 기반으로 하지만 Amazon Redshift 문서 [https://docs.aws.amazon.com/redshift/latest/dg/c_redshift-and-postgres-sql.html]에 설명된 몇 가지 차이가 있습니다. Amazon Redshift와 GoogleSQL 문법을 자세히 비교하려면 Amazon Redshift SQL 변환 가이드 [https://cloud.google.com/bigquery/docs/migration/redshift-sql?hl=ko]를 참조하세요.
+일괄 SQL 변환기 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]를 사용하여 스크립트와 기타 SQL 코드를 현재 플랫폼에서 BigQuery로 변환할 수 있습니다.
+게시물 이전
+BigQuery를 염두에 두고 설계하지 않은 스크립트를 마이그레이션했으므로 BigQuery에서 쿼리 성능을 최적화하는 기법을 구현할 수 있습니다. 자세한 내용은 쿼리 성능 최적화 소개 [https://cloud.google.com/bigquery/docs/best-practices-performance-overview?hl=ko]를 참조하세요.
+다음 단계
+Amazon Redshift에서 스키마 및 데이터 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko]에 대한 단계별 안내를 참조하세요.
+VPC를 사용하여 Amazon Redshift에서 BigQuery로 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/redshift-vpc?hl=ko]하는 단계별 안내를 참조하세요.
+도움이 되었나요?
+의견 보내기

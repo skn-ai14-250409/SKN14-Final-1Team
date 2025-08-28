@@ -1,0 +1,128 @@
+Source URL: https://cloud.google.com/bigquery/docs/auto-preprocessing
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+누락된 데이터 대치 [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#imputation]
+특성 변환 [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#feature-transform]
+TIMESTAMP 특성 변환 [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#timestamp-transform]
+카테고리 특성 인코딩 [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#category_feature_encoding]
+원-핫 인코딩 [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#one_hot_encoding]
+더미 인코딩 [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#dummy_encoding]
+라벨 인코딩 [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#label_encoding]
+대상 인코딩 [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#target_encoding]
+자동 특성 사전 처리
+bookmark_border
+BigQuery ML은 학습 중에 CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko]을 사용하여 자동 사전 처리를 수행합니다. 자동 사전 처리는 누락된 값 대치 [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#imputation] 및 특성 변환 [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#feature-transform]으로 구성됩니다.
+BigQuery ML의 특성 전처리 지원에 대한 자세한 내용은 특성 전처리 개요 [https://cloud.google.com/bigquery/docs/preprocess-overview?hl=ko]를 참조하세요.
+각 모델 유형에 지원되는 SQL 문과 함수에 대한 자세한 내용은 각 모델의 엔드 투 엔드 사용자 경험 [https://cloud.google.com/bigquery/docs/e2e-journey?hl=ko]을 참조하세요.
+누락된 데이터 대치
+통계에서 대치는 누락된 데이터를 대체된 값으로 바꾸는 데 사용됩니다. BigQuery ML에서 모델을 학습시킬 때 NULL 값은 누락된 데이터로 취급됩니다. BigQuery ML에서 결과를 예측하면서 BigQuery ML이 NULL 값 또는 이전에 본 적이 없는 값을 발견하는 경우 누락된 값이 생길 수 있습니다. BigQuery ML은 열의 데이터 유형에 따라 누락된 데이터를 다르게 처리합니다.
+열 유형 대치 방법
+숫자 학습과 예측에서 숫자 열의 NULL 값은 원본 입력 데이터의 특성 열로 계산되는 대로 지정된 열의 평균 값으로 대체됩니다.
+원-핫/멀티-핫 인코딩 학습과 예측 모두에서 인코딩 열의 NULL 값은 데이터에 추가되는 부가 카테고리에 매핑됩니다. 이전에 본 적이 없는 데이터에는 예측 중에 가중치 0이 할당됩니다.
+TIMESTAMP TIMESTAMP 열은 표준화된 열과 원-핫 인코딩 열의 대치 방법을 혼합하여 사용합니다. 생성된 Unix 시간 열에서 BigQuery ML은 모든 원본 열에서 값을 평균 Unix 시간으로 대체합니다. 다른 생성된 값의 경우 BigQuery ML은 추출된 특성마다 각각의 NULL 카테고리에 값을 할당합니다.
+STRUCT 학습과 예측 모두에서 STRUCT의 각 필드는 유형에 따라 귀속됩니다.
+특성 변환
+기본적으로 BigQuery ML은 입력 특성을 다음과 같이 변환합니다.
+입력 데이터 유형 변환 방법 세부정보
+INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types]
+NUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_type]
+BIGNUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bignumeric_type]
+FLOAT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#floating_point_types] 표준화 [https://en.wikipedia.org/wiki/Feature_scaling#Standardization] 대부분의 모델에서 BigQuery ML은 학습에 전달하기 전에 숫자 열을 표준화하고 0에 중심을 둡니다. 예외는 표준화가 발생하지 않는 부스티드 트리와 랜덤 포레스트 모델과 STANDARDIZE_FEATURES 옵션이 숫자 특성의 표준화 여부를 제어하는 k-평균 모델입니다.
+BOOL [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#boolean_type]
+STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type]
+BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bytes_type]
+DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#date_type]
+DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#datetime_type]
+TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type] 원-핫 인코딩 [https://developers.google.com/machine-learning/glossary/?hl=ko#one-hot_encoding] TIMESTAMP를 제외하고 숫자가 아니고 배열이 아닌 모든 열에서 BigQuery ML은 부스티드 트리 및 랜덤 포레스트 모델 이외의 모든 모델에 대해 원-핫 인코딩 변환을 수행합니다. 이 변환은 열의 각 고유한 값에 대해 별도의 특성을 생성합니다. 라벨 인코딩 변환은 각 고유 값을 숫자 값으로 변환하도록 부스티드 트리 및 랜덤 포레스트 모델을 학습시키는 데 적용됩니다.
+ARRAY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#array_type] 멀티-핫 인코딩 숫자가 아닌 모든 ARRAY 열에서 BigQuery ML은 멀티-핫 인코딩 변환을 수행합니다. 이 변환은 ARRAY의 고유 요소마다 별도의 특성을 생성합니다.
+TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type] 타임스탬프 변환 선형 또는 로지스틱 회귀 모델이 TIMESTAMP 열을 발견하면 TIMESTAMP에서 구성요소 집합을 추출하고 추출된 구성요소에서 표준화 및 원-핫 인코딩을 혼합하여 수행합니다. Unix 시간(초 단위) 구성요소에서 BigQuery ML은 표준화를 사용합니다. 다른 모든 구성요소에서는 원-핫 인코딩을 사용합니다.
+
+자세한 내용은 아래의 타임스탬프 특성 변환 테이블 [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#timestamp-transform]을 참조하세요.
+STRUCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#struct_type] 구조체 확장 BigQuery ML에서 STRUCT 열이 발견되면 STRUCT 내부 필드가 확장되어 단일 열이 생성됩니다. STRUCT의 모든 필드의 이름을 지정해야 합니다. 중첩된 STRUCT는 허용되지 않습니다. 확장 후 열 이름은 {struct_name}_{field_name} 형식입니다.
+STRUCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#struct_type]의 ARRAY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#array_type] 변환 없음
+NUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_types]의 ARRAY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#array_type] 변환 없음
+TIMESTAMP 특성 변환
+다음 표에서는 TIMESTAMP 열에서 추출된 구성요소와 해당 변환 방법을 보여줍니다.
+TIMESTAMP 구성요소 검색결과 processed_input개 변환 방법
+Unix 시간(초 단위) [COLUMN_NAME] 표준화
+날짜 _TS_DOM_[COLUMN_NAME] 원-핫 인코딩
+요일 _TS_DOW_[COLUMN_NAME] 원-핫 인코딩
+월 _TS_MOY_[COLUMN_NAME] 원-핫 인코딩
+시간 _TS_HOD_[COLUMN_NAME] 원-핫 인코딩
+분 _TS_MOH_[COLUMN_NAME] 원-핫 인코딩
+1년 기준 주 수(주는 일요일에 시작) _TS_WOY_[COLUMN_NAME] 원-핫 인코딩
+연도 _TS_YEAR_[COLUMN_NAME] 원-핫 인코딩
+카테고리 특성 인코딩
+원-핫 인코딩된 특성의 경우 모델 옵션 CATEGORY_ENCODING_METHOD를 사용하여 다른 기본 인코딩 방법을 지정할 수 있습니다. 일반화 선형 모델(GLM) 모델의 경우 CATEGORY_ENCODING_METHOD를 다음 값 중 하나로 설정할 수 있습니다.
+ONE_HOT_ENCODING [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#one_hot_encoding]
+DUMMY_ENCODING [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#dummy_encoding]
+LABEL_ENCODING [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#label_encoding]
+TARGET_ENCODING [https://cloud.google.com/bigquery/docs/auto-preprocessing?hl=ko#dummy_encoding]
+원-핫 인코딩
+원-핫 인코딩은 특성이 가진 각 카테고리를 자체 바이너리 특성에 매핑합니다. 여기서 0은 특성의 부재를 나타내고 1은 있음(더미 변수라고도 함)을 나타냅니다. 이 매핑은 N개의 새 특성 열을 만듭니다. 여기서 N은 학습 테이블에서 특성의 고유한 카테고리 수입니다.
+예를 들어 학습 테이블에 다음과 같이 Apple, Banana, Cranberry 카테고리가 있는 fruit라는 특성 열이 있다고 가정해 보겠습니다.
+행 과일
+1 Apple
+2 바나나
+3 Cranberry
+이 경우 CATEGORY_ENCODING_METHOD='ONE_HOT_ENCODING' 옵션은 테이블을 다음 내부 표현으로 변환합니다.
+행 fruit_Apple fruit_Banana fruit_Cranberry
+1 1 0 0
+2 0 1 0
+3 0 0 1
+원-핫 인코딩은 선형 및 로지스틱 회귀 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko] 및 부스티드 트리 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko] 모델에서 지원됩니다.
+더미 인코딩
+더미 인코딩 [https://en.wikiversity.org/wiki/Dummy_variable_(statistics)]은 범주형 특성이 자리표시자 변수 집합으로 변환되는 원-핫 인코딩과 비슷합니다. 더미 인코딩은 N 자리표시자 변수 대신 N-1 자리표시자 변수를 사용하여 특성의 N 카테고리를 나타냅니다. 예를 들어 앞의 원-핫 인코딩 예시에 표시된 것과 동일한 fruit 특성 열에 대해 CATEGORY_ENCODING_METHOD를 'DUMMY_ENCODING'으로 설정하면 테이블이 다음 내부 표현으로 변환됩니다.
+행 fruit_Apple fruit_Banana
+1 1 0
+2 0 1
+3 0 0
+학습 데이터 세트에서 가장 많이 발생하는 카테고리는 삭제됩니다. 가장 많이 발생하는 카테고리가 여러 개이면 해당 집합 내의 무작위 카테고리가 삭제됩니다.
+ML.WEIGHTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-weights?hl=ko]의 최종 가중치 집합에는 삭제된 카테고리가 여전히 포함되지만 가중치는 항상 0.0입니다. ML.ADVANCED_WEIGHTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-advanced-weights?hl=ko]의 경우 삭제된 변수의 표준 오류 및 p값은 NaN입니다.
+처음에 'DUMMY_ENCODING'으로 학습된 모델에서 warm_start를 사용하면 첫 번째 학습 실행에서 동일한 자리표시자 변수가 삭제됩니다. 모델은 학습 실행 간에 인코딩 방법을 변경할 수 없습니다.
+더미 인코딩은 선형 및 로지스틱 회귀 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko]에서 지원됩니다.
+라벨 인코딩
+라벨 인코딩은 범주형 특성의 값을 [0, <number of categories>]의 INT64 값으로 변환합니다.
+예를 들어 다음과 같은 도서 데이터 세트가 있다고 가정해 보세요.
+제목 장르
+책 1 판타지
+책 2 요리
+책 3 역사
+책 4 요리
+라벨 인코딩 값은 다음과 비슷할 수 있습니다.
+제목 장르(텍스트) 장르(숫자)
+책 1 판타지 1
+책 2 요리 2
+책 3 역사 3
+책 4 요리 2
+인코딩 어휘는 알파벳순으로 정렬됩니다. 어휘에 없는 NULL 값과 카테고리는 0으로 인코딩됩니다.
+라벨 인코딩은 부스팅된 결정 트리 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko]에서 지원됩니다.
+대상 인코딩
+대상 인코딩은 범주형 특징 값을 분류 모델에 대한 대상의 확률로 대체하거나 회귀 모델에 대한 대상의 예상 값으로 대체합니다.
+대상으로 인코딩된 특성은 다음 예시와 비슷할 수 있습니다.
+# Classification model
++------------------------+----------------------+
+| original value         | target encoded value |
++------------------------+----------------------+
+| (category_1, target_1) |     0.5              |
+| (category_1, target_2) |     0.5              |
+| (category_2, target_1) |     0.0              |
++------------------------+----------------------+
+
+# Regression model
++------------------------+----------------------+
+| original value         | target encoded value |
++------------------------+----------------------+
+| (category_1, 2)        |     2.5              |
+| (category_1, 3)        |     2.5              |
+| (category_2, 1)        |     1.5              |
+| (category_2, 2)        |     1.5              |
++------------------------+----------------------+
+대상 인코딩은 부스팅된 결정 트리 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko]에서 지원됩니다.
+도움이 되었나요?
+의견 보내기

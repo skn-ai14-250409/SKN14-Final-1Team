@@ -1,0 +1,476 @@
+Source URL: https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+ONNX 형식의 PyTorch 모델로 예측
+bookmark_border
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#before-you-begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#required_roles]
+선택사항: 모델 학습 및 ONNX 형식으로 변환 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#optional_train_a_model_and_convert_it_to_onnx_format]
+Open Neural Network Exchange [https://onnx.ai/](ONNX)는 모든 머신러닝 프레임워크를 나타내도록 설계된 균일한 형식을 제공합니다. ONNX에 대한 BigQuery ML 지원을 통해 다음을 수행할 수 있습니다.
+원하는 프레임워크를 사용하여 모델을 학습시키기
+모델을 ONNX 모델 형식으로 변환하기
+ONNX 모델을 BigQuery로 가져오고 BigQuery ML을 사용하여 예측 수행
+이 튜토리얼에서는 PyTorch [https://pytorch.org/]로 학습된 ONNX 모델을 BigQuery 데이터 세트로 가져오고 이를 사용해서 SQL 쿼리로부터 예측을 수행하는 방법을 설명합니다.
+중요: 가져온 모델 및 객체 테이블을 사용하여 예측을 실행하려면 예약이 있어야 합니다. 자세한 내용은 가져온 ONNX 모델의 제한사항 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-onnx?hl=ko#limitations]을 참조하세요.
+목표
+PyTorch [https://pytorch.org/]를 사용하여 사전 학습된 모델 가져오기
+torch.onnx [https://pytorch.org/docs/stable/onnx.html]를 사용하여 모델을 ONNX 형식으로 변환 [https://github.com/onnx/tutorials#converting-to-onnx-format]
+CREATE MODEL 문을 사용하여 ONNX 모델을 BigQuery로 가져오기
+ML.PREDICT 함수를 사용하여 가져온 ONNX 모델로 예측 수행
+비용
+이 문서에서는 비용이 청구될 수 있는 다음과 같은 Google Cloud구성요소를 사용합니다.
+BigQuery [https://cloud.google.com/bigquery/pricing?hl=ko]
+BigQuery ML [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]
+Cloud Storage [https://cloud.google.com/storage/pricing?hl=ko]
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+이 문서에 설명된 태스크를 완료했으면 만든 리소스를 삭제하여 청구가 계속되는 것을 방지할 수 있습니다. 자세한 내용은 삭제 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#clean-up]를 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, and Cloud Storage APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cstorage-component.googleapis.com%2Cbigqueryconnection.googleapis.com&hl=ko]
+이 문서의 태스크를 수행하는 데 필요한 권한 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#required_roles]이 있는지 확인합니다.
+필요한 역할
+새 프로젝트를 만드는 경우 개발자가 프로젝트 소유자이고 이 튜토리얼을 완료하는 데 필요한 모든 Identity and Access Management(IAM) 권한이 개발자에게 부여됩니다.
+기존 프로젝트를 사용하는 경우 다음을 수행합니다.
+Make sure that you have the following role or roles on the project:
+BigQuery Studio Admin [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.studioUser] (roles/bigquery.studioAdmin)
+BigQuery Connection Admin [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.connectionAdmin] (roles/bigquery.connectionAdmin)
+Storage Admin [https://cloud.google.com/storage/docs/access-control/iam-roles?hl=ko#standard-roles] (roles/storage.admin)
+Check for the roles
+Grant the roles
+선택사항: 모델 학습 및 ONNX 형식으로 변환
+다음 코드 샘플은 사전 학습된 분류 모델을 PyTorch로 가져오는 방법과 결과 모델을 ONNX 형식으로 변환하는 방법을 보여줍니다. 이 튜토리얼에서는 gs://cloud-samples-data/bigquery/ml/onnx/resnet18.onnx에 저장되어 있는 사전 빌드된 예시 모델을 사용합니다. 샘플 모델을 사용하는 경우에는 다음 단계를 완료하지 않아도 됩니다.
+이미지 분류를 위한 PyTorch 비전 모델 만들기
+다음 코드 샘플을 사용하여 BigQuery ML ML.DECODE_IMAGE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-decode-image?hl=ko] 및 ML.RESIZE_IMAGE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-resize-image?hl=ko] 함수에서 반환된 디코딩된 이미지 데이터를 허용하는 PyTorch 사전 학습된 resnet18 [https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html] 모델을 가져옵니다.
+import torch
+import torch.nn as nn
+
+# Define model input format to match the output format of
+# ML.DECODE_IMAGE function: [height, width, channels]
+dummy_input = torch.randn(1, 224, 224, 3, device="cpu")
+
+# Load a pretrained pytorch model for image classification
+model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+
+# Reshape input format from [batch_size, height, width, channels]
+# to [batch_size, channels, height, width]
+class ReshapeLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        x = x.permute(0, 3, 1, 2)  # reorder dimensions
+        return x
+
+class ArgMaxLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+       return torch.argmax(x, dim=1)
+
+final_model = nn.Sequential(
+    ReshapeLayer(),
+    model,
+    nn.Softmax(),
+    ArgMaxLayer()
+)
+ONNX 형식으로 모델 변환
+다음 샘플을 사용하여 torch.onnx [https://pytorch.org/docs/stable/onnx.html]를 사용하는 PyTorch 비전 모델을 내보냅니다. 내보낸 ONNX 파일의 이름은 resnet18.onnx입니다.
+torch.onnx.export(final_model,            # model being run
+                  dummy_input,            # model input
+                  "resnet18.onnx",        # where to save the model
+                  opset_version=10,       # the ONNX version to export the model to
+                  input_names = ['input'],         # the model's input names
+                  output_names = ['class_label'])  # the model's output names
+Cloud Storage에 ONNX 모델 업로드
+모델을 저장한 후 다음을 수행합니다.
+모델을 저장할 Cloud Storage 버킷을 만듭니다 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko].
+ONNX 모델을 Cloud Storage 버킷에 업로드합니다 [https://cloud.google.com/storage/docs/uploading-objects?hl=ko].
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+
+
+공개 데이터 세트는 US 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions]에 저장됩니다. 편의상 같은 위치에 데이터 세트를 저장합니다.
+
+
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+ONNX 모델을 BigQuery로 가져오기
+다음 단계에서는 CREATE MODEL [https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html] 문을 사용하여 Cloud Storage에서 데이터 세트로 샘플 ONNX 모델을 가져오는 방법을 보여줍니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery Studio 페이지로 이동합니다.
+
+BigQuery Studio로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 CREATE MODEL [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-onnx?hl=ko] 문을 입력합니다.
+
+CREATE OR REPLACE MODEL `bqml_tutorial.imported_onnx_model`
+ OPTIONS (MODEL_TYPE='ONNX',
+  MODEL_PATH='BUCKET_PATH')
+
+BUCKET_PATH를 Cloud Storage에 업로드한 모델의 경로로 바꿉니다. 샘플 모델을 사용하는 경우 BUCKET_PATH를 gs://cloud-samples-data/bigquery/ml/onnx/resnet18.onnx로 바꿉니다.
+
+작업이 완료되면 Successfully created model named imported_onnx_model과 유사한 메시지가 표시됩니다.
+
+새 모델이 리소스 패널에 표시됩니다. 모델은 모델 아이콘()으로 표시됩니다. 리소스 패널에서 새 모델을 선택하면 모델에 대한 정보가 쿼리 편집기 옆에 표시됩니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#bq] ---
+다음 CREATE MODEL 문을 입력하여 Cloud Storage에서 ONNX 모델을 가져옵니다.
+
+bq query --use_legacy_sql=false \
+"CREATE OR REPLACE MODEL
+  `bqml_tutorial.imported_onnx_model`
+OPTIONS
+  (MODEL_TYPE='ONNX',
+   MODEL_PATH='BUCKET_PATH')"
+
+BUCKET_PATH를 Cloud Storage에 업로드한 모델의 경로로 바꿉니다. 샘플 모델을 사용하는 경우 BUCKET_PATH를 gs://cloud-samples-data/bigquery/ml/onnx/resnet18.onnx로 바꿉니다.
+모델을 가져온 후 모델이 데이터 세트에 표시되는지 확인합니다.
+
+bq ls bqml_tutorial
+
+출력은 다음과 유사합니다.
+
+tableId               Type
+--------------------- -------
+imported_onnx_model  MODEL
+형식 및 스토리지 요구사항을 포함하여 BigQuery로 ONNX 모델을 가져오는 방법에 대한 자세한 내용은 ONNX 모델을 가져오기 위한 CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-onnx?hl=ko]을 참조하세요.
+이미지 데이터 분석을 위해 BigQuery에서 객체 테이블 만들기
+객체 테이블 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko]은 Cloud Storage에 있는 비정형 데이터 객체에 대한 읽기 전용 테이블입니다. 객체 테이블을 사용하면 BigQuery에서 비정형 데이터를 분석할 수 있습니다.
+이 튜토리얼에서는 ML.PREDICT 함수를 사용하여 Cloud Storage 버킷에 저장된 입력 이미지의 예측된 클래스 라벨을 출력합니다.
+객체 테이블을 만들려면 다음을 수행해야 합니다.
+Cloud Storage 버킷을 만들고 금붕어 이미지를 업로드합니다.
+객체 테이블에 액세스하는 데 사용되는 Cloud 리소스 연결을 만듭니다.
+리소스 연결의 서비스 계정에 대한 액세스 권한을 부여합니다.
+버킷 만들기 및 이미지 업로드
+Cloud Storage 버킷을 만들고 금붕어 이미지를 업로드하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#%EC%BD%98%EC%86%94] ---
+참고: Google Cloud 콘솔을 사용하여 버킷을 만들 때는 버킷의 전역적으로 고유한 이름만 설정하면 됩니다. 다른 모든 단계는 선택사항이거나 기본 설정이 적용됩니다.
+
+Google Cloud 콘솔에서 Cloud Storage 버킷 페이지로 이동합니다.버킷으로 이동 [https://console.cloud.google.com/storage/browser?hl=ko]
+add_box만들기를 클릭합니다.
+버킷 만들기 페이지에서 버킷 정보를 입력합니다.
+
+
+시작하기 섹션에서 다음을 수행합니다.
+
+
+상자에 bqml_images를 입력합니다.
+계속을 클릭합니다.
+
+데이터 저장 위치 선택 섹션에서 다음을 수행합니다.
+
+
+위치 유형으로 멀티 리전을 선택합니다.
+위치 유형 메뉴에서 US(미국 내 여러 리전)를 선택합니다.
+계속을 클릭합니다.
+
+데이터의 스토리지 클래스 선택 섹션에서 다음을 수행합니다.
+
+
+기본 클래스 설정을 선택합니다.
+표준을 선택합니다.
+계속을 클릭합니다.
+
+나머지 섹션에서는 기본값을 그대로 둡니다.
+
+만들기를 클릭합니다.
+
+--- 탭: 명령줄 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#%EB%AA%85%EB%A0%B9%EC%A4%84] ---
+다음 gcloud storage buckets create 명령어를 입력합니다.
+
+gcloud storage buckets create gs://bqml_images --location=us
+
+요청이 성공하면 명령어에서 다음과 같은 메시지를 반환합니다.
+
+Creating gs://bqml_images/...
+Cloud Storage 버킷에 이미지 업로드
+버킷이 생성되면 금붕어 이미지를 다운로드하여 Cloud Storage 버킷에 업로드합니다.
+이미지를 업로드하려면 다음 단계를 완료하세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 Cloud Storage 버킷 페이지로 이동합니다.버킷으로 이동 [https://console.cloud.google.com/storage/browser?hl=ko]
+버킷 목록에서 bqml_images를 클릭합니다.
+버킷의 객체 탭에서 다음 중 하나를 수행합니다.
+
+
+파일을 바탕화면이나 파일 관리자에서 Google Cloud 콘솔의 기본 창으로 드래그 앤 드롭합니다.
+업로드 > 파일 업로드를 클릭하고 표시되는 대화상자에서 업로드할 이미지 파일을 선택한 다음 열기를 클릭합니다.
+
+--- 탭: 명령줄 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#%EB%AA%85%EB%A0%B9%EC%A4%84] ---
+다음 gcloud storage cp 명령어를 입력합니다.
+
+gcloud storage cp OBJECT_LOCATION gs://bqml_images/IMAGE_NAME
+
+다음을 바꿉니다.
+
+
+OBJECT_LOCATION: 이미지 파일의 로컬 경로 (예: Desktop/goldfish.jpg)
+IMAGE_NAME: 이미지의 이름 (예: goldfish.jpg)
+
+
+성공한 경우 응답은 다음과 유사합니다.
+
+Completed files 1/1 | 164.3kiB/164.3kiB
+BigQuery Cloud 리소스 연결 만들기
+이 튜토리얼의 뒷부분에서 만드는 객체 테이블 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko]에 연결하려면 Cloud 리소스 연결이 필요합니다.
+Cloud 리소스 연결을 사용하면 Cloud Storage 또는 Spanner와 같은 Google Cloud 서비스나 AWS 또는 Azure와 같은 서드 파티 소스에서 BigQuery 외부에 저장된 데이터를 쿼리할 수 있습니다. 이러한 외부 연결에는 BigQuery Connection API가 사용됩니다.
+Cloud 리소스 연결을 만들려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery Studio 페이지로 이동합니다.
+
+BigQuery Studio로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+연결을 만들려면 add 추가를 클릭한 다음 외부 데이터 소스에 연결을 클릭합니다.
+연결 유형 목록에서 Vertex AI 원격 모델, 원격 함수, BigLake(Cloud 리소스)를 선택합니다.
+연결 ID 필드에 bqml_tutorial을 입력합니다.
+멀티 리전—미국이 선택되어 있는지 확인합니다.
+연결 만들기를 클릭합니다.
+창 하단에서 연결로 이동을 클릭합니다. 또는 탐색기 창에서 외부 연결을 펼친 다음 us.bqml_tutorial을 클릭합니다.
+연결 정보 창에서 서비스 계정 ID를 복사합니다. 연결의 권한을 구성할 때 이 ID가 필요합니다. 연결 리소스를 만들면 BigQuery가 고유한 시스템 서비스 계정을 만들고 이를 연결에 연계합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#bq] ---
+연결을 만듭니다.
+
+bq mk --connection --location=US --project_id=PROJECT_ID \
+    --connection_type=CLOUD_RESOURCE bqml_tutorial
+
+PROJECT_ID를 Google Cloud 프로젝트 ID로 바꿉니다. --project_id 매개변수는 기본 프로젝트를 재정의합니다.
+
+연결 리소스를 만들면 BigQuery가 고유한 시스템 서비스 계정을 만들고 이를 연결에 연계합니다.
+
+문제 해결: 다음 연결 오류가 발생하면 Google Cloud SDK를 업데이트 [https://cloud.google.com/sdk/docs/quickstart?hl=ko]하세요.
+
+Flags parsing error: flag --connection_type=CLOUD_RESOURCE: value should be one of...
+
+이후 단계에서 사용할 수 있도록 서비스 계정 ID를 가져와 복사합니다.
+
+bq show --connection PROJECT_ID.us.bqml_tutorial
+
+출력은 다음과 유사합니다.
+
+name                          properties
+1234.REGION.CONNECTION_ID {"serviceAccountId": "connection-1234-9u56h9@gcp-sa-bigquery-condel.iam.gserviceaccount.com"}
+연결 액세스 설정
+Cloud 리소스 연결의 서비스 계정에 스토리지 객체 관리자 역할을 부여합니다. 원격 모델 엔드포인트를 만든 것과 동일한 프로젝트에서 이 역할을 부여해야 합니다.
+참고: 연결이 다른 프로젝트에 있는 경우 bqcx-1234567890-xxxx@gcp-sa-bigquery-condel.iam.gserviceaccount.com does not have the permission to access resource 오류가 반환됩니다.
+역할을 부여하려면 다음 단계를 따르세요.
+IAM 및 관리자 페이지로 이동합니다.
+IAM 및 관리자로 이동 [https://cloud.google.com/bigquery/docs/object-tables?hl=ko]
+person_add 액세스 권한 부여를 클릭합니다.
+새 주 구성원 필드에 이전에 복사한 클라우드 리소스 연결의 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 Cloud Storage를 선택한 후 스토리지 객체 관리자를 선택합니다.
+저장을 클릭합니다.
+객체 테이블 만들기
+Cloud Storage에 업로드한 금붕어 이미지를 사용하여 goldfish_image_table이라는 객체 테이블을 만들려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery Studio 페이지로 이동합니다.
+
+BigQuery Studio로 이동 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko] 
+쿼리 편집기에서 이 쿼리를 입력하여 객체 테이블을 만듭니다.
+
+CREATE EXTERNAL TABLE `bqml_tutorial.goldfish_image_table`
+WITH CONNECTION `us.bqml_tutorial`
+OPTIONS(
+object_metadata = 'SIMPLE',
+uris = ['gs://bqml_images/IMAGE_NAME'],
+max_staleness = INTERVAL 1 DAY,
+metadata_cache_mode = 'AUTOMATIC');
+
+IMAGE_NAME을 YAML 파일의 이름으로 바꿉니다(예: goldfish.jpg).
+
+작업이 완료되면 This statement created a new table named goldfish_image_table과 같은 메시지가 표시됩니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#bq] ---
+다음 CREATE EXTERNAL TABLE 문을 입력하여 객체 테이블을 만듭니다.
+
+bq query --use_legacy_sql=false \
+"CREATE EXTERNAL TABLE `bqml_tutorial.goldfish_image_table`
+WITH CONNECTION `us.bqml_tutorial`
+OPTIONS(
+object_metadata = 'SIMPLE',
+uris = ['gs://bqml_images/IMAGE_NAME'],
+max_staleness = INTERVAL 1 DAY,
+metadata_cache_mode = 'AUTOMATIC')"
+
+IMAGE_NAME을 YAML 파일의 이름으로 바꿉니다(예: goldfish.jpg).
+객체 테이블을 만든 후 데이터 세트에 표시되는지 확인합니다.
+
+bq ls bqml_tutorial
+
+출력은 다음과 유사합니다.
+
+tableId               Type
+--------------------- --------
+goldfish_image_table  EXTERNAL
+자세한 내용은 객체 테이블 만들기 [https://cloud.google.com/bigquery/docs/object-tables?hl=ko]를 참조하세요.
+가져온 ONNX 모델로 예측 수행
+중요: 가져온 모델 및 객체 테이블을 사용하여 예측을 실행하려면 예약이 있어야 합니다. 자세한 내용은 가져온 ONNX 모델의 제한사항 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-onnx?hl=ko#limitations]을 참조하세요.
+
+예약이 없는 경우 ML.PREDICT를 사용하여 쿼리를 실행하면 BigQuery ML inference using imported models and object tables requires a reservation, but no reservations were assigned for job type `QUERY`...` 오류가 발생합니다.
+ML.PREDICT [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko] 함수가 포함된 다음 쿼리를 사용하여 입력 객체 테이블 goldfish_image_table의 이미지 데이터로부터 예측을 수행합니다. 이 쿼리는 ImageNet 라벨 [https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt] 딕셔너리를 기반으로 입력 이미지의 예측 클래스 라벨을 출력합니다.
+쿼리에서 ML.PREDICT로 해석할 수 있도록 ML.DECODE_IMAGE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-decode-image?hl=ko] 함수를 사용하여 이미지 데이터를 디코딩해야 합니다. ML.RESIZE_IMAGE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-resize-image?hl=ko] 함수를 호출하여 모델 입력 크기에 맞게 이미지 크기를 조절합니다(224*224).
+이미지 객체 테이블에서 추론 실행에 대한 자세한 내용은 이미지 객체 테이블에서 추론 실행 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko]을 참조하세요.
+이미지 데이터로부터 예측하려면 다음을 수행합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery Studio 페이지로 이동합니다.
+
+BigQuery Studio로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 ML.PREDICT 쿼리를 입력합니다.
+
+ SELECT
+   class_label
+ FROM
+   ML.PREDICT(MODEL bqml_tutorial.imported_onnx_model,
+     (
+     SELECT
+       ML.RESIZE_IMAGE(ML.DECODE_IMAGE(DATA),
+         224,
+         224,
+         FALSE) AS input
+     FROM
+       bqml_tutorial.goldfish_image_table))
+ 
+
+쿼리 결과는 다음과 유사합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#bq] ---
+다음 bq query 명령어를 입력합니다.
+
+bq query --use_legacy_sql=false \
+'SELECT
+  class_label
+FROM
+  ML.PREDICT(MODEL `bqml_tutorial.imported_onnx_model`,
+    (
+    SELECT
+      ML.RESIZE_IMAGE(ML.DECODE_IMAGE(DATA),
+        224,
+        224,
+        FALSE) AS input
+    FROM
+      bqml_tutorial.goldfish_image_table))'
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트를 유지하고 개별 리소스를 삭제하세요.
+프로젝트 삭제
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#%EC%BD%98%EC%86%94] ---
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+
+
+    
+      프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+    
+    
+      커스텀 프로젝트 ID가 손실됩니다.
+      이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+    
+  
+ 
+  여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+ 
+
+
+
+
+
+
+
+ 
+  
+    In the Google Cloud console, go to the Manage resources page.
+    Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+  
+  
+  
+    In the project list, select the project that you
+    want to delete, and then click Delete.
+  
+  
+    In the dialog, type the project ID, and then click
+    Shut down to delete the project.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/making-predictions-with-pytorch-models-in-onnx-format?hl=ko#gcloud] ---
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+
+
+    
+      프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+    
+    
+      커스텀 프로젝트 ID가 손실됩니다.
+      이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+    
+  
+ 
+  여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+ 
+
+
+
+
+
+
+
+ 
+  Delete a Google Cloud project:
+  gcloud projects delete PROJECT_ID
+개별 리소스 삭제
+또는 이 튜토리얼에서 사용된 개별 리소스를 삭제하려면 다음을 수행합니다.
+가져온 모델을 삭제합니다 [https://cloud.google.com/bigquery/docs/deleting-models?hl=ko].
+(선택사항) 데이터 세트를 삭제합니다 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#delete-datasets].
+Cloud 리소스 연결을 삭제합니다 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#delete-connections].
+Cloud Storage 버킷을 삭제합니다 [https://cloud.google.com/storage/docs/deleting-buckets?hl=ko#delete-bucket].
+다음 단계
+ONNX 모델 가져오기에 대한 자세한 내용은 ONNX 모델의 CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-onnx?hl=ko] 참조하기
+사용 가능한 ONNX 변환기 및 튜토리얼에 대한 자세한 내용은 ONNX 형식으로 변환 [https://github.com/onnx/tutorials#converting-to-onnx-format] 참조하기
+BigQuery ML 개요는 BigQuery ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko] 참조하기
+BigQuery ML을 시작하려면 BigQuery ML에서 머신러닝 모델 만들기 [https://cloud.google.com/bigquery/docs/create-machine-learning-model?hl=ko] 참조하기
+도움이 되었나요?
+의견 보내기

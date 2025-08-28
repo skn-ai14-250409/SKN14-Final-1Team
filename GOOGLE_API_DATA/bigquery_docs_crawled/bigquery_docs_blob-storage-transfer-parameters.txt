@@ -1,0 +1,104 @@
+Source URL: https://cloud.google.com/bigquery/docs/blob-storage-transfer-parameters
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+사용 가능한 런타임 매개변수 [https://cloud.google.com/bigquery/docs/blob-storage-transfer-parameters?hl=ko#destination-table-run-time-parameters]
+템플릿 시스템 [https://cloud.google.com/bigquery/docs/blob-storage-transfer-parameters?hl=ko#templating_system]
+파티션 나누기 옵션 [https://cloud.google.com/bigquery/docs/blob-storage-transfer-parameters?hl=ko#partitioning_options]
+파티션 나누기 예시 [https://cloud.google.com/bigquery/docs/blob-storage-transfer-parameters?hl=ko#partitioning_examples]
+매개변수 사용에 대한 참고 사항 [https://cloud.google.com/bigquery/docs/blob-storage-transfer-parameters?hl=ko#notes_on_parameter_usage]
+런타임 매개변수 예시 [https://cloud.google.com/bigquery/docs/blob-storage-transfer-parameters?hl=ko#runtime_parameter_examples]
+파티션을 나누지 않은 테이블로 데이터 전송 [https://cloud.google.com/bigquery/docs/blob-storage-transfer-parameters?hl=ko#transfer_data_to_a_non-partitioned_table]
+모든 데이터 스냅샷을 수집 시간으로 파티션을 나눈 테이블에 로드 [https://cloud.google.com/bigquery/docs/blob-storage-transfer-parameters?hl=ko#load_a_snapshot_of_all_data_into_an_ingestion-time_partitioned_table]
+Blob Storage 전송의 런타임 매개변수
+bookmark_border
+Cloud Storage, Azure Blob Storage 또는 Amazon Simple Storage Service(Amazon S3)에서 데이터 전송을 설정할 때 URI(또는 데이터 경로)와 대상 테이블을 매개변수화할 수 있습니다. 매개변수화는 날짜별로 정리된 버킷에서 데이터를 로드할 수 있게 해줍니다. 쿼리 매개변수와 구분하기 위해 이러한 매개변수를 런타임 매개변수라고 합니다.
+전송에서 런타임 매개변수를 사용할 때 다음을 수행할 수 있습니다.
+대상 테이블의 파티션을 나누는 방식 지정
+특정 날짜와 일치하는 파일 검색
+사용 가능한 런타임 매개변수
+Cloud Storage, Blob Storage 또는 Amazon S3 전송을 설정할 때 런타임 매개변수를 사용하여 대상 테이블의 파티션을 나누는 방법을 지정할 수 있습니다.
+매개변수 템플릿 유형 값
+run_time 형식이 지정된 타임스탬프 일정에 따라 UTC 시간으로 표시됩니다. 정기적인 예약된 전송에서 run_time은 의도한 실행 시간을 나타냅니다. 예를 들어 전송이 '24시간마다'로 설정된 경우 실제 실행 시간은 약간 다를 수 있지만 연속된 두 쿼리 간의 run_time 차이는 정확히 24시간입니다.
+
+TransferRun.runTime [https://cloud.google.com/bigquery-transfer/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs.runs?hl=ko]을 참조하세요.
+run_date 날짜 문자열 %Y%m%d 형식(예: 20180101)의 run_time 매개변수 날짜입니다. 이 형식은 수집 시간으로 파티션을 나눈 테이블에서 사용할 수 있습니다.
+템플릿 시스템
+Cloud Storage, Blob Storage 및 Amazon S3 전송은 템플릿 문법을 사용하여 대상 테이블 이름에 런타임 매개변수를 지원합니다.
+매개변수 템플릿 문법
+템플릿 문법은 기본 문자열 템플릿과 시간 오프셋을 지원합니다. 매개변수는 다음 형식으로 참조됩니다.
+{run_date}
+{run_time[+\-offset]|"time_format"}
+매개변수 목적
+run_date 이 매개변수는 YYYYMMDD 형식의 날짜로 대체됩니다.
+run_time 이 매개변수는 다음 속성을 지원합니다.
+
+offset
+시간(h), 분(m), 초(s)의 순서로 표시되는 타임스탬프입니다.
+일(d)은 지원되지 않습니다.
+소수가 허용됩니다(예: 1.5h).
+time_format
+형식이 지정된 문자열. 가장 일반적인 형식 지정 매개변수는 년(%Y), 월(%m), 일(%d)입니다.
+파티션을 나눈 테이블에서는 YYYYMMDD가 필수 서픽스입니다. 이는 '%Y%m%d'와 같습니다.
+
+datetime 요소 형식 지정 [https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-and-operators?hl=ko#supported-format-elements-for-datetime]에 대해 자세히 알아보세요.
+사용법 참고사항:
+run_time, offset, time 형식 사이에 공백이 없어야 합니다.
+문자열에 리터럴 중괄호를 포함하려면 '\{' and '\}'로 이스케이프 처리합니다.
+"YYYY|MM|DD"와 같은 time_format에 리터럴 따옴표 또는 세로 막대를 포함하려면 형식 문자열에서 '\"' 또는 '\|'로 이스케이프 처리합니다.
+매개변수 템플릿 예시
+다음 예는 다양한 시간 형식을 사용하여 대상 테이블 이름을 지정하고 실행 시간을 오프셋하는 방법을 보여줍니다.
+run_time(UTC) 템플릿 매개변수 출력 대상 테이블 이름
+2018-02-15 00:00:00 mytable mytable
+2018-02-15 00:00:00 mytable_{run_time|"%Y%m%d"} mytable_20180215
+2018-02-15 00:00:00 mytable_{run_time+25h|"%Y%m%d"} mytable_20180216
+2018-02-15 00:00:00 mytable_{run_time-1h|"%Y%m%d"} mytable_20180214
+2018-02-15 00:00:00 mytable_{run_time+1.5h|"%Y%m%d%H"}
+또는
+mytable_{run_time+90m|"%Y%m%d%H"} mytable_2018021501
+2018-02-15 00:00:00 {run_time+97s|"%Y%m%d"}_mytable_{run_time+97s|"%H%M%S"} 20180215_mytable_000137
+파티션 나누기 옵션
+BigQuery에는 두 가지 유형의 파티션을 나눈 테이블이 있습니다.
+수집 시간으로 파티션을 나눈 테이블. Cloud Storage, Blob Storage, Amazon S3 전송에서 수집 시간은 전송 실행 시간입니다.
+열을 기준으로 파티션을 나눈 테이블. 열 유형은 TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type] 또는 DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#date_type] 열이어야 합니다.
+대상 테이블의 열에서 파티션이 나뉜 경우 대상 테이블을 만들고 스키마를 지정할 때 파티션 나누기 열을 식별합니다. 열을 기준으로 파티션을 나눈 테이블을 만드는 방법은 파티션을 나눈 테이블 생성 및 사용 [https://cloud.google.com/bigquery/docs/creating-column-partitions?hl=ko]을 참조하세요.
+참고: 테이블의 파티션을 나눌 때 분은 지정할 수 없습니다.
+파티션 나누기 예시
+파티션을 나누지 않은 테이블
+대상 테이블: mytable
+수집 시간으로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#ingestion_time]
+대상 테이블: mytable$YYYYMMDD
+분은 지정할 수 없습니다.
+열로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#date_timestamp_partitioned_tables]
+대상 테이블: mytable
+테이블 스키마를 만들 때 파티션 나누기 열을 TIMESTAMP 또는 DATE 열로 지정합니다.
+매개변수 사용에 대한 참고 사항
+현지 시간대를 기준으로 데이터의 파티션을 나누는 경우 템플릿 문법 [https://cloud.google.com/bigquery/docs/blob-storage-transfer-parameters?hl=ko#templating_system]의 오프셋 메커니즘을 사용하여 UTC와의 시차를 수동으로 계산해야 합니다.
+매개변수에 분을 지정할 수 없습니다.
+대상 테이블 이름의 매개변수와 함께 URI 또는 데이터 경로에 와일드 카드를 사용할 수 있습니다.
+런타임 매개변수 예시
+다음 예시에서는 일반 사용 사례에 와일드 카드 문자와 매개변수를 결합하는 방법을 보여줍니다. 테이블의 이름이 mytable이고 모든 예시에서 run_time이 2018-02-15 00:00:00(UTC)라고 가정합니다.
+파티션을 나누지 않은 테이블로 데이터 전송
+이 사용 사례에서는 Cloud Storage, Blob Storage, 또는 Amazon S3 버킷의 새 파일을 파티션을 나누지 않은 테이블에 로드합니다. 이 예시에서는 URI 또는 데이터 경로에 와일드 카드를 사용하고 임시 새로고침 전송을 사용하여 새 파일을 선택합니다.
+데이터 소스 소스 URI 또는 데이터 경로 대상 테이블 이름
+Cloud Storage gs://bucket/*.csv mytable
+Amazon S3 s3://bucket/*.csv mytable
+Blob 스토리지 *.csv mytable
+모든 데이터 스냅샷을 수집 시간으로 파티션을 나눈 테이블에 로드
+이 경우 지정된 URI 또는 데이터 경로의 모든 데이터는 오늘 날짜로 파티션을 나눈 테이블에 전송됩니다. 새로고침 전송에서 이 구성은 마지막 로드 이후에 추가된 파일을 가져와서 특정 파티션에 추가합니다.
+데이터 소스 소스 URI 또는 데이터 경로 매개변수화된 대상 테이블 이름 평가된 대상 테이블 이름
+Cloud Storage gs://bucket/*.csv mytable${run_time|"%Y%m%d"} mytable$20180215
+Amazon S3 s3://bucket/*.csv mytable${run_time|"%Y%m%d"} mytable$20180215
+Blob 스토리지 *.csv mytable${run_time|"%Y%m%d"} mytable$20180215
+이 사용 사례에서는 오늘 날짜의 데이터를 오늘 날짜로 파티션을 나눈 테이블에 전송합니다. 이 예시는 특정 날짜와 일치하는 새로 추가된 파일을 검색하여 데이터를 해당 파티션에 로드하는 새로 고침 전송에도 적용됩니다.
+데이터 소스 매개변수화된 URI 또는 데이터 경로 매개변수화된 대상 테이블 이름 평가된 URI 또는 데이터 경로 평가된 대상 테이블 이름
+Cloud Storage gs://bucket/events-{run_time|"%Y%m%d"}/*.csv mytable${run_time|"%Y%m%d"} gs://bucket/events-20180215/*.csv mytable$20180215
+Amazon S3 s3://bucket/events-{run_time|"%Y%m%d"}/*.csv mytable${run_time|"%Y%m%d"} s3://bucket/events-20180215/*.csv mytable$20180215
+Blob 스토리지 events-{run_time|"%Y%m%d"}/*.csv mytable${run_time|"%Y%m%d"} events-20180215/*.csv mytable$20180215
+다음 단계
+Azure Blob Storage 전송 설정 [https://cloud.google.com/bigquery/docs/blob-storage-transfer?hl=ko]에 대해 자세히 알아보기
+BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/dts-introduction?hl=ko] 자세히 알아보기
+의견 보내기

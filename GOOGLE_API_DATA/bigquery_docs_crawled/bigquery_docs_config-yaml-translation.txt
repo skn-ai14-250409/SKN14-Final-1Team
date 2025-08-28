@@ -1,0 +1,736 @@
+Source URL: https://cloud.google.com/bigquery/docs/config-yaml-translation
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+구성 YAML 파일 요구사항 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#configuration_yaml_file_requirements]
+구성 YAML 파일을 만들기 위한 가이드라인 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#yaml_guidelines]
+헤더 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#header]
+항목 선택 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#entity_selection]
+기본 데이터베이스 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#default_database]
+지원되는 타겟 속성 유형 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#supported_target_attribute_types]
+구성 YAML 예시 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#yaml_examples]
+객체 이름 대소문자 변경 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#change_object-name_case]
+구성 YAML 파일을 사용하여 SQL 변환
+bookmark_border
+이 문서에서는 구성 YAML 파일을 사용하여 BigQuery로 마이그레이션하는 동안 SQL 코드를 변환하는 방법을 보여줍니다. 자체 구성 YAML 파일을 만들기 위한 가이드라인과 이 기능에서 지원되는 다양한 변환에 대한 예시를 제공합니다.
+BigQuery 대화형 SQL 변환기 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]를 사용하거나 BigQuery Migration API [https://cloud.google.com/bigquery/docs/api-sql-translator?hl=ko]를 사용하거나 일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]을 수행할 때 SQL 쿼리 변환을 수정하기 위한 구성 YAML 파일을 제공할 수 있습니다. 구성 YAML 파일을 사용하면 소스 데이터베이스에서 SQL 쿼리를 변환할 때 추가로 맞춤설정할 수 있습니다.
+다음과 같은 방법으로 SQL 변환에 사용할 구성 YAML 파일을 지정할 수 있습니다.
+대화형 SQL 변환기를 사용하는 경우 변환 설정에서 구성 파일 또는 일괄 변환 작업 ID의 파일 경로를 지정 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko#translate-with-additional-configs]합니다.
+BigQuery Migration API를 사용하는 경우 구성 YAML을 입력 SQL 파일과 동일한 Cloud Storage 버킷에 배치합니다.
+일괄 SQL 변환을 실행하는 경우 구성 YAML을 입력 SQL 파일과 동일한 Cloud Storage 버킷에 배치합니다.
+일괄 변환 Python 클라이언트 [https://github.com/google/dwh-migration-tools/tree/main/client#readme]를 사용하는 경우 구성 YAML 파일을 로컬 번역 입력 폴더에 배치합니다.
+참고: API 기반 변환의 경우 일괄 SQL 변환 API 또는 클라이언트 대신 BigQuery Migration API를 사용하는 것이 좋습니다.
+대화형 SQL 변환기, BigQuery Migration API, 일괄 SQL 변환기, 일괄 변환 Python 클라이언트는 단일 변환 작업에서 여러 구성 YAML 파일의 사용을 지원합니다. 자세한 내용은 여러 YAML 구성 적용 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#yaml_multiple]을 참조하세요.
+구성 YAML 파일 요구사항
+구성 YAML 파일을 만들기 전에 다음 정보를 검토하여 YAML 파일이 BigQuery Migration Service와 호환되는지 확인하세요.
+SQL 변환 입력 파일이 포함된 Cloud Storage 버킷의 루트 디렉터리에 구성 YAML 파일을 업로드해야 합니다. 버킷을 만들고 Cloud Storage에 파일을 업로드하는 방법에 대한 자세한 내용은 버킷 만들기 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko] 및 파일 시스템에서 객체 업로드 [https://cloud.google.com/storage/docs/uploading-objects?hl=ko]를 참고하세요.
+단일 구성 YAML 파일의 파일 크기는 1MB를 초과할 수 없습니다.
+단일 SQL 변환 작업에 사용되는 모든 구성 YAML 파일의 총 파일 크기는 4MB를 초과할 수 없습니다.
+이름 일치에 regex 문법을 사용하는 경우 RE2/J [https://github.com/google/re2j]를 사용합니다.
+모든 구성 YAML 파일 이름에는 .config.yaml 확장 프로그램이 포함되어야 합니다(예: change-case.config.yaml).
+config.yaml만으로는 구성 파일의 유효한 이름이 아닙니다.
+구성 YAML 파일을 만들기 위한 가이드라인
+이 섹션에서는 구성 YAML 파일을 만들기 위한 일반적인 가이드라인을 제공합니다.
+헤더
+각 구성 파일에는 구성 유형을 지정하는 헤더가 포함되어야 합니다. object_rewriter 유형은 구성 YAML 파일에서 SQL 변환을 지정하는 데 사용됩니다. 다음 예시에서는 object_rewriter 유형을 사용하여 이름 대소문자를 변환합니다.
+type: object_rewriter
+global:
+  case:
+    all: UPPERCASE
+항목 선택
+항목별 변환을 수행하려면 구성 파일에 항목을 지정합니다. 모든 match 속성은 선택사항입니다. 변환에 필요한 match 속성만 사용하세요. 다음 구성 YAML은 특정 항목을 선택하는 데 도움이 되는 속성을 보여줍니다.
+match:
+  database: <literal_name>
+  schema: <literal_name>
+  relation: <literal_name>
+  attribute: <literal_name>
+  databaseRegex: <regex>
+  schemaRegex: <regex>
+  relationRegex: <regex>
+  attributeRegex: <regex>
+각 match 속성에 대한 설명은 다음과 같습니다.
+database 또는 db: project_id 구성요소입니다.
+schema: 데이터 세트 구성요소입니다.
+relation: 테이블 구성요소입니다.
+attribute: 열 구성요소입니다. 속성 선택에만 유효합니다.
+databaseRegex 또는 dbRegex: 정규 표현식을 사용해서 일치하는 database 속성을 찾습니다 (미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+schemaRegex: 정규 표현식을 사용해서 일치하는 schema 속성을 찾습니다(미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+relationRegex: 정규 표현식을 사용해서 일치하는 relation 속성을 찾습니다(미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+attributeRegex: 정규 표현식을 사용해서 일치하는 attribute 속성을 찾습니다. 속성 선택에만 유효합니다(미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]).
+예를 들어 다음 구성 YAML은 임시 테이블 변환을 위해 testdb.acme.employee 테이블을 선택하도록 match 속성을 지정합니다.
+type: object_rewriter
+relation:
+-
+  match:
+    database: testdb
+    schema: acme
+    relation: employee
+  temporary: true
+databaseRegex, schemaRegex, relationRegex, attributeRegex 속성을 사용하여 엔티티의 하위 집합을 선택하기 위한 정규식을 지정할 수 있습니다. 다음 예시에서는 이름이 tmp_로 시작하는 한 testdb의 tmp_schema 스키마에 있는 모든 관계를 임시로 변경합니다.
+type: object_rewriter
+relation:
+-
+  match:
+    schema: tmp_schema
+    relationRegex: "tmp_.*"
+  temporary: true
+리터럴과 regex 속성은 대소문자를 구분하지 않는 방식으로 일치합니다. 다음 예와 같이 i 플래그가 사용 중지된 regex를 사용하여 대소문자 구분 일치를 적용할 수 있습니다.
+match:
+  relationRegex: "(?-i:<actual_regex>)"
+또한 동등한 짧은 문자열 문법을 사용하여 정규화된 항목을 지정할 수도 있습니다. 짧은 문자열 문법은 점으로 구분된 3(관계 선택의 경우) 또는 4(속성 선택의 경우) 이름 세그먼트를 필요로 합니다(예: testdb.acme.employee). 그런 다음 세그먼트는 각각 database, schema, relation, attribute로 전달된 것처럼 내부적으로 해석됩니다. 즉, 이름은 문자 그대로 일치하므로 짧은 문법에서는 정규 표현식이 허용되지 않습니다. 다음 예시에서는 짧은 문자열 문법을 사용하여 구성 YAML 파일에 정규화된 항목을 지정하는 방법을 보여줍니다.
+type: object_rewriter
+relation:
+-
+  match : "testdb.acme.employee"
+  temporary: true
+테이블의 이름에 점이 포함된 경우 짧은 문법을 사용하여 이름을 지정할 수 없습니다. 이 경우 객체 일치를 사용해야 합니다. 다음 예시에서는 testdb.acme.stg.employee 테이블을 임시 테이블로 변경합니다.
+type: object_rewriter
+relation:
+-
+  match:
+    database: testdb
+    schema: acme
+    relation: stg.employee
+  temporary: true
+구성 YAML은 match에 대한 별칭으로 key를 허용합니다.
+기본 데이터베이스
+일부 입력 SQL 언어, 특히 Teradata는 정규화된 이름에서 database-name을 지원하지 않습니다. 이 경우 엔티티를 일치시키는 가장 쉬운 방법은 match에서 database 속성을 생략하는 것입니다.
+하지만 BigQuery Migration Service의 default_database 속성을 설정하고 match에서 해당 기본 데이터베이스를 사용할 수 있습니다.
+지원되는 타겟 속성 유형
+구성 YAML 파일을 사용하여 속성 유형 변환을 수행 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#change_type_of_a_column_attribute]할 수 있습니다. 여기서 열의 데이터 유형을 소스 유형에서 대상 유형으로 변환합니다. 구성 YAML 파일은 다음 타겟 유형을 지원합니다.
+BOOLEAN
+TINYINT
+SMALLINT
+INTEGER
+BIGINT
+FLOAT
+DOUBLE
+NUMERIC(NUMERIC(18, 2)과 같은 선택적 정밀도 및 규모 지원)
+TIME
+TIMETZ
+DATE
+DATETIME
+TIMESTAMP
+TIMESTAMPTZ
+CHAR(CHAR(42)와 같은 선택적 정밀도 지원)
+VARCHAR(VARCHAR(42)와 같은 선택적 정밀도 지원)
+구성 YAML 예시
+이 섹션에서는 SQL 변환에 사용할 여러 구성 YAML 파일을 만들기 위한 예시를 제공합니다. 각 예시에서는 SQL 변환을 특정 방식으로 변환하기 위한 YAML 문법과 간단한 설명을 설명합니다. 각 예시는 BigQuery SQL 쿼리 변환에서 구성 YAML의 효과를 비교할 수 있도록 teradata-input.sql 또는 hive-input.sql 파일과 bq-output.sql 파일의 콘텐츠도 제공합니다.
+다음 예에서는 Teradata 또는 Hive를 입력 SQL 언어로 사용하고 BigQuery SQL을 출력 언어로 사용합니다. 다음 예시에서도 testdb를 기본 데이터베이스로 사용하고 testschema를 스키마 검색 경로로 사용합니다.
+객체 이름 대소문자 변경
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 객체 이름의 대소문자를 변경합니다.
+type: object_rewriter
+global:
+  case:
+    all: UPPERCASE
+    database: LOWERCASE
+    attribute: LOWERCASE
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+      create table x(a int);
+      select * from x;
+    
+bq-output.sql
+      CREATE TABLE testdb.TESTSCHEMA.X
+      (
+        a INT64
+      )
+      ;
+      SELECT
+          X.a
+        FROM
+          testdb.TESTSCHEMA.X
+      ;
+    
+임시적인 테이블 만들기
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 일반 테이블을 임시 테이블 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#temporary_and_permanent_tables]로 변경합니다.
+type: object_rewriter
+relation:
+  -
+    match: "testdb.testschema.x"
+    temporary: true
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+    create table x(a int);
+    
+bq-output.sql
+    CREATE TEMPORARY TABLE x
+    (
+      a INT64
+    )
+    ;
+    
+일시적인 테이블 만들기
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 일반 테이블을 만료 시간이 60초인 일시적인 테이블 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#updating_a_tables_expiration_time]로 변경합니다.
+type: object_rewriter
+relation:
+  -
+    match: "testdb.testschema.x"
+    ephemeral:
+      expireAfterSeconds: 60
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+    create table x(a int);
+    
+bq-output.sql
+    CREATE TABLE testdb.testschema.x
+    (
+      a INT64
+    )
+    OPTIONS(
+      expiration_timestamp=timestamp_add(current_timestamp(), interval 60 SECOND)
+    );
+    
+파티션 만료 시간 설정
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 파티션된 테이블의 만료 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#partition-expiration]를 1일로 변경합니다.
+type: object_rewriter
+relation:
+  -
+    match: "testdb.testschema.x"
+    partitionLifetime:
+      expireAfterSeconds: 86400
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+    create table x(a int, b int) partition by (a);
+    
+bq-output.sql
+    CREATE TABLE testdb.testschema.x
+    (
+      a INT64,
+      b INT64
+    )
+    CLUSTER BY a
+    OPTIONS(
+      partition_expiration_days=1
+    );
+    
+표의 외부 위치 또는 형식 변경
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 테이블의 외부 위치 및 형식 [https://cloud.google.com/bigquery/docs/external-data-sources?hl=ko#external_tables]을 변경합니다.
+type: object_rewriter
+relation:
+  -
+    match: "testdb.testschema.x"
+    external:
+      locations: "gs://path/to/department/files"
+      format: ORC
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+    create table x(a int);
+    
+bq-output.sql
+    CREATE EXTERNAL TABLE testdb.testschema.x
+    (
+      a INT64
+    )
+    OPTIONS(
+      format='ORC',
+      uris=[
+        'gs://path/to/department/files'
+      ]
+    );
+    
+테이블 설명 설정 또는 변경
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 테이블의 설명을 설정합니다.
+type: object_rewriter
+relation:
+  -
+    match: "testdb.testschema.x"
+    description:
+      text: "Example description."
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+    create table x(a int);
+    
+bq-output.sql
+    CREATE TABLE testdb.testschema.x
+    (
+      a INT64
+    )
+    OPTIONS(
+      description='Example description.'
+    );
+    
+테이블 파티셔닝 설정 또는 변경
+다음 구성 YAML은 테이블의 파티셔닝 스키마 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]를 변경합니다.
+type: object_rewriter
+relation:
+  -
+    match: "testdb.testschema.x"
+    partition:
+      simple:
+        add: [a]
+  -
+    match: "testdb.testschema.y"
+    partition:
+      simple:
+        remove: [a]
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+    create table x(a date, b int);
+    create table y(a date, b int) partition by (a);
+    
+bq-output.sql
+    CREATE TABLE testdb.testschema.x
+    (
+      a DATE,
+      b INT64
+    )
+    PARTITION BY a;
+    CREATE TABLE testdb.testschema.y
+    (
+      a DATE,
+      b INT64
+    )
+    ;
+    
+테이블 클러스터링 설정 또는 변경
+다음 구성 YAML은 테이블의 클러스터링 스키마 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]를 변경합니다.
+type: object_rewriter
+relation:
+  -
+    match: "testdb.testschema.x"
+    clustering:
+      add: [a]
+  -
+    match: "testdb.testschema.y"
+    clustering:
+      remove: [b]
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+hive-input.sql
+    create table x(a int, b int);
+    create table y(a int, b int) clustered by (b) into 16 buckets;
+    
+bq-output.sql
+    CREATE TABLE testdb.testschema.x
+    (
+      a INT64,
+      b INT64
+    )
+    CLUSTER BY a;
+    CREATE TABLE testdb.testschema.y
+    (
+      a INT64,
+      b INT64
+    )
+    ;
+    
+열 속성의 유형 변경
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 열의 속성 데이터 유형을 변경합니다.
+type: object_rewriter
+attribute:
+  -
+    match:
+      database: testdb
+      schema: testschema
+      attributeRegex: "a+"
+    type:
+      target: NUMERIC(10,2)
+소스 데이터 유형을 지원되는 대상 속성 유형 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#supported_target_attribute_types]으로 변환할 수 있습니다.
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+    create table x(a int, b int, aa int);
+    
+bq-output.sql
+    CREATE TABLE testdb.testschema.x
+    (
+      a NUMERIC(31, 2),
+      b INT64,
+      aa NUMERIC(31, 2)
+    )
+    ;
+    
+참고: BigQuery 변환은 숫자 정밀도를 지정된 배율에서 사용할 수 있는 가장 높은 정밀도로 늘립니다.
+외부 데이터 레이크에 연결 추가
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 소스 테이블을 데이터 레이크 연결로 지정된 외부 데이터 레이크에 저장된 데이터를 가리키는 외부 테이블로 표시합니다.
+type: object_rewriter
+relation:
+-
+  key: "testdb.acme.employee"
+  external:
+    connection_id: "connection_test"
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+hive-input.sql
+    CREATE TABLE x
+    (
+      a VARCHAR(150),
+      b INT
+    );
+    
+bq-output.sql
+    CREATE EXTERNAL TABLE x
+    (
+      a STRING,
+      b INT64
+    )
+    WITH CONNECTION `connection_test`
+    OPTIONS(
+    );
+    
+입력 파일의 문자 인코딩 변경
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+기본적으로 BigQuery Migration Service는 입력 파일의 문자 인코딩을 자동으로 감지하려고 시도합니다. BigQuery Migration Service가 파일 인코딩을 잘못 식별할 수 있는 경우 구성 YAML을 사용해서 문자 인코딩을 명시적으로 지정할 수 있습니다.
+다음 구성 YAML은 입력 파일의 명시적 문자 인코딩을 ISO-8859-1로 지정합니다.
+type: experimental_input_formats
+formats:
+- source:
+    pathGlob: "*.sql"
+  contents:
+    raw:
+      charset: iso-8859-1
+전역 유형 변환
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 데이터 유형을 모든 스크립트에서 다른 유형으로 변경하고 트랜스파일 스크립트에서 방지할 소스 데이터 유형을 지정합니다. 이는 단일 속성의 데이터 유형만 변경되는 열 속성의 변경 유형 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#change_type_of_a_column_attribute] 구성과 다릅니다.
+BigQuery는 다음과 같은 데이터 유형 변환을 지원합니다.
+TIMESTAMP에게 DATETIME 부여
+TIMESTAMP~DATETIME(선택적인 시간대 허용)
+TIMESTAMP WITH TIME ZONE~DATETIME(선택적인 시간대 허용)
+VARCHAR에게 CHAR 부여
+다음 예시에서 구성 YAML은 TIMESTAMP 데이터 유형을 DATETIME로 변환합니다.
+type: experimental_object_rewriter
+global:
+  typeConvert:
+    timestamp: DATETIME
+Teradata와 같은 언어에서 current_date, current_time, current_timestamp 같은 날짜/시간 관련 함수는 구성된 시간대(로컬 또는 세션)를 기준으로 타임스탬프를 반환합니다. 반면 BigQuery는 항상 UTC로 타임스탬프를 반환합니다. 두 언어 간에 일관된 동작을 보장하려면 시간대를 적절하게 구성해야 합니다.
+다음 예시에서 구성 YAML은 TIMESTAMP 및 TIMESTAMP WITH TIME ZONE 데이터 유형을 DATETIME로 변환하며 대상 시간대를 Europe/Paris로 설정합니다.
+type: experimental_object_rewriter
+global:
+  typeConvert:
+    timestamp:
+      target: DATETIME
+      timezone: Europe/Paris
+    timestamptz:
+      target: DATETIME
+      timezone: Europe/Paris
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+      create table x(a timestamp);
+      select a from x where a > current_timestamp(0);
+    
+bq-output.sql
+      CREATE TABLE x
+      (
+        a TIMESTAMP
+      )
+      ;
+      SELECT
+          x.a
+        FROM
+          test.x
+        WHERE x.a > datetime_trunc(current_datetime('Europe/Paris'), SECOND)
+      ;
+    
+Select 문 수정
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 SELECT 문에서 star 프로젝션, GROUP BY, ORDER BY 절을 변경합니다.
+starProjection은 다음 구성을 지원합니다.
+ALLOW
+PRESERVE(기본)
+EXPAND
+groupBy 및 orderBy는 다음 구성을 지원합니다.
+EXPRESSION
+ALIAS
+INDEX
+다음 예시에서 구성 YAML은 star 프로젝션을 EXPAND로 구성합니다.
+type: experimental_statement_rewriter
+select:
+  starProjection: EXPAND
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+      create table x(a int, b TIMESTAMP);
+      select * from x;
+    
+bq-output.sql
+      CREATE TABLE x
+      (
+        a INT64,
+        b DATETIME
+      )
+      ;
+      SELECT
+          x.a
+          x.b
+        FROM
+          x
+      ;
+    
+UDF 사양
+다음 구성 YAML은 소스 스크립트에 사용된 사용자 정의 함수(UDF)의 서명을 지정합니다. 메타데이터 zip 파일 [https://cloud.google.com/bigquery/docs/generate-metadata?hl=ko]과 같이 UDF 정의는 보다 정확한 입력 스크립트 변환을 생성하도록 도와줄 수 있습니다.
+type: metadata
+udfs:
+  - "date parse_short_date(dt int)"
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+      create table x(dt int);
+      select parse_short_date(dt) + 1 from x;
+    
+bq-output.sql
+      CREATE TABLE x
+      (
+        dt INT64
+      )
+      ;
+      SELECT
+          date_add(parse_short_date(x.dt), interval 1 DAY)
+        FROM
+          x
+      ;
+    
+엄격한 십진수 정밀도 설정
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+기본적으로 BigQuery Migration Service는 숫자 정밀도를 지정된 크기에 사용 가능한 최고 정밀도로 늘립니다. 다음 구성 YAML은 소스 문의 십진수 정밀도를 보존하도록 엄격한 정밀도를 구성하여 이러한 동작을 재정의합니다.
+type: experimental_statement_rewriter
+common:
+  decimalPrecision: STRICT
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+      create table x(a decimal(3,0));
+    
+bq-output.sql
+      CREATE TABLE x
+      (
+        a NUMERIC(3)
+      )
+      ;
+    
+출력 이름 매핑
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+구성 YAML을 사용해서 SQL 객체 이름을 매핑할 수 있습니다. 매핑되는 객체에 따라 이름의 여러 부분을 변경할 수 있습니다.
+정적 이름 매핑
+항목 이름을 매핑하려면 정적 이름 매핑을 사용합니다. 이름의 특정 부분만 변경하고 이름의 다른 부분은 동일하게 유지하려면 변경할 부분만 포함합니다.
+다음 구성 YAML은 테이블 이름을 my_db.my_schema.my_table에서 my_new_db.my_schema.my_new_table로 변경합니다.
+type: experimental_object_rewriter
+relation:
+-
+  match: "my_db.my_schema.my_table"
+  outputName:
+    database: "my_new_db"
+    relation: "my_new_table"
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+      create table my_db.my_schema.my_table(a int);
+    
+bq-output.sql
+      CREATE TABLE my_new_db.my_schema.my_new_table
+      (
+        a INT64
+      )
+    
+정적 이름 매핑을 사용하여 공개 사용자 정의 함수 [https://github.com/GoogleCloudPlatform/bigquery-utils/tree/master/udfs]의 이름이 사용하는 리전을 업데이트할 수 있습니다.
+다음 예시에서는 기본 us 멀티 리전을 사용하는 대신 europe_west2 리전을 사용하도록 bqutil.fn UDF의 이름을 변경합니다.
+type: experimental_object_rewriter
+function:
+-
+  match:
+    database: bqutil
+    schema: fn
+  outputName:
+    database: bqutil
+    schema: fn_europe_west2
+동적 이름 매핑
+여러 객체를 동시에 변경하고 매핑된 객체를 기준으로 새 이름을 생성하려면 동적 이름 매핑을 사용합니다.
+다음 구성 YAML은 staging 스키마에 속하는 항목에 stg_ 프리픽스를 추가하여 모든 테이블의 이름을 변경하고 이러한 테이블을 production 스키마로 이동합니다.
+type: experimental_object_rewriter
+relation:
+-
+  match:
+    schema: staging
+  outputName:
+    schema: production
+    relation: "stg_${relation}"
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+      create table staging.my_table(a int);
+    
+bq-output.sql
+      CREATE TABLE production.stg_my_table
+      (
+        a INT64
+      )
+      ;
+    
+기본 데이터베이스 및 스키마 검색 경로 지정
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 기본 데이터베이스 [https://cloud.google.com/bigquery/docs/output-name-mapping?hl=ko#default_database] 및 스키마 검색 경로 [https://cloud.google.com/bigquery/docs/output-name-mapping?hl=ko#default_schema]를 지정합니다.
+type: environment
+session:
+  defaultDatabase: myproject
+  schemaSearchPath: [myschema1, myschema2]
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+      SELECT * FROM database.table
+      SELECT * FROM table1
+    
+bq-output.sql
+      SELECT * FROM myproject.database.table.
+      SELECT * FROM myproject.myschema1.table1
+    
+전역 출력 이름 재작성
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+다음 구성 YAML은 구성된 규칙에 따라 스크립트에서 모든 객체(데이터베이스, 스키마, 관계, 속성)의 출력 이름을 변경합니다.
+type: experimental_object_rewriter
+global:
+  outputName:
+    regex:
+      - match: '\s'
+        replaceWith: '_'
+      - match: '>='
+        replaceWith: 'gte'
+      - match: '^[^a-zA-Z_].*'
+        replaceWith: '_$0'
+이 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+      create table "test special chars >= 12"("42eid" int, "custom column" varchar(10));
+    
+bq-output.sql
+      CREATE TABLE test_special_chars_employees_gte_12
+      (
+        _42eid INT64,
+        custom_column STRING
+      )
+      ;
+    
+변환된 SQL의 성능 최적화 및 개선
+성능 또는 비용 측면에서 쿼리를 개선할 수 있는 변경사항을 도입하기 위해 변환된 SQL에 선택적 변환을 적용할 수 있습니다. 이러한 최적화는 경우에 따라 엄격하게 다르며, 성능에 미치는 실제 영향을 평가하려면 수정되지 않은 SQL 출력에 대해 평가해야 합니다.
+다음 구성 YAML은 선택적 변환을 사용 설정합니다. 이 구성은 최적화 목록을 허용합니다. 매개변수를 허용하는 최적화의 경우 선택적 매개변수 값이 포함된 섹션을 허용합니다.
+type: optimizer
+transformations:
+  - name: PRECOMPUTE_INDEPENDENT_SUBSELECTS
+  - name: REWRITE_CTE_TO_TEMP_TABLE
+    parameters:
+      threshold: 1
+최적화 선택적 매개변수 설명
+PRECOMPUTE_INDEPENDENT_SUBSELECTS scope: [PREDICATE, PROJECTION] DECLARE 문을 추가하여 쿼리를 다시 작성하여 PREDICATE 절 또는 PROJECTION의 표현식을 사전 계산된 변수로 대체합니다. 이는 읽는 데이터 양을 줄일 수 있는 정적 조건자로서 식별됩니다. 범위를 생략하면 기본값은 PREDICATE(즉, WHERE 및 JOIN-ON 절)입니다.
+
+DECLARE 문으로 스칼라 서브 쿼리를 추출하면 원래 조건자가 정적이 되므로 실행 계획을 개선할 수 있습니다. 이 최적화는 새로운 SQL 문을 도입합니다.
+REWRITE_CTE_TO_TEMP_TABLE threshold: N 동일한 공통 테이블 표현식에 대한 참조가 N개를 초과하면 공통 테이블 표현식(CTE)을 임시 테이블로 재작성합니다. 이렇게 하면 쿼리 복잡성이 줄어들고 공통 테이블 표현식이 단일 실행됩니다. N을 생략하면 기본값은 4입니다.
+
+단순하지 않은 CTE가 여러 번 참조되는 경우 이 최적화를 사용하는 것이 좋습니다. 임시 테이블을 도입하면 복잡성이 낮거나 카디널리티가 낮은 CTE를 여러 번 실행할 때보다 오버헤드가 더 클 수 있습니다. 이 최적화는 새로운 SQL 문을 도입합니다.
+REWRITE_ZERO_SCALE_NUMERIC_AS_INTEGER bigint: N 정밀도가 N 내에 있는 경우 제로 스케일 NUMERIC/BIGNUMERIC 속성을 INT64 유형으로 다시 작성합니다. N을 생략하면 기본값은 18입니다.
+
+정수 유형이 없는 소스 언어를 번역할 때 이 최적화를 사용하는 것이 좋습니다. 열 유형을 변경하려면 유형 호환성과 시맨틱 변경사항에 관한 모든 다운스트림 사용을 검토해야 합니다. 예를 들어 분수 나눗셈이 정수 나눗셈이 되거나 숫자 값을 예상하는 코드가 있습니다.
+DROP_TEMP_TABLE 스크립트에서 생성되고 스크립트가 끝날 때까지 삭제되지 않는 모든 임시 테이블에 DROP TABLE 문을 추가합니다. 이렇게 하면 임시 테이블의 스토리지 결제 기간이 24시간에서 스크립트 실행 시간으로 줄어듭니다. 이 최적화는 새로운 SQL 문을 도입합니다.
+
+스크립트 실행 종료 후 추가 처리를 위해 임시 테이블에 액세스할 수 없는 경우 이 최적화를 사용하는 것이 좋습니다. 이 최적화는 새로운 SQL 문을 도입합니다.
+REGEXP_CONTAINS_TO_LIKE REGEXP_CONTAINS 일치 패턴의 일부 카테고리를 LIKE 표현식에 다시 작성합니다.
+
+매크로 대체와 같은 다른 프로세스가 출력 SQL에서 변경되지 않고 보존되는 정규 표현식 패턴 리터럴에 의존하지 않는 경우 이 최적화를 사용하는 것이 좋습니다.
+ADD_DISTINCT_TO_SUBQUERY_IN_SET_COMPARISON [NOT] IN 연산자의 값으로 사용되는 서브 쿼리에 DISTINCT 절을 추가합니다.
+
+하위 쿼리 결과의 카디널리티(고유한 값 수)가 값 수보다 훨씬 낮은 경우 이 최적화를 사용하는 것이 좋습니다. 이 전제조건이 충족되지 않으면 이 변환이 성능에 부정적인 영향을 미칠 수 있습니다.
+Gemini 기반 구성 YAML 파일 만들기
+참고: Translation 서비스는 Gemini 모델을 호출하여 AI 구성 YAML 파일을 기반으로 변환된 SQL 쿼리에 대한 추천을 생성할 수 있습니다.
+AI 출력을 생성하려면 SQL 변환 입력이 포함된 소스 디렉터리에 구성 YAML 파일이 포함되어야 합니다.
+요구사항
+AI 출력을 위한 구성 YAML 파일은 서픽스가 .ai_config.yaml이어야 합니다. 예를 들면 rules_1.ai_config.yaml입니다.
+지원되는 필드
+다음 필드를 사용하여 AI 번역 출력을 구성할 수 있습니다.
+suggestion_type (선택사항): 생성할 AI 추천 유형을 지정합니다. 지원되는 추천 유형은 다음과 같습니다.
+QUERY_CUSTOMIZATION (기본값): 구성 YAML 파일에 지정된 변환 규칙에 따라 SQL 코드에 대한 AI 추천을 생성합니다.
+TRANSLATION_EXPLANATION: 변환된 GoogleSQL 쿼리의 요약과 소스 SQL 쿼리와 변환된 GoogleSQL 쿼리 간의 차이점과 불일치를 포함하는 텍스트를 생성합니다.
+rewrite_target (선택사항): 변환 규칙을 입력 SQL에 적용하려면 SOURCE_SQL를 지정하고, 변환 규칙을 출력 SQL에 적용하려면 TARGET_SQL (기본값)를 지정합니다.
+instruction (선택사항): 자연어로 대상 SQL의 변경사항을 설명합니다. Gemini로 향상된 SQL 변환이 요청을 평가하고 지정된 변경사항을 적용합니다.
+examples (선택사항): SQL 패턴이 수정되기를 원하는 방식을 보여주는 SQL 예시를 제공합니다.
+필요에 따라 translation_rules 및 examples를 더 추가할 수 있습니다.
+예시
+다음 예에서는 SQL 변환에 사용할 수 있는 Gemini 기반 구성 YAML 파일을 만듭니다.
+기본 번역 출력 쿼리에서 상위 함수 삭제
+translation_rules:
+- instruction: "Remove upper() function"
+  examples:
+  - input: "upper(X)"
+    output: "X"
+변환 출력을 맞춤설정하기 위해 여러 변환 규칙 만들기
+translation_rules:
+- instruction: "Remove upper() function"
+  suggestion_type: QUERY_CUSTOMIZATION
+  rewrite_target: TARGET_SQL
+  examples:
+  - input: "upper(X)"
+    output: "X"
+- instruction: "Insert a comment at the head that explains each statement in detail.
+  suggestion_type: QUERY_CUSTOMIZATION
+  rewrite_target: TARGET_SQL
+변환 입력 쿼리에서 SQL 주석 삭제
+translation_rules:
+- instruction: "Remove all the sql comments in the input sql query."
+  suggestion_type: QUERY_CUSTOMIZATION
+  rewrite_target: SOURCE_SQL
+기본 LLM 프롬프트를 사용하여 번역 설명 생성
+이 예에서는 번역 서비스에서 제공하는 기본 LLM 프롬프트를 사용하여 텍스트 설명을 생성합니다.
+translation_rules:
+- suggestion_type: "TRANSLATION_EXPLANATION"
+자체 자연어 프롬프트를 사용하여 번역 설명을 생성합니다.
+translation_rules:
+- suggestion_type: "TRANSLATION_EXPLANATION"
+  instruction: "Explain the syntax differences between the source Teradata query and the translated GoogleSQL query."
+단일 구성 YAML 파일의 여러 추천 유형
+translation_rules:
+- suggestion_type: "TRANSLATION_EXPLANATION"
+  instruction: "Explain the syntax differences between the source Teradata query and the translated GoogleSQL query."
+- instruction: "Remove upper() function"
+  suggestion_type: QUERY_CUSTOMIZATION
+  rewrite_target: TARGET_SQL
+  examples:
+  - input: "upper(X)"
+    output: "X"
+- instruction: "Remove all the sql comments in the input sql query."
+  suggestion_type: QUERY_CUSTOMIZATION
+  rewrite_target: SOURCE_SQL
+여러 YAML 구성 적용
+일괄 또는 대화형 SQL 변환에서 구성 YAML 파일을 지정할 때 단일 변환 작업에서 여러 구성 YAML 파일을 선택하여 여러 변환을 반영할 수 있습니다. 여러 구성이 충돌하는 경우 한 변환이 다른 변환을 재정의할 수 있습니다. 동일한 변환 작업에서 변환이 충돌하지 않도록 각 파일에서 서로 다른 유형의 구성 설정을 사용하는 것이 좋습니다.
+다음 예시에서는 단일 SQL 변환 작업에 제공된 개별 구성 YAML 파일 두 개를 나열하는데, 하나는 열의 속성을 변경하고 다른 하나는 테이블을 임시로 설정합니다.
+change-type-example.config.yaml:
+type: object_rewriter
+attribute:
+  -
+    match: "testdb.testschema.x.a"
+    type:
+      target: NUMERIC(10,2)
+make-temp-example.config.yaml:
+type: object_rewriter
+relation:
+  -
+    match: "testdb.testschema.x"
+    temporary: true
+이 두 구성 YAML 파일을 사용하는 SQL 변환은 다음과 같이 표시될 수 있습니다.
+teradata-input.sql
+    create table x(a int);
+    
+bq-output.sql
+    CREATE TEMPORARY TABLE x
+    (
+      a NUMERIC(31, 2)
+    )
+    ;
+    
+도움이 되었나요?
+의견 보내기

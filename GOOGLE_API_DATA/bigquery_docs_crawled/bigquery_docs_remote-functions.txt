@@ -1,0 +1,601 @@
+Source URL: https://cloud.google.com/bigquery/docs/remote-functions
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+개요 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#overview]
+워크플로 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#workflow]
+제한사항 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#limitations]
+엔드포인트 만들기 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#create-endpoint]
+입력 형식 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#input_format]
+원격 함수 작업
+bookmark_border
+BigQuery 원격 함수를 사용하면 SQL 및 JavaScript 이외의 언어로 또는 BigQuery 사용자 정의 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/user-defined-functions?hl=ko]에서 허용되지 않는 라이브러리 또는 서비스를 사용해서 함수를 구현할 수 있습니다.
+개요
+BigQuery 원격 함수를 사용하면 Cloud Run Functions [https://cloud.google.com/functions/docs/concepts/overview?hl=ko] 및 Cloud Run [https://cloud.google.com/run/docs/overview/what-is-cloud-run?hl=ko]과의 직접 통합을 제공함으로써 BigQuery 외부 소프트웨어에서 GoogleSQL 기능을 사용할 수 있습니다. BigQuery 원격 함수를 사용하면 지원되는 언어로 구현된 Cloud Run Functions 또는 Cloud Run에 함수를 배포한 후 GoogleSQL 쿼리에서 호출할 수 있습니다.
+워크플로
+Cloud Run Functions 또는 Cloud Run에서 HTTP 엔드포인트 만들기
+BigQuery에서 원격 함수를 만듭니다.
+CLOUD_RESOURCE 유형의 연결을 만듭니다.
+원격 함수를 만듭니다.
+다른 사용자 정의 함수와 같이 쿼리에서 원격 함수를 사용합니다.
+제한사항
+원격 함수는 인수 유형 또는 반환 유형과 같은 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko] 중 하나만 지원합니다.
+Boolean
+바이트
+숫자
+문자열
+날짜
+날짜/시간
+시간
+타임스탬프
+JSON
+원격 함수는 ARRAY, STRUCT, INTERVAL 또는 GEOGRAPHY 유형을 지원하지 않습니다.
+테이블 값 원격 함수는 만들 수 없습니다.
+구체화된 보기를 만들 때 원격 함수를 사용할 수 없습니다.
+원격 함수의 반환 값은 항상 확정되지 않은 것으로 간주되므로 원격 함수를 호출하는 쿼리 결과는 캐시되지 않습니다.
+일시적인 네트워크 오류 또는 BigQuery 내부 오류로 인해 응답이 성공한 후에도 엔드포인트에 동일한 데이터가 포함된 반복 요청이 표시될 수 있습니다.
+짧은 조건으로 인해 일부 행에 대해 원격 함수 평가를 건너뛰는 경우(예: 조건식 [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko] 또는 WHEN [NOT] MATCHED이 있는 MERGE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#merge_statement])에서는 일괄 처리를 원격 함수에 사용하지 않습니다. 이 경우 HTTP 요청 본문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/remote-functions?hl=ko#input_format]의 calls 필드에는 정확히 하나의 요소가 있습니다.
+원격 함수와 연결된 데이터 세트가 리전 간 데이터 세트 복제 [https://cloud.google.com/bigquery/docs/data-replication?hl=ko]를 통해 대상 리전에 복제되는 경우 원격 함수는 자신이 생성된 리전에서만 쿼리될 수 있습니다.
+엔드포인트 만들기
+비즈니스 로직을 구현할 수 있는 원격 함수를 만들려면 Cloud Run Functions 또는 Cloud Run을 사용하여 HTTP 엔드포인트를 만들어야 합니다. 엔드포인트는 단일 HTTP POST 요청에서 행 배치를 처리하고 배치 결과를 HTTP 응답으로 반환할 수 있어야 합니다.
+BigQuery DataFrame [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]을 사용하여 원격 함수를 만드는 경우 HTTP 엔드포인트를 수동으로 만들 필요가 없으며, 서비스가 이를 자동으로 수행합니다
+Cloud Run Functions를 작성, 배포, 테스트, 유지보수하는 방법은 Cloud Run Functions 튜토리얼 [https://cloud.google.com/functions/docs/tutorials/http?hl=ko] 및 기타 Cloud Run Functions 문서 [https://cloud.google.com/functions/docs/writing/http?hl=ko]를 참고하세요.
+Cloud Run 서비스를 작성, 배포, 테스트, 유지보수하는 방법은 Cloud Run 빠른 시작 [https://cloud.google.com/run/docs/quickstarts?hl=ko#build-and-deploy-a-web-service] 및 기타 Cloud Run 문서 [https://cloud.google.com/run/docs/how-to?hl=ko]를 참고하세요.
+승인되지 않은 Cloud Run Functions 또는 Cloud Run 서비스 호출을 허용하는 대신 기본 인증을 유지하는 것이 좋습니다.
+입력 형식
+BigQuery는 다음 형식으로 JSON 본문을 사용해서 HTTP POST 요청을 전송합니다.
+필드 이름 설명 필드 유형
+requestId 요청의 ID입니다. GoogleSQL 쿼리에서 이 엔드포인트로 전송되는 여러 요청들 간에 고유합니다. 항상 제공됩니다. 문자열.
+호출자 원격 함수를 호출하는 GoogleSQL 쿼리의 작업 전체 리소스 이름입니다. 항상 제공됩니다. 문자열.
+sessionUser GoogleSQL 쿼리를 실행하는 사용자의 이메일입니다. 항상 제공됩니다. 문자열.
+userDefinedContext BigQuery에서 원격 함수를 만들 때 사용된 사용자 정의 컨텍스트입니다. 선택사항. 키-값 쌍이 있는 JSON 객체입니다.
+호출 수 입력 데이터의 배치입니다. 항상 제공됩니다. JSON 배열입니다.
+각 요소 자체는 JSON 배열이며 하나의 원격 함수 호출에서 JSON 인코딩 인수 목록입니다.
+요청 예시:
+{
+ "requestId": "124ab1c",
+ "caller": "//bigquery.googleapis.com/projects/myproject/jobs/myproject:US.bquxjob_5b4c112c_17961fafeaf",
+ "sessionUser": "test-user@test-company.com",
+ "userDefinedContext": {
+  "key1": "value1",
+  "key2": "v2"
+ },
+ "calls": [
+  [null, 1, "", "abc"],
+  ["abc", "9007199254740993", null, null]
+ ]
+}
+출력 형식
+BigQuery에서는 엔드포인트가 다음 형식으로 HTTP 응답을 반환할 것으로 예상됩니다. 그렇지 않으면 BigQuery가 이를 사용할 수 없고 원격 함수를 호출하는 쿼리가 실패합니다.
+필드 이름 설명 값 범위
+답장 수 반환 값의 배치입니다. 성공적인 응답을 위해 필요합니다. JSON 배열입니다.
+각 요소는 외부 함수의 JSON 인코딩 반환 값에 해당합니다.
+배열 크기는 HTTP 요청에서 calls의 JSON 배열 크기와 일치해야 합니다. 예를 들어 calls에서 JSON 배열에 4개 요소가 있으면 이 JSON 요소에도 4개 요소가 있어야 합니다.
+errorMessage 200 이외의 HTTP 응답 코드가 반환될 때의 오류 메시지입니다. 재시도할 수 없는 오류의 경우 BigQuery 작업의 오류 메시지의 일부로 사용자에게 오류를 반환합니다. 선택사항. 문자열. 크기는 1KB 미만이어야 합니다.
+성공적인 응답의 예시:
+{
+  "replies": [
+    1,
+    0
+  ]
+}
+실패한 응답의 예시:
+{
+  "errorMessage": "Received but not expected that the argument 0 be null".
+}
+HTTP 응답 코드
+엔드포인트가 성공적으로 응답하려면 HTTP 응답 코드 200을 반환해야 합니다. BigQuery에서 다른 값을 수신하면 BigQuery는 응답을 실패로 간주하고 HTTP 응답 코드가 408, 429, 500, 503 또는 504이면 내부 제한에 도달할 때까지 재시도합니다.
+SQL 데이터 유형의 JSON 인코딩
+HTTP 요청/응답에서 JSON 인코딩은 TO_JSON_STRING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions?hl=ko#to_json_string]에 대한 기존 BigQuery JSON 인코딩 [https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions?hl=ko#json_encodings]을 따릅니다.
+샘플 Cloud Run Functions 코드
+다음 샘플 Python 코드는 원격 함수의 모든 정수 인수 추가를 구현합니다. 일괄 호출의 인수를 사용해서 요청을 처리하고 모든 결과를 응답에 반환합니다.
+import functions_framework
+
+from flask import jsonify
+
+# Max INT64 value encoded as a number in JSON by TO_JSON_STRING. Larger values are encoded as
+# strings.
+# See https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions#json_encodings
+_MAX_LOSSLESS=9007199254740992
+
+@functions_framework.http
+def batch_add(request):
+  try:
+    return_value = []
+    request_json = request.get_json()
+    calls = request_json['calls']
+    for call in calls:
+      return_value.append(sum([int(x) if isinstance(x, str) else x for x in call if x is not None]))
+    replies = [str(x) if x > _MAX_LOSSLESS or x < -_MAX_LOSSLESS else x for x in return_value]
+    return_json = jsonify( { "replies":  replies } )
+    return return_json
+  except Exception as e:
+    return jsonify( { "errorMessage": str(e) } ), 400
+함수가 us-east1 리전의 my_gcf_project 프로젝트에 함수 이름 remote_add로 배포되었다고 가정하면 엔드포인트 https://us-east1-my_gcf_project.cloudfunctions.net/remote_add를 통해 함수에 액세스할 수 있습니다.
+샘플 Cloud Run 코드
+다음 샘플 Python 코드는 동일한 기능을 위해 빌드하고 Cloud Run에 배포할 수 있는 웹 서비스를 구현합니다.
+import os
+
+from flask import Flask, request, jsonify
+
+# Max INT64 value encoded as a number in JSON by TO_JSON_STRING. Larger values are encoded as
+# strings.
+# See https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions#json_encodings
+_MAX_LOSSLESS=9007199254740992
+
+app = Flask(__name__)
+
+@app.route("/", methods=['POST'])
+def batch_add():
+  try:
+    return_value = []
+    request_json = request.get_json()
+    calls = request_json['calls']
+    for call in calls:
+      return_value.append(sum([int(x) if isinstance(x, str) else x for x in call if x is not None]))
+    replies = [str(x) if x > _MAX_LOSSLESS or x < -_MAX_LOSSLESS else x for x in return_value]
+    return jsonify( { "replies" :  replies } )
+  except Exception as e:
+    return jsonify( { "errorMessage": str(e) } ), 400
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+코드를 빌드하고 배포하는 방법에 관한 가이드 [https://cloud.google.com/run/docs/quickstarts/build-and-deploy/deploy-python-service?hl=ko]를 참고하세요.
+Cloud Run 서비스가 us-east1 리전의 my_gcf_project 프로젝트에 서비스 이름 remote_add로 배포되었다고 가정하면 https://remote_add-<project_id_hash>-ue.a.run.app 엔드포인트를 통해 이 서비스에 액세스할 수 있습니다.
+원격 함수 만들기
+BigQuery는 CLOUD_RESOURCE 연결을 사용해서 Cloud Run Functions와 상호작용합니다. 원격 함수를 만들려면 CLOUD_RESOURCE 연결을 만들어야 합니다. BigQuery DataFrames [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]을 사용하여 원격 함수를 만들고 프로젝트 IAM 관리자 역할(roles/resourcemanager.projectIamAdmin)을 받았으면, 수동으로 연결을 만들어 액세스 권한을 부여할 필요가 없습니다. 서비스에서 이를 자동으로 수행합니다.
+연결 만들기
+Cloud Run Functions 및 Cloud Run에 연결하려면 Cloud 리소스 연결이 필요합니다.
+기본 연결이 구성되어 있거나 BigQuery 관리자 역할이 있으면 이 단계를 건너뛸 수 있습니다.
+원격 모델이 사용할 클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 만들고 연결의 서비스 계정을 가져옵니다. 이전 단계에서 만든 데이터 세트와 동일한 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에 연결을 만듭니다.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 add 데이터 추가를 클릭합니다.
+
+ 
+
+데이터 추가 대화상자가 열립니다.
+필터링 기준 창의 데이터 소스 유형 섹션에서 비즈니스 애플리케이션을 선택합니다.
+
+또는 데이터 소스 검색 필드에 Vertex AI를 입력할 수 있습니다.
+추천 데이터 소스 섹션에서 Vertex AI를 클릭합니다.
+Vertex AI 모델: BigQuery 제휴 솔루션 카드를 클릭합니다.
+연결 유형 목록에서 Vertex AI 원격 모델, 원격 함수, BigLake(Cloud 리소스)를 선택합니다.
+연결 ID 필드에 연결 이름을 입력합니다.
+연결 만들기를 클릭합니다.
+연결로 이동을 클릭합니다.
+연결 정보 창에서 나중의 단계에 사용할 서비스 계정 ID를 복사합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#bq] ---
+명령줄 환경에서 연결을 만듭니다.
+
+bq mk --connection --location=REGION --project_id=PROJECT_ID \
+    --connection_type=CLOUD_RESOURCE CONNECTION_ID
+
+--project_id 매개변수는 기본 프로젝트를 재정의합니다.
+
+다음을 바꿉니다.
+
+
+REGION: 연결 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#supported_locations]
+PROJECT_ID: Google Cloud 프로젝트 ID
+CONNECTION_ID: 연결의 ID
+
+
+연결 리소스를 만들면 BigQuery가 고유한 시스템 서비스 계정을 만들고 이를 연결에 연계합니다.
+
+문제 해결: 다음 연결 오류가 발생하면 Google Cloud SDK를 업데이트 [https://cloud.google.com/sdk/docs/quickstart?hl=ko]하세요.
+
+Flags parsing error: flag --connection_type=CLOUD_RESOURCE: value should be one of...
+
+이후 단계에서 사용할 수 있도록 서비스 계정 ID를 가져와 복사합니다.
+
+bq show --connection PROJECT_ID.REGION.CONNECTION_ID
+
+출력은 다음과 유사합니다.
+
+name                          properties
+1234.REGION.CONNECTION_ID     {"serviceAccountId": "connection-1234-9u56h9@gcp-sa-bigquery-condel.iam.gserviceaccount.com"}
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#terraform] ---
+google_bigquery_connection [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_connection] 리소스를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 US 리전에 my_cloud_resource_connection이라는 Cloud 리소스 연결을 만듭니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# This queries the provider for project information.
+data "google_project" "default" {}
+
+# This creates a cloud resource connection in the US region named my_cloud_resource_connection.
+# Note: The cloud resource nested object has only one output field - serviceAccountId.
+resource "google_bigquery_connection" "default" {
+  connection_id = "my_cloud_resource_connection"
+  project       = data.google_project.default.project_id
+  location      = "US"
+  cloud_resource {}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+액세스 설정
+새 연결에 Cloud Run Functions 또는 Cloud Run 서비스에 대한 읽기 전용 액세스 권한을 부여해야 합니다. Cloud Run Functions 또는 Cloud Run 서비스에 인증되지 않은 호출을 허용하지 않는 것이 좋습니다.
+역할을 부여하려면 다음 단계를 따르세요.
+IAM 및 관리자 페이지로 이동합니다.
+IAM 및 관리자로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko]
+person_add 추가를 클릭합니다.
+주 구성원 추가 대화상자가 열립니다.
+새 주 구성원 필드에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 다음 옵션 중 하나를 선택합니다.
+1세대 Cloud Run Functions를 사용하는 경우 Cloud 함수를 선택한 다음 Cloud 함수 호출자 역할을 선택합니다.
+2세대 Cloud Run Functions를 사용하는 경우 Cloud Run을 선택한 다음 Cloud Run 호출자 역할을 선택합니다.
+Cloud Run 서비스를 사용하는 경우 Cloud Run을 선택한 다음 Cloud Run 호출자 역할을 선택합니다.
+저장을 클릭합니다.
+원격 함수 만들기
+원격 함수를 만들려면 다음 단계를 따르세요.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#sql] ---
+BigQuery에서 다음 CREATE FUNCTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_function_statement] 문을 실행합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE FUNCTION PROJECT_ID.DATASET_ID.remote_add(x INT64, y INT64) RETURNS INT64
+REMOTE WITH CONNECTION PROJECT_ID.LOCATION.CONNECTION_NAME
+OPTIONS (
+  endpoint = 'ENDPOINT_URL'
+)
+
+
+다음을 바꿉니다.
+
+DATASET_ID: BigQuery 데이터 세트의 ID
+ENDPOINT_URL: Cloud Run Functions의 URL 또는 Cloud Run 원격 함수 엔드포인트
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#bigquery-dataframes] ---
+원격 함수 [https://cloud.google.com/bigquery/docs/use-bigquery-dataframes?hl=ko#remote-function-requirements]의 요구사항 섹션에 설명된 대로 필요한 API를 사용 설정하고 필요한 역할이 부여되었는지 확인합니다.
+remote_function 데코레이터 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.pandas?hl=ko#bigframes_pandas_remote_function]를 사용합니다.
+import bigframes.pandas as bpd
+
+# Set BigQuery DataFrames options
+bpd.options.bigquery.project = your_gcp_project_id
+bpd.options.bigquery.location = "US"
+
+# BigQuery DataFrames gives you the ability to turn your custom scalar
+# functions into a BigQuery remote function. It requires the GCP project to
+# be set up appropriately and the user having sufficient privileges to use
+# them. One can find more details about the usage and the requirements via
+# `help` command.
+help(bpd.remote_function)
+
+# Read a table and inspect the column of interest.
+df = bpd.read_gbq("bigquery-public-data.ml_datasets.penguins")
+df["body_mass_g"].head(10)
+
+# Define a custom function, and specify the intent to turn it into a remote
+# function. It requires a BigQuery connection. If the connection is not
+# already created, BigQuery DataFrames will attempt to create one assuming
+# the necessary APIs and IAM permissions are setup in the project. In our
+# examples we will be letting the default connection `bigframes-default-connection`
+# be used. We will also set `reuse=False` to make sure we don't
+# step over someone else creating remote function in the same project from
+# the exact same source code at the same time. Let's try a `pandas`-like use
+# case in which we want to apply a user defined scalar function to every
+# value in a `Series`, more specifically bucketize the `body_mass_g` value
+# of the penguins, which is a real number, into a category, which is a
+# string.
+@bpd.remote_function(
+    reuse=False,
+    cloud_function_service_account="default",
+)
+def get_bucket(num: float) -> str:
+    if not num:
+        return "NA"
+    boundary = 4000
+    return "at_or_above_4000" if num >= boundary else "below_4000"
+
+# Then we can apply the remote function on the `Series` of interest via
+# `apply` API and store the result in a new column in the DataFrame.
+df = df.assign(body_mass_bucket=df["body_mass_g"].apply(get_bucket))
+
+# This will add a new column `body_mass_bucket` in the DataFrame. You can
+# preview the original value and the bucketized value side by side.
+df[["body_mass_g", "body_mass_bucket"]].head(10)
+
+# The above operation was possible by doing all the computation on the
+# cloud. For that, there is a google cloud function deployed by serializing
+# the user code, and a BigQuery remote function created to call the cloud
+# function via the latter's http endpoint on the data in the DataFrame.
+
+# The BigQuery remote function created to support the BigQuery DataFrames
+# remote function can be located via a property `bigframes_remote_function`
+# set in the remote function object.
+print(f"Created BQ remote function: {get_bucket.bigframes_remote_function}")
+
+# The cloud function can be located via another property
+# `bigframes_cloud_function` set in the remote function object.
+print(f"Created cloud function: {get_bucket.bigframes_cloud_function}")
+
+# Warning: The deployed cloud function may be visible to other users with
+# sufficient privilege in the project, so the user should be careful about
+# having any sensitive data in the code that will be deployed as a remote
+# function.
+
+# Let's continue trying other potential use cases of remote functions. Let's
+# say we consider the `species`, `island` and `sex` of the penguins
+# sensitive information and want to redact that by replacing with their hash
+# code instead. Let's define another scalar custom function and decorate it
+# as a remote function. The custom function in this example has external
+# package dependency, which can be specified via `packages` parameter.
+@bpd.remote_function(
+    reuse=False,
+    packages=["cryptography"],
+    cloud_function_service_account="default",
+)
+def get_hash(input: str) -> str:
+    from cryptography.fernet import Fernet
+
+    # handle missing value
+    if input is None:
+        input = ""
+
+    key = Fernet.generate_key()
+    f = Fernet(key)
+    return f.encrypt(input.encode()).decode()
+
+# We can use this remote function in another `pandas`-like API `map` that
+# can be applied on a DataFrame
+df_redacted = df[["species", "island", "sex"]].map(get_hash)
+df_redacted.head(10)
+원격 함수를 만드는 데이터 세트에 대한 bigquery.routines.create 권한과 원격 함수에서 사용하는 연결에 대한 bigquery.connections.delegate 권한(BigQuery 연결 관리자 역할을 통해)이 있어야 합니다.
+사용자 정의 컨텍스트 제공
+엔드포인트에 대한 모든 HTTP 요청의 일부가 되는 키-값 쌍의 형식으로 OPTIONS에서 user_defined_context를 지정할 수 있습니다. 사용자 정의 컨텍스트를 사용해서 여러 원격 함수를 만들 수 있지만 전달된 컨텍스트에 따라 다른 동작을 제공하는 단일 엔드포인트를 재사용할 수 있습니다.
+다음 예시에서는 동일한 엔드포인트를 사용해서 BYTES 데이터를 암호화 및 복호화하는 두 가지 원격 함수를 만듭니다.
+CREATE FUNCTION `
+PROJECT_ID.
+DATASET_ID`.encrypt(x BYTES)
+RETURNS BYTES
+REMOTE WITH CONNECTION `
+PROJECT_ID.
+LOCATION.
+CONNECTION_NAME`
+OPTIONS (
+  endpoint = '
+ENDPOINT_URL',
+  user_defined_context = [("mode", "encryption")]
+)
+
+CREATE FUNCTION `
+PROJECT_ID.
+DATASET_ID`.decrypt(x BYTES)
+RETURNS BYTES
+REMOTE WITH CONNECTION `
+PROJECT_ID.
+LOCATION.
+CONNECTION_NAME`
+OPTIONS (
+  endpoint = '
+ENDPOINT_URL',
+  user_defined_context = [("mode", "decryption")]
+)
+일괄 요청에서 행 수 제한
+Cloud Run Functions 제한 시간 [https://cloud.google.com/functions/docs/concepts/exec?hl=ko#timeout]을 방지하기 위해 OPTIONS에서 각 HTTP 요청의 최대 행수로 max_batching_rows를 지정할 수 있습니다. max_batching_rows를 지정하면 BigQuery에서 배치의 행 수를 max_batching_rows 한도까지 결정합니다. 지정하지 않으면 BigQuery에서 배치의 행 수를 자동으로 결정합니다.
+쿼리에 원격 함수 사용
+원격 함수의 연결과 연계된 BigQuery의 서비스 계정에 액세스할 수 있도록 Cloud Run Functions에 대해 권한이 부여 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#grant_permission_on_function]되었는지 확인합니다.
+원격 함수가 있는 데이터 세트에 bigquery.routines.get 권한과 원격 함수에서 사용하는 연결에 대한 BigQuery Connection User 역할을 통해 얻을 수 있는 bigquery.connections.use 권한이 있어야 합니다.
+사용자 정의 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/user-defined-functions?hl=ko]와 같이 쿼리에서 원격 함수를 사용할 수 있습니다.
+예를 들어 예시 쿼리에서 remote_add 함수를 사용할 수 있습니다.
+SELECT
+  val,
+  `
+PROJECT_ID.
+DATASET_ID`.remote_add(val, 2)
+FROM
+  UNNEST([NULL,2,3,5,8]) AS val;
+이 예시는 다음 출력을 생성합니다.
++------+-----+
+|  val | f0_ |
++------+-----+
+| NULL |   2 |
+|    2 |   4 |
+|    3 |   5 |
+|    5 |   7 |
+|    8 |  10 |
++------+-----+
+참고: internal traffic 인그레스 설정 [https://cloud.google.com/functions/docs/networking/network-settings?hl=ko#ingress_settings]이 있는 엔드포인트의 경우 동일한 Cloud Run Functions 엔드포인트 프로젝트를 사용하여 BigQuery 쿼리를 실행하거나 VPC-SC 경계를 설정 [https://cloud.google.com/bigquery/docs/reference/standard-sql/remote-functions?hl=ko#using_vpc_service_controls]합니다.
+지원되는 리전
+BigQuery에는 두 가지 유형의 위치가 있습니다.
+리전은 특정한 지리적 장소(예: 런던)입니다.
+멀티 리전은 두 개 이상의 지리적 장소를 포함하는 넓은 지리적 지역(예: 미국)입니다.
+단일 리전
+BigQuery 단일 리전 데이터 세트의 경우 동일 리전에 배포된 Cloud Run Functions를 사용하는 원격 함수만 만들 수 있습니다. 예를 들면 다음과 같습니다.
+BigQuery 단일 리전 us-east4의 원격 함수는 us-east4에서만 Cloud Run Functions를 사용할 수 있습니다.
+따라서 단일 리전의 경우 Cloud Run Functions 및 BigQuery가 모두 지원되는 리전에서만 원격 함수가 지원됩니다.
+멀티 리전
+BigQuery 멀티 리전(US, EU) 데이터 세트에서는 동일한 대규모 지역(US, EU) 내 리전에 배포된 Cloud Run Functions를 사용하는 원격 함수만 만들 수 있습니다. 예를 들면 다음과 같습니다.
+BigQuery US 멀티 리전의 원격 함수는 다음과 같이 미국 지리적 영역(예: us-central1 ,us-east4 ,us-west2 등)의 단일 리전에 배포된 Cloud Run Functions만 사용할 수 있습니다.
+BigQuery EU 멀티 리전의 원격 함수는 EU의 회원 국가 [https://europa.eu/european-union/about-eu/countries_en](예: europe-north1, europe-west3 등)의 단일 리전에 배포된 Cloud Run Functions만 사용할 수 있습니다.
+BigQuery 리전 및 멀티 리전에 대한 자세한 내용은 데이터 세트 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko#supported_locations] 페이지를 참조하세요. Cloud Run Functions 리전에 대한 자세한 내용은 Cloud Run Functions 위치 [https://cloud.google.com/functions/docs/locations?hl=ko] 페이지를 참고하세요.
+연결
+단일 리전 위치 또는 멀티 리전 위치의 경우 사용되는 연결과 동일한 위치에서만 원격 함수를 만들 수 있습니다. 예를 들어 US 멀티 리전에서 원격 함수를 만들려면 US 멀티 리전에 있는 연결을 사용합니다.
+가격 책정
+표준 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]이 적용됩니다.
+또한 이 기능을 사용하면 Cloud Run Functions 및 Cloud Run에 대해 비용이 발생할 수 있습니다. 자세한 내용은 Cloud Run Functions [https://cloud.google.com/functions/pricing?hl=ko] 및 Cloud Run [https://cloud.google.com/run/pricing?hl=ko] 가격 책정 페이지를 참조하세요.
+VPC 서비스 제어 사용
+VPC 서비스 제어 [https://cloud.google.com/vpc-service-controls?hl=ko]는 데이터 무단 반출을 방지하기 위해 보안 경계를 설정할 수 있는 Google Cloud 기능입니다. 원격 함수와 함께 VPC 서비스 제어를 사용하여 보안을 강화하거나 internal traffic 인그레스 설정 [https://cloud.google.com/functions/docs/networking/network-settings?hl=ko#ingress_settings]으로 엔드포인트를 사용하려면 다음과 같이 VPC 서비스 제어 가이드 [https://cloud.google.com/vpc-service-controls/docs/create-service-perimeters?hl=ko#create_a_service_perimeter]를 따릅니다.
+서비스 경계를 만듭니다.
+원격 함수를 사용하여 쿼리의 BigQuery 프로젝트를 경계에 추가합니다.
+엔드포인트 프로젝트를 경계에 추가하고 엔드포인트 유형에 따라 제한된 서비스에서 Cloud Functions API 또는 Cloud Run API를 설정합니다. 자세한 내용은 Cloud Run Functions VPC 서비스 제어 [https://cloud.google.com/functions/docs/securing/using-vpc-service-controls?hl=ko] 및 Cloud Run VPC 서비스 제어 [https://cloud.google.com/run/docs/securing/using-vpc-service-controls?hl=ko]를 참조하세요.
+원격 함수 권장사항
+입력 사전 필터: 원격 함수로 전달하기 전 입력을 쉽게 필터링할 수 있으면 쿼리 속도가 더 빨라지고 비용이 낮아질 것입니다.
+Cloud Run Functions의 확장성을 유지하는 것이 좋습니다. 확장성은 최소 인스턴스 [https://cloud.google.com/functions/docs/configuring/min-instances?hl=ko], 최대 인스턴스 [https://cloud.google.com/functions/docs/configuring/max-instances?hl=ko], 동시 실행 [https://cloud.google.com/functions/docs/configuring/concurrency?hl=ko]의 함수입니다.
+가능한 경우 Cloud Run Functions의 최대 인스턴스 수에 대한 기본값을 사용하세요.
+참고로 1세대 HTTP Cloud Run Functions에는 기본 한도가 없습니다. 테스트 또는 프로덕션 중에 1세대 HTTP Cloud Run Functions를 사용하여 무한한 확장 이벤트를 방지하려면 한도를 설정 [https://cloud.google.com/functions/docs/configuring/max-instances?hl=ko#setting_maximum_instances_limits]하는 것이 좋습니다(예: 3000).
+성능 향상을 위해 다른 Cloud Run Functions 팁 [https://cloud.google.com/functions/docs/bestpractices/tips?hl=ko]을 참조하세요. 지연 시간이 높은 Cloud Run Functions와 상호작용하는 원격 함수는 제한 시간으로 인해 실패할 수 있습니다.
+실패한 응답에 대하여 적합한 HTTP 응답 코드 및 페이로드를 반환하도록 엔드포인트를 구현하세요.
+BigQuery에서 재시도를 최소화하려면 실패한 응답에 408, 429, 500, 503, 504 이외의 HTTP 응답 코드를 사용하고 함수 코드에서 모든 예외를 포착해야 합니다. 그렇지 않으면 HTTP 서비스 프레임워크에서 포착되지 않은 예외에 대해 자동으로 500을 반환할 수 있습니다. BigQuery가 실패한 데이터 파티션 또는 쿼리를 재시도할 때도 재시도된 HTTP 요청이 표시될 수 있습니다.
+엔드포인트는 실패한 응답에 대해 정의된 형식으로 JSON 페이로드를 반환해야 합니다. 엄격하게 요구되는 것은 아니지만, 이렇게 하면 실패한 응답이 함수 구현에서 발생했는지 또는 Cloud Run Functions/Cloud Run의 인프라에서 비롯되는지 BigQuery가 구별하는 데 도움이 됩니다. 후자의 경우 BigQuery는 다른 내부 한도로 다시 시도할 수 있습니다.
+할당량
+원격 함수 할당량에 대한 자세한 내용은 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#remote_function_limits]를 참조하세요.
+도움이 되었나요?
+의견 보내기

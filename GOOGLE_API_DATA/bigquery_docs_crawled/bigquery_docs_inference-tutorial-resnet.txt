@@ -1,0 +1,213 @@
+Source URL: https://cloud.google.com/bigquery/docs/inference-tutorial-resnet
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+ResNet 50 모델 [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#the_resnet_50_model]
+필수 권한 [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#required_permissions]
+비용 [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#before_you_begin]
+예약 만들기 [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#create_a_reservation]
+튜토리얼: 분류 모델을 사용하여 객체 테이블에서 추론 실행
+bookmark_border
+이 튜토리얼에서는 공개 데이터 세트의 이미지를 기반으로 객체 테이블을 만든 후 ResNet 50 모델 [https://tfhub.dev/tensorflow/resnet_50/classification/1]을 사용하여 이 객체 테이블에서 추론을 실행하는 방법을 보여줍니다.
+ResNet 50 모델
+ResNet 50 모델은 이미지 파일을 분석하고 이미지가 해당 클래스(logits)에 포함될 가능성을 나타내는 벡터 배치를 출력합니다. 자세한 내용은 모델의 TensorFlow Hub 페이지 [https://tfhub.dev/tensorflow/resnet_50/classification/1]에서 사용량 섹션을 참조하세요.
+ResNet 50 모델 입력은 [-1, 224, 224, 3] 형태의 DType [https://www.tensorflow.org/api_docs/python/tf/dtypes/DType?hl=ko] float32 텐서를 취합니다. 출력은 [-1, 1024] 형태의 tf.float32 텐서 배열입니다.
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create 권한이 필요합니다.
+연결 리소스를 만들려면 다음 권한이 필요합니다.
+bigquery.connections.create
+bigquery.connections.get
+연결의 서비스 계정에 권한을 부여하려면 다음 권한이 필요합니다.
+resourcemanager.projects.setIamPolicy
+객체 테이블을 만들려면 다음 권한이 필요합니다.
+bigquery.tables.create
+bigquery.tables.update
+bigquery.connections.delegate
+버킷을 만들려면 storage.buckets.create 권한이 필요합니다.
+모델을 Cloud Storage로 업로드하려면 storage.objects.create 및 storage.objects.get 권한이 필요합니다.
+모델을 BigQuery ML에 로드하려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 권한이 필요합니다.
+객체 테이블에 대한 bigquery.tables.getData
+모델에 대한 bigquery.models.getData
+bigquery.jobs.create
+비용
+이 문서에서는 비용이 청구될 수 있는 Google Cloud구성요소( )를 사용합니다.
+BigQuery: You incur storage costs for the object table you create in BigQuery.
+BigQuery ML: You incur costs for the model you create and the inference you perform in BigQuery ML.
+Cloud Storage: You incur costs for the objects you store in Cloud Storage.
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+BigQuery 스토리지 가격 책정에 대한 자세한 내용은 BigQuery 문서에서 스토리지 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]을 참조하세요.
+BigQuery ML 가격 책정에 대한 자세한 내용은 BigQuery 문서에서 BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]을 참조하세요.
+Cloud Storage 가격에 대한 자세한 내용은 Cloud Storage 가격 책정 [https://cloud.google.com/storage/pricing?hl=ko] 페이지를 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery and BigQuery Connection API APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com&hl=ko]
+예약 만들기
+객체 테이블에서 가져온 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/inference-overview?hl=ko#inference_using_imported_models]을 사용하려면 BigQuery Enterprise 또는 Enterprise Plus 버전 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]을 사용하는 예약을 만든 [https://cloud.google.com/bigquery/docs/reservations-tasks?hl=ko#create_reservations] 후 QUERY 작업 유형을 사용하는 예약 할당을 만들어야 [https://cloud.google.com/bigquery/docs/reservations-assignments?hl=ko#create_reservation_assignments] 합니다.
+데이터 세트 만들기
+resnet_inference_test라는 데이터 세트를 만듭니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#sql] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+편집자 창에서 다음 SQL 문을 실행합니다.
+
+CREATE SCHEMA `PROJECT_ID.resnet_inference_test`;
+
+PROJECT_ID를 프로젝트 ID로 바꿉니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#bq] ---
+Google Cloud 콘솔에서 Cloud Shell을 활성화합니다.
+
+Cloud Shell 활성화 [https://console.cloud.google.com/?cloudshell=true&hl=ko] 
+bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행하여 데이터 세트를 만듭니다.
+
+bq mk --dataset --location=us PROJECT_ID:resnet_inference_test
+
+PROJECT_ID를 프로젝트 ID로 바꿉니다.
+연결 만들기
+lake-connection이라는 연결을 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 add 데이터 추가를 클릭합니다.
+
+데이터 추가 대화상자가 열립니다.
+필터링 기준 창의 데이터 소스 유형 섹션에서 데이터베이스를 선택합니다.
+
+또는 데이터 소스 검색 필드에 Vertex AI를 입력할 수 있습니다.
+추천 데이터 소스 섹션에서 Vertex AI를 클릭합니다.
+Vertex AI 모델: BigQuery 제휴 솔루션 카드를 클릭합니다.
+연결 유형 목록에서 Vertex AI 원격 모델, 원격 함수, BigLake(Cloud 리소스)를 선택합니다.
+연결 ID 필드에 lake-connection을 입력합니다.
+연결 만들기를 클릭합니다.
+연결 정보 창에서 서비스 계정 ID 필드의 값을 복사하여 다른 곳에 저장합니다. 연결의 서비스 계정에 권한을 부여 [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#grant-permissions]하려면 이 정보가 필요합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#bq] ---
+Cloud Shell에서 bq mk 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-connection]를 실행하여 연결을 만듭니다.
+bq mk --connection --location=us --connection_type=CLOUD_RESOURCE \
+lake-connection
+
+bq show 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_show]를 실행하여 연결에 대한 정보를 검색합니다.
+bq show --connection us.lake-connection
+
+properties 열에서 serviceAccountId 속성 값을 복사하여 다른 위치에 저장합니다. 연결의 서비스 계정에 권한을 부여 [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#grant-permissions]하려면 이 정보가 필요합니다.
+Cloud Storage 버킷 만들기
+모델 파일을 포함하기 위해 Cloud Storage 버킷을 만듭니다 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko].
+연결의 서비스 계정에 권한 부여
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#%EC%BD%98%EC%86%94] ---
+IAM 및 관리자 페이지로 이동합니다.
+
+IAM 및 관리자로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko] 
+액세스 권한 부여를 클릭합니다.
+
+주 구성원 추가 대화상자가 열립니다.
+새 주 구성원 필드에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 Cloud Storage를 선택한 후 스토리지 객체 뷰어를 선택합니다.
+저장을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#gcloud] ---
+Cloud Shell에서 gcloud storage buckets add-iam-policy-binding 명령어 [https://cloud.google.com/sdk/gcloud/reference/storage/buckets/add-iam-policy-binding?hl=ko]를 실행합니다.
+
+gcloud storage buckets add-iam-policy-binding gs://BUCKET_NAME \
+--member=serviceAccount:MEMBER \
+--role=roles/storage.objectViewer
+
+MEMBER를 앞에서 복사한 서비스 계정 ID로 바꿉니다. BUCKET_NAME을 이전에 만든 버킷의 이름으로 바꿉니다.
+
+자세한 내용은 버킷 수준 정책에 주 구성원 추가 [https://cloud.google.com/storage/docs/access-control/using-iam-permissions?hl=ko#bucket-add]를 참조하세요.
+참고: 새 권한이 적용되기까지 최대 1분이 걸릴 수 있습니다.
+객체 테이블 만들기
+공개 gs://cloud-samples-data/vision 버킷의 이미지 파일을 기반으로 vision_images라는 객체 테이블을 만듭니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#sql] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+편집자 창에서 다음 SQL 문을 실행합니다.
+
+CREATE EXTERNAL TABLE resnet_inference_test.vision_images
+WITH CONNECTION `us.lake-connection`
+OPTIONS(
+  object_metadata = 'SIMPLE',
+  uris = ['gs://cloud-samples-data/vision/*.jpg']
+);
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/inference-tutorial-resnet?hl=ko#bq] ---
+Cloud Shell에서 bq mk 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-table]를 실행하여 연결을 만듭니다.
+bq mk --table \
+--external_table_definition='gs://cloud-samples-data/vision/*.jpg@us.lake-connection' \
+--object_metadata=SIMPLE \
+resnet_inference_test.vision_images
+Cloud Storage에 모델 업로드
+모델 파일을 가져와 Cloud Storage에서 사용할 수 있도록 만듭니다.
+ResNet 50 모델을 로컬 머신으로 다운로드 [https://tfhub.dev/tensorflow/resnet_50/classification/1?tf-hub-format=compressed]합니다. 그러면 모델에 대한 saved_model.pb 파일과 variables 폴더가 제공됩니다.
+saved_model.pb 파일과 variables 폴더를 이전에 만든 버킷에 업로드 [https://cloud.google.com/storage/docs/uploading-objects?hl=ko]합니다.
+BigQuery ML에 모델 로드
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+편집자 창에서 다음 SQL 문을 실행합니다.
+CREATE MODEL `resnet_inference_test.resnet`
+OPTIONS(
+  model_type = 'TENSORFLOW',
+  model_path = 'gs://
+BUCKET_NAME/*');
+BUCKET_NAME을 이전에 만든 버킷의 이름으로 바꿉니다.
+모델 검사
+업로드된 모델을 검사하여 입력 및 출력 필드를 확인합니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 프로젝트를 펼치고 resnet_inference_test 데이터 세트를 펼친 다음 모델 노드를 펼칩니다.
+resnet 모델을 클릭합니다.
+모델 창이 열리면 스키마 탭을 클릭합니다.
+라벨 섹션을 찾습니다. 이렇게 해서 모델에서 출력된 필드를 식별합니다. 이 경우 필드 이름 값은 activation_49입니다.
+기능 섹션을 찾습니다. 이렇게 해서 모델에 입력해야 하는 필드를 식별합니다. ML.DECODE_IMAGE 함수에 대한 SELECT 문에서 이를 참조합니다. 이 경우 필드 이름 값은 input_1입니다.
+추론 실행
+resnet 모델을 사용하여 vision_images 객체 테이블에서 추론을 실행합니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+편집자 창에서 다음 SQL 문을 실행합니다.
+SELECT *
+FROM ML.PREDICT(
+  MODEL `resnet_inference_test.resnet`,
+  (SELECT uri, ML.RESIZE_IMAGE(ML.DECODE_IMAGE(data), 224, 224, FALSE) AS input_1
+  FROM resnet_inference_test.vision_images)
+);
+결과는 다음과 비슷하게 표시됩니다.
+-------------------------------------------------------------------------------------------------------------------------------------
+| activation_49           | uri                                                                                           | input_1 |
+—------------------------------------------------------------------------------------------------------------------------------------
+| 1.0254175464297077e-07  | gs://cloud-samples-data/vision/automl_classification/flowers/daisy/21652746_cc379e0eea_m.jpg  | 0.0     |
+—------------------------------------------------------------------------------------------------------------------------------------
+| 2.1671139620593749e-06  |                                                                                               | 0.0     |
+—--------------------------                                                                                               -----------
+| 8.346052027263795e-08   |                                                                                               | 0.0     |
+—--------------------------                                                                                               -----------
+| 1.159310958342985e-08   |                                                                                               | 0.0     |
+—------------------------------------------------------------------------------------------------------------------------------------
+삭제
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+도움이 되었나요?
+의견 보내기

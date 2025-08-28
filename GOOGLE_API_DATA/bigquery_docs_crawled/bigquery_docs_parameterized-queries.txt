@@ -1,0 +1,5527 @@
+Source URL: https://cloud.google.com/bigquery/docs/parameterized-queries
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+매개변수화된 쿼리에서 배열 사용 [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#using_arrays_in_parameterized_queries]
+매개변수화된 쿼리에서 타임스탬프 사용 [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#using_timestamps_in_parameterized_queries]
+매개변수화된 쿼리에서 구조체 사용 [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#using_structs_in_parameterized_queries]
+매개변수화된 쿼리 실행
+bookmark_border
+BigQuery에서는 사용자 입력을 사용해 쿼리를 구성할 때 SQL 삽입 [https://en.wikipedia.org/wiki/SQL_injection]을 피할 수 있도록 쿼리 매개변수를 지원합니다. 이 기능은 GoogleSQL 구문 [https://cloud.google.com/bigquery/docs/reference/standard-sql?hl=ko]에서만 사용이 가능하며, 쿼리 매개변수는 임의의 표현식 대신 사용할 수 있습니다. 매개변수는 식별자, 열 이름, 표 이름 또는 쿼리의 다른 부분을 대체할 수 없습니다.
+이름 지정 매개변수를 지정하려면 식별자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#identifiers] 앞에 @ 문자를 사용합니다(예: @param_name). 또는 자리표시자 값 ?를 사용해 위치 매개변수를 지정합니다. 쿼리에서는 위치 또는 이름 지정 매개변수를 사용할 수 있으나 동시에 둘 다 사용할 수는 없습니다.
+매개변수 사용 시 제공된 값 자체는 민감한 정보를 보호하기 위해 BigQuery 로그 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko#logs]에 로깅되지 않습니다.
+다음과 같은 방법으로 BigQuery에서 매개변수화된 쿼리를 실행할 수 있습니다.
+bq 명령줄 도구의 bq query 명령어
+API
+클라이언트 라이브러리
+다음 예시에서는 매개변수 값을 매개변수화된 쿼리에 전달하는 방법을 보여줍니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#%EC%BD%98%EC%86%94] ---
+매개변수화된 쿼리는 Google Cloud 콘솔에서 지원되지 않습니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#bq] ---
+In the Google Cloud console, activate Cloud Shell.
+    Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+    
+      At the bottom of the Google Cloud console, a
+      Cloud Shell [https://cloud.google.com/shell/docs/how-cloud-shell-works?hl=ko]
+      session starts and displays a command-line prompt. Cloud Shell is a shell environment
+      with the Google Cloud CLI
+      already installed and with values already set for
+      your current project. It can take a few seconds for the session to initialize.
+    
+    
+  
+
+
+
+
+
+
+
+
+
+
+--parameter를 사용하여 name:type:value 형식의 매개변수 값을 제공합니다. 이름이 비어 있으면 위치 매개변수가 생성됩니다.
+유형을 생략하여 STRING을 가정할 수도 있습니다.
+
+--parameter 플래그를 --use_legacy_sql=false 플래그와 함께 사용해 GoogleSQL 구문을 지정해야 합니다.
+
+(선택사항) --location 플래그를 사용하여 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]를 지정합니다.
+
+bq query \
+   --use_legacy_sql=false \
+   --parameter=corpus::romeoandjuliet \
+   --parameter=min_word_count:INT64:250 \
+   'SELECT
+     word,
+     word_count
+   FROM
+     `bigquery-public-data.samples.shakespeare`
+   WHERE
+     corpus = @corpus
+   AND
+     word_count >= @min_word_count
+   ORDER BY
+     word_count DESC;'
+
+ API 이름 지정 매개변수를 사용하려면 query 작업 구성에서 parameterMode를 NAMED로 설정합니다.
+
+query 작업 구성의 매개변수 목록으로 queryParameters를 채웁니다. 쿼리에서 사용된 @param_name을 사용하여 각 매개변수의 name을 설정합니다.
+
+useLegacySql을 false로 설정하여 GoogleSQL 구문을 사용 설정 [https://cloud.google.com/bigquery/docs/introduction-sql?hl=ko]합니다.
+{
+  "query": "SELECT word, word_count FROM `bigquery-public-data.samples.shakespeare` WHERE corpus = @corpus AND word_count >= @min_word_count ORDER BY word_count DESC;",
+  "queryParameters": [
+    {
+      "parameterType": {
+        "type": "STRING"
+      },
+      "parameterValue": {
+        "value": "romeoandjuliet"
+      },
+      "name": "corpus"
+    },
+    {
+      "parameterType": {
+        "type": "INT64"
+      },
+      "parameterValue": {
+        "value": "250"
+      },
+      "name": "min_word_count"
+    }
+  ],
+  "useLegacySql": false,
+  "parameterMode": "NAMED"
+}
+
+Google API 탐색기에서 사용해 보기 [https://developers.google.com/apis-explorer/?hl=ko#p/bigquery/v2/bigquery.jobs.query?projectId=my-project-id&_h=1&resource=%257B%250A++%2522query%2522%253A+%2522SELECT+word%252C+word_count%255CnFROM+%2560bigquery-public-data.samples.shakespeare%2560%255CnWHERE+corpus+%253D+%2540corpus%255CnAND+word_count+%253E%253D+%2540min_word_count%255CnORDER+BY+word_count+DESC%253B%2522%252C%250A++%2522queryParameters%2522%253A+%250A++%255B%250A++++%257B%250A++++++%2522parameterType%2522%253A+%250A++++++%257B%250A++++++++%2522type%2522%253A+%2522STRING%2522%250A++++++%257D%252C%250A++++++%2522parameterValue%2522%253A+%250A++++++%257B%250A++++++++%2522value%2522%253A+%2522romeoandjuliet%2522%250A++++++%257D%252C%250A++++++%2522name%2522%253A+%2522corpus%2522%250A++++%257D%252C%250A++++%257B%250A++++++%2522parameterType%2522%253A+%250A++++++%257B%250A++++++++%2522type%2522%253A+%2522INT64%2522%250A++++++%257D%252C%250A++++++%2522parameterValue%2522%253A+%250A++++++%257B%250A++++++++%2522value%2522%253A+%2522250%2522%250A++++++%257D%252C%250A++++++%2522name%2522%253A+%2522min_word_count%2522%250A++++%257D%250A++%255D%252C%250A++%2522useLegacySql%2522%253A+false%252C%250A++%2522parameterMode%2522%253A+%2522NAMED%2522%250A%257D&]
+
+위치 매개변수를 사용하려면 query 작업 구성에서 parameterMode를 POSITIONAL로 설정합니다.
+ C# 
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 C# 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery C# API 참고 문서 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    이름 지정 매개변수를 사용하는 방법:
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+using Google.Cloud.BigQuery.V2 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.html?hl=ko];
+using System;
+
+public class BigQueryQueryWithNamedParameters
+{
+    public void QueryWithNamedParameters(string projectId = "your-project-id")
+    {
+        var corpus = "romeoandjuliet";
+        var minWordCount = 250;
+
+        // Note: Standard SQL is required to use query parameters.
+        var query = @"
+            SELECT word, word_count
+            FROM `bigquery-public-data.samples.shakespeare`
+            WHERE corpus = @corpus
+            AND word_count >= @min_word_count
+            ORDER BY word_count DESC";
+
+        // Initialize client that will be used to send requests.
+        var client = BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_Create_System_String_Google_Apis_Auth_OAuth2_GoogleCredential_](projectId);
+
+        var parameters = new BigQueryParameter [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter.html?hl=ko][]
+        {
+            new BigQueryParameter [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter.html?hl=ko]("corpus", BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].String [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_String], corpus),
+            new BigQueryParameter [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter.html?hl=ko]("min_word_count", BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].Int64 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_Int64], minWordCount)
+        };
+
+        var job = client.CreateQueryJob(
+            sql: query,
+            parameters: parameters,
+            options: new QueryOptions [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.QueryOptions.html?hl=ko] { UseQueryCache = false });
+        // Wait for the job to complete.
+        job = job.PollUntilCompleted [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryJob.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryJob_PollUntilCompleted_Google_Cloud_BigQuery_V2_GetJobOptions_Google_Api_Gax_PollSettings_]().ThrowOnAnyError();
+        // Display the results
+        foreach (BigQueryRow [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryRow.html?hl=ko] row in client.GetQueryResults(job.Reference))
+        {
+            Console.WriteLine($"{row["word"]}: {row["word_count"]}");
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 C# 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery C# API 참고 문서 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    위치 매개변수를 사용하는 방법:
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+using Google.Cloud.BigQuery.V2 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.html?hl=ko];
+using System;
+
+public class BigQueryQueryWithPositionalParameters
+{
+    public void QueryWithPositionalParameters(string projectId = "project-id")
+    {
+        var corpus = "romeoandjuliet";
+        var minWordCount = 250;
+
+        // Note: Standard SQL is required to use query parameters.
+        var query = @"
+                SELECT word, word_count
+                FROM `bigquery-public-data.samples.shakespeare`
+                WHERE corpus = ?
+                AND word_count >= ?
+                ORDER BY word_count DESC;";
+
+        // Initialize client that will be used to send requests.
+        var client = BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_Create_System_String_Google_Apis_Auth_OAuth2_GoogleCredential_](projectId);
+
+        // Set the name to None to use positional parameters.
+        // Note that you cannot mix named and positional parameters.
+        var parameters = new BigQueryParameter [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter.html?hl=ko][]
+        {
+            new BigQueryParameter [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter.html?hl=ko](null, BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].String [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_String], corpus),
+            new BigQueryParameter [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter.html?hl=ko](null, BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].Int64 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_Int64], minWordCount)
+        };
+
+        var job = client.CreateQueryJob(
+            sql: query,
+            parameters: parameters,
+            options: new QueryOptions [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.QueryOptions.html?hl=ko]
+            {
+                UseQueryCache = false,
+                ParameterMode = BigQueryParameterMode [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameterMode.html?hl=ko].Positional [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameterMode.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryParameterMode_Positional]
+            });
+        // Wait for the job to complete.
+        job = job.PollUntilCompleted [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryJob.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryJob_PollUntilCompleted_Google_Cloud_BigQuery_V2_GetJobOptions_Google_Api_Gax_PollSettings_]().ThrowOnAnyError();
+        // Display the results
+        foreach (BigQueryRow [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryRow.html?hl=ko] row in client.GetQueryResults(job.Reference))
+        {
+            Console.WriteLine($"{row["word"]}: {row["word_count"]}");
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+Go
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    이름 지정 매개변수를 사용하는 방법:
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryWithNamedParams demonstrate issuing a query using named query parameters.
+func queryWithNamedParams(w io.Writer, projectID string) error {
+	// projectID := "my-project-id"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query(
+		`SELECT word, word_count
+        FROM ` + "`bigquery-public-data.samples.shakespeare`" + `
+        WHERE corpus = @corpus
+        AND word_count >= @min_word_count
+        ORDER BY word_count DESC;`)
+	q.Parameters = []bigquery.QueryParameter [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_QueryParameter]{
+		{
+			Name:  "corpus",
+			Value: "romeoandjuliet",
+		},
+		{
+			Name:  "min_word_count",
+			Value: 250,
+		},
+	}
+	// Run the query and print results when the query job is completed.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err](); err != nil {
+		return err
+	}
+	it, err := job.Read(ctx)
+	for {
+		var row []bigquery.Value [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Value]
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+    위치 매개변수를 사용하는 방법:
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryWithPostionalParams demonstrate issuing a query using positional query parameters.
+func queryWithPositionalParams(w io.Writer, projectID string) error {
+	// projectID := "my-project-id"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query(
+		`SELECT word, word_count
+        FROM ` + "`bigquery-public-data.samples.shakespeare`" + `
+        WHERE corpus = ?
+        AND word_count >= ?
+        ORDER BY word_count DESC;`)
+	q.Parameters = []bigquery.QueryParameter [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_QueryParameter]{
+		{
+			Value: "romeoandjuliet",
+		},
+		{
+			Value: 250,
+		},
+	}
+	// Run the query and print results when the query job is completed.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err](); err != nil {
+		return err
+	}
+	it, err := job.Read(ctx)
+	for {
+		var row []bigquery.Value [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Value]
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+자바
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    이름 지정 매개변수를 사용하는 방법:
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko];
+import com.google.cloud.bigquery.TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko];
+
+public class QueryWithNamedParameters {
+
+  public static void queryWithNamedParameters() {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      String corpus = "romeoandjuliet";
+      long minWordCount = 250;
+      String query =
+          "SELECT word, word_count\n"
+              + "FROM `bigquery-public-data.samples.shakespeare`\n"
+              + "WHERE corpus = @corpus\n"
+              + "AND word_count >= @min_word_count\n"
+              + "ORDER BY word_count DESC";
+
+      // Note: Standard SQL is required to use query parameters.
+      QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko] queryConfig =
+          QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko].newBuilder(query)
+              .addNamedParameter [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder.html?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_addNamedParameter_java_lang_String_com_google_cloud_bigquery_QueryParameterValue_]("corpus", QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko].string [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_string_java_lang_String_](corpus))
+              .addNamedParameter [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder.html?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_addNamedParameter_java_lang_String_com_google_cloud_bigquery_QueryParameterValue_]("min_word_count", QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko].int64 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_int64_java_lang_Integer_](minWordCount))
+              .build();
+
+      TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko] results = bigquery.query [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_query_com_google_cloud_bigquery_QueryJobConfiguration_com_google_cloud_bigquery_BigQuery_JobOption____](queryConfig);
+
+      results
+          .iterateAll [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko#com_google_cloud_bigquery_TableResult_iterateAll__]()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s,", val.toString())));
+
+      System.out.println("Query with named parameters performed successfully.");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+    위치 매개변수를 사용하는 방법:
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko];
+import com.google.cloud.bigquery.TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko];
+
+public class QueryWithPositionalParameters {
+  public static void queryWithPositionalParameters() {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      String corpus = "romeoandjuliet";
+      long minWordCount = 250;
+      String query =
+          "SELECT word, word_count\n"
+              + "FROM `bigquery-public-data.samples.shakespeare`\n"
+              + "WHERE corpus = ?\n"
+              + "AND word_count >= ?\n"
+              + "ORDER BY word_count DESC";
+
+      // Note: Standard SQL is required to use query parameters.
+      QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko] queryConfig =
+          QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko].newBuilder(query)
+              .addPositionalParameter [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder.html?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_addPositionalParameter_com_google_cloud_bigquery_QueryParameterValue_](QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko].string [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_string_java_lang_String_](corpus))
+              .addPositionalParameter [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder.html?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_addPositionalParameter_com_google_cloud_bigquery_QueryParameterValue_](QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko].int64 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_int64_java_lang_Integer_](minWordCount))
+              .build();
+
+      TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko] results = bigquery.query [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_query_com_google_cloud_bigquery_QueryJobConfiguration_com_google_cloud_bigquery_BigQuery_JobOption____](queryConfig);
+
+      results
+          .iterateAll [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko#com_google_cloud_bigquery_TableResult_iterateAll__]()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s,", val.toString())));
+
+      System.out.println("Query with positional parameters performed successfully.");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+ Node.js 
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    이름 지정 매개변수를 사용하는 방법:
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Run a query using named query parameters
+
+// Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function queryParamsNamed() {
+  // The SQL query to run
+  const sqlQuery = `SELECT word, word_count
+        FROM \`bigquery-public-data.samples.shakespeare\`
+        WHERE corpus = @corpus
+        AND word_count >= @min_word_count
+        ORDER BY word_count DESC`;
+
+  const options = {
+    query: sqlQuery,
+    // Location must match that of the dataset(s) referenced in the query.
+    location: 'US',
+    params: {corpus: 'romeoandjuliet', min_word_count: 250},
+  };
+
+  // Run the query
+  const [rows] = await bigquery.query(options);
+
+  console.log('Rows:');
+  rows.forEach(row => console.log(row));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+    위치 매개변수를 사용하는 방법:
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Run a query using positional query parameters
+
+// Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function queryParamsPositional() {
+  // The SQL query to run
+  const sqlQuery = `SELECT word, word_count
+        FROM \`bigquery-public-data.samples.shakespeare\`
+        WHERE corpus = ?
+        AND word_count >= ?
+        ORDER BY word_count DESC`;
+
+  const options = {
+    query: sqlQuery,
+    // Location must match that of the dataset(s) referenced in the query.
+    location: 'US',
+    params: ['romeoandjuliet', 250],
+  };
+
+  // Run the query
+  const [rows] = await bigquery.query(options);
+
+  console.log('Rows:');
+  rows.forEach(row => console.log(row));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+ Python 
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    이름 지정 매개변수를 사용하는 방법:
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+query = """
+    SELECT word, word_count
+    FROM `bigquery-public-data.samples.shakespeare`
+    WHERE corpus = @corpus
+    AND word_count >= @min_word_count
+    ORDER BY word_count DESC;
+"""
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].QueryJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJobConfig.html?hl=ko](
+    query_parameters=[
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].ScalarQueryParameter [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.query.ScalarQueryParameter.html?hl=ko]("corpus", "STRING", "romeoandjuliet"),
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].ScalarQueryParameter [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.query.ScalarQueryParameter.html?hl=ko]("min_word_count", "INT64", 250),
+    ]
+)
+results = client.query_and_wait [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_query_and_wait](
+    query, job_config=job_config
+)  # Make an API request.
+
+for row in results:
+    print("{}: \t{}".format(row.word, row.word_count))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+    위치 매개변수를 사용하는 방법:
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+query = """
+    SELECT word, word_count
+    FROM `bigquery-public-data.samples.shakespeare`
+    WHERE corpus = ?
+    AND word_count >= ?
+    ORDER BY word_count DESC;
+"""
+# Set the name to None to use positional parameters.
+# Note that you cannot mix named and positional parameters.
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].QueryJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJobConfig.html?hl=ko](
+    query_parameters=[
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].ScalarQueryParameter [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.query.ScalarQueryParameter.html?hl=ko](None, "STRING", "romeoandjuliet"),
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].ScalarQueryParameter [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.query.ScalarQueryParameter.html?hl=ko](None, "INT64", 250),
+    ]
+)
+results = client.query_and_wait [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_query_and_wait](
+    query, job_config=job_config
+)  # Make an API request.
+
+for row in results:
+    print("{}: \t{}".format(row.word, row.word_count))
+매개변수화된 쿼리에서 배열 사용
+쿼리 매개변수에서 배열 유형을 사용하려면 유형을 ARRAY<T>로 설정합니다. 여기서 T는 배열 요소의 유형입니다. [1, 2, 3]과 같이 대괄호로 묶이고 쉼표로 구분된 요소 목록으로 값을 구성합니다.
+배열 유형에 대한 자세한 내용은 데이터 유형 참조 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#array_type]를 확인하세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#%EC%BD%98%EC%86%94] ---
+매개변수화된 쿼리는 Google Cloud 콘솔에서 지원되지 않습니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#bq] ---
+In the Google Cloud console, activate Cloud Shell.
+    Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+    
+      At the bottom of the Google Cloud console, a
+      Cloud Shell [https://cloud.google.com/shell/docs/how-cloud-shell-works?hl=ko]
+      session starts and displays a command-line prompt. Cloud Shell is a shell environment
+      with the Google Cloud CLI
+      already installed and with values already set for
+      your current project. It can take a few seconds for the session to initialize.
+    
+    
+  
+
+
+
+
+
+
+
+
+
+
+이 쿼리에서는 미국 주에서 태어난 남아의 이름 중 W로 시작하는 가장 인기 있는 이름을 선택합니다.
+참고: 이 예시에서는 미국 기반의 공개 데이터 세트를 쿼리합니다. 공개 데이터 세트가 미국의 멀티 리전 위치에 저장되기 때문에, 대상 테이블을 포함하는 데이터 세트도 미국에 있어야 합니다. 한 위치에서 데이터 세트를 쿼리하고 결과를 다른 위치에 있는 대상 테이블에 기록할 수는 없습니다.
+bq query \
+   --use_legacy_sql=false \
+   --parameter='gender::M' \
+   --parameter='states:ARRAY<STRING>:["WA", "WI", "WV", "WY"]' \
+   'SELECT
+     name,
+     SUM(number) AS count
+   FROM
+     `bigquery-public-data.usa_names.usa_1910_2013`
+   WHERE
+     gender = @gender
+     AND state IN UNNEST(@states)
+   GROUP BY
+     name
+   ORDER BY
+     count DESC
+   LIMIT
+     10;'
+
+> 문자로 명령어 출력이 의도치 않게 파일로 리디렉션되지 않도록 배열 유형 선언을 작은따옴표로 묶어야 합니다.
+
+ API 배열 값 매개변수를 사용하려면 query 작업 구성에서 parameterType [https://cloud.google.com/bigquery/docs/reference/rest/v2/QueryParameter?hl=ko]을 ARRAY로 설정합니다.
+
+배열 값이 스칼라인 경우 parameterType [https://cloud.google.com/bigquery/docs/reference/rest/v2/QueryParameter?hl=ko]을 STRING 등의 값 유형으로 설정합니다. 배열 값이 구조체인 경우에는 STRUCT로 설정하고 필요한 필드 정의를 structTypes에 추가합니다.
+
+예를 들어 이 쿼리에서는 미국 주에서 태어난 남아의 이름 중 W로 시작하는 가장 인기 있는 이름을 선택합니다.
+{
+ "query": "SELECT name, sum(number) as count\nFROM `bigquery-public-data.usa_names.usa_1910_2013`\nWHERE gender = @gender\nAND state IN UNNEST(@states)\nGROUP BY name\nORDER BY count DESC\nLIMIT 10;",
+ "queryParameters": [
+  {
+   "parameterType": {
+    "type": "STRING"
+   },
+   "parameterValue": {
+    "value": "M"
+   },
+   "name": "gender"
+  },
+  {
+   "parameterType": {
+    "type": "ARRAY",
+    "arrayType": {
+     "type": "STRING"
+    }
+   },
+   "parameterValue": {
+    "arrayValues": [
+     {
+      "value": "WA"
+     },
+     {
+      "value": "WI"
+     },
+     {
+      "value": "WV"
+     },
+     {
+      "value": "WY"
+     }
+    ]
+   },
+   "name": "states"
+  }
+ ],
+ "useLegacySql": false,
+ "parameterMode": "NAMED"
+}
+
+Google API 탐색기에서 사용해 보기 [https://developers.google.com/apis-explorer/?hl=ko#p/bigquery/v2/bigquery.jobs.query?projectId=my-project-id&_h=1&resource=%257B%250A++%2522query%2522%253A+%2522SELECT+name%252C+sum(number)+as+count%255CnFROM+%2560bigquery-public-data.usa_names.usa_1910_2013%2560%255CnWHERE+gender+%253D+%2540gender%255CnAND+state+IN+UNNEST(%2540states)%255CnGROUP+BY+name%255CnORDER+BY+count+DESC%255CnLIMIT+10%253B%2522%252C%250A++%2522queryParameters%2522%253A+%250A++%255B%250A++++%257B%250A++++++%2522parameterType%2522%253A+%250A++++++%257B%250A++++++++%2522type%2522%253A+%2522STRING%2522%250A++++++%257D%252C%250A++++++%2522parameterValue%2522%253A+%250A++++++%257B%250A++++++++%2522value%2522%253A+%2522M%2522%250A++++++%257D%252C%250A++++++%2522name%2522%253A+%2522gender%2522%250A++++%257D%252C%250A++++%257B%250A++++++%2522parameterType%2522%253A+%250A++++++%257B%250A++++++++%2522type%2522%253A+%2522ARRAY%2522%252C%250A++++++++%2522arrayType%2522%253A+%250A++++++++%257B%250A++++++++++%2522type%2522%253A+%2522STRING%2522%250A++++++++%257D%250A++++++%257D%252C%250A++++++%2522parameterValue%2522%253A+%250A++++++%257B%250A++++++++%2522arrayValues%2522%253A+%250A++++++++%255B%250A++++++++++%257B%250A++++++++++++%2522value%2522%253A+%2522WA%2522%250A++++++++++%257D%252C%250A++++++++++%257B%250A++++++++++++%2522value%2522%253A+%2522WI%2522%250A++++++++++%257D%252C%250A++++++++++%257B%250A++++++++++++%2522value%2522%253A+%2522WV%2522%250A++++++++++%257D%252C%250A++++++++++%257B%250A++++++++++++%2522value%2522%253A+%2522WY%2522%250A++++++++++%257D%250A++++++++%255D%250A++++++%257D%252C%250A++++++%2522name%2522%253A+%2522states%2522%250A++++%257D%250A++%255D%252C%250A++%2522useLegacySql%2522%253A+false%252C%250A++%2522parameterMode%2522%253A+%2522NAMED%2522%250A%257D&]
+ C# 
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 C# 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery C# API 참고 문서 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+using Google.Cloud.BigQuery.V2 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.html?hl=ko];
+using System;
+
+public class BigQueryQueryWithArrayParameters
+{
+    public void QueryWithArrayParameters(string projectId = "your-project-id")
+    {
+        var gender = "M";
+        string[] states = { "WA", "WI", "WV", "WY" };
+
+        // Note: Standard SQL is required to use query parameters.
+        var query = @"
+            SELECT name, sum(number) as count
+            FROM `bigquery-public-data.usa_names.usa_1910_2013`
+            WHERE gender = @gender
+            AND state IN UNNEST(@states)
+            GROUP BY name
+            ORDER BY count DESC
+            LIMIT 10;";
+
+        // Initialize client that will be used to send requests.
+        var client = BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_Create_System_String_Google_Apis_Auth_OAuth2_GoogleCredential_](projectId);
+
+        var parameters = new BigQueryParameter [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter.html?hl=ko][]
+        {
+            new BigQueryParameter [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter.html?hl=ko]("gender", BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].String [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_String], gender),
+            new BigQueryParameter [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter.html?hl=ko]("states", BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].Array [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_Array], states)
+        };
+
+        var job = client.CreateQueryJob(
+            sql: query,
+            parameters: parameters,
+            options: new QueryOptions [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.QueryOptions.html?hl=ko] { UseQueryCache = false });
+        // Wait for the job to complete.
+        job = job.PollUntilCompleted [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryJob.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryJob_PollUntilCompleted_Google_Cloud_BigQuery_V2_GetJobOptions_Google_Api_Gax_PollSettings_]().ThrowOnAnyError();
+        // Display the results
+        foreach (BigQueryRow [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryRow.html?hl=ko] row in client.GetQueryResults(job.Reference))
+        {
+            Console.WriteLine($"{row["name"]}: {row["count"]}");
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+Go
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryWithArrayParams demonstrates issuing a query and specifying query parameters that include an
+// array of strings.
+func queryWithArrayParams(w io.Writer, projectID string) error {
+	// projectID := "my-project-id"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query(
+		`SELECT
+			name,
+			sum(number) as count 
+        FROM ` + "`bigquery-public-data.usa_names.usa_1910_2013`" + `
+		WHERE
+			gender = @gender
+        	AND state IN UNNEST(@states)
+		GROUP BY
+			name
+		ORDER BY
+			count DESC
+		LIMIT 10;`)
+	q.Parameters = []bigquery.QueryParameter [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_QueryParameter]{
+		{
+			Name:  "gender",
+			Value: "M",
+		},
+		{
+			Name:  "states",
+			Value: []string{"WA", "WI", "WV", "WY"},
+		},
+	}
+	// Run the query and print results when the query job is completed.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err](); err != nil {
+		return err
+	}
+	it, err := job.Read(ctx)
+	for {
+		var row []bigquery.Value [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Value]
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+자바
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko];
+import com.google.cloud.bigquery.TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko];
+
+// Sample to running a query with array query parameters.
+public class QueryWithArrayParameters {
+
+  public static void runQueryWithArrayParameters() {
+    String gender = "M";
+    String[] states = {"WA", "WI", "WV", "WY"};
+    String query =
+        "SELECT name, sum(number) as count\n"
+            + "FROM `bigquery-public-data.usa_names.usa_1910_2013`\n"
+            + "WHERE gender = @gender\n"
+            + "AND state IN UNNEST(@states)\n"
+            + "GROUP BY name\n"
+            + "ORDER BY count DESC\n"
+            + "LIMIT 10;";
+    queryWithArrayParameters(query, gender, states);
+  }
+
+  public static void queryWithArrayParameters(String query, String gender, String[] states) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      // Note: Standard SQL is required to use query parameters.
+      QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko] queryConfig =
+          QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko].newBuilder(query)
+              .addNamedParameter [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder.html?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_addNamedParameter_java_lang_String_com_google_cloud_bigquery_QueryParameterValue_]("gender", QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko].string [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_string_java_lang_String_](gender))
+              .addNamedParameter [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder.html?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_addNamedParameter_java_lang_String_com_google_cloud_bigquery_QueryParameterValue_]("states", QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko].array [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue__T_array_T___com_google_cloud_bigquery_StandardSQLTypeName_](states, String.class))
+              .build();
+
+      TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko] results = bigquery.query [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_query_com_google_cloud_bigquery_QueryJobConfiguration_com_google_cloud_bigquery_BigQuery_JobOption____](queryConfig);
+
+      // Print the results.
+      results
+          .iterateAll [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko#com_google_cloud_bigquery_TableResult_iterateAll__]()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s,", val.toString())));
+      System.out.println("Query with arrays parameters performed successfully");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+ Node.js 
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Run a query using array query parameters
+
+// Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function queryParamsArrays() {
+  // The SQL query to run
+  const sqlQuery = `SELECT name, sum(number) as count
+  FROM \`bigquery-public-data.usa_names.usa_1910_2013\`
+  WHERE gender = @gender
+  AND state IN UNNEST(@states)
+  GROUP BY name
+  ORDER BY count DESC
+  LIMIT 10;`;
+
+  const options = {
+    query: sqlQuery,
+    // Location must match that of the dataset(s) referenced in the query.
+    location: 'US',
+    params: {gender: 'M', states: ['WA', 'WI', 'WV', 'WY']},
+  };
+
+  // Run the query
+  const [rows] = await bigquery.query(options);
+
+  console.log('Rows:');
+  rows.forEach(row => console.log(row));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+ Python 
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+query = """
+    SELECT name, sum(number) as count
+    FROM `bigquery-public-data.usa_names.usa_1910_2013`
+    WHERE gender = @gender
+    AND state IN UNNEST(@states)
+    GROUP BY name
+    ORDER BY count DESC
+    LIMIT 10;
+"""
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].QueryJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJobConfig.html?hl=ko](
+    query_parameters=[
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].ScalarQueryParameter [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.query.ScalarQueryParameter.html?hl=ko]("gender", "STRING", "M"),
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].ArrayQueryParameter [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.query.ArrayQueryParameter.html?hl=ko]("states", "STRING", ["WA", "WI", "WV", "WY"]),
+    ]
+)
+rows = client.query_and_wait [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_query_and_wait](query, job_config=job_config)  # Make an API request.
+
+for row in rows:
+    print("{}: \t{}".format(row.name, row.count))
+매개변수화된 쿼리에서 타임스탬프 사용
+쿼리 매개변수에서 타임스탬프를 사용하기 위해 기본 REST API는 YYYY-MM-DD HH:MM:SS.DDDDDD time_zone 형식의 TIMESTAMP 유형 값을 사용합니다. 클라이언트 라이브러리를 사용하는 경우에는 해당 언어로 기본 제공 날짜 객체를 만들고 라이브러리는 이 형식을 올바른 형식으로 변환합니다. 자세한 내용은 다음 언어별 예시를 참조하세요.
+TIMESTAMP 유형에 대한 자세한 내용은 데이터 유형 참조 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type]를 확인하세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#%EC%BD%98%EC%86%94] ---
+매개변수화된 쿼리는 Google Cloud 콘솔에서 지원되지 않습니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#bq] ---
+In the Google Cloud console, activate Cloud Shell.
+    Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+    
+      At the bottom of the Google Cloud console, a
+      Cloud Shell [https://cloud.google.com/shell/docs/how-cloud-shell-works?hl=ko]
+      session starts and displays a command-line prompt. Cloud Shell is a shell environment
+      with the Google Cloud CLI
+      already installed and with values already set for
+      your current project. It can take a few seconds for the session to initialize.
+    
+    
+  
+
+
+
+
+
+
+
+
+
+
+이 쿼리는 타임스탬프 파라미터 값에 한 시간을 추가합니다.
+
+bq query \
+   --use_legacy_sql=false \
+   --parameter='ts_value:TIMESTAMP:2016-12-07 08:00:00' \
+   'SELECT
+     TIMESTAMP_ADD(@ts_value, INTERVAL 1 HOUR);'
+
+ API 타임스탬프 매개변수를 사용하려면 쿼리 작업 구성에서 parameterType [https://cloud.google.com/bigquery/docs/reference/rest/v2/QueryParameter?hl=ko]을 TIMESTAMP로 설정합니다.
+
+이 쿼리는 타임스탬프 파라미터 값에 한 시간을 추가합니다.
+{
+  "query": "SELECT TIMESTAMP_ADD(@ts_value, INTERVAL 1 HOUR);",
+  "queryParameters": [
+    {
+      "name": "ts_value",
+      "parameterType": {
+        "type": "TIMESTAMP"
+      },
+      "parameterValue": {
+        "value": "2016-12-07 08:00:00"
+      }
+    }
+  ],
+  "useLegacySql": false,
+  "parameterMode": "NAMED"
+}
+
+Google API 탐색기에서 사용해 보기 [https://developers.google.com/apis-explorer/?hl=ko#p/bigquery/v2/bigquery.jobs.query?projectId=my-project-id&_h=1&resource=%257B%250A++%2522query%2522%253A+%2522SELECT+TIMESTAMP_ADD(%2540ts_value%252C+INTERVAL+1+HOUR)%253B%2522%252C%250A++%2522queryParameters%2522%253A+%250A++%255B%250A++++%257B%250A++++++%2522name%2522%253A+%2522ts_value%2522%252C%250A++++++%2522parameterType%2522%253A+%250A++++++%257B%250A++++++++%2522type%2522%253A+%2522TIMESTAMP%2522%250A++++++%257D%252C%250A++++++%2522parameterValue%2522%253A+%250A++++++%257B%250A++++++++%2522value%2522%253A+%25222016-12-07+08%253A00%253A00%2522%250A++++++%257D%250A++++%257D%250A++%255D%252C%250A++%2522useLegacySql%2522%253A+false%252C%250A++%2522parameterMode%2522%253A+%2522NAMED%2522%250A%257D&]
+ C# 
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 C# 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery C# API 참고 문서 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+using Google.Cloud.BigQuery.V2 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.html?hl=ko];
+using System;
+
+public class BigQueryQueryWithTimestampParameters
+{
+    public void QueryWithTimestampParameters(string projectId = "project-id")
+    {
+        var timestamp = new DateTime [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_DateTime](2016, 12, 7, 8, 0, 0, DateTimeKind.Utc);
+
+        // Note: Standard SQL is required to use query parameters.
+        var query = "SELECT TIMESTAMP_ADD(@ts_value, INTERVAL 1 HOUR);";
+
+        // Initialize client that will be used to send requests.
+        var client = BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_Create_System_String_Google_Apis_Auth_OAuth2_GoogleCredential_](projectId);
+
+        var parameters = new BigQueryParameter [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter.html?hl=ko][]
+        {
+            new BigQueryParameter [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter.html?hl=ko]("ts_value", BigQueryDbType [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko].Timestamp [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryDbType.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryDbType_Timestamp], timestamp),
+        };
+
+        var job = client.CreateQueryJob(
+            sql: query,
+            parameters: parameters,
+            options: new QueryOptions [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.QueryOptions.html?hl=ko] { UseQueryCache = false });
+        // Wait for the job to complete.
+        job = job.PollUntilCompleted [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryJob.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryJob_PollUntilCompleted_Google_Cloud_BigQuery_V2_GetJobOptions_Google_Api_Gax_PollSettings_]().ThrowOnAnyError();
+        // Display the results
+        foreach (BigQueryRow [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryRow.html?hl=ko] row in client.GetQueryResults(job.Reference))
+        {
+            Console.WriteLine(row[0]);
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+Go
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+	"time"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryWithTimestampParam demonstrates issuing a query and supplying a timestamp query parameter.
+func queryWithTimestampParam(w io.Writer, projectID string) error {
+	// projectID := "my-project-id"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query(
+		`SELECT TIMESTAMP_ADD(@ts_value, INTERVAL 1 HOUR);`)
+	q.Parameters = []bigquery.QueryParameter [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_QueryParameter]{
+		{
+			Name:  "ts_value",
+			Value: time.Date(2016, 12, 7, 8, 0, 0, 0, time.UTC),
+		},
+	}
+	// Run the query and print results when the query job is completed.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err](); err != nil {
+		return err
+	}
+	it, err := job.Read(ctx)
+	for {
+		var row []bigquery.Value [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Value]
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+자바
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko];
+import com.google.cloud.bigquery.TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko];
+import org.threeten.bp.LocalDateTime;
+import org.threeten.bp.ZoneOffset;
+import org.threeten.bp.ZonedDateTime;
+
+// Sample to running a query with timestamp query parameters.
+public class QueryWithTimestampParameters {
+
+  public static void runQueryWithTimestampParameters() {
+    queryWithTimestampParameters();
+  }
+
+  public static void queryWithTimestampParameters() {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      ZonedDateTime timestamp = LocalDateTime.of(2016, 12, 7, 8, 0, 0).atZone(ZoneOffset.UTC);
+      String query = "SELECT TIMESTAMP_ADD(@ts_value, INTERVAL 1 HOUR);";
+      // Note: Standard SQL is required to use query parameters.
+      QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko] queryConfig =
+          QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko].newBuilder(query)
+              .addNamedParameter [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder.html?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_addNamedParameter_java_lang_String_com_google_cloud_bigquery_QueryParameterValue_](
+                  "ts_value",
+                  QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko].timestamp [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_timestamp_java_lang_Long_](
+                      // Timestamp takes microseconds since 1970-01-01T00:00:00 UTC
+                      timestamp [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_timestamp_java_lang_Long_].toInstant().toEpochMilli() * 1000))
+              .build();
+
+      TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko] results = bigquery.query [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_query_com_google_cloud_bigquery_QueryJobConfiguration_com_google_cloud_bigquery_BigQuery_JobOption____](queryConfig);
+
+      results
+          .iterateAll [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko#com_google_cloud_bigquery_TableResult_iterateAll__]()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s", val.toString())));
+
+      System.out.println("Query with timestamp parameter performed successfully.");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+ Node.js 
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Run a query using timestamp parameters
+
+// Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function queryParamsTimestamps() {
+  // The SQL query to run
+  const sqlQuery = `SELECT TIMESTAMP_ADD(@ts_value, INTERVAL 1 HOUR);`;
+
+  const options = {
+    query: sqlQuery,
+    // Location must match that of the dataset(s) referenced in the query.
+    location: 'US',
+    params: {ts_value: new Date()},
+  };
+
+  // Run the query
+  const [rows] = await bigquery.query(options);
+
+  console.log('Rows:');
+  rows.forEach(row => console.log(row.f0_));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+ Python 
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import datetime
+
+from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+query = "SELECT TIMESTAMP_ADD(@ts_value, INTERVAL 1 HOUR);"
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].QueryJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJobConfig.html?hl=ko](
+    query_parameters=[
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].ScalarQueryParameter [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.query.ScalarQueryParameter.html?hl=ko](
+            "ts_value",
+            "TIMESTAMP",
+            datetime.datetime(2016, 12, 7, 8, 0, tzinfo=datetime.timezone.utc),
+        )
+    ]
+)
+results = client.query_and_wait [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_query_and_wait](
+    query, job_config=job_config
+)  # Make an API request.
+
+for row in results:
+    print(row)
+매개변수화된 쿼리에서 구조체 사용
+쿼리 매개변수에서 구조체를 사용하려면 유형을 STRUCT<T>로 설정합니다. 여기서 T는 구조체 내 필드 및 유형을 정의합니다. 필드 정의는 쉼표로 구분하며 field_name TF 형식을 사용합니다. 여기서 TF는 필드 유형입니다. 예를 들어 STRUCT<x INT64, y STRING>은 이름이 x이고 유형이 INT64인 필드와 이름이 y이고 유형이 STRING인 두 번째 필드가 포함된 구조체를 정의합니다.
+STRUCT 유형에 대한 자세한 내용은 데이터 유형 참조 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#struct_type]를 확인하세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#%EC%BD%98%EC%86%94] ---
+매개변수화된 쿼리는 Google Cloud 콘솔에서 지원되지 않습니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/parameterized-queries?hl=ko#bq] ---
+In the Google Cloud console, activate Cloud Shell.
+    Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+    
+      At the bottom of the Google Cloud console, a
+      Cloud Shell [https://cloud.google.com/shell/docs/how-cloud-shell-works?hl=ko]
+      session starts and displays a command-line prompt. Cloud Shell is a shell environment
+      with the Google Cloud CLI
+      already installed and with values already set for
+      your current project. It can take a few seconds for the session to initialize.
+    
+    
+  
+
+
+
+
+
+
+
+
+
+
+이 간단한 쿼리에서는 파라미터 값을 반환해 구조화된 유형의 사용을 보여줍니다.
+
+bq query \
+   --use_legacy_sql=false \
+   --parameter='struct_value:STRUCT<x INT64, y STRING>:{"x": 1, "y": "foo"}' \
+   'SELECT
+     @struct_value AS s;'
+
+ API 구조 매개변수를 사용하려면 쿼리 작업 구성에서 parameterType [https://cloud.google.com/bigquery/docs/reference/rest/v2/QueryParameter?hl=ko#QueryParameterType]을 STRUCT로 설정합니다.
+
+구조의 각 필드 객체를 작업의 queryParameters에 있는 structTypes [https://cloud.google.com/bigquery/docs/reference/rest/v2/QueryParameter?hl=ko#QueryParameterType]에 추가합니다.
+구조 값이 스칼라인 경우 type [https://cloud.google.com/bigquery/docs/reference/rest/v2/QueryParameter?hl=ko#QueryParameterType]을 STRING 등의 값 유형으로 설정합니다. 구조체 값이 배열인 경우 이를 ARRAY로 설정하고 중첩 arrayType 필드를 적절한 유형으로 설정합니다. 구조체 값이 구조체이면 type을 STRUCT로 설정하고 필요한 structTypes를 추가합니다.
+
+이 간단한 쿼리에서는 파라미터 값을 반환하여 구조화된 유형의 사용을 보여줍니다.
+{
+  "query": "SELECT @struct_value AS s;",
+  "queryParameters": [
+    {
+      "name": "struct_value",
+      "parameterType": {
+        "type": "STRUCT",
+        "structTypes": [
+          {
+            "name": "x",
+            "type": {
+              "type": "INT64"
+            }
+          },
+          {
+            "name": "y",
+            "type": {
+              "type": "STRING"
+            }
+          }
+        ]
+      },
+      "parameterValue": {
+        "structValues": {
+          "x": {
+            "value": "1"
+          },
+          "y": {
+            "value": "foo"
+          }
+        }
+      }
+    }
+  ],
+  "useLegacySql": false,
+  "parameterMode": "NAMED"
+}
+
+Google API 탐색기에서 사용해 보기 [https://developers.google.com/apis-explorer/?hl=ko#p/bigquery/v2/bigquery.jobs.query?projectId=my-project-id&_h=1&resource=%257B%250A++%2522query%2522%253A+%2522SELECT+%2540struct_value+AS+s%253B%2522%252C%250A++%2522queryParameters%2522%253A+%250A++%255B%250A++++%257B%250A++++++%2522name%2522%253A+%2522struct_value%2522%252C%250A++++++%2522parameterType%2522%253A+%250A++++++%257B%250A++++++++%2522type%2522%253A+%2522STRUCT%2522%252C%250A++++++++%2522structTypes%2522%253A+%250A++++++++%255B%250A++++++++++%257B%250A++++++++++++%2522name%2522%253A+%2522x%2522%252C%250A++++++++++++%2522type%2522%253A+%250A++++++++++++%257B%250A++++++++++++++%2522type%2522%253A+%2522INT64%2522%250A++++++++++++%257D%250A++++++++++%257D%252C%250A++++++++++%257B%250A++++++++++++%2522name%2522%253A+%2522y%2522%252C%250A++++++++++++%2522type%2522%253A+%250A++++++++++++%257B%250A++++++++++++++%2522type%2522%253A+%2522STRING%2522%250A++++++++++++%257D%250A++++++++++%257D%250A++++++++%255D%250A++++++%257D%252C%250A++++++%2522parameterValue%2522%253A+%250A++++++%257B%250A++++++++%2522structValues%2522%253A+%250A++++++++%257B%250A++++++++++%2522x%2522%253A+%250A++++++++++%257B%250A++++++++++++%2522value%2522%253A+%25221%2522%250A++++++++++%257D%252C%250A++++++++++%2522y%2522%253A+%250A++++++++++%257B%250A++++++++++++%2522value%2522%253A+%2522foo%2522%250A++++++++++%257D%250A++++++++%257D%250A++++++%257D%250A++++%257D%250A++%255D%252C%250A++%2522useLegacySql%2522%253A+false%252C%250A++%2522parameterMode%2522%253A+%2522NAMED%2522%250A%257D&]
+ C# .NET용 BigQuery 클라이언트 라이브러리 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest?hl=ko]는 구조체 매개변수 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryParameter?hl=ko]를 지원하지 않습니다.
+Go
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryWithStructParam demonstrates running a query and providing query parameters that include struct
+// types.
+func queryWithStructParam(w io.Writer, projectID string) error {
+	// projectID := "my-project-id"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	type MyStruct struct {
+		X int64
+		Y string
+	}
+	q := client.Query(
+		`SELECT @struct_value as s;`)
+	q.Parameters = []bigquery.QueryParameter [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_QueryParameter]{
+		{
+			Name:  "struct_value",
+			Value: MyStruct{X: 1, Y: "foo"},
+		},
+	}
+	// Run the query and print results when the query job is completed.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err](); err != nil {
+		return err
+	}
+	it, err := job.Read(ctx)
+	for {
+		var row []bigquery.Value [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Value]
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+자바
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko];
+import com.google.cloud.bigquery.TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko];
+import java.util.HashMap;
+import java.util.Map;
+
+public class QueryWithStructsParameters {
+
+  public static void queryWithStructsParameters() {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      // Create struct
+      Map<String, QueryParameterValue> struct = new HashMap<>();
+      struct [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_struct_java_util_Map_java_lang_String_com_google_cloud_bigquery_QueryParameterValue__].put("booleanField", QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko].bool [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_bool_java_lang_Boolean_](true));
+      struct [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_struct_java_util_Map_java_lang_String_com_google_cloud_bigquery_QueryParameterValue__].put("integerField", QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko].string [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_string_java_lang_String_]("test-stringField"));
+      struct [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_struct_java_util_Map_java_lang_String_com_google_cloud_bigquery_QueryParameterValue__].put("stringField", QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko].int64 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_int64_java_lang_Integer_](10));
+      QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko] recordValue = QueryParameterValue [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko].struct [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryParameterValue.html?hl=ko#com_google_cloud_bigquery_QueryParameterValue_struct_java_util_Map_java_lang_String_com_google_cloud_bigquery_QueryParameterValue__](struct);
+
+      String query = "SELECT STRUCT(@recordField) AS record";
+      QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko] queryConfig =
+          QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko].newBuilder(query)
+              .setUseLegacySql(false)
+              .addNamedParameter [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder.html?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_addNamedParameter_java_lang_String_com_google_cloud_bigquery_QueryParameterValue_]("recordField", recordValue)
+              .build();
+
+      TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko] results = bigquery.query [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_query_com_google_cloud_bigquery_QueryJobConfiguration_com_google_cloud_bigquery_BigQuery_JobOption____](queryConfig);
+
+      results
+          .iterateAll [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko#com_google_cloud_bigquery_TableResult_iterateAll__]()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s", val.toString())));
+
+      System.out.println("Query with struct parameter performed successfully.");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+ Node.js 
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Run a query using struct query parameters
+
+// Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function queryParamsStructs() {
+  // The SQL query to run
+  const sqlQuery = `SELECT @struct_value AS struct_obj;`;
+
+  const options = {
+    query: sqlQuery,
+    // Location must match that of the dataset(s) referenced in the query.
+    location: 'US',
+    params: {struct_value: {x: 1, y: 'foo'}},
+  };
+
+  // Run the query
+  const [rows] = await bigquery.query(options);
+
+  console.log('Rows:');
+  rows.forEach(row => console.log(row.struct_obj.y));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+ Python 
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+query = "SELECT @struct_value AS s;"
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].QueryJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJobConfig.html?hl=ko](
+    query_parameters=[
+        bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].StructQueryParameter [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.query.StructQueryParameter.html?hl=ko](
+            "struct_value",
+            bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].ScalarQueryParameter [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.query.ScalarQueryParameter.html?hl=ko]("x", "INT64", 1),
+            bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].ScalarQueryParameter [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.query.ScalarQueryParameter.html?hl=ko]("y", "STRING", "foo"),
+        )
+    ]
+)
+results = client.query_and_wait [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_query_and_wait](
+    query, job_config=job_config
+)  # Make an API request and waits for results.
+
+for row in results:
+    print(row.s)
+도움이 되었나요?
+의견 보내기

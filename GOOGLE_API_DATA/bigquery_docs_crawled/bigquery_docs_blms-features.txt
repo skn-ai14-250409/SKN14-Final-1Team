@@ -1,0 +1,134 @@
+Source URL: https://cloud.google.com/bigquery/docs/blms-features
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+Iceberg Spark 프로시저 사용 [https://cloud.google.com/bigquery/docs/blms-features?hl=ko#use-iceberg]
+테이블 목록 함수에서 지원되지 않는 테이블 필터링 [https://cloud.google.com/bigquery/docs/blms-features?hl=ko#filter-unsupported]
+BigQuery 연결 재정의 설정 [https://cloud.google.com/bigquery/docs/blms-features?hl=ko#connection-override]
+액세스 제어 정책 설정 [https://cloud.google.com/bigquery/docs/blms-features?hl=ko#set_access_control_policies]
+다음 단계 [https://cloud.google.com/bigquery/docs/blms-features?hl=ko#what's-next]
+추가 BigLake 메타스토어 기능
+bookmark_border
+BigLake metastore 구성을 맞춤설정하려면 다음과 같은 추가 기능을 사용하면 됩니다.
+Apache Spark Iceberg 프로시저
+지원되지 않는 테이블의 필터 옵션
+BigQuery 연결 재정의
+BigLake Metastore Iceberg 테이블의 액세스 제어 정책
+Iceberg Spark 프로시저 사용
+Iceberg Spark 프로시저 [https://iceberg.apache.org/docs/1.5.1/spark-procedures/]를 사용하려면 Spark 구성에 Iceberg SQL 확장 프로그램 [https://iceberg.apache.org/docs/1.5.1/spark-configuration/#sql-extensions]을 포함해야 합니다. 예를 들어 이전 상태로 롤백하는 프러시저를 만들 수 있습니다.
+대화형 Spark-SQL을 사용하여 이전 상태로 롤백
+Iceberg Spark 프러시저를 사용하여 테이블을 만들고, 수정하고, 이전 상태로 롤백할 수 있습니다. 예를 들면 다음과 같습니다.
+Spark 테이블을 만듭니다.
+spark-sql \
+   --jars https://storage-download.googleapis.com/maven-central/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/1.6.1/iceberg-spark-runtime-3.5_2.12-1.6.1.jar,gs://spark-lib/bigquery/iceberg-bigquery-catalog-1.6.1-1.0.1-beta.jar \
+   --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
+   --conf spark.sql.catalog.CATALOG_NAME=org.apache.iceberg.spark.SparkCatalog \
+   --conf spark.sql.catalog.CATALOG_NAME.catalog-impl=org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog \
+   --conf spark.sql.catalog.CATALOG_NAME.gcp_project=PROJECT_ID \
+   --conf spark.sql.catalog.CATALOG_NAME.warehouse=WAREHOUSE_DIRECTORY
+다음을 바꿉니다.
+CATALOG_NAME: Spark 테이블을 참조하는 카탈로그 이름
+PROJECT_ID: Google Cloud 프로젝트 ID입니다.
+WAREHOUSE_DIRECTORY: 데이터 웨어하우스가 저장된 Cloud Storage 폴더의 URI
+USE `CATALOG_NAME`;
+CREATE NAMESPACE NAMESPACE_NAME;
+USE NAMESPACE NAMESPACE_NAME;
+CREATE TABLE NAMESPACE_NAME.TABLE_NAME (id int, data string) USING ICEBERG LOCATION 'WAREHOUSE_DIRECTORY';
+INSERT INTO NAMESPACE_NAME.TABLE_NAME VALUES (1, "first row");
+DESCRIBE EXTENDED TABLE_NAME;
+다음을 바꿉니다.
+NAMESPACE_NAME: Spark 테이블을 참조하는 네임스페이스 이름
+TABLE_NAME: Spark 테이블을 참조하는 테이블 이름
+출력에는 테이블 구성에 관한 세부정보가 포함됩니다.
+...
+Table Properties [current-snapshot-id=1659239298328512231,format=iceberg/parquet,format-version=2,write.parquet.compression-codec=zstd]
+...
+테이블을 다시 변경한 다음 이전에 만든 스냅샷 1659239298328512231로 롤백합니다.
+ALTER TABLE TABLE_NAME ADD COLUMNS (newDoubleCol double);
+INSERT INTO TABLE_NAME VALUES (2, "second row", 2.5);
+SELECT * FROM TABLE_NAME;
+CALL CATALOG_NAME.system.set_current_snapshot('NAMESPACE_NAME.TABLE_NAME', SNAPSHOT_ID);
+SELECT * FROM TABLE_NAME;
+다음을 바꿉니다.
+SNAPSHOT_ID: 롤백할 스냅샷의 ID
+출력은 다음과 유사합니다.
+1 first row
+Time taken: 0.997 seconds, Fetched 1 row(s)
+테이블 목록 함수에서 지원되지 않는 테이블 필터링
+BigLake metastore 카탈로그와 함께 Spark SQL을 사용하는 경우 SHOW TABLES 명령어를 사용하면 Spark와 호환되지 않는 테이블을 비롯해 지정된 네임스페이스의 모든 테이블이 표시됩니다.
+지원되는 테이블만 표시하려면 filter_unsupported_tables 옵션을 사용 설정합니다.
+spark-sql
+  --jars https://storage-download.googleapis.com/maven-central/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/1.6.1/iceberg-spark-runtime-3.5_2.12-1.6.1.jar,gs://spark-lib/bigquery/iceberg-bigquery-catalog-1.6.1-1.0.1-beta.jar \
+  --conf spark.sql.catalog.CATALOG_NAME=org.apache.iceberg.spark.SparkCatalog \
+  --conf spark.sql.catalog.CATALOG_NAME.catalog-impl=org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog \
+  --conf spark.sql.catalog.CATALOG_NAME.gcp_project=PROJECT_ID \
+  --conf spark.sql.catalog.CATALOG_NAME.gcp_location=LOCATION \
+  --conf spark.sql.catalog.CATALOG_NAME.warehouse=WAREHOUSE_DIRECTORY \
+  --conf spark.sql.catalog.CATALOG_NAME.filter_unsupported_tables="true"
+다음을 바꿉니다.
+CATALOG_NAME: 사용할 Spark 카탈로그의 이름
+PROJECT_ID: 사용할 Google Cloud 프로젝트의 ID입니다.
+LOCATION: BigQuery 리소스의 위치
+WAREHOUSE_DIRECTORY: 데이터 웨어하우스로 사용할 Cloud Storage 폴더
+BigQuery 연결 재정의 설정
+BigQuery 연결을 사용하여 Cloud Storage와 같이 BigQuery 외부에 저장된 데이터에 액세스할 수 있습니다.
+Cloud Storage 버킷에 대한 액세스 권한을 제공하는 BigQuery 연결 재정의 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection]를 설정하려면 다음 단계를 완료하세요.
+BigQuery 프로젝트에서 Cloud Storage 리소스에 대한 새 연결을 만듭니다. 이 연결은 BigQuery가 데이터에 액세스하는 방식을 정의합니다.
+데이터에 액세스하는 사용자 또는 서비스 계정에 연결에 대한 roles/bigquery.connectionUser 역할을 부여합니다.
+연결 리소스가 BigQuery의 대상 리소스와 동일한 위치를 공유하는지 확인합니다. 자세한 내용은 연결 관리 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko]를 참조하세요.
+bq_connection 속성을 사용하여 Iceberg 테이블에 연결을 지정합니다.
+CREATE TABLE TABLE_NAME (id int, data string) USING ICEBERG LOCATION 'WAREHOUSE_DIRECTORY' TBLPROPERTIES ('bq_connection'='projects/PROJECT_ID/locations/LOCATION/connections/CONNECTION_ID');
+다음을 바꿉니다.
+TABLE_NAME: Spark 테이블의 테이블 이름
+WAREHOUSE_DIRECTORY: 데이터를 저장하는 Cloud Storage 버킷의 URI
+PROJECT_ID: 사용할 Google Cloud 프로젝트의 ID입니다.
+LOCATION: 연결의 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]
+CONNECTION_ID: 연결의 ID
+액세스 제어 정책 설정
+액세스 제어 정책을 구성하여 BigLake 메타스토어 Iceberg 테이블에서 세분화된 액세스 제어 (FGAC)를 사용 설정할 수 있습니다. BigQuery 연결 재정의 [https://cloud.google.com/bigquery/docs/blms-features?hl=ko#connection-override]를 사용하는 테이블에만 액세스 제어 정책을 설정할 수 있습니다. 다음과 같은 방법으로 이러한 정책을 설정할 수 있습니다.
+열 수준 보안 [https://cloud.google.com/bigquery/docs/column-level-security?hl=ko]
+행 수준 보안 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko]
+데이터 마스킹 [https://cloud.google.com/bigquery/docs/column-data-masking?hl=ko]
+FGAC 정책을 구성한 후 다음 예를 사용하여 Spark에서 테이블을 쿼리할 수 있습니다.
+from pyspark.sql import SparkSession
+
+# Create a Spark session
+spark = SparkSession.builder \
+.appName("BigLake Metastore Iceberg") \
+.config("spark.sql.catalog.CATALOG_NAME", "org.apache.iceberg.spark.SparkCatalog") \
+.config("spark.sql.catalog.CATALOG_NAME.catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog") \
+.config("spark.sql.catalog.CATALOG_NAME.gcp_project", "PROJECT_ID") \
+.config("spark.sql.catalog.CATALOG_NAME.gcp_location", "LOCATION") \
+.config("spark.sql.catalog.CATALOG_NAME.warehouse", "WAREHOUSE_DIRECTORY") \
+.getOrCreate()
+
+spark.sql("USE `CATALOG_NAME`;")
+
+# Configure spark for storing temp results
+spark.conf.set("viewsEnabled","true")
+spark.sql("CREATE namespace if not exists MATERIALIZATION_NAMESPACE");
+spark.conf.set("materializationDataset","MATERIALIZATION_NAMESPACE")
+
+spark.sql("USE NAMESPACE DATASET_NAME;")
+
+sql = """SELECT * FROM DATASET_NAME.ICEBERG_TABLE_NAME"""
+df = spark.read.format("bigquery").load(sql)
+df.show()
+다음을 바꿉니다.
+CATALOG_NAME: 카탈로그의 이름입니다.
+PROJECT_ID: BigQuery 리소스가 포함된 프로젝트의 ID입니다.
+LOCATION: BigQuery 리소스의 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다.
+WAREHOUSE_DIRECTORY: 데이터 웨어하우스가 포함된 Cloud Storage 폴더의 URI
+MATERIALIZATION_NAMESPACE: 임시 결과를 저장할 네임스페이스입니다.
+DATASET_NAME: 쿼리하는 테이블이 포함된 데이터 세트의 이름입니다.
+ICEBERG_TABLE_NAME: 쿼리하는 테이블의 이름입니다.
+다음 단계
+Dataproc Metastore 데이터를 BigLake metastore로 마이그레이션 [https://cloud.google.com/bigquery/docs/blms-dpms-migration-tool?hl=ko]
+Dataproc에서 BigLake metastore 사용 [https://cloud.google.com/bigquery/docs/blms-use-dataproc?hl=ko]
+Dataproc Serverless에서 BigLake metastore 사용 [https://cloud.google.com/bigquery/docs/blms-use-dataproc-serverless?hl=ko]
+의견 보내기

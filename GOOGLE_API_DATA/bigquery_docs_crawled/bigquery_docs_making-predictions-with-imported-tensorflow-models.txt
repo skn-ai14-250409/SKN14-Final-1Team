@@ -1,0 +1,561 @@
+Source URL: https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+가져온 TensorFlow 모델로 예측 수행
+bookmark_border
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#before-you-begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#required_permissions]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#create_a_dataset]
+이 튜토리얼에서는 TensorFlow 모델을 BigQuery ML 데이터 세트로 가져옵니다. 그런 다음 SQL 쿼리를 사용하여 가져온 모델에서 예측을 실행합니다.
+목표
+CREATE MODEL 문을 사용하여 TensorFlow 모델을 BigQuery ML로 가져옵니다.
+ML.PREDICT 함수를 사용하여 가져온 TensorFlow 모델로 예측합니다.
+비용
+이 문서에서는 비용이 청구될 수 있는 다음과 같은 Google Cloud구성요소를 사용합니다.
+BigQuery [https://cloud.google.com/bigquery/pricing?hl=ko]
+BigQuery ML [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+이 문서에 설명된 태스크를 완료했으면 만든 리소스를 삭제하여 청구가 계속되는 것을 방지할 수 있습니다. 자세한 내용은 삭제 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#clean-up]를 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery API가 사용 설정되었는지 확인
+API 사용 설정 [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+이 문서의 태스크를 수행하는 데 필요한 권한 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#required_permissions]이 있는지 확인합니다.
+필요한 역할
+새 프로젝트를 만드는 경우 프로젝트 소유자가 되며 이 튜토리얼을 완료하는 데 필요한 모든 Identity and Access Management(IAM) 권한이 부여됩니다.
+기존 프로젝트를 사용하는 경우 BigQuery Studio 관리자 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.studioAdmin](roles/bigquery.studioAdmin) 역할이 이 튜토리얼을 완료하는 데 필요한 모든 권한을 부여합니다.
+Make sure that you have the following role or roles on the project: BigQuery Studio Admin [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.studioAdmin] (roles/bigquery.studioAdmin).
+Check for the roles
+Grant the roles
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+
+
+공개 데이터 세트는 US 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions]에 저장됩니다. 편의상 같은 위치에 데이터 세트를 저장합니다.
+
+
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+TensorFlow 모델 가져오기
+다음 단계에서는 Cloud Storage에서 모델을 가져오는 방법을 보여줍니다. 모델의 경로는 gs://cloud-training-demos/txtclass/export/exporter/1549825580/*입니다. 가져온 모델 이름은 imported_tf_model입니다.
+Cloud Storage URI는 와일드 카드 문자(*)로 끝납니다. 이 문자는 BigQuery ML이 모델과 연결된 모든 애셋을 가져와야 함을 나타냅니다.
+가져온 모델은 지정된 문서 제목을 게시한 웹사이트를 예측하는 TensorFlow 텍스트 분류 모델입니다.
+TensorFlow 모델을 데이터 세트로 가져오려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+새로 만들기에서 SQL 쿼리를 클릭합니다.
+쿼리 편집기에서 이 CREATE MODEL 문을 입력한 후 실행을 클릭합니다.
+
+  CREATE OR REPLACE MODEL `bqml_tutorial.imported_tf_model`
+  OPTIONS (MODEL_TYPE='TENSORFLOW',
+    MODEL_PATH='gs://cloud-training-demos/txtclass/export/exporter/1549825580/*')
+
+작업이 완료되면 Successfully created model named imported_tf_model과 같은 메시지가 표시됩니다.
+새 모델이 리소스 패널에 표시됩니다. 모델은 모델 아이콘()으로 표시됩니다.
+리소스 패널에서 새 모델을 선택하면 모델에 대한 정보가 쿼리 편집기 아래에 표시됩니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#bq] ---
+다음 CREATE MODEL 문을 입력하여 Cloud Storage에서 TensorFlow 모델을 가져옵니다.
+
+bq query --use_legacy_sql=false \
+"CREATE OR REPLACE MODEL
+  `bqml_tutorial.imported_tf_model`
+OPTIONS
+  (MODEL_TYPE='TENSORFLOW',
+    MODEL_PATH='gs://cloud-training-demos/txtclass/export/exporter/1549825580/*')"
+모델을 가져온 후 모델이 데이터 세트에 표시되는지 확인합니다.
+
+bq ls bqml_tutorial
+
+출력은 다음과 비슷합니다.
+
+tableId             Type
+------------------- -------
+imported_tf_model   MODEL
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#api] ---
+새 작업을 삽입 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko]하고 jobs#configuration.query [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query?hl=ko] 속성을 요청 본문과 같이 입력합니다.
+
+{
+  "query": "CREATE MODEL `PROJECT_ID:bqml_tutorial.imported_tf_model` OPTIONS(MODEL_TYPE='TENSORFLOW' MODEL_PATH='gs://cloud-training-demos/txtclass/export/exporter/1549825580/*')"
+}
+
+PROJECT_ID를 프로젝트 및 데이터 세트의 이름으로 바꿉니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+TensorFlowModel 객체를 사용하여 모델을 가져옵니다.
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import bigframes
+from bigframes.ml.imported import TensorFlowModel
+
+bigframes.options.bigquery.project = PROJECT_ID
+# You can change the location to one of the valid locations: https://cloud.google.com/bigquery/docs/locations#supported_locations
+bigframes.options.bigquery.location = "US"
+
+imported_tensorflow_model = TensorFlowModel(
+    model_path="gs://cloud-training-demos/txtclass/export/exporter/1549825580/*"
+)
+형식 및 스토리지 요구사항을 포함하여 TensorFlow 모델을 BigQuery ML로 가져오는 방법에 대한 자세한 내용은 TensorFlow 모델 가져오기에 사용되는 CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-tensorflow?hl=ko]을 참조하세요.
+가져온 TensorFlow 모델로 예측 수행
+TensorFlow 모델을 가져온 후 ML.PREDICT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko]를 사용하여 모델로 예측합니다.
+다음 쿼리는 imported_tf_model을 사용하여 공개 데이터 세트 hacker_news의 full 테이블에 있는 입력 데이터를 사용하여 예측합니다. 쿼리에서 TensorFlow 모델의 serving_input_fn 함수는 모델이 input이라는 단일 입력 문자열을 예상하도록 지정합니다. 서브 쿼리는 서브 쿼리의 SELECT 문에 있는 title 열에 별칭 input을 할당합니다.
+가져온 TensorFlow 모델로 예측을 수행하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+새로 만들기에서 SQL 쿼리를 클릭합니다.
+쿼리 편집기에서 ML.PREDICT 함수를 사용하는 쿼리를 입력합니다.
+
+SELECT *
+  FROM ML.PREDICT(MODEL `bqml_tutorial.imported_tf_model`,
+    (
+     SELECT title AS input
+     FROM bigquery-public-data.hacker_news.full
+    )
+)
+
+쿼리 결과는 다음과 같습니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#bq] ---
+다음 명령어를 입력하여 ML.PREDICT를 사용하는 쿼리를 실행합니다.
+
+bq query \
+--use_legacy_sql=false \
+'SELECT *
+FROM ML.PREDICT(
+  MODEL `bqml_tutorial.imported_tf_model`,
+  (SELECT title AS input FROM `bigquery-public-data.hacker_news.full`))'
+
+다음과 같은 결과가 표시됩니다.
+
++------------------------------------------------------------------------+----------------------------------------------------------------------------------+
+|                               dense_1                                  |                                       input                                      |
++------------------------------------------------------------------------+----------------------------------------------------------------------------------+
+|   ["0.6251608729362488","0.2989124357700348","0.07592673599720001"]    | How Red Hat Decides Which Open Source Companies t...                             |
+|   ["0.014276246540248394","0.972910463809967","0.01281337533146143"]   | Ask HN: Toronto/GTA mastermind around side income for big corp. dev?             |
+|   ["0.9821603298187256","1.8601855117594823E-5","0.01782100833952427"] | Ask HN: What are good resources on strategy and decision making for your career? |
+|   ["0.8611106276512146","0.06648492068052292","0.07240450382232666"]   | Forget about promises, use harvests                                              |
++------------------------------------------------------------------------+----------------------------------------------------------------------------------+
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#api] ---
+새 작업을 삽입 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko]하고 jobs#configuration.query [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query?hl=ko] 속성을 요청 본문과 같이 입력합니다. project_id를 프로젝트 이름으로 바꿉니다.
+
+{
+  "query": "SELECT * FROM ML.PREDICT(MODEL `project_id.bqml_tutorial.imported_tf_model`, (SELECT * FROM input_data))"
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+predict [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.llm.PaLM2TextGenerator?hl=ko#bigframes_ml_llm_PaLM2TextGenerator_predict] 함수를 사용하여 원격 모델을 실행합니다.
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import bigframes.pandas as bpd
+
+df = bpd.read_gbq("bigquery-public-data.hacker_news.full")
+df_pred = df.rename(columns={"title": "input"})
+predictions = imported_tensorflow_model.predict(df_pred)
+predictions.head(5)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+다음과 같은 결과가 표시됩니다.
+쿼리 결과에서 dense_1 열에는 확률 값 배열이 포함되고 input 열에는 입력 테이블의 해당 문자열 값이 포함됩니다. 각 배열 요소 값은 해당 입력 문자열이 특정 게시의 문서 제목일 가능성을 나타냅니다.
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트를 유지하고 개별 리소스를 삭제하세요.
+프로젝트 삭제
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#%EC%BD%98%EC%86%94] ---
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+
+
+    
+      프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+    
+    
+      커스텀 프로젝트 ID가 손실됩니다.
+      이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+    
+  
+ 
+  여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+ 
+
+
+
+
+
+
+
+ 
+  
+    In the Google Cloud console, go to the Manage resources page.
+    Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+  
+  
+  
+    In the project list, select the project that you
+    want to delete, and then click Delete.
+  
+  
+    In the dialog, type the project ID, and then click
+    Shut down to delete the project.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko#gcloud] ---
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+
+
+    
+      프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+    
+    
+      커스텀 프로젝트 ID가 손실됩니다.
+      이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+    
+  
+ 
+  여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+ 
+
+
+
+
+
+
+
+ 
+  Delete a Google Cloud project:
+  gcloud projects delete PROJECT_ID
+개별 리소스 삭제
+또는 이 튜토리얼에서 사용된 개별 리소스를 삭제할 수 있습니다.
+가져온 모델을 삭제합니다 [https://cloud.google.com/bigquery/docs/deleting-models?hl=ko].
+선택사항: 데이터 세트를 삭제 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#delete-datasets]합니다.
+다음 단계
+BigQuery ML 개요는 BigQuery ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]를 참조하세요.
+BigQuery ML을 시작하려면 BigQuery ML에서 머신러닝 모델 만들기 [https://cloud.google.com/bigquery/docs/create-machine-learning-model?hl=ko] 참조하기
+TensorFlow 모델 가져오기에 대한 자세한 내용은 TensorFlow 모델을 가져오기 위한 CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-tensorflow?hl=ko]을 참조하세요.
+모델 작업에 대한 자세한 내용은 다음 리소스를 참조하세요.
+모델 메타데이터 가져오기 [https://cloud.google.com/bigquery/docs/getting-model-metadata?hl=ko]
+모델 메타데이터 업데이트 [https://cloud.google.com/bigquery/docs/updating-model-metadata?hl=ko]
+모델 관리 [https://cloud.google.com/bigquery/docs/managing-models?hl=ko]
+BigQuery 노트북에서 BigQuery DataFrames API를 사용하는 방법에 관한 자세한 내용은 다음을 참고하세요.
+BigQuery 노트북 소개 [https://cloud.google.com/bigquery/docs/notebooks-introduction?hl=ko]
+BigQuery DataFrames 개요 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]
+도움이 되었나요?
+의견 보내기

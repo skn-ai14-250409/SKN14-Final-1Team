@@ -1,0 +1,166 @@
+Source URL: https://cloud.google.com/bigquery/docs/vector-search
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+필수 권한 [https://cloud.google.com/bigquery/docs/vector-search?hl=ko#required_permissions]
+비용 [https://cloud.google.com/bigquery/docs/vector-search?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/vector-search?hl=ko#before_you_begin]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/vector-search?hl=ko#create_a_dataset]
+테스트 테이블 만들기 [https://cloud.google.com/bigquery/docs/vector-search?hl=ko#create_test_tables]
+벡터 검색으로 임베딩 검색
+bookmark_border
+이 튜토리얼에서는 VECTOR_SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search]와 선택적으로 벡터 색인 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko]을 사용하여 BigQuery 테이블에 저장된 임베딩에 유사성 검색 [https://wikipedia.org/wiki/Similarity_search]을 실행하는 방법을 보여줍니다.
+벡터 색인과 함께 VECTOR_SEARCH를 사용하면 VECTOR_SEARCH는 근사 최근접 이웃 [https://en.wikipedia.org/wiki/Nearest_neighbor_search#Approximation_methods] 방법을 사용하여 벡터 검색 성능을 향상시키고 재현율 [https://developers.google.com/machine-learning/crash-course/classification/precision-and-recall?hl=ko#recallsearch_term_rules]을 줄여 더 나은 근사치의 결과를 반환합니다. 벡터 색인이 없으면 VECTOR_SEARCH는 무작위 대입 검색 [https://en.wikipedia.org/wiki/Brute-force_search]을 사용하여 모든 레코드의 거리를 측정합니다.
+필수 권한
+이 튜토리얼을 실행하려면 다음 Identity and Access Management(IAM) 권한이 필요합니다.
+데이터 세트를 만들려면 bigquery.datasets.create 권한이 필요합니다.
+테이블을 만들려면 다음 권한이 필요합니다.
+bigquery.tables.create
+bigquery.tables.updateData
+bigquery.jobs.create
+벡터 색인을 만들려면 색인을 만들 테이블에 대한 bigquery.tables.createIndex 권한이 필요합니다.
+벡터 색인을 삭제하려면 색인을 삭제할 테이블에 대한 bigquery.tables.deleteIndex 권한이 필요합니다.
+다음과 같은 사전 정의된 각 IAM 역할에는 벡터 색인을 사용하는 데 필요한 권한이 포함되어 있습니다.
+BigQuery 데이터 소유자(roles/bigquery.dataOwner)
+BigQuery 데이터 편집자(roles/bigquery.dataEditor)
+비용
+VECTOR_SEARCH 함수는 BigQuery 컴퓨팅 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#analysis_pricing_models]을 사용합니다. 주문형 또는 버전 가격 책정을 사용하여 유사성 검색에 대한 요금이 청구됩니다.
+주문형: 기본 테이블, 색인, 검색어서 스캔한 바이트 수에 따라 요금이 청구됩니다.
+버전 가격 책정: 예약 버전 내에서 작업을 완료하는 데 필요한 슬롯에 대해 요금이 청구됩니다. 더 크고 복잡한 유사성 계산에는 더 많은 요금이 부과됩니다.
+참고: Standard 버전 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]에서는 색인 사용이 지원되지 않습니다.
+자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]을 참조하세요.
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com&hl=ko]
+데이터 세트 만들기
+BigQuery 데이터 세트를 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+데이터 세트 ID에 vector_search를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+공개 데이터 세트는 US 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions]에 저장됩니다. 편의상 같은 위치에 데이터 세트를 저장합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+테스트 테이블 만들기
+Google 특허 검색 [https://console.cloud.google.com/marketplace/product/google_patents_public_datasets/google-patents-public-data?hl=ko] 공개 데이터 세트의 하위 집합을 기준으로 특허 임베딩이 포함된 patents 테이블을 만듭니다.
+CREATE TABLE vector_search.patents AS
+SELECT * FROM `patents-public-data.google_patents_research.publications`
+WHERE ARRAY_LENGTH(embedding_v1) > 0
+ AND publication_number NOT IN ('KR-20180122872-A')
+LIMIT 1000000;
+특허 임베딩이 포함된 patents2 테이블을 만들어 최근접 이웃을 찾습니다.
+CREATE TABLE vector_search.patents2 AS
+SELECT * FROM `patents-public-data.google_patents_research.publications`
+WHERE publication_number = 'KR-20180122872-A';
+벡터 색인 만들기
+patents 테이블의 embeddings_v1 열에 my_index 벡터 색인을 만듭니다.
+CREATE OR REPLACE VECTOR INDEX my_index ON vector_search.patents(embedding_v1)
+STORING(publication_number, title)
+OPTIONS(distance_type='COSINE', index_type='IVF');
+벡터 색인이 생성될 때까지 몇 분 정도 기다린 후 다음 쿼리를 실행하고 coverage_percentage 값이 100인지 확인합니다.
+SELECT * FROM vector_search.INFORMATION_SCHEMA.VECTOR_INDEXES;
+색인과 함께 VECTOR_SEARCH 함수 사용
+벡터 색인을 만들어 채운 후 VECTOR_SEARCH 함수를 사용하여 patents2 테이블의 embedding_v1 열에서 임베딩의 가장 가까운 이웃을 찾습니다. 이 쿼리는 검색에 벡터 색인을 사용하므로 VECTOR_SEARCH는 근사 최근접 이웃 [https://en.wikipedia.org/wiki/Nearest_neighbor_search#Approximation_methods] 방법을 사용하여 임베딩의 최근접 이웃을 찾습니다.
+참고: 벡터 색인은 대규모 데이터 세트에서 더 효과적입니다. 이 기능을 직접 확인하려면 LIMIT 1000000 절 없이 vector_search.patents 테이블을 다시 만들고 [https://cloud.google.com/bigquery/docs/vector-search?hl=ko#create_test_tables] 벡터 색인을 다시 만든 후 [https://cloud.google.com/bigquery/docs/vector-search?hl=ko#create_a_vector_index] 다음 쿼리를 실행하세요.
+색인과 함께 VECTOR_SEARCH 함수 사용
+SELECT query.publication_number AS query_publication_number,
+  query.title AS query_title,
+  base.publication_number AS base_publication_number,
+  base.title AS base_title,
+  distance
+FROM
+  VECTOR_SEARCH(
+    TABLE vector_search.patents,
+    'embedding_v1',
+    TABLE vector_search.patents2,
+    top_k => 5,
+    distance_type => 'COSINE',
+    options => '{"fraction_lists_to_search": 0.005}');
+결과는 다음과 유사합니다.
++--------------------------+-------------------------------------------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------+---------------------+
+| query_publication_number |                         query_title                         | base_publication_number |                                                        base_title                                                        |      distance       |
++--------------------------+-------------------------------------------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------+---------------------+
+| KR-20180122872-A         | Rainwater management system based on rainwater keeping unit | CN-106599080-B          | A kind of rapid generation for keeping away big vast transfer figure based on GIS                                        | 0.14471956347590609 |
+| KR-20180122872-A         | Rainwater management system based on rainwater keeping unit | CN-114118544-A          | Urban waterlogging detection method and device                                                                           | 0.17472108931171348 |
+| KR-20180122872-A         | Rainwater management system based on rainwater keeping unit | KR-20200048143-A        | Method and system for mornitoring dry stream using unmanned aerial vehicle                                               | 0.17561990745619782 |
+| KR-20180122872-A         | Rainwater management system based on rainwater keeping unit | KR-101721695-B1         | Urban Climate Impact Assessment method of Reflecting Urban Planning Scenarios and Analysis System using the same         | 0.17696129365559843 |
+| KR-20180122872-A         | Rainwater management system based on rainwater keeping unit | CN-109000731-B          | The experimental rig and method that research inlet for stom water chocking-up degree influences water discharged amount | 0.17902723269642917 |
++--------------------------+-------------------------------------------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------+---------------------+
+무작위 대입과 함께 VECTOR_SEARCH 함수 사용
+VECTOR_SEARCH 함수를 사용하여 patents2 테이블의 embedding_v1 열에서 임베딩의 최근접 이웃을 찾습니다. 이 쿼리는 검색에 벡터 색인을 사용하지 않으므로 VECTOR_SEARCH는 임베딩의 정확한 최근접 이웃을 찾습니다.
+SELECT query.publication_number AS query_publication_number,
+  query.title AS query_title,
+  base.publication_number AS base_publication_number,
+  base.title AS base_title,
+  distance
+FROM
+  VECTOR_SEARCH(
+    TABLE vector_search.patents,
+    'embedding_v1',
+    TABLE vector_search.patents2,
+    top_k => 5,
+    distance_type => 'COSINE',
+    options => '{"use_brute_force":true}');
+결과는 다음과 유사합니다.
++--------------------------+-------------------------------------------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------+---------------------+
+| query_publication_number |                         query_title                         | base_publication_number |                                                        base_title                                                        |      distance       |
++--------------------------+-------------------------------------------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------+---------------------+
+| KR-20180122872-A         | Rainwater management system based on rainwater keeping unit | CN-106599080-B          | A kind of rapid generation for keeping away big vast transfer figure based on GIS                                        |  0.1447195634759062 |
+| KR-20180122872-A         | Rainwater management system based on rainwater keeping unit | CN-114118544-A          | Urban waterlogging detection method and device                                                                           |  0.1747210893117136 |
+| KR-20180122872-A         | Rainwater management system based on rainwater keeping unit | KR-20200048143-A        | Method and system for mornitoring dry stream using unmanned aerial vehicle                                               | 0.17561990745619782 |
+| KR-20180122872-A         | Rainwater management system based on rainwater keeping unit | KR-101721695-B1         | Urban Climate Impact Assessment method of Reflecting Urban Planning Scenarios and Analysis System using the same         | 0.17696129365559843 |
+| KR-20180122872-A         | Rainwater management system based on rainwater keeping unit | CN-109000731-B          | The experimental rig and method that research inlet for stom water chocking-up degree influences water discharged amount | 0.17902723269642928 |
++--------------------------+-------------------------------------------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------+---------------------+
+재현율 평가
+색인을 사용하여 벡터 검색을 수행하면 대략적인 결과가 반환되지만 재현율 [https://developers.google.com/machine-learning/crash-course/classification/precision-and-recall?hl=ko#recallsearch_term_rules]이 낮아집니다. 벡터 검색에서 반환된 결과를 색인을 사용하는 벡터 검색 및 무작위 대입을 사용하는 벡터 검색과 비교하여 재현율을 계산할 수 있습니다. 이 데이터 세트에서 publication_number 값은 특허를 고유하게 식별하므로 비교에 사용됩니다.
+WITH approx_results AS (
+  SELECT query.publication_number AS query_publication_number,
+    base.publication_number AS base_publication_number
+  FROM
+    VECTOR_SEARCH(
+      TABLE vector_search.patents,
+      'embedding_v1',
+      TABLE vector_search.patents2,
+      top_k => 5,
+      distance_type => 'COSINE',
+      options => '{"fraction_lists_to_search": 0.005}')
+),
+  exact_results AS (
+  SELECT query.publication_number AS query_publication_number,
+    base.publication_number AS base_publication_number
+  FROM
+    VECTOR_SEARCH(
+      TABLE vector_search.patents,
+      'embedding_v1',
+      TABLE vector_search.patents2,
+      top_k => 5,
+      distance_type => 'COSINE',
+      options => '{"use_brute_force":true}')
+)
+
+SELECT
+  a.query_publication_number,
+  SUM(CASE WHEN a.base_publication_number = e.base_publication_number THEN 1 ELSE 0 END) / 5 AS recall
+FROM exact_results e LEFT JOIN approx_results a
+  ON e.query_publication_number = a.query_publication_number
+GROUP BY a.query_publication_number
+재현율이 원하는 값보다 낮으면 fraction_lists_to_search 값을 늘릴 수 있지만 지연 시간이 길어지고 리소스 사용량이 증가할 수 있는 단점이 있습니다. 벡터 검색을 조정하려면 서로 다른 인수 값으로 VECTOR_SEARCH를 여러 번 실행해 보고 결과를 테이블에 저장한 후 결과를 비교하면 됩니다.
+삭제
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+의견 보내기

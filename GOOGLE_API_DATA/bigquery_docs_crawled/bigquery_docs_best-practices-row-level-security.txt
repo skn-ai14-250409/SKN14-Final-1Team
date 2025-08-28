@@ -1,0 +1,61 @@
+Source URL: https://cloud.google.com/bigquery/docs/best-practices-row-level-security
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+사용자 권한을 제한하여 사이드 채널 공격 제한 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko#limit-side-channel-attacks]
+사용자 권한을 제한하여 데이터 조작 제한 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko#limit-data-tampering]
+행 수준 액세스 정책을 다시 만들 때 부적절한 액세스 방지 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko#avoid_inadvertent_access_when_re-creating_row-level_access_policies]
+조직 간이 아닌 조직 내에서만 행 수준 보안 사용 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko#use_row-level_security_only_within_organizations_not_across_organizations]
+행 수준 액세스 정책을 통해 Filtered Data Viewer 역할 관리 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko#filtered-data-viewer]
+파티션을 나눈 열의 필터가 성능에 미치는 영향 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko#performance_impact_of_filters_on_partitioned_columns]
+BigQuery의 행 수준 보안 권장사항
+bookmark_border
+이 문서에서는 행 수준 보안 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko]을 사용할 때의 권장사항을 설명합니다.
+이 문서를 읽기 전에 BigQuery 행 수준 보안 소개 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko] 및 행 수준 보안 작업 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko]을 읽어 행 수준 보안을 숙지합니다.
+사용자 권한을 제한하여 사이드 채널 공격 제한
+권장사항: 필터링된 데이터만 확인해야 하는 사용자에게는 민감한 권한을 부여하지 마세요.
+사이드 채널 공격은 시스템 자체에서 얻은 정보를 기반으로 하는 보안 공격입니다. 필요한 것보다 더 광범위한 권한을 가진 공격자는 청구, 로깅 또는 시스템 메시지를 관찰 또는 검색하여 부채널 공격을 마운트하고 민감한 정보를 학습할 수 있습니다.
+이러한 학습 기회를 차단하기 위해 BigQuery는 행 수준 보안을 갖춘 테이블에 대한 모든 쿼리의 민감한 통계를 숨깁니다. 이러한 민감한 통계에는 처리된 바이트 및 파티션 수, 청구 대상 바이트 수, 쿼리 계획 단계가 포함됩니다.
+관리자는 민감한 정보에 대한 액세스 권한을 부여하지 않도록 필터링된 데이터만 확인해야 하는 사용자에게 다음 권한을 부여하지 않는 것이 좋습니다.
+권한 민감한 정보
+프로젝트 소유자 프로젝트 소유자는 감사 로그에서만 처리된 바이트 및 관련 데이터를 볼 수 있습니다. 결제 메타데이터는 작업 세부정보에서 볼 수 없습니다. 이 결제 메타데이터에 대한 보기 권한을 부여하는 특정 권한이나 역할은 없습니다.
+BigQuery 데이터 수정, 소유자, 뷰어 역할 쿼리의 오류 메시지를 봅니다.
+Cloud Billing 뷰어 권한 BigQuery 결제를 봅니다.
+예시
+행 수준 액세스 정책이 있는 테이블을 쿼리할 때 쿼리 기간을 반복적으로 관찰하여 사용자가 행 수준 액세스 정책으로 보호할 수 있는 행의 값을 추론할 수 있습니다. 이 유형의 공격에는 파티션 나누기 또는 클러스터링 열의 키 값 범위에 대해 다수의 반복된 시도가 필요합니다. 쿼리 기간을 관찰하거나 측정할 때 노이즈가 있더라도 공격자가 반복 시도를 통해 신뢰할 수 있는 예상치를 얻을 수 있습니다. 이 보호 수준에 민감한 경우 다른 액세스 제어 요구사항이 있는 행을 격리하기 위해 별도의 테이블을 사용하는 것이 좋습니다.
+공격자는 쿼리 작업 한도(예: 청구 가능한 최대 바이트 또는 커스텀 비용 관리)를 초과할 때 발생하는 오류를 모니터링하여 쿼리에서 처리된 바이트를 검색할 수 있습니다. 하지만 이 공격에는 많은 양의 쿼리가 필요합니다.
+Cloud Billing에서 반복 쿼리를 통해 BigQuery 결제 금액을 관찰하면 사용자가 행 수준 액세스 정책으로 보호될 수 있는 행 값을 추론할 수 있습니다. 이 유형의 공격에는 파티션 나누기 또는 클러스터링 열의 키 값 범위에 대해 다수의 반복된 시도가 필요합니다. 이 보호 수준에 민감한 경우 쿼리 결제 데이터에 대한 액세스를 제한하는 것이 좋습니다.
+또한 관리자는 Cloud 감사 로그(/bigquery/docs/reference/auditlogs)를 모니터링하여 예기치 않은 행 추가, 수정, 행 수준 액세스 정책 삭제와 같은 행 수준 보안이 설정된 테이블에서 의심스러운 활동이 있는지 모니터링하는 것이 좋습니다.
+사용자 권한을 제한하여 데이터 조작 제한
+권장사항: 필터링된 데이터만 볼 수 있는 사용자에게는 테이블 쓰기 권한을 부여하지 마세요.
+테이블에 대한 쓰기 권한이 있는 사용자는 bq load 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_load] 또는 BigQuery Storage Write API를 사용하여 테이블에 데이터를 삽입할 수 있습니다. 이렇게 하면 쓰기 권한이 있는 사용자는 다른 사용자의 쿼리 결과를 변경할 수 있습니다.
+관리자는 테이블 쓰기 액세스 및 행 수준 액세스 정책에 대해 별도의 Google 그룹을 만드는 것이 좋습니다. 필터링된 테이블 결과만 표시되어야 하는 사용자에게는 필터링된 테이블에 대한 쓰기 액세스 권한이 없어야 합니다.
+행 수준 액세스 정책을 다시 만들 때 부적절한 액세스 방지
+권장사항: 테이블에 행 수준 액세스 정책이 하나만 있는 경우 CREATE OR REPLACE 명령어를 사용하여 행 수준 액세스 정책을 다시 만들지 마세요. 대신 먼저 테이블 액세스 제어를 사용하여 테이블에 대한 모든 액세스를 삭제하고 필요에 따라 정책을 다시 만든 후 액세스를 다시 사용 설정합니다.
+테이블에 행 액세스 정책을 처음 추가하면 쿼리 결과에서 즉시 데이터 필터링이 시작됩니다. 테이블에서 마지막 행 수준 액세스 정책을 삭제하면 행 수준 액세스 정책만 다시 만들더라도 의도보다 더 광범위한 잠재고객에게 필터링되지 않은 액세스 권한을 부여할 수 있습니다.
+관리자는 다음 가이드라인에 따라 테이블에서 마지막 행 수준 액세스 정책을 다시 만들 때 특히 주의해야 합니다.
+먼저 테이블 액세스 제어 [https://cloud.google.com/bigquery/docs/control-access-to-resources-iam?hl=ko]를 사용하여 테이블에 대한 모든 액세스를 삭제합니다.
+모든 행 수준 액세스 정책을 삭제합니다.
+행 수준 액세스 정책을 다시 만듭니다.
+테이블에 대한 액세스를 다시 사용 설정합니다.
+또는 먼저 테이블에 새 행 수준 액세스 정책을 만든 다음 더 이상 필요하지 않은 이전 행 수준 액세스 정책을 삭제할 수 있습니다.
+조직 간이 아닌 조직 내에서만 행 수준 보안 사용
+권장사항: 조직 내 행 수준 보안만 사용하세요.
+사이드 채널에 의한 데이터 유출을 방지하고 민감한 정보에 대한 액세스를 더 효과적으로 제어하기 위해 조직 전체의 행 수준 보안 기능을 사용하지 마세요.
+서브 쿼리 행 수준 액세스 정책의 경우 조직 또는 프로젝트 내에서 테이블을 만들고 검색합니다. 이를 통해 피부여자는 정책의 대상 및 참조된 테이블에 대한 bigquery.tables.getData 권한은 물론 관련 열 수준 보안 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko] 권한을 가지고 있어야 하므로 보안이 강화되고 ACL 구성이 더 간단해집니다.
+행 수준 보안 기능은 조직 간 보안 제약 조건에만 사용하고(예: 조직/기업/회사 내에서 데이터 공유) 조직 간 또는 공개 보안에는 사용하지 않는 것이 좋습니다.
+예시
+조직 외부에서는 데이터에 액세스할 수 있는 사용자를 제어할 수 없습니다. 조직 내에서 행 수준 액세스 정책이 있는 테이블에 대한 쿼리 결제 정보에 액세스할 수 있는 사용자를 제어할 수 있습니다. 결제 정보는 사이드 채널 공격 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko#limit-side-channel-attacks]을 위한 벡터입니다.
+행 수준 액세스 정책을 통해 Filtered Data Viewer 역할 관리
+권장사항: bigquery.filteredDataViewer는 행 수준 액세스 정책을 통해 부여되는 시스템 관리 역할입니다. 행 수준 액세스 정책을 통해서만 역할을 관리합니다. Identity and Access Management(IAM)를 통해 역할을 적용하지 마세요.
+행 수준 액세스 정책을 생성 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#create-policy]하면 정책의 주 구성원에게 bigquery.filteredDataViewer 역할이 자동으로 부여됩니다. DDL 문을 사용 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko#examples]하여 액세스 정책에서 주 구성원만 추가하거나 삭제할 수 있습니다.
+bigquery.filteredDataViewer 역할은 IAM [https://cloud.google.com/bigquery/access-control?hl=ko]을 통해 테이블, 데이터 세트, 프로젝트와 같은 상위 수준 리소스에 부여해서는 안 됩니다. 이러한 방식으로 역할을 부여하면 의도한 제한과 관계없이 해당 범위 내의 모든 행 수준 액세스 정책에 정의된 행을 사용자가 볼 수 있습니다. 행 수준 액세스 정책 필터의 합집합이 전체 테이블을 포함하지 않을 수 있지만 이 방법은 심각한 보안 위험을 초래하고 행 수준 보안의 목적을 저해합니다.
+bigquery.filteredDataViewer 역할은 행 수준 액세스 정책을 통해서만 관리하는 것이 좋습니다. 이 메서드는 각 정책에 대해 정의된 필터 조건자를 준수하여 주 구성원에게 bigquery.filteredDataViewer 역할이 암시적으로 올바르게 부여되도록 합니다.
+파티션을 나눈 열의 필터가 성능에 미치는 영향
+권장사항: 클러스터링된 파티션과 파티션을 나눈 열을 필터링하는 행 액세스 정책을 만들지 마세요.
+행 수준 액세스 정책 필터는 파티션을 나누고 클러스터링된 테이블의 쿼리 가지치기 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko#partitioned_and_clustered_tables]에 참여하지 않습니다.
+행 수준 액세스 정책이 파티션을 나눈 열의 이름을 지정하면 쿼리는 쿼리 가지치기의 성능 이점을 누릴 수 없습니다.
+의견 보내기

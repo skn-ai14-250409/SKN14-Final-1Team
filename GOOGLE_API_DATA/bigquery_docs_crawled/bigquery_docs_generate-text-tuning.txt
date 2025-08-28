@@ -1,0 +1,614 @@
+Source URL: https://cloud.google.com/bigquery/docs/generate-text-tuning
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필수 권한 [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#required_permissions]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#before_you_begin]
+연결 만들기 [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#create_a_connection]
+연결의 서비스 계정에 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#give_the_connections_service_account_access]
+지도 조정으로 모델 만들기 [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#create_a_model_with_supervised_tuning]
+조정된 모델 평가 [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#evaluate_the_tuned_model]
+텍스트 생성 [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#generate_text]
+데이터를 사용하여 모델 조정
+bookmark_border
+이 문서에서는 Vertex AI 모델을 참조하는 BigQuery ML 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko]을 만든 후 지도 조정을 수행하도록 모델을 구성하는 방법을 보여줍니다. Vertex AI 모델은 다음 중 하나여야 합니다.
+gemini-1.5-pro-002
+gemini-1.5-flash-002
+gemini-1.0-pro-002(미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages])
+원격 모델을 만든 후에는 ML.EVALUATE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]를 사용하여 모델을 평가하고 모델의 성능이 사용 사례에 적합한지 확인합니다. 그런 다음 이 모델을 ML.GENERATE_TEXT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-text?hl=ko]와 함께 사용하여 BigQuery 테이블의 텍스트를 분석할 수 있습니다.
+자세한 내용은 Vertex AI Gemini API 모델 지도 조정 [https://cloud.google.com/vertex-ai/generative-ai/docs/models/tune-gemini-overview?hl=ko]을 참조하세요.
+필수 권한
+연결을 만들려면 다음 Identity and Access Management(IAM) 역할에 멤버십이 필요합니다.
+roles/bigquery.connectionAdmin
+연결의 서비스 계정에 권한을 부여하려면 다음 권한이 필요합니다.
+resourcemanager.projects.setIamPolicy
+BigQuery ML을 사용하여 모델을 만들려면 다음 IAM 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+bigquery.models.updateMetadata
+추론을 실행하려면 다음 권한이 필요합니다.
+테이블에 대한 bigquery.tables.getData
+모델에 대한 bigquery.models.getData
+bigquery.jobs.create
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection,Vertex AI, and Compute Engine APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Caiplatform.googleapis.com%2Ccompute.googleapis.com&hl=ko]
+연결 만들기
+클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 만들고 연결의 서비스 계정을 가져옵니다.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+연결을 만들려면 add 추가를 클릭한 다음 외부 데이터 소스에 연결을 클릭합니다.
+연결 유형 목록에서 Vertex AI 원격 모델, 원격 함수, BigLake(Cloud 리소스)를 선택합니다.
+연결 ID 필드에 연결 이름을 입력합니다.
+연결 만들기를 클릭합니다.
+연결로 이동을 클릭합니다.
+연결 정보 창에서 나중의 단계에 사용할 서비스 계정 ID를 복사합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#bq] ---
+명령줄 환경에서 연결을 만듭니다.
+
+bq mk --connection --location=REGION --project_id=PROJECT_ID \
+    --connection_type=CLOUD_RESOURCE CONNECTION_ID
+
+--project_id 매개변수는 기본 프로젝트를 재정의합니다.
+
+다음을 바꿉니다.
+
+
+REGION: 연결 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#supported_locations]
+PROJECT_ID: Google Cloud 프로젝트 ID
+CONNECTION_ID: 연결의 ID
+
+
+연결 리소스를 만들면 BigQuery가 고유한 시스템 서비스 계정을 만들고 이를 연결에 연계합니다.
+
+문제 해결: 다음 연결 오류가 발생하면 Google Cloud SDK를 업데이트 [https://cloud.google.com/sdk/docs/quickstart?hl=ko]하세요.
+
+Flags parsing error: flag --connection_type=CLOUD_RESOURCE: value should be one of...
+
+이후 단계에서 사용할 수 있도록 서비스 계정 ID를 가져와 복사합니다.
+
+bq show --connection PROJECT_ID.REGION.CONNECTION_ID
+
+출력은 다음과 비슷합니다.
+
+name                          properties
+1234.REGION.CONNECTION_ID     {"serviceAccountId": "connection-1234-9u56h9@gcp-sa-bigquery-condel.iam.gserviceaccount.com"}
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#terraform] ---
+google_bigquery_connection [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_connection] 리소스를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 US 리전에 my_cloud_resource_connection이라는 Cloud 리소스 연결을 만듭니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# This queries the provider for project information.
+data "google_project" "default" {}
+
+# This creates a cloud resource connection in the US region named my_cloud_resource_connection.
+# Note: The cloud resource nested object has only one output field - serviceAccountId.
+resource "google_bigquery_connection" "default" {
+  connection_id = "my_cloud_resource_connection"
+  project       = data.google_project.default.project_id
+  location      = "US"
+  cloud_resource {}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Google Cloud 프로젝트에 Terraform 구성을 적용하려면 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 매개변수를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트를 엽니다 [https://console.cloud.google.com/?hl=ko]. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+연결의 서비스 계정에 액세스 권한 부여
+서비스 계정에 Vertex AI에 액세스할 수 있는 권한을 부여합니다. 권한을 부여하지 않으면 오류가 발생합니다. 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#%EC%BD%98%EC%86%94] ---
+IAM 및 관리자 페이지로 이동합니다.
+
+IAM 및 관리자로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko] 
+person_add 액세스 권한 부여를 클릭합니다.
+새 주 구성원에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택을 클릭합니다.
+필터에 Vertex AI Service Agent를 입력한 다음 해당 역할을 선택합니다.
+저장을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#gcloud] ---
+gcloud projects add-iam-policy-binding [https://cloud.google.com/sdk/gcloud/reference/projects/add-iam-policy-binding?hl=ko] 명령어를 사용합니다.
+
+gcloud projects add-iam-policy-binding 'PROJECT_NUMBER' --member='serviceAccount:MEMBER' --role='roles/aiplatform.serviceAgent' --condition=None
+
+
+다음을 바꿉니다.
+
+  PROJECT_NUMBER: 프로젝트 번호
+  MEMBER: 이전에 복사한 서비스 계정 ID
+연결과 연관된 서비스 계정은 BigQuery 연결 위임 서비스 에이전트 [https://cloud.google.com/iam/docs/service-agents?hl=ko#bigquery-connection-delegation-service-agent]의 인스턴스이므로, 서비스 에이전트 역할을 할당해도 괜찮습니다.
+지도 조정으로 모델 만들기
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행하여 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko]을 만듭니다.
+CREATE OR REPLACE MODEL
+`
+PROJECT_ID.
+DATASET_ID.
+MODEL_NAME`
+REMOTE WITH CONNECTION `
+PROJECT_ID.
+REGION.
+CONNECTION_ID`
+OPTIONS (
+  ENDPOINT = '
+ENDPOINT',
+  MAX_ITERATIONS = 
+MAX_ITERATIONS,
+  LEARNING_RATE_MULTIPLIER = 
+LEARNING_RATE_MULTIPLIER,
+  DATA_SPLIT_METHOD = '
+DATA_SPLIT_METHOD',
+  DATA_SPLIT_EVAL_FRACTION = 
+DATA_SPLIT_EVAL_FRACTION,
+  DATA_SPLIT_COL = '
+DATA_SPLIT_COL',
+  EVALUATION_TASK = '
+EVALUATION_TASK',
+  PROMPT_COL = '
+INPUT_PROMPT_COL',
+  INPUT_LABEL_COLS = 
+INPUT_LABEL_COLS)
+AS SELECT 
+PROMPT_COLUMN, 
+LABEL_COLUMN
+FROM `
+TABLE_PROJECT_ID.
+TABLE_DATASET.
+TABLE_NAME`;
+다음을 바꿉니다.
+PROJECT_ID: 모델을 만들 프로젝트의 프로젝트 ID.
+DATASET_ID: 모델을 포함할 데이터 세트의 ID. 이 데이터 세트는 지원되는 파이프라인 작업 및 모델 업로드 리전 [https://cloud.google.com/vertex-ai/generative-ai/docs/models/tune-text-models-supervised?hl=ko#supported-supervised-tuning-regions]에 있어야 합니다.
+MODEL_NAME: 모델의 이름
+REGION: 연결에 사용되는 리전
+CONNECTION_ID: BigQuery 연결의 ID. 이 연결은 사용 중인 데이터 세트와 동일한 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에 있어야 합니다.
+Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections], 이 값은 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+ENDPOINT: 사용할 모델의 이름을 지정하는 STRING 값입니다.
+MAX_ITERATIONS: 지도 조정을 위해 실행할 단계 수를 지정하는 INT64 값. MAX_ITERATIONS 값은 1에서 ∞ 사이여야 합니다.
+Gemini 모델은 단계가 아닌 에포크를 사용하여 학습되므로 BigQuery ML에서 MAX_ITERATIONS 값을 에포크로 변환합니다. MAX_ITERATIONS의 기본값은 입력 데이터 행 수로, 이는 하나의 에포크에 해당합니다. 여러 에포크를 사용하려면 학습 데이터 행 수의 배수를 지정합니다. 예를 들어 입력 데이터 행 수가 100개이고 두 개의 에포크를 사용하려는 경우 인수 값에 200을 지정합니다. 입력 데이터 행 수의 배수가 아닌 값을 제공하면 BigQuery ML에서 가장 근접한 에포크로 반올림합니다. 예를 들어 입력 데이터 행 수가 100개이고 MAX_ITERATIONS 값에 101을 지정하면 두 개의 에포크로 학습이 수행됩니다.
+Gemini 모델을 조정하는 데 사용되는 매개변수에 관한 자세한 내용은 조정 작업 만들기 [https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-use-supervised-tuning?hl=ko#create_a_text_model_supervised_tuning_job]를 참조하세요.
+DATA_SPLIT_METHOD: 입력 데이터를 학습 세트와 평가 세트로 분할하는 데 사용되는 방법을 지정하는 STRING 값입니다. 유효한 옵션은 다음과 같습니다.
+AUTO_SPLIT: BigQuery ML이 데이터를 자동으로 분할합니다. 데이터가 분할되는 방식은 입력 테이블의 행 수에 따라 다릅니다. 이 설정이 기본 설정입니다.
+RANDOM: 데이터가 세트로 분할되기 전에 무작위로 지정됩니다. 데이터 분할을 맞춤설정하려면 이 옵션을 DATA_SPLIT_EVAL_FRACTION 옵션과 함께 사용하면 됩니다.
+CUSTOM: DATA_SPLIT_COL 옵션에 제공된 열을 사용하여 데이터가 분할됩니다. DATA_SPLIT_COL 값은 BOOL 유형의 열 이름이어야 합니다. 값이 TRUE 또는 NULL인 행은 평가 데이터로 사용되고 값이 FALSE인 행은 학습 데이터로 사용됩니다.
+SEQ: DATA_SPLIT_COL 옵션에 제공된 열을 사용하여 데이터를 분할합니다. DATA_SPLIT_COL 값은 다음 유형 중 하나의 열 이름이어야 합니다.
+NUMERIC
+BIGNUMERIC
+STRING
+TIMESTAMP
+데이터가 지정된 열을 기준으로 가장 작은 값부터 큰 값까지 정렬됩니다.
+앞부분의 n개의 행은 평가 데이터로 사용되며, 여기서 n은 DATA_SPLIT_EVAL_FRACTION에 지정된 값입니다. 나머지 행은 학습 데이터로 사용됩니다.
+NO_SPLIT: 데이터 분할 없음. 모든 입력 데이터가 학습 데이터로 사용됩니다.
+이러한 데이터 분할 옵션에 대한 자세한 내용은 DATA_SPLIT_METHOD [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko#data_split_method]를 참조하세요.
+DATA_SPLIT_EVAL_FRACTION: 지도 조정을 실행할 때 평가 데이터로 사용할 데이터의 비율을 지정하는 FLOAT64 값입니다. [0, 1.0] 범위의 값이어야 합니다. 기본값은 0.2입니다.
+DATA_SPLIT_METHOD 옵션의 값으로 RANDOM 또는 SEQ를 지정하는 경우 이 옵션을 사용합니다. 데이터 분할을 맞춤설정하려면 DATA_SPLIT_EVAL_FRACTION 옵션과 함께 DATA_SPLIT_METHOD 옵션을 사용하면 됩니다.
+DATA_SPLIT_COL: 입력 데이터를 학습 세트 또는 평가 세트로 정렬하는 데 사용할 열의 이름을 지정하는 STRING 값입니다. DATA_SPLIT_METHOD 옵션의 값으로 CUSTOM 또는 SEQ를 지정할 때 사용합니다.
+EVALUATION_TASK: 모델을 조정하여 실행하려는 태스크 유형을 지정하는 STRING 값입니다. 유효한 옵션은 다음과 같습니다.
+TEXT_GENERATION
+CLASSIFICATION
+SUMMARIZATION
+QUESTION_ANSWERING
+UNSPECIFIED
+기본값은 UNSPECIFIED입니다.
+INPUT_PROMPT_COL: 지도 조정을 실행할 때 사용할 학습 데이터 테이블의 프롬프트 열 이름이 포함된 STRING 값입니다. 기본값은 prompt입니다.
+INPUT_LABEL_COLS: 지도 조정에 사용할 학습 데이터 테이블의 라벨 열 이름이 포함된 ARRAY<<STRING> 값입니다. 배열에는 요소를 하나만 지정할 수 있습니다. 기본값은 빈 배열입니다. 이렇게 하면 label이 LABEL_COLUMN 인수의 기본값이 됩니다.
+PROMPT_COLUMN: LABEL_COLUMN 열의 콘텐츠를 평가하기 위한 프롬프트가 포함된 학습 데이터 테이블의 열입니다. 이 열은 STRING 유형이거나 STRING으로 변환되어야 합니다. INPUT_PROMPT_COL 옵션의 값을 지정하는 경우 PROMPT_COLUMN에 동일한 값을 지정해야 합니다. 그렇지 않으면 이 값은 prompt이어야 합니다. 테이블에 prompt 열이 없으면 별칭을 사용하여 기존 테이블 열을 지정합니다. 예를 들면 AS SELECT hint AS prompt, label FROM mydataset.mytable입니다.
+LABEL_COLUMN: 모델을 학습시킬 예가 포함된 학습 데이터 테이블의 열입니다. 이 열은 STRING 유형이거나 STRING으로 변환되어야 합니다. INPUT_LABEL_COLS 옵션의 값을 지정하는 경우 LABEL_COLUMN에 동일한 값을 지정해야 합니다. 그렇지 않으면 이 값은 label이어야 합니다. 테이블에 label 열이 없으면 별칭을 사용하여 기존 테이블 열을 지정합니다. 예를 들면 AS SELECT prompt, feature AS label FROM mydataset.mytable입니다.
+TABLE_PROJECT_ID: 학습 데이터 테이블이 포함된 프로젝트의 프로젝트 ID입니다.
+TABLE_DATASET: 학습 데이터 테이블이 포함된 데이터 세트의 이름입니다.
+TABLE_NAME: 모델을 학습시키는 데 사용할 데이터가 포함된 테이블의 이름입니다.
+조정된 모델 평가
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행하여 조정된 모델을 평가합니다.
+SELECT
+*
+FROM
+ML.EVALUATE(
+  MODEL `
+PROJECT_ID.
+DATASET_ID.
+MODEL_NAME`,
+  TABLE `
+TABLE_PROJECT_ID.
+TABLE_DATASET.
+TABLE_NAME`,
+  STRUCT('
+TASK_TYPE' AS task_type, 
+TOKENS AS max_output_tokens,
+    
+TEMPERATURE AS temperature, 
+TOP_K AS top_k,
+    
+TOP_P AS top_p));
+다음을 바꿉니다.
+PROJECT_ID: 데이터 세트가 포함된 프로젝트의 프로젝트 ID
+DATASET_ID: 모델이 포함된 데이터 세트의 ID
+MODEL_NAME: 모델의 이름
+TABLE_PROJECT_ID: 평가 데이터 테이블이 포함된 프로젝트의 프로젝트 ID
+TABLE_DATASET: 평가 데이터 테이블이 포함된 데이터 세트의 이름
+TABLE_NAME: 평가 데이터가 포함된 테이블의 이름
+테이블에는 이름이 모델 학습 중에 제공된 프롬프트 열 이름과 일치하는 열이 있어야 합니다. 모델 학습 중에 prompt_col 옵션을 사용하여 이 값을 제공할 수 있습니다. prompt_col이 지정되지 않으면 학습 데이터의 prompt 열이 사용됩니다. prompt라는 열이 없으면 오류가 반환됩니다.
+테이블에는 모델 학습 중에 제공된 라벨 열 이름과 이름이 일치하는 열이 있어야 합니다. 모델 학습 중에 input_label_cols 옵션을 사용하여 이 값을 제공할 수 있습니다. input_label_cols이 지정되지 않으면 학습 데이터의 label 열이 사용됩니다. label이라는 열이 없으면 오류가 반환됩니다.
+TASK_TYPE: 모델을 평가하려는 태스크 유형을 지정하는 STRING 값. 유효한 옵션은 다음과 같습니다.
+TEXT_GENERATION
+CLASSIFICATION
+SUMMARIZATION
+QUESTION_ANSWERING
+UNSPECIFIED
+TOKENS: 대답에서 생성될 수 있는 토큰의 최대 개수를 설정하는 INT64 값. 이 값은 [1,1024] 범위 내에 있어야 합니다. 짧은 응답이 필요하면 낮은 값을 지정하고 긴 응답을 위해서는 높은 값을 지정합니다. 기본값은 128입니다.
+TEMPERATURE: 토큰 선택에서 무작위성 수준을 제어하는 [0.0,1.0] 범위의 FLOAT64 값. 기본값은 0입니다.
+temperature 값이 낮을수록 자유롭거나 창의적인 답변과 거리가 먼 확정적인 응답이 필요한 프롬프트에 적합하고, temperature 값이 높을수록 보다 다양하거나 창의적인 결과로 이어질 수 있습니다. temperature 값이 0이면 확정적입니다. 즉, 확률이 가장 높은 응답이 항상 선택됩니다.
+TOP_K: 모델이 선택에 고려해야 하는 토큰의 초기 풀을 결정하는 [1,40] 범위의 INT64 값. 임의성이 낮은 응답을 위해서는 낮은 값을 지정하고 임의성이 높은 응답을 위해서는 높은 값을 지정합니다. 기본값은 40입니다.
+TOP_P: [0.0,1.0] 범위의 FLOAT64 값은 TOP_K가 결정한 풀에서 선택할 토큰을 결정하도록 도와줍니다. 임의성이 낮은 응답을 위해서는 낮은 값을 지정하고 임의성이 높은 응답을 위해서는 높은 값을 지정합니다. 기본값은 0.95입니다.
+텍스트 생성
+ML.GENERATE_TEXT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-text?hl=ko]를 사용하여 텍스트를 생성합니다.
+--- 탭: 프롬프트 열 [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#%ED%94%84%EB%A1%AC%ED%94%84%ED%8A%B8-%EC%97%B4] ---
+프롬프트를 제공하는 테이블 열을 사용해서 텍스트를 생성합니다.
+
+SELECT *
+FROM ML.GENERATE_TEXT(
+  MODEL `PROJECT_ID.DATASET_ID.MODEL_NAME`,
+  TABLE PROJECT_ID.DATASET_ID.TABLE_NAME,
+  STRUCT(TOKENS AS max_output_tokens, TEMPERATURE AS temperature,
+  TOP_P AS top_p, FLATTEN_JSON AS flatten_json_output,
+  STOP_SEQUENCES AS stop_sequences)
+);
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID
+  DATASET_ID: 모델이 포함된 데이터 세트의 ID
+  MODEL_NAME: 모델의 이름
+  TABLE_NAME: 프롬프트가 포함된 테이블의 이름. 이 테이블에는 조정된 모델의 특성 열 이름과 일치하는 열이 있어야 합니다. 모델의 특성 열 이름은 모델을 만들 때 PROMPT_COL 옵션을 사용하여 설정할 수 있습니다. 그렇지 않으면 모델의 특성 열 이름이 기본적으로 prompt가 되며, 또는 별칭을 사용하여 다른 이름의 열을 사용할 수 있습니다.
+  
+  TOKENS: 대답에서 생성될 수 있는 토큰의 최대 개수를 설정하는 INT64 값입니다.
+  
+  
+  이 값은 [1,8192] 범위 내에 있어야 합니다.
+  
+  
+  짧은 응답이 필요하면 낮은 값을 지정하고 긴 응답을 위해서는 높은 값을 지정합니다.
+  
+  기본값은 128입니다.
+  
+  
+  
+  
+  TEMPERATURE: 토큰 선택에서 무작위성 수준을 제어하는 [0.0,1.0] 범위의 FLOAT64 값입니다.
+
+기본값은 1.0입니다.temperature 값이 낮을수록 자유롭거나 창의적인 답변과 거리가 먼 확정적인 응답이 필요한 프롬프트에 적합하고, temperature 값이 높을수록 보다 다양하거나 창의적인 결과로 이어질 수 있습니다. temperature 값이 0이면 확정적입니다. 즉, 확률이 가장 높은 응답이 항상 선택됩니다.
+  
+  
+  
+  TOP_P: [0.0,1.0] 범위의 FLOAT64 값은 토큰이 선택될 확률을 결정하는 데 도움이 됩니다. 임의성이 낮은 응답을 위해서는 낮은 값을 지정하고 임의성이 높은 응답을 위해서는 높은 값을 지정합니다.
+  
+  기본값은 0.95입니다.
+  
+  
+  FLATTEN_JSON: 생성된 텍스트 및 보안 특성을 개별 열로 반환할지 여부를 결정하는 BOOL 값. 기본값은 FALSE입니다.
+  
+  STOP_SEQUENCES: 지정한 문자열이 모델의 응답에 포함된 경우 이 문자열을 제거하는 ARRAY<STRING> 값. 문자열은 대문자 사용을 비롯해 정확히 일치합니다. 기본값은 빈 배열입니다.
+  
+  
+  GROUND_WITH_GOOGLE_SEARCH: 응답을 생성할 때 Vertex AI 모델이 Google 검색으로 그라운딩 [https://cloud.google.com/vertex-ai/generative-ai/docs/grounding/overview?hl=ko#ground-public]을 사용할지 여부를 결정하는 BOOL 값입니다. 그라운딩을 통해 모델은 응답을 생성할 때 인터넷에서 추가 정보를 사용하여 보다 구체적이고 사실에 기반하는 모델 응답을 만들 수 있습니다. flatten_json_output 및 이 필드가 모두 True로 설정되면 결과에 추가 ml_generate_text_grounding_result 열이 포함되어 모델이 추가 정보를 수집하는 데 사용한 소스를 제공합니다. 기본값은 FALSE입니다.
+  
+  
+  SAFETY_SETTINGS: 응답을 필터링하도록 콘텐츠 안전 기준을 구성하는 ARRAY<STRUCT<STRING AS category, STRING AS threshold>> 값입니다. 구조체의 첫 번째 요소는 피해 카테고리를 지정하고 구조체의 두 번째 요소는 해당하는 차단 기준을 지정합니다. 모델은 이러한 설정을 위반하는 콘텐츠를 필터링합니다. 각 카테고리는 한 번만 지정할 수 있습니다. 예를 들어 STRUCT('HARM_CATEGORY_DANGEROUS_CONTENT' AS category, 'BLOCK_MEDIUM_AND_ABOVE' AS threshold) 및 STRUCT('HARM_CATEGORY_DANGEROUS_CONTENT' AS category, 'BLOCK_ONLY_HIGH' AS threshold)를 모두 지정할 수 없습니다. 지정된 카테고리에 안전 설정이 없는 경우 BLOCK_MEDIUM_AND_ABOVE 안전 설정이 사용됩니다.
+
+지원되는 카테고리는 다음과 같습니다.
+
+
+  HARM_CATEGORY_HATE_SPEECH
+  HARM_CATEGORY_DANGEROUS_CONTENT
+  HARM_CATEGORY_HARASSMENT
+  HARM_CATEGORY_SEXUALLY_EXPLICIT
+  
+
+지원되는 기준은 다음과 같습니다.
+
+
+  BLOCK_NONE(제한됨 [https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-attributes?hl=ko#how_to_remove_automated_response_blocking_for_select_safety_attributes])
+  BLOCK_LOW_AND_ABOVE
+  BLOCK_MEDIUM_AND_ABOVE(기본값)
+  BLOCK_ONLY_HIGH
+  HARM_BLOCK_THRESHOLD_UNSPECIFIED
+  
+
+자세한 내용은 안전 카테고리 [https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-attributes?hl=ko#safety_attribute_scoring] 및 차단 기준 [https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-attributes?hl=ko#safety-settings]의 정의를 참조하세요.
+  
+  
+
+
+다음 예시는 이러한 특성이 포함된 요청을 보여줍니다.
+
+
+프롬프트에 prompts 테이블의 prompt 열을 사용합니다.
+다소 가능성이 있는 짧은 응답을 반환합니다.
+생성된 텍스트와 보안 특성을 별도의 열에 반환합니다.
+
+
+SELECT *
+FROM
+  ML.GENERATE_TEXT(
+    MODEL `mydataset.mymodel`,
+    TABLE mydataset.prompts,
+    STRUCT(
+      0.4 AS temperature, 100 AS max_output_tokens, 0.5 AS top_p,
+      TRUE AS flatten_json_output));
+
+--- 탭: 프롬프트 쿼리 [https://cloud.google.com/bigquery/docs/generate-text-tuning?hl=ko#%ED%94%84%EB%A1%AC%ED%94%84%ED%8A%B8-%EC%BF%BC%EB%A6%AC] ---
+프롬프트를 제공하는 쿼리를 사용해서 텍스트를 생성합니다.
+
+SELECT *
+FROM ML.GENERATE_TEXT(
+  MODEL `PROJECT_ID.DATASET_ID.MODEL_NAME`,
+  (PROMPT_QUERY),
+  STRUCT(TOKENS AS max_output_tokens, TEMPERATURE AS temperature,
+  TOP_P AS top_p, FLATTEN_JSON AS flatten_json_output,
+  STOP_SEQUENCES AS stop_sequences)
+);
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID
+  DATASET_ID: 모델이 포함된 데이터 세트의 ID
+  MODEL_NAME: 모델의 이름
+  PROMPT_QUERY: 프롬프트 데이터를 제공하는 쿼리
+  
+  TOKENS: 대답에서 생성될 수 있는 토큰의 최대 개수를 설정하는 INT64 값입니다.
+  
+  
+  이 값은 [1,8192] 범위 내에 있어야 합니다.
+  
+  
+  짧은 응답이 필요하면 낮은 값을 지정하고 긴 응답을 위해서는 높은 값을 지정합니다.
+  
+  기본값은 128입니다.
+  
+  
+  
+  
+  TEMPERATURE: 토큰 선택에서 무작위성 수준을 제어하는 [0.0,1.0] 범위의 FLOAT64 값입니다.
+
+기본값은 1.0입니다.temperature 값이 낮을수록 자유롭거나 창의적인 답변과 거리가 먼 확정적인 응답이 필요한 프롬프트에 적합하고, temperature 값이 높을수록 보다 다양하거나 창의적인 결과로 이어질 수 있습니다. temperature 값이 0이면 확정적입니다. 즉, 확률이 가장 높은 응답이 항상 선택됩니다.
+  
+  
+  
+  TOP_P: [0.0,1.0] 범위의 FLOAT64 값은 토큰이 선택될 확률을 결정하는 데 도움이 됩니다. 임의성이 낮은 응답을 위해서는 낮은 값을 지정하고 임의성이 높은 응답을 위해서는 높은 값을 지정합니다.
+  
+  기본값은 0.95입니다.
+  
+  
+  FLATTEN_JSON: 생성된 텍스트 및 보안 특성을 개별 열로 반환할지 여부를 결정하는 BOOL 값. 기본값은 FALSE입니다.
+  
+  STOP_SEQUENCES: 지정한 문자열이 모델의 응답에 포함된 경우 이 문자열을 제거하는 ARRAY<STRING> 값. 문자열은 대문자 사용을 비롯해 정확히 일치합니다. 기본값은 빈 배열입니다.
+  
+  
+  GROUND_WITH_GOOGLE_SEARCH: 응답을 생성할 때 Vertex AI 모델이 Google 검색으로 그라운딩 [https://cloud.google.com/vertex-ai/generative-ai/docs/grounding/overview?hl=ko#ground-public]을 사용할지 여부를 결정하는 BOOL 값입니다. 그라운딩을 통해 모델은 응답을 생성할 때 인터넷에서 추가 정보를 사용하여 보다 구체적이고 사실에 기반하는 모델 응답을 만들 수 있습니다. flatten_json_output 및 이 필드가 모두 True로 설정되면 결과에 추가 ml_generate_text_grounding_result 열이 포함되어 모델이 추가 정보를 수집하는 데 사용한 소스를 제공합니다. 기본값은 FALSE입니다.
+  
+  
+  SAFETY_SETTINGS: 응답을 필터링하도록 콘텐츠 안전 기준을 구성하는 ARRAY<STRUCT<STRING AS category, STRING AS threshold>> 값입니다. 구조체의 첫 번째 요소는 피해 카테고리를 지정하고 구조체의 두 번째 요소는 해당하는 차단 기준을 지정합니다. 모델은 이러한 설정을 위반하는 콘텐츠를 필터링합니다. 각 카테고리는 한 번만 지정할 수 있습니다. 예를 들어 STRUCT('HARM_CATEGORY_DANGEROUS_CONTENT' AS category, 'BLOCK_MEDIUM_AND_ABOVE' AS threshold) 및 STRUCT('HARM_CATEGORY_DANGEROUS_CONTENT' AS category, 'BLOCK_ONLY_HIGH' AS threshold)를 모두 지정할 수 없습니다. 지정된 카테고리에 안전 설정이 없는 경우 BLOCK_MEDIUM_AND_ABOVE 안전 설정이 사용됩니다.
+
+지원되는 카테고리는 다음과 같습니다.
+
+
+  HARM_CATEGORY_HATE_SPEECH
+  HARM_CATEGORY_DANGEROUS_CONTENT
+  HARM_CATEGORY_HARASSMENT
+  HARM_CATEGORY_SEXUALLY_EXPLICIT
+  
+
+지원되는 기준은 다음과 같습니다.
+
+
+  BLOCK_NONE(제한됨 [https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-attributes?hl=ko#how_to_remove_automated_response_blocking_for_select_safety_attributes])
+  BLOCK_LOW_AND_ABOVE
+  BLOCK_MEDIUM_AND_ABOVE(기본값)
+  BLOCK_ONLY_HIGH
+  HARM_BLOCK_THRESHOLD_UNSPECIFIED
+  
+
+자세한 내용은 안전 카테고리 [https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-attributes?hl=ko#safety_attribute_scoring] 및 차단 기준 [https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-attributes?hl=ko#safety-settings]의 정의를 참조하세요.
+  
+  
+
+
+예시 1
+
+다음 예시는 이러한 특성이 포함된 요청을 보여줍니다.
+
+
+articles 테이블의 body 열에 있는 텍스트 요약을 요청하는 프롬프트입니다.
+적당히 길고 가능성이 높은 응답을 반환합니다.
+생성된 텍스트와 보안 특성을 별도의 열에 반환합니다.
+
+
+SELECT *
+FROM
+  ML.GENERATE_TEXT(
+    MODEL `mydataset.mymodel`,
+    (
+      SELECT CONCAT('Summarize this text', body) AS prompt
+      FROM mydataset.articles
+    ),
+    STRUCT(
+      0.2 AS temperature, 650 AS max_output_tokens, 0.2 AS top_p,
+      TRUE AS flatten_json_output));
+
+예시 2
+
+다음 예시는 이러한 특성이 포함된 요청을 보여줍니다.
+
+
+쿼리를 사용하여 테이블 열에 프롬프트 프리픽스 [https://cloud.google.com/vertex-ai/docs/generative-ai/text/text-prompts?hl=ko#prompt_structure]를 제공하는 문자열을 연결하여 프롬프트 데이터를 만듭니다.
+다소 가능성이 있는 짧은 응답을 반환합니다.
+생성된 텍스트와 안전 속성이 별도의 열에 반환되지 않습니다.
+
+
+SELECT *
+FROM
+  ML.GENERATE_TEXT(
+    MODEL `mydataset.mytuned_model`,
+    (
+      SELECT CONCAT(question, 'Text:', description, 'Category') AS prompt
+      FROM mydataset.input_table
+    ),
+    STRUCT(
+      0.4 AS temperature, 100 AS max_output_tokens, 0.5 AS top_p,
+      FALSE AS flatten_json_output));
+도움이 되었나요?
+의견 보내기

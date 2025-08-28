@@ -1,0 +1,2022 @@
+Source URL: https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#before-you-begin]
+공개 데이터 세트 쿼리하기 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#query_a_public_dataset]
+삭제 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#clean_up]
+프로젝트 삭제 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#delete_the_project]
+리소스 삭제 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#delete_the_resources]
+다음 단계 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#whats-next]
+BigQuery 클라이언트 라이브러리로 공개 데이터 세트 쿼리
+bookmark_border
+BigQuery 클라이언트 라이브러리를 사용하여 공개 데이터 세트를 쿼리하는 방법을 알아봅니다.
+Google Cloud 콘솔에서 이 태스크에 대한 단계별 안내를 직접 수행하려면 원하는 프로그래밍 언어를 선택합니다.
+--- 탭: C# [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#c] ---
+C# 둘러보기 [https://console.cloud.google.com/?walkthrough_id=bigquery--csharp-client-library&hl=ko]
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#go] ---
+Go 둘러보기 [https://console.cloud.google.com/?walkthrough_id=bigquery--go-client-library&hl=ko]
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#%EC%9E%90%EB%B0%94] ---
+Java 둘러보기 [https://console.cloud.google.com/?walkthrough_id=bigquery--java-client-library&hl=ko]
+
+--- 탭: Node.js [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#node.js] ---
+Node.js 둘러보기 [https://console.cloud.google.com/?walkthrough_id=bigquery--node-client-library&hl=ko]
+
+--- 탭: tabpanel-php ---
+PHP 둘러보기 [https://console.cloud.google.com/?walkthrough_id=bigquery--php-client-library&hl=ko]
+
+--- 탭: tabpanel-python ---
+Python 둘러보기 [https://console.cloud.google.com/?walkthrough_id=bigquery--python-client-library&hl=ko]
+
+--- 탭: tabpanel-ruby ---
+Ruby 둘러보기 [https://console.cloud.google.com/?walkthrough_id=bigquery--ruby-client-library&hl=ko]
+시작하기 전에
+Create or select a Google Cloud project [https://cloud.google.com/resource-manager/docs/creating-managing-projects?hl=ko].
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Create a Google Cloud project:
+gcloud projects create 
+PROJECT_ID
+Replace PROJECT_ID with a name for the Google Cloud project you are creating.
+Select the Google Cloud project that you created:
+gcloud config set project 
+PROJECT_ID
+Replace PROJECT_ID with your Google Cloud project name.
+BigQuery 샌드박스를 무료로 사용 [https://cloud.google.com/bigquery/docs/sandbox?hl=ko]할지 아니면 Google Cloud 프로젝트에 결제를 사용 설정 [https://cloud.google.com/billing/docs/how-to/modify-project?hl=ko]할지를 선택합니다.
+프로젝트에 결제를 사용 설정하지 않으면 자동으로 BigQuery 샌드박스에서 작업합니다. BigQuery 샌드박스를 사용하면 제한된 BigQuery 기능으로 BigQuery를 무료로 학습할 수 있습니다. 이 문서를 벗어나서 프로젝트를 사용할 계획이 없으면 BigQuery 샌드박스를 사용하는 것이 좋습니다.
+Grant roles to your user account. Run the following command once for each of the following IAM roles: roles/serviceusage.serviceUsageAdmin, roles/bigquery.jobUser
+gcloud projects add-iam-policy-binding 
+PROJECT_ID --member="user:
+USER_IDENTIFIER" --role=
+ROLE
+Replace the following:
+PROJECT_ID: your project ID.
+USER_IDENTIFIER: the identifier for your user account—for example, myemail@example.com.
+ROLE: the IAM role that you grant to your user account.
+Enable the BigQuery API:
+gcloud services enable bigquery
+새 프로젝트에서는 BigQuery API가 자동으로 사용 설정됩니다.
+In the Google Cloud console, activate Cloud Shell.
+Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+Cloud Shell에서 Google Cloud 프로젝트를 활성화합니다.
+gcloud config set project 
+PROJECT_ID
+PROJECT_ID를 이 둘러보기에서 선택한 프로젝트로 바꿉니다.
+출력은 다음과 비슷합니다.
+Updated property [core/project].
+공개 데이터 세트 쿼리하기
+다음 언어 중 하나를 선택합니다.
+--- 탭: C# [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#c] ---
+Cloud Shell에서 새 C# 프로젝트 및 파일을 만듭니다.
+
+dotnet new console -n BigQueryCsharpDemo
+
+출력은 다음과 비슷합니다. 출력을 간소화하기 위해 여러 줄을 생략합니다.
+
+Welcome to .NET 6.0!
+---------------------
+SDK Version: 6.0.407
+...
+The template "Console App" was created successfully.
+...
+
+
+이 명령어는 BigQueryCsharpDemo라는 C# 프로젝트와 Program.cs라는 파일을 만듭니다.
+Cloud Shell 편집기를 엽니다.
+
+cloudshell workspace BigQueryCsharpDemo
+Cloud Shell 편집기에서 터미널을 열려면 터미널 열기를 클릭합니다.
+프로젝트 디렉터리를 엽니다.
+
+cd BigQueryCsharpDemo
+C#용 BigQuery 클라이언트 라이브러리를 설치합니다.
+
+dotnet add package Google.Cloud.BigQuery.V2
+
+출력은 다음과 비슷합니다. 출력을 간소화하기 위해 여러 줄을 생략합니다.
+
+Determining projects to restore...
+Writing /tmp/tmpF7EKSd.tmp
+...
+info : Writing assets file to disk.
+...
+
+GOOGLE_PROJECT_ID 변수를 GOOGLE_CLOUD_PROJECT 값으로 설정하고 변수를 내보냅니다.
+
+export GOOGLE_PROJECT_ID=$GOOGLE_CLOUD_PROJECT
+편집기 열기를 클릭합니다.
+탐색기 창에서 BIGQUERYCSHARPDEMO 프로젝트를 찾습니다.
+Program.cs 파일을 클릭하여 엽니다.
+가장 많이 조회된 Stack Overflow 페이지 10개와 해당 조회수를 반환하는 bigquery-public-data.stackoverflow 데이터 세트에 대한 쿼리를 만들려면 파일의 콘텐츠를 다음 코드로 바꿉니다.
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+using System;
+using Google.Cloud.BigQuery.V2 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.html?hl=ko];
+
+namespace GoogleCloudSamples
+{
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            string projectId = Environment.GetEnvironmentVariable("GOOGLE_PROJECT_ID");
+            var client = BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_Create_System_String_Google_Apis_Auth_OAuth2_GoogleCredential_](projectId);
+            string query = @"SELECT
+                CONCAT(
+                    'https://stackoverflow.com/questions/',
+                    CAST(id as STRING)) as url, view_count
+                FROM `bigquery-public-data.stackoverflow.posts_questions`
+                WHERE tags like '%google-bigquery%'
+                ORDER BY view_count DESC
+                LIMIT 10";
+            var result = client.ExecuteQuery [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_ExecuteQuery_System_String_System_Collections_Generic_IEnumerable_Google_Cloud_BigQuery_V2_BigQueryParameter__Google_Cloud_BigQuery_V2_QueryOptions_Google_Cloud_BigQuery_V2_GetQueryResultsOptions_](query, parameters: null);
+            Console.Write("\nQuery Results:\n------------\n");
+            foreach (var row in result)
+            {
+                Console.WriteLine($"{row["url"]}: {row["view_count"]} views");
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+터미널 열기를 클릭합니다.
+터미널에서 Program.cs 스크립트를 실행합니다. Cloud Shell을 승인하고 약관에 동의하라는 메시지가 표시되면 승인을 클릭합니다.
+
+dotnet run
+
+결과는 다음과 비슷합니다.
+
+Query Results:
+------------
+https://stackoverflow.com/questions/35159967: 170023 views
+https://stackoverflow.com/questions/22879669: 142581 views
+https://stackoverflow.com/questions/10604135: 132406 views
+https://stackoverflow.com/questions/44564887: 128781 views
+https://stackoverflow.com/questions/27060396: 127008 views
+https://stackoverflow.com/questions/12482637: 120766 views
+https://stackoverflow.com/questions/20673986: 115720 views
+https://stackoverflow.com/questions/39109817: 108368 views
+https://stackoverflow.com/questions/11057219: 105175 views
+https://stackoverflow.com/questions/43195143: 101878 views
+
+
+
+BigQuery C# 클라이언트 라이브러리를 사용하여 공개 데이터 세트를 쿼리했습니다.
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#go] ---
+Cloud Shell에서 새 Go 프로젝트 및 파일을 만듭니다.
+
+mkdir bigquery-go-quickstart \
+    && touch \
+    bigquery-go-quickstart/app.go
+
+이 명령어는 bigquery-go-quickstart라는 Go 프로젝트와 app.go라는 파일을 만듭니다.
+Cloud Shell 편집기를 엽니다.
+
+cloudshell workspace bigquery-go-quickstart
+Cloud Shell 편집기에서 터미널을 열려면 터미널 열기를 클릭합니다.
+프로젝트 디렉터리를 엽니다.
+
+cd bigquery-go-quickstart
+go.mod 파일을 만듭니다.
+
+go mod init quickstart
+
+출력은 다음과 비슷합니다.
+
+go: creating new go.mod: module quickstart
+go: to add module requirements and sums:
+        go mod tidy
+
+Go용 BigQuery 클라이언트 라이브러리를 설치합니다.
+
+go get cloud.google.com/go/bigquery
+
+출력은 다음과 비슷합니다. 출력을 간소화하기 위해 여러 줄을 생략합니다.
+
+go: downloading cloud.google.com/go/bigquery v1.49.0
+go: downloading cloud.google.com/go v0.110.0
+...
+go: added cloud.google.com/go/bigquery v1.49.0
+go: added cloud.google.com/go v0.110.0
+
+편집기 열기를 클릭합니다.
+탐색기 창에서 BIGQUERY-GO-QUICKSTART 프로젝트를 찾습니다.
+app.go 파일을 클릭하여 엽니다.
+가장 많이 조회된 Stack Overflow 페이지 10개와 해당 조회 수를 반환하는 bigquery-public-data.stackoverflow 데이터 세트에 대한 쿼리를 만들려면 다음 코드를 app.go 파일에 복사합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+// Command simpleapp queries the Stack Overflow public dataset in Google BigQuery.
+package main
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"log"
+	"os"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+
+func main() {
+	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
+	if projectID == "" {
+		fmt.Println("GOOGLE_CLOUD_PROJECT environment variable must be set.")
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		log.Fatalf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	rows, err := query(ctx, client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := printResults(os.Stdout, rows); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// query returns a row iterator suitable for reading query results.
+func query(ctx context.Context, client *bigquery.Client) (*bigquery.RowIterator [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_RowIterator], error) {
+
+	query := client.Query(
+		`SELECT
+			CONCAT(
+				'https://stackoverflow.com/questions/',
+				CAST(id as STRING)) as url,
+			view_count
+		FROM ` + "`bigquery-public-data.stackoverflow.posts_questions`" + `
+		WHERE tags like '%google-bigquery%'
+		ORDER BY view_count DESC
+		LIMIT 10;`)
+	return query.Read(ctx)
+}
+
+type StackOverflowRow struct {
+	URL       string `bigquery:"url"`
+	ViewCount int64  `bigquery:"view_count"`
+}
+
+// printResults prints results from a query to the Stack Overflow public dataset.
+func printResults(w io.Writer, iter *bigquery.RowIterator [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_RowIterator]) error {
+	for {
+		var row StackOverflowRow
+		err := iter.Next(&row)
+		if err == iterator.Done {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("error iterating through results: %w", err)
+		}
+
+		fmt.Fprintf(w, "url: %s views: %d\n", row.URL, row.ViewCount)
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+터미널 열기를 클릭합니다.
+터미널에서 app.go 스크립트를 실행합니다. Cloud Shell을 승인하고 약관에 동의하라는 메시지가 표시되면 승인을 클릭합니다.
+
+go run app.go
+
+결과는 다음과 비슷합니다.
+
+https://stackoverflow.com/questions/35159967 : 170023 views
+https://stackoverflow.com/questions/22879669 : 142581 views
+https://stackoverflow.com/questions/10604135 : 132406 views
+https://stackoverflow.com/questions/44564887 : 128781 views
+https://stackoverflow.com/questions/27060396 : 127008 views
+https://stackoverflow.com/questions/12482637 : 120766 views
+https://stackoverflow.com/questions/20673986 : 115720 views
+https://stackoverflow.com/questions/39109817 : 108368 views
+https://stackoverflow.com/questions/11057219 : 105175 views
+https://stackoverflow.com/questions/43195143 : 101878 views
+
+
+
+BigQuery Go 클라이언트 라이브러리를 사용하여 공개 데이터 세트를 쿼리했습니다.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#%EC%9E%90%EB%B0%94] ---
+Cloud Shell에서 Apache Maven을 사용하여 새 자바 프로젝트를 만듭니다.
+
+mvn archetype:generate \
+    -DgroupId=com.google.app \
+    -DartifactId=bigquery-java-quickstart \
+    -DinteractiveMode=false
+
+이 명령어는 bigquery-java-quickstart라는 Maven 프로젝트를 만듭니다.
+
+출력은 다음과 비슷합니다. 출력을 간소화하기 위해 여러 줄을 생략합니다.
+
+[INFO] Scanning for projects...
+...
+[INFO] Building Maven Stub Project (No POM) 1
+...
+[INFO] BUILD SUCCESS
+...
+
+
+Maven 외에 사용할 수 있는 많은 종속 항목 관리 시스템이 있습니다. 자세한 내용은 클라이언트 라이브러리와 함께 사용할 자바 개발 환경 설정 [https://cloud.google.com/java/docs/setup?hl=ko] 방법을 알아보세요.
+Maven이 기본적으로 만드는 App.java 파일의 이름을 바꿉니다.
+
+mv \
+    bigquery-java-quickstart/src/main/java/com/google/app/App.java \
+    bigquery-java-quickstart/src/main/java/com/google/app/SimpleApp.java
+Cloud Shell 편집기를 엽니다.
+
+cloudshell workspace bigquery-java-quickstart
+자바 클래스 경로 또는 구성을 동기화할지 묻는 메시지가 표시되면 항상을 클릭합니다.
+
+메시지가 표시되지 않고 이 둘러보기 중 클래스 경로와 관련된 오류가 발생하면 다음을 수행합니다.
+
+
+파일 > 환경설정 > 설정 열기(UI)를 클릭합니다.
+확장 프로그램 > Java를 클릭합니다.
+구성: 빌드 구성 업데이트로 스크롤하고 자동을 선택합니다.
+
+탐색기 창에서 BIGQUERY-JAVA-QUICKSTART 프로젝트를 찾습니다.
+pom.xml 파일을 클릭하여 엽니다.
+<dependencies> 태그 내에서 기존 종속 항목 뒤에 다음 종속 항목을 추가합니다. 기존 종속 항목을 바꾸지 마세요.
+<dependency>
+  <groupId>com.google.cloud</groupId>
+  <artifactId>google-cloud-bigquery</artifactId>
+</dependency>
+
+닫는 태그(</dependencies>) 뒤에 있는 줄에 다음을 추가합니다.
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>libraries-bom</artifactId>
+      <version>26.1.5</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
+
+Explorer 창의 BIGQUERY-JAVA-QUICKSTART 프로젝트에서 src > main/java/com/google/app > SimpleApp.java를 클릭합니다.
+파일이 열립니다.
+bigquery-public-data.stackoverflow 데이터 세트에 대한 쿼리를 만들려면 파일의 첫 번째 줄(package com.google.app;)을 그대로 두고 파일의 나머지 콘텐츠를 다음 코드로 바꿉니다.
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.FieldValueList [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FieldValueList.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko];
+import com.google.cloud.bigquery.QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko];
+
+
+public class SimpleApp {
+
+  public static void main(String... args) throws Exception {
+    // TODO(developer): Replace these variables before running the app.
+    String projectId = "MY_PROJECT_ID";
+    simpleApp(projectId);
+  }
+
+  public static void simpleApp(String projectId) {
+    try {
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+      QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko] queryConfig =
+          QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko].newBuilder(
+                  "SELECT CONCAT('https://stackoverflow.com/questions/', "
+                      + "CAST(id as STRING)) as url, view_count "
+                      + "FROM `bigquery-public-data.stackoverflow.posts_questions` "
+                      + "WHERE tags like '%google-bigquery%' "
+                      + "ORDER BY view_count DESC "
+                      + "LIMIT 10")
+              // Use standard SQL syntax for queries.
+              // See: https://cloud.google.com/bigquery/sql-reference/
+              .setUseLegacySql(false)
+              .build();
+
+      JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko] jobId = JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko].newBuilder().setProject(projectId).build();
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] queryJob = bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
+
+      // Wait for the query to complete.
+      queryJob = queryJob.waitFor [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_waitFor_com_google_cloud_bigquery_BigQueryRetryConfig_com_google_cloud_RetryOption____]();
+
+      // Check for errors
+      if (queryJob == null) {
+        throw new RuntimeException("Job no longer exists");
+      } else if (queryJob.getStatus().getExecutionErrors [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobStatus.html?hl=ko#com_google_cloud_bigquery_JobStatus_getExecutionErrors__]() != null
+          && queryJob.getStatus().getExecutionErrors().size() > 0) {
+        // TODO(developer): Handle errors here. An error here do not necessarily mean that the job
+        // has completed or was unsuccessful.
+        // For more details: https://cloud.google.com/bigquery/troubleshooting-errors
+        throw new RuntimeException("An unhandled error has occurred");
+      }
+
+      // Get the results.
+      TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko] result = queryJob.getQueryResults [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_getQueryResults_com_google_cloud_bigquery_BigQuery_QueryResultsOption____]();
+
+      // Print all pages of the results.
+      for (FieldValueList [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.FieldValueList.html?hl=ko] row : result.iterateAll [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko#com_google_cloud_bigquery_TableResult_iterateAll__]()) {
+        // String type
+        String url = row.get("url").getStringValue();
+        String viewCount = row.get("view_count").getStringValue();
+        System.out.printf("%s : %s views\n", url, viewCount);
+      }
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Simple App failed due to error: \n" + e.toString());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+이 쿼리는 가장 많이 조회된 Stack Overflow 페이지 10개와 해당 조회수를 반환합니다.
+SimpleApp.java를 마우스 오른쪽 버튼으로 클릭하고 자바 실행을 클릭합니다. Cloud Shell을 승인하고 약관에 동의하라는 메시지가 표시되면 승인을 클릭합니다.
+
+결과는 다음과 비슷합니다.
+
+https://stackoverflow.com/questions/35159967 : 170023 views
+https://stackoverflow.com/questions/22879669 : 142581 views
+https://stackoverflow.com/questions/10604135 : 132406 views
+https://stackoverflow.com/questions/44564887 : 128781 views
+https://stackoverflow.com/questions/27060396 : 127008 views
+https://stackoverflow.com/questions/12482637 : 120766 views
+https://stackoverflow.com/questions/20673986 : 115720 views
+https://stackoverflow.com/questions/39109817 : 108368 views
+https://stackoverflow.com/questions/11057219 : 105175 views
+https://stackoverflow.com/questions/43195143 : 101878 views
+
+
+
+BigQuery 자바 클라이언트 라이브러리를 사용하여 공개 데이터 세트를 쿼리했습니다.
+
+--- 탭: Node.js [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#node.js] ---
+Cloud Shell에서 새 Node.js 프로젝트 및 파일을 만듭니다.
+
+mkdir bigquery-node-quickstart \
+    && touch \
+    bigquery-node-quickstart/app.js
+
+이 명령어는 bigquery-node-quickstart라는 Node.js 프로젝트와 app.js라는 파일을 만듭니다.
+Cloud Shell 편집기를 엽니다.
+
+cloudshell workspace bigquery-node-quickstart
+Cloud Shell 편집기에서 터미널을 열려면 터미널 열기를 클릭합니다.
+프로젝트 디렉터리를 엽니다.
+
+cd bigquery-node-quickstart
+Node.js용 BigQuery 클라이언트 라이브러리를 설치합니다.
+
+npm install @google-cloud/bigquery
+
+출력은 다음과 비슷합니다.
+
+added 63 packages in 2s
+
+편집기 열기를 클릭합니다.
+탐색기 창에서 BIGQUERY-NODE-QUICKSTART 프로젝트를 찾습니다.
+app.js 파일을 클릭하여 엽니다.
+가장 많이 조회된 Stack Overflow 페이지 10개와 해당 조회 수를 반환하는 bigquery-public-data.stackoverflow 데이터 세트에 대한 쿼리를 만들려면 다음 코드를 app.js 파일에 복사합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+
+async function queryStackOverflow() {
+  // Queries a public Stack Overflow dataset.
+
+  // Create a client
+  const bigqueryClient = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+  // The SQL query to run
+  const sqlQuery = `SELECT
+    CONCAT(
+      'https://stackoverflow.com/questions/',
+      CAST(id as STRING)) as url,
+    view_count
+    FROM \`bigquery-public-data.stackoverflow.posts_questions\`
+    WHERE tags like '%google-bigquery%'
+    ORDER BY view_count DESC
+    LIMIT 10`;
+
+  const options = {
+    query: sqlQuery,
+    // Location must match that of the dataset(s) referenced in the query.
+    location: 'US',
+  };
+
+  // Run the query
+  const [rows] = await bigqueryClient.query(options);
+
+  console.log('Query Results:');
+  rows.forEach(row => {
+    const url = row['url'];
+    const viewCount = row['view_count'];
+    console.log(`url: ${url}, ${viewCount} views`);
+  });
+}
+queryStackOverflow();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+터미널 열기를 클릭합니다.
+터미널에서 app.js 스크립트를 실행합니다. Cloud Shell을 승인하고 약관에 동의하라는 메시지가 표시되면 승인을 클릭합니다.
+
+node app.js
+
+결과는 다음과 비슷합니다.
+
+Query Results:
+url: https://stackoverflow.com/questions/35159967, 170023 views
+url: https://stackoverflow.com/questions/22879669, 142581 views
+url: https://stackoverflow.com/questions/10604135, 132406 views
+url: https://stackoverflow.com/questions/44564887, 128781 views
+url: https://stackoverflow.com/questions/27060396, 127008 views
+url: https://stackoverflow.com/questions/12482637, 120766 views
+url: https://stackoverflow.com/questions/20673986, 115720 views
+url: https://stackoverflow.com/questions/39109817, 108368 views
+url: https://stackoverflow.com/questions/11057219, 105175 views
+url: https://stackoverflow.com/questions/43195143, 101878 views
+
+
+
+BigQuery Node.js 클라이언트 라이브러리를 사용하여 공개 데이터 세트를 쿼리했습니다.
+
+--- 탭: tabpanel-php ---
+Cloud Shell에서 새 PHP 프로젝트 및 파일을 만듭니다.
+
+mkdir bigquery-php-quickstart \
+    && touch \
+    bigquery-php-quickstart/app.php
+
+이 명령어는 bigquery-php-quickstart라는 PHP 프로젝트와 app.php라는 파일을 만듭니다.
+Cloud Shell 편집기를 엽니다.
+
+cloudshell workspace bigquery-php-quickstart
+Cloud Shell 편집기에서 터미널을 열려면 터미널 열기를 클릭합니다.
+프로젝트 디렉터리를 엽니다.
+
+cd bigquery-php-quickstart
+PHP용 BigQuery 클라이언트 라이브러리를 설치합니다.
+
+composer require google/cloud-bigquery
+
+출력은 다음과 비슷합니다. 출력을 간소화하기 위해 여러 줄을 생략합니다.
+
+Running composer update google/cloud-bigquery
+Loading composer repositories with package information
+Updating dependencies
+...
+No security vulnerability advisories found
+Using version ^1.24 for google/cloud-bigquery
+
+편집기 열기를 클릭합니다.
+탐색기 창에서 BIGQUERY-PHP-QUICKSTART 프로젝트를 찾습니다.
+app.php 파일을 클릭하여 엽니다.
+가장 많이 조회된 Stack Overflow 페이지 10개와 해당 조회 수를 반환하는 bigquery-public-data.stackoverflow 데이터 세트에 대한 쿼리를 만들려면 다음 코드를 app.php 파일에 복사합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  <?php
+# ...
+
+require __DIR__ . '/vendor/autoload.php';
+
+use Google\Cloud\BigQuery\BigQueryClient;
+
+
+$bigQuery = new BigQueryClient();
+$query = <<<ENDSQL
+SELECT
+  CONCAT(
+    'https://stackoverflow.com/questions/',
+    CAST(id as STRING)) as url,
+  view_count
+FROM `bigquery-public-data.stackoverflow.posts_questions`
+WHERE tags like '%google-bigquery%'
+ORDER BY view_count DESC
+LIMIT 10;
+ENDSQL;
+$queryJobConfig = $bigQuery->query($query);
+$queryResults = $bigQuery->runQuery($queryJobConfig);
+
+if ($queryResults->isComplete()) {
+    $i = 0;
+    $rows = $queryResults->rows();
+    foreach ($rows as $row) {
+        printf('--- Row %s ---' . PHP_EOL, ++$i);
+        printf('url: %s, %s views' . PHP_EOL, $row['url'], $row['view_count']);
+    }
+    printf('Found %s row(s)' . PHP_EOL, $i);
+} else {
+    throw new Exception('The query failed to complete');
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+터미널 열기를 클릭합니다.
+터미널에서 app.php 스크립트를 실행합니다. Cloud Shell을 승인하고 약관에 동의하라는 메시지가 표시되면 승인을 클릭합니다.
+
+php app.php
+
+결과는 다음과 비슷합니다.
+
+--- Row 1 ---
+url: https://stackoverflow.com/questions/35159967, 170023 views
+--- Row 2 ---
+url: https://stackoverflow.com/questions/22879669, 142581 views
+--- Row 3 ---
+url: https://stackoverflow.com/questions/10604135, 132406 views
+--- Row 4 ---
+url: https://stackoverflow.com/questions/44564887, 128781 views
+--- Row 5 ---
+url: https://stackoverflow.com/questions/27060396, 127008 views
+--- Row 6 ---
+url: https://stackoverflow.com/questions/12482637, 120766 views
+--- Row 7 ---
+url: https://stackoverflow.com/questions/20673986, 115720 views
+--- Row 8 ---
+url: https://stackoverflow.com/questions/39109817, 108368 views
+--- Row 9 ---
+url: https://stackoverflow.com/questions/11057219, 105175 views
+--- Row 10 ---
+url: https://stackoverflow.com/questions/43195143, 101878 views
+Found 10 row(s)
+
+
+
+BigQuery PHP 클라이언트 라이브러리를 사용하여 공개 데이터 세트를 쿼리했습니다.
+
+--- 탭: tabpanel-python ---
+Cloud Shell에서 새 Python 프로젝트 및 파일을 만듭니다.
+
+mkdir bigquery-python-quickstart \
+    && touch \
+    bigquery-python-quickstart/app.py
+
+이 명령어는 bigquery-python-quickstart라는 Python 프로젝트와 app.py라는 파일을 만듭니다.
+Cloud Shell 편집기를 엽니다.
+
+cloudshell workspace bigquery-python-quickstart
+Cloud Shell 편집기에서 터미널을 열려면 터미널 열기를 클릭합니다.
+프로젝트 디렉터리를 엽니다.
+
+cd bigquery-python-quickstart
+Python용 BigQuery 클라이언트 라이브러리를 설치합니다.
+
+pip install --upgrade google-cloud-bigquery
+
+출력은 다음과 비슷합니다. 출력을 간소화하기 위해 여러 줄을 생략합니다.
+
+Installing collected packages: google-cloud-bigquery
+...
+Successfully installed google-cloud-bigquery-3.9.0
+...
+
+편집기 열기를 클릭합니다.
+탐색기 창에서 BIGQUERY-PYTHON-QUICKSTART 프로젝트를 찾습니다.
+app.py 파일을 클릭하여 엽니다.
+가장 많이 조회된 Stack Overflow 페이지 10개와 해당 조회 수를 반환하는 bigquery-public-data.stackoverflow 데이터 세트에 대한 쿼리를 만들려면 다음 코드를 app.py 파일에 복사합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+
+
+def query_stackoverflow() -> None:
+    client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+    results = client.query_and_wait [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_query_and_wait](
+        """
+        SELECT
+          CONCAT(
+            'https://stackoverflow.com/questions/',
+            CAST(id as STRING)) as url,
+          view_count
+        FROM `bigquery-public-data.stackoverflow.posts_questions`
+        WHERE tags like '%google-bigquery%'
+        ORDER BY view_count DESC
+        LIMIT 10"""
+    )  # Waits for job to complete.
+
+    for row in results:
+        print("{} : {} views".format(row.url, row.view_count))
+
+
+if __name__ == "__main__":
+    query_stackoverflow()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+터미널 열기를 클릭합니다.
+터미널에서 app.py 스크립트를 실행합니다. Cloud Shell을 승인하고 약관에 동의하라는 메시지가 표시되면 승인을 클릭합니다.
+
+python app.py
+
+결과는 다음과 비슷합니다.
+
+https://stackoverflow.com/questions/35159967 : 170023 views
+https://stackoverflow.com/questions/22879669 : 142581 views
+https://stackoverflow.com/questions/10604135 : 132406 views
+https://stackoverflow.com/questions/44564887 : 128781 views
+https://stackoverflow.com/questions/27060396 : 127008 views
+https://stackoverflow.com/questions/12482637 : 120766 views
+https://stackoverflow.com/questions/20673986 : 115720 views
+https://stackoverflow.com/questions/39109817 : 108368 views
+https://stackoverflow.com/questions/11057219 : 105175 views
+https://stackoverflow.com/questions/43195143 : 101878 views
+
+
+
+BigQuery Python 클라이언트 라이브러리를 사용하여 공개 데이터 세트를 쿼리했습니다.
+
+--- 탭: tabpanel-ruby ---
+Cloud Shell에서 새 Ruby 프로젝트 및 파일을 만듭니다.
+
+mkdir bigquery-ruby-quickstart \
+    && touch \
+    bigquery-ruby-quickstart/app.rb
+
+이 명령어는 bigquery-ruby-quickstart라는 Ruby 프로젝트와 app.rb라는 파일을 만듭니다.
+Cloud Shell 편집기를 엽니다.
+
+cloudshell workspace bigquery-ruby-quickstart
+Cloud Shell 편집기에서 터미널을 열려면 터미널 열기를 클릭합니다.
+프로젝트 디렉터리를 엽니다.
+
+cd bigquery-ruby-quickstart
+Ruby용 BigQuery 클라이언트 라이브러리를 설치합니다.
+
+gem install google-cloud-bigquery
+
+출력은 다음과 비슷합니다. 출력을 간소화하기 위해 여러 줄을 생략합니다.
+
+23 gems installed
+
+편집기 열기를 클릭합니다.
+탐색기 창에서 BIGQUERY-RUBY-QUICKSTART 프로젝트를 찾습니다.
+app.rb 파일을 클릭하여 엽니다.
+가장 많이 조회된 Stack Overflow 페이지 10개와 해당 조회 수를 반환하는 bigquery-public-data.stackoverflow 데이터 세트에 대한 쿼리를 만들려면 다음 코드를 app.rb 파일에 복사합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  require "google/cloud/bigquery"
+
+# This uses Application Default Credentials to authenticate.
+# @see https://cloud.google.com/bigquery/docs/authentication/getting-started
+bigquery = Google::Cloud::Bigquery [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery-analytics_hub/latest/Google-Cloud-Bigquery.html?hl=ko].new [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery/latest/Google-Cloud-Bigquery.html?hl=ko]
+
+sql     = "SELECT " \
+          "CONCAT('https://stackoverflow.com/questions/', CAST(id as STRING)) as url, view_count " \
+          "FROM `bigquery-public-data.stackoverflow.posts_questions` " \
+          "WHERE tags like '%google-bigquery%' " \
+          "ORDER BY view_count DESC LIMIT 10"
+results = bigquery.query sql
+
+results.each do |row|
+  puts "#{row [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery/latest/Google-Cloud-Bigquery-InsertResponse-InsertError.html?hl=ko][:url]}: #{row [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery/latest/Google-Cloud-Bigquery-InsertResponse-InsertError.html?hl=ko][:view_count]} views"
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+터미널 열기를 클릭합니다.
+터미널에서 app.rb 스크립트를 실행합니다. Cloud Shell을 승인하고 약관에 동의하라는 메시지가 표시되면 승인을 클릭합니다.
+
+ruby app.rb
+
+결과는 다음과 비슷합니다.
+
+https://stackoverflow.com/questions/35159967: 170023 views
+https://stackoverflow.com/questions/22879669: 142581 views
+https://stackoverflow.com/questions/10604135: 132406 views
+https://stackoverflow.com/questions/44564887: 128781 views
+https://stackoverflow.com/questions/27060396: 127008 views
+https://stackoverflow.com/questions/12482637: 120766 views
+https://stackoverflow.com/questions/20673986: 115720 views
+https://stackoverflow.com/questions/39109817: 108368 views
+https://stackoverflow.com/questions/11057219: 105175 views
+https://stackoverflow.com/questions/43195143: 101878 views
+
+
+
+BigQuery Ruby 클라이언트 라이브러리를 사용하여 공개 데이터 세트를 쿼리했습니다.
+삭제
+Google Cloud 계정에 요금이 청구되지 않도록 하려면 Google Cloud 프로젝트를 삭제하거나 이 둘러보기에서 만든 리소스를 삭제하세요.
+프로젝트 삭제
+비용이 청구되지 않도록 하는 가장 쉬운 방법은 튜토리얼에서 만든 프로젝트를 삭제하는 것입니다.
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+리소스 삭제
+기존 프로젝트를 사용한 경우 생성된 리소스를 삭제합니다.
+--- 탭: C# [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#c] ---
+Cloud Shell에서 디렉터리를 위로 이동합니다.
+
+cd ..
+만든 BigQueryCsharpDemo 폴더를 삭제합니다.
+
+rm -R BigQueryCsharpDemo
+
+-R 플래그는 폴더의 모든 에셋을 삭제합니다.
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#go] ---
+Cloud Shell에서 디렉터리를 위로 이동합니다.
+
+cd ..
+만든 bigquery-go-quickstart 폴더를 삭제합니다.
+
+rm -R bigquery-go-quickstart
+
+-R 플래그는 폴더의 모든 에셋을 삭제합니다.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#%EC%9E%90%EB%B0%94] ---
+Cloud Shell에서 디렉터리를 위로 이동합니다.
+
+cd ..
+만든 bigquery-java-quickstart 폴더를 삭제합니다.
+
+rm -R bigquery-java-quickstart
+
+-R 플래그는 폴더의 모든 에셋을 삭제합니다.
+
+--- 탭: Node.js [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko#node.js] ---
+Cloud Shell에서 디렉터리를 위로 이동합니다.
+
+cd ..
+만든 bigquery-node-quickstart 폴더를 삭제합니다.
+
+rm -R bigquery-node-quickstart
+
+-R 플래그는 폴더의 모든 에셋을 삭제합니다.
+
+--- 탭: tabpanel-php ---
+Cloud Shell에서 디렉터리를 위로 이동합니다.
+
+cd ..
+만든 bigquery-php-quickstart 폴더를 삭제합니다.
+
+rm -R bigquery-php-quickstart
+
+-R 플래그는 폴더의 모든 에셋을 삭제합니다.
+
+--- 탭: tabpanel-python ---
+Cloud Shell에서 디렉터리를 위로 이동합니다.
+
+cd ..
+만든 bigquery-python-quickstart 폴더를 삭제합니다.
+
+rm -R bigquery-python-quickstart
+
+-R 플래그는 폴더의 모든 에셋을 삭제합니다.
+
+--- 탭: tabpanel-ruby ---
+Cloud Shell에서 디렉터리를 위로 이동합니다.
+
+cd ..
+만든 bigquery-ruby-quickstart 폴더를 삭제합니다.
+
+rm -R bigquery-ruby-quickstart
+
+-R 플래그는 폴더의 모든 에셋을 삭제합니다.
+다음 단계
+BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/libraries?hl=ko] 사용에 대해 자세히 알아보기
+BigQuery 공개 데이터 세트 [https://cloud.google.com/bigquery/public-data?hl=ko]에 대해 자세히 알아보기
+BigQuery에 데이터를 로드 [https://cloud.google.com/bigquery/docs/loading-data?hl=ko]하는 방법 알아보기
+BigQuery에서 데이터 쿼리 [https://cloud.google.com/bigquery/docs/query-overview?hl=ko] 자세히 알아보기
+BigQuery 업데이트 [https://cloud.google.com/bigquery/docs/release-notes?hl=ko] 받기
+BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 알아보기
+BigQuery 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko] 알아보기
+도움이 되었나요?
+의견 보내기

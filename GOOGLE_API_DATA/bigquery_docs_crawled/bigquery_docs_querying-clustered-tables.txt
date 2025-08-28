@@ -1,0 +1,501 @@
+Source URL: https://cloud.google.com/bigquery/docs/querying-clustered-tables
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+필수 권한
+권장사항
+정렬 순서에 따라 클러스터링된 열 필터링
+복잡한 필터 표현식에 클러스터링된 열 사용 안 함
+클러스터링된 열과 다른 열 비교 안 함
+테이블 보안
+다음 단계
+클러스터링된 테이블 쿼리
+bookmark_border
+BigQuery에서 클러스터링된 테이블을 만들 때, 테이블 데이터는 테이블 스키마에 있는 1개 이상의 열에 있는 콘텐츠를 기준으로 자동 정렬됩니다. 지정하는 열은 관련 데이터를 배치하는 데 사용됩니다. 여러 열을 사용해 테이블을 클러스터링할 때는 열 순서 지정이 중요합니다. 지정된 열의 순서에 따라 데이터의 정렬 순서가 결정됩니다.
+클러스터링된 테이블에 쿼리를 실행할 때 성능을 최적화하려면 클러스터링된 열이 지정된 순서대로 1개 또는 여러 개의 클러스터링된 열을 필터링하는 표현식을 사용합니다. 일반적으로 클러스터링된 열을 필터링하는 쿼리가 클러스터링되지 않은 열만 필터링하는 쿼리보다 성능이 우수합니다.
+BigQuery는 클러스터링 열의 값에 따라 클러스터링된 테이블의 데이터를 정렬하고 블록으로 정리합니다.
+클러스터링된 열의 필터를 포함한 쿼리를 제출하는 경우 BigQuery는 클러스터링 정보를 사용해 블록에 쿼리와 관련된 데이터가 포함되어 있는지 효율적으로 판단합니다. BigQuery는 이러한 방식으로 관련 블록만 스캔하며, 이 프로세스를 블록 프루닝 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko#block-pruning]이라고 합니다.
+다음 방법으로 클러스터링된 테이블을 쿼리할 수 있습니다.
+Google Cloud 콘솔 사용
+bq 명령줄 도구의 bq query 명령어 사용
+jobs.insert 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] 호출 및 쿼리 작업 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationQuery] 구성
+클라이언트 라이브러리 사용
+현재 클러스터링된 테이블에는 GoogleSQL [https://cloud.google.com/bigquery/docs/reference/standard-sql?hl=ko]만 사용할 수 있습니다.
+--- 탭: Go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryClusteredTable demonstrates querying a table that has a clustering specification.
+func queryClusteredTable(w io.Writer, projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query(fmt.Sprintf(`
+	SELECT
+	  COUNT(1) as transactions,
+	  SUM(amount) as total_paid,
+	  COUNT(DISTINCT destination) as distinct_recipients
+    FROM
+	  `+"`%s.%s`"+`
+	 WHERE
+	    timestamp > TIMESTAMP('2015-01-01')
+		AND origin = @wallet`, datasetID, tableID))
+	q.Parameters = []bigquery.QueryParameter{
+		{
+			Name:  "wallet",
+			Value: "wallet00001866cb7e0f09a890",
+		},
+	}
+	// Run the query and print results when the query job is completed.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err(); err != nil {
+		return err
+	}
+	it, err := job.Read(ctx)
+	for {
+		var row []bigquery.Value
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+--- 탭: Java ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.TableResult;
+
+public class QueryClusteredTable {
+
+  public static void runQueryClusteredTable() throws Exception {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    queryClusteredTable(projectId, datasetName, tableName);
+  }
+
+  public static void queryClusteredTable(String projectId, String datasetName, String tableName) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      String sourceTable = "`" + projectId + "." + datasetName + "." + tableName + "`";
+      String query =
+          "SELECT word, word_count\n"
+              + "FROM "
+              + sourceTable
+              + "\n"
+              // Optimize query performance by filtering the clustered columns in sort order
+              + "WHERE corpus = 'romeoandjuliet'\n"
+              + "AND word_count >= 1";
+
+      QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).build();
+
+      TableResult results = bigquery.query(queryConfig);
+
+      results
+          .iterateAll()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s,", val.toString())));
+
+      System.out.println("Query clustered table performed successfully.");
+    } catch (BigQueryException | InterruptedException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: Python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery
+
+# Construct a BigQuery client object.
+client = bigquery.Client()
+
+# TODO(developer): Set table_id to the ID of the destination table.
+# table_id = "your-project.your_dataset.your_table_name"
+
+sql = "SELECT * FROM `bigquery-public-data.samples.shakespeare`"
+cluster_fields = ["corpus"]
+
+job_config = bigquery.QueryJobConfig(
+    clustering_fields=cluster_fields, destination=table_id
+)
+
+# Start the query, passing in the extra configuration.
+query_job = client.query(sql, job_config=job_config)  # Make an API request.
+query_job.result()  # Wait for the job to complete.
+
+table = client.get_table(table_id)  # Make an API request.
+if table.clustering_fields == cluster_fields:
+    print(
+        "The destination table is written using the cluster_fields configuration."
+    )
+필수 권한
+쿼리 작업 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko]을 실행하려면 쿼리 작업을 실행하는 프로젝트에 대한 bigquery.jobs.create Identity and Access Management(IAM) 권한이 필요합니다.
+다음과 같은 사전 정의된 각 IAM 역할에는 쿼리 작업을 실행하는 데 필요한 권한이 포함되어 있습니다.
+roles/bigquery.admin
+roles/bigquery.jobUser
+roles/bigquery.user
+또한 쿼리에서 참조하는 모든 테이블 및 보기에 대해 bigquery.tables.getData 권한이 필요합니다. 또한 보기를 쿼리할 때 모든 기본 테이블 및 보기에 대해 이 권한이 필요합니다. 하지만 승인된 보기 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko] 또는 승인된 데이터 세트 [https://cloud.google.com/bigquery/docs/authorized-datasets?hl=ko]를 사용하는 경우에는 기본 소스 데이터에 대한 액세스 권한이 필요하지 않습니다.
+다음과 같이 사전 정의된 각 IAM 역할에는 쿼리로 참조되는 모든 테이블 및 보기에 대해 필요한 권한이 포함되어 있습니다.
+roles/bigquery.admin
+roles/bigquery.dataOwner
+roles/bigquery.dataEditor
+roles/bigquery.dataViewer
+BigQuery에서 IAM 역할에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]을 참조하세요.
+권장사항
+클러스터링된 테이블에 대한 쿼리 성능을 최대한 높이려면 다음과 같은 권장사항을 사용하세요.
+참고로 권장사항 예시에 사용된 샘플 테이블은 DDL 문을 사용하여 생성된 클러스터링된 테이블입니다. 이 DDL 문은 ClusteredSalesData라는 이름의 테이블을 만듭니다. 이 테이블은 정렬 순서에 따라 customer_id, product_id, order_id 열로 클러스터링됩니다.
+CREATE TABLE
+  `mydataset.ClusteredSalesData`
+PARTITION BY
+  DATE(timestamp)
+CLUSTER BY
+  customer_id,
+  product_id,
+  order_id AS
+SELECT
+  *
+FROM
+  `mydataset.SalesData`
+정렬 순서에 따라 클러스터링된 열 필터링
+필터를 지정할 때는 클러스터링된 열을 정렬 순서대로 필터링하는 표현식을 사용합니다. 정렬 순서는 CLUSTER BY 절에 지정된 열 순서입니다. 클러스터링의 이점을 얻기 위해 첫 번째 열부터 시작하여 클러스터링된 모든 열 또는 왼쪽부터 오른쪽으로 정렬된 열의 하위 집합을 포함합니다. 예를 들어 열 정렬 순서가 다음과 같다면 A ,B ,C이면 A 및 B를 필터링하는 쿼리는 클러스터링의 이점을 얻을 수 있지만 B 및 C를 필터링하는 쿼리는 클러스터링의 이점을 얻을 수 없습니다. 필터 표현식의 열 이름 순서는 성능에 영향을 주지 않습니다.
+다음 예시에서는 이전 예시에서 만든 ClusteredSalesData 클러스터링된 테이블을 쿼리합니다. 이 쿼리에는 customer_id를 필터링한 다음 product_id를 필터링하는 필터 표현식이 포함되어 있습니다. 이 쿼리는 클러스터링된 열을 정렬 순서(CLUSTER BY 절에 지정된 열 순서)로 필터링하여 성능을 최적화합니다.
+SELECT
+  SUM(totalSale)
+FROM
+  `mydataset.ClusteredSalesData`
+WHERE
+  customer_id = 10000
+  AND product_id LIKE 'gcp_analytics%'
+다음 쿼리는 클러스터링된 열을 정렬 순서대로 필터링하지 않습니다. 그 결과 쿼리의 성능이 최적화되지 않습니다. 이 쿼리는 product_id를 필터링한 다음 order_id를 필터링합니다(customer_id는 건너뜀).
+SELECT
+  SUM(totalSale)
+FROM
+  `mydataset.ClusteredSalesData`
+WHERE
+  product_id LIKE 'gcp_analytics%'
+  AND order_id = 20000
+복잡한 필터 표현식에 클러스터링된 열 사용 안 함
+복잡한 필터 표현식에 클러스터링된 열을 사용하면 블록 프루닝을 적용할 수 없어 쿼리의 성능이 최적화되지 않습니다.
+예를 들어 다음 쿼리의 경우 필터 표현식의 함수에 클러스터링된 열(customer_id)이 사용되었으므로 블록이 프루닝되지 않습니다.
+SELECT
+  SUM(totalSale)
+FROM
+  `mydataset.ClusteredSalesData`
+WHERE
+  CAST(customer_id AS STRING) = "10000"
+블록 프루닝을 통해 쿼리 성능을 최적화하려면 다음과 같이 단순한 필터 표현식을 사용해야 합니다. 이 예시에서는 단순한 필터가 클러스터링된 열(customer_id)에 적용되었습니다.
+SELECT
+  SUM(totalSale)
+FROM
+  `mydataset.ClusteredSalesData`
+WHERE
+  customer_id = 10000
+클러스터링된 열과 다른 열 비교 안 함
+필터 표현식이 클러스터링된 열을 다른 열(클러스터링된 열 또는 클러스터링되지 않은 열)과 비교할 경우 블록 프루닝을 적용할 수 없기 때문에 쿼리의 성능이 최적화되지 않습니다.
+다음 쿼리의 경우 필터 표현식이 클러스터링된 열(customer_id)을 다른 열(order_id)과 비교하므로 블록이 프루닝되지 않습니다.
+SELECT
+  SUM(totalSale)
+FROM
+  `mydataset.ClusteredSalesData`
+WHERE
+  customer_id = order_id
+테이블 보안
+BigQuery에서 테이블에 대한 액세스를 제어하려면 테이블 액세스 제어 소개 [https://cloud.google.com/bigquery/docs/table-access-controls-intro?hl=ko]를 참조하세요.
+다음 단계
+쿼리 실행에 대한 자세한 내용은 대화형 및 일괄 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko]을 참조하세요.
+클러스터링된 테이블을 만들고 사용하는 방법은 클러스터링된 테이블 생성 및 사용 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]을 참조하세요.
+BigQuery의 파티션을 나눈 테이블 지원 개요는 파티션을 나눈 테이블 소개 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]를 참조하세요.
+파티션을 나눈 테이블을 만드는 방법은 파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko]를 참조하세요.
+의견 보내기

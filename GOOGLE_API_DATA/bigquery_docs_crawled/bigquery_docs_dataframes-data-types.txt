@@ -1,0 +1,196 @@
+Source URL: https://cloud.google.com/bigquery/docs/dataframes-data-types
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+유형 매핑 [https://cloud.google.com/bigquery/docs/dataframes-data-types?hl=ko#type-mappings]
+유형 변환 [https://cloud.google.com/bigquery/docs/dataframes-data-types?hl=ko#type-conversion]
+특수 유형 [https://cloud.google.com/bigquery/docs/dataframes-data-types?hl=ko#special-types]
+JSON [https://cloud.google.com/bigquery/docs/dataframes-data-types?hl=ko#json]
+timedelta [https://cloud.google.com/bigquery/docs/dataframes-data-types?hl=ko#timedelta]
+복합 유형 도구 [https://cloud.google.com/bigquery/docs/dataframes-data-types?hl=ko#tools-composite-types]
+목록 접근자 [https://cloud.google.com/bigquery/docs/dataframes-data-types?hl=ko#list-accessor]
+구조체 접근자 [https://cloud.google.com/bigquery/docs/dataframes-data-types?hl=ko#struct-accessor]
+BigQuery DataFrames 데이터 유형 시스템 사용
+bookmark_border
+BigQuery DataFrames 데이터 유형 시스템은 BigQuery 데이터 유형을 기반으로 빌드됩니다. 이 설계는Google Cloud 데이터 웨어하우스와의 원활한 통합 및 정렬을 보장하며 BigQuery의 데이터 저장에 사용되는 내장 유형을 반영합니다.
+유형 매핑
+다음 표에는 BigQuery, BigQuery DataFrames, 기타 Python 라이브러리의 데이터 유형과 지원 수준이 나와 있습니다.
+데이터 유형 BigQuery BigQuery DataFrames Python 내장 PyArrow
+불리언 BOOL pandas.BooleanDtype() bool bool_()
+정수 INT64 pandas.Int64Dtype() int int64()
+부동 소수점 수 FLOAT64 pandas.Float64Dtype() float float64()
+문자열 STRING pandas.StringDtype(storage="pyarrow") str string()
+바이트 BYTES pandas.ArrowDtype(pyarrow.binary()) bytes binary()
+날짜 DATE pandas.ArrowDtype(pyarrow.date32()) datetime.date date32()
+시간 TIME pandas.ArrowDtype(pyarrow.time64("us")) datetime.time time64("us")
+날짜/시간 DATETIME pandas.ArrowDtype(pyarrow.timestamp("us")) datetime.datetime timestamp("us")
+타임스탬프 TIMESTAMP pandas.ArrowDtype(pyarrow.timestamp("us", tz="UTC")) Datetime.datetime(시간대 포함) timestamp("us", tz="UTC")
+숫자 NUMERIC pandas.ArrowDtype(pyarrow.decimal128(38, 9)) decimal.Decimal decimal128(38, 9)
+큰 숫자 BIGNUMERIC pandas.ArrowDtype(pyarrow.decimal256(76, 38)) decimal.Decimal decimal256(76, 38)
+목록 ARRAY<T> pandas.ArrowDtype(pyarrow.list_(T)) list[T] list_(T)
+구조체 STRUCT pandas.ArrowDtype(pyarrow.struct()) dict struct()
+JSON JSON pandas 버전 3.0 이상 및 PyArrow 버전 19.0 이상에서는 pandas.ArrowDtype(pyarrow.json_(pa.string())입니다. 그렇지 않으면 JSON 열이 pandas.ArrowDtype(db_dtypes.JSONArrowType())으로 노출됩니다. 이 기능은 미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages] 상태입니다. 지원되지 않음 json_()(미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages])
+지역 GEOGRAPHY Geopandas.array.GeometryDtype()
+to_pandas()에서만 지원됩니다. 지원되지 않음 지원되지 않음
+Timedelta 지원되지 않음 pandas.ArrowDtype(pyarrow.duration("us")) datetime.timedelta duration("us")
+참고: BigQuery DataFrame은 다음 BigQuery 데이터 유형을 지원하지 않습니다. INTERVAL 및 RANGE 다른 모든 BigQuery 데이터 유형은 객체 유형으로 표시됩니다.
+유형 변환
+로컬 데이터와 함께 사용되는 경우 BigQuery DataFrames는 유형 매핑이 정의 [https://cloud.google.com/bigquery/docs/dataframes-data-types?hl=ko#type-mappings]된 모든 위치에서 데이터 유형을 해당 BigQuery DataFrames 유형으로 변환합니다. 다음 예를 참고하세요.
+import pandas as pd
+
+import bigframes.pandas as bpd
+
+s = pd.Series([pd.Timestamp("20250101")])
+assert s.dtype == "datetime64[ns]"
+assert bpd.read_pandas(s).dtype == "timestamp[us][pyarrow]"
+데이터 유형이 서로 다른 경우 PyArrow가 동작을 결정합니다. Python 내장 유형이 PyArrow 대응 항목과 다르게 작동하는 드문 경우에 BigQuery DataFrames는 일반적으로 일관성을 유지하기 위해 PyArrow 동작을 선호합니다.
+다음 코드 샘플에서는 datetime.date + timedelta 작업을 사용하여 Python datetime 라이브러리와 달리 BigQuery DataFrames는 타임스탬프 인스턴스를 반환하여 PyArrow 동작을 따르는 것을 보여줍니다.
+import datetime
+
+import pandas as pd
+
+import bigframes.pandas as bpd
+
+s = pd.Series([datetime.date(2025, 1, 1)])
+s + pd.Timedelta(hours=12)
+# 0 2025-01-01
+# dtype: object
+
+bpd.read_pandas(s) + pd.Timedelta(hours=12)
+# 0    2025-01-01 12:00:00
+# dtype: timestamp[us][pyarrow]
+특수 유형
+다음 섹션에서는 BigQuery DataFrames에서 사용하는 특수 데이터 유형을 설명합니다.
+JSON
+BigQuery DataFrames 내에서 BigQuery JSON 형식 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#json_type](경량 표준)을 사용하는 열은 pandas.ArrowDtype로 표시됩니다. 정확한 기본 Arrow 유형은 라이브러리 버전에 따라 다릅니다. 이전 환경에서는 일반적으로 호환성을 위해 db_dtypes.JSONArrowType()를 사용합니다. 이는 pa.string() 주변의 경량 래퍼 역할을 하는 Arrow 확장 프로그램 유형입니다. 반면 최신 설정 (pandas 3.0 이상 및 PyArrow 19.0 이상)에서는 최신 pa.json_(pa.string()) 표현을 활용합니다.
+timedelta
+timedelta 유형은 BigQuery 기본 유형 시스템에 직접 상응하는 유형이 없습니다. 기간 데이터를 관리하기 위해 BigQuery DataFrames는 BigQuery 테이블에서 INT64 유형을 기본 저장소 형식으로 사용합니다. 계산 결과는 pandas 라이브러리로 실행되는 동등한 작업에서 예상되는 동작과 일치합니다.
+다음 예와 같이 timedelta 값을 BigQuery DataFrame 및 Series 객체에 직접 로드할 수 있습니다.
+import pandas as pd
+
+import bigframes.pandas as bpd
+
+s = pd.Series([pd.Timedelta("1s"), pd.Timedelta("2m")])
+bpd.read_pandas(s)
+# 0    0 days 00:00:01
+# 1    0 days 00:02:00
+# dtype: duration[us][pyarrow]
+pandas와 달리 BigQuery DataFrames는 마이크로초 정밀도의 timedelta 값만 지원합니다. 데이터에 나노초가 포함된 경우 다음 예와 같이 잠재적인 예외를 방지하기 위해 반올림해야 합니다.
+import pandas as pd
+
+s = pd.Series([pd.Timedelta("999ns")])
+bpd.read_pandas(s.dt.round("us"))
+# 0    0 days 00:00:00.000001
+# dtype: duration[us][pyarrow]
+다음 예와 같이 bigframes.pandas.to_timedelta 함수를 사용하여 BigQuery DataFrames Series 객체를 timedelta 유형으로 변환할 수 있습니다.
+import bigframes.pandas as bpd
+
+bpd.to_timedelta([1, 2, 3], unit="s")
+# 0    0 days 00:00:01
+# 1    0 days 00:00:02
+# 2    0 days 00:00:03
+# dtype: duration[us][pyarrow]
+timedelta 값이 포함된 데이터를 BigQuery 테이블에 로드하면 값이 마이크로초로 변환되어 INT64 열에 저장됩니다. 유형 정보를 유지하기 위해 BigQuery DataFrames는 이러한 열의 설명에 #microseconds 문자열을 추가합니다. SQL 쿼리 실행 및 UDF 호출과 같은 일부 작업은 열 설명을 유지하지 않으며 이러한 작업이 완료된 후 timedelta 유형 정보가 손실됩니다.
+복합 유형 도구
+특정 복합 유형의 경우 BigQuery DataFrames는 이러한 유형 내의 기본 값에 액세스하고 이를 처리할 수 있는 도구를 제공합니다.
+목록 접근자
+ListAccessor 객체를 사용하면 다음 예와 같이 Series 객체의 목록 속성을 사용하여 각 목록 요소에 작업을 실행할 수 있습니다.
+import bigframes.pandas as bpd
+
+s = bpd.Series([[1, 2, 3], [4, 5], [6]])  # dtype: list<item: int64>[pyarrow]
+
+# Access the first elements of each list
+s.list[0]
+# 0    1
+# 1    4
+# 2    6
+# dtype: Int64
+
+# Get the lengths of each list
+s.list.len()
+# 0    3
+# 1    2
+# 2    1
+# dtype: Int64
+구조체 접근자
+StructAccessor 객체는 일련의 구조체에서 필드에 액세스하고 필드를 처리할 수 있습니다. API 액세스 도구 객체는 다음 예와 같이 series.struct입니다.
+import bigframes.pandas as bpd
+
+structs = [
+    {"id": 101, "category": "A"},
+    {"id": 102, "category": "B"},
+    {"id": 103, "category": "C"},
+]
+s = bpd.Series(structs)
+# Get the 'id' field of each struct
+s.struct.field("id")
+# 0    101
+# 1    102
+# 2    103
+# Name: id, dtype: Int64
+액세스하려는 struct 필드가 다른 Series 속성과 명확하게 구분되는 경우 다음 예와 같이 struct 호출을 건너뛸 수 있습니다.
+import bigframes.pandas as bpd
+
+structs = [
+    {"id": 101, "category": "A"},
+    {"id": 102, "category": "B"},
+    {"id": 103, "category": "C"},
+]
+s = bpd.Series(structs)
+
+# not explicitly using the "struct" property
+s.id
+# 0    101
+# 1    102
+# 2    103
+# Name: id, dtype: Int64
+하지만 필드에 액세스할 때는 struct를 사용하는 것이 좋습니다. 코드를 더 쉽게 이해할 수 있고 오류가 발생할 가능성이 줄어들기 때문입니다.
+문자열 접근자
+다음 예와 같이 Series 객체의 str 속성을 사용하여 StringAccessor 객체에 액세스할 수 있습니다.
+import bigframes.pandas as bpd
+
+s = bpd.Series(["abc", "de", "1"])  # dtype: string[pyarrow]
+
+# Get the first character of each string
+s.str[0]
+# 0    a
+# 1    d
+# 2    1
+# dtype: string
+
+# Check whether there are only alphabetic characters in each string
+s.str.isalpha()
+# 0     True
+# 1     True
+# 2     False
+# dtype: boolean
+
+# Cast the alphabetic characters to their upper cases for each string
+s.str.upper()
+# 0    ABC
+# 1     DE
+# 2      1
+# dtype: string
+지리 접근자
+BigQuery DataFrames는 GeoPandas 라이브러리에서 제공하는 GeoSeries 구조와 유사한 API를 공유하는 GeographyAccessor 객체를 제공합니다. 다음 예와 같이 Series 객체에서 geo 속성을 사용하여 GeographyAccessor 객체를 호출할 수 있습니다.
+from shapely.geometry import Point
+
+import bigframes.pandas as bpd
+
+s = bpd.Series([Point(1, 0), Point(2, 1)])  # dtype: geometry
+
+s.geo.y
+# 0    0.0
+# 1    1.0
+# dtype: Float64
+다음 단계
+BigQuery DataFrames를 사용하는 방법 [https://cloud.google.com/bigquery/docs/use-bigquery-dataframes?hl=ko]을 알아보세요.
+BigQuery DataFrames 세션 및 I/O [https://cloud.google.com/bigquery/docs/dataframes-sessions-io?hl=ko]에 대해 알아봅니다.
+BigQuery DataFrames를 사용하여 그래프를 시각화 [https://cloud.google.com/bigquery/docs/dataframes-visualizations?hl=ko]하는 방법 알아보기
+BigQuery DataFrames API 참조 [https://cloud.google.com/python/docs/reference/bigframes/latest/summary_overview?hl=ko] 살펴보기
+의견 보내기

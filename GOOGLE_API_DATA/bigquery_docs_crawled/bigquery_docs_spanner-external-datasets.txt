@@ -1,0 +1,339 @@
+Source URL: https://cloud.google.com/bigquery/docs/spanner-external-datasets
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필수 권한
+CLOUD_RESOURCE 연결 사용
+연결 만들기
+액세스 설정
+외부 데이터 세트 만들기
+Spanner 외부 데이터 세트 만들기
+bookmark_border
+이 문서에서는 Spanner [https://cloud.google.com/spanner/docs?hl=ko]의 기존 데이터베이스에 연결된 외부 데이터 세트(제휴 데이터 세트라고도 함)를 BigQuery에서 만드는 방법을 설명합니다.
+외부 데이터 세트는 데이터 세트 수준에서 BigQuery와 외부 데이터 소스 간의 연결입니다. Spanner에서 BigQuery 스토리지로 모든 데이터를 복사하거나 가져올 필요 없이 GoogleSQL을 사용하여 Spanner 데이터베이스의 트랜잭션 데이터를 쿼리할 수 있습니다. 이러한 쿼리 결과는 BigQuery에 저장 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#temporary_and_permanent_tables]됩니다.
+외부 데이터 세트의 테이블은 해당 외부 데이터 소스의 테이블에서 자동으로 채워집니다. BigQuery에서 이러한 테이블을 직접 쿼리할 수는 있지만 수정, 추가 또는 삭제할 수는 없습니다. 하지만 외부 데이터 소스에서 변경한 내용은 BigQuery에 자동으로 반영됩니다.
+Spanner를 쿼리하면 쿼리 결과가 기본적으로 임시 테이블에 저장됩니다. 선택적으로 새 BigQuery 테이블로 저장하거나, 다른 테이블과 조인하거나, DML [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko]을 사용하여 기존 테이블과 병합할 수도 있습니다.
+필수 권한
+외부 데이터 세트를 만드는 데 필요한 권한을 얻으려면 관리자에게 BigQuery 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.user] (roles/bigquery.user) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이 사전 정의된 역할에는 외부 데이터 세트를 만드는 데 필요한 bigquery.datasets.create 권한이 포함되어 있습니다.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+CLOUD_RESOURCE 연결 사용
+선택적으로 Spanner 외부 데이터 세트는 CLOUD_RESOURCE 연결을 사용하여 Spanner 데이터베이스와 상호작용할 수 있으므로 Spanner 데이터베이스에 대한 직접 액세스 권한을 부여하지 않고 BigQuery를 통해 Spanner 데이터에 대한 사용자 액세스 권한을 제공할 수 있습니다. CLOUD_RESOURCE 연결의 서비스 계정이 Spanner에서 데이터 가져오기를 처리하므로 사용자에게 Spanner 외부 데이터 세트에 대한 액세스 권한만 부여하면 됩니다.
+CLOUD_RESOURCE 연결을 사용하여 Spanner 외부 데이터 세트를 만들기 전에 다음을 수행합니다.
+연결 만들기
+CLOUD_RESOURCE 연결을 만들거나 기존 연결을 사용하여 Spanner에 연결할 수 있습니다. Cloud 리소스 연결을 만들려면 Cloud 리소스 연결 만들기 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection] 페이지의 단계를 따르세요.
+연결을 만든 후 연결을 열고 연결 정보 창에서 서비스 계정 ID를 복사합니다. 연결의 권한을 구성할 때 이 ID가 필요합니다. 연결 리소스를 만들면 BigQuery가 고유한 시스템 서비스 계정을 만들고 이를 연결에 연계합니다.
+액세스 설정
+새 연결에 Spanner 인스턴스 또는 데이터베이스에 대한 읽기 액세스 권한을 부여해야 합니다. DataBoost가 포함된 Cloud Spanner 데이터베이스 리더 (roles/spanner.databaseReaderWithDataBoost) 사전 정의된 IAM 역할을 사용하는 것이 좋습니다.
+앞서 연결에서 복사한 서비스 계정에 데이터베이스 수준 역할의 액세스를 부여하려면 다음 단계를 따르세요.
+Spanner 인스턴스 페이지로 이동합니다.
+인스턴스 페이지로 이동 [https://console.cloud.google.com/spanner/instances?hl=ko]
+데이터베이스가 포함된 인스턴스의 이름을 클릭하여 인스턴스 세부정보 페이지로 이동합니다.
+개요 탭에서 데이터베이스의 체크박스를 선택합니다.
+정보 패널이 표시됩니다.
+주 구성원 추가를 클릭합니다.
+주 구성원 추가 패널의 새 주 구성원에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 DataBoost 역할이 있는 Cloud Spanner 데이터베이스 리더를 선택합니다.
+저장을 클릭합니다.
+외부 데이터 세트 만들기
+외부 데이터 세트를 만들려면 다음을 수행합니다.
+--- 탭: 콘솔 ---
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 패널에서 데이터 세트를 만들 프로젝트를 선택합니다.
+more_vert작업 옵션을 펼치고 데이터 세트 만들기를 클릭합니다.
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 고유한 데이터 세트 이름을 입력합니다.
+위치 유형에서 데이터 세트의 위치(예: us-central1 또는 멀티 리전 us)를 선택합니다. 데이터 세트를 만든 후에는 위치를 변경할 수 없습니다.
+외부 데이터 세트의 경우 다음을 수행합니다.
+
+
+외부 데이터 세트 링크 옆의 상자를 선택합니다.
+외부 데이터 세트 유형으로 Spanner를 선택합니다.
+외부 소스에 Spanner 데이터베이스의 전체 식별자를 projects/PROJECT_ID/instances/INSTANCE/databases/DATABASE 형식으로 입력합니다. 예를 들면 projects/my_project/instances/my_instance/databases/my_database입니다.
+(선택사항) 데이터베이스 역할에 Spanner 데이터베이스 역할의 이름을 입력합니다. 자세한 내용은 Spanner 연결 만들기 [https://cloud.google.com/bigquery/docs/connect-to-spanner?hl=ko#create-spanner-connection]에 사용되는 데이터베이스 역할을 참고하세요.
+원하는 경우 Cloud 리소스 연결 사용 옆의 체크박스를 선택하여 연결을 통해 외부 데이터 세트를 만듭니다.
+
+다른 기본 설정은 그대로 둡니다.
+
+데이터 세트 만들기를 클릭합니다.
+
+--- 탭: SQL ---
+CREATE EXTERNAL SCHEMA 데이터 정의 언어(DDL) 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_schema_statement]을 사용합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE EXTERNAL SCHEMA DATASET_NAME
+  OPTIONS (
+    external_source = 'SPANNER_EXTERNAL_SOURCE',
+    location = 'LOCATION');
+/*
+  Alternatively, create with a connection:
+*/
+CREATE EXTERNAL SCHEMA DATASET_NAME
+  WITH CONNECTION PROJECT_ID.LOCATION.CONNECTION_NAME
+  OPTIONS (
+    external_source = 'SPANNER_EXTERNAL_SOURCE',
+    location = 'LOCATION');
+
+
+다음을 바꿉니다.
+
+  DATASET_NAME: BigQuery의 새 데이터 세트 이름
+  SPANNER_EXTERNAL_SOURCE: 소스를 식별하는 접두사가 있는 정규화된 전체 Spanner 데이터베이스 이름(google-cloudspanner://[DATABASE_ROLE@]/projects/PROJECT_ID/instances/INSTANCE/databases/DATABASE 형식). 예를 들면 google-cloudspanner://admin@/projects/my_project/instances/my_instance/databases/my_database 또는 google-cloudspanner:/projects/my_project/instances/my_instance/databases/my_database입니다.
+  LOCATION: BigQuery의 새 데이터 세트 위치(예: us-central1). 데이터 세트를 만든 후에는 위치를 변경할 수 없습니다.
+  (선택사항)CONNECTION_NAME: Cloud 리소스 연결의 이름입니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq ---
+명령줄 환경에서 bq mk 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset]를 사용하여 외부 데이터 세트를 만듭니다.
+
+bq --location=LOCATION mk --dataset \
+    --external_source SPANNER_EXTERNAL_SOURCE \
+    DATASET_NAME
+
+또는 연결을 사용하여 만듭니다.
+
+bq --location=LOCATION mk --dataset \
+    --external_source SPANNER_EXTERNAL_SOURCE \
+    --connection_id PROJECT_ID.LOCATION.CONNECTION_NAME \
+    DATASET_NAME
+
+다음을 바꿉니다.
+
+
+LOCATION: BigQuery의 새 데이터 세트 위치(예: us-central1). 데이터 세트를 만든 후에는 위치를 변경할 수 없습니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 기본 위치 값을 설정할 수 있습니다.
+SPANNER_EXTERNAL_SOURCE: 소스를 식별하는 접두사가 있는 정규화된 전체 Spanner 데이터베이스 이름(google-cloudspanner://[DATABASE_ROLE@]/projects/PROJECT_ID/instances/INSTANCE/databases/DATABASE 형식). 예를 들면 google-cloudspanner://admin@/projects/my_project/instances/my_instance/databases/my_database 또는 google-cloudspanner:/projects/my_project/instances/my_instance/databases/my_database입니다.
+DATASET_NAME: BigQuery의 새 데이터 세트 이름. 기본 프로젝트가 아닌 다른 프로젝트에서 데이터 세트를 만들려면 해당 프로젝트 ID를 다음 형식으로 데이터 세트 이름에 추가하세요.
+PROJECT_ID:DATASET_NAME.
+(선택사항)CONNECTION_NAME: Cloud 리소스 연결의 이름입니다.
+
+--- 탭: Terraform ---
+google_bigquery_dataset 리소스 [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_dataset#example-usage---bigquery-dataset-external-reference-aws-docs]를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 Spanner 외부 데이터 세트를 만듭니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  resource "google_bigquery_dataset" "default" {
+  dataset_id    = "my_external_dataset"
+  friendly_name = "My external dataset"
+  description   = "This is a test description."
+  location      = "US"
+  external_dataset_reference {
+    # The full identifier of your Spanner database.
+    external_source = "google-cloudspanner:/projects/my_project/instances/my_instance/databases/my_database"
+    # Must be empty for a Spanner external dataset.
+    connection = ""
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+
+--- 탭: API ---
+Spanner 데이터베이스용으로 데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko] 및 externalDatasetReference 필드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko#ExternalDatasetReference]가 정의된 datasets.insert 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko]를 호출합니다.
+외부 데이터 세트의 테이블 이름은 대소문자를 구분하지 않습니다.
+CLOUD_RESOURCE 연결을 사용하여 외부 데이터 세트를 만드는 경우 외부 데이터 세트에서 사용하는 연결에 대한 bigquery.connections.delegate 권한 (BigQuery 연결 관리자 역할을 통해)이 있어야 합니다.
+테이블에 대한 액세스 제어
+Spanner 외부 데이터 세트는 최종 사용자의 사용자 인증 정보(EUC)를 지원합니다. 즉, 외부 데이터 세트에서 Spanner 테이블에 대한 액세스는 Spanner에 의해 제어됩니다. 사용자는 Spanner에서 액세스 권한이 부여된 경우에만 이러한 테이블을 쿼리할 수 있습니다.
+Spanner 외부 데이터 세트는 액세스 권한 위임도 지원합니다. 액세스 위임은 Spanner 테이블에 대한 액세스 권한을 외부 데이터 세트 및 기본 Spanner 테이블에 대한 직접 액세스 권한과 분리합니다. 서비스 계정과 연결된 Cloud 리소스 연결은 Spanner에 연결하는 데 사용됩니다. 사용자는 Spanner에서 액세스 권한이 부여되지 않은 경우에도 외부 데이터 세트에서 이러한 Spanner 테이블을 쿼리할 수 있습니다.
+외부 데이터 세트의 테이블 나열
+외부 데이터 세트에서 쿼리할 수 있는 테이블을 나열하려면 데이터 세트 나열 [https://cloud.google.com/bigquery/docs/listing-datasets?hl=ko]을 참고하세요.
+테이블 정보 가져오기
+스키마 세부정보와 같은 외부 데이터 세트의 테이블에 대한 정보를 가져오려면 테이블 정보 가져오기 [https://cloud.google.com/bigquery/docs/tables?hl=ko#get_table_information]를 참조하세요.
+Spanner 데이터 쿼리
+외부 데이터 세트의 테이블 쿼리 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko]는 다른 BigQuery 데이터 세트의 테이블을 쿼리하는 것과 동일합니다. 그러나 데이터 수정 작업(DML)은 지원되지 않습니다.
+Spanner 외부 데이터 세트의 테이블에 대한 쿼리는 기본적으로 Data Boost [https://cloud.google.com/bigquery/docs/spanner-federated-queries?hl=ko#data_boost]를 사용하며 변경할 수 없습니다. 따라서 이러한 쿼리를 실행하려면 추가 권한 [https://cloud.google.com/bigquery/docs/spanner-federated-queries?hl=ko#before_you_begin_2]이 필요합니다.
+외부 데이터 세트에 뷰 만들기
+외부 데이터 세트에서는 뷰를 만들 수 없습니다. 하지만 외부 데이터 세트의 테이블을 기반으로 표준 데이터 세트에서 뷰를 만들 수 있습니다. 자세한 내용은 뷰 만들기 [https://cloud.google.com/bigquery/docs/views?hl=ko]를 참고하세요.
+외부 데이터 세트 삭제
+외부 데이터 세트를 삭제하는 것은 다른 BigQuery 데이터 세트를 삭제하는 것과 동일합니다. 외부 데이터 세트를 삭제해도 Spanner 데이터베이스의 테이블에는 영향을 미치지 않습니다. 자세한 내용은 데이터 세트 삭제 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#delete-datasets]를 참고하세요.
+제한사항
+BigQuery 통합 쿼리 제한사항 [https://cloud.google.com/bigquery/docs/federated-queries-intro?hl=ko#limitations]이 적용됩니다.
+기본 Spanner 스키마의 테이블만 BigQuery에서 액세스할 수 있습니다. 이름이 지정된 스키마 [https://cloud.google.com/spanner/docs/schema-and-data-model?hl=ko#named-schemas]의 테이블은 지원되지 않습니다.
+Spanner 데이터베이스에 정의된 기본 키와 외래 키는 BigQuery에 표시되지 않습니다.
+Spanner 데이터베이스의 테이블에 BigQuery에서 지원하지 않는 유형의 열이 포함되어 있으면 BigQuery 측에서 이 열에 액세스할 수 없습니다.
+Spanner 외부 데이터 세트의 테이블에서는 데이터 또는 메타데이터를 추가, 삭제 또는 업데이트할 수 없습니다.
+Spanner 외부 데이터 세트에는 새 테이블, 뷰, 구체화된 뷰를 만들 수 없습니다.
+INFORMATION_SCHEMA 뷰 [https://cloud.google.com/bigquery/docs/information-schema-intro?hl=ko]는 지원되지 않습니다.
+메타데이터 캐싱 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]은 지원되지 않습니다.
+수동으로 테이블을 만들 수 없으므로 테이블 생성 기본값과 관련된 데이터 세트 수준 설정은 외부 데이터 세트에 영향을 미치지 않습니다.
+PostgreSQL 언어를 사용하는 Spanner 데이터베이스는 지원되지 않습니다.
+쓰기 API와 읽기 API는 지원되지 않습니다.
+행 수준 보안, 열 수준 보안, 데이터 마스킹은 지원되지 않습니다.
+Spanner 외부 데이터 세트의 테이블을 기반으로 하는 구체화된 뷰는 지원되지 않습니다.
+Dataplex Universal Catalog와의 통합은 지원되지 않습니다. 예를 들어 데이터 프로필과 데이터 품질 스캔은 지원되지 않습니다.
+표 수준의 태그는 지원되지 않습니다.
+쿼리를 작성할 때 SQL 자동 완성은 Spanner 외부 테이블에서 작동하지 않습니다.
+외부 데이터 세트에는 Sensitive Data Protection으로 스캔 [https://cloud.google.com/bigquery/docs/scan-with-dlp?hl=ko#scanning-bigquery-data-using-the-cloud-console]이 지원되지 않습니다.
+BigQuery Sharing (이전 명칭: Analytics Hub)을 사용한 공유는 외부 데이터 세트에서 지원되지 않습니다.
+Spanner 외부 데이터 세트가 최종 사용자의 사용자 인증 정보 (EUC)를 사용하는 경우 외부 데이터 세트를 참조하는 승인된 뷰를 만들 수 있습니다. 하지만 이 뷰를 쿼리하면 쿼리를 실행하는 사용자의 EUC가 Spanner로 전송됩니다.
+Spanner 외부 데이터 세트가 액세스 위임에 Cloud 리소스 연결을 사용하는 경우 외부 데이터 세트를 참조하는 승인된 뷰 또는 승인된 루틴을 만들 수 있습니다.
+다음 단계
+Spanner 통합 쿼리 [https://cloud.google.com/bigquery/docs/spanner-federated-queries?hl=ko]에 대해 자세히 알아보세요.
+도움이 되었나요?
+의견 보내기

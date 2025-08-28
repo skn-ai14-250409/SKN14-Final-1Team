@@ -1,0 +1,340 @@
+Source URL: https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필수 권한 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series?hl=ko#required_permissions]
+목표 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series?hl=ko#costs]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series?hl=ko#create_a_dataset]
+시계열 모델 만들기 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series?hl=ko#time-series-model]
+ARIMA_PLUS 단변량 모델로 계층적 시계열 예측
+bookmark_border
+이 튜토리얼에서는 ARIMA_PLUS 단변량 시계열 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko]을 사용하여 계층적 시계열을 예측하는 방법을 설명합니다. 이 모델은 특정 열의 과거 값을 기반으로 해당 열의 미래 값을 예측하고 관심 있는 하나 이상의 측정기준에 대해 해당 열의 롤업 값을 계산합니다.
+예측 값은 관심 있는 측정기준을 지정하는 하나 이상의 열에 있는 각 값에 대해 각 시점으로 계산됩니다. 예를 들어 일일 교통사고를 예측하기 위해 주 데이터를 포함하는 측정기준 열을 지정한 경우 예측된 데이터에는 주 A의 각 날짜에 대한 값, 주 B의 각 날짜에 대한 값 등이 포함됩니다. 일일 교통사고를 예측하기 위해 주 및 도시 데이터가 포함된 측정기준 열을 지정한 경우 예측된 데이터에는 주 A와 도시 A의 각 날짜에 대한 값, 주 A와 도시 B의 각 날짜에 대한 값 등이 포함됩니다. 계층적 시계열 모델에서는 계층적 조정 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#hierarchical_reconciliation]을 사용하여 각 하위 시계열을 상위 시계열에 롤업하고 조정합니다. 예를 들어 주 A에 있는 모든 도시의 예측 값의 합계는 주 A의 예측 값과 같아야 합니다.
+이 튜토리얼에서는 동일한 데이터를 사용하여 두 개의 시계열 모델을 만듭니다. 하나는 계층적 예측을 사용하는 시계열 모델이고 다른 하나는 계층적 예측을 사용하지 않는 시계열 모델입니다. 이를 통해 모델에서 반환된 결과를 비교할 수 있습니다.
+이 튜토리얼에서는 공개 bigquery-public-data.iowa_liquor.sales.sales [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=iowa_liquor_sales&%3Bt=sales&%3Bpage=table&hl=ko] 테이블의 데이터를 사용합니다. 이 테이블에는 아이오와주 주류 판매 공개 데이터를 사용하여 다양한 매장의 100만 개가 넘는 주류 제품에 대한 정보가 포함되어 있습니다.
+이 튜토리얼을 읽기 전에 단변량 모델로 여러 시계열 예측 [https://cloud.google.com/bigquery/docs/arima-single-time-series-forecasting-tutorial?hl=ko]을 읽어보는 것이 좋습니다.
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create IAM 권한이 필요합니다.
+모델을 만들려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 권한이 필요합니다.
+bigquery.models.getData
+bigquery.jobs.create
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+목표
+이 가이드에서는 다음을 사용합니다.
+주류 판매 값을 예측하기 위해 CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-multivariate-time-series?hl=ko]을 사용하여 여러 시계열 모델과 여러 계층적 시계열 모델을 만듭니다.
+ML.FORECAST 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-forecast?hl=ko]를 사용하여 모델에서 예측된 주류 판매 값을 가져옵니다.
+비용
+이 튜토리얼에서는 비용이 청구될 수 있는 다음과 같은 Google Cloud구성요소를 사용합니다.
+BigQuery
+BigQuery ML
+BigQuery 비용에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지를 참조하세요.
+BigQuery ML 비용에 대한 자세한 내용은 BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]을 참조하세요.
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery는 새 프로젝트에서 자동으로 사용 설정됩니다. 기존 프로젝트에서 BigQuery를 활성화하려면 다음으로 이동합니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+시계열 모델 만들기
+아이오와주 주류 판매 데이터를 사용하여 시계열 모델을 만듭니다.
+다음 GoogleSQL 쿼리는 폴크, 린, 스콧 카운티에서 2015년에 판매된 일간 총 병 수를 예측하는 모델을 만듭니다.
+다음 쿼리에서 OPTIONS(model_type='ARIMA_PLUS', time_series_timestamp_col='date', ...) 절은 ARIMA [https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average] 기반 시계열 모델을 만들고 있음을 나타냅니다. CREATE MODEL 문의 TIME_SERIES_ID 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#time_series_id_col]을 사용하여 예측을 가져올 입력 데이터의 열을 하나 이상 지정합니다. CREATE MODEL 문의 auto_arima_max_order 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#auto_arima_max_order]은 auto.ARIMA 알고리즘에서 하이퍼파라미터 조정을 위한 검색 공간을 제어합니다. CREATE MODEL 문의 decompose_time_series 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#decompose_time_series]은 기본적으로 TRUE로 설정되므로 다음 단계에서 모델을 평가할 때 시계열 데이터에 관한 정보가 반환됩니다.
+OPTIONS(model_type='ARIMA_PLUS', time_series_timestamp_col='date', ...) 절은 ARIMA [https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average] 기반 시계열 모델을 만들고 있음을 나타냅니다. 기본적으로 auto_arima=TRUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#auto_arima]이므로 auto.ARIMA 알고리즘이 ARIMA_PLUS 모델에서 초매개변수를 자동으로 조정합니다. 이 알고리즘은 후보 모델 십여 개를 피팅하고 Akaike 정보 기준(AIC) [https://en.wikipedia.org/wiki/Akaike_information_criterion]이 가장 낮은 최적 모델을 선택합니다. holiday_region 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#holiday_region]을 US로 설정하면 시계열에 미국 공휴일 패턴이 있는 경우 해당 미국 공휴일 시점을 더 정확하게 모델링할 수 있습니다.
+모델을 만들려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.liquor_forecast`
+  OPTIONS (
+    MODEL_TYPE = 'ARIMA_PLUS',
+    TIME_SERIES_TIMESTAMP_COL = 'date',
+    TIME_SERIES_DATA_COL = 'total_bottles_sold',
+    TIME_SERIES_ID_COL = ['store_number', 'zip_code', 'city', 'county'],
+    HOLIDAY_REGION = 'US')
+AS
+SELECT
+  store_number,
+  zip_code,
+  city,
+  county,
+  date,
+  SUM(bottles_sold) AS total_bottles_sold
+FROM
+  `bigquery-public-data.iowa_liquor_sales.sales`
+WHERE
+  date BETWEEN DATE('2015-01-01') AND DATE('2015-12-31')
+  AND county IN ('POLK', 'LINN', 'SCOTT')
+GROUP BY store_number, date, city, zip_code, county;
+이 쿼리는 완료하는 데 약 37초가 소요되며 이후에는 liquor_forecast 모델이 탐색기 창에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+모델을 사용하여 데이터 예측
+ML.FORECAST 함수를 사용하여 미래 시계열 값을 예측합니다.
+다음 쿼리에서 STRUCT(20 AS horizon, 0.8 AS confidence_level) 절은 쿼리가 20개의 미래 시점을 예측하고 80% 신뢰 수준의 예측 구간을 생성함을 나타냅니다.
+다음 단계에 따라 모델로 데이터를 예측합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT *
+FROM
+  ML.FORECAST(
+    MODEL `bqml_tutorial.liquor_forecast`,
+    STRUCT(20 AS horizon, 0.8 AS confidence_level))
+ORDER BY store_number, county, city, zip_code, forecast_timestamp;
+결과는 다음과 비슷하게 표시됩니다.
+출력은 첫 번째 시계열의 예측 데이터로 시작합니다. store_number=2190, zip_code=50314, city=DES MOINES, county=POLK 데이터를 스크롤하면 각 후속 고유 시계열의 예측이 표시됩니다. 특정 카운티의 예측과 같이 여러 측정기준의 합계를 집계하는 예측을 생성하려면 계층적 예측을 생성해야 합니다.
+계층적 시계열 모델 만들기
+아이오와주 주류 판매 데이터를 사용하여 계층적 시계열 예측을 만듭니다.
+다음 GoogleSQL 쿼리는 폴크, 린, 스콧 카운티에서 2015년에 판매된 일일 총 병 수에 대한 계층적 예측을 생성하는 모델을 만듭니다.
+다음 쿼리에서 CREATE MODEL 문의 HIERARCHICAL_TIME_SERIES_COLS 옵션은 지정한 열 세트를 기반으로 계층적 예측을 만든다는 의미입니다. 이러한 각 열이 롤업되고 집계됩니다. 예를 들어 이전 쿼리에서는 store_number 열 값이 롤업되어 각 county, city, zip_code 값에 대한 예측을 표시합니다. 이와 별도로 zip_code 및 store_number 값도 모두 롤업되어 각 county 및 city 값에 대한 예측을 표시합니다. 열 순서는 계층 구조의 구조를 정의하므로 중요합니다.
+모델을 만들려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.liquor_forecast_hierarchical`
+  OPTIONS (
+    MODEL_TYPE = 'ARIMA_PLUS',
+    TIME_SERIES_TIMESTAMP_COL = 'date',
+    TIME_SERIES_DATA_COL = 'total_bottles_sold',
+    TIME_SERIES_ID_COL = ['store_number', 'zip_code', 'city', 'county'],
+    HIERARCHICAL_TIME_SERIES_COLS = ['zip_code', 'store_number'],
+    HOLIDAY_REGION = 'US')
+AS
+SELECT
+  store_number,
+  zip_code,
+  city,
+  county,
+  date,
+  SUM(bottles_sold) AS total_bottles_sold
+FROM
+  `bigquery-public-data.iowa_liquor_sales.sales`
+WHERE
+  date BETWEEN DATE('2015-01-01') AND DATE('2015-12-31')
+  AND county IN ('POLK', 'LINN', 'SCOTT')
+GROUP BY store_number, date, city, zip_code, county;
+이 쿼리는 완료하는 데 약 45초가 소요되며 이후에는 bqml_tutorial.liquor_forecast_hierarchical 모델이 탐색기 창에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+계층 모델을 사용하여 데이터 예측
+ML.FORECAST 함수를 사용하여 모델에서 계층적 예측 데이터를 가져옵니다.
+다음 단계에 따라 모델로 데이터를 예측합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT
+  *
+FROM
+  ML.FORECAST(
+    MODEL `bqml_tutorial.liquor_forecast_hierarchical`,
+    STRUCT(30 AS horizon, 0.8 AS confidence_level))
+WHERE city = 'LECLAIRE'
+ORDER BY county, city, zip_code, store_number, forecast_timestamp;
+결과는 다음과 비슷하게 표시됩니다.
+르클레어 도시 store_number=NULL, zip_code=NULL, city=LECLAIRE, county=SCOTT에 대한 집계된 예측이 어떻게 표시되는지 확인하세요. 나머지 행을 살펴보면 다른 하위 그룹의 예측도 확인할 수 있습니다. 예를 들어 다음 이미지는 우편번호 52753, store_number=NULL, zip_code=52753, city=LECLAIRE, county=SCOTT에 대해 집계된 예측을 보여줍니다.
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트는 유지하되 개별 리소스를 삭제하세요.
+만든 프로젝트를 삭제할 수 있습니다.
+또는 프로젝트를 유지하고 데이터 세트를 삭제할 수 있습니다.
+데이터 세트 삭제
+프로젝트를 삭제하면 프로젝트의 데이터 세트와 테이블이 모두 삭제됩니다. 프로젝트를 다시 사용하려면 이 튜토리얼에서 만든 데이터 세트를 삭제할 수 있습니다.
+필요한 경우Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+앞서 만든 bqml_tutorial 데이터 세트를 탐색에서 선택합니다.
+창의 오른쪽에 있는 데이터 세트 삭제를 클릭합니다. 데이터 세트, 테이블, 모든 데이터가 삭제됩니다.
+데이터 세트 삭제 대화상자에서 데이터 세트 이름(bqml_tutorial)을 입력하고 삭제를 클릭하여 삭제 명령어를 확인합니다.
+프로젝트 삭제
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+일변량 모델로 단일 시계열을 예측 [https://cloud.google.com/bigquery/docs/arima-single-time-series-forecasting-tutorial?hl=ko]하는 방법 알아보기
+단변량 모델로 여러 시계열을 예측 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko]하는 방법 알아보기
+여러 행의 여러 시계열을 예측할 때 단변량 모델을 확장 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko]하는 방법 알아보기
+다변량 모델로 단일 시계열을 예측 [https://cloud.google.com/bigquery/docs/arima-plus-xreg-single-time-series-forecasting-tutorial?hl=ko]하는 방법 알아보기
+BigQuery의 AI 및 ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]에서 BigQuery ML 개요 참조하기
+도움이 되었나요?
+의견 보내기

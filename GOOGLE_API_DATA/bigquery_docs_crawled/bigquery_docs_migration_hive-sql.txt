@@ -1,0 +1,681 @@
+Source URL: https://cloud.google.com/bigquery/docs/migration/hive-sql
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+데이터 유형 [https://cloud.google.com/bigquery/docs/migration/hive-sql?hl=ko#data_types]
+쿼리 구문 [https://cloud.google.com/bigquery/docs/migration/hive-sql?hl=ko#query_syntax]
+SELECT 문 [https://cloud.google.com/bigquery/docs/migration/hive-sql?hl=ko#select_statement]
+FROM 절 [https://cloud.google.com/bigquery/docs/migration/hive-sql?hl=ko#from_clause]
+비교 연산자 [https://cloud.google.com/bigquery/docs/migration/hive-sql?hl=ko#comparison_operators]
+JOIN 조건 [https://cloud.google.com/bigquery/docs/migration/hive-sql?hl=ko#join_conditions]
+유형 변환 및 Cast 변환 [https://cloud.google.com/bigquery/docs/migration/hive-sql?hl=ko#type_conversion_and_casting]
+함수 [https://cloud.google.com/bigquery/docs/migration/hive-sql?hl=ko#functions]
+Apache Hive SQL 변환 가이드
+bookmark_border
+이 문서에서는 마이그레이션을 계획하는 데 도움이 되도록 Apache Hive와 BigQuery 간 SQL 구문 유사점과 차이점을 자세히 설명합니다. SQL 스크립트를 일괄적으로 마이그레이션하려면 일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]을 사용합니다. 임시 쿼리를 변환하려면 대화형 SQL 변환 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]을 사용합니다.
+Hive와 BigQuery의 SQL 요소가 서로 직접 매핑되지 않는 경우도 있습니다. 그러나 대부분의 경우 BigQuery는 이 문서의 예시와 같이 동일한 기능을 달성하는 데 도움이 되는 대체 요소를 Hive에 제공합니다.
+이 문서는 엔터프라이즈 아키텍트, 데이터베이스 관리자, 애플리케이션 개발자, IT 보안 전문가를 대상으로 합니다. 여기에서는 사용자가 Hive에 익숙하다고 가정합니다.
+데이터 유형
+Hive와 BigQuery의 데이터 유형 시스템은 서로 다릅니다. MAP 및 UNION 등의 몇 가지 예외를 제외하면 대부분의 경우 Hive의 데이터 유형을 BigQuery 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko]에 매핑할 수 있습니다. Hive는 BigQuery보다 더 암시적인 Cast 변환을 지원합니다. 따라서 일괄 SQL 번역기가 명시적 Cast 변환을 여러 개 삽입합니다.
+Hive BigQuery
+TINYINT INT64
+SMALLINT INT64
+INT INT64
+BIGINT INT64
+DECIMAL NUMERIC
+FLOAT FLOAT64
+DOUBLE FLOAT64
+BOOLEAN BOOL
+STRING STRING
+VARCHAR STRING
+CHAR STRING
+BINARY BYTES
+DATE DATE
+- DATETIME
+- TIME
+TIMESTAMP DATETIME/TIMESTAMP
+INTERVAL -
+ARRAY ARRAY
+STRUCT STRUCT
+MAPS 키 값이 있는 STRUCT(REPEAT 필드)
+UNION 다른 유형의 STRUCT
+- GEOGRAPHY
+- JSON
+쿼리 구문
+이 섹션에서는 Hive와 BigQuery 간 쿼리 구문의 차이점을 설명합니다.
+SELECT 문
+대부분의 Hive SELECT [https://cwiki.apache.org/confluence/display/hive/languagemanual+select#LanguageManualSelect-SelectSyntax] 문은 BigQuery와 호환됩니다. 아래 표에는 기타 다른 차이점 목록이 포함되어 있습니다.
+케이스 Hive BigQuery
+서브 쿼리
+SELECT * FROM (
+SELECT 10 as col1, "test" as col2, "test" as col3
+) tmp_table;
+SELECT * FROM (
+SELECT 10 as col1, "test" as col2, "test" as col3
+);
+열 필터링
+SET hive.support.quoted.identifiers=none;
+SELECT `(col2|col3)?+.+` FROM (
+SELECT 10 as col1, "test" as col2, "test" as col3
+) tmp_table;
+SELECT * EXCEPT(col2,col3) FROM (
+SELECT 10 as col1, "test" as col2, "test" as col3
+);
+배열 분해
+SELECT tmp_table.pageid, adid FROM (
+SELECT 'test_value' pageid, Array(1,2,3) ad_id) tmp_table
+LATERAL VIEW
+explode(tmp_table.ad_id) adTable AS adid;
+SELECT tmp_table.pageid, ad_id FROM (
+SELECT 'test_value' pageid, [1,2,3] ad_id) tmp_table,
+UNNEST(tmp_table.ad_id) ad_id;
+FROM 절
+쿼리의 FROM 절은 데이터가 선택된 테이블 참조를 나열합니다. Hive에서 가능한 테이블 참조에는 테이블, 뷰, 서브 쿼리가 포함됩니다. BigQuery도 이러한 테이블 참조를 모두 지원합니다.
+다음을 사용하여 FROM 절에서 BigQuery 테이블을 참조할 수 있습니다.
+[project_id].[dataset_id].[table_name]
+[dataset_id].[table_name]
+[table_name]
+BigQuery는 추가 테이블 참조 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#from_clause]도 지원합니다.
+FOR SYSTEM_TIME AS OF [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#for_system_time_as_of]를 사용하는 테이블 정의 및 행의 이전 버전
+필드 경로 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#field_path] 또는 데이터 유형 내의 필드로 확인되는 경로(예: STRUCT)
+평면화된 배열 [https://cloud.google.com/bigquery/docs/arrays?hl=ko#querying_nested_arrays]
+비교 연산자
+다음 표에서는 Hive에서 BigQuery로 연산자를 변환하는 방법을 자세히 설명합니다.
+함수 또는 연산자 Hive BigQuery
+- 단항 뺄셈
+* 곱셈
+/ 나눗셈
++ 덧셈
+- 뺄셈 모든 숫자 유형 [https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types#LanguageManualTypes-NumericTypes] 모든 숫자 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_types].
+나눗셈 연산 중에 오류를 방지하려면 SAFE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#safe_divide] 또는 IEEE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ieee_divide]를 사용하는 것이 좋습니다.
+~ 비트 NOT
+| 비트 OR
+& 비트 AND
+^ 비트 XOR 불리언 데이터 유형 불리언 데이터 유형.
+왼쪽 시프트
+shiftleft(TINYINT|SMALLINT|INT a, INT b)
+shiftleft(BIGINT a, INT b)
+<< 정수 또는 바이트
+A << B(B, A의 유형이 동일해야 함)
+오른쪽 시프트
+shiftright(TINYINT|SMALLINT|INT a, INT b)
+shiftright(BIGINT a, INT b)
+>> 정수 또는 바이트
+A >> B(B, A의 유형이 동일해야 함)
+모듈러스(나머지) X % Y
+모든 숫자 유형 [https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types#LanguageManualTypes-NumericTypes]
+MOD(X, Y)
+정수 나눗셈 정밀도를 위한 A DIV B 및 A/B 모든 숫자 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_types].
+참고: 나눗셈 연산 중에 오류를 방지하려면 SAFE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#safe_divide] 또는 IEEE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ieee_divide]를 사용하는 것이 좋습니다.
+단항 부정 !, NOT NOT
+동등 비교를 지원하는 유형 모든 기본 유형 [https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types#LanguageManualTypes-Overview] 모든 비교 가능 유형 및 STRUCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko].
+a <=> b 지원되지 않음 다음으로 변환:
+(a = b AND b IS NOT NULL OR a IS NULL)
+a <> b 지원되지 않음 다음으로 변환:
+NOT (a = b AND b IS NOT NULL OR a IS NULL)
+관계 연산자( =, ==, !=, <, >, >= ) 모든 기본 유형 [https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF#LanguageManualUDF-RelationalOperators] 모든 비교 가능 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators].
+문자열 비교 RLIKE, REGEXP REGEXP_CONTAINS 기본 제공 함수. 정규 표현식 패턴에 BigQuery 문자열 함수용 정규식 구문 [https://github.com/google/re2/wiki/Syntax]을 사용합니다.
+[NOT] LIKE, [NOT] BETWEEN, IS [NOT] NULL A [NOT] BETWEEN B AND C, A IS [NOT] (TRUE|FALSE), A [NOT] LIKE B Hive와 동일합니다. 또한 BigQuery는 IN 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#in_operators]도 지원합니다.
+JOIN 조건
+Hive와 BigQuery 모두 다음 유형의 조인을 지원합니다.
+[INNER] JOIN
+LEFT [OUTER] JOIN
+RIGHT [OUTER] JOIN
+FULL [OUTER] JOIN
+CROSS JOIN과 이에 상응하는 암시적 쉼표 교차 조인 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#cross_join]
+자세한 내용은 조인 연산 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#join_types] 및 Hive 조인 [https://cwiki.apache.org/confluence/display/hive/languagemanual+joins]을 참조하세요.
+유형 변환 및 Cast 변환
+다음 표에서는 Hive에서 BigQuery로 함수를 변환하는 방법을 자세히 설명합니다.
+함수 또는 연산자 Hive BigQuery
+Cast 변환 변환에 실패하면 `NULL`이 반환됩니다.
+Hive와 동일한 구문입니다. BigQuery 유형 변환 규칙에 대한 자세한 내용은 변환 규칙 [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]을 참조하세요.
+변환에 실패하면 오류가 표시됩니다. Hive와 동일한 동작을 수행하려면 SAFE_CAST를 대신 사용하세요.
+SAFE 함수 호출 함수 호출에 SAFE [https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-reference?hl=ko#safe_prefix] 프리픽스를 사용하면 함수는 실패를 보고하는 대신 NULL을 반환합니다. 예를 들어 SAFE.SUBSTR('foo', 0, -2) AS safe_output;은 NULL을 반환합니다.
+참고: 오류 없이 안전하게 Cast 변환하려면 SAFE_CAST를 사용하세요.
+암시적 변환 유형
+BigQuery로 마이그레이션할 때는 BigQuery가 암시적으로 변환하는 다음 데이터 유형을 제외한 대부분의 Hive 암시적 변환 [https://cwiki.apache.org/confluence/display/hive/languagemanual+types#LanguageManualTypes-AllowedImplicitConversions]을 BigQuery의 명시적 변환으로 변환해야 합니다.
+BigQuery 유형 변경 BigQuery 유형
+INT64 FLOAT64, NUMERIC, BIGNUMERIC
+BIGNUMERIC FLOAT64
+NUMERIC BIGNUMERIC, FLOAT64
+BigQuery는 다음 리터럴에도 암시적 변환을 수행합니다.
+BigQuery 유형 변경 BigQuery 유형
+STRING 리터럴(예: "2008-12-25") DATE
+STRING 리터럴(예: "2008-12-25 15:30:00") TIMESTAMP
+STRING 리터럴(예: "2008-12-25T07:30:00") DATETIME
+STRING 리터럴(예: "15:30:00") TIME
+명시적 변환 유형
+BigQuery가 암시적으로 변환하지 않는 Hive 데이터 유형을 변환하려면 BigQuery CAST(expression AS type) 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast]를 사용하세요.
+함수
+이 섹션에서는 Hive 및 BigQuery에서 사용되는 일반적인 함수를 설명합니다.
+집계 함수
+다음 표에서는 일반적인 Hive 집계, 통계 집계, 근사치 집계 함수와 상응하는 BigQuery 함수 간의 매핑을 보여줍니다.
+Hive BigQuery
+count(DISTINCT expr[, expr...]) count(DISTINCT expr[, expr...])
+percentile_approx(DOUBLE col, array(p1 [, p2]...) [, B]) WITHIN GROUP (ORDER BY expression) APPROX_QUANTILES [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_quantiles](expression, 100)[OFFSET(CAST(TRUNC(percentile * 100) as INT64))]
+BigQuery는 Hive가 정의하는 나머지 인수를 지원하지 않습니다.
+AVG [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-Built-inAggregateFunctions(UDAF)] AVG
+X | Y [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-OperatorsprecedencesOperatorsPrecedencesOperatorsPrecedences] BIT_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_or] / X | Y
+X ^ Y [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-OperatorsprecedencesOperatorsPrecedencesOperatorsPrecedences] BIT_XOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_xor] / X ^ Y
+X & Y [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-OperatorsprecedencesOperatorsPrecedencesOperatorsPrecedences] BIT_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_and] / X & Y
+COUNT [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-Built-inAggregateFunctions(UDAF)] COUNT
+COLLECT_SET(col), \ COLLECT_LIST(col) ARRAY_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#array_agg](col)
+COUNT [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-Built-inAggregateFunctions(UDAF)] COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count]
+MAX MAX [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#max]
+MIN MIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#min]
+REGR_AVGX AVG(
+IF(dep_var_expr is NULL
+OR ind_var_expr is NULL,
+NULL, ind_var_expr)
+)
+REGR_AVGY AVG(
+IF(dep_var_expr is NULL
+OR ind_var_expr is NULL,
+NULL, dep_var_expr)
+)
+REGR_COUNT SUM(
+IF(dep_var_expr is NULL
+OR ind_var_expr is NULL,
+NULL, 1)
+)
+REGR_INTERCEPT AVG(dep_var_expr)
+- AVG(ind_var_expr)
+* (COVAR_SAMP(ind_var_expr,dep_var_expr)
+/ VARIANCE(ind_var_expr)
+)
+REGR_R2 (COUNT(dep_var_expr) *
+SUM(ind_var_expr * dep_var_expr) -
+SUM(dep_var_expr) * SUM(ind_var_expr))
+/ SQRT(
+(COUNT(ind_var_expr) *
+SUM(POWER(ind_var_expr, 2)) *
+POWER(SUM(ind_var_expr),2)) *
+(COUNT(dep_var_expr) *
+SUM(POWER(dep_var_expr, 2)) *
+POWER(SUM(dep_var_expr), 2)))
+REGR_SLOPE COVAR_SAMP(ind_var_expr,
+dep_var_expr)
+/ VARIANCE(ind_var_expr)
+REGR_SXX SUM(POWER(ind_var_expr, 2)) - COUNT(ind_var_expr) * POWER(AVG(ind_var_expr),2)
+REGR_SXY SUM(ind_var_expr*dep_var_expr) - COUNT(ind_var_expr) * AVG(ind) * AVG(dep_var_expr)
+REGR_SYY SUM(POWER(dep_var_expr, 2)) - COUNT(dep_var_expr) * POWER(AVG(dep_var_expr),2)
+ROLLUP [https://cwiki.apache.org/confluence/display/Hive/Enhanced+Aggregation%2C+Cube%2C+Grouping+and+Rollup#EnhancedAggregation,Cube,GroupingandRollup-CubesandRollups] ROLLUP [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_clause]
+STDDEV_POP STDDEV_POP
+STDDEV_SAMP STDDEV_SAMP, STDDEV
+SUM SUM
+VAR_POP VAR_POP
+VAR_SAMP VAR_SAMP, VARIANCE
+CONCAT_WS STRING_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#string_agg]
+분석 함수
+다음 표에서는 일반적인 Hive 분석 함수와 상응하는 BigQuery 함수 간의 매핑을 보여줍니다.
+Hive BigQuery
+AVG AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg]
+COUNT COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count]
+COVAR_POP COVAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_pop]
+COVAR_SAMP COVAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_samp]
+CUME_DIST CUME_DIST [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#cume_dist]
+DENSE_RANK DENSE_RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#dense_rank]
+FIRST_VALUE [https://cwiki.apache.org/confluence/display/Hive/LanguageManual+WindowingAndAnalytics#LanguageManualWindowingAndAnalytics-EnhancementstoHiveQL] FIRST_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#first_value]
+LAST_VALUE LAST_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#last_value]
+LAG LAG [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#lag]
+LEAD LEAD [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#lead]
+COLLECT_LIST, \ COLLECT_SET ARRAY_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#array_agg] ARRAY_CONCAT_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#array_concat_agg]
+MAX MAX [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#max]
+MIN MIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#min]
+NTILE NTILE [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#ntile](constant_integer_expression)
+PERCENT_RANK [https://cwiki.apache.org/confluence/display/Hive/LanguageManual+WindowingAndAnalytics#LanguageManualWindowingAndAnalytics-EnhancementstoHiveQL] PERCENT_RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#percent_rank]
+RANK () RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#rank]
+ROW_NUMBER ROW_NUMBER [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#row_number]
+STDDEV_POP STDDEV_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_pop]
+STDDEV_SAMP STDDEV_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_samp], STDDEV [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev]
+SUM SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum]
+VAR_POP VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop]
+VAR_SAMP VAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_samp], VARIANCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#variance]
+VARIANCE VARIANCE () [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#variance]
+WIDTH_BUCKET [https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF#LanguageManualUDF-Built-inFunctions] 사용자 정의 함수(UDF)를 사용할 수 있습니다.
+날짜 및 시간 함수
+다음 표에서는 일반적인 Hive 날짜 및 시간 함수와 상응하는 BigQuery 함수 간의 매핑을 보여줍니다.
+DATE_ADD DATE_ADD(date_expression, INTERVAL int64_expression date_part) [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add]
+DATE_SUB DATE_SUB(date_expression, INTERVAL int64_expression date_part) [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub]
+CURRENT_DATE CURRENT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#current_date]
+CURRENT_TIME CURRENT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#current_time]
+CURRENT_TIMESTAMP 값에 시간대가 없고 Hive의 CURRENT_TIMESTAMP \ CURRENT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#current_timestamp]와 동의어인 CURRENT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#current_datetime]이 권장됩니다.
+EXTRACT(field FROM source) EXTRACT(part FROM datetime_expression) [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#extract]
+LAST_DAY DATE_SUB( DATE_TRUNC( DATE_ADD(
+date_expression, INTERVAL 1 MONTH
+), MONTH ), INTERVAL 1 DAY)
+MONTHS_BETWEEN DATE_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_diff](date_expression, date_expression, MONTH)
+NEXT_DAY DATE_ADD(
+DATE_TRUNC(
+date_expression,
+WEEK(day_value)
+),
+INTERVAL 1 WEEK
+)
+TO_DATE PARSE_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#parse_date]
+FROM_UNIXTIME UNIX_SECONDS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_seconds]
+FROM_UNIXTIMESTAMP FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp]
+YEAR \ QUARTER \ MONTH \ HOUR \ MINUTE \ SECOND \ WEEKOFYEAR EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract]
+DATEDIFF DATE_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_diff]
+BigQuery는 다음과 같은 날짜 및 시간 함수를 추가로 제공합니다.
+CURRENT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#current_datetime]
+DATE_FROM_UNIX_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_from_unix_date]
+DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc]
+DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime]
+DATETIME_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_trunc]
+FORMAT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#format_date]
+FORMAT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime]
+FORMAT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#format_time]
+FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp]
+PARSE_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#parse_datetime]
+PARSE_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#parse_time]
+STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#string]
+TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time]
+TIME_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_add]
+TIME_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_diff]
+TIME_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_sub]
+TIME_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_trunc]
+TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp]
+TIMESTAMP_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_add]
+TIMESTAMP_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_diff]
+TIMESTAMP_MICROS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_micros]
+TIMESTAMP_MILLIS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_millis]
+TIMESTAMP_SECONDS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_seconds]
+TIMESTAMP_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_sub]
+TIMESTAMP_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_trunc]
+UNIX_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#unix_date]
+UNIX_MICROS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_micros]
+UNIX_MILLIS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_millis]
+UNIX_SECONDS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_seconds]
+문자열 함수
+다음 표에서는 Hive 문자열 함수와 상응하는 BigQuery 함수 간의 매핑을 보여줍니다.
+Hive BigQuery
+ASCII TO_CODE_POINTS(string_expr)[OFFSET(0)] [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_code_points]
+HEX TO_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_hex]
+LENGTH CHAR_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#char_length]
+LENGTH CHARACTER_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#character_length]
+CHR CODE_POINTS_TO_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#code_points_to_string]
+CONCAT CONCAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#concat]
+LOWER LOWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#lower]
+LPAD LPAD [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#lpad]
+LTRIM LTRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#ltrim]
+REGEXP_EXTRACT REGEXP_EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract]
+REGEXP_REPLACE REGEXP_REPLACE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_replace]
+REPLACE REPLACE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#replace]
+REVERSE REVERSE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#reverse]
+RPAD RPAD [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#rpad]
+RTRIM RTRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#rtrim]
+SOUNDEX SOUNDEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#soundex]
+SPLIT SPLIT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#split](instring, delimiter)[ORDINAL(tokennum)]
+SUBSTR, \ SUBSTRING SUBSTR [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#substr]
+TRANSLATE TRANSLATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#translate]
+LTRIM LTRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#ltrim]
+RTRIM RTRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#rtrim]
+TRIM TRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#trim]
+UPPER UPPER [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#upper]
+BigQuery는 다음과 같은 문자열 함수를 추가로 제공합니다.
+BYTE_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#byte_length]
+CODE_POINTS_TO_BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#code_points_to_bytes]
+ENDS_WITH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#ends_with]
+FROM_BASE32 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_base32]
+FROM_BASE64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_base64]
+FROM_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_hex]
+NORMALIZE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#normalize]
+NORMALIZE_AND_CASEFOLD [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#normalize_and_casefold]
+REPEAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#repeat]
+SAFE_CONVERT_BYTES_TO_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#safe_convert_bytes_to_string]
+SPLIT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#split]
+STARTS_WITH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#starts_with]
+STRPOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#strpos]
+TO_BASE32 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_base32]
+TO_BASE64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_base64]
+TO_CODE_POINTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_code_points]
+수학 함수
+다음 표에서 Hive 수학 함수 [https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF#LanguageManualUDF-MathematicalFunctions]와 이에 상응하는 BigQuery 함수 간의 매핑을 확인할 수 있습니다.
+Hive BigQuery
+ABS ABS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#abs]
+ACOS ACOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#acos]
+ASIN ASIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#asin]
+ATAN ATAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#atan]
+CEIL CEIL [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ceil]
+CEILING CEILING [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ceiling]
+COS COS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#cos]
+FLOOR FLOOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#floor]
+GREATEST GREATEST [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#greatest]
+LEAST LEAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#least]
+LN LN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ln]
+LNNVL ISNULL와 함께 사용합니다.
+LOG LOG [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#log]
+MOD (% operator) MOD [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#mod]
+POWER POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power], POW [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#pow]
+RAND RAND [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#rand]
+ROUND ROUND [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#round]
+SIGN SIGN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sign]
+SIN SIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sin]
+SQRT SQRT [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sqrt]
+HASH FARM_FINGERPRINT, MD5, SHA1, SHA256, SHA512 [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko]
+STDDEV_POP STDDEV_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_pop]
+STDDEV_SAMP STDDEV_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_samp]
+TAN TAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#tan]
+TRUNC TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#trunc]
+NVL IFNULL [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#ifnull](expr, 0),COALESCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#coalesce](exp, 0)
+BigQuery는 다음과 같은 수학 함수를 추가로 제공합니다.
+DIV [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#div]
+IEEE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ieee_divide]
+IS_INF [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#is_inf]
+IS_NAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#is_nan]
+LOG10 [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#log10]
+SAFE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#safe_divide]
+논리 및 조건부 함수
+다음 표에서는 Hive 논리 및 조건부 함수와 상응하는 BigQuery 함수 간의 매핑을 보여줍니다.
+Hive BigQuery
+CASE [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-ConditionalFunctions] CASE [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#case_expr]
+COALESCE [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-ConditionalFunctions] COALESCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#coalesce]
+NVL [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-ConditionalFunctions] IFNULL [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#ifnull](expr, 0),COALESCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#coalesce](exp, 0)
+NULLIF [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-ConditionalFunctions] NULLIF [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#nullif]
+IF [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-ConditionalFunctions] IF(expr, true_result, else_result) [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#if]
+ISNULL [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-ConditionalFunctions] IS NULL
+ISNOTNULL [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-ConditionalFunctions] IS NOT NULL
+NULLIF [https://cwiki.apache.org/confluence/display/hive/languagemanual+udf#LanguageManualUDF-ConditionalFunctions] NULLIF [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#nullif]
+UDF 및 UDAF
+BigQuery는 UDF [https://github.com/GoogleCloudPlatform/bigquery-utils/blob/master/udfs/README.md]를 지원하지만 사용자 정의 집계 함수(UDAF)는 지원하지 않습니다.
+DML 구문
+이 섹션에서는 Hive와 BigQuery 간의 DML(Data Manipulation Language) 구문 차이점을 설명합니다.
+INSERT 문
+대부분의 Hive INSERT 문은 BigQuery와 호환됩니다. 다음 표에는 예외 사항이 나와 있습니다.
+Hive BigQuery
+INSERT INTO TABLE tablename [PARTITION (partcol1[=val1], partcol2[=val2] ...)] VALUES values_row [, values_row ...] INSERT INTO [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#insert_statement] table (...) VALUES (...);
+참고: BigQuery에서는 대상 테이블의 모든 열 값이 서수 위치에 따라 오름차순으로 포함된 경우에만 INSERT 문의 열 이름을 생략할 수 있습니다.
+INSERT OVERWRITE [LOCAL] DIRECTORY directory1
+[ROW FORMAT row_format] [STORED AS file_format] (Note: Only available starting with Hive 0.11.0)
+SELECT ... FROM ...
+BigQuery는 삽입-덮어쓰기 작업을 지원하지 않습니다. 이 Hive 구문을 TRUNCATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#truncate_table_statement] 및 INSERT [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#insert_statement] 문으로 마이그레이션할 수 있습니다.
+BigQuery에는 하루에 실행 가능한 DML 문 수를 제한하는 DML 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko#data-manipulation-language-statements]이 적용됩니다. 할당량을 최대한 활용하려면 다음 방법을 사용해 보세요.
+INSERT 작업마다 행을 하나씩 사용하는 대신 여러 행을 단일 INSERT 문으로 결합합니다.
+MERGE 문을 사용하여 여러 DML 문(INSERT 포함)을 결합합니다.
+CREATE TABLE ... AS SELECT를 사용하여 새 테이블을 만들고 값을 채웁니다.
+UPDATE 문
+대부분의 Hive UPDATE 문은 BigQuery와 호환됩니다. 다음 표에는 예외 사항이 나와 있습니다.
+Hive BigQuery
+UPDATE tablename SET column = value [, column = value ...] [WHERE expression] UPDATE table
+SET column = expression [,...]
+[FROM ...]
+WHERE TRUE
+참고: BigQuery의 모든 UPDATE 문에는 뒤에 조건이 나오는 WHERE 키워드가 필요합니다.
+DELETE 및 TRUNCATE 문
+DELETE 또는 TRUNCATE 문을 사용하면 테이블 스키마 또는 색인에 영향을 주지 않고 테이블에서 행을 삭제할 수 있습니다.
+BigQuery의 DELETE 문에는 WHERE 절이 있어야 합니다. BigQuery의 DELETE에 대한 자세한 내용은 DELETE 예시 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#delete_examples]를 참조하세요.
+Hive BigQuery
+DELETE [https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML#LanguageManualDML-Delete] FROM tablename [WHERE expression] DELETE FROM [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#delete_statement] table_name WHERE TRUE
+BigQuery DELETE 문에는 WHERE 절이 필요합니다.
+TRUNCATE [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-TruncateTable] [TABLE] table_name [PARTITION partition_spec]; TRUNCATE TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#truncate_table_statement] [[project_name.]dataset_name.]table_name
+MERGE 문
+MERGE 문은 INSERT, UPDATE, DELETE 작업을 단일 upsert 문으로 결합하여 작업을 수행할 수 있습니다. MERGE 작업은 각 대상 행에 대해 최대 1개의 소스 행과 일치해야 합니다.
+Hive BigQuery
+MERGE INTO [https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML#LanguageManualDML-Merge] AS T USING AS S ON
+WHEN MATCHED [AND ] THEN UPDATE SET
+WHEN MATCHED [AND ] THEN DELETE
+WHEN NOT MATCHED [AND ] THEN INSERT VALUES
+MERGE target [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#merge_statement] USING source
+ON target.key = source.key
+WHEN MATCHED AND source.filter = 'filter_exp' THEN
+UPDATE SET
+target.col1 = source.col1,
+target.col2 = source.col2,
+...
+참고: 업데이트해야 하는 모든 열을 나열해야 합니다.
+ALTER 문
+다음 표에서는 Hive에서 BigQuery로 CREATE VIEW 문을 변환하는 방법을 자세히 설명합니다.
+기능 Hive BigQuery
+Rename table ALTER TABLE [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-RenameTable] table_name RENAME TO new_table_name; 지원되지 않음 해결 방법은 대상 테이블에 붙일 이름으로 복사 작업을 사용한 후 이전 테이블을 삭제하는 것입니다.
+bq copy project.dataset.old_table project.dataset.new_table
+bq rm --table project.dataset.old_table
+Table properties ALTER TABLE [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterTableProperties] table_name SET TBLPROPERTIES table_properties;
+table_properties:
+: (property_name = property_value, property_name = property_value, ... )
+Table Comment: ALTER TABLE table_name SET TBLPROPERTIES ('comment' = new_comment);
+{ALTER TABLE | ALTER TABLE IF EXISTS}
+table_name
+SET OPTIONS(table_set_options_list [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#table_set_options_list])
+SerDe properties (Serialize and deserialize) ALTER TABLE [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AddSerDeProperties] table_name [PARTITION partition_spec] SET SERDE serde_class_name [WITH SERDEPROPERTIES serde_properties];
+ALTER TABLE table_name [PARTITION partition_spec] SET SERDEPROPERTIES serde_properties;
+serde_properties:
+: (property_name = property_value, property_name = property_value, ... )
+직렬화 및 역직렬화는 BigQuery 서비스가 관리하며 사용자가 구성할 수 없습니다.
+BigQuery가 CSV, JSON, AVRO, PARQUET, ORC 파일에서 데이터를 읽게 하는 방법은 Cloud Storage 외부 테이블 만들기 [https://cloud.google.com/bigquery/docs/external-data-cloud-storage?hl=ko]를 참조하세요.
+CSV, JSON, AVRO, PARQUET 내보내기 형식을 지원합니다. 자세한 내용은 내보내기 형식 및 압축 유형 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#export_formats_and_compression_types]을 참조하세요.
+Table storage properties ALTER TABLE [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterTableStorageProperties] table_name CLUSTERED BY (col_name, col_name, ...) [SORTED BY (col_name, ...)] INTO num_buckets BUCKETS; ALTER 문에 지원되지 않습니다.
+Skewed table Skewed: ALTER TABLE [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterTableSkewedorStoredasDirectories] table_name SKEWED BY (col_name1, col_name2, ...) ON ([(col_name1_value, col_name2_value, ...) [, (col_name1_value, col_name2_value), ...]
+[STORED AS DIRECTORIES];
+Not Skewed: ALTER TABLE table_name NOT SKEWED;
+Not Stored as Directories: ALTER TABLE table_name NOT STORED AS DIRECTORIES;
+Skewed Location: ALTER TABLE table_name SET SKEWED LOCATION (col_name1="location1" [, col_name2="location2", ...] );
+성능 쿼리용 스토리지 균형 조정은 BigQuery 서비스가 관리하며 직접 구성할 수 없습니다.
+Table constraints ALTER TABLE [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterTableConstraints] table_name ADD CONSTRAINT constraint_name PRIMARY KEY (column, ...) DISABLE NOVALIDATE; ALTER TABLE table_name ADD CONSTRAINT constraint_name FOREIGN KEY (column, ...) REFERENCES table_name(column, ...) DISABLE NOVALIDATE RELY;
+ALTER TABLE table_name DROP CONSTRAINT constraint_name;
+ALTER TABLE [[project_name.]dataset_name.]table_name
+ADD [CONSTRAINT [IF NOT EXISTS] [constraint_name]] constraint NOT ENFORCED;
+ALTER TABLE [[project_name.]dataset_name.]table_name
+ADD PRIMARY KEY(column_list) NOT ENFORCED;
+자세한 내용은 ALTER TABLE ADD PRIMARY KEY 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_add_primary_key_statement]을 참조하세요.
+Add partition ALTER TABLE [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterEitherTableorPartition] table_name ADD [IF NOT EXISTS] PARTITION partition_spec [LOCATION 'location'][, PARTITION partition_spec [LOCATION 'location'], ...];
+partition_spec:
+: (partition_column = partition_col_value, partition_column = partition_col_value, ...)
+지원되지 않음 파티션 열에 새 값이 있는 데이터가 로드되면 필요에 따라 파티션이 추가됩니다.
+자세한 내용은 파티션을 나눈 테이블 관리 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko]를 참조하세요.
+Rename partition ALTER TABLE [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-RenamePartition] table_name PARTITION partition_spec RENAME TO PARTITION partition_spec; 지원되지 않음
+Exchange partition -- Move partition from table_name_1 to table_name_2
+ALTER TABLE table_name_2 EXCHANGE [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-ExchangePartition] PARTITION (partition_spec) WITH TABLE table_name_1; -- multiple partitions
+ALTER TABLE table_name_2 EXCHANGE PARTITION (partition_spec, partition_spec2, ...) WITH TABLE table_name_1;
+지원되지 않음
+Recover partition MSCK [REPAIR] [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-RecoverPartitions(MSCKREPAIRTABLE)] TABLE table_name [ADD/DROP/SYNC PARTITIONS]; 지원되지 않음
+Drop partition ALTER TABLE table_name DROP [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-DropPartitions] [IF EXISTS] PARTITION partition_spec[, PARTITION partition_spec, ...] [IGNORE PROTECTION] [PURGE]; 다음 메서드를 사용하여 지원됩니다.
+bq rm 'mydataset.table_name$partition_id'
+DELETE from table_name$partition_id WHERE 1=1
+
+자세한 내용은 파티션 삭제 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#delete_a_partition]를 참조하세요.
+(Un)Archive partition ALTER TABLE table_name ARCHIVE [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-(Un)ArchivePartition] PARTITION partition_spec; ALTER TABLE table_name UNARCHIVE PARTITION partition_spec; 지원되지 않음
+Table and partition file format ALTER TABLE table_name [PARTITION partition_spec] [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterTable/PartitionFileFormat] SET FILEFORMAT file_format; 지원되지 않음
+Table and partition location ALTER TABLE table_name [PARTITION partition_spec] [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterTable/PartitionLocation] SET LOCATION "new location"; 지원되지 않음
+Table and partition touch ALTER TABLE table_name TOUCH [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterTable/PartitionTouch] [PARTITION partition_spec]; 지원되지 않음
+Table and partition protection ALTER TABLE table_name [PARTITION partition_spec] [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterTable/PartitionProtections] ENABLE|DISABLE NO_DROP [CASCADE];
+ALTER TABLE table_name [PARTITION partition_spec] ENABLE|DISABLE OFFLINE;
+지원되지 않음
+Table and partition compact ALTER TABLE table_name [PARTITION (partition_key = 'partition_value' [, ...])] [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterTable/PartitionCompact] COMPACT 'compaction_type'[AND WAIT]
+[WITH OVERWRITE TBLPROPERTIES ("property"="value" [, ...])];
+지원되지 않음
+Table and artition concatenate ALTER TABLE table_name [PARTITION (partition_key = 'partition_value' [, ...])] [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterTable/PartitionConcatenate] CONCATENATE; 지원되지 않음
+Table and partition columns ALTER TABLE table_name [PARTITION (partition_key = 'partition_value' [, ...])] [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterTable/PartitionUpdatecolumns] UPDATE COLUMNS; ALTER TABLE 문에 지원되지 않습니다.
+Column name, type, position, and comment ALTER TABLE table_name [PARTITION partition_spec] [https://cwiki.apache.org/confluence/display/hive/languagemanual+ddl#LanguageManualDDL-AlterColumn] CHANGE [COLUMN] col_old_name col_new_name column_type [COMMENT col_comment] [FIRST|AFTER column_name] [CASCADE|RESTRICT]; 지원되지 않음
+DDL 구문
+이 섹션에서는 Hive와 BigQuery 간의 데이터 정의 언어(DDL) 구문 차이점을 설명합니다.
+CREATE TABLE 및 DROP TABLE 문
+다음 표에서는 Hive에서 BigQuery로 CREATE TABLE 문을 변환하는 방법을 자세히 설명합니다.
+유형 Hive BigQuery
+관리형 테이블 create table table_name (
+id int,
+dtDontQuery string,
+name string
+)
+CREATE TABLE `myproject`.mydataset.table_name (
+id INT64,
+dtDontQuery STRING,
+name STRING
+)
+파티션을 나눈 테이블 create table table_name (
+id int,
+dt string,
+name string
+)
+partitioned by (date string)
+CREATE TABLE `myproject`.mydataset.table_name (
+id INT64,
+dt DATE,
+name STRING
+)
+PARTITION BY dt
+OPTIONS(
+partition_expiration_days=3,
+description="a table partitioned by date_col"
+)
+Create table as select (CTAS) CREATE TABLE new_key_value_store
+ROW FORMAT SERDE "org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe"
+STORED AS RCFile
+AS
+SELECT (key % 1024) new_key, concat(key, value) key_value_pair, dt
+FROM key_value_store
+SORT BY new_key, key_value_pair;
+CREATE TABLE `myproject`.mydataset.new_key_value_store
+날짜별로 파티션을 나눌 때는 다음을 주석 처리 삭제합니다.
+PARTITION BY dt
+OPTIONS(
+description="Table Description",
+날짜별로 파티션을 나눌 때는 다음을 주석 처리 삭제합니다. 테이블 파티션을 나눌 때는 require_partition을 사용하는 것이 좋습니다.
+require_partition_filter=TRUE
+) AS
+SELECT (key % 1024) new_key, concat(key, value) key_value_pair, dt
+FROM key_value_store
+SORT BY new_key, key_value_pair'
+Create Table Like:
+CREATE TABLE의 LIKE 형식을 사용하면 기존 테이블 정의를 정확하게 복사할 수 있습니다.
+CREATE TABLE empty_key_value_store
+LIKE key_value_store [TBLPROPERTIES (property_name=property_value, ...)];
+지원되지 않음
+버킷팅된 정렬 테이블(BigQuery 용어로는 클러스터링) CREATE TABLE page_view(
+viewTime INT,
+userid BIGINT,
+page_url STRING,
+referrer_url STRING,
+ip STRING COMMENT 'IP Address of the User'
+)
+COMMENT 'This is the page view table'
+PARTITIONED BY(dt STRING, country STRING)
+CLUSTERED BY(userid) SORTED BY(viewTime) INTO 32 BUCKETS
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '\001'
+COLLECTION ITEMS TERMINATED BY '\002'
+MAP KEYS TERMINATED BY '\003'
+STORED AS SEQUENCEFILE;
+CREATE TABLE `myproject` mydataset.page_view (
+viewTime INT,
+dt DATE,
+userId BIGINT,
+page_url STRING,
+referrer_url STRING,
+ip STRING OPTIONS (description="IP Address of the User")
+)
+PARTITION BY dt
+CLUSTER BY userId
+OPTIONS (
+partition_expiration_days=3,
+description="This is the page view table",
+require_partition_filter=TRUE
+)'
+자세한 내용은 클러스터링된 테이블 만들기 및 사용 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko]을 참조하세요.
+왜곡된 테이블(하나 이상의 열에 왜곡된 값이 있는 테이블) CREATE TABLE list_bucket_multiple (col1 STRING, col2 int, col3 STRING)
+SKEWED BY (col1, col2) ON (('s1',1), ('s3',3), ('s13',13), ('s78',78)) [STORED AS DIRECTORIES];
+지원되지 않음
+임시 테이블 CREATE TEMPORARY TABLE list_bucket_multiple (
+col1 STRING,
+col2 int,
+col3 STRING);
+다음과 같이 만료 시간을 사용하여 구현할 수 있습니다.
+CREATE TABLE mydataset.newtable
+(
+col1 STRING OPTIONS(description="An optional INTEGER field"),
+col2 INT64,
+col3 STRING
+)
+PARTITION BY DATE(_PARTITIONTIME)
+OPTIONS(
+expiration_timestamp=TIMESTAMP "2020-01-01 00:00:00 UTC",
+partition_expiration_days=1,
+description="a table that expires in 2020, with each partition living for 24 hours",
+labels=[("org_unit", "development")]
+)
+트랜잭션 테이블 CREATE TRANSACTIONAL TABLE transactional_table_test(key string, value string) PARTITIONED BY(ds string) STORED AS ORC; BigQuery의 모든 테이블 수정은 ACID(원자성, 일관성, 격리성, 내구성)를 준수합니다.
+테이블 삭제 DROP TABLE [IF EXISTS] table_name [PURGE]; {DROP TABLE | DROP TABLE IF EXISTS}
+table_name
+테이블 자르기 TRUNCATE TABLE table_name [PARTITION partition_spec];
+partition_spec:
+: (partition_column = partition_col_value, partition_column = partition_col_value, ...)
+지원되지 않음 다음과 같은 해결 방법을 사용할 수 있습니다.
+테이블을 삭제하고 동일한 스키마로 다시 만듭니다.
+특정 테이블에서 자르기 작업이 자주 사용되는 경우 테이블의 쓰기 처리를 WRITE_TRUNCATE로 설정합니다.
+CREATE OR REPLACE TABLE 문을 사용합니다.
+DELETE from table_name WHERE 1=1 문을 사용합니다.
+참고: 특정 파티션을 잘라낼 수도 있습니다. 자세한 내용은 파티션 삭제 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#delete_a_partition]를 참조하세요.
+CREATE EXTERNAL TABLE 및 DROP EXTERNAL TABLE 문
+BigQuery의 외부 테이블 지원은 외부 데이터 소스 소개 [https://cloud.google.com/bigquery/external-data-sources?hl=ko]를 참조하세요.
+CREATE VIEW 및 DROP VIEW 문
+다음 표에서는 Hive에서 BigQuery로 CREATE VIEW 문을 변환하는 방법을 자세히 설명합니다.
+Hive BigQuery
+CREATE VIEW [IF NOT EXISTS] [db_name.]view_name [(column_name [COMMENT column_comment], ...) ]
+[COMMENT view_comment]
+[TBLPROPERTIES (property_name = property_value, ...)]
+AS SELECT ...;
+{CREATE VIEW | CREATE VIEW IF NOT EXISTS | CREATE OR REPLACE VIEW}
+view_name
+[OPTIONS(view_option_list [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#view_option_list])]
+AS query_expression
+CREATE MATERIALIZED VIEW [IF NOT EXISTS] [db_name.]materialized_view_name
+[DISABLE REWRITE]
+[COMMENT materialized_view_comment]
+[PARTITIONED ON (col_name, ...)]
+[
+[ROW FORMAT row_format]
+[STORED AS file_format]
+| STORED BY 'storage.handler.class.name' [WITH SERDEPROPERTIES (...)]
+]
+[LOCATION hdfs_path]
+[TBLPROPERTIES (property_name=property_value, ...)]
+AS
+;
+CREATE MATERIALIZED VIEW [IF NOT EXISTS] \ [project_id].[dataset_id].materialized_view_name
+-- cannot disable rewrites in BigQuery
+[OPTIONS(
+[description="materialized_view_comment",] \ [other materialized_view_option_list [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#materialized_view_option_list]]
+)]
+[PARTITION BY (col_name)] --same as source table
+CREATE FUNCTION 및 DROP FUNCTION 문
+다음 표에서는 Hive에서 BigQuery로 저장 프로시저를 변환하는 방법을 자세히 설명합니다.
+Hive BigQuery
+CREATE TEMPORARY FUNCTION function_name AS class_name; CREATE { TEMPORARY | TEMP } FUNCTION function_name ([named_parameter[, ...]])
+[RETURNS data_type]
+AS (sql_expression)
+named_parameter:
+param_name param_type
+DROP TEMPORARY FUNCTION [IF EXISTS] function_name; 지원되지 않음
+CREATE FUNCTION [db_name.]function_name AS class_name
+[USING JAR|FILE|ARCHIVE 'file_uri' [, JAR|FILE|ARCHIVE 'file_uri'] ];
+허용 목록에 있는 프로젝트에서 알파 기능으로 지원됩니다.
+CREATE { FUNCTION | FUNCTION IF NOT EXISTS | OR REPLACE FUNCTION }
+function_name ([named_parameter[, ...]])
+[RETURNS data_type]
+AS (expression);
+named_parameter:
+param_name param_type
+DROP FUNCTION [IF EXISTS] function_name; DROP FUNCTION [ IF EXISTS ] function_name
+RELOAD FUNCTION; 지원되지 않음
+CREATE MACRO 및 DROP MACRO 문
+다음 표에서는 변수 선언 및 할당을 사용하여 매크로 작성에 사용되는 절차적 SQL 문을 Hive에서 BigQuery로 변환하는 방법을 자세히 설명합니다.
+Hive BigQuery
+CREATE TEMPORARY MACRO macro_name([col_name col_type, ...]) expression; 지원되지 않음 경우에 따라 UDF로 대체할 수 있습니다.
+DROP TEMPORARY MACRO [IF EXISTS] macro_name; 지원되지 않음
+오류 코드 및 메시지
+Hive 오류 코드 [https://cwiki.apache.org/confluence/display/GEODE/Error+Codes]와 BigQuery 오류 코드 [https://cloud.google.com/bigquery/troubleshooting-errors?hl=ko]는 서로 다릅니다. 애플리케이션 로직에서 오류를 포착하는 경우 BigQuery가 동일한 오류 코드를 반환하지 않으므로 오류의 원인을 제거하세요.
+BigQuery에서는 일반적으로 INFORMATION_SCHEMA [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko] 뷰 또는감사 로깅 [https://cloud.google.com/bigquery/docs/reference/auditlogs?hl=ko]을 사용하여 오류를 조사합니다.
+일관성 보장 및 트랜잭션 격리
+Hive와 BigQuery 모두 ACID 시맨틱스를 사용하는 트랜잭션을 지원합니다. Hive 3에서는 트랜잭션 [https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions#HiveTransactions-ACIDandTransactionsinHive]이 기본적으로 사용 설정됩니다.
+ACID 시맨틱스
+Hive는 스냅샷 격리 [https://cwiki.apache.org/confluence/display/hive/hive+transactions]를 지원합니다. 쿼리를 실행하면 데이터베이스의 일관된 스냅샷이 쿼리에 제공되며 실행 종료 시점까지 해당 스냅샷이 사용됩니다. Hive는 행 수준에서 완전한 ACID 시맨틱스를 제공하므로 한 애플리케이션이 행을 추가하고 다른 애플리케이션이 같은 파티션에서 읽을 때 서로 간섭이 발생하지 않습니다.
+BigQuery는 쿼리가 시작되기 전에 마지막으로 커밋된 데이터를 쿼리가 읽는 스냅샷 격리 [https://en.wikipedia.org/wiki/Snapshot_isolation]를 사용하여 최적의 동시 실행 제어 [https://en.wikipedia.org/wiki/Optimistic_concurrency_control](첫 번째 성공 커밋)를 제공합니다. 이 접근 방법은 각 행과 변형 및 같은 DML 문에 포함된 여러 행에 걸쳐 동일한 수준의 일관성을 보장하면서 교착 상태를 방지합니다. 동일한 테이블에 여러 DML 업데이트가 수행되면 BigQuery는 최악 동시 실행 제어 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#limitations]로 전환됩니다. 여러 로드 작업이 독립적으로 실행되면서 테이블을 추가할 수 있지만 BigQuery는 명시적 트랜잭션 경계 또는 세션을 제공하지 않습니다.
+거래
+Hive는 멀티 문 트랜잭션을 지원하지 않습니다. BEGIN, COMMIT, ROLLBACK 문을 지원하지 않습니다. Hive에서는 모든 언어 작업이 자동으로 커밋됩니다.
+BigQuery는 단일 쿼리 내에서 또는 세션 사용 시 여러 쿼리 간에 멀티 문 트랜잭션을 지원합니다. 멀티 문 트랜잭션을 사용하면 하나 이상의 테이블에서 행을 삽입하거나 삭제하고 변경사항을 커밋하거나 롤백하는 등의 변형 작업을 수행할 수 있습니다. 자세한 내용은 멀티 문 트랜잭션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/transactions?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

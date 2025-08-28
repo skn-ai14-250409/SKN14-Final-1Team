@@ -1,0 +1,297 @@
+Source URL: https://cloud.google.com/bigquery/docs/search-index
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+검색 색인 만들기 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#create_a_search_index]
+기본 텍스트 분석기를 사용하여 검색 색인 만들기 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#create_a_search_index_with_the_default_text_analyzer]
+NO_OP_ANALYZER 분석기를 사용하여 모든 열에 검색 색인 만들기 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#create_a_search_index_on_all_columns_with_the_no_op_analyzer_analyzer]
+검색 색인을 만들고 열 및 데이터 유형 지정 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#create_a_search_index_and_specify_the_columns_and_data_types]
+모든 열에 검색 색인을 만들고 데이터 유형 지정 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#create_a_search_index_on_all_columns_and_specify_the_data_types]
+색인 새로고침 이해하기 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#understand_index_refresh]
+검색 색인 정보 가져오기 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#get_information_about_search_indexes]
+색인 관리 옵션 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#index_management_options]
+검색 색인 관리
+bookmark_border
+검색 색인은 SEARCH 함수 [https://cloud.google.com/bigquery/docs/search?hl=ko]로 매우 효율적인 검색을 지원하도록 설계된 데이터 구조입니다. 검색 색인은 지원되는 함수 및 연산자 [https://cloud.google.com/bigquery/docs/search?hl=ko#operator_and_function_optimization]를 사용하는 일부 쿼리를 최적화할 수도 있습니다.
+책 뒤에 있는 색인과 마찬가지로, 문자열 데이터의 열에 대한 검색 색인은 고유한 단어에 대한 열 1개와 해당 단어가 발생하는 데이터에 대한 열이 1개 있는 보조 테이블처럼 기능합니다.
+검색 색인 만들기
+검색 색인을 만들려면 CREATE SEARCH INDEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_search_index_statement] DDL 문을 사용합니다. 색인을 생성할 기본 데이터 유형을 지정하려면 검색 색인을 만들고 열 및 데이터 유형 지정 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#create_a_search_index_and_specify_the_columns_and_data_types]을 참조하세요. 데이터 유형을 지정하지 않으면 기본적으로 BigQuery는 STRING 데이터가 포함된 다음 유형의 열에 색인을 생성합니다.
+STRING
+ARRAY<STRING>
+STRING 또는 ARRAY<STRING> 유형의 중첩된 필드가 하나 이상 포함된 STRUCT
+JSON
+검색 색인을 만들 때 사용할 텍스트 분석기 [https://cloud.google.com/bigquery/docs/reference/standard-sql/text-analysis?hl=ko] 유형을 지정할 수 있습니다. 텍스트 분석기는 색인 생성 및 검색을 위해 데이터가 토큰화되는 방식을 제어합니다. 기본값은 LOG_ANALYZER입니다. 이 분석기는 머신 생성 로그에 잘 작동하며 IP 주소 또는 이메일과 같은 관측 가능성 데이터에서 일반적으로 발견되는 토큰에 대한 특수 규칙을 갖고 있습니다. 정확하게 일치해야 하는 데이터가 사전 처리된 경우 NO_OP_ANALYZER를 사용합니다. PATTERN_ANALYZER는 정규 표현식을 사용하여 텍스트에서 토큰을 추출합니다.
+기본 텍스트 분석기를 사용하여 검색 색인 만들기
+다음 예시에서는 simple_table의 a 및 c 열에 검색 색인을 만들고 기본적으로 LOG_ANALYZER 텍스트 분석기를 사용합니다.
+CREATE TABLE dataset.simple_table(a STRING, b INT64, c JSON);
+
+CREATE SEARCH INDEX my_index
+ON dataset.simple_table(a, c);
+NO_OP_ANALYZER 분석기를 사용하여 모든 열에 검색 색인 만들기
+ALL COLUMNS에서 검색 색인을 만들면 테이블의 모든 STRING 또는 JSON 데이터가 색인 생성됩니다. 테이블에 이러한 데이터가 없으면(예: 모든 열에 정수가 포함된 경우) 색인 생성이 실패합니다. 색인을 생성할 STRUCT 열을 지정하면 모든 중첩 하위 필드의 색인이 생성됩니다.
+다음 예시에서는 a, c.e, c.f.g에 검색 색인을 만들고 NO_OP_ANALYZER 텍스트 분석기를 사용합니다.
+CREATE TABLE dataset.my_table(
+  a STRING,
+  b INT64,
+  c STRUCT <d INT64,
+            e ARRAY<STRING>,
+            f STRUCT<g STRING, h INT64>>) AS
+SELECT 'hello' AS a, 10 AS b, (20, ['x', 'y'], ('z', 30)) AS c;
+
+CREATE SEARCH INDEX my_index
+ON dataset.my_table(ALL COLUMNS)
+OPTIONS (analyzer = 'NO_OP_ANALYZER');
+검색 색인이 ALL COLUMNS에 생성되었기 때문에 STRING 데이터가 포함된 경우 테이블에 추가된 모든 열에 자동으로 색인이 생성됩니다.
+검색 색인을 만들고 열 및 데이터 유형 지정
+검색 색인을 만들 때 사용할 데이터 유형을 지정할 수 있습니다. 데이터 유형은 색인 생성을 위한 JSON 및 STRUCT 열의 열 유형과 하위 필드를 제어합니다. 색인 생성의 기본 데이터 유형은 STRING입니다. 더 많은 데이터 유형(예: 숫자 유형)으로 검색 색인을 만들려면 data_types [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#index_option_list] 옵션이 포함된 CREATE SEARCH INDEX 문을 사용합니다.
+다음 예시에서는 simple_table이라는 테이블의 a, b, c, d 열에 검색 색인을 만듭니다. 지원되는 데이터 유형은 STRING, INT64, TIMESTAMP입니다.
+CREATE TABLE dataset.simple_table(a STRING, b INT64, c JSON, d TIMESTAMP);
+
+CREATE SEARCH INDEX my_index
+ON dataset.simple_table(a, b, c, d)
+OPTIONS ( data_types = ['STRING', 'INT64', 'TIMESTAMP']);
+모든 열에 검색 색인을 만들고 데이터 유형 지정
+data_types 옵션을 지정하여 ALL COLUMNS에서 검색 색인을 만들면 지정된 데이터 유형 중 하나와 일치하는 모든 열의 색인이 생성됩니다. JSON 및 STRUCT 열의 경우 지정된 데이터 유형 중 하나와 일치하는 모든 중첩 하위 필드에 색인이 생성됩니다.
+다음 예시에서는 데이터 유형이 지정된 ALL COLUMNS에 검색 색인이 생성됩니다. 이름이 my_table인 테이블의 a, b, c, d.e, d.f, d.g.h, d.g.i 열의 색인이 생성됩니다.
+CREATE TABLE dataset.my_table(
+  a STRING,
+  b INT64,
+  c TIMESTAMP,
+  d STRUCT <e INT64,
+            f ARRAY<STRING>,
+            g STRUCT<h STRING, i INT64>>)
+AS (
+  SELECT
+    'hello' AS a,
+    10 AS b,
+    TIMESTAMP('2008-12-25 15:30:00 UTC') AS c,
+    (20, ['x', 'y'], ('z', 30)) AS d;
+)
+
+CREATE SEARCH INDEX my_index
+ON dataset.my_table(ALL COLUMNS)
+OPTIONS ( data_types = ['STRING', 'INT64', 'TIMESTAMP']);
+검색 색인이 ALL COLUMNS에 생성되었기 때문에 지정된 데이터 유형과 일치하는 경우 테이블에 추가된 모든 열의 색인이 자동으로 생성됩니다.
+색인 새로고침 이해하기
+검색 색인은 BigQuery에서 완전하게 관리되며 테이블이 변경되면 자동으로 새로고침됩니다. 테이블에서 다음과 같이 스키마를 변경하면 전체 새로 고침이 트리거될 수 있습니다.
+색인 생성이 가능한 새 열이 ALL COLUMNS에서 검색 색인이 있는 테이블에 추가됩니다.
+테이블 스키마 변경 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko]으로 인해 색인이 생성된 열이 업데이트됩니다.
+색인이 생성된 열의 데이터가 모든 행에서 업데이트되면 색인 새로고침은 전체 새로고침과 같습니다. 백필 작업과 같이 데이터 업데이트가 하나의 열에만 영향을 미치는 경우에도 마찬가지입니다.
+테이블에서 색인이 생성된 유일한 열을 삭제하거나 테이블 자체의 이름을 바꾸면 검색 색인이 자동으로 삭제됩니다.
+검색 색인은 큰 테이블을 위해 설계되었습니다. 10GB보다 작은 테이블에 검색 색인을 만들 경우 색인이 채워지지 않습니다. 마찬가지로 색인이 생성된 테이블에서 데이터를 삭제하고 테이블 크기가 10GB 미만이 되면 색인이 일시적으로 사용 중지됩니다. 이 경우 검색 쿼리에 색인이 사용되지 않고 IndexUnusedReason 코드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#indexunusedreason]가 BASE_TABLE_TOO_SMALL입니다. 이러한 결과는 색인 관리 작업에 자체 예약을 사용하는지 여부에 관계없이 발생합니다. 색인 생성된 테이블의 크기가 10GB를 초과하면 색인이 자동으로 채워집니다. 검색 색인이 채워지고 활성화되기 전에는 스토리지 비용이 청구되지 않습니다. SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko]를 사용하는 쿼리는 일부 데이터가 아직 색인으로 생성되지 않았더라도 항상 올바른 결과를 반환합니다.
+검색 색인 정보 가져오기
+INFORMATION_SCHEMA를 쿼리하여 검색 색인의 존재 및 준비 여부를 확인할 수 있습니다. 검색 색인에 대한 메타데이터가 포함된 두 개의 뷰가 있습니다. INFORMATION_SCHEMA.SEARCH_INDEXES 뷰 [https://cloud.google.com/bigquery/docs/information-schema-indexes?hl=ko]에는 데이터 세트에 생성된 각 검색 색인에 대한 정보가 있습니다. INFORMATION_SCHEMA.SEARCH_INDEX_COLUMNS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-index-columns?hl=ko]에는 데이터 세트에 있는 각 테이블의 열 중 색인이 생성되는 열에 대한 정보가 있습니다.
+다음 예시는 my_project 프로젝트에 위치한 데이터 세트 my_dataset에 있는 테이블의 모든 활성 검색 색인을 보여줍니다. 여기에는 검색 색인의 이름, 검색 색인을 만드는 데 사용된 DDL 문, 적용 범위 비율, 텍스트 분석기가 포함됩니다. 색인이 생성된 기본 테이블이 10GB 미만이면 색인이 채워지지 않으며, 이 경우 coverage_percentage는 0입니다.
+SELECT table_name, index_name, ddl, coverage_percentage, analyzer
+FROM my_project.my_dataset.INFORMATION_SCHEMA.SEARCH_INDEXES
+WHERE index_status = 'ACTIVE';
+다음과 같은 결과가 표시됩니다.
++-------------+-------------+--------------------------------------------------------------------------------------+---------------------+----------------+
+| table_name  | index_name  | ddl                                                                                  | coverage_percentage | analyzer       |
++-------------+-------------+--------------------------------------------------------------------------------------+---------------------+----------------+
+| small_table | names_index | CREATE SEARCH INDEX `names_index` ON `my_project.my_dataset.small_table`(names)      | 0                   | NO_OP_ANALYZER |
+| large_table | logs_index  | CREATE SEARCH INDEX `logs_index` ON `my_project.my_dataset.large_table`(ALL COLUMNS) | 100                 | LOG_ANALYZER   |
++-------------+-------------+--------------------------------------------------------------------------------------+---------------------+----------------+
+다음 예시에서는 my_table의 모든 열에 검색 색인을 만듭니다.
+CREATE TABLE dataset.my_table(
+  a STRING,
+  b INT64,
+  c STRUCT <d INT64,
+            e ARRAY<STRING>,
+            f STRUCT<g STRING, h INT64>>) AS
+SELECT 'hello' AS a, 10 AS b, (20, ['x', 'y'], ('z', 30)) AS c;
+
+CREATE SEARCH INDEX my_index
+ON dataset.my_table(ALL COLUMNS);
+다음 쿼리는 색인이 생성되는 필드에 대한 정보를 추출합니다. index_field_path는 색인이 생성되는 열의 필드를 나타냅니다. 색인이 생성된 필드의 전체 경로가 제공되는 STRUCT의 경우에만 index_column_name과 다릅니다. 이 예시에서 c 열에는 ARRAY<STRING> 필드 e와 STRING 필드 g가 포함된 f라는 다른 STRUCT가 포함되어 있으며 각각 색인이 생성됩니다.
+SELECT table_name, index_name, index_column_name, index_field_path
+FROM my_project.dataset.INFORMATION_SCHEMA.SEARCH_INDEX_COLUMNS
+결과는 다음과 비슷합니다.
++------------+------------+-------------------+------------------+
+| table_name | index_name | index_column_name | index_field_path |
++------------+------------+-------------------+------------------+
+| my_table   | my_index   | a                 | a                |
+| my_table   | my_index   | c                 | c.e              |
+| my_table   | my_index   | c                 | c.f.g            |
++------------+------------+-------------------+------------------+
+다음 쿼리는 INFORMATION_SCHEMA.SEARCH_INDEX_COUMNS 뷰를 INFORMATION_SCHEMA.SEARCH_INDEXES 및 INFORMATION_SCHEMA.COLUMNS 뷰와 조인하여 검색 색인 상태 및 각 열의 데이터 유형을 포함합니다.
+SELECT
+  index_columns_view.index_catalog AS project_name,
+  index_columns_view.index_SCHEMA AS dataset_name,
+  indexes_view.TABLE_NAME AS table_name,
+  indexes_view.INDEX_NAME AS index_name,
+  indexes_view.INDEX_STATUS AS status,
+  index_columns_view.INDEX_COLUMN_NAME AS column_name,
+  index_columns_view.INDEX_FIELD_PATH AS field_path,
+  columns_view.DATA_TYPE AS data_type
+FROM
+  mydataset.INFORMATION_SCHEMA.SEARCH_INDEXES indexes_view
+INNER JOIN
+  mydataset.INFORMATION_SCHEMA.SEARCH_INDEX_COLUMNS index_columns_view
+  ON
+    indexes_view.TABLE_NAME = index_columns_view.TABLE_NAME
+    AND indexes_view.INDEX_NAME = index_columns_view.INDEX_NAME
+LEFT OUTER JOIN
+  mydataset.INFORMATION_SCHEMA.COLUMNS columns_view
+  ON
+    indexes_view.INDEX_CATALOG = columns_view.TABLE_CATALOG
+    AND indexes_view.INDEX_SCHEMA = columns_view.TABLE_SCHEMA
+    AND index_columns_view.TABLE_NAME = columns_view.TABLE_NAME
+    AND index_columns_view.INDEX_COLUMN_NAME = columns_view.COLUMN_NAME
+ORDER BY
+  project_name,
+  dataset_name,
+  table_name,
+  column_name;
+결과는 다음과 비슷합니다.
++------------+------------+----------+------------+--------+-------------+------------+---------------------------------------------------------------+
+| project    | dataset    | table    | index_name | status | column_name | field_path | data_type                                                     |
++------------+------------+----------+------------+--------+-------------+------------+---------------------------------------------------------------+
+| my_project | my_dataset | my_table | my_index   | ACTIVE | a           | a          | STRING                                                        |
+| my_project | my_dataset | my_table | my_index   | ACTIVE | c           | c.e        | STRUCT<d INT64, e ARRAY<STRING>, f STRUCT<g STRING, h INT64>> |
+| my_project | my_dataset | my_table | my_index   | ACTIVE | c           | c.f.g      | STRUCT<d INT64, e ARRAY<STRING>, f STRUCT<g STRING, h INT64>> |
++------------+------------+----------+------------+--------+-------------+------------+---------------------------------------------------------------+
+색인 관리 옵션
+색인을 만들고 BigQuery가 이를 유지보수하도록 할 때는 다음 두 가지 옵션이 있습니다.
+기본 공유 슬롯 풀 사용 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#use_shared_slots]: 색인을 생성할 데이터가 조직별 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#index_limits]보다 낮으면 색인 관리를 위한 공유 슬롯 풀을 무료로 사용할 수 있습니다.
+자체 예약 사용 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#use_your_own_reservation]: 큰 프로덕션 워크로드에서 보다 예측 가능하고 일관적으로 색인을 생성하기 위해서는 색인 관리를 위해 자체 예약을 사용할 수 있습니다.
+공유 슬롯 사용
+색인 생성에 전용 예약 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#use_your_own_reservation]을 사용하도록 프로젝트를 구성하지 않은 경우 색인 관리는 다음과 같은 제약조건에 따라 무료 공유 슬롯 풀에서 처리됩니다.
+데이터를 테이블에 추가하여 색인이 생성된 테이블의 총 크기가 조직의 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#index_limits]를 초과할 경우 BigQuery가 색인이 생성된 모든 테이블의 색인 관리를 일시중지합니다. 이 경우 INFORMATION_SCHEMA.SEARCH_INDEXES 뷰 [https://cloud.google.com/bigquery/docs/information-schema-indexes?hl=ko]의 index_status 필드에 PENDING DISABLEMENT가 표시되고 색인이 삭제 큐에 추가됩니다. 사용 중지 대기 중인 색인은 쿼리에 계속 사용되며 색인 스토리지 요금이 부과됩니다. 색인이 삭제되면 index_status 필드에 색인이 TEMPORARILY DISABLED로 표시됩니다. 이 상태에서는 쿼리에 색인이 사용되지 않고 색인 스토리지 요금이 청구되지 않습니다. 여기에서 IndexUnusedReason 코드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#indexunusedreason]는 BASE_TABLE_TOO_LARGE입니다.
+테이블에서 데이터를 삭제하고 색인이 생성된 테이블의 총 크기가 조직별 한도 미만이 되면 색인이 생성된 모든 테이블의 색인 관리가 다시 시작됩니다. INFORMATION_SCHEMA.SEARCH_INDEXES 뷰의 index_status 필드는 ACTIVE이고 쿼리에서 색인을 사용할 수 있으며 색인 스토리지에 대한 요금이 부과됩니다.
+BigQuery는 공유 풀의 사용 가능한 용량 또는 표시된 색인 생성의 처리량을 보장하지 않습니다. 프로덕션 애플리케이션의 경우 색인 처리를 위해 전용 슬롯을 사용할 수 있습니다.
+자체 예약 사용
+기본 공유 슬롯 풀을 사용하는 대신 자체 예약을 지정하여 테이블의 색인을 지정할 수 있습니다. 자체 예약을 사용하면 생성, 새로고침, 백그라운드 최적화와 같은 색인 관리 작업의 예측 가능한 일관된 성능을 보장할 수 있습니다.
+예약에서 색인 생성 작업을 실행할 때는 테이블 크기 한도가 없습니다.
+자체 예약을 사용하면 색인을 유연하게 관리할 수 있습니다. 매우 큰 색인을 만들거나 색인 생성된 테이블에 주요 업데이트를 수행해야 하는 경우 일시적으로 할당에 슬롯을 더 추가할 수 있습니다.
+지정된 예약이 있는 프로젝트에서 테이블의 색인을 생성하려면 테이블이 위치한 리전에서 예약을 만듭니다 [https://cloud.google.com/bigquery/docs/reservations-tasks?hl=ko]. 그런 다음 job_type을 BACKGROUND로 설정하여 예약에 프로젝트를 할당합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/search-index?hl=ko#sql] ---
+CREATE ASSIGNMENT DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_assignment_statement]을 사용합니다.
+
+
+
+
+
+
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE ASSIGNMENT
+  `ADMIN_PROJECT_ID.region-LOCATION.RESERVATION_NAME.ASSIGNMENT_ID`
+OPTIONS (
+  assignee = 'projects/PROJECT_ID',
+  job_type = 'BACKGROUND');
+
+
+다음을 바꿉니다.
+
+  ADMIN_PROJECT_ID: 예약 리소스를 소유하는 관리 프로젝트 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#admin-project]의 프로젝트 ID
+  LOCATION: 예약 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]
+  RESERVATION_NAME: 예약 이름
+  ASSIGNMENT_ID: 할당 ID.
+    ID는 프로젝트 및 위치에 고유해야 하고, 소문자 또는 숫자로 시작하고 끝나야 하고, 소문자, 숫자, 대시만 포함해야 합니다.
+  PROJECT_ID: 색인을 생성할 테이블이 포함된 프로젝트의 ID입니다. 이 프로젝트가 예약에 할당됩니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/search-index?hl=ko#bq] ---
+bq mk 명령어를 사용합니다.
+
+bq mk \
+    --project_id=ADMIN_PROJECT_ID \
+    --location=LOCATION \
+    --reservation_assignment \
+    --reservation_id=RESERVATION_NAME \
+    --assignee_id=PROJECT_ID \
+    --job_type=BACKGROUND \
+    --assignee_type=PROJECT
+
+
+다음을 바꿉니다.
+
+
+ADMIN_PROJECT_ID: 예약 리소스를 소유하는 관리 프로젝트 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#admin-project]의 프로젝트 ID
+LOCATION: 예약 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]
+RESERVATION_NAME: 예약 이름
+PROJECT_ID: 이 예약에 할당할 프로젝트의 ID입니다.
+색인 생성 작업 보기
+단일 테이블에서 색인을 만들거나 업데이트할 때마다 새로운 색인 생성 작업이 생성됩니다. 작업에 대한 정보를 보려면 INFORMATION_SCHEMA.JOBS* 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 쿼리합니다. 쿼리의 WHERE 절에서 job_type IS NULL AND SEARCH(job_id, '`search_index`')를 설정하여 색인 생성 작업을 필터링할 수 있습니다. 다음 예시는 my_project 프로젝트에 있는 최근 5개의 색인 생성 작업을 보여줍니다.
+SELECT *
+FROM
+ region-us.INFORMATION_SCHEMA.JOBS
+WHERE
+  project_id  = 'my_project'
+  AND job_type IS NULL
+  AND SEARCH(job_id, '`search_index`')
+ORDER BY
+ creation_time DESC
+LIMIT 5;
+참고: 기본 공유 슬롯 풀에서 실행되는 색인 생성 작업에 대한 정보는 확인할 수 없습니다.
+예약 크기 선택
+예약에 적합한 슬롯 수를 선택하려면 색인 관리 작업이 실행되는 시기, 사용되는 슬롯 수, 시간 경과에 따른 사용량을 고려해야 합니다. BigQuery는 다음 상황에서 색인 관리 작업을 트리거합니다.
+테이블에 색인을 만듭니다.
+색인 생성된 테이블에서 데이터가 수정됩니다.
+테이블의 스키마가 변경되어 색인이 생성되는 열에 영향을 미칩니다.
+색인 데이터 및 메타데이터가 주기적으로 최적화되거나 업데이트됩니다.
+테이블에서 색인 관리 작업에 필요한 슬롯 수는 다음 요소에 따라 달라집니다.
+테이블 크기
+테이블에 대한 데이터 수집 비율
+테이블에 적용되는 DML 문의 비율
+색인 빌드 및 유지보수에 허용되는 지연 시간
+중복 항목 수와 같이 일반적으로 데이터 속성에 따라 결정되는 색인의 복잡성
+초기 예상
+다음 예상값은 예약에 필요한 대략적인 슬롯 수를 계산하는 데 도움이 됩니다. 색인 생성 워크로드의 특성이 매우 다양하기 때문에 데이터 색인 생성을 시작한 후 요구사항을 다시 평가해야 합니다.
+기존 데이터: BigQuery가 1000개 슬롯 예약을 사용해서 평균 초당 4GiB의 속도로 기존 테이블에 색인을 생성할 수 있으며 이는 하루 약 336TiB에 해당합니다.
+새로 수집된 데이터: 새로 수집된 데이터의 경우 테이블 및 해당 색인이 여러 차례의 최적화 작업을 거치기 때문에 더 많은 리소스가 필요합니다. 평균적으로 새로 수집된 데이터에 색인을 생성하기 위해서는 동일한 데이터의 초기 백필 색인 생성과 비교할 때 3배 많은 리소스가 소비됩니다.
+수정 빈도가 낮은 데이터: 데이터 수정이 거의 없는 색인 생성된 테이블의 경우 연속적인 색인 유지보수를 위해 상당히 적은 양의 리소스를 필요로 합니다. 동일한 데이터를 초기 백필 색인 생성에 필요한 슬롯의 1/5을 유지하고 250개 이상은 유지하는 것이 좋습니다.
+색인 생성 작업은 대략적으로 예약 크기에 따라 선형적으로 확장됩니다. 그러나 비효율적으로 색인 생성 작업이 느려질 수 있으므로 색인 생성을 위해 250개 이상의 예약 슬롯을 사용하는 것이 좋습니다.
+이 추정치는 기능, 최적화, 실제 사용량에 따라 달라질 수 있습니다.
+조직의 총 테이블 크기가 리전의 색인 생성 한도를 초과하는 경우 색인 생성에 할당된 0이 아닌 예약을 유지해야 합니다. 그렇지 않으면 색인 생성이 기본 등급으로 되돌아가 모든 색인이 의도치 않게 삭제될 수 있습니다.
+사용량 및 진행 상태 모니터링
+색인 관리 작업을 효율적으로 실행하기 위해 필요한 슬롯 수를 평가하기 위해서는 슬롯 사용률을 모니터링하고 그에 따라 예약 크기를 조정하는 것이 가장 좋습니다. 다음 쿼리는 색인 관리 작업을 위한 일일 슬롯 사용량을 보여줍니다. 이전 30일만 us-west1 리전에 포함됩니다.
+SELECT
+  TIMESTAMP_TRUNC(job.creation_time, DAY) AS usage_date,
+  -- Aggregate total_slots_ms used for index-management jobs in a day and divide
+  -- by the number of milliseconds in a day. This value is most accurate for
+  -- days with consistent slot usage.
+  SAFE_DIVIDE(SUM(job.total_slot_ms), (1000 * 60 * 60 * 24)) AS average_daily_slot_usage
+FROM
+  `region-us-west1`.INFORMATION_SCHEMA.JOBS job
+WHERE
+  project_id = 'my_project'
+  AND job_type IS NULL
+  AND SEARCH(job_id, '`search_index`')
+GROUP BY
+  usage_date
+ORDER BY
+  usage_date DESC
+limit 30;
+색인 관리 작업을 실행하는 데 슬롯이 부족하면 색인이 테이블과 동기화되지 않고 색인 생성 작업이 실패할 수 있습니다. 이 경우 BigQuery에서 색인을 처음부터 다시 빌드합니다. 색인이 동기화되지 않도록 방지하려면 데이터 수집 및 최적화로부터 색인 업데이트를 지원하기에 슬롯이 충분한지 확인해야 합니다. 슬롯 사용량 모니터링에 대한 자세한 내용은 관리 리소스 차트 [https://cloud.google.com/bigquery/docs/admin-resource-charts?hl=ko]를 참조하세요.
+권장사항
+검색 색인은 큰 테이블을 위해 설계되었습니다. 검색 색인으로 인한 성능 이점은 테이블 크기에 따라 증가합니다.
+고유 값 수가 적은 열은 색인을 생성하지 마세요.
+SEARCH 함수 또는 기타 지원되는 함수 및 연산자 [https://cloud.google.com/bigquery/docs/search?hl=ko#operator_and_function_optimization]와 함께 사용할 의도가 없는 열은 색인을 생성하지 마세요.
+ALL COLUMNS에서 검색 색인을 만들 때는 주의가 필요합니다. STRING 또는 JSON 데이터가 포함된 열을 추가할 때마다 색인이 생성됩니다.
+프로덕션 애플리케이션에서 색인 관리를 위해서는 자체 예약을 사용 [https://cloud.google.com/bigquery/docs/search-index?hl=ko#use_your_own_reservation]해야 합니다. 색인 관리 작업을 위해 기본 공유 슬롯 풀을 사용하도록 선택한 경우 조직별 크기 지정 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#index_limits]가 적용됩니다.
+검색 색인 삭제
+검색 색인이 더 이상 필요하지 않거나 테이블에서 색인을 생성할 열을 변경하려면 현재 테이블에 있는 색인을 삭제하면 됩니다. DROP SEARCH INDEX DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#drop_search_index]을 사용합니다.
+색인이 생성된 테이블을 삭제하면 색인이 자동으로 삭제됩니다.
+예:
+DROP SEARCH INDEX my_index ON dataset.simple_table;
+다음 단계
+검색 색인 사용 사례, 가격 책정, 필수 권한, 제한사항에 대한 개요는 BigQuery의 검색 소개 [https://cloud.google.com/bigquery/docs/search-intro?hl=ko]를 참조하세요.
+색인이 생성된 열을 효율적으로 검색하는 방법에 대한 자세한 내용은 색인을 사용한 검색 [https://cloud.google.com/bigquery/docs/search?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

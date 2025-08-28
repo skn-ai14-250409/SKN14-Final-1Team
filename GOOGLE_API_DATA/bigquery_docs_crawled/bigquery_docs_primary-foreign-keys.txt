@@ -1,0 +1,83 @@
+Source URL: https://cloud.google.com/bigquery/docs/primary-foreign-keys
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+제약조건 관리 [https://cloud.google.com/bigquery/docs/primary-foreign-keys?hl=ko#manage_constraints]
+제약조건 보기 [https://cloud.google.com/bigquery/docs/primary-foreign-keys?hl=ko#view_constraints]
+쿼리 최적화 [https://cloud.google.com/bigquery/docs/primary-foreign-keys?hl=ko#optimize_queries]
+내부 조인 제거 [https://cloud.google.com/bigquery/docs/primary-foreign-keys?hl=ko#eliminate_inner_joins]
+외부 조인 제거 [https://cloud.google.com/bigquery/docs/primary-foreign-keys?hl=ko#eliminate_outer_joins]
+조인 재정렬 [https://cloud.google.com/bigquery/docs/primary-foreign-keys?hl=ko#reorder_joins]
+제한사항 [https://cloud.google.com/bigquery/docs/primary-foreign-keys?hl=ko#limitations]
+다음 단계 [https://cloud.google.com/bigquery/docs/primary-foreign-keys?hl=ko#whats_next]
+기본 키 및 외래 키 사용
+bookmark_border
+기본 키와 외래 키는 쿼리 최적화에 도움이 될 수 있는 테이블 제약조건입니다. 이 문서에서는 제약조건을 만들고, 보고, 관리하고, 이를 사용하여 쿼리를 최적화하는 방법을 설명합니다.
+BigQuery는 다음 키 제약조건을 지원합니다.
+기본 키: 테이블의 기본 키는 각 행에 고유하고 NULL이 아닌 하나 이상의 열의 조합입니다.
+외래 키: 테이블의 외래 키는 참조된 테이블의 기본 키 열에 있거나 NULL인 하나 이상의 열의 조합입니다.
+기본 키와 외래 키는 일반적으로 데이터 무결성을 보장하고 쿼리 최적화를 지원하는 데 사용됩니다. BigQuery는 기본 키 및 외래 키 제약조건을 강제 적용하지 않습니다. 테이블에 제약조건을 선언할 때는 데이터가 제약조건을 준수하는지 확인해야 합니다. BigQuery는 테이블 제약조건을 사용하여 쿼리를 최적화할 수 있습니다.
+제약조건 관리
+기본 및 외래 키 관계는 다음 DDL 문을 통해 생성되고 관리될 수 있습니다.
+CREATE TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]을 사용하여 테이블을 만들 때 기본 키 및 외래 키 제약조건을 만듭니다.
+ALTER TABLE ADD PRIMARY KEY 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_add_primary_key_statement]을 사용하여 기존 테이블에 기본 키 제약조건을 추가합니다.
+ALTER TABLE ADD FOREIGN KEY 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_add_foreign_key_statement]을 사용하여 기존 테이블에 외래 키 제약조건을 추가합니다.
+ALTER TABLE DROP PRIMARY KEY 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_drop_primary_key_statement]을 사용하여 테이블에서 기본 키 제약조건을 삭제합니다.
+ALTER TABLE DROP CONSTRAINT 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_drop_constraint_statement]을 사용하여 테이블에서 외래 키 제약조건을 삭제합니다.
+TableConstraints 객체 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#TableConstraints]를 업데이트하여 BigQuery API를 통해 테이블 제약조건을 관리할 수도 있습니다.
+제약조건 보기
+다음 뷰는 테이블 제약조건에 관한 정보를 제공합니다.
+INFORMATION_SCHEMA.TABLE_CONSTRAINTS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-table-constraints?hl=ko]에는 데이터 세트 내 테이블의 모든 기본 키 및 외래 키 제약조건에 관한 정보가 포함됩니다.
+INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE 뷰 [https://cloud.google.com/bigquery/docs/information-schema-constraint-column-usage?hl=ko]에는 데이터 세트 내 각 테이블의 기본 키 열과 다른 테이블의 외래 키에서 참조하는 열에 관한 정보가 포함되어 있습니다.
+INFORMATION_SCHEMA.KEY_COLUMN_USAGE 뷰 [https://cloud.google.com/bigquery/docs/information-schema-key-column-usage?hl=ko]에는 기본 키 또는 외래 키로 제한된 각 테이블의 열에 대한 정보가 포함됩니다.
+쿼리 최적화
+테이블에 기본 키와 외래 키를 만들고 적용하면 BigQuery에서 이 정보를 사용하여 특정 쿼리 조인을 삭제하거나 최적화할 수 있습니다. 쿼리를 다시 작성하여 이러한 최적화를 모방할 수는 있지만, 이러한 재작성이 항상 실용적인 것은 아닙니다.
+프로덕션 환경에서는 여러 사실 및 측정기준 테이블을 조인하는 뷰를 만들 수 있습니다. 개발자는 기본 테이블을 쿼리하고 매번 조인을 수동으로 다시 작성하는 대신 뷰를 쿼리할 수 있습니다. 적절한 제약조건을 정의하면 제약조건이 적용되는 모든 쿼리에 조인 최적화가 자동으로 발생합니다.
+주의: BigQuery에서는 키 제약조건이 적용되지 않습니다. 제약조건을 항상 유지할 책임은 사용자에게 있습니다. 제약조건이 위반된 테이블에 대한 쿼리는 잘못된 결과를 반환할 수 있습니다.
+다음 섹션의 예시에서는 제약조건이 있는 store_sales 및 customer 테이블을 참조합니다.
+CREATE TABLE mydataset.customer (customer_name STRING PRIMARY KEY NOT ENFORCED);
+
+CREATE TABLE mydataset.store_sales (
+    item STRING PRIMARY KEY NOT ENFORCED,
+    sales_customer STRING REFERENCES mydataset.customer(customer_name) NOT ENFORCED,
+    category STRING);
+내부 조인 제거
+INNER JOIN이 포함된 다음 쿼리를 고려하세요.
+SELECT ss.*
+FROM mydataset.store_sales AS ss
+    INNER JOIN mydataset.customer AS c
+    ON ss.sales_customer = c.customer_name;
+customer_name 열은 customer 테이블의 기본 키이므로 store_sales 테이블의 각 행에는 단일 일치 항목이 있거나 sales_customer가 NULL인 경우 일치 항목이 없습니다. 쿼리가 store_sales 테이블의 열만 선택하므로 쿼리 옵티마이저는 조인을 삭제하고 쿼리를 다음과 같이 다시 작성할 수 있습니다.
+SELECT *
+FROM mydataset.store_sales
+WHERE sales_customer IS NOT NULL;
+외부 조인 제거
+LEFT OUTER JOIN을 삭제하려면 오른쪽의 조인 키가 고유해야 하며 왼쪽의 열만 선택해야 합니다. 다음 쿼리를 살펴보겠습니다.
+SELECT ss.*
+FROM mydataset.store_sales ss
+    LEFT OUTER JOIN mydataset.customer c
+    ON ss.category = c.customer_name;
+이 예시에서는 category와 customer_name 사이에 관계가 없습니다. 선택한 열은 store_sales 테이블에서만 가져오고 조인 키 customer_name은 customer 테이블의 기본 키이므로 각 값이 고유합니다. 즉, store_sales 테이블의 각 행에 대해 customer 테이블에 정확히 하나의 일치 항목(NULL일 수 있음)이 있으며 LEFT OUTER JOIN을 삭제할 수 있습니다.
+SELECT ss.*
+FROM mydataset.store_sales;
+조인 재정렬
+BigQuery에서 조인을 제거할 수 없는 경우 테이블 제약조건을 사용하여 조인 카디널리티에 관한 정보를 가져오고 조인을 실행할 순서를 최적화할 수 있습니다.
+제한사항
+기본 키와 외래 키에는 다음과 같은 제한사항이 적용됩니다.
+BigQuery에서는 키 제약조건이 적용되지 않습니다. 제약조건을 항상 유지할 책임은 사용자에게 있습니다. 제약조건이 위반된 테이블에 대한 쿼리는 잘못된 결과를 반환할 수 있습니다.
+기본 키는 16개의 열을 초과할 수 없습니다.
+외래 키에는 참조된 테이블 열에 있는 값이 있어야 합니다. 이러한 값은 NULL일 수 있습니다.
+기본 키와 외래 키는 BIGNUMERIC, BOOLEAN, DATE, DATETIME, INT64, NUMERIC, STRING, TIMESTAMP 유형 중 하나여야 합니다.
+기본 키와 외래 키는 최상위 열에만 설정할 수 있습니다.
+기본 키는 이름을 지정할 수 없습니다.
+기본 키 제약조건이 있는 테이블의 이름은 변경할 수 없습니다.
+테이블에는 최대 64개의 외래 키가 있을 수 있습니다.
+외래 키는 동일한 테이블의 열을 참조할 수 없습니다.
+기본 키 제약조건 또는 외래 키 제약조건의 일부인 필드 이름을 바꾸거나 유형을 변경할 수 없습니다.
+-a 또는 --append_table 옵션이 없는 테이블을 복사 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#copy-table], 클론 [https://cloud.google.com/bigquery/docs/table-clones-create?hl=ko], 복원 [https://cloud.google.com/bigquery/docs/table-snapshots-restore?hl=ko] 또는 스냅샷 [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko]하면 소스 테이블 제약조건이 복사되어 대상 테이블에 덮어쓰여집니다. -a 또는 --append_table 옵션을 사용하는 경우 테이블 제약조건 없이 소스 테이블 레코드만 대상 테이블에 추가됩니다.
+다음 단계
+쿼리 계산을 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko]하는 방법을 자세히 알아보세요.
+의견 보내기

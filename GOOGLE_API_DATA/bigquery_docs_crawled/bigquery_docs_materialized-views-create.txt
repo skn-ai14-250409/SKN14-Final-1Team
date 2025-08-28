@@ -1,0 +1,907 @@
+Source URL: https://cloud.google.com/bigquery/docs/materialized-views-create
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#before_you_begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#required_permissions]
+구체화된 뷰 만들기 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#create]
+액세스 제어 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#access_control]
+구체화된 뷰(materialized view) 쿼리 지원 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#supported-mvs]
+구체화된 뷰 만들기
+bookmark_border
+참고: 특정 BigQuery 버전으로 생성된 예약을 사용하는 경우에는 이 기능을 사용하지 못할 수 있습니다. 각 버전에서 사용 설정된 기능에 대한 자세한 내용은 BigQuery 버전 소개 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]를 참조하세요.
+이 문서에서는 BigQuery에서 구체화된 뷰(materialized view)를 만드는 방법을 설명합니다. 이 문서를 읽기 전에 구체화된 뷰 소개 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko]를 숙지하세요.
+시작하기 전에
+사용자에게 이 문서의 각 작업을 수행하는 데 필요한 권한을 부여하는 Identity and Access Management(IAM) 역할을 부여합니다.
+필수 권한
+구체화된 뷰(materialized view)를 만들려면 bigquery.tables.create IAM 권한이 필요합니다.
+다음과 같은 사전 정의된 각 IAM 역할에는 구체화된 뷰를 만드는 데 필요한 권한이 포함되어 있습니다.
+bigquery.dataEditor
+bigquery.dataOwner
+bigquery.admin
+BigQuery Identity and Access Management(IAM)에 대한 자세한 내용은 IAM으로 액세스 제어 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+구체화된 뷰 만들기
+구체화된 뷰(materialized view)를 만들려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#sql] ---
+CREATE MATERIALIZED VIEW 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_materialized_view_statement]을 사용합니다.
+다음 예시에서는 각 제품 ID를 클릭한 수에 대한 구체화된 뷰를 만듭니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE MATERIALIZED VIEW PROJECT_ID.DATASET.MATERIALIZED_VIEW_NAME AS (
+  QUERY_EXPRESSION
+);
+
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 구체화된 뷰를 만들 프로젝트의 이름입니다(예: myproject).
+  DATASET: 구체화된 뷰를 만들 BigQuery 데이터 세트의 이름(예: mydataset).
+      Amazon Simple Storage Service(Amazon S3) BigLake 테이블(미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages])을 통해 구체화된 뷰를 만드는 경우 데이터 세트가 지원되는 리전 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#locations]을 선택합니다.
+      
+  MATERIALIZED_VIEW_NAME: 만들려는 구체화된 뷰의 이름(예: my_mv)
+  QUERY_EXPRESSION: 구체화된 뷰를 정의하는 GoogleSQL 쿼리 표현식(예: SELECT product_id, SUM(clicks) AS sum_clicks FROM
+     mydataset.my_source_table)
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+예시
+
+다음 예시에서는 각 제품 ID를 클릭한 수에 대한 구체화된 뷰를 만듭니다.
+
+CREATE MATERIALIZED VIEW myproject.mydataset.my_mv_table AS (
+  SELECT
+    product_id,
+    SUM(clicks) AS sum_clicks
+  FROM
+    myproject.mydataset.my_base_table
+  GROUP BY
+    product_id
+);
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#terraform] ---
+google_bigquery_table [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_table] 리소스를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 이름이 my_materialized_view인 뷰를 만듭니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  resource "google_bigquery_dataset" "default" {
+  dataset_id                      = "mydataset"
+  default_partition_expiration_ms = 2592000000  # 30 days
+  default_table_expiration_ms     = 31536000000 # 365 days
+  description                     = "dataset description"
+  location                        = "US"
+  max_time_travel_hours           = 96 # 4 days
+
+  labels = {
+    billing_group = "accounting",
+    pii           = "sensitive"
+  }
+}
+
+resource "google_bigquery_table" "default" {
+  dataset_id          = google_bigquery_dataset.default.dataset_id
+  table_id            = "my_materialized_view"
+  deletion_protection = false # set to "true" in production
+
+  materialized_view {
+    query                            = "SELECT ID, description, date_created FROM `myproject.orders.items`"
+    enable_refresh                   = "true"
+    refresh_interval_ms              = 172800000 # 2 days
+    allow_non_incremental_definition = "false"
+  }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#api] ---
+tables.insert 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert?hl=ko]를 호출하고 materializedView 필드가 정의된 Table 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#Table]를 전달합니다.
+
+{
+  "kind": "bigquery#table",
+  "tableReference": {
+    "projectId": "PROJECT_ID",
+    "datasetId": "DATASET",
+    "tableId": "MATERIALIZED_VIEW_NAME"
+  },
+  "materializedView": {
+    "query": "QUERY_EXPRESSION"
+  }
+}
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 구체화된 뷰를 만들 프로젝트의 이름입니다(예: myproject).
+  DATASET: 구체화된 뷰를 만들 BigQuery 데이터 세트의 이름(예: mydataset).
+      Amazon Simple Storage Service(Amazon S3) BigLake 테이블(미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages])을 통해 구체화된 뷰를 만드는 경우 데이터 세트가 지원되는 리전 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#locations]을 선택합니다.
+      
+  MATERIALIZED_VIEW_NAME: 만들려는 구체화된 뷰의 이름(예: my_mv)
+  QUERY_EXPRESSION: 구체화된 뷰를 정의하는 GoogleSQL 쿼리 표현식(예: SELECT product_id, SUM(clicks) AS sum_clicks FROM
+     mydataset.my_source_table)
+
+
+예시
+
+다음 예시에서는 각 제품 ID를 클릭한 수에 대한 구체화된 뷰를 만듭니다.
+
+{
+  "kind": "bigquery#table",
+  "tableReference": {
+    "projectId": "myproject",
+    "datasetId": "mydataset",
+    "tableId": "my_mv"
+  },
+  "materializedView": {
+    "query": "select product_id,sum(clicks) as
+                sum_clicks from myproject.mydataset.my_source_table
+                group by 1"
+  }
+}
+
+--- 탭: Java [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#java] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.MaterializedViewDefinition [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.MaterializedViewDefinition.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+import com.google.cloud.bigquery.TableInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableInfo.html?hl=ko];
+
+// Sample to create materialized view
+public class CreateMaterializedView {
+
+  public static void main(String[] args) {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String materializedViewName = "MY_MATERIALIZED_VIEW_NAME";
+    String query =
+        String.format(
+            "SELECT MAX(TimestampField) AS TimestampField, StringField, "
+                + "MAX(BooleanField) AS BooleanField "
+                + "FROM %s.%s GROUP BY StringField",
+            datasetName, tableName);
+    createMaterializedView(datasetName, materializedViewName, query);
+  }
+
+  public static void createMaterializedView(
+      String datasetName, String materializedViewName, String query) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(datasetName, materializedViewName);
+
+      MaterializedViewDefinition [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.MaterializedViewDefinition.html?hl=ko] materializedViewDefinition =
+          MaterializedViewDefinition [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.MaterializedViewDefinition.html?hl=ko].newBuilder(query).build();
+
+      bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](TableInfo.of(tableId, materializedViewDefinition));
+      System.out.println("Materialized view created successfully");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] e) {
+      System.out.println("Materialized view was not created. \n" + e.toString());
+    }
+  }
+}
+구체화된 뷰가 성공적으로 생성되면 Google Cloud 콘솔에 있는 BigQuery의 탐색기 패널에 표시됩니다. 다음 예시에서는 구체화된 뷰 스키마를 보여줍니다.
+자동 새로고침 [https://cloud.google.com/bigquery/docs/materialized-views-manage?hl=ko#automatic-refresh]을 중지하지 않는 한 BigQuery는 구체화된 뷰에 대해 비동기 전체 새로고침을 시작합니다. 쿼리는 빠르게 완료되지만 초기 새로고침이 계속 실행될 수 있습니다.
+참고: 각 기본 테이블은 동일한 데이터 세트 내에서 20개의 구체화된 뷰, 동일한 프로젝트 내에서는 100개의 구체화된 뷰, 동일한 조직 내에서는 500개의 구체화된 뷰로 제한됩니다.
+액세스 제어
+데이터 세트 수준 [https://cloud.google.com/bigquery/docs/dataset-access-controls?hl=ko], 뷰 수준 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko], 열 수준 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko]에서 구체화된 뷰(materialized view)에 액세스 권한을 부여할 수 있습니다. IAM 리소스 계층 구조 [https://cloud.google.com/iam/docs/resource-hierarchy-access-control?hl=ko]의 상위 수준에서 액세스를 설정할 수도 있습니다.
+구체화된 뷰(materialized view)를 쿼리하려면 뷰와 기본 테이블에 대한 액세스 권한이 필요합니다. 구체화된 뷰를 공유하려면 기본 테이블에 대한 권한을 부여하거나 구체화된 뷰를 승인된 뷰로 구성하면 됩니다. 자세한 내용은 승인된 뷰 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko]를 참조하세요.
+BigQuery에서 뷰에 대한 액세스를 제어하려면 승인된 뷰 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko]를 참조하세요.
+구체화된 뷰(materialized view) 쿼리 지원
+구체화된 뷰(materialized view)는 제한된 SQL 구문을 사용합니다. 쿼리는 다음 패턴을 사용해야 합니다.
+[ WITH cte [, …]]
+SELECT  [{ ALL | DISTINCT }]
+  expression [ [ AS ] alias ] [, ...]
+FROM from_item [, ...]
+[ WHERE bool_expression ]
+[ GROUP BY expression [, ...] ]
+
+from_item:
+    {
+      table_name [ as_alias ]
+      | { join_operation | ( join_operation ) }
+      | field_path
+      | unnest_operator
+      | cte_name [ as_alias ]
+    }
+
+as_alias:
+    [ AS ] alias
+쿼리 제한사항
+구체화된 뷰(materialized views)에는 다음과 같은 제한사항이 있습니다.
+집계 요구사항
+구체화된 뷰(materialized view) 쿼리의 집계를 출력해야 합니다. 집계 값을 기준으로 계산, 필터링, 조인할 수 없습니다. 예를 들어 다음 쿼리에서 뷰를 만들면 집계 COUNT(*) / 10 as cnt에서 계산된 값이 생성되므로 지원되지 않습니다.
+SELECT TIMESTAMP_TRUNC(ts, HOUR) AS ts_hour, COUNT(*) / 10 AS cnt
+FROM mydataset.mytable
+GROUP BY ts_hour;
+현재 다음 집계 함수만 지원됩니다.
+ANY_VALUE(STRUCT를 통하지 않음)
+APPROX_COUNT_DISTINCT
+ARRAY_AGG(ARRAY 또는 STRUCT를 통하지 않음)
+AVG
+BIT_AND
+BIT_OR
+BIT_XOR
+COUNT
+COUNTIF
+HLL_COUNT.INIT
+LOGICAL_AND
+LOGICAL_OR
+MAX
+MIN
+MAX_BY(STRUCT를 통하지 않음)
+MIN_BY(STRUCT를 통하지 않음)
+SUM
+지원되지 않는 SQL 기능
+구체화된 뷰(materialized view)에서는 다음과 같은 SQL 기능이 지원되지 않습니다.
+UNION ALL(science 미리보기에서 지원 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#left-union])
+LEFT OUTER JOIN(science 프리뷰에서 지원 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#left-union])
+RIGHT/FULL OUTER JOIN.
+자체 조인(동일한 테이블에서 JOIN을 두 번 이상 사용하는 것으로도 알려짐)
+윈도우 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/window-function-calls?hl=ko]
+ARRAY 서브 쿼리
+RAND(), CURRENT_DATE(), SESSION_USER(), CURRENT_TIME()과 같은 비확정적 함수
+사용자 정의 함수(UDF) [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko]
+TABLESAMPLE.
+FOR SYSTEM_TIME AS OF.
+LEFT OUTER JOIN 및 UNION ALL 지원
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+이 기능에 대한 의견을 제공하거나 지원을 요청하려면 bq-mv-help@google.com [mailto:bq-mv-help@google.com]으로 이메일을 보내세요.
+증분 구체화된 뷰는 LEFT OUTER JOIN 및 UNION ALL을 지원합니다. LEFT OUTER JOIN 및 UNION ALL 문을 사용하는 구체화된 뷰는 다른 증분 구체화된 뷰의 제한사항을 공유합니다. 또한 전체 통합 또는 왼쪽 외부 조인을 사용하는 구체화된 뷰에는 스마트 조정 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko#smart_tuning]이 지원되지 않습니다.
+예시
+다음 예시에서는 LEFT JOIN을 사용하여 집계 증분 구체화된 뷰를 만듭니다. 이 뷰는 데이터가 왼쪽 테이블에 추가될 때 점진적으로 업데이트됩니다.
+CREATE MATERIALIZED VIEW dataset.mv
+AS (
+  SELECT
+    s_store_sk,
+    s_country,
+    s_zip,
+    SUM(ss_net_paid) AS sum_sales,
+  FROM dataset.store_sales
+  LEFT JOIN dataset.store
+    ON ss_store_sk = s_store_sk
+  GROUP BY 1, 2, 3
+);
+다음 예시에서는 UNION ALL을 사용하여 집계 증분 구체화된 뷰를 만듭니다. 이 뷰는 데이터가 테이블 중 하나 또는 모두에 추가될 때 점진적으로 업데이트됩니다. 증분 업데이트에 대한 자세한 내용은 증분 업데이트 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko#incremental_updates]를 참조하세요.
+CREATE MATERIALIZED VIEW dataset.mv PARTITION BY DATE(ts_hour)
+AS (
+  SELECT
+    SELECT TIMESTAMP_TRUNC(ts, HOUR) AS ts_hour, SUM(sales) sum_sales
+  FROM
+    (SELECT ts, sales from dataset.table1 UNION ALL
+     SELECT ts, sales from dataset.table2)
+  GROUP BY 1
+);
+액세스 제어 제한사항
+구체화된 뷰의 사용자 쿼리에 열 수준 보안으로 인해 액세스할 수 없는 기본 테이블 열이 포함되어 있으면 쿼리가 Access Denied 메시지와 함께 실패합니다.
+사용자가 구체화된 뷰를 쿼리하지만 구체화된 뷰의 기본 테이블에 있는 모든 행에 대한 전체 액세스 권한이 없는 경우 BigQuery는 구체화된 뷰 데이터를 읽는 대신 기본 테이블에 대해 쿼리를 실행합니다. 이를 통해 쿼리가 모든 액세스 제어 제약조건을 준수합니다. 이 제한사항은 데이터 마스킹된 열이 있는 테이블을 쿼리할 때도 적용됩니다.
+WITH 절 및 공통 테이블 표현식(CTE)
+구체화된 뷰(materialized view)에서는 WITH 절과 공통 테이블 표현식을 지원합니다. WITH 절이 있는 구체화된 뷰는 WITH 절이 없는 구체화된 뷰의 패턴과 제한사항을 계속 따라야 합니다.
+예시
+다음 예시에서는 WITH 절을 사용하여 구체화된 뷰(materialized view)를 보여줍니다.
+WITH tmp AS (
+  SELECT TIMESTAMP_TRUNC(ts, HOUR) AS ts_hour, *
+  FROM mydataset.mytable
+)
+SELECT ts_hour, COUNT(*) AS cnt
+FROM tmp
+GROUP BY ts_hour;
+다음 예시에서는 GROUP BY 절 두 개가 포함되어 있어 지원되지 않는 WITH 절을 사용하는 구체화된 뷰(materialized view)를 보여줍니다.
+WITH tmp AS (
+  SELECT city, COUNT(*) AS population
+  FROM mydataset.mytable
+  GROUP BY city
+)
+SELECT population, COUNT(*) AS cnt
+GROUP BY population;
+BigLake 테이블에 대한 구체화된 뷰
+BigLake 테이블에 대한 구체화된 뷰 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#biglake]를 만들려면 BigLake 테이블에 Cloud Storage 데이터에 대해 메타데이터 캐싱이 사용 설정 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko#metadata_caching_for_performance]되어 있으며, 구체화된 뷰의 max_staleness [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#max_staleness] 옵션 값이 기본 테이블보다 커야 합니다. BigLake 테이블에 대한 구체화된 뷰는 다른 구체화된 뷰와 동일한 쿼리 집합 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#query_limitations]을 지원합니다.
+예시
+BigLake 기본 테이블을 사용하여 간단한 집계 뷰를 만듭니다.
+CREATE MATERIALIZED VIEW sample_dataset.sample_mv
+    OPTIONS (max_staleness=INTERVAL "0:30:0" HOUR TO SECOND)
+AS SELECT COUNT(*) cnt
+FROM dataset.biglake_base_table;
+BigLake 테이블에 대한 구체화된 뷰의 제한사항에 대한 자세한 내용은 BigLake 테이블에 대한 구체화된 뷰 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#biglake]를 참조하세요.
+Apache Iceberg 외부 테이블에 대한 구체화된 뷰
+데이터를 BigQuery 관리형 스토리지로 마이그레이션하는 대신 구체화된 뷰에서 대규모 Iceberg 테이블을 참조할 수 있습니다.
+Iceberg 테이블로 구체화된 뷰 만들기
+다음 예시에서는 파티션을 나눈 기본 Iceberg 테이블에 대해 파티션 정렬 구체화된 뷰를 만듭니다.
+CREATE MATERIALIZED VIEW mydataset.myicebergmv
+  PARTITION BY DATE_TRUNC(birth_month, MONTH)
+AS
+  SELECT * FROM mydataset.myicebergtable;
+기본 Iceberg 테이블 myicebergtable에는 다음과 같은 파티션 사양 [https://iceberg.apache.org/spec/#partition-specs]이 있어야 합니다.
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ {
+    "name" : "birth_month",
+    "transform" : "month",
+    "source-id" : 3,
+    "field-id" : 1000
+    } ]
+  } ]
+제한사항
+표준 Iceberg 테이블의 제한사항 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko#limitations] 외에도 Iceberg 테이블에 대한 구체화된 뷰에는 다음과 같은 제한사항이 있습니다.
+기본 테이블과 파티션 정렬된 구체화된 뷰를 만들 수 있습니다. 하지만 구체화된 뷰는 시간 기반 파티션 변환 [https://iceberg.apache.org/spec/#partition-transforms](예: YEAR, MONTH, DAY, HOUR)만 지원합니다.
+구체화된 뷰의 파티션 세부사항은 기본 테이블의 파티션 세부사항보다 더 세부적일 수 없습니다. 예를 들어 birth_date 열을 사용하여 기본 테이블을 연도별로 파티션을 나눈 경우 PARTITION BY DATE_TRUNC(birth_date, MONTH)를 사용하여 구체화된 뷰를 만드는 것은 지원되지 않습니다.
+기본 Iceberg 테이블에 4,000개가 넘는 파티션에 걸쳐 변경사항이 있는 경우 구체화된 뷰가 파티션으로 나뉘어 있더라도 새로고침 시 완전히 무효화됩니다.
+파티션 변경 [https://iceberg.apache.org/spec/#partition-evolution]이 지원됩니다. 하지만 구체화된 뷰를 다시 만들지 않고 기본 테이블의 파티셔닝 열을 변경하면 구체화된 뷰를 새로고침하여 수정할 수 없는 전체 무효화가 발생할 수 있습니다.
+기본 테이블에 스냅샷이 하나 이상 있어야 합니다.
+Iceberg 테이블은 BigLake 테이블이어야 합니다(예: 승인된 외부 테이블).
+Iceberg 테이블의 metadata.json 파일이 손상된 경우 구체화된 뷰에 대한 쿼리가 실패할 수 있습니다.
+VPC 서비스 제어 [https://cloud.google.com/vpc-service-controls/docs/overview?hl=ko]가 사용 설정되어 있으면 승인된 외부 테이블의 서비스 계정을 인그레스 규칙에 추가해야 합니다. 그렇지 않으면 VPC 서비스 제어가 구체화된 뷰에 대한 자동 백그라운드 새로고침을 차단합니다.
+Iceberg 테이블의 metadata.json 파일에는 다음 사양이 있어야 합니다. 이러한 사양이 없으면 쿼리가 기본 테이블을 스캔하고 구체화된 결과를 사용하지 못합니다.
+테이블 메타데이터 [https://iceberg.apache.org/spec/#table-metadata]:
+current-snapshot-id
+current-schema-id
+snapshots
+snapshot-log
+스냅샷 [https://iceberg.apache.org/spec/#snapshots]:
+parent-snapshot-id(사용 가능한 경우)
+schema-id
+operation(summary 필드)
+파티셔닝 [https://iceberg.apache.org/spec/#partitioning](파티션을 나눈 구체화된 뷰용)
+파티션을 나눈 구체화된 뷰(materialized view)
+파티션을 나눈 테이블의 구체화된 뷰(materialized view)는 파티션을 나눌 수 있습니다. 구체화된 뷰 파티션 나누기는 일반 테이블 파티션 나누기와 비슷하지만 쿼리에서 파티션의 하위 집합에 자주 액세스하는 경우에 유익합니다. 또한 구체화된 뷰를 파티션으로 나누면 기본 테이블이나 테이블의 데이터가 수정되거나 삭제될 때 뷰 동작이 개선될 수 있습니다. 자세한 내용은 파티션 정렬 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko#partition_alignment]을 참조하세요.
+기본 테이블의 파티션을 나눈 경우 동일한 파티션 나누기 열에서 구체화된 뷰(materialized view)의 파티션을 나눌 수 있습니다. 시간 기준 파티션의 경우 세부사항이 시간, 일, 월 또는 연도와 일치해야 합니다. 정수 범위 파티션의 경우 범위 사양이 정확히 일치해야 합니다. 파티션을 나누지 않은 기본 테이블에서는 구체화된 뷰의 파티션을 나눌 수 없습니다.
+수집 시간으로 기본 테이블의 파티션을 나눈 경우 구체화된 뷰(materialized view)는 기본 테이블의 _PARTITIONDATE 열을 기준으로 그룹화할 수 있으며 파티션으로 나눌 수도 있습니다. 구체화된 뷰를 만들 때 파티션 나누기를 명시적으로 지정하지 않으면 구체화된 뷰는 파티션이 나눠지지 않습니다.
+기본 테이블의 파티션을 나눈 경우 구체화된 뷰(materialized view)도 파티션 나누기를 사용하여 새로고침 작업 유지보수 [https://cloud.google.com/bigquery/docs/materialized-views-manage?hl=ko] 비용과 쿼리 비용을 줄여보세요.
+파티션 만료 시간
+구체화된 뷰(materialized view)에서는 파티션 만료 시간을 설정할 수 없습니다. 구체화된 뷰는 기본 테이블에서 파티션 만료 시간을 암시적으로 상속합니다. 구체화된 뷰 파티션은 기본 테이블 파티션과 정렬되므로 동기식으로 만료됩니다.
+주의: 파티션 만료 시간이 있는 테이블을 기반으로 파티션을 나누지 않은 구체화된 뷰(materialized view)는 무효화되며, 파티션이 만료되면 완전히 새로고침해야 합니다. 따라서 추가 새로고침 및 쿼리 비용을 방지하기 위해 구체화된 뷰의 파티션을 나누어야 합니다.
+예 1
+이 예시에서 기본 테이블은 일일 파티션이 있는 transaction_time 열을 기준으로 파티션을 나눕니다. 구체화된 뷰(materialized view)는 동일한 열에서 파티션을 나누고 employee_id 열에서 클러스터링됩니다.
+CREATE TABLE my_project.my_dataset.my_base_table(
+  employee_id INT64,
+  transaction_time TIMESTAMP)
+  PARTITION BY DATE(transaction_time)
+  OPTIONS (partition_expiration_days = 2);
+
+CREATE MATERIALIZED VIEW my_project.my_dataset.my_mv_table
+  PARTITION BY DATE(transaction_time)
+  CLUSTER BY employee_id
+AS (
+  SELECT
+    employee_id,
+    transaction_time,
+    COUNT(employee_id) AS cnt
+  FROM
+    my_dataset.my_base_table
+  GROUP BY
+    employee_id, transaction_time
+);
+예시 2
+이 예시에서 기본 테이블은 일일 파티션이 있는 수집 시간으로 파티션을 나눕니다. 구체화된 뷰(materialized view)가 수집 시간을 date라는 열로 선택합니다. 구체화된 뷰는 date 열로 그룹화되고 동일한 열로 파티션을 나눕니다.
+CREATE MATERIALIZED VIEW my_project.my_dataset.my_mv_table
+  PARTITION BY date
+  CLUSTER BY employee_id
+AS (
+  SELECT
+    employee_id,
+    _PARTITIONDATE AS date,
+    COUNT(1) AS count
+  FROM
+    my_dataset.my_base_table
+  GROUP BY
+    employee_id,
+    date
+);
+예시 3
+이 예시에서 기본 테이블은 일일 파티션과 함께 transaction_time이라는 TIMESTAMP 열을 기준으로 파티션을 나눕니다. 구체화된 뷰(materialized view)는 TIMESTAMP_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_trunc] 함수를 사용하여 값을 가장 가까운 시간으로 자르며 transaction_hour라는 열을 정의합니다. 구체화된 뷰는 transaction_hour로 그룹화되고 파티션으로 나누어 집니다.
+다음에 유의하세요.
+파티션 나누기 열에 적용되는 잘림 함수는 최소한 기본 테이블의 파티션 나누기만큼 세분화되어 있어야 합니다. 예를 들어 기본 테이블이 일일 파티션을 사용하는 경우 잘림 함수는 MONTH 또는 YEAR 세부사항을 사용할 수 없습니다.
+구체화된 뷰(materialized view)의 파티션 사양에서 세부사항은 기본 테이블과 일치해야 합니다.
+CREATE TABLE my_project.my_dataset.my_base_table (
+  employee_id INT64,
+  transaction_time TIMESTAMP)
+  PARTITION BY DATE(transaction_time);
+
+CREATE MATERIALIZED VIEW my_project.my_dataset.my_mv_table
+  PARTITION BY DATE(transaction_hour)
+AS (
+  SELECT
+    employee_id,
+    TIMESTAMP_TRUNC(transaction_time, HOUR) AS transaction_hour,
+    COUNT(employee_id) AS cnt
+  FROM
+    my_dataset.my_base_table
+  GROUP BY
+    employee_id,
+    transaction_hour
+);
+클러스터 구체화된 뷰(materialized view)
+BigQuery 클러스터링된 테이블 제한사항 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko#limitations]에 따라 출력 열을 기준으로 구체화된 뷰(materialized view)를 클러스터링할 수 있습니다. 집계 출력 열은 클러스터링 열로 사용될 수 없습니다. 구체화된 뷰에 클러스터링 열을 추가하면 해당 열에 필터가 포함된 쿼리의 성능이 향상될 수 있습니다.
+논리적 뷰 참조
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+이 기능에 대한 의견을 제공하거나 지원을 요청하려면 bq-mv-help@google.com [mailto:bq-mv-help@google.com]으로 이메일을 보내세요.
+구체화된 뷰 쿼리는 논리적 뷰를 참조할 수 있지만 다음과 같은 제한사항이 적용됩니다.
+구체화된 뷰 제한사항이 적용됩니다 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#limitations].
+논리적 뷰가 변경되면 구체화된 뷰가 무효화되며 완전히 새로고침해야 합니다.
+스마트 조정 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko#smart_tuning]은 지원되지 않습니다.
+구체화된 뷰(materialized view) 생성 시 고려사항
+만들려는 구체화된 뷰(materialized view)
+구체화된 뷰(materialized view)를 만들 때는 구체화된 뷰 정의가 기본 테이블에 대한 쿼리 패턴을 반영하는지 확인합니다. 구체화된 뷰는 하나의 특정 쿼리 패턴이 아닌 광범위한 쿼리 집합을 제공할 때 더 효과적입니다.
+예를 들어 사용자가 주로 user_id 열이나 department 열을 기준으로 필터링하는 테이블의 쿼리를 가정해 보겠습니다. user_id = 123과 같은 필터를 구체화된 뷰(materialized view)에 추가하는 대신 이러한 열을 기준으로 그룹화하고 선택적으로 클러스터링할 수 있습니다.
+또 다른 예로, WHERE order_date = '2019-10-01'와 같은 특정 날짜 또는 WHERE order_date BETWEEN '2019-10-01' AND '2019-10-31'과 같은 기간을 기준으로 하는 결정적 날짜 필터를 사용할 수 있습니다. 쿼리의 예상 기간을 포함하는 구체화된 뷰(materialized view)에 기간 필터를 추가합니다.
+CREATE MATERIALIZED VIEW ...
+  ...
+  WHERE date > '2019-01-01'
+  GROUP BY date
+조인
+다음 권장사항은 조인을 사용한 구체화된 뷰(materialized view)에 적용됩니다.
+가장 자주 변경되는 테이블을 먼저 배치
+가장 크거나 자주 변경되는 테이블이 뷰 쿼리에서 참조되는 첫 번째/왼쪽 끝 테이블인지 확인합니다. 조인이 포함된 구체화된 뷰(materialized view)는 증분 쿼리를 지원하고 쿼리의 첫 번째 또는 왼쪽 끝 테이블이 추가되면 새로고침하지만 다른 테이블의 변경사항은 뷰 캐시를 완전히 무효화합니다. 별표 또는 눈송이 스키마에서 첫 번째 또는 왼쪽 끝 테이블은 일반적으로 팩트 테이블이어야 합니다.
+클러스터링 키에 조인 피하기
+조인을 사용한 구체화된 뷰(materialized view)는 데이터가 대량으로 집계되거나 원래 조인 쿼리가 비용이 높은 경우에 가장 효과적입니다. 선택적 쿼리의 경우 BigQuery는 종종 이미 조인을 효율적으로 수행할 수 있으므로 구체화된 뷰가 필요하지 않습니다. 예를 들어 다음과 같은 구체화된 뷰 정의를 살펴보겠습니다.
+CREATE MATERIALIZED VIEW dataset.mv
+  CLUSTER BY s_market_id
+AS (
+  SELECT
+    s_market_id,
+    s_country,
+    SUM(ss_net_paid) AS sum_sales,
+    COUNT(*) AS cnt_sales
+  FROM dataset.store_sales
+  INNER JOIN dataset.store
+    ON ss_store_sk = s_store_sk
+  GROUP BY s_market_id, s_country
+);
+store_sales가 ss_store_sk에서 클러스터링되고 다음과 같은 쿼리를 자주 실행합니다.
+SELECT
+  SUM(ss_net_paid)
+FROM dataset.store_sales
+INNER JOIN dataset.store
+ON ss_store_sk = s_store_sk
+WHERE s_country = 'Germany';
+구체화된 뷰(materialized view)는 원래 쿼리만큼 효율적이지 않을 수 있습니다. 최상의 결과를 얻으려면 구체화된 뷰를 사용 및 사용하지 않고 대표적인 쿼리 집합을 실험해 보세요.
+max_staleness 옵션으로 구체화된 뷰 사용
+max_staleness 구체화된 뷰 옵션을 사용하면 자주 변경되는 대규모 데이터 세트를 처리할 때 비용을 제어하면서 지속적으로 높은 쿼리 성능을 달성할 수 있습니다. max_staleness 매개변수를 사용하면 쿼리 결과의 데이터 비활성이 허용되는 시간 간격을 설정하여 쿼리의 비용과 지연 시간을 줄일 수 있습니다. 이 동작은 최신 쿼리 결과가 필요하지 않은 대시보드와 보고서에 유용할 수 있습니다.
+데이터 비활성
+max_staleness 옵션이 설정된 구체화된 뷰를 쿼리하면 BigQuery는 max_staleness 값과 마지막 새로고침이 발생한 시간을 기준으로 결과를 반환합니다.
+마지막 새로고침이 max_staleness 간격 내에 발생하면 BigQuery는 기본 테이블을 읽지 않고 구체화된 뷰에서 직접 데이터를 반환합니다. 예를 들어 max_staleness 간격이 4시간이고 마지막 새로고침이 2시간 전에 발생한 경우에 적용됩니다.
+마지막 새로고침이 max_staleness 간격 밖에서 발생하면 BigQuery는 구체화된 뷰에서 데이터를 읽고 이를 마지막 새로고침 이후 기본 테이블의 변경사항과 결합한 후 결합된 결과를 반환합니다. 이 결합된 결과는 max_staleness 간격까지는 여전히 오래되었을 수 있습니다. 예를 들어 max_staleness 간격이 4시간이고 마지막 새로고침이 7시간 전에 발생한 경우에 적용됩니다.
+max_staleness 옵션으로 만들기
+다음 옵션 중 하나를 선택합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#sql] ---
+max_staleness 옵션을 사용하여 구체화된 뷰를 만들려면 구체화된 뷰를 만들 때 DDL 문에 OPTIONS 절을 추가합니다.
+
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE MATERIALIZED VIEW  project-id.my_dataset.my_mv_table
+  OPTIONS (enable_refresh = true, refresh_interval_minutes = 60,
+    max_staleness = INTERVAL "4:0:0" HOUR TO SECOND)
+AS SELECT
+  employee_id,
+  DATE(transaction_time),
+  COUNT(1) AS count
+FROM my_dataset.my_base_table
+GROUP BY 1, 2;
+
+
+  다음을 바꿉니다.
+
+
+project-id는 프로젝트 ID입니다.
+my_dataset는 프로젝트에 있는 데이터 세트의 ID입니다.
+my_mv_table은 만들려는 구체화된 뷰(materialized view)의 ID입니다.
+my_base_table은 데이터 세트에서 구체화된 뷰(materialized view)의 기본 테이블로 사용되는 테이블의 ID입니다.
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#api] ---
+API 요청의 일부로 정의된 materializedView 리소스를 사용하여 tables.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert?hl=ko] 메서드를 호출합니다. materializedView 리소스에는 query 필드가 포함됩니다. 예를 들면 다음과 같습니다.
+
+{
+  "kind": "bigquery#table",
+  "tableReference": {
+    "projectId": "project-id",
+    "datasetId": "my_dataset",
+    "tableId": "my_mv_table"
+  },
+  "materializedView": {
+    "query": "select product_id,sum(clicks) as
+                sum_clicks from project-id.my_dataset.my_base_table
+                group by 1"
+  }
+  "maxStaleness": "4:0:0"
+}
+
+다음을 바꿉니다.
+
+
+project-id는 프로젝트 ID입니다.
+my_dataset는 프로젝트에 있는 데이터 세트의 ID입니다.
+my_mv_table은 만들려는 구체화된 뷰(materialized view)의 ID입니다.
+my_base_table은 데이터 세트에서 구체화된 뷰(materialized view)의 기본 테이블로 사용되는 테이블의 ID입니다.
+product_id는 기본 테이블의 열입니다.
+clicks는 기본 테이블의 열입니다.
+sum_clicks는 만드는 구체화된 뷰의 열입니다.
+max_staleness 옵션 적용
+ALTER MATERIALIZED VIEW 문을 사용하여 기존의 구체화된 뷰에 이 매개변수를 적용할 수 있습니다. 예를 들면 다음과 같습니다.
+ALTER MATERIALIZED VIEW project-id.my_dataset.my_mv_table
+SET OPTIONS (enable_refresh = true, refresh_interval_minutes = 120,
+  max_staleness = INTERVAL "8:0:0" HOUR TO SECOND);
+max_staleness를 사용한 쿼리
+다른 구체화된 뷰, 논리 뷰 또는 테이블 쿼리처럼 max_staleness 옵션을 사용하여 구체화된 뷰를 쿼리할 수 있습니다.
+예를 들면 다음과 같습니다.
+SELECT * FROM  project-id.my_dataset.my_mv_table
+이 쿼리는 데이터가 max_staleness 매개변수보다 최신이면 마지막 새로고침에서 데이터를 반환합니다. 구체화된 뷰가 max_staleness 간격 내에 새로고침되지 않으면 BigQuery는 사용 가능한 최신 새로고침 결과를 기본 테이블 변경사항과 병합하여 max_staleness 간격 내에 결과를 반환합니다.
+데이터 스트리밍 및 max_staleness 결과
+max_staleness 옵션을 사용하여 데이터를 구체화된 뷰의 기본 테이블로 스트리밍되는 경우 구체화된 뷰의 쿼리에서 비활성 간격 시작 전에 테이블로 스트리밍된 레코드를 제외할 수 있습니다. 따라서 여러 테이블의 데이터와 max_staleness 옵션이 포함된 구체화된 뷰는 해당 테이블의 특정 시점 스냅샷을 나타내지 않을 수 있습니다.
+스마트 조정 및 max_staleness 옵션
+스마트 미세 조정은 쿼리가 구체화된 뷰를 참조하지 않더라도 max_staleness 옵션에 관계없이 가능한 경우 구체화된 뷰를 사용하도록 쿼리를 자동으로 다시 작성합니다. 구체화된 뷰의 max_staleness 옵션은 다시 작성된 쿼리 결과에 영향을 주지 않습니다. max_staleness 옵션은 구체화된 뷰를 직접 쿼리하는 쿼리에만 영향을 미칩니다.
+비활성 및 새로고침 빈도 관리
+요구사항에 따라 max_staleness를 설정해야 합니다. 기본 테이블에서 데이터를 읽지 않으려면 새로고침이 비활성 간격 내에서 발생하도록 새로고침 간격을 구성합니다. 평균 새로고침 런타임과 성장을 위한 여유를 고려할 수 있습니다.
+예를 들어 구체화된 뷰를 새로고침하는 데 1시간이 필요하고 성장에 1시간 버퍼를 사용하려면 새로고침 간격을 2시간으로 설정해야 합니다. 이 구성을 사용하면 비활성 상태로 최대 4시간 동안 보고서가 새로고침됩니다.
+CREATE MATERIALIZED VIEW project-id.my_dataset.my_mv_table
+OPTIONS (enable_refresh = true, refresh_interval_minutes = 120, max_staleness =
+INTERVAL "4:0:0" HOUR TO SECOND)
+AS SELECT
+  employee_id,
+  DATE(transaction_time),
+  COUNT(1) AS cnt
+FROM my_dataset.my_base_table
+GROUP BY 1, 2;
+비증분 구체화된 뷰
+비증분 구체화된 뷰는 OUTER JOIN, UNION, HAVING 절, 분석 함수를 포함한 대부분의 SQL 쿼리를 지원합니다. 쿼리에 구체화된 뷰가 사용되었는지 확인하려면 테스트 실행 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#interaction]을 사용하여 비용 예측을 확인합니다. 일괄 데이터 처리 또는 보고와 같이 데이터 비활성이 허용되는 시나리오에서 비증분 구체화된 뷰는 쿼리 성능을 개선하고 비용을 줄일 수 있습니다. max_staleness 옵션을 사용하면 자동으로 유지보수되고 비활성 보장이 기본 제공되는 임의의 복잡한 구체화된 뷰를 빌드할 수 있습니다.
+비증분 구체화된 뷰 사용
+allow_non_incremental_definition 옵션을 사용하여 비증분 구체화된 뷰를 만들 수 있습니다. 이 옵션은 max_staleness 옵션과 함께 사용해야 합니다. 구체화된 뷰를 정기적으로 새로고침하려면 새로고침 정책 [https://cloud.google.com/bigquery/docs/materialized-views-manage?hl=ko#enable_and_disable_automatic_refresh]도 구성해야 합니다. 새로고침 정책이 없으면 구체화된 뷰를 수동으로 새로고침해야 합니다.
+구체화된 뷰는 항상 max_staleness 간격 내에 있는 기본 테이블의 상태를 나타냅니다. 마지막 새로고침이 너무 오래되어 max_staleness 간격 내에 있는 기본 테이블을 나타내지 않으면 쿼리가 기본 테이블을 읽습니다. 성능에 미치는 잠재적인 영향에 대한 자세한 내용은 데이터 비활성 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#data_staleness]을 참조하세요.
+allow_non_incremental_definition으로 만들기
+allow_non_incremental_definition 옵션을 사용하여 구체화된 뷰를 만들려면 다음 단계를 따르세요. 구체화된 뷰를 만든 후에는 allow_non_incremental_definition 옵션을 수정할 수 없습니다. 예를 들어 true 값을 false로 변경하거나 구체화된 뷰에서 allow_non_incremental_definition 옵션을 삭제할 수 없습니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#sql] ---
+구체화된 뷰를 만들 때 DDL 문에 OPTIONS 절을 추가합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE MATERIALIZED VIEW my_project.my_dataset.my_mv_table
+OPTIONS (
+  enable_refresh = true, refresh_interval_minutes = 60,
+  max_staleness = INTERVAL "4" HOUR,
+    allow_non_incremental_definition = true)
+AS SELECT
+  s_store_sk,
+  SUM(ss_net_paid) AS sum_sales,
+  APPROX_QUANTILES(ss_net_paid, 2)[safe_offset(1)] median
+FROM my_project.my_dataset.store
+LEFT OUTER JOIN my_project.my_dataset.store_sales
+  ON ss_store_sk = s_store_sk
+GROUP BY s_store_sk
+HAVING median < 40 OR median is NULL ;
+
+
+  다음을 바꿉니다.
+  
+    my_project는 프로젝트 ID입니다.
+    my_dataset는 프로젝트에 있는 데이터 세트의 ID입니다.
+    my_mv_table은 만들려는 구체화된 뷰의 ID입니다.
+    my_dataset.store 및 my_dataset.store_sales는 데이터 세트에서 구체화된 뷰의 기본 테이블로 사용되는 테이블의 ID입니다.
+  
+  
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#api] ---
+API 요청의 일부로 정의된 materializedView 리소스를 사용하여 tables.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert?hl=ko] 메서드를 호출합니다. materializedView 리소스에는 query 필드가 포함됩니다. 예를 들면 다음과 같습니다.
+
+{
+  "kind": "bigquery#table",
+  "tableReference": {
+    "projectId": "my_project",
+    "datasetId": "my_dataset",
+    "tableId": "my_mv_table"
+  },
+  "materializedView": {
+    "query": "`SELECT`
+        s_store_sk,
+        SUM(ss_net_paid) AS sum_sales,
+        APPROX_QUANTILES(ss_net_paid, 2)[safe_offset(1)] median
+      FROM my_project.my_dataset.store
+      LEFT OUTER JOIN my_project.my_dataset.store_sales
+        ON ss_store_sk = s_store_sk
+      GROUP BY s_store_sk
+      HAVING median < 40 OR median is NULL`",
+    "allowNonIncrementalDefinition": true
+  }
+  "maxStaleness": "4:0:0"
+}
+
+다음을 바꿉니다.
+
+
+my_project는 프로젝트 ID입니다.
+my_dataset는 프로젝트에 있는 데이터 세트의 ID입니다.
+my_mv_table은 만들려는 구체화된 뷰(materialized view)의 ID입니다.
+my_dataset.store 및 my_dataset.store_sales는 데이터 세트에서 구체화된 뷰의 기본 테이블로 사용되는 테이블의 ID입니다.
+allow_non_incremental_definition를 사용한 쿼리
+다른 구체화된 뷰, 논리 뷰 또는 테이블 쿼리처럼 비증분 구체화된 뷰를 쿼리할 수 있습니다.
+예를 들면 다음과 같습니다.
+SELECT * FROM  my_project.my_dataset.my_mv_table
+데이터가 max_staleness 매개변수보다 최신이면 이 쿼리는 마지막 새로고침된 데이터를 반환합니다. 데이터의 비활성 및 최신 상태에 대한 자세한 내용은 데이터 비활성 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#data_staleness]을 참조하세요.
+비증분 구체화된 뷰와 관련된 제한사항
+다음 제한사항은 allow_non_incremental_definition 옵션을 사용하는 구체화된 뷰에만 적용됩니다. 지원되는 쿼리 구문에 대한 제한사항을 제외하고 모든 구체화된 뷰 제한사항 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#limitations]은 계속 적용됩니다.
+allow_non_incremental_definition 옵션을 포함하는 구체화된 뷰에는 스마트 조정이 적용되지 않습니다. allow_non_incremental_definition 옵션으로 구체화된 뷰의 이점을 활용할 수 있는 유일한 방법은 직접 쿼리하는 것입니다.
+allow_non_incremental_definition 옵션이 없는 구체화된 뷰는 데이터 하위 집합을 점진적으로 새로고침할 수 있습니다. allow_non_incremental_definition 옵션이 있는 구체화된 뷰는 완전히 새로고침해야 합니다.
+max_staleness 옵션이 있는 구체화된 뷰는 쿼리 실행 중에 열 수준 보안 제약조건의 존재를 검증합니다. 자세한 내용은 열 수준 액세스 제어 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko#time-travel]를 참조하세요.
+다음 단계
+구체화된 뷰 관리 [https://cloud.google.com/bigquery/docs/materialized-views-manage?hl=ko]
+구체화된 뷰 사용 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko]
+도움이 되었나요?
+의견 보내기

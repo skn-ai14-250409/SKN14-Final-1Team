@@ -1,0 +1,546 @@
+Source URL: https://cloud.google.com/bigquery/docs/generate-text-embedding
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필요한 역할 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#required_roles]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#before_you_begin]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#create_a_dataset]
+연결 만들기 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#create_a_connection]
+서비스 계정에 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#give_the_service_account_access]
+ML.GENERATE_EMBEDDING 함수를 사용하여 텍스트 임베딩 생성
+bookmark_border
+이 문서에서는 Vertex AI 임베딩 모델 [https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models?hl=ko]을 참조하는 BigQuery ML 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko]을 만드는 방법을 설명합니다. 그런 다음 이 모델을 ML.GENERATE_EMBEDDING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding?hl=ko]와 함께 사용하여 BigQuery 표준 테이블 [https://cloud.google.com/bigquery/docs/tables-intro?hl=ko#standard_tables]의 데이터를 사용해서 텍스트 임베딩을 만듭니다.
+필요한 역할
+원격 모델을 만들고 ML.GENERATE_EMBEDDING 함수를 사용하려면 다음 Identity and Access Management (IAM) 역할이 필요합니다.
+BigQuery 데이터 세트, 테이블, 모델을 만들고 사용하려면 프로젝트에 대한 BigQuery 데이터 편집자 (roles/bigquery.dataEditor)가 필요합니다.
+BigQuery 연결을 만들고, 위임하고, 사용합니다. 프로젝트에 대한 BigQuery 연결 관리자 (roles/bigquery.connectionsAdmin)
+구성된 기본 연결 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko]이 없는 경우 CREATE MODEL 문을 실행하는 과정에서 연결을 만들고 설정할 수 있습니다. 이렇게 하려면 프로젝트에 BigQuery 관리자(roles/bigquery.admin)가 있어야 합니다. 자세한 내용은 기본 연결 구성 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko#configure_the_default_connection]을 참고하세요.
+연결의 서비스 계정에 권한 부여: Vertex AI 엔드포인트가 포함된 프로젝트에 대한 프로젝트 IAM 관리자(roles/resourcemanager.projectIamAdmin) 모델 이름을 엔드포인트로 지정하여 만드는 원격 모델의 현재 프로젝트입니다. 엔드포인트로 URL을 지정하여 만드는 원격 모델의 URL에 식별된 프로젝트입니다.
+BigQuery 작업 만들기: 프로젝트에 대한 BigQuery 작업 사용자(roles/bigquery.jobUser)
+이러한 사전 정의된 역할에는 이 문서의 작업을 수행하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 확장하세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko]을 사용하여 이 권한을 부여받을 수도 있습니다.
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, and Vertex AI APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Caiplatform.googleapis.com&hl=ko]
+데이터 세트 만들기
+리소스를 포함할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 데이터 세트 이름을 입력합니다.
+위치 유형에서 데이터 세트의 위치를 선택합니다.
+데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다.
+
+bq --location=LOCATION mk -d DATASET_ID
+
+다음을 바꿉니다.
+
+
+LOCATION: 데이터 세트의 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko].
+DATASET_ID: 사용자가 만들려는 데이터 세트 ID
+
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+연결 만들기
+기본 연결이 구성되어 있거나 BigQuery 관리자 역할이 있는 경우 이 단계를 건너뛸 수 있습니다.
+원격 모델이 사용할 클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 만들고 연결의 서비스 계정을 가져옵니다. 이전 단계에서 만든 데이터 세트와 동일한 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에 연결을 만듭니다.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 add 데이터 추가를 클릭합니다.
+
+ 
+
+데이터 추가 대화상자가 열립니다.
+필터링 기준 창의 데이터 소스 유형 섹션에서 비즈니스 애플리케이션을 선택합니다.
+
+또는 데이터 소스 검색 필드에 Vertex AI를 입력할 수 있습니다.
+추천 데이터 소스 섹션에서 Vertex AI를 클릭합니다.
+Vertex AI 모델: BigQuery 페더레이션 솔루션 카드를 클릭합니다.
+연결 유형 목록에서 Vertex AI 원격 모델, 원격 함수, BigLake(Cloud 리소스)를 선택합니다.
+연결 ID 필드에 연결 이름을 입력합니다.
+연결 만들기를 클릭합니다.
+연결로 이동을 클릭합니다.
+연결 정보 창에서 나중의 단계에 사용할 서비스 계정 ID를 복사합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#bq] ---
+명령줄 환경에서 연결을 만듭니다.
+
+bq mk --connection --location=REGION --project_id=PROJECT_ID \
+    --connection_type=CLOUD_RESOURCE CONNECTION_ID
+
+--project_id 매개변수는 기본 프로젝트를 재정의합니다.
+
+다음을 바꿉니다.
+
+
+REGION: 연결 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#supported_locations]
+PROJECT_ID: Google Cloud 프로젝트 ID
+CONNECTION_ID: 연결의 ID
+
+
+연결 리소스를 만들면 BigQuery가 고유한 시스템 서비스 계정을 만들고 이를 연결에 연계합니다.
+
+문제 해결: 다음 연결 오류가 발생하면 Google Cloud SDK를 업데이트 [https://cloud.google.com/sdk/docs/quickstart?hl=ko]하세요.
+
+Flags parsing error: flag --connection_type=CLOUD_RESOURCE: value should be one of...
+
+이후 단계에서 사용할 수 있도록 서비스 계정 ID를 가져와 복사합니다.
+
+bq show --connection PROJECT_ID.REGION.CONNECTION_ID
+
+출력은 다음과 유사합니다.
+
+name                          properties
+1234.REGION.CONNECTION_ID     {"serviceAccountId": "connection-1234-9u56h9@gcp-sa-bigquery-condel.iam.gserviceaccount.com"}
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#terraform] ---
+google_bigquery_connection [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_connection] 리소스를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 US 리전에 my_cloud_resource_connection이라는 Cloud 리소스 연결을 만듭니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# This queries the provider for project information.
+data "google_project" "default" {}
+
+# This creates a cloud resource connection in the US region named my_cloud_resource_connection.
+# Note: The cloud resource nested object has only one output field - serviceAccountId.
+resource "google_bigquery_connection" "default" {
+  connection_id = "my_cloud_resource_connection"
+  project       = data.google_project.default.project_id
+  location      = "US"
+  cloud_resource {}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+서비스 계정에 액세스 권한 부여
+연결의 서비스 계정에 Vertex AI 사용자 역할을 부여합니다.
+원격 모델을 만들 때 엔드포인트를 URL(예: endpoint = 'https://us-central1-aiplatform.googleapis.com/v1/projects/myproject/locations/us-central1/publishers/google/models/text-embedding-005')로 지정할 계획이라면 URL에 지정한 동일한 프로젝트에서 이 역할을 부여합니다.
+원격 모델을 만들 때 모델 이름을 사용(예: endpoint = 'text-embedding-005')하여 엔드포인트를 지정할 계획이라면 원격 모델을 만들려는 동일한 프로젝트에서 이 역할을 부여합니다.
+다른 프로젝트에서 역할을 부여하면 bqcx-1234567890-wxyz@gcp-sa-bigquery-condel.iam.gserviceaccount.com does not have the permission to access resource 오류가 발생합니다.
+역할을 부여하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#%EC%BD%98%EC%86%94] ---
+IAM 및 관리자 페이지로 이동합니다.
+
+IAM 및 관리자로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko] 
+person_add 액세스 권한 부여를 클릭합니다.
+
+주 구성원 추가 대화상자가 열립니다.
+새 주 구성원 필드에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 Vertex AI를 선택한 후 Vertex AI 사용자를 선택합니다.
+저장을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#gcloud] ---
+gcloud projects add-iam-policy-binding [https://cloud.google.com/sdk/gcloud/reference/projects/add-iam-policy-binding?hl=ko] 명령어를 사용합니다.
+
+gcloud projects add-iam-policy-binding 'PROJECT_NUMBER' --member='serviceAccount:MEMBER' --role='roles/aiplatform.user' --condition=None
+
+
+다음을 바꿉니다.
+
+  PROJECT_NUMBER: 프로젝트 번호
+  MEMBER: 이전에 복사한 서비스 계정 ID
+모델 만들기
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+SQL 편집기를 사용하여 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko]을 만듭니다.
+CREATE OR REPLACE MODEL `
+PROJECT_ID.
+DATASET_ID.
+MODEL_NAME`
+REMOTE WITH CONNECTION {DEFAULT | `
+PROJECT_ID.
+REGION.
+CONNECTION_ID`}
+OPTIONS (ENDPOINT = '
+ENDPOINT');
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트 ID입니다.
+DATASET_ID: 모델을 포함할 데이터 세트의 ID
+MODEL_NAME: 모델의 이름
+REGION: 연결에 사용되는 리전
+CONNECTION_ID: BigQuery 연결의 ID
+Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 이는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+ENDPOINT: 사용할 임베딩 모델의 이름입니다. text-embedding, text-multilingual-embedding 또는 multimodalembedding 모델이어야 합니다. 지원되는 모델 버전 및 별칭에 대한 자세한 내용은 ENDPOINT [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko#endpoint]을 참고하세요.
+지정한 Vertex AI 모델은 원격 모델을 만드는 위치에서 사용할 수 있어야 합니다. 자세한 내용은 위치 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko#locations_2]를 참고하세요.
+테이블의 데이터를 사용하여 텍스트 임베딩 생성
+테이블 열의 텍스트 데이터를 사용하여 ML.GENERATE_EMBEDDING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding?hl=ko]로 텍스트 임베딩을 생성합니다.
+일반적으로 텍스트 전용 사용 사례에는 text-embedding 또는 text-multilingual-embedding 모델을 사용하고 교차 모달 검색 사용 사례에는 multimodalembedding 모델을 사용합니다. 여기서 텍스트 및 시각적 콘텐츠의 임베딩은 동일한 시맨틱 공간에서 생성됩니다.
+--- 탭: 텍스트 임베딩 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#%ED%85%8D%EC%8A%A4%ED%8A%B8-%EC%9E%84%EB%B2%A0%EB%94%A9] ---
+임베딩 모델을 통해 원격 모델을 사용하여 텍스트 임베딩을 생성합니다.
+
+SELECT *
+FROM ML.GENERATE_EMBEDDING(
+  MODEL `PROJECT_ID.DATASET_ID.MODEL_NAME`,
+  TABLE PROJECT_ID.DATASET_ID.TABLE_NAME,
+  STRUCT(FLATTEN_JSON AS flatten_json_output,
+    TASK_TYPE AS task_type,
+    OUTPUT_DIMENSIONALITY AS output_dimensionality)
+);
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID
+  DATASET_ID: 모델이 포함된 데이터 세트의 ID
+  MODEL_NAME: 임베딩 모델을 통한 원격 모델의 이름
+  TABLE_NAME: 삽입할 텍스트가 포함된 테이블의 이름. 이 테이블에는 이름이 content인 열이 있어야 합니다. 또는 별칭을 사용하여 다른 이름의 열을 사용할 수 있습니다.
+  FLATTEN_JSON: 임베딩을 별도의 열로 파싱할지 여부를 나타내는 BOOL 값. 기본값은 TRUE입니다.
+  TASK_TYPE: 모델이 더 나은 품질의 임베딩을 생성할 수 있도록 의도된 다운스트림 애플리케이션을 지정하는 STRING 리터럴. TASK_TYPE은 다음 값을 허용합니다.
+  
+    RETRIEVAL_QUERY: 지정된 텍스트가 검색 또는 가져오기 설정의 쿼리임을 지정
+    RETRIEVAL_DOCUMENT: 지정된 텍스트가 검색 또는 가져오기 설정의 문서임을 지정
+      이 태스크 유형을 사용할 때 임베딩 품질을 개선하기 위해 쿼리 문에 문서 제목을 포함하면 유용합니다.
+      문서 제목은 title 또는 별칭이 title로 지정된 열에 있어야 합니다. 예를 들면 다음과 같습니다.
+      
+            SELECT *
+      FROM
+        ML.GENERATE_EMBEDDING(
+          MODEL mydataset.embedding_model,
+          (SELECT abstract as content, header as title, publication_number
+          FROM mydataset.publications),
+          STRUCT(TRUE AS flatten_json_output, 'RETRIEVAL_DOCUMENT' as task_type)
+      );
+      
+      
+      입력 쿼리에서 제목 열을 지정하면 모델에 전송되는 요청 본문의 title 필드 [https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api?hl=ko#request_body]가 채워집니다. 다른 작업 유형을 사용할 때 title 값을 지정하면 해당 입력이 무시되고 삽입 결과에 영향을 미치지 않습니다.
+      
+        
+    SEMANTIC_SIMILARITY: 지정된 텍스트를 시맨틱 텍스트 유사성(STS)에 사용하도록 지정
+    CLASSIFICATION: 임베딩이 분류에 사용되도록 지정
+    CLUSTERING: 클러스터링에 임베딩을 사용하도록 지정
+    QUESTION_ANSWERING: 임베딩이 질문 답변에 사용되도록 지정
+    FACT_VERIFICATION: 임베딩이 사실 확인에 사용되도록 지정
+    CODE_RETRIEVAL_QUERY: 임베딩이 코드 검색에 사용되도록 지정
+    
+   
+    OUTPUT_DIMENSIONALITY: 임베딩을 생성할 때 사용할 차원 수를 지정하는 INT64 값입니다. 예를 들어 256 AS output_dimensionality를 지정하면 ml_generate_embedding_result 출력 열에 각 입력 값에 대한 임베딩이 256개 포함됩니다.
+    model 인수에 지정하는 원격 모델에서 다음 모델 중 하나를 엔드포인트로 사용하는 경우에만 이 인수를 사용할 수 있습니다.
+    
+    text-embedding-004 이상
+    text-multilingual-embedding-002 이상
+
+--- 탭: 멀티모달 임베딩 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#%EB%A9%80%ED%8B%B0%EB%AA%A8%EB%8B%AC-%EC%9E%84%EB%B2%A0%EB%94%A9] ---
+multimodalembedding 모델을 통해 원격 모델을 사용하여 텍스트 임베딩을 생성합니다.
+
+SELECT *
+FROM ML.GENERATE_EMBEDDING(
+  MODEL `PROJECT_ID.DATASET_ID.MODEL_NAME`,
+  TABLE PROJECT_ID.DATASET_ID.TABLE_NAME,
+  STRUCT(FLATTEN_JSON AS flatten_json_output，
+  OUTPUT_DIMENSIONALITY AS output_dimensionality)
+);
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID
+  DATASET_ID: 모델이 포함된 데이터 세트의 ID
+  MODEL_NAME: multimodalembedding@001 모델에 대한 원격 모델의 이름
+  TABLE_NAME: 삽입할 텍스트가 포함된 테이블의 이름. 이 테이블에는 이름이 content인 열이 있어야 합니다. 또는 별칭을 사용하여 다른 이름의 열을 사용할 수 있습니다.
+  FLATTEN_JSON: 임베딩을 별도의 열로 파싱할지 여부를 나타내는 BOOL. 기본값은 TRUE입니다.
+  OUTPUT_DIMENSIONALITY: 임베딩을 생성할 때 사용할 차원 수를 지정하는 INT64 값입니다. 유효한 값은 128, 256, 512, 1408입니다. 기본값은 1408입니다. 예를 들어 256 AS output_dimensionality를 지정하면 ml_generate_embedding_result 출력 열에 각 입력 값에 대한 임베딩이 256개 포함됩니다.
+쿼리의 데이터를 사용하여 텍스트 임베딩 생성
+또는 임베딩 모델을 통해 쿼리 및 원격 모델로 제공된 텍스트 데이터를 사용하여 ML.GENERATE_EMBEDDING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding?hl=ko]로 텍스트 임베딩을 생성합니다.
+일반적으로 텍스트 전용 사용 사례에는 text-embedding 또는 text-multilingual-embedding 모델을 사용하고 교차 모달 검색 사용 사례에는 multimodalembedding 모델을 사용합니다. 여기서 텍스트 및 시각적 콘텐츠의 임베딩은 동일한 시맨틱 공간에서 생성됩니다.
+--- 탭: 텍스트 임베딩 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#%ED%85%8D%EC%8A%A4%ED%8A%B8-%EC%9E%84%EB%B2%A0%EB%94%A9] ---
+또는 임베딩 모델을 통해 원격 모델을 사용하여 텍스트 임베딩을 생성합니다.
+
+SELECT *
+FROM ML.GENERATE_EMBEDDING(
+  MODEL `PROJECT_ID.DATASET_ID.MODEL_NAME`,
+  (CONTENT_QUERY),
+  STRUCT(FLATTEN_JSON AS flatten_json_output,
+    TASK_TYPE AS task_type,
+    OUTPUT_DIMENSIONALITY AS output_dimensionality)
+  );
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID
+  DATASET_ID: 모델이 포함된 데이터 세트의 ID
+  MODEL_NAME: 임베딩 모델을 통한 원격 모델의 이름
+  CONTENT_QUERY: 결과에 content라는 STRING 열이 포함된 쿼리
+  FLATTEN_JSON: 임베딩을 별도의 열로 파싱할지 여부를 나타내는 BOOL 값. 기본값은 TRUE입니다.
+      TASK_TYPE: 모델이 더 나은 품질의 임베딩을 생성할 수 있도록 의도된 다운스트림 애플리케이션을 지정하는 STRING 리터럴. TASK_TYPE은 다음 값을 허용합니다.
+      
+        RETRIEVAL_QUERY: 지정된 텍스트가 검색 또는 가져오기 설정의 쿼리임을 지정
+        RETRIEVAL_DOCUMENT: 지정된 텍스트가 검색 또는 가져오기 설정의 문서임을 지정
+        이 태스크 유형을 사용할 때 임베딩 품질을 개선하기 위해 쿼리 문에 문서 제목을 포함하면 유용합니다.
+        문서 제목은 title 또는 별칭이 title로 지정된 열에 있어야 합니다. 예를 들면 다음과 같습니다.
+        
+                SELECT *
+        FROM
+          ML.GENERATE_EMBEDDING(
+            MODEL mydataset.embedding_model,
+            (SELECT abstract as content, header as title, publication_number
+            FROM mydataset.publications),
+            STRUCT(TRUE AS flatten_json_output, 'RETRIEVAL_DOCUMENT' as task_type)
+        );
+        
+        
+        입력 쿼리에서 제목 열을 지정하면 모델에 전송되는 요청 본문의 title 필드 [https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api?hl=ko#request_body]가 채워집니다. 다른 작업 유형을 사용할 때 title 값을 지정하면 해당 입력이 무시되고 삽입 결과에 영향을 미치지 않습니다.
+        
+        
+        SEMANTIC_SIMILARITY: 지정된 텍스트를 시맨틱 텍스트 유사성(STS)에 사용하도록 지정
+        CLASSIFICATION: 임베딩이 분류에 사용되도록 지정
+        CLUSTERING: 클러스터링에 임베딩을 사용하도록 지정
+        QUESTION_ANSWERING: 임베딩이 질문 답변에 사용되도록 지정
+        FACT_VERIFICATION: 임베딩이 사실 확인에 사용되도록 지정
+        CODE_RETRIEVAL_QUERY: 임베딩이 코드 검색에 사용되도록 지정
+        
+      
+      OUTPUT_DIMENSIONALITY: 임베딩을 생성할 때 사용할 차원 수를 지정하는 INT64 값입니다. 예를 들어 256 AS output_dimensionality를 지정하면 ml_generate_embedding_result 출력 열에 각 입력 값에 대한 임베딩이 256개 포함됩니다.
+      model 인수에 지정하는 원격 모델에서 다음 모델 중 하나를 엔드포인트로 사용하는 경우에만 이 인수를 사용할 수 있습니다.
+      
+      text-embedding-004 이상
+      text-multilingual-embedding-002 이상
+
+--- 탭: 멀티모달 임베딩 [https://cloud.google.com/bigquery/docs/generate-text-embedding?hl=ko#%EB%A9%80%ED%8B%B0%EB%AA%A8%EB%8B%AC-%EC%9E%84%EB%B2%A0%EB%94%A9] ---
+multimodalembedding 모델을 통해 원격 모델을 사용하여 텍스트 임베딩을 생성합니다.
+
+SELECT *
+FROM ML.GENERATE_EMBEDDING(
+  MODEL `PROJECT_ID.DATASET_ID.MODEL_NAME`,
+  (CONTENT_QUERY),
+  STRUCT(FLATTEN_JSON AS flatten_json_output,
+  OUTPUT_DIMENSIONALITY AS output_dimensionality)
+);
+
+다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID
+  DATASET_ID: 모델이 포함된 데이터 세트의 ID
+  MODEL_NAME: multimodalembedding@001 모델에 대한 원격 모델의 이름
+  CONTENT_QUERY: 결과에 content라는 STRING 열이 포함된 쿼리
+  FLATTEN_JSON: 임베딩을 별도의 열로 파싱할지 여부를 나타내는 BOOL. 기본값은 TRUE입니다.
+  OUTPUT_DIMENSIONALITY: 임베딩을 생성할 때 사용할 차원 수를 지정하는 INT64 값입니다. 유효한 값은 128, 256, 512, 1408입니다. 기본값은 1408입니다. 예를 들어 256 AS output_dimensionality를 지정하면 ml_generate_embedding_result 출력 열에 각 입력 값에 대한 임베딩이 256개 포함됩니다.
+예시
+다음 예시에서는 테이블과 쿼리에서 ML.GENERATE_EMBEDDING 함수를 호출하는 방법을 보여줍니다.
+테이블에 텍스트 삽입
+다음 예시는 text_data 테이블의 content 열을 삽입하는 요청을 보여줍니다.
+SELECT *
+FROM
+  ML.GENERATE_EMBEDDING(
+    MODEL `mydataset.embedding_model`,
+    TABLE mydataset.text_data,
+    STRUCT(TRUE AS flatten_json_output, 'CLASSIFICATION' AS task_type)
+  );
+임베딩을 사용하여 시맨틱 유사성 순위 지정
+다음 예에서는 영화 리뷰 모음을 삽입하고 VECTOR_SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search]를 사용하여 '이 영화는 평범했습니다'라는 리뷰와의 코사인 거리에 따라 순서를 지정합니다. 거리가 짧을수록 시맨틱 유사성이 높습니다.
+벡터 검색 및 벡터 색인에 대한 자세한 내용은 벡터 검색 소개 [https://cloud.google.com/bigquery/docs/vector-search-intro?hl=ko]를 참고하세요.
+CREATE TEMPORARY TABLE movie_review_embeddings AS (
+  SELECT *
+  FROM
+    ML.GENERATE_EMBEDDING(
+      MODEL `bqml_tutorial.embedding_model`,
+      (
+        SELECT "This movie was fantastic" AS content
+        UNION ALL
+        SELECT "This was the best movie I've ever seen!!" AS content
+        UNION ALL
+        SELECT "This movie was just okay..." AS content
+        UNION ALL
+        SELECT "This movie was terrible." AS content
+      ),
+      STRUCT(TRUE AS flatten_json_output)
+    )
+);
+
+WITH average_review_embedding AS (
+  SELECT ml_generate_embedding_result
+  FROM
+    ML.GENERATE_EMBEDDING(
+      MODEL `bqml_tutorial.embedding_model`,
+      (SELECT "This movie was average" AS content),
+      STRUCT(TRUE AS flatten_json_output)
+    )
+)
+SELECT
+  base.content AS content,
+  distance AS distance_to_average_review
+FROM
+  VECTOR_SEARCH(
+    TABLE movie_review_embeddings,
+    "ml_generate_embedding_result",
+    (SELECT ml_generate_embedding_result FROM average_review_embedding),
+    distance_type=>"COSINE",
+    top_k=>-1
+  )
+ORDER BY distance_to_average_review;
+결과는 다음과 같습니다.
++------------------------------------------+----------------------------+
+| content                                  | distance_to_average_review |
++------------------------------------------+----------------------------+
+| This movie was just okay...              | 0.062789813467745592       |
+| This movie was fantastic                 |  0.18579561313064263       |
+| This movie was terrible.                 |  0.35707466240930985       |
+| This was the best movie I've ever seen!! |  0.41844932504542975       |
++------------------------------------------+----------------------------+
+다음 단계
+텍스트 및 이미지 임베딩을 사용하여 텍스트-이미지 시맨틱 검색을 수행 [https://cloud.google.com/bigquery/docs/generate-multimodal-embeddings?hl=ko]하는 방법을 알아보세요.
+시맨틱 검색 및 검색 증강 생성 (RAG)에 텍스트 임베딩을 사용하는 방법 [https://cloud.google.com/bigquery/docs/vector-index-text-search-tutorial?hl=ko]을 알아봅니다.
+도움이 되었나요?
+의견 보내기

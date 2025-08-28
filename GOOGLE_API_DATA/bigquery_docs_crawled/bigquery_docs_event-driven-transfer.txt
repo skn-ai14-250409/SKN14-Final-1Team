@@ -1,0 +1,126 @@
+Source URL: https://cloud.google.com/bigquery/docs/event-driven-transfer
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+이벤트 기반 전송을 지원하는 데이터 소스 [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#data_sources_with_event-driven_transfers_support]
+제한사항 [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#limitations]
+Cloud Storage 이벤트 기반 전송 설정 [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#gcs-event-driven-transfers]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#before_you_begin]
+전송 구성 만들기 [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#create-transfer-configuration]
+이벤트 기반 전송
+bookmark_border
+BigQuery Data Transfer Service를 사용하여 이벤트 알림에 따라 데이터를 자동으로 로드하는 이벤트 기반 전송을 만들 수 있습니다. 비용 효율성을 최적화하는 증분 데이터 처리가 필요한 경우 이벤트 기반 전송을 사용하는 것이 좋습니다.
+이벤트 기반 전송을 설정하면 각 데이터 전송 간에 몇 분의 지연이 발생할 수 있습니다. 즉시 데이터를 사용할 수 있어야 하는 경우 가능한 한 지연 시간이 짧은 Storage Write API [https://cloud.google.com/bigquery/docs/write-api?hl=ko]를 사용하여 BigQuery로 직접 데이터를 스트리밍하는 것이 좋습니다. Storage Write API는 가장 까다로운 사용 사례에 실시간 업데이트를 제공합니다.
+두 가지 중에서 선택할 때는 이벤트 기반 전송을 통한 비용 효율적인 증분 일괄 처리를 우선시해야 하는지 또는 Storage Write API의 유연성을 선호하는지 고려하세요.
+이벤트 기반 전송을 지원하는 데이터 소스
+BigQuery Data Transfer Service는 다음 데이터 소스에서 이벤트 기반 전송을 사용할 수 있습니다.
+Cloud Storage [https://cloud.google.com/bigquery/docs/cloud-storage-transfer?hl=ko]
+제한사항
+BigQuery로의 이벤트 기반 전송에는 다음과 같은 제한사항이 적용됩니다.
+이벤트 기반 전송이 트리거된 후 BigQuery Data Transfer Service는 그 시간 내에 이벤트가 도착했는지와 관계없이 다음 전송 실행을 트리거하기 전에 최대 10분 동안 기다립니다.
+이벤트 기반 전송은 소스 URI 또는 데이터 경로의 런타임 매개변수 [https://cloud.google.com/bigquery/docs/gcs-transfer-parameters?hl=ko]를 지원하지 않습니다.
+동일한 Pub/Sub 구독은 여러 이벤트 기반 전송 구성에서 재사용할 수 없습니다.
+Cloud Storage 이벤트 기반 전송 설정
+Cloud Storage의 이벤트 기반 전송은 Pub/Sub 알림을 사용하여 소스 버킷의 객체가 수정되거나 추가된 시점을 확인합니다. 증분 전송 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview?hl=ko#incremental_transfers] 모드를 사용하는 경우 소스 버킷에서 객체를 삭제해도 대상 BigQuery 테이블의 연결된 데이터는 삭제되지 않습니다.
+시작하기 전에
+Cloud Storage 이벤트 기반 전송을 구성하기 전에 다음 단계를 실행해야 합니다.
+알림을 수신하는 프로젝트에서 Pub/Sub API를 사용 설정합니다.
+API 사용 설정 [https://console.cloud.google.com/flows/enableapi?apiid=pubsub&hl=ko]
+Cloud Storage 관리자 (roles/storage.admin) 및 Pub/Sub 관리자 (roles/pubsub.admin)인 경우 이벤트 기반 전송 구성 만들기 [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#create-transfer-configuration]로 진행할 수 있습니다.
+Cloud Storage 관리자 (roles/storage.admin) 및 Pub/Sub 관리자 (roles/pubsub.admin)가 아닌 경우 관리자에게 roles/storage.admin 및 roles/pubsub.admin 역할을 부여해 달라고 요청하거나 관리자에게 다음 섹션에서 Pub/Sub 구성 [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#configure-pubsub] 및 서비스 에이전트 권한 구성 [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#configure-service-agent-permissions]을 완료하고 사전 구성된 Pub/Sub 구독을 사용하여 이벤트 기반 전송 구성을 만들도록 [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#create-transfer-configuration] 요청합니다.
+이벤트 기반 전송 구성 알림을 설정하는 데 필요한 세부 권한:
+알림 게시를 위한 주제 및 구독을 만들려면 pubsub.topics.create [https://cloud.google.com/pubsub/docs/access_control?hl=ko#tbl_roles] 및 pubsub.subscriptions.create [https://cloud.google.com/pubsub/docs/access_control?hl=ko#tbl_roles] 권한이 있어야 합니다.
+새 주제와 기존 주제 중 무엇을 사용하든 다음 권한이 있어야 합니다. Pub/Sub에서 이미 주제와 구독을 만든 경우 이러한 권한이 이미 있을 수 있습니다.
+pubsub.topics.getIamPolicy [https://cloud.google.com/pubsub/docs/access_control?hl=ko#tbl_roles]
+pubsub.topics.setIamPolicy [https://cloud.google.com/pubsub/docs/access_control?hl=ko#tbl_roles]
+pubsub.subscriptions.getIamPolicy [https://cloud.google.com/pubsub/docs/access_control?hl=ko#tbl_roles]
+pubsub.subscriptions.setIamPolicy [https://cloud.google.com/pubsub/docs/access_control?hl=ko#tbl_roles]
+Pub/Sub 알림을 구성하려는 Cloud Storage 버킷에 다음 권한이 있어야 합니다.
+storage.buckets.get
+storage.buckets.update
+pubsub.admin 및 storage.admin 사전 정의된 IAM 역할에는 Cloud Storage 이벤트 기반 전송을 구성하는 데 필요한 모든 권한이 있습니다. 자세한 내용은 Pub/Sub 액세스 제어 [https://cloud.google.com/pubsub/docs/access_control?hl=ko#console]를 참고하세요.
+Cloud Storage에서 Pub/Sub 알림 구성
+Cloud Storage에서 Pub/Sub를 사용하기 위한 기본 요건 [https://cloud.google.com/storage/docs/reporting-changes?hl=ko]을 충족했는지 확인합니다.
+Cloud Storage 버킷에 알림 구성을 적용합니다.
+gcloud storage buckets notifications create gs://
+BUCKET_NAME --topic=
+TOPIC_NAME --event-types=OBJECT_FINALIZE
+다음을 바꿉니다.
+BUCKET_NAME: 파일 알림 이벤트를 트리거할 Cloud Storage 버킷의 이름입니다.
+TOPIC_NAME: 파일 알림 이벤트를 수신할 Pub/Sub 주제의 이름입니다.
+gcloud CLI 외의 다른 방법을 사용하여 알림 구성을 추가할 수도 있습니다. 자세한 내용은 알림 구성 적용 [https://cloud.google.com/storage/docs/reporting-changes?hl=ko#command-line]을 참고하세요.
+Cloud Storage에 Pub/Sub 알림이 올바르게 구성되어 있는지 확인합니다. gcloud storage buckets notifications list 명령어를 사용합니다.
+gcloud storage buckets notifications list gs://
+BUCKET_NAME
+성공하면 다음과 비슷한 응답이 표시됩니다.
+etag: '132'
+id: '132'
+kind: storage#notification
+payload_format: JSON_API_V1
+selfLink: https://www.googleapis.com/storage/v1/b/my-bucket/notificationConfigs/132
+topic: //pubsub.googleapis.com/projects/my-project/topics/my-bucket
+주제에 대한 pull 구독을 만듭니다.
+gcloud pubsub subscriptions create 
+SUBSCRIPTION_ID --topic=
+TOPIC_NAME
+SUBSCRIPTION_ID을 새 Pub/Sub 가져오기 구독의 이름 또는 ID로 바꿉니다.
+다른 메서드 [https://cloud.google.com/pubsub/docs/create-subscription?hl=ko#pubsub_create_pull_subscription]를 사용하여 풀 구독을 만들 수 있습니다.
+참고: 여러 이벤트 기반 전송 구성에서 동일한 Pub/Sub 구독을 재사용할 수 없습니다.
+서비스 에이전트 권한 구성
+프로젝트의 BigQuery Data Transfer Service 에이전트 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#bigquerydatatransfer.serviceAgent] 이름을 찾습니다.
+IAM 및 관리자 페이지로 이동합니다.
+IAM 및 관리자로 이동 [https://console.cloud.google.com/iam-admin/iam?hl=ko]
+Google 제공 역할 부여 포함 체크박스를 선택합니다.
+BigQuery Data Transfer Service 에이전트가 service-<project_number>@gcp-sa-bigquerydatatransfer.iam.gserviceaccount.com 이름으로 표시되고 BigQuery Data Transfer Service 에이전트 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#bigquerydatatransfer.serviceAgent]이 부여됩니다.
+서비스 에이전트에 대한 자세한 내용은 서비스 에이전트 [https://cloud.google.com/iam/docs/service-agents?hl=ko]를 참고하세요.
+BigQuery Data Transfer Service 에이전트에 pubsub.subscriber 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#pubsub.subscriber]을 부여합니다.
+--- 탭: Cloud 콘솔 [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#cloud-%EC%BD%98%EC%86%94] ---
+콘솔을 통한 액세스 제어 [https://cloud.google.com/pubsub/docs/access-control?hl=ko#console]의 안내에 따라 BigQuery Data Transfer Service 에이전트에 Pub/Sub Subscriber 역할을 부여합니다. Google Cloud 역할은 주제, 구독 또는 프로젝트 수준에서 부여할 수 있습니다.
+
+--- 탭: gcloud CLI [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#gcloud-cli] ---
+정책 설정 [https://cloud.google.com/pubsub/docs/access-control?hl=ko#setting_a_policy]의 안내에 따라 다음 바인딩을 추가합니다.
+
+{
+  "role": "roles/pubsub.subscriber",
+  "members": [
+    "serviceAccount:project-PROJECT_NUMBER@gcp-sa-bigquerydatatransfer.iam.gserviceaccount.com"
+}
+
+PROJECT_NUMBER를 생성되고 청구되는 전송 리소스를 호스팅하는 프로젝트 ID [https://cloud.google.com/resource-manager/docs/creating-managing-projects?hl=ko#identifying_projects]로 바꿉니다.
+할당량 사용 기여 분석: BigQuery Data Transfer Service 에이전트가 Pub/Sub 구독에 액세스하면 할당량 사용량이 사용자 프로젝트에 청구됩니다.
+BigQuery Data Transfer Service 에이전트에 pubsub.subscriber 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#pubsub.subscriber]이 부여되었는지 확인합니다.
+Google Cloud 콘솔에서 Pub/Sub 페이지로 이동합니다.
+Pub/Sub로 이동 [https://console.cloud.google.com/cloudpubsub/subscription/list?hl=ko]
+이벤트 기반 전송에 사용한 Pub/Sub 구독을 선택합니다.
+정보 패널이 숨겨져 있으면 오른쪽 상단에서 정보 패널 표시를 클릭합니다.
+권한 탭에서 BigQuery Data Transfer Service 서비스 에이전트 [https://cloud.google.com/bigquery/docs/enable-transfer-service?hl=ko#service_agent]에 pubsub.subscriber 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#pubsub.subscriber]이 있는지 확인합니다.
+알림 및 권한을 구성하는 명령어 요약
+다음 Google Cloud CLI 명령어에는 이전 섹션에 설명된 대로 알림 및 권한을 설정하는 데 필요한 모든 명령어가 포함되어 있습니다.
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#gcloud] ---
+PROJECT_ID=project_id
+CONFIG_NAME=config_name
+RESOURCE_NAME="bqdts-event-driven-${CONFIG_NAME}"
+# Create a Pub/Sub topic.
+gcloud pubsub topics create "${RESOURCE_NAME}" --project="${PROJECT_ID}"
+# Create a Pub/Sub subscription.
+gcloud pubsub subscriptions create "${RESOURCE_NAME}" --project="${PROJECT_ID}" --topic="projects/${PROJECT_ID}/topics/${RESOURCE_NAME}"
+# Create a Pub/Sub notification.
+gcloud storage buckets notifications create gs://"${RESOURCE_NAME}" --topic="projects/${PROJECT_ID}/topics/${RESOURCE_NAME}" --event-types=OBJECT_FINALIZE
+# Grant roles/pubsub.subscriber permission to the DTS service agent.
+PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format='value(projectNumber)')
+gcloud pubsub subscriptions add-iam-policy-binding "${RESOURCE_NAME}"  --project="${PROJECT_ID}"  --member=serviceAccount:service-"${PROJECT_NUMBER}"@gcp-sa-bigquerydatatransfer.iam.gserviceaccount.com  --role=roles/pubsub.subscriber
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트의 ID입니다.
+CONFIG_NAME: 이 전송 구성을 식별하는 이름입니다.
+전송 구성 만들기
+Cloud Storage 전송을 만들고 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer?hl=ko#setting_up_a_cloud_storage_transfer] 일정 유형으로 이벤트 기반을 선택하여 이벤트 기반 Cloud Storage 전송을 만들 수 있습니다. Cloud Storage 관리자 (roles/storage.admin) 및 Pub/Sub 관리자 (roles/pubsub.admin)는 BigQuery Data Transfer Service가 알림을 전송하도록 Cloud Storage를 자동으로 구성할 수 있는 충분한 권한을 보유하고 있습니다.
+Cloud Storage 관리자 (roles/storage.admin) 및 Pub/Sub 관리자 (roles/pubsub.admin)가 아닌 경우 이벤트 기반 전송을 만들기 전에 관리자에게 역할을 부여해 달라고 요청하거나 관리자에게 필요한 Cloud Storage 구성의 Pub/Sub 알림 [https://cloud.google.com/bigquery/docs/r?hl=ko#configure-pubsub] 및 서비스 에이전트 권한 구성 [https://cloud.google.com/bigquery/docs/event-driven-transfer?hl=ko#configure-service-agent-permissions]을 완료해 달라고 요청해야 합니다.
+주의: pubsub.subscriber 및 serviceusage.serviceUsageConsumer 사전 정의된 IAM 역할에서 BigQuery Data Transfer Service 에이전트 [https://cloud.google.com/iam/docs/service-agents?hl=ko#bigquerydatatransfer.serviceAgent]를 삭제하지 마세요. 삭제하면 BigQuery가 Pub/Sub 주제 및 구독에서 알림을 수신하지 못하게 됩니다.
+도움이 되었나요?
+의견 보내기

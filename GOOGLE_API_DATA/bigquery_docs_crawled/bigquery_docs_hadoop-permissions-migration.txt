@@ -1,0 +1,261 @@
+Source URL: https://cloud.google.com/bigquery/docs/hadoop-permissions-migration
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#before_you_begin]
+주 구성원 매핑 파일 생성 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#generate_a_principals_mapping_file]
+대상 권한 파일 생성 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#generate_target_permissions_file]
+권한 적용 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#apply_permissions]
+Terraform 구성으로 권한 적용 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#apply_permissions_as_a_terraform_configuration]
+규칙 세트 YAML 파일 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#ruleset_yaml_files]
+규칙 세트 YAML 파일의 매핑 규칙 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#mapping_rules_in_ruleset_yaml_files]
+주 구성원 규칙 세트 YAML 파일 만들기 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#creating_a_principal_ruleset_yaml_file]
+Hadoop에서 권한 마이그레이션
+bookmark_border
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 지원을 받거나 의견을 제출하려면 bigquery-permission-migration-support@google.com [mailto:bigquery-permission-migration-support@google.com]으로 문의하세요.
+이 문서에서는 Apache Hadoop 분산 파일 시스템(HDFS), Ranger HDFS, Apache Hive의 권한을 Cloud Storage 또는 BigQuery의 IAM 역할로 마이그레이션하는 방법을 설명합니다.
+권한 마이그레이션 프로세스는 다음과 같은 단계로 구성됩니다.
+먼저 주 구성원 규칙 세트 YAML 구성 파일을 만들어 주 구성원 매핑 파일을 생성 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#generate_a_principals_mapping_file]합니다. 그런 다음 HDFS 또는 Ranger 메타데이터 파일이 포함된 주 구성원 규칙 세트 YAML 파일로 권한 마이그레이션 도구를 실행하여 주 구성원 매핑 파일을 생성합니다.
+먼저 권한 규칙 세트 YAML 파일을 만들어 대상 권한 매핑 파일을 생성 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#generate_target_permissions_file]합니다. 그런 다음 권한 규칙 세트 YAML 파일, 테이블 매핑 구성 파일, HDFS 또는 Ranger 메타데이터 파일로 권한 마이그레이션 도구를 실행하여 대상 권한 매핑 파일을 생성합니다.
+대상 권한 파일로 권한 마이그레이션 도구를 실행하여 Cloud Storage 또는 BigQuery에 권한을 적용 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#apply_permissions]합니다. 제공된 Python 스크립트를 사용하여 권한을 직접 적용하는 데 사용할 수 있는 Terraform 파일을 생성할 수도 있습니다.
+시작하기 전에
+권한을 마이그레이션하기 전에 다음을 완료했는지 확인하세요.
+dwh-migration-dumper 도구 [https://cloud.google.com/bigquery/docs/hadoop-metadata?hl=ko#install-dumper]를 설치합니다.
+dwh-migration-dumper 도구를 실행 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#extract-metadata-logs]하여 데이터 소스에 필요한 메타데이터를 생성합니다.
+버전 패키지 내의 terraform.zip 파일에서도 Terraform 생성기 스크립트를 찾을 수 있습니다.
+주 구성원 매핑 파일 생성
+주 구성원 매핑 파일은 소스의 주 구성원을 Google Cloud IAM 주 구성원에 매핑하는 매핑 규칙을 정의합니다.
+주 구성원 매핑 파일을 생성하려면 먼저 주 구성원이 소스에서 Google Cloud IAM 주 구성원으로 매핑되는 방식을 정의하는 주 구성원 규칙 세트 YAML 파일을 수동으로 만들어야 합니다. 주 구성원 규칙 세트 YAML 파일에서 ranger, HDFS 또는 둘 다와 같은 각 소스의 매핑 규칙을 정의합니다.
+다음 예는 Apache Ranger 그룹을 Google Cloud의 서비스 계정에 매핑하는 주 구성원 규칙 세트 YAML 파일을 보여줍니다.
+  ranger:
+    user_rules:
+      - skip: true
+    group_rules:
+      # Skip internal Ranger groups.
+      - skip: true
+        when: "group.groupSource == 0"
+
+      # Map all roles to Google Cloud Platform service accounts.
+      - map:
+          type:
+            value: serviceAccount
+          email_address:
+            expression: "group.name + 'my-service-account@my-project.iam.gserviceaccount.com'"
+
+    role_rules:
+      - skip: true
+
+  hdfs:
+    user_rules:
+      - skip: true
+    group_rules:
+      - skip: true
+    other_rules:
+      - skip: true
+다음 예는 HDFS 사용자를 특정 Google Cloud 사용자에게 매핑하는 주 구성원 규칙 세트 YAML 파일을 보여줍니다.
+  ranger:
+    user_rules:
+      - skip: true
+    group_rules:
+      - skip: true
+    role_rules:
+      - skip: true
+
+  hdfs:
+    user_rules:
+      # Skip user named 'example'
+      - when: "user.name == 'example'"
+        skip: true
+      # Map all other users to their name at google.com
+      - when: "true"
+        map:
+          type:
+            value: user
+          email_address:
+            expression: "user.name + '@google.com'"
+
+    group_rules:
+      - skip: true
+    other_rules:
+      - skip: true
+주 구성원 규칙 세트 YAML 파일을 만드는 구문에 대한 자세한 내용은 규칙 세트 YAML 파일 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#ruleset_yaml_files]을 참조하세요.
+주 구성원 규칙 세트 YAML 파일을 만든 후 Cloud Storage 버킷에 업로드합니다. 권한을 마이그레이션하는 소스에 따라 HDFS 파일, dwh-migration-dumper 도구로 생성된 Apache Ranger 파일 또는 둘 다 포함해야 합니다. 그런 다음 권한 마이그레이션 도구를 실행하여 주 구성원 매핑 파일을 생성하면 됩니다.
+다음 예시에서는 권한 마이그레이션 도구를 실행하여 HDFS와 Apache Ranger 모두에서 마이그레이션하는 방법을 보여줍니다. 그 결과 principals.yaml이라는 주 구성원 매핑 파일이 생성됩니다.
+./dwh-permissions-migration expand \
+    --principal-ruleset gs://
+MIGRATION_BUCKET/principals-ruleset.yaml \
+    --hdfs-dumper-output gs://
+MIGRATION_BUCKET/hdfs-dumper-output.zip \
+    --ranger-dumper-output gs://
+MIGRATION_BUCKET/ranger-dumper-output.zip \
+    --output-principals gs://
+MIGRATION_BUCKET/principals.yaml
+MIGRATION_BUCKET을 마이그레이션 파일이 포함된 Cloud Storage 버킷 이름으로 바꿉니다.
+도구를 실행한 후 생성된 principals.yaml 파일을 검사하여 Google CloudIAM 주 구성원으로 매핑하는 소스의 주 구성원이 포함되어 있는지 확인합니다. 다음 단계를 진행하기 전에 파일을 수동으로 수정할 수 있습니다.
+대상 권한 파일 생성
+대상 권한 파일에는 Hadoop 클러스터에 설정된 소스 권한 세트와 BigQuery 또는 Cloud Storage 관리형 폴더의 IAM 역할 간 매핑에 관한 정보가 포함되어 있습니다. 대상 권한 파일을 생성하려면 먼저 Ranger 또는 HDFS의 권한이 Cloud Storage 또는 BigQuery에 매핑되는 방식을 지정하는 권한 규칙 세트 YAML 파일을 수동으로 만들어야 합니다.
+다음 예에서는 Cloud Storage에 대한 모든 Ranger 권한을 허용합니다.
+gcs:
+  ranger_hive_rules:
+    - map: {}
+      log: true
+다음 예에서는 hadoop 주 구성원을 제외한 모든 HDFS 권한을 허용합니다.
+gcs:
+  hdfs_rules:
+    - when:
+        source_principal.name == 'hadoop'
+      skip: true
+    - map: {}
+다음 예에서는 tab0 테이블의 기본 역할 매핑을 재정의하고 다른 모든 권한에는 기본값을 사용합니다.
+gcs:
+  ranger_hive_rules:
+    ranger_hive_rules:
+      - when: table.name == 'tab0'
+        map:
+          role:
+            value: "roles/customRole"
+      - map: {}
+권한 규칙 세트 YAML 파일을 만드는 구문에 대한 자세한 내용은 규칙 세트 YAML 파일 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#ruleset_yaml_files]을 참조하세요.
+권한 규칙 세트 YAML 파일을 만든 후 Cloud Storage 버킷에 업로드합니다. 권한을 마이그레이션하는 소스에 따라 HDFS 파일, dwh-migration-dumper 도구로 생성된 Apache Ranger 파일 또는 둘 다 포함해야 합니다. 테이블 구성 YAML 파일 [https://cloud.google.com/bigquery/docs/hadoop-transfer?hl=ko#generate_tables_mapping_yaml_files]과 주 구성원 매핑 파일 [https://cloud.google.com/bigquery/docs/hadoop-permissions-migration?hl=ko#generate_a_principals_mapping_file]도 포함해야 합니다.
+그런 다음 권한 마이그레이션 도구를 실행하여 대상 권한 파일을 생성하면 됩니다.
+다음 예에서는 권한 마이그레이션 도구를 실행하여 테이블 매핑 구성 파일과 principals.yaml이라는 주 구성원 매핑 파일을 사용해 HDFS와 Apache Ranger 모두에서 마이그레이션하는 방법을 보여줍니다. 그 결과 permissions.yaml이라는 주 구성원 매핑 파일이 생성됩니다.
+./dwh-permissions-migration build \
+    --permissions-ruleset gs://
+MIGRATION_BUCKET/permissions-config.yaml \
+    --tables gs://
+MIGRATION_BUCKET/tables/ \
+    --principals gs://
+MIGRATION_BUCKET/principals.yaml \
+    --ranger-dumper-output gs://
+MIGRATION_BUCKET/ranger-dumper-output.zip \
+    --hdfs-dumper-output gs://
+MIGRATION_BUCKET/hdfs-dumper-output.zip \
+    --output-permissions gs://
+MIGRATION_BUCKET/permissions.yaml
+MIGRATION_BUCKET을 마이그레이션 파일이 포함된 Cloud Storage 버킷 이름으로 바꿉니다.
+도구를 실행한 후 생성된 permissions.yaml 파일을 검사하여 Cloud Storage 또는 BigQuery IAM 바인딩에 매핑하는 소스의 권한이 포함되어 있는지 확인합니다. 다음 단계를 진행하기 전에 수동으로 수정할 수 있습니다.
+권한 적용
+대상 권한 파일을 생성한 후 권한 마이그레이션 도구를 실행하여 Cloud Storage 또는 BigQuery에 IAM 권한을 적용할 수 있습니다.
+권한 마이그레이션 도구를 실행하기 전에 다음 기본 요건을 충족하는지 확인하세요.
+Google Cloud에서 필요한 주 구성원(사용자, 그룹, 서비스 계정)을 만들었습니다.
+마이그레이션된 데이터를 호스팅할 Cloud Storage 관리형 폴더 또는 테이블을 만들었습니다.
+도구를 실행하는 사용자에게 Cloud Storage 관리형 폴더 또는 테이블의 역할을 관리할 권한이 있습니다.
+다음 명령어를 실행하여 권한을 적용할 수 있습니다.
+./dwh-permissions-migration apply \
+--permissions gs://
+MIGRATION_BUCKET/permissions.yaml
+여기서 MIGRATION_BUCKET은 마이그레이션 파일이 포함된 Cloud Storage 버킷의 이름입니다.
+Terraform 구성으로 권한 적용
+마이그레이션된 권한을 적용하기 위해 대상 권한 파일을 Terraform 코드형 인프라(IaC) 구성으로 변환하여 Cloud Storage에 적용할 수도 있습니다.
+Python 3.7 이상이 있는지 확인합니다.
+가상 환경을 만들고 [http://docs.python.org/3/library/venv.html] 활성화합니다.
+permissions-migration/terraform 디렉터리에서 다음 명령어를 사용하여 requirements.txt 파일의 종속 항목을 설치합니다.
+python -m pip install -r requirements.txt
+생성기 명령어를 실행합니다.
+python tf_generator 
+PATH 
+LOCATION 
+OUTPUT
+다음을 바꿉니다.
+PATH: 생성된 permissions.yaml 파일의 경로입니다.
+LOCATION: 스크립트가 권한 구성에 따라 폴더를 확인하고 만드는 Cloud Storage 버킷의 위치 [https://cloud.google.com/storage/docs/locations?hl=ko]입니다.
+OUTPUT: 출력 파일 main.tf의 경로입니다.
+규칙 세트 YAML 파일
+규칙 세트 YAML 파일은 HDFS 또는 Apache Ranger에서Google Cloud로 권한을 마이그레이션할 때 주 구성원과 역할을 매핑하는 데 사용됩니다. 규칙 세트 YAML 파일은 Common Expression Language(CEL)를 사용하여 결과가 불리언인 조건자와 결과가 문자열인 표현식을 지정합니다.
+규칙 세트 YAML 파일에는 다음과 같은 특징이 있습니다.
+각 유형의 매핑 규칙은 각 입력 객체에 대해 위에서 아래로 순차적으로 실행됩니다.
+CEL 표현식은 컨텍스트 변수에 액세스할 수 있으며 컨텍스트 변수는 규칙 세트의 섹션에 따라 달라집니다. 예를 들어 user 변수를 사용하여 소스 사용자 객체에 매핑하고 group 변수를 사용하여 그룹에 매핑할 수 있습니다.
+CEL 표현식을 사용하거나 정적 값을 사용하여 기본값을 변경할 수 있습니다. 예를 들어 그룹을 매핑할 때 기본값 group의 출력 값 type을 serviceAccount와 같은 다른 값으로 재정의할 수 있습니다.
+모든 입력 객체와 일치하는 규칙이 하나 이상 있어야 합니다.
+HDFS 또는 Apache Ranger 권한 마이그레이션에서 규칙 세트 YAML 파일을 사용하여 주 구성원 매핑 파일 또는 역할 매핑 파일을 정의할 수 있습니다.
+규칙 세트 YAML 파일의 매핑 규칙
+규칙 세트 YAML 파일은 권한 마이그레이션 중에 소스의 객체가 대상과 일치하는 방식을 지정하는 매핑 규칙으로 구성됩니다. 매핑 규칙에는 다음 섹션 또는 절이 포함될 수 있습니다.
+when: 규칙의 적용 가능성을 제한하는 조건자 절입니다.
+문자열은 불리언 CEL 표현식을 나타냅니다. 값은 true 또는 false일 수 있습니다.
+이 규칙은 when 절이 true로 평가되는 경우에만 적용됩니다.
+기본값은 true입니다.
+map: 결과 필드의 콘텐츠를 지정하는 절입니다. 이 절의 값은 처리된 객체의 유형에 따라 다르며 다음과 같이 정의할 수 있습니다.
+문자열로 평가되는 expression
+상수 문자열의 경우 value
+skip: 입력 객체를 매핑하면 안 된다고 지정합니다.
+true 또는 false일 수 있습니다.
+log: 규칙을 디버그하거나 개발하는 데 도움이 되는 조건자 절입니다.
+문자열은 불리언 CEL 표현식을 나타냅니다. 값은 true 또는 false일 수 있습니다.
+기본값은 false입니다.
+true로 설정하면 출력에 실행 문제를 모니터링하거나 진단하는 데 사용할 수 있는 실행 로그가 포함됩니다.
+주 구성원 규칙 세트 YAML 파일 만들기
+주 구성원 매핑 파일은 email_address 및 type 값을 제공하여 주 구성원 식별자 [https://cloud.google.com/iam/docs/principal-identifiers?hl=ko]를 생성하는 데 사용됩니다.
+email_address를 사용하여 Google Cloud 주 구성원의 이메일을 지정합니다.
+type을 사용하여 Google Cloud의 주 구성원 유형을 지정합니다. type의 값은 user, group 또는 serviceAccount일 수 있습니다.
+규칙에 사용된 모든 CEL 표현식은 처리된 객체를 나타내는 변수에 액세스할 수 있습니다. 변수의 필드는 HDFS 또는 Apache Ranger 메타데이터 파일의 콘텐츠를 기반으로 합니다. 사용 가능한 변수는 규칙 세트의 섹션에 따라 다릅니다.
+user_rules에는 user 변수를 사용합니다.
+group_rules에는 group 변수를 사용합니다.
+other_rules에는 other 변수를 사용합니다.
+role_rules에는 role 변수를 사용합니다.
+다음 예에서는 사용자 이름과 그 뒤에 있는 @google.com을 이메일 주소로 사용하여 HDFS의 사용자를 Google Cloud의 사용자에 매핑합니다.
+hdfs:
+  user_rules:
+    # Skip user named 'example'
+    - when: "user.name == 'example'"
+      skip: true
+    # Map all other users to their name at google.com
+    - when: "true"
+      map:
+        type:
+          value: user
+        email_address:
+          expression: "user.name + '@google.com'"
+기본 역할 매핑 재정의
+기본값이 아닌 주 구성원을 사용하려면 규칙 세트 파일을 사용하여 기본 역할 매핑을 건너뛰거나 수정하면 됩니다.
+다음 예에서는 규칙 섹션을 건너뛰는 방법을 보여줍니다.
+hdfs:
+  user_rules:
+    - skip: true
+  group_rules:
+    - skip: true
+  other_rules:
+    - skip: true
+권한 규칙 세트 YAML 파일 만들기
+권한 규칙 세트 YAML 파일은 대상 권한 매핑 파일을 생성하는 데 사용됩니다. 권한 규칙 세트 YAML 파일을 만들려면 권한 규칙 세트 YAML에서 CEL 표현식을 사용하여 HDFS 또는 Apache Ranger 권한을 Cloud Storage 또는 BigQuery 역할에 매핑합니다.
+기본 역할 매핑
+HDFS 파일 역할은 소스 파일 권한에 따라 결정됩니다.
+w 비트가 설정된 경우 기본 역할은 writer입니다.
+r 비트가 설정된 경우 기본 역할은 reader입니다.
+두 비트가 모두 설정되지 않으면 역할이 비어 있습니다.
+Ranger HDFS:
+액세스 세트에 write가 포함된 경우 기본 역할은 writer입니다.
+액세스 세트에 read가 포함된 경우 기본 역할은 reader입니다.
+액세스 세트에 둘 다 포함되어 있지 않으면 역할이 비어 있습니다.
+Ranger:
+액세스 세트에 update, create, drop, alter, index, lock, all, write 또는 refresh가 포함된 경우 기본 역할은 writer입니다.
+액세스 세트에 select 또는 read가 포함된 경우 기본 역할은 reader입니다.
+액세스 세트에 위의 권한이 포함되어 있지 않으면 역할이 비어 있습니다.
+Cloud Storage:
+roles/storage.objectUser - 작성자
+roles/storage.objectViewer - 리더
+BigQuery:
+roles/bigquery.dataOwner - 작성자
+roles/bigquery.dataViewer - 리더
+다음 예에서는 규칙 세트 YAML 파일의 변경 없이 기본 매핑을 수락하는 방법을 보여줍니다.
+ranger_hdfs_rules:
+  - map: {}
+기본 역할 매핑 재정의
+기본값이 아닌 역할을 사용하려면 규칙 세트 파일을 사용하여 기본 역할 매핑을 건너뛰거나 수정하면 됩니다.
+다음 예에서는 매핑 절을 사용하는 기본 역할 매핑을 값 절을 사용하는 역할 필드로 재정의하는 방법을 보여줍니다.
+ranger_hdfs_rules:
+  - map:
+    role:
+      value: "roles/customRole"
+권한 매핑 병합
+동일한 대상 리소스에 대해 여러 권한 매핑이 생성되면 액세스 범위가 가장 넓은 매핑이 사용됩니다. 예를 들어 HDFS 규칙이 HDFS 위치에서 주 구성원 pa1에게 리더 역할을 부여하고 Ranger 규칙이 동일한 위치에서 동일한 주 구성원에게 작성자 역할을 부여하는 경우 작성자 역할이 할당됩니다.
+CEL 표현식의 문자열 따옴표 사용
+따옴표 ""를 사용하여 YAML에서 전체 CEL 표현식을 따옴표로 묶습니다. CEL 표현식 내에서 문자열을 따옴표로 묶을 때는 작은따옴표 ''를 사용합니다. 예를 들면 다음과 같습니다.
+"'permissions-migration-' + group.name + '@google.com'"
+도움이 되었나요?
+의견 보내기

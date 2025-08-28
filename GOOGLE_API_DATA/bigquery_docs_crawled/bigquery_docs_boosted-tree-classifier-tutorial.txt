@@ -1,0 +1,959 @@
+Source URL: https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+부스팅된 트리 모델로 분류 수행
+bookmark_border
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#before-you-begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#required_permissions]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#create_a_dataset]
+이 튜토리얼에서는 부스티드 트리 분류기 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko]을 사용하여 인구통계 데이터를 기준으로 개인의 소득 범위를 예측하는 방법을 알아봅니다. 모델은 값이 두 범주 중 하나에 속할지 예측합니다. 이 경우 개인의 연간 소득이 $50,000를 초과하거나 이에 미달하는지 여부를 예측합니다.
+이 튜토리얼에서는 bigquery-public-data.ml_datasets.census_adult_income [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=ml_datasets&%3Bt=census_adult_income&%3Bpage=table&hl=ko] 데이터 세트를 사용합니다. 이 데이터 세트에는 2000년과 2010년 미국 거주자의 인구 통계 및 소득 정보가 포함되어 있습니다.
+목표
+이 튜토리얼에서는 다음 작업을 완료하는 방법을 안내합니다.
+CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko]을 사용하여 인구조사 응답자의 소득 구간을 예측하는 부스티드 트리 모델을 만듭니다.
+ML.EVALUATE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]를 사용하여 모델을 평가합니다.
+ML.PREDICT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko]를 사용하여 모델에서 예측을 가져옵니다.
+비용
+이 튜토리얼에서는 비용이 청구될 수 있는 다음과 같은 Google Cloud구성요소를 사용합니다.
+BigQuery
+BigQuery ML
+BigQuery 비용에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지를 참조하세요.
+BigQuery ML 비용에 대한 자세한 내용은 BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]을 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery는 새 프로젝트에서 자동으로 사용 설정됩니다. 기존 프로젝트에서 BigQuery를 활성화하려면 다음으로 이동합니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create IAM 권한이 필요합니다.
+모델을 만들려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 권한이 필요합니다.
+bigquery.models.getData
+bigquery.jobs.create
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+샘플 데이터 준비
+이 튜토리얼에서 만드는 모델은 다음 기능을 기반으로 인구조사 응답자의 소득 범위를 예측합니다.
+연령
+수행된 작업 유형
+결혼 여부
+교육 수준
+직업
+주당 근무 시간
+education 열은 학습 데이터에 포함되지 않습니다. education 열과 education_num 열 모두 응답자의 교육 수준을 서로 다른 형식으로 표현하기 때문입니다.
+functional_weight 열에서 파생된 새 dataframe 열을 만들어 데이터를 학습, 평가, 예측 세트로 분리합니다. 데이터의 80%는 모델 학습에 사용되고 나머지 20%는 평가 및 예측에 사용됩니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#sql] ---
+샘플 데이터를 준비하려면 학습 데이터를 포함하는 뷰 [https://cloud.google.com/bigquery/docs/views-intro?hl=ko]를 만드세요. 이 뷰는 이 튜토리얼 뒷부분에 있는 CREATE MODEL 문에서 사용됩니다.
+
+샘플 데이터를 준비하는 쿼리를 실행합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+
+CREATE OR REPLACE VIEW
+  `bqml_tutorial.input_data` AS
+SELECT
+  age,
+  workclass,
+  marital_status,
+  education_num,
+  occupation,
+  hours_per_week,
+  income_bracket,
+  CASE
+    WHEN MOD(functional_weight, 10) < 8 THEN 'training'
+    WHEN MOD(functional_weight, 10) = 8 THEN 'evaluation'
+    WHEN MOD(functional_weight, 10) = 9 THEN 'prediction'
+  END AS dataframe
+FROM
+  `bigquery-public-data.ml_datasets.census_adult_income`;
+탐색기 창에서 bqml_tutorial 데이터 세트를 펼치고 input_data 뷰를 찾습니다.
+뷰 이름을 클릭하여 정보 창을 엽니다. 뷰 스키마가 스키마 탭에 표시됩니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#bigquery-dataframes] ---
+input_data라는 DataFrame을 만듭니다. 이 튜토리얼의 뒷부분에서 input_data를 사용하여 모델을 학습시키고 모델을 평가하고 예측을 수행합니다.
+
+   이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import bigframes.pandas as bpd
+
+input_data = bpd.read_gbq(
+    "bigquery-public-data.ml_datasets.census_adult_income",
+    columns=(
+        "age",
+        "workclass",
+        "marital_status",
+        "education_num",
+        "occupation",
+        "hours_per_week",
+        "income_bracket",
+        "functional_weight",
+    ),
+)
+input_data["dataframe"] = bpd.Series("training", index=input_data.index,).case_when(
+    [
+        (((input_data["functional_weight"] % 10) == 8), "evaluation"),
+        (((input_data["functional_weight"] % 10) == 9), "prediction"),
+    ]
+)
+del input_data["functional_weight"]
+부스트 트리 모델 만들기
+인구조사 응답자의 소득 범주를 예측하는 부스티드 트리 모델을 만들고 인구조사 데이터로 학습시킵니다. 쿼리가 완료되는 데 약 30분이 소요됩니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#sql] ---
+모델을 만들려면 다음 단계를 따르세요.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+CREATE MODEL `bqml_tutorial.tree_model`
+OPTIONS(MODEL_TYPE='BOOSTED_TREE_CLASSIFIER',
+        BOOSTER_TYPE = 'GBTREE',
+        NUM_PARALLEL_TREE = 1,
+        MAX_ITERATIONS = 50,
+        TREE_METHOD = 'HIST',
+        EARLY_STOP = FALSE,
+        SUBSAMPLE = 0.85,
+        INPUT_LABEL_COLS = ['income_bracket'])
+AS SELECT * EXCEPT(dataframe)
+FROM `bqml_tutorial.input_data`
+WHERE dataframe = 'training';
+
+쿼리가 완료되면 tree_model 모델이 탐색기 창에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 표시되지 않습니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from bigframes.ml import ensemble
+
+# input_data is defined in an earlier step.
+training_data = input_data[input_data["dataframe"] == "training"]
+X = training_data.drop(columns=["income_bracket", "dataframe"])
+y = training_data["income_bracket"]
+
+# create and train the model
+tree_model = ensemble.XGBClassifier(
+    n_estimators=1,
+    booster="gbtree",
+    tree_method="hist",
+    max_iterations=1,  # For a more accurate model, try 50 iterations.
+    subsample=0.85,
+)
+tree_model.fit(X, y)
+
+tree_model.to_gbq(
+    your_model_id,  # For example: "your-project.bqml_tutorial.tree_model"
+    replace=True,
+)
+모델 평가
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#sql] ---
+모델을 평가하려면 다음 단계를 따르세요.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+  SELECT
+    *
+  FROM
+    ML.EVALUATE (MODEL `bqml_tutorial.tree_model`,
+      (
+      SELECT
+        *
+      FROM
+        `bqml_tutorial.input_data`
+      WHERE
+        dataframe = 'evaluation'
+      )
+    );
+
+결과는 다음과 비슷하게 표시됩니다.
+
++---------------------+---------------------+---------------------+-------------------+---------------------+---------------------+
+| precision           | recall              | accuracy            | f1_score          | log_loss            | roc_auc             |
++---------------------+---------------------+---------------------+-------------------+-------------------------------------------+
+| 0.67192429022082023 | 0.57880434782608692 | 0.83942963422194672 | 0.621897810218978 | 0.34405456040833338 | 0.88733566433566435 |
++---------------------+---------------------+ --------------------+-------------------+---------------------+---------------------+
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # Select model you'll use for predictions. `read_gbq_model` loads model
+# data from BigQuery, but you could also use the `tree_model` object
+# from the previous step.
+tree_model = bpd.read_gbq_model(
+    your_model_id,  # For example: "your-project.bqml_tutorial.tree_model"
+)
+
+# input_data is defined in an earlier step.
+evaluation_data = input_data[input_data["dataframe"] == "evaluation"]
+X = evaluation_data.drop(columns=["income_bracket", "dataframe"])
+y = evaluation_data["income_bracket"]
+
+# The score() method evaluates how the model performs compared to the
+# actual data. Output DataFrame matches that of ML.EVALUATE().
+score = tree_model.score(X, y)
+score.peek()
+# Output:
+#    precision    recall  accuracy  f1_score  log_loss   roc_auc
+# 0   0.671924  0.578804  0.839429  0.621897  0.344054  0.887335
+평가 측정항목은 모델 성능이 우수함을 나타냅니다. 특히 roc_auc 점수 [https://developers.google.com/machine-learning/crash-course/classification/roc-and-auc?hl=ko]가 0.8보다 큽니다.
+평가 측정항목에 대한 자세한 내용은 분류 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko#classification_models]을 참고하세요.
+모델을 사용하여 분류 예측
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#sql] ---
+다음 단계에 따라 모델로 데이터를 예측합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+  SELECT
+    *
+  FROM
+    ML.PREDICT (MODEL `bqml_tutorial.tree_model`,
+      (
+      SELECT
+        *
+      FROM
+        `bqml_tutorial.input_data`
+      WHERE
+        dataframe = 'prediction'
+      )
+    );
+
+
+결과의 처음 몇 열은 다음과 비슷하게 표시됩니다.
+
+  +---------------------------+--------------------------------------+-------------------------------------+
+  | predicted_income_bracket  | predicted_income_bracket_probs.label | predicted_income_bracket_probs.prob |
+  +---------------------------+--------------------------------------+-------------------------------------+
+  |  <=50K                    |  >50K                                | 0.05183430016040802                 |
+  +---------------------------+--------------------------------------+-------------------------------------+
+  |                           |  <50K                                | 0.94816571474075317                 |
+  +---------------------------+--------------------------------------+-------------------------------------+
+  |  <=50K                    |  >50K                                | 0.00365859130397439                 |
+  +---------------------------+--------------------------------------+-------------------------------------+
+  |                           |  <50K                                | 0.99634140729904175                 |
+  +---------------------------+--------------------------------------+-------------------------------------+
+  |  <=50K                    |  >50K                                | 0.037775970995426178                |
+  +---------------------------+--------------------------------------+-------------------------------------+
+  |                           |  <50K                                | 0.96222406625747681                 |
+  +---------------------------+--------------------------------------+-------------------------------------+
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/boosted-tree-classifier-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # Select model you'll use for predictions. `read_gbq_model` loads model
+# data from BigQuery, but you could also use the `tree_model` object
+# from previous steps.
+tree_model = bpd.read_gbq_model(
+    your_model_id,  # For example: "your-project.bqml_tutorial.tree_model"
+)
+
+# input_data is defined in an earlier step.
+prediction_data = input_data[input_data["dataframe"] == "prediction"]
+
+predictions = tree_model.predict(prediction_data)
+predictions.peek()
+# Output:
+# predicted_income_bracket   predicted_income_bracket_probs.label  predicted_income_bracket_probs.prob
+#                   <=50K                                   >50K                   0.05183430016040802
+#                                                           <50K                   0.94816571474075317
+#                   <=50K                                   >50K                   0.00365859130397439
+#                                                           <50K                   0.99634140729904175
+#                   <=50K                                   >50K                   0.037775970995426178
+#                                                           <50K                   0.96222406625747681
+predicted_income_bracket에는 모델의 예측 값이 포함됩니다. predicted_income_bracket_probs.label에는 모델이 선택해야 하는 두 라벨이 표시되고 predicted_income_bracket_probs.prob 열에는 지정된 라벨이 올바른 라벨일 확률이 표시됩니다.
+출력 열에 관한 자세한 내용은 분류 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko#classification_models]을 참고하세요.
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트를 유지하고 개별 리소스를 삭제하세요.
+만든 프로젝트를 삭제할 수 있습니다.
+또는 프로젝트를 유지하고 데이터 세트를 삭제할 수 있습니다.
+데이터 세트 삭제
+프로젝트를 삭제하면 프로젝트의 데이터 세트와 테이블이 모두 삭제됩니다. 프로젝트를 다시 사용하려면 이 튜토리얼에서 만든 데이터 세트를 삭제할 수 있습니다.
+필요한 경우Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+앞서 만든 bqml_tutorial 데이터 세트를 탐색에서 선택합니다.
+창의 오른쪽에 있는 데이터 세트 삭제를 클릭합니다. 데이터 세트, 테이블, 모든 데이터가 삭제됩니다.
+데이터 세트 삭제 대화상자에서 데이터 세트 이름(bqml_tutorial)을 입력하고 삭제를 클릭하여 삭제 명령어를 확인합니다.
+프로젝트 삭제
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+로지스틱 회귀 분류 모델을 만드는 방법 [https://cloud.google.com/bigquery/docs/logistic-regression-prediction?hl=ko]을 알아봅니다.
+BigQuery의 AI 및 ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]에서 BigQuery ML 개요 참조하기
+도움이 되었나요?
+의견 보내기

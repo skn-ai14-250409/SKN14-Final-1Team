@@ -1,0 +1,115 @@
+Source URL: https://cloud.google.com/bigquery/docs/continuous-queries-monitor
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+INFORMATION_SCHEMA 뷰를 사용하여 연속 쿼리 모니터링
+연속 쿼리 작업 세부정보 가져오기
+연속 쿼리 예약 할당 세부정보 가져오기
+연속 쿼리 슬롯 사용량 정보 가져오기
+쿼리 실행 그래프를 사용하여 연속 쿼리 성능 모니터링
+작업 기록을 사용하여 연속 쿼리 실행 모니터링
+연속 쿼리 모니터링
+bookmark_border
+Preview
+This product or feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1]. Pre-GA products and features are available "as is" and might have limited support. For more information, see the launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+참고: 연속 쿼리 미리보기에 등록하려면 요청 양식 [https://docs.google.com/forms/d/e/1FAIpQLSc-SL89C9K997jSm_u3oQH-UGGe3brzsybbX6mf5VFaA0a4iA/viewform?hl=ko]을 작성하세요. 이 기능에 대한 의견을 제공하거나 지원을 요청하려면 bq-continuous-queries-feedback@google.com [mailto:bq-continuous-queries-feedback@google.com]으로 문의하세요.
+다음 BigQuery 도구를 사용하여 BigQuery 연속 쿼리를 모니터링할 수 있습니다.
+INFORMATION_SCHEMA 뷰 [https://cloud.google.com/bigquery/docs/information-schema-intro?hl=ko]
+쿼리 실행 그래프 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#view_query_performance_insights]
+작업 기록 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#view-job]
+BigQuery 연속 쿼리의 장기 실행 특성으로 인해 일반적으로 SQL 쿼리가 완료되면 생성되는 측정항목이 없거나 부정확할 수 있습니다.
+INFORMATION_SCHEMA 뷰를 사용하여 연속 쿼리 모니터링
+여러 INFORMATION_SCHEMA 뷰를 사용하여 연속 쿼리 및 연속 쿼리 예약을 모니터링할 수 있습니다.
+참고: 실행 중인 연속 쿼리의 데이터는 JOBS* INFORMATION_SCHEMA 뷰에서 2일 동안만 보관됩니다.
+연속 쿼리 작업 세부정보 가져오기
+ASSIGNMENTS [https://cloud.google.com/bigquery/docs/information-schema-assignments?hl=ko] 및 JOBS [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko] 뷰를 사용하여 연속 쿼리 작업 메타데이터를 가져올 수 있습니다.
+실행 중인 모든 연속 쿼리에 대한 메타데이터를 반환합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+SELECT
+  jobs.job_id,
+  jobs.user_email,
+  jobs.query,
+  jobs.state,
+  assignment.reservation_name
+FROM `ADMIN_PROJECT_ID.region-LOCATION.INFORMATION_SCHEMA.ASSIGNMENTS` AS assignment
+INNER JOIN `PROJECT_ID.region-LOCATION.INFORMATION_SCHEMA.JOBS` AS jobs
+  ON (UPPER(CONCAT('ADMIN_PROJECT_ID:LOCATION.', assignment.reservation_name)) = UPPER(jobs.reservation_id))
+WHERE
+  assignment.assignee_id = 'PROJECT_ID'
+  AND assignment.job_type = 'CONTINUOUS'
+  AND jobs.state = 'RUNNING'
+GROUP BY 1, 2, 3, 4, 5;
+다음을 바꿉니다.
+ADMIN_PROJECT_ID: 예약을 소유한 관리 프로젝트 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#admin-project]의 ID
+LOCATION: 예약 위치
+PROJECT_ID: 예약에 할당된 프로젝트의 ID. 이 프로젝트에서 실행 중인 연속 쿼리에 대한 정보만 반환됩니다.
+연속 쿼리 예약 할당 세부정보 가져오기
+ASSIGNMENTS [https://cloud.google.com/bigquery/docs/information-schema-assignments?hl=ko] 및 RESERVATIONS [https://cloud.google.com/bigquery/docs/information-schema-reservations?hl=ko] 뷰를 사용하여 연속 쿼리 예약 할당 세부정보를 가져올 수 있습니다.
+연속 쿼리의 예약 할당 세부정보를 반환합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+SELECT
+  reservation.reservation_name,
+  reservation.slot_capacity
+FROM
+  `ADMIN_PROJECT_ID.region-LOCATION.INFORMATION_SCHEMA.ASSIGNMENTS`
+    AS assignment
+INNER JOIN
+  `ADMIN_PROJECT_ID.region-LOCATION.INFORMATION_SCHEMA.RESERVATIONS`
+    AS reservation
+  ON (assignment.reservation_name = reservation.reservation_name)
+WHERE
+  assignment.assignee_id = 'PROJECT_ID'
+  AND job_type = 'CONTINUOUS';
+다음을 바꿉니다.
+ADMIN_PROJECT_ID: 예약을 소유한 관리 프로젝트 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#admin-project]의 ID
+LOCATION: 예약 위치
+PROJECT_ID: 예약에 할당된 프로젝트의 ID. 이 프로젝트에서 실행 중인 연속 쿼리에 대한 정보만 반환됩니다.
+연속 쿼리 슬롯 사용량 정보 가져오기
+ASSIGNMENTS [https://cloud.google.com/bigquery/docs/information-schema-assignments?hl=ko], RESERVATIONS [https://cloud.google.com/bigquery/docs/information-schema-reservations?hl=ko], JOBS_TIMELINE [https://cloud.google.com/bigquery/docs/information-schema-jobs-timeline?hl=ko] 뷰를 사용하여 연속 쿼리 슬롯 사용량 정보를 가져올 수 있습니다.
+연속 쿼리의 슬롯 사용량 정보를 반환합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기 창에서 다음 쿼리를 실행합니다.
+SELECT
+  jobs.period_start,
+  reservation.reservation_name,
+  reservation.slot_capacity,
+  SUM(jobs.period_slot_ms) / 1000 AS consumed_total_slots
+FROM
+  `ADMIN_PROJECT_ID.region-LOCATION.INFORMATION_SCHEMA.ASSIGNMENTS`
+    AS assignment
+INNER JOIN
+  `ADMIN_PROJECT_ID.region-LOCATION.INFORMATION_SCHEMA.RESERVATIONS`
+    AS reservation
+  ON (assignment.reservation_name = reservation.reservation_name)
+INNER JOIN
+  `PROJECT_ID.region-LOCATION.INFORMATION_SCHEMA.JOBS_TIMELINE` AS jobs
+  ON (
+    UPPER(CONCAT('ADMIN_PROJECT_ID:LOCATION.', assignment.reservation_name))
+    = UPPER(jobs.reservation_id))
+WHERE
+  assignment.assignee_id = 'PROJECT_ID'
+  AND assignment.job_type = 'CONTINUOUS'
+  AND jobs.period_start
+    BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)
+    AND CURRENT_TIMESTAMP()
+GROUP BY 1, 2, 3
+ORDER BY jobs.period_start DESC;
+다음을 바꿉니다.
+ADMIN_PROJECT_ID: 예약을 소유한 관리 프로젝트 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#admin-project]의 ID
+LOCATION: 예약 위치
+PROJECT_ID: 예약에 할당된 프로젝트의 ID. 이 프로젝트에서 실행 중인 연속 쿼리에 대한 정보만 반환됩니다.
+측정항목 탐색기 [https://cloud.google.com/monitoring/charts/metrics-explorer?hl=ko] 및 관리 리소스 차트 [https://cloud.google.com/bigquery/docs/admin-resource-charts?hl=ko#view-resource-utilization]와 같은 다른 도구를 사용하여 연속 쿼리 예약을 모니터링할 수도 있습니다. 자세한 내용은 BigQuery 예약 모니터링 [https://cloud.google.com/bigquery/docs/reservations-monitoring?hl=ko]을 참조하세요.
+쿼리 실행 그래프를 사용하여 연속 쿼리 성능 모니터링
+쿼리 실행 그래프 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#view_query_performance_insights]를 사용하여 연속 쿼리에 대한 성능 통계와 일반 통계를 얻을 수 있습니다. 자세한 내용은 쿼리 성능 통계 보기 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#view_query_performance_insights]를 참조하세요.
+작업 기록을 사용하여 연속 쿼리 실행 모니터링
+개인 작업 기록 또는 프로젝트의 작업 기록에서 작업 세부정보를 볼 수 있습니다. 자세한 내용은 작업 세부정보 보기 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#view-job]를 참조하세요.
+이전 작업 목록은 작업 시작 시간을 기준으로 정렬되므로 한동안 실행된 연속 쿼리가 목록의 시작 시간과 근접하지 않을 수 있습니다.
+의견 보내기

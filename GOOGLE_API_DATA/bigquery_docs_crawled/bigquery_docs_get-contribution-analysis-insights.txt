@@ -1,0 +1,293 @@
+Source URL: https://cloud.google.com/bigquery/docs/get-contribution-analysis-insights
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+필수 권한 [https://cloud.google.com/bigquery/docs/get-contribution-analysis-insights?hl=ko#required_permissions]
+비용 [https://cloud.google.com/bigquery/docs/get-contribution-analysis-insights?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/get-contribution-analysis-insights?hl=ko#before_you_begin]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/get-contribution-analysis-insights?hl=ko#create_a_dataset]
+입력 데이터 테이블 만들기 [https://cloud.google.com/bigquery/docs/get-contribution-analysis-insights?hl=ko#create_a_table_of_input_data]
+합산 가능한 측정항목을 사용하여 기여 분석 모델에서 데이터 통계 가져오기
+bookmark_border
+이 튜토리얼에서는 기여 분석 [https://cloud.google.com/bigquery/docs/contribution-analysis?hl=ko] 모델을 사용하여 아이오와 주류 판매 데이터 세트의 2020년과 2021년 사이의 판매 변화를 분석합니다. 이 튜토리얼에서는 다음 작업을 수행하는 방법을 안내합니다.
+공개적으로 사용 가능한 아이오와 주류 데이터를 기반으로 입력 테이블을 만듭니다.
+합산 가능한 측정항목 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-contribution-analysis?hl=ko#use_a_summable_metric]을 사용하는 기여 분석 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-contribution-analysis?hl=ko]을 만듭니다. 이 유형의 모델은 데이터의 하나 이상의 측정기준 조합에 대한 특정 측정항목을 요약하여 이러한 측정기준이 측정항목 값에 어떤 영향을 미치는지 확인합니다.
+ML.GET_INSIGHTS 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-get-insights?hl=ko]를 사용하여 모델에서 측정항목 통계를 가져옵니다.
+이 튜토리얼을 시작하기 전에 기여 분석 [https://cloud.google.com/bigquery/docs/contribution-analysis?hl=ko] 사용 사례를 숙지해야 합니다.
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create Identity and Access Management(IAM) 권한이 필요합니다.
+모델을 만들려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 권한이 필요합니다.
+bigquery.models.getData
+bigquery.jobs.create
+비용
+이 문서에서는 비용이 청구될 수 있는 Google Cloud구성요소( )를 사용합니다.
+BigQuery ML: You incur costs for the data that you process in BigQuery.
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+BigQuery 가격 책정에 대한 자세한 내용은 BigQuery 문서의 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]을 참조하세요.
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com&hl=ko]
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/get-contribution-analysis-insights?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/get-contribution-analysis-insights?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/get-contribution-analysis-insights?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/get-contribution-analysis-insights?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+입력 데이터 테이블 만들기
+분석할 테스트 및 대조 데이터가 포함된 테이블을 만듭니다. 테스트 테이블에는 2021년 주류 데이터가 포함되어 있고 대조 테이블에는 2020년 주류 데이터가 포함되어 있습니다. 다음 쿼리는 테스트 데이터와 대조 데이터를 단일 입력 테이블로 결합합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE TABLE bqml_tutorial.iowa_liquor_sales_sum_data AS (
+  (SELECT
+    store_name,
+    city,
+    vendor_name,
+    category_name,
+    item_description,
+    SUM(sale_dollars) AS total_sales,
+    FALSE AS is_test
+  FROM `bigquery-public-data.iowa_liquor_sales.sales`
+  WHERE EXTRACT(YEAR from date) = 2020
+  GROUP BY store_name, city, vendor_name, category_name, item_description, is_test)
+  UNION ALL
+  (SELECT
+    store_name,
+    city,
+    vendor_name,
+    category_name,
+    item_description,
+    SUM(sale_dollars) AS total_sales,
+    TRUE AS is_test
+  FROM `bigquery-public-data.iowa_liquor_sales.sales`
+  WHERE EXTRACT (YEAR FROM date) = 2021
+  GROUP BY store_name, city, vendor_name, category_name, item_description, is_test)
+);
+모델 만들기
+기여 분석 모델을 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE MODEL bqml_tutorial.iowa_liquor_sales_sum_model
+  OPTIONS(
+    model_type='CONTRIBUTION_ANALYSIS',
+    contribution_metric = 'sum(total_sales)',
+    dimension_id_cols = ['store_name', 'city', 'vendor_name', 'category_name',
+      'item_description'],
+    is_test_col = 'is_test',
+    min_apriori_support=0.05
+  ) AS
+SELECT * FROM bqml_tutorial.iowa_liquor_sales_sum_data;
+쿼리가 완료되는 데 약 60초가 걸리며 그 이후에는 iowa_liquor_sales_sum_model 모델이 탐색기 창의 bqml_tutorial 데이터 세트에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+모델에서 통계 가져오기
+ML.GET_INSIGHTS 함수를 사용하여 기여 분석 모델에서 생성된 통계를 가져옵니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 문을 실행하여 합산 가능한 측정항목 기여도 분석 모델의 출력 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-get-insights?hl=ko#output_for_summable_metric_contribution_analysis_models]에서 열을 선택합니다.
+SELECT
+  contributors,
+  metric_test,
+  metric_control,
+  difference,
+  relative_difference,
+  unexpected_difference,
+  relative_unexpected_difference,
+  apriori_support,
+  contribution
+FROM
+  ML.GET_INSIGHTS(
+    MODEL `bqml_tutorial.iowa_liquor_sales_sum_model`);
+출력의 처음 몇 행은 다음과 유사하게 표시됩니다. 가독성을 높이기 위해 값이 잘립니다.
+contributors metric_test metric_control difference relative_difference unexpected_difference relative_unexpected_difference apriori_support contribution
+all 428068179 396472956 31595222 0.079 31595222 0.079 1.0 31595222
+vendor_name=SAZERAC COMPANY INC 52327307 38864734 13462573 0.346 11491923 0.281 0.122 13462573
+city=DES MOINES 49521322 41746773 7774549 0.186 4971158 0.111 0.115 7774549
+vendor_name=DIAGEO AMERICAS 84681073 77259259 7421814 0.096 1571126 0.018 0.197 7421814
+category_name=100% AGAVE TEQUILA 23915100 17252174 6662926 0.386 5528662 0.3 0.055 6662926
+출력은 기여도(ABS(difference))를 기준으로 내림차순으로 자동 정렬됩니다. all 행에서 difference 열을 보면 2020년부터 2021년까지 총매출이 31,595,222달러 증가했으며, relative_difference 열에 표시된 대로 7.9% 증가했습니다. 두 번째 행의 vendor_name=SAZERAC COMPANY INC에는 unexpected_difference가 $11,491,923이므로 relative_unexpected_difference 열에서 볼 수 있듯이 이 데이터 세그먼트가 전체 데이터의 성장률보다 28% 더 성장했습니다. 자세한 내용은 합산 가능한 측정항목 출력 열 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-get-insights?hl=ko#output_for_summable_metric_contribution_analysis_models]을 참고하세요.
+삭제
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+의견 보내기

@@ -1,0 +1,133 @@
+Source URL: https://cloud.google.com/bigquery/docs/raster-data
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+개요 [https://cloud.google.com/bigquery/docs/raster-data?hl=ko#overview]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/raster-data?hl=ko#before_you_begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/raster-data?hl=ko#required_permissions]
+래스터 데이터 찾기 [https://cloud.google.com/bigquery/docs/raster-data?hl=ko#raster-data-sources]
+BigQuery 이미지 테이블 [https://cloud.google.com/bigquery/docs/raster-data?hl=ko#analytics-hub-source]
+BigQuery에서 Earth Engine을 사용하여 래스터 데이터 사용
+bookmark_border
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 지원을 요청하거나 의견을 제공하려면 bigquery-earthengine-preview-support@google.com [mailto:bigquery-earthengine-preview-support@google.com]으로 이메일을 보내세요.
+이 문서에서는 Google Earth Engine을 호출하여 BigQuery에서 지리 공간 분석을 수행하는 ST_REGIONSTATS 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_regionstats]를 사용해 래스터 데이터와 벡터 데이터를 결합하는 방법을 설명합니다.
+개요
+래스터는 2차원 픽셀 그리드이며 각 픽셀에는 밴드라는 값 하나 이상이 할당됩니다. 예를 들어 각 픽셀은 지구 표면의 특정 1제곱킬로미터에 해당하고 평균 온도와 평균 강수량에 대한 밴드를 가질 수 있습니다. 래스터 데이터에는 위성 이미지와 연속적인 그리드 기반 데이터(예: 날씨 예보 및 토지 피복)가 포함됩니다. PNG 또는 JPEG 파일과 같은 일반적인 이미지 형식은 래스터 데이터로 지정됩니다.
+래스터 데이터는 고정된 직사각형 그리드 대신 선이나 곡선으로 데이터를 설명하는 벡터 데이터와 대조되는 경우가 많습니다. 예를 들어 BigQuery에서 GEOGRAPHY 데이터 유형을 사용하여 국가, 도시 또는 기타 리전의 경계를 설명할 수 있습니다.
+지리 공간 래스터 및 벡터 데이터는 지정된 벡터 리전 내 모든 래스터 값 집계를 계산하는 영역 통계 작업을 통해 결합되는 경우가 많습니다. 예를 들어 다음을 계산하려 할 수 있습니다.
+여러 도시의 평균 공기질
+다양한 건물 다각형의 태양광 잠재량
+산림 지역의 전력선 회랑을 따라 요약된 화재 위험
+BigQuery는 벡터 데이터 처리에, Google Earth Engine은 래스터 데이터 처리에 탁월합니다. ST_REGIONSTATS 지역 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_regionstats]를 사용하여 Earth Engine을 사용하는 래스터 데이터를 BigQuery에 저장된 벡터 데이터와 결합할 수 있습니다.
+시작하기 전에
+쿼리에서 ST_REGIONSTATS 함수를 사용하려면 Earth Engine API를 사용 설정합니다.
+API 사용 설정하기 [https://console.cloud.google.com/apis/library/earthengine.googleapis.com?hl=ko]
+선택사항: ST_REGIONSTATS 함수를 사용하여 BigQuery Sharing(이전 명칭: Analytics Hub)에 게시된 데이터를 구독하고 사용하려면 Analytics Hub API를 사용 설정합니다.
+API 사용 설정하기 [https://console.cloud.google.com/apis/library/analyticshub.googleapis.com?hl=ko]
+필수 권한
+ST_REGIONSTATS 함수를 호출하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트에 대한 다음 IAM 역할을 부여해 달라고 요청하세요.
+Earth Engine 리소스 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/earthengine?hl=ko#earthengine.viewer](roles/earthengine.viewer)
+서비스 사용량 소비자 [https://cloud.google.com/iam/docs/roles-permissions/serviceusage?hl=ko#serviceusage.serviceUsageConsumer](roles/serviceusage.serviceUsageConsumer)
+BigQuery Sharing에서 데이터 세트 구독: BigQuery 데이터 편집자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataEditor](roles/bigquery.dataEditor)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이러한 사전 정의된 역할에는 ST_REGIONSTATS 함수를 호출하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+래스터 데이터 찾기
+ST_REGIONSTATS 함수의 raster_id 파라미터는 래스터 데이터 소스를 지정하는 문자열입니다. 다음 섹션에서는 래스터 ID를 찾고 형식을 지정하는 방법을 설명합니다.
+BigQuery 이미지 테이블
+BigQuery Sharing(이전 명칭: Analytics Hub)을 사용하여 BigQuery에서 래스터 데이터 세트를 검색하고 액세스할 수 있습니다. BigQuery Sharing을 사용하려면 Analytics Hub API를 사용 설정 [https://cloud.google.com/bigquery/docs/analytics-hub-manage-exchanges?hl=ko#enable_the_api]하고 목록을 보고 구독 [https://cloud.google.com/bigquery/docs/analytics-hub-view-subscribe-listings?hl=ko]하는 데 필요한 권한이 있는지 확인해야 합니다.
+Google Earth Engine은 래스터 데이터가 포함된 공개적으로 사용 가능한 데이터 세트를 게시합니다. 래스터 데이터가 포함된 Earth Engine 데이터 세트를 구독 [https://cloud.google.com/bigquery/docs/analytics-hub-view-subscribe-listings?hl=ko#subscribe-listings]하려면 다음 단계를 수행합니다.
+Sharing(Analytics Hub) 페이지로 이동합니다.
+Sharing(Analytics Hub)으로 이동 [https://console.cloud.google.com/bigquery/analytics-hub?hl=ko]
+search 등록정보 검색을 클릭합니다.
+등록정보 검색 필드에 "Google Earth Engine"을 입력합니다.
+구독할 데이터 세트를 클릭합니다.
+구독을 클릭합니다.
+선택사항: 프로젝트 또는 연결된 데이터 세트 이름 필드를 업데이트합니다.
+저장을 클릭합니다. 연결된 데이터 세트가 프로젝트에 추가됩니다.
+데이터 세트에는 STAC [https://stacspec.org/] 항목 사양을 따르는 래스터 이미지 컬렉션의 메타데이터를 저장하는 테이블(이미지 테이블이라고도 함)이 포함되어 있습니다. 이미지 테이블은 Earth Engine 이미지 컬렉션(ImageCollection [https://developers.google.com/earth-engine/guides/ic_creating?hl=ko])과 유사합니다.
+테이블의 각 행은 단일 래스터 이미지에 해당합니다. 각 이미지의 래스터 ID는 assets.image.href 열에 저장됩니다. 특정 이미지를 찾으려면 properties 열에서 이미지 속성별로 필터링하면 됩니다. 테이블 설명에서 밴드에 대한 정보를 확인할 수 있습니다.
+예를 들어 ERA5-Land 데이터 세트는 일일 기후 변수 통계를 제공하며 공개적으로 사용 가능합니다. climate 테이블에는 래스터 ID 여러 개가 포함되어 있습니다. 다음 쿼리는 properties.start_datetime 열을 사용하여 이미지 테이블을 필터링해 2025년 1월 1일에 해당하는 이미지의 래스터 ID를 가져오고 temperature_2m 밴드를 사용하여 국가별 평균 기온을 계산합니다.
+WITH SimplifiedCountries AS (
+  SELECT
+    ST_SIMPLIFY(geometry, 10000) AS simplified_geometry,
+    names.primary AS name
+  FROM
+    `bigquery-public-data.overture_maps.division_area`
+  WHERE
+    subtype = 'country'
+)
+SELECT
+  sc.simplified_geometry AS geometry,
+  sc.name,
+  ST_REGIONSTATS(
+    sc.simplified_geometry,
+    (SELECT assets.image.href
+     FROM `
+LINKED_DATASET_NAME.climate`
+     WHERE  properties.start_datetime = '2025-01-01 00:00:00'),
+    'temperature_2m'
+  ).mean - 273.15 AS mean_temperature
+FROM
+  SimplifiedCountries AS sc
+ORDER BY
+  mean_temperature DESC;
+Cloud Storage GeoTIFF
+GeoTIFF는 지리 공간 래스터 데이터를 저장하는 데 사용되는 일반적인 파일 형식입니다. ST_REGIONSTATS 함수는 US 또는 us-central1 리전에 있는 Cloud Storage 버킷에 GeoTIFF 형식으로 저장된 래스터 데이터를 지원합니다. Cloud Storage URI를 래스터 ID로 제공합니다(예: gs://bucket/folder/raster.tif).
+Earth Engine 이미지 애셋
+ST_REGIONSTATS 함수는 raster_id 인수에 Earth Engine 이미지 애셋 경로를 전달할 수 있습니다. Earth Engine 래스터 데이터는 개별 이미지나 이미지 컬렉션으로 제공됩니다. 이미지의 래스터 ID를 찾으려면 다음 단계를 수행합니다.
+Earth Engine 데이터 카탈로그 [https://developers.google.com/earth-engine/datasets?hl=ko]에서 관심 있는 데이터 세트를 검색합니다.
+항목의 설명 페이지를 열려면 데이터 세트 이름을 클릭합니다. Earth Engine 스니펫은 단일 이미지나 이미지 컬렉션을 설명합니다.
+Earth Engine 스니펫이 ee.Image('IMAGE_PATH') 형식이면 래스터 ID는 'ee://IMAGE_PATH'입니다.
+Earth Engine 스니펫이 ee.ImageCollection('IMAGE_COLLECTION_PATH') 형식이면 Earth Engine 코드 편집기 [https://developers.google.com/earth-engine/guides/quickstart_javascript?hl=ko]를 사용하여 ImageCollection을 단일 이미지로 필터링 [https://developers.google.com/earth-engine/guides/ic_filtering?hl=ko]할 수 있습니다. ee.Image.get('system:id') 메서드를 사용하여 해당 이미지의 IMAGE_PATH 값을 콘솔에 출력합니다. 래스터 ID는 'ee://IMAGE_PATH'입니다.
+픽셀 가중치
+계산에서 각 픽셀에 가중치를 부여하는 정도를 결정하는 ST_REGIONSTATS 함수의 include 파라미터에 가중치(마스크 값이라고도 함)를 지정할 수 있습니다. 가중치 값 범위는 0~1여야 합니다. 이 범위를 벗어나는 가중치는 0 또는 1 중 가장 가까운 한계로 설정됩니다.
+가중치가 0보다 큰 픽셀은 유효한 픽셀로 간주됩니다. 가중치 0은 유효하지 않은 픽셀을 나타냅니다. 유효하지 않은 픽셀은 일반적으로 구름으로 가려진 영역, 센서 이상, 처리 오류 또는 정의된 경계 외부 위치와 같이 누락되거나 신뢰할 수 없는 데이터를 나타냅니다.
+가중치를 지정하지 않으면 도형 내에 있는 픽셀의 비율에 따라 각 픽셀에 가중치가 자동으로 부여되므로 픽셀이 영역 통계에 비례적으로 포함될 수 있습니다. 도형이 픽셀 크기의 1/256 미만이면 픽셀 가중치는 0입니다. 이러한 경우 값이 0인 count 및 area를 제외한 모든 통계에 null이 반환됩니다.
+부분적으로 교차하는 픽셀에 ST_REGIONSTATS에 대한 include 인수에서 가져온 가중치가 있으면 BigQuery는 해당 가중치 및 리전과 교차하는 픽셀의 비율 중 최솟값을 사용합니다.
+가중치 값의 정밀도는 FLOAT64 값과 다릅니다. 실제로 참값은 계산에 사용된 값과 최대 1/256(약 0.4%)까지 다를 수 있습니다.
+include 인수에 Earth Engine 이미지 표현식 구문 [https://developers.google.com/earth-engine/guides/image_math?hl=ko#expressions]을 사용하여 래스터 밴드 내 특정 기준에 따라 픽셀에 동적으로 가중치를 부여하는 표현식을 제공할 수 있습니다. 예를 들어 다음 표현식은 probability 밴드가 70%를 초과하는 픽셀로 계산을 제한합니다.
+include => 'probability > 0.7'
+데이터 세트에 가중치 요소 대역이 포함된 경우에는 다음 구문과 함께 사용할 수 있습니다.
+include => 'weight_factor_band_name'
+픽셀 크기 및 분석 스케일
+지리 공간 래스터 이미지는 지구 표면의 특정 위치에 해당하는 픽셀 그리드입니다. 래스터 픽셀 크기(스케일이라고도 함)는 그리드의 좌표 참조 시스템에서 픽셀 한쪽 에지의 명목상 크기입니다. 예를 들어 해상도가 10미터인 래스터에는 크기가 10x10미터인 픽셀이 있습니다. 원래 보고된 픽셀 크기는 데이터 세트 간에 크게 다를 수 있습니다(1미터 미만에서 20킬로미터 이상).
+ST_REGIONSTATS 함수를 사용하여 영역 통계를 계산할 때는 래스터 데이터 픽셀 크기가 중요한 고려사항입니다. 예를 들어 국가 리전에 걸쳐 고해상도 래스터 데이터를 집계하는 작업은 계산 집약적이고 불필요하게 세분화될 수 있습니다. 반대로 도시 구획과 같은 리전에 걸쳐 저해상도 데이터를 집계하면 세부정보가 부족할 수 있습니다.
+분석에서 의미 있고 효율적인 결과를 얻으려면 다각형 크기와 분석 목표에 적합한 픽셀 크기를 선택하는 것이 좋습니다. BigQuery Sharing의 이미지 테이블 설명 섹션에서 각 래스터 데이터 세트의 픽셀 크기를 확인할 수 있습니다.
+픽셀 크기를 변경하면 지정된 지역과 교차하는 픽셀 수가 변경되어 결과와 해석이 영향을 받습니다. 프로덕션 분석에서는 픽셀 크기를 변경하지 않는 것이 좋습니다. 하지만 쿼리 프로토타입을 제작하는 경우 픽셀 크기를 늘리면 특히 고해상도 데이터의 쿼리 런타임과 비용을 줄일 수 있습니다.
+픽셀 크기를 변경하려면 options 인수의 scale을 ST_REGIONSTATS 함수로 설정합니다. 예를 들어 1,000미터 픽셀에 대한 통계를 계산하려면 Earth Engine에게 요청된 스케일로 이미지를 리샘플링하도록 지시하는 options => JSON '{"scale":1000}'을 사용합니다. Earth Engine에서 스케일 조절을 처리하는 방법을 자세히 알아보려면 Google Earth Engine 문서의 스케일 [https://developers.google.com/earth-engine/guides/scale?hl=ko]을 참조하세요.
+래스터의 픽셀보다 훨씬 작은 다각형의 통계를 계산하면 부정확하거나 null 결과가 생성될 수 있습니다. 이 경우 ST_CENTROID [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_centroid]를 사용하여 다각형을 중심점 포인트로 대체하는 방법이 있습니다.
+결제
+쿼리를 실행하면 Earth Engine에서 함수 호출 결과를 계산하므로 ST_REGIONSTATS 함수 사용량에 대한 요금이 나머지 쿼리와 별도로 청구됩니다. 주문형 결제 또는 예약 사용 여부와 관계없이 BigQuery 서비스 SKU에 따라 슬롯 시간으로 이 사용량에 대한 요금이 청구됩니다. Earth Engine에 대한 BigQuery 호출에 청구된 금액을 확인하려면 결제 보고서를 보고 [https://cloud.google.com/billing/docs/how-to/reports?hl=ko#overview] 라벨 [https://cloud.google.com/billing/docs/how-to/reports?hl=ko#filter-by-labels]을 사용하여 goog-bq-feature-type 라벨 키(EARTH_ENGINE 값)별로 필터링합니다. ST_REGIONSTATS 함수가 실패하면 사용된 Earth Engine 컴퓨팅에 대한 요금은 청구되지 않습니다.
+비용 요인
+ST_REGIONSTATS 함수를 실행할 때 컴퓨팅 사용량에 영향을 미치는 요인은 다음과 같습니다.
+입력 행 수
+사용하는 래스터 이미지. 일부 래스터는 Earth Engine 데이터 카탈로그의 소스 이미지 컬렉션에서 생성된 복합체이며 복합 결과를 생성하는 컴퓨팅 리소스는 다양합니다.
+이미지 해상도
+입력 지역의 크기와 복잡성, 지역과 교차하는 픽셀 수, Earth Engine에서 읽은 이미지 타일 수와 바이트 수
+소스 이미지와 이미지의 투영 및 해상도에 대한 Earth의 입력 지역 위치
+이미지 투영은 특히 고위도에 있거나 이미지의 의도된 적용 범위에서 멀리 떨어진 픽셀을 왜곡할 수 있습니다.
+복합 래스터의 경우 입력 지역과 교차하는 소스 이미지의 수는 리전별로 및 시간 경과에 따라 달라질 수 있습니다. 예를 들어 일부 위성은 궤도와 데이터 수집 파라미터에 따라 저위도 또는 고위도에서 더 많은 이미지를 생성하거나 변화하는 대기 조건에 따라 이미지를 생략할 수 있습니다.
+include 또는 band_name 인수에서 사용되는 수식과 관련된 밴드 수
+이전 결과 캐싱
+비용 통제
+ST_REGIONSTATS 함수와 관련된 비용을 관리하려면 함수에서 사용할 수 있는 슬롯 시간을 제어하는 할당량을 조정하면 됩니다. 기본값은 일일 350슬롯 시간입니다. 할당량을 볼 [https://cloud.google.com/docs/quotas/view-manage?hl=ko] 때 측정항목 목록을 earthengine.googleapis.com/bigquery_slot_usage_time으로 필터링하여 BigQuery의 호출과 연결된 Earth Engine 할당량을 확인합니다. 자세한 내용은 Google Earth Engine 문서의 BigQuery 래스터 함수 할당량 [https://developers.google.com/earth-engine/guides/usage?hl=ko#bigquery_slot-time_per_day]을 참조하세요.
+참고: BigQuery의 커스텀 쿼리 할당량과 마찬가지로 이 할당량은 근사치입니다. 과도한 지출을 방지하는 보호 수단을 제공하지만 슬롯 시간을 엄격하게 제한하도록 설계되지는 않았습니다. BigQuery에서 간혹 할당량 한도를 초과하는 쿼리를 실행할 수 있으며 사용된 전체 양에 대한 요금이 청구되지 않고 할당량이 소진될 수 있습니다.
+제한사항
+ST_REGIONSTATS 함수를 호출하는 쿼리는 다음 리전 중 하나에서 실행되어야 합니다.
+US
+us-central1
+us-central2
+다음 단계
+래스터 데이터를 사용하여 온도를 분석 [https://cloud.google.com/bigquery/docs/raster-tutorial-weather?hl=ko]하는 방법을 보여주는 튜토리얼 사용해 보기
+BigQuery의 지역 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko] 자세히 알아보기
+지리 공간 데이터 사용 [https://cloud.google.com/bigquery/docs/geospatial-data?hl=ko] 자세히 알아보기
+도움이 되었나요?
+의견 보내기

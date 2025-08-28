@@ -1,0 +1,206 @@
+Source URL: https://cloud.google.com/bigquery/docs/disaster-recovery-migration
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+개요 [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#overview]
+이전 시 고려사항 [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#migration_implications]
+비용 영향 [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#cost_implications]
+기능적 영향 [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#capability_implications]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#before_you_begin]
+CRR에서 DR로 이전 [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#migrate_from_crr_to_dr]
+장애 조치 예약 만들기 [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#create_a_failover_reservation]
+예약에 데이터 세트 연결 [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#attach_the_dataset_to_the_reservation]
+관리형 재해 복구로 이전
+bookmark_border
+이 페이지에서는 BigQuery 교차 리전 복제에서 BigQuery 관리 재해 복구로 이전하는 방법을 설명합니다.
+개요
+BigQuery 교차 리전 복제 [https://cloud.google.com/bigquery/docs/data-replication?hl=ko] (CRR)와 관리형 재해 복구 [https://cloud.google.com/bigquery/docs/disaster-recovery?hl=ko] (DR)는 모두 데이터 가용성과 재해 복구 기능을 개선하도록 설계된 기능입니다. 하지만 지역 서비스 중단을 처리하는 방식은 서로 다릅니다. CRR은 기본 리전을 사용할 수 없는 경우 보조 복제본을 승격할 수 없습니다. 반면 DR은 기본 리전을 사용할 수 없는 경우에도 보조 복제본으로의 페일오버를 허용하여 더 포괄적인 보호 기능을 제공합니다. CRR에서는 스토리지만 복제되지만 DR에서는 스토리지와 컴퓨팅 용량이 모두 복제됩니다.
+다음 표에서는 CRR 및 DR의 기능을 설명합니다.
+특성 CRR DR
+초기 복제 프로세스 CRR을 사용하여 데이터 세트를 초기에 복제합니다. 이전에는 CRR 데이터 세트를 DR 데이터 세트로 이전하기 전에 초기 로드가 CRR로 복제되었습니다.
+프로모션 복제 표준 복제를 사용합니다. 터보 복제 [https://cloud.google.com/storage/docs/availability-durability?hl=ko#turbo-replication]를 사용합니다.
+프로모션 절차 데이터 세트 수준에서 승격합니다. 예약 수준에서 승격합니다 (예약 장애 조치 및 데이터 세트 승격). 여러 데이터 세트를 하나의 장애 조치 예약에 연결할 수 있습니다. DR에서는 데이터 세트 수준 프로모션을 사용할 수 없습니다.
+프로모션 실행 각 데이터 세트에 대한 UI 또는 SQL 기반 DDL 명령어를 통해 CLI, 클라이언트 라이브러리, API, Terraform은 지원되지 않습니다. 각 EPE 예약에 대해 UI 또는 SQL 기반 DDL 명령어를 통해 CLI, 클라이언트 라이브러리, API, Terraform은 지원되지 않습니다.
+장애 조치 모드 조용히 전환 하드 페일오버
+버전 요구사항 모든 용량 모델 Enterprise Plus 버전
+제한사항 CRR 제한사항 [https://cloud.google.com/bigquery/docs/data-replication?hl=ko#limitations] CRR 제한사항 [https://cloud.google.com/bigquery/docs/data-replication?hl=ko#limitations]과 DR 제한사항 [https://cloud.google.com/bigquery/docs/managed-disaster-recovery?hl=ko#limitations]이 모두 포함됩니다.
+쓰기 액세스 권한 모든 용량 모델에서 실행되는 작업은 기본 리전의 복제된 데이터 세트에 쓸 수 있습니다. 보조는 항상 읽기 전용입니다. Enterprise Plus 예약에서 실행되는 작업만 기본 리전의 복제된 데이터 세트에 쓸 수 있습니다. 보조 데이터 세트 및 예약 복제본은 항상 읽기 전용입니다.
+읽기 액세스 모든 용량 모델에서 실행되는 작업은 복제된 데이터 세트에서 읽을 수 있습니다. 모든 용량 모델에서 실행되는 작업은 복제된 데이터 세트에서 읽을 수 있습니다.
+이전 시 고려사항
+다음 섹션에서는 DR로 이전할 때 발생하는 비용 및 기능 변경사항을 개략적으로 설명합니다.
+비용 영향
+CRR에서 DR로 이전할 때 다음과 같은 비용 영향을 고려하세요.
+DR은 Enterprise Plus 버전의 쓰기 액세스만 지원하므로 컴퓨팅 비용이 더 많이 발생합니다. 모든 용량 모델에서 읽을 수 있으므로 기존 작업의 읽기 비용은 변경되지 않습니다.
+DR은 터보 복제 [https://cloud.google.com/storage/docs/availability-durability?hl=ko#turbo-replication]를 사용하므로 리전 쌍에 따라 추가 비용이 발생합니다.
+스토리지 가격은 CRR과 DR에서 동일합니다.
+가격에 대한 자세한 내용은 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]을 참고하세요.
+기능적 영향
+CRR에서 DR로 이전할 때 다음과 같은 기능적 영향을 고려하세요.
+DR은 예약 수준에서만 장애 조치를 지원합니다. 데이터 세트 수준 페일오버를 사용하는 기존 작업은 실패합니다.
+데이터 세트가 DR 예약에 연결된 후에는 Enterprise Plus 버전 쿼리만 데이터 세트에 쓸 수 있습니다. 컴퓨팅 용량에 Enterprise Plus 버전을 사용하지 않는 기존 쓰기 작업은 실패합니다.
+시작하기 전에
+이전을 시작하기 전에 리전 간 복제 [https://cloud.google.com/bigquery/docs/data-replication?hl=ko] 및 관리형 재해 복구 [https://cloud.google.com/bigquery/docs/disaster-recovery?hl=ko]의 개념을 숙지하세요.
+DR로 이전하려면 다음 기본 요건이 충족되어야 합니다.
+BigQuery가 사용 설정된 활성 Google Cloud 프로젝트가 있습니다.
+CRR을 사용하여 데이터 세트를 만들고 복제했습니다.
+데이터 세트의 기본 및 보조 위치가 DR에 사용할 위치와 동일합니다.
+DR을 사용하는 데 필요한 권한이 있습니다. 권한에 관한 자세한 내용은 시작하기 전 [https://cloud.google.com/bigquery/docs/managed-disaster-recovery?hl=ko#before_you_begin]을 참고하세요.
+CRR에서 DR로 이전
+다음 섹션에서는 데이터 세트를 CRR에서 DR로 이전하는 방법을 설명합니다. 이 섹션에서는 이미 CRR용 데이터 세트를 구성했다고 가정합니다.
+장애 조치 예약 만들기
+재해 복구를 사용 설정하려면 기본 리전에서 장애 조치 예약을 만들어야 합니다. 적절한 기본 및 보조 리전으로 예약을 구성합니다. 기본 및 보조 리전은 DR로 이전하려는 모든 CRR 데이터 세트의 리전과 일치해야 합니다. 페일오버 예약을 만들려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색 메뉴에서 용량 관리를 클릭한 다음 예약 만들기를 클릭합니다.
+예약 이름 필드에 예약 이름을 입력합니다.
+위치 목록에서 위치를 선택합니다.
+버전 목록에서 Enterprise Plus 버전을 선택합니다.
+최대 예약 크기 선택기 목록에서 최대 예약 크기를 선택합니다.
+선택사항: 기준 슬롯 필드에 예약의 기준 슬롯 수를 입력합니다.
+
+사용 가능한 자동 확장 슬롯 수는 최대 예약 크기 값에서 기준 슬롯 값을 빼서 구합니다. 예를 들어 기준 슬롯이 100개이고 최대 예약 크기가 400개인 예약을 만들면 예약의 자동 확장 슬롯은 300개입니다. 기준 슬롯에 대한 자세한 내용은 기준 및 자동 확장 슬롯이 있는 예약 사용 [https://cloud.google.com/bigquery/docs/slots-autoscaling-intro?hl=ko#using_reservations_with_baseline_and_autoscaling_slots]을 참조하세요.
+보조 위치 목록에서 보조 위치를 선택합니다.
+유휴 슬롯 공유 [https://cloud.google.com/bigquery/docs/slots?hl=ko#idle_slots]를 사용 중지하고 지정된 슬롯 용량만 사용하려면 유휴 슬롯 무시 전환 버튼을 클릭합니다.
+고급 설정 섹션을 펼치려면 expand_more 펼치기 화살표를 클릭합니다.
+(선택사항): 대상 작업 동시 실행을 설정하려면 자동 대상 작업 동시 실행 재정의 전환 버튼을 클릭하여 사용 설정한 후 대상 작업 동시 실행 값을 입력합니다.
+슬롯 분석은 예상 비용 테이블에 표시됩니다. 예약 요약은 용량 요약 테이블에 표시됩니다.
+저장을 클릭합니다.
+
+
+새 예약이 슬롯 예약 탭에 표시됩니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#sql] ---
+예약을 만들려면 CREATE RESERVATION 데이터 정의 언어(DDL) 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_reservation_statement]을 사용합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE RESERVATION
+  `ADMIN_PROJECT_ID.region-LOCATION.RESERVATION_NAME`
+OPTIONS (
+  slot_capacity = NUMBER_OF_BASELINE_SLOTS,
+  edition = ENTERPRISE_PLUS,
+  secondary_location = SECONDARY_LOCATION);
+
+
+다음을 바꿉니다.
+
+  ADMIN_PROJECT_ID: 예약 리소스를 소유하는 관리 프로젝트 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#admin-project]의 프로젝트 ID입니다.
+  LOCATION: 예약 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다. BigQuery Omni 위치 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#locations]를 선택하면 버전 옵션이 Enterprise 버전으로 제한됩니다.
+  RESERVATION_NAME: 예약 이름입니다.
+    이름은 소문자 또는 숫자로 시작하고 끝나야 하며 소문자, 숫자, 대시만 포함할 수 있습니다.
+  NUMBER_OF_BASELINE_SLOTS: 예약에 할당할 기준 슬롯 수. 동일한 예약에 slot_capacity 옵션 및 edition 옵션을 설정할 수 없습니다.
+  SECONDARY_LOCATION: 예약의 보조 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다. 서비스 중단이 발생하면 이 예약에 연결된 모든 데이터 세트가 이 위치로 장애 조치됩니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+예약에 데이터 세트 연결
+장애 조치 예약을 만든 후 리전 간 데이터 세트를 예약에 연결합니다. 이렇게 하면 연결된 모든 데이터 세트에 대한 페일오버가 사용 설정됩니다. 데이터 세트를 예약에 연결하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색 메뉴에서 용량 관리를 클릭한 다음 슬롯 예약 탭을 클릭합니다.
+데이터 세트를 연결할 예약을 클릭합니다.
+재해 복구 탭을 클릭합니다.
+장애 조치 데이터 세트 추가를 클릭합니다.
+예약과 연결할 데이터 세트의 이름을 입력합니다.
+추가를 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/disaster-recovery-migration?hl=ko#sql] ---
+예약에 데이터 세트를 연결하려면 ALTER SCHEMA SET OPTIONS DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_schema_set_options_statement]을 사용합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+ALTER SCHEMA
+  `DATASET_NAME`
+SET OPTIONS (
+  failover_reservation = ADMIN_PROJECT_ID.RESERVATION_NAME);
+
+
+다음을 바꿉니다.
+
+  DATASET_NAME: 데이터 세트의 이름
+  ADMIN_PROJECT_ID.RESERVATION_NAME: 데이터 세트를 연결하려는 예약의 이름입니다.
+  
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+구성 확인
+구성 상태를 확인하려면 INFORMATION_SCHEMA.SCHEMATA_REPLICAS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-schemata-replicas?hl=ko]를 쿼리합니다.
+PROJECT_ID.`region-
+REGION`.INFORMATION_SCHEMA.SCHEMATA_REPLICAS[_BY_PROJECT]
+데이터 세트가 올바른 지역의 올바른 예약에 연결되어 있는지 확인합니다.
+다음을 바꿉니다.
+선택사항: PROJECT_ID: Google Cloud 프로젝트의 ID입니다. 지정하지 않으면 기본 프로젝트가 사용됩니다.
+REGION: 모든 데이터 세트 리전 이름 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다. 예를 들면 `region-us`입니다.
+참고: INFORMATION_SCHEMA 뷰를 쿼리하려면 리전 한정자 [https://cloud.google.com/bigquery/docs/information-schema-intro?hl=ko#region_qualifier]를 사용해야 합니다. 쿼리 실행 위치는 INFORMATION_SCHEMA 뷰의 리전과 일치해야 합니다.
+예시
+다음 예에서는 GoogleSQL을 사용한 실제 예시를 통해 CRR에서 DR로 마이그레이션하는 단계를 안내합니다. 이 예에서는 다음을 가정합니다.
+myproject라는 프로젝트를 사용 중입니다.
+이미 mydataset라는 데이터 세트를 만들고 CRR로 구성했습니다.
+mydataset의 기본 리전은 us-central1이고 보조 리전은 us-west1입니다.
+데이터 세트를 DR로 이전하려면 먼저 Enterprise Plus 버전으로 예약을 만드세요. 이 예에서 예약 이름은 myreservation입니다.
+CREATE RESERVATION `myproject.region-us-central1.myreservation`
+OPTIONS (
+  slot_capacity = 0,
+  edition = ENTERPRISE_PLUS,
+  autoscale_max_slots = 50,
+  secondary_location = 'us-west-1');
+예약이 생성되면 데이터 세트를 예약에 연결할 수 있습니다. 다음 예에서는 데이터 세트를 예약에 연결합니다.
+ALTER SCHEMA
+  `myproject.mydataset`
+SET OPTIONS (
+  failover_reservation = 'myproject.myreservation');
+그런 다음 데이터 세트가 연결되었는지 확인합니다.
+SELECT
+  failover_reservation_project_id,failover_reservation_name,
+FROM
+ `myproject`.`region-us-west1`.INFORMATION_SCHEMA.SCHEMATA_REPLICAS
+WHERE
+ schema_name='mydataset';
+이 쿼리의 결과는 다음과 유사합니다.
++---------------------------------+---------------------------+
+| failover_reservation_project_id | failover_reservation_name |
++---------------------------------+---------------------------+
+| myproject                       | myreservation             |
+| myproject                       | myreservation             |
++---------------------------------+---------------------------+
+다음 단계
+리전 간 복제에 대한 자세한 내용은 리전 간 데이터 세트 복제 [https://cloud.google.com/bigquery/docs/data-replication?hl=ko]를 참고하세요.
+관리형 재해 복구에 대한 자세한 내용은 관리형 재해 복구 [https://cloud.google.com/bigquery/docs/managed-disaster-recovery?hl=ko]를 참고하세요.
+도움이 되었나요?
+의견 보내기

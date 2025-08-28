@@ -1,0 +1,582 @@
+Source URL: https://cloud.google.com/bigquery/docs/user-defined-aggregates
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+SQL UDAF 만들기 [https://cloud.google.com/bigquery/docs/user-defined-aggregates?hl=ko#create-sql-udaf]
+영구 SQL UDAF 만들기 [https://cloud.google.com/bigquery/docs/user-defined-aggregates?hl=ko#create-persistent-sql-udaf]
+임시 SQL UDAF 만들기 [https://cloud.google.com/bigquery/docs/user-defined-aggregates?hl=ko#create-temp-sql-udaf]
+집계 및 비집계 매개변수 사용 [https://cloud.google.com/bigquery/docs/user-defined-aggregates?hl=ko#create-sql-udaf_non_agg]
+함수 본문에 기본 프로젝트 사용 [https://cloud.google.com/bigquery/docs/user-defined-aggregates?hl=ko#default-project-sql-udaf]
+사용자 정의 집계 함수
+bookmark_border
+이 문서에서는 BigQuery에서 사용자 정의 집계 함수(UDAF)를 만들고 호출, 삭제하는 방법을 설명합니다.
+UDAF를 사용하면 코드가 포함된 표현식을 사용하여 집계 함수를 만들 수 있습니다. UDAF는 입력으로 여러 열을 받아 한 번에 행 그룹을 계산한 다음 해당 계산 결과를 단일 값으로 반환합니다.
+SQL UDAF 만들기
+Preview
+This product or feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1]. Pre-GA products and features are available "as is" and might have limited support. For more information, see the launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+미리보기 중에 지원을 받으려면 bigquery-sql-preview-support@google.com [mailto:bigquery-sql-preview-support@google.com]으로 이메일을 보내세요.
+이 섹션에서는 BigQuery에서 영구 또는 임시 SQL UDAF를 만들 수 있는 다양한 방법을 설명합니다.
+영구 SQL UDAF 만들기
+영구적인 SQL UDAF를 만들 수 있으므로 여러 쿼리에서 UDAF를 재사용할 수 있습니다. 영구 UDAF는 소유자 간에 공유될 때 호출해도 안전합니다. UDAF는 데이터를 변형하거나, 외부 시스템과 통신하거나, Google Cloud Observability 또는 유사한 애플리케이션에 로그를 전송할 수 없습니다.
+영구 UDAF를 만들려면 TEMP 또는 TEMPORARY 키워드 없이 CREATE AGGREGATE FUNCTION 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#sql-create-udaf-function]을 사용합니다. 함수 경로에 데이터 세트를 포함해야 합니다.
+예를 들어 다음 쿼리는 ScaledAverage라는 영구 UDAF를 만듭니다.
+CREATE AGGREGATE FUNCTION myproject.mydataset.ScaledAverage(
+  dividend FLOAT64,
+  divisor FLOAT64)
+RETURNS FLOAT64
+AS (
+  AVG(dividend / divisor)
+);
+임시 SQL UDAF 만들기
+임시 SQL UDAF를 만들 수 있으므로 UDAF가 단일 쿼리, 스크립트, 세션, 프로시져의 범위에만 존재할 수 있습니다.
+임시 UDAF를 만들려면 TEMP 또는 TEMPORARY 키워드와 함께 CREATE AGGREGATE FUNCTION 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#sql-create-udaf-function]을 사용합니다.
+예를 들어 다음 쿼리는 ScaledAverage라는 임시 UDAF를 만듭니다.
+CREATE TEMP AGGREGATE FUNCTION ScaledAverage(
+  dividend FLOAT64,
+  divisor FLOAT64)
+RETURNS FLOAT64
+AS (
+  AVG(dividend / divisor)
+);
+집계 및 비집계 매개변수 사용
+집계 및 비집계 매개변수가 모두 포함된 SQL UDAF를 만들 수 있습니다.
+UDAF는 일반적으로 그룹 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_clause]의 모든 행에서 함수 매개변수를 집계합니다. 하지만 NOT AGGREGATE 키워드를 사용하여 함수 파라미터를 비집계로 지정할 수 있습니다.
+비집계 함수 매개변수는 그룹의 모든 행에 대해 상수 값이 있는 스칼라 함수 파라미터입니다. 유효한 비집계 함수 파라미터는 리터럴이어야 합니다. UDAF 정의 내에서 집계 함수 파라미터는 집계 함수 호출의 함수 인수로만 표시될 수 있습니다. 비집계 함수 매개변수에 대한 참조는 UDAF 정의 어디에나 표시될 수 있습니다.
+예를 들어 다음 함수에는 dividend라는 집계 파라미터와 divisor라는 비집계 파라미터가 포함됩니다.
+-- Create the function.
+CREATE TEMP AGGREGATE FUNCTION ScaledSum(
+  dividend FLOAT64,
+  divisor FLOAT64 NOT AGGREGATE)
+RETURNS FLOAT64
+AS (
+  SUM(dividend) / divisor
+);
+함수 본문에 기본 프로젝트 사용
+SQL UDAF의 본문에서 테이블 또는 뷰와 같은 BigQuery 항목에 대한 모든 참조는 프로젝트 ID를 포함해야 합니다. 단, 해당 항목이 UDAF가 포함된 동일한 프로젝트에 있는 경우에는 예외입니다.
+예를 들어 다음 문을 살펴보겠습니다.
+CREATE AGGREGATE FUNCTION project1.dataset_a.ScaledAverage(
+  dividend FLOAT64,
+  divisor FLOAT64)
+RETURNS FLOAT64
+AS (
+  ( SELECT AVG(dividend / divisor) FROM dataset_a.my_table )
+);
+project1 프로젝트에서 위의 문을 실행하면 project1에 my_table이 있으므로 문이 성공합니다. 하지만 위의 문을 다른 프로젝트에서 실행하면 문이 실패합니다. 오류를 수정하려면 테이블 참조에 프로젝트 ID를 포함합니다.
+CREATE AGGREGATE FUNCTION project1.dataset_a.ScaledAverage(
+  dividend FLOAT64,
+  divisor FLOAT64)
+RETURNS FLOAT64
+AS (
+  ( SELECT AVG(dividend / divisor) FROM project1.dataset_a.my_table )
+);
+다른 프로젝트의 항목 또는 함수를 만드는 위치인 데이터 세트를 참조할 수도 있습니다.
+CREATE AGGREGATE FUNCTION project1.dataset_a.ScaledAverage(
+  dividend FLOAT64,
+  divisor FLOAT64)
+RETURNS FLOAT64
+AS (
+  ( SELECT AVG(dividend / divisor) FROM project2.dataset_c.my_table )
+);
+JavaScript UDAF 만들기
+이 섹션에서는 BigQuery에서 JavaScript UDAF를 만들 수 있는 여러 방법에 대해 설명합니다. JavaScript UDAF를 만들 때 관찰할 수 있는 몇 가지 규칙이 있습니다.
+JavaScript UDAF 본문은 JavaScript 코드를 나타내는 따옴표 붙은 문자열 리터럴이어야 합니다. 사용할 수 있는 여러 유형의 따옴표 붙은 문자열 리터럴에 대해 자세히 알아보려면 따옴표 붙은 리터럴의 형식 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#quoted_literals]을 참조하세요.
+특정 유형의 인코딩만 허용됩니다. 자세한 내용은 JavaScript UDAF의 허용되는 SQL 유형 인코딩 [https://cloud.google.com/bigquery/docs/user-defined-aggregates?hl=ko#javascript-type-encodings]을 참조하세요.
+JavaScript 함수 본문에는 JavaScript UDAF의 결과를 초기화, 집계, 병합, 마무리하는 4개의 JavaScript 함수(initialState, aggregate, merge, finalize)가 포함되어야 합니다. 자세한 내용은 JavaScript UDAF의 허용되는 SQL 유형 인코딩 [https://cloud.google.com/bigquery/docs/user-defined-aggregates?hl=ko#required-javascript-aggregate-functions]을 참조하세요.
+initialState 함수로 반환되거나 aggregate 또는 merge 함수 호출 후 state 인수에 남은 값은 직렬화할 수 있어야 합니다. 함수 또는 기호 필드와 같이 직렬화할 수 없는 집계 데이터로 작업하려면 포함된 serialize 및 deserialize 함수를 사용해야 합니다. 자세한 내용은 JavaScript UDAF에서 데이터 직렬화 및 역직렬화 [https://cloud.google.com/bigquery/docs/user-defined-aggregates?hl=ko#serialize-javascript-udaf]를 참조하세요.
+영구 JavaScript UDAF 만들기
+영구적인 JavaScript UDAF를 만들 수 있으므로 여러 쿼리에서 UDAF를 재사용할 수 있습니다. 영구 UDAF는 소유자 간에 공유될 때 호출해도 안전합니다. UDAF는 데이터를 변형하거나, 외부 시스템과 통신하거나, Google Cloud Observability 또는 유사한 애플리케이션에 로그를 전송할 수 없습니다.
+영구 UDAF를 만들려면 TEMP 또는 TEMPORARY 키워드 없이 CREATE AGGREGATE FUNCTION 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#javascript-create-udaf-function]을 사용합니다. 함수 경로에 데이터 세트를 포함해야 합니다.
+다음 쿼리는 SumPositive라는 영구 JavaScript UDAF를 만듭니다.
+CREATE OR REPLACE AGGREGATE FUNCTION my_project.my_dataset.SumPositive(x FLOAT64)
+RETURNS FLOAT64
+LANGUAGE js
+AS r'''
+
+  export function initialState() {
+    return {sum: 0}
+  }
+  export function aggregate(state, x) {
+    if (x > 0) {
+      state.sum += x;
+    }
+  }
+  export function merge(state, partialState) {
+    state.sum += partialState.sum;
+  }
+  export function finalize(state) {
+    return state.sum;
+  }
+
+''';
+
+-- Call the JavaScript UDAF.
+WITH numbers AS (
+  SELECT * FROM UNNEST([1.0, -1.0, 3.0, -3.0, 5.0, -5.0]) AS x)
+SELECT my_project.my_dataset.SumPositive(x) AS sum FROM numbers;
+
+/*-----*
+ | sum |
+ +-----+
+ | 9.0 |
+ *-----*/
+임시 JavaScript UDAF 만들기
+임시 JavaScript UDAF를 만들 수 있으므로 UDAF가 단일 쿼리, 스크립트, 세션, 프로시져의 범위에만 존재할 수 있습니다.
+임시 UDAF를 만들려면 TEMP 또는 TEMPORARY 키워드와 함께 CREATE AGGREGATE FUNCTION 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#javascript-create-udaf-function]을 사용합니다.
+다음 쿼리는 SumPositive라는 임시 JavaScript UDAF를 만듭니다.
+CREATE TEMP AGGREGATE FUNCTION SumPositive(x FLOAT64)
+RETURNS FLOAT64
+LANGUAGE js
+AS r'''
+
+  export function initialState() {
+    return {sum: 0}
+  }
+  export function aggregate(state, x) {
+    if (x > 0) {
+      state.sum += x;
+    }
+  }
+  export function merge(state, partialState) {
+    state.sum += partialState.sum;
+  }
+  export function finalize(state) {
+    return state.sum;
+  }
+
+''';
+
+-- Call the JavaScript UDAF.
+WITH numbers AS (
+  SELECT * FROM UNNEST([1.0, -1.0, 3.0, -3.0, 5.0, -5.0]) AS x)
+SELECT SumPositive(x) AS sum FROM numbers;
+
+/*-----*
+ | sum |
+ +-----+
+ | 9.0 |
+ *-----*/
+JavaScript UDAF에 비집계 매개변수 포함
+집계 및 비집계 매개변수가 모두 포함된 JavaScript UDAF를 만들 수 있습니다.
+UDAF는 일반적으로 그룹 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_clause]의 모든 행에서 함수 매개변수를 집계합니다. 하지만 NOT AGGREGATE 키워드를 사용하여 함수 파라미터를 비집계로 지정할 수 있습니다.
+비집계 함수 매개변수는 그룹의 모든 행에 대해 상수 값이 있는 스칼라 함수 파라미터입니다. 유효한 비집계 함수 파라미터는 리터럴이어야 합니다. UDAF 정의 내에서 집계 함수 파라미터는 집계 함수 호출의 함수 인수로만 표시될 수 있습니다. 비집계 함수 매개변수에 대한 참조는 UDAF 정의 어디에나 표시될 수 있습니다.
+다음 예시에서 JavaScript UDAF에는 s라는 집계 매개변수와 delimiter라는 비집계 매개변수가 포함됩니다.
+CREATE TEMP AGGREGATE FUNCTION JsStringAgg(
+  s STRING,
+  delimiter STRING NOT AGGREGATE)
+RETURNS STRING
+LANGUAGE js
+AS r'''
+
+  export function initialState() {
+    return {strings: []}
+  }
+  export function aggregate(state, s) {
+    state.strings.push(s);
+  }
+  export function merge(state, partialState) {
+    state.strings = state.strings.concat(partialState.strings);
+  }
+  export function finalize(state, delimiter) {
+    return state.strings.join(delimiter);
+  }
+
+''';
+
+-- Call the JavaScript UDAF.
+WITH strings AS (
+  SELECT * FROM UNNEST(["aaa", "bbb", "ccc", "ddd"]) AS values)
+SELECT JsStringAgg(values, '.') AS result FROM strings;
+
+/*-----------------*
+ | result          |
+ +-----------------+
+ | aaa.bbb.ccc.ddd |
+ *-----------------*/
+JavaScript UDAF에서 데이터 직렬화 및 역직렬화
+BigQuery는 initialState 함수로 반환된 객체 또는 aggregate 또는 merge 함수 호출 후 state 인수에 남은 객체를 직렬화해야 합니다. BigQuery는 모든 필드가 다음 중 하나인 경우에 객체 직렬화를 지원합니다.
+JavaScript 원시 값(예: 2, "abc", null, undefined)
+BigQuery가 모든 필드 값 직렬화를 지원하는 JavaScript 객체
+BigQuery가 모든 요소 직렬화를 지원하는 JavaScript 배열
+다음 반환 값은 직렬화할 수 있습니다.
+export function initialState() {
+  return {a: "", b: 3, c: null, d: {x: 23} }
+}
+export function initialState() {
+  return {value: 2.3};
+}
+다음 반환 값은 직렬화할 수 없습니다.
+export function initialState() {
+  return {
+    value: function() {return 6;}
+  }
+}
+export function initialState() {
+  return 2.3;
+}
+직렬화할 수 없는 집계 상태로 작업하려면 JavaScript UDAF에 serialize 및 deserialize 함수가 포함되어야 합니다. serialize 함수는 집계 상태를 직렬화할 수 있는 객체로 변환합니다. deserialize 함수는 직렬화할 수 있는 객체를 다시 집계 상태로 변환합니다.
+다음 예시에서 외부 라이브러리는 인터페이스를 사용하여 합계를 계산합니다.
+export class SumAggregator {
+ constructor() {
+   this.sum = 0;
+ }
+ update(value) {
+   this.sum += value;
+ }
+ getSum() {
+   return this.sum;
+ }
+}
+클래스 내부의 함수가 있어서 SumAggregator 클래스 객체가 BigQuery로 직렬화할 수 있는 객체가 아니기 때문에 다음 쿼리는 실행되지 않습니다.
+CREATE TEMP AGGREGATE FUNCTION F(x FLOAT64)
+RETURNS FLOAT64
+LANGUAGE js
+AS r'''
+
+  class SumAggregator {
+   constructor() {
+     this.sum = 0;
+   }
+
+   update(value) {
+     this.sum += value;
+   }
+
+   getSum() {
+     return this.sum;
+   }
+  }
+
+  export function initialState() {
+   return new SumAggregator();
+  }
+
+  export function aggregate(agg, value) {
+   agg.update(value);
+  }
+
+  export function merge(agg1, agg2) {
+   agg1.update(agg2.getSum());
+  }
+
+  export function finalize(agg) {
+   return agg.getSum();
+  }
+
+''';
+
+--Error: getSum is not a function
+SELECT F(x) AS results FROM UNNEST([1,2,3,4]) AS x;
+앞의 쿼리에 serialize 및 deserialize 함수를 추가하면 SumAggregator 클래스 객체가 BigQuery로 직렬화할 수 있는 객체로 변환되고 다시 SumAggregator 클래스 객체로 변환되기 때문에 쿼리가 실행됩니다.
+CREATE TEMP AGGREGATE FUNCTION F(x FLOAT64)
+RETURNS FLOAT64
+LANGUAGE js
+AS r'''
+
+  class SumAggregator {
+   constructor() {
+     this.sum = 0;
+   }
+
+   update(value) {
+     this.sum += value;
+   }
+
+   getSum() {
+     return this.sum;
+   }
+  }
+
+  export function initialState() {
+   return new SumAggregator();
+  }
+
+  export function aggregate(agg, value) {
+   agg.update(value);
+  }
+
+  export function merge(agg1, agg2) {
+   agg1.update(agg2.getSum());
+  }
+
+  export function finalize(agg) {
+   return agg.getSum();
+  }
+
+  export function serialize(agg) {
+   return {sum: agg.getSum()};
+  }
+
+  export function deserialize(serialized) {
+   var agg = new SumAggregator();
+   agg.update(serialized.sum);
+   return agg;
+  }
+
+''';
+
+SELECT F(x) AS results FROM UNNEST([1,2,3,4]) AS x;
+
+/*-----------------*
+ | results         |
+ +-----------------+
+ | 10.0            |
+ *-----------------*/
+직렬화 함수에 대해 자세히 알아보려면 선택적인 JavaScript 직렬화 함수 [https://cloud.google.com/bigquery/docs/user-defined-aggregates?hl=ko#javascript-serialization-functions]를 참조하세요.
+JavaScript UDAF에 전역 변수 및 커스텀 함수 포함
+JavaScript 함수 본문은 JavaScript 전역 변수 및 커스텀 함수와 같은 커스텀 JavaScript 코드를 포함할 수 있습니다.
+전역 변수는 JavaScript가 BigQuery에 로드될 때 그리고 initialState 함수가 실행되기 전에 실행됩니다. initialState, aggregate, merge, finalize 함수의 경우와 같이 전역 변수는 각 집계 그룹에 대해 반복되지 않아야 하는 일회용 초기화 작업을 수행해야 하는 경우에 유용할 수 있습니다.
+전역 변수를 사용하여 집계 상태를 저장하지 마세요. 대신 내보낸 함수로 전달된 객체로 집계 상태를 제한합니다. 전역 변수만 사용해서 특정 집계 작업과 관련이 없는 고비용 작업을 캐시하세요.
+다음 쿼리에서 SumOfPrimes 함수는 합계를 계산하지만 소수만 계산에 포함됩니다. JavaScript 함수 본문에는 처음에 초기화되는 primes 및 maxTested의 2개의 전역 변수가 있습니다. 또한 숫자가 소수인지 확인하는 isPrime이라는 커스텀 함수가 있습니다.
+CREATE TEMP AGGREGATE FUNCTION SumOfPrimes(x INT64)
+RETURNS INT64
+LANGUAGE js
+AS r'''
+
+  var primes = new Set([2]);
+  var maxTested = 2;
+
+  function isPrime(n) {
+    if (primes.has(n)) {
+      return true;
+    }
+    if (n <= maxTested) {
+      return false;
+    }
+    for (var k = 2; k < n; ++k) {
+      if (!isPrime(k)) {
+        continue;
+      }
+      if ((n % k) == 0) {
+        maxTested = n;
+        return false;
+      }
+    }
+    maxTested = n;
+    primes.add(n);
+    return true;
+  }
+
+  export function initialState() {
+    return {sum: 0};
+  }
+
+  export function aggregate(state, x) {
+    x = Number(x);
+    if (isPrime(x)) {
+      state.sum += x;
+    }
+  }
+
+  export function merge(state, partialState) {
+    state.sum += partialState.sum;
+  }
+
+  export function finalize(state) {
+    return state.sum;
+  }
+
+''';
+
+-- Call the JavaScript UDAF.
+WITH numbers AS (
+  SELECT * FROM UNNEST([10, 11, 13, 17, 19, 20]) AS x)
+SELECT SumOfPrimes(x) AS sum FROM numbers;
+
+/*-----*
+ | sum |
+ +-----+
+ | 60  |
+ *-----*/
+JavaScript 라이브러리 포함
+OPTIONS 절의 library 옵션을 사용해서 JavaScript UDAF를 확장할 수 있습니다. 이 옵션을 사용하면 JavaScript UDAF에 대해 외부 코드 라이브러리를 지정한 후 import 선언을 사용해서 이러한 라이브러리를 가져올 수 있습니다.
+다음 예시에서 bar.js의 코드는 JavaScript UDAF의 함수 본문에 있는 모든 코드에 사용할 수 있습니다.
+CREATE TEMP AGGREGATE FUNCTION JsAggFn(x FLOAT64)
+RETURNS FLOAT64
+LANGUAGE js
+OPTIONS (library = ['gs://foo/bar.js'])
+AS r'''
+
+  import doInterestingStuff from 'bar.js';
+
+  export function initialState() {
+    return ...
+  }
+  export function aggregate(state, x) {
+    var result = doInterestingStuff(x);
+    ...
+  }
+  export function merge(state, partial_state) {
+    ...
+  }
+  export function finalize(state) {
+    return ...;
+  }
+
+''';
+필수 JavaScript 구조
+함수 본문이 모든 행에 대해 실행되는 자유 형식의 JavaScript인 JavaScript UDF와 달리 JavaScript UDAF의 함수 본문은 집계 프로세스의 여러 단계에서 호출되는 기본 제공되는 내보낸 함수를 포함하는 JavaScript 모듈입니다. 이러한 기본 제공되는 함수 중 일부는 필수이고 일부는 선택사항입니다. JavaScript 함수를 추가할 수도 있습니다.
+필수 JavaScript 집계 함수
+JavaScript 함수를 포함할 수 있지만 JavaScript 함수 본문에는 다음과 같이 내보낼 수 있는 JavaScript 함수가 포함되어야 합니다.
+initialState([nonAggregateParam]): 행이 아직 집계되지 않은 집계 상태를 나타내는 JavaScript 객체를 반환합니다.
+aggregate(state, aggregateParam[, ...][, nonAggregateParam]): 하나의 데이터 행을 집계하고 집계 결과를 저장하기 위해 상태를 업데이트합니다. 값을 반환하지 않습니다.
+merge(state, partialState, [nonAggregateParam]): 집계 상태 partialState를 집계 상태 state에 병합합니다. 이 함수는 엔진이 여러 데이터 섹션을 병렬로 집계하고 결과를 조합해야 하는 경우에 사용됩니다. 값을 반환하지 않습니다.
+finalize(finalState, [nonAggregateParam]): 최종 집계 상태가 finalState인 집계 함수의 최종 결과를 반환합니다.
+필수 함수에 대해 자세히 알아보려면 JavaScript UDAF의 필수 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#javascript-interface-functions-udaf]를 참조하세요.
+선택적 JavaScript 직렬화 함수
+직렬화할 수 없는 집계 상태로 작업하려면 JavaScript UDAF가 serialize 및 deserialize 함수를 제공해야 합니다. serialize 함수는 집계 상태를 BigQuery에서 직렬화할 수 있는 객체로 변환합니다. deserialize 함수는 BigQuery에서 직렬화할 수 있는 객체를 다시 집계 상태로 변환합니다.
+serialize(state): 집계 상태의 정보가 포함된 직렬화할 수 있는 객체를 반환합니다. deserialize 함수를 통해 이를 역직렬화합니다.
+deserialize(serializedState): serializedState(이전에 serialize 함수로 직렬화된)를 serialize, aggregate, merge, finalize 함수로 전달할 수 있는 집계 상태로 역직렬화합니다.
+기본 제공 JavaScript 직렬화 함수에 대해 자세히 알아보려면 JavaScript UDAF의 직렬화 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#javascript-serialization-functions-udaf]를 참조하세요.
+JavaScript UDAF로 데이터를 직렬화 및 역직렬화하는 방법을 알아보려면 JavaScript UDAF에서 데이터 직렬화 및 역직렬화 [https://cloud.google.com/bigquery/docs/user-defined-aggregates?hl=ko#serialize-javascript-udaf]를 참조하세요.
+JavaScript UDAF에서 허용되는 SQL 유형 인코딩
+JavaScript UDAFs, t에서 다음과 같이 지원되는 GoogleSQL 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko]은 다음과 같이 JavaScript 데이터 유형 [https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects]을 나타냅니다.
+GoogleSQL
+데이터 유형 JavaScript
+데이터 유형 참고
+ARRAY Array 배열의 배열은 지원되지 않습니다. 이 제한을 피하기 위해서는 Array<Object<Array>>(JavaScript) 및 ARRAY<STRUCT<ARRAY>>(GoogleSQL) 데이터 유형을 사용하면 됩니다.
+BIGNUMERIC Number 또는 String NUMERIC과 동일합니다.
+BOOL Boolean
+BYTES Uint8Array
+DATE Date
+FLOAT64 Number
+INT64 BigInt
+JSON 다양한 유형 GoogleSQL JSON 데이터 유형은 JavaScript Object, Array 또는 기타 GoogleSQL 지원 JavaScript 데이터 유형으로 변환할 수 있습니다.
+NUMERIC Number 또는 String NUMERIC 값을 IEEE 754 부동 소수점 [https://en.wikipedia.org/wiki/Floating-point_arithmetic#IEEE_754:_floating_point_in_modern_computers] 값([-253, 253] 범위)으로 정확하게 표현할 수 있고 소수 부분이 없으면 Number 데이터 유형으로 인코딩되고, 그렇지 않으면 String 데이터 유형으로 인코딩됩니다.
+STRING String
+STRUCT Object 각 STRUCT 필드는 Object 데이터 유형에서 이름이 지정된 속성입니다. 이름이 지정되지 않은 STRUCT 필드는 지원되지 않습니다.
+TIMESTAMP Date Date에는 TIMESTAMP의 마이크로초 부분이 있는 마이크로초 필드가 포함됩니다.
+참고: JavaScript UDAF의 SQL 인코딩은 JavaScript UDF와 다릅니다.
+UDAF 호출
+이 섹션에서는 BigQuery에서 영구 또는 임시 UDAF를 만든 후 이를 호출할 수 있는 여러 방법에 대해 설명합니다.
+참고: JavaScript UDAF 호출은 ORDER BY 절을 지원하지 않습니다.
+영구 UDAF 호출
+기본 제공 집계 함수를 호출하는 것과 동일한 방식으로 영구 UDAF를 호출할 수 있습니다. 자세한 내용은 집계 함수 호출 [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate-function-calls?hl=ko]을 참조하세요. 함수 경로에 데이터 세트를 포함해야 합니다.
+다음 예시에서는 쿼리가 WeightedAverage라는 영구 UDAF를 호출합니다.
+SELECT my_project.my_dataset.WeightedAverage(item, weight, 2) AS weighted_average
+FROM (
+  SELECT 1 AS item, 2.45 AS weight UNION ALL
+  SELECT 3 AS item, 0.11 AS weight UNION ALL
+  SELECT 5 AS item, 7.02 AS weight
+);
+다음과 같은 결과가 포함된 테이블이 생성됩니다.
+/*------------------*
+ | weighted_average |
+ +------------------+
+ | 4.5              |
+ *------------------*/
+임시 UDAF 호출
+기본 제공 집계 함수를 호출하는 것과 동일한 방식으로 임시 UDAF를 호출할 수 있습니다. 자세한 내용은 집계 함수 호출 [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate-function-calls?hl=ko]을 참조하세요.
+임시 함수는 UDAF 함수 호출이 포함된 멀티 문 쿼리 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko] 또는 프러시저 [https://cloud.google.com/bigquery/docs/procedures?hl=ko]에 포함되어야 합니다.
+다음 예시에서는 쿼리가 WeightedAverage라는 임시 UDAF를 호출합니다.
+CREATE TEMP AGGREGATE FUNCTION WeightedAverage(...)
+
+-- Temporary UDAF function call
+SELECT WeightedAverage(item, weight, 2) AS weighted_average
+FROM (
+  SELECT 1 AS item, 2.45 AS weight UNION ALL
+  SELECT 3 AS item, 0.11 AS weight UNION ALL
+  SELECT 5 AS item, 7.02 AS weight
+);
+다음과 같은 결과가 포함된 테이블이 생성됩니다.
+/*------------------*
+ | weighted_average |
+ +------------------+
+ | 4.5              |
+ *------------------*/
+NULL 값이 있는 행 무시 또는 포함
+JavaScript UDAF를 IGNORE NULLS 인수로 호출할 때 BigQuery는 집계 인수가 NULL로 평가되는 행을 자동으로 건너뜁니다. 이러한 행은 집계에서 완전히 제외되며 JavaScript aggregate 함수로 전달되지 않습니다. RESPECT NULLS 인수가 제공된 경우 NULL 필터가 사용 중지되고 NULL 값에 관계없이 모든 행이 JavaScript UDAF로 전달됩니다.
+IGNORE NULLS 또는 RESPECT NULLS 인수가 제공되지 않았으면 기본 인수가 IGNORE NULLS입니다.
+다음 예시에서는 기본 NULL 동작, IGNORE NULLS 동작, RESPECT NULLS 동작을 보여줍니다.
+CREATE TEMP AGGREGATE FUNCTION SumPositive(x FLOAT64)
+RETURNS FLOAT64
+LANGUAGE js
+AS r'''
+
+  export function initialState() {
+    return {sum: 0}
+  }
+  export function aggregate(state, x) {
+    if (x == null) {
+      // Use 1000 instead of 0 as placeholder for null so
+      // that NULL values passed are visible in the result.
+      state.sum += 1000;
+      return;
+    }
+    if (x > 0) {
+      state.sum += x;
+    }
+  }
+  export function merge(state, partialState) {
+    state.sum += partialState.sum;
+  }
+  export function finalize(state) {
+    return state.sum;
+  }
+
+''';
+
+-- Call the JavaScript UDAF.
+WITH numbers AS (
+  SELECT * FROM UNNEST([1.0, 2.0, NULL]) AS x)
+SELECT
+  SumPositive(x) AS sum,
+  SumPositive(x IGNORE NULLS) AS sum_ignore_nulls,
+  SumPositive(x RESPECT NULLS) AS sum_respect_nulls
+FROM numbers;
+
+/*-----+------------------+-------------------*
+ | sum | sum_ignore_nulls | sum_respect_nulls |
+ +-----+------------------+-------------------+
+ | 3.0 | 3.0              | 1003.0            |
+ *-----+------------------+-------------------*/
+UDAF 삭제
+이 섹션에서는 BigQuery에서 영구 또는 임시 UDAF를 만든 후 이를 삭제할 수 있는 여러 방법에 대해 설명합니다.
+영구 UDAF 삭제
+영구 UDAF를 삭제하려면 DROP FUNCTION 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#drop_function_statement]을 사용합니다. 함수 경로에 데이터 세트를 포함해야 합니다.
+다음 예시에서는 쿼리가 WeightedAverage라는 영구 UDAF를 삭제합니다.
+DROP FUNCTION IF EXISTS my_project.my_dataset.WeightedAverage;
+임시 UDAF 삭제
+임시 UDAF를 삭제하려면 DROP FUNCTION 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#drop_function_statement]을 사용합니다.
+다음 예시에서 쿼리는 WeightedAverage라는 임시 UDAF를 삭제합니다.
+DROP FUNCTION IF EXISTS WeightedAverage;
+임시 UDAF는 쿼리가 완료되는 즉시 만료됩니다. 멀티 문 쿼리 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko] 또는 프로시져 [https://cloud.google.com/bigquery/docs/procedures?hl=ko]에서 조기에 제거하려는 경우가 아니라면 UDAF를 삭제할 필요가 없습니다.
+UDAF 나열
+UDAF는 루틴의 한 유형입니다. 데이터 세트의 모든 루틴을 나열하려면 루틴 나열 [https://cloud.google.com/bigquery/docs/routines?hl=ko#list_routines]을 참조하세요.
+성능 팁
+쿼리 성능을 개선하려면 다음을 고려하세요.
+입력을 사전에 필터링합니다. JavaScript에서 데이터를 처리하는 것이 SQL에서 처리하는 것보다 비용이 높으므로 SQL에서 먼저 입력을 가능한 한 많이 필터링하는 것이 좋습니다.
+다음 쿼리는 UDAF 호출에서 x > 0을 사용해서 입력을 필터링하기 때문에 덜 효율적입니다.
+SELECT JsFunc(x) FROM t;
+다음 쿼리는 UDAF가 호출되기 전 WHERE x > 0을 사용해서 입력을 사전 필터링하기 때문에 더 효율적입니다.
+SELECT JsFunc(x) FROM t WHERE x > 0;
+가능한 한 JavaScript 대신 기본 제공되는 집계 함수를 사용합니다. JavaScript에서 기본 제공되는 집계 함수를 다시 구현하는 것은 동일한 역할을 수행하는 기본 제공되는 집계 함수를 호출하는 것보다 속도가 느립니다.
+다음 쿼리는 UDAF를 구현하기 때문에 덜 효율적입니다.
+SELECT SumSquare(x) FROM t;
+다음 쿼리는 이전 쿼리와 동일한 결과를 생성하는 기본 제공되는 함수를 구현하기 때문에 더 효과적입니다.
+SELECT SUM(x*x) FROM t;
+JavaScript UDAF는 기본 제공되는 함수를 통해 표현할 수 없는 보다 복잡한 집계 작업에 적합합니다.
+효율적으로 메모리를 사용하세요. JavaScript 처리 환경은 각 쿼리에 사용 가능한 메모리가 제한적입니다. 로컬 상태를 너무 많이 누적하는 JavaScript UDAF 쿼리는 메모리 소진으로 인해 실패할 수 있습니다. 특히 집계 상태 객체의 크기를 최소화하고 대량의 행이 누적되는 집계 상태를 방지해야 합니다.
+다음 쿼리는 처리되는 행 수가 크게 증가할 때 aggregate 함수가 메모리를 무제한으로 사용하기 때문에 효율적이지 않습니다.
+export function initialState() {
+  return {rows: []};
+}
+export function aggregate(state, x) {
+  state.rows.push(x);
+}
+...
+가능한 한 파티션을 나눈 테이블을 사용하세요. 일반적으로 JavaScript UDAF는 파티션을 나누지 않은 테이블에 비해 파티션을 나눈 테이블에 대해 쿼리를 실행할 때 더 효율적으로 실행됩니다. 파티션을 나눈 테이블은 파티션을 나누지 않은 테이블에 비해 더 작은 여러 개의 파일로 데이터를 저장하므로, 동시 실행 수준이 높습니다.
+제한사항
+UDAF에는 UDF에 적용되는 것과 동일한 제한사항이 있습니다. 자세한 내용은 UDF 제한사항 [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#limitations]을 참조하세요.
+리터럴, 쿼리 매개변수, 스크립트 변수만 UDAF의 비집계 인수로 전달할 수 있습니다.
+JavaScript UDAF 함수 호출에서 ORDER BY 절 사용은 지원되지 않습니다.
+SELECT MyUdaf(x ORDER BY y) FROM t; -- Error: ORDER BY is unsupported.
+가격 책정
+UDAF에는 표준 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 모델이 적용되어 요금이 청구됩니다.
+할당량 및 한도
+UDAF에는 UDF에 적용되는 것과 동일한 할당량 및 한도가 적용됩니다. UDF 할당량에 대한 자세한 내용은 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#udf_limits]를 참조하세요.
+도움이 되었나요?
+의견 보내기

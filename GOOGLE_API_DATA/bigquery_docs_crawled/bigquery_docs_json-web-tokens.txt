@@ -1,0 +1,100 @@
+Source URL: https://cloud.google.com/bigquery/docs/json-web-tokens
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+범위 및 대상 [https://cloud.google.com/bigquery/docs/json-web-tokens?hl=ko#scope_and_audience]
+클라이언트 라이브러리로 JWT 만들기 [https://cloud.google.com/bigquery/docs/json-web-tokens?hl=ko#client-libraries]
+REST 또는 gcloud CLI로 JWT 만들기 [https://cloud.google.com/bigquery/docs/json-web-tokens?hl=ko#rest-gcloud]
+다음 단계 [https://cloud.google.com/bigquery/docs/json-web-tokens?hl=ko#whats_next]
+JWT로 인증
+bookmark_border
+BigQuery API는 JSON 웹 토큰(JWT) [https://datatracker.ietf.org/doc/rfc7519/]을 수락하여 요청을 인증합니다.
+애플리케이션 기본 사용자 인증 정보(ADC)를 사용하여 BigQuery에 인증 [https://cloud.google.com/bigquery/docs/authentication?hl=ko]을 사용하는 것이 좋습니다. ADC를 사용할 수 없고 인증에 서비스 계정을 사용하는 경우 대신 서명된 JWT를 사용 [https://developers.google.com/identity/protocols/oauth2/service-account?hl=ko#jwt-auth]할 수 있습니다. JWT를 사용하면 Google의 승인 서버에 대한 네트워크 요청 없이 API를 호출할 수 있습니다.
+JWT를 사용하여 다음과 같은 방법으로 인증할 수 있습니다.
+Google Cloud Console에서 또는 gcloud CLI를 사용하여 생성된 서비스 계정 키의 경우 JWT 서명을 제공하는 클라이언트 라이브러리를 사용 [https://cloud.google.com/bigquery/docs/json-web-tokens?hl=ko#client-libraries]합니다.
+시스템 관리 서비스 계정의 경우 REST API 또는 gcloud CLI를 사용 [https://cloud.google.com/bigquery/docs/json-web-tokens?hl=ko#rest-gcloud]합니다.
+범위 및 대상
+가능하면 서비스 계정과 함께 범위 [https://developers.google.com/identity/protocols/oauth2/scopes?hl=ko]를 사용하세요. 불가능하다면 대상 클레임 [https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3]을 사용할 수 있습니다. BigQuery API의 경우 대상 값을 https://bigquery.googleapis.com/으로 설정합니다.
+클라이언트 라이브러리로 JWT 만들기
+Google Cloud Console에서 또는 gcloud CLI를 사용하여 생성된 서비스 계정 키의 경우 JWT 서명을 제공하는 클라이언트 라이브러리를 사용합니다. 다음 목록은 많이 사용되는 프로그래밍 언어에 적합한 몇 가지 옵션을 제공합니다.
+Go: func JWTAccessTokenSourceFromJSON [https://pkg.go.dev/golang.org/x/oauth2/google#JWTAccessTokenSourceFromJSON]
+Java: 클래스 ServiceAccountCredentials [https://cloud.google.com/java/docs/reference/google-auth-library/latest/com.google.auth.oauth2.ServiceAccountCredentials?hl=ko]
+Node.js: 클래스 JWTAccess [https://cloud.google.com/nodejs/docs/reference/google-auth-library/latest/google-auth-library/jwtaccess?hl=ko]
+PHP: ServiceAccountJwtAccessCredentials [https://cloud.google.com/php/docs/reference/cloud-bigquery/latest?hl=ko#authentication]
+Python: google.auth.jwt 모듈 [https://googleapis.dev/python/google-auth/latest/reference/google.auth.jwt.html]
+Ruby: 클래스: Google::Auth::ServiceAccountJwtHeaderCredentials [https://www.rubydoc.info/gems/googleauth/Google/Auth/ServiceAccountJwtHeaderCredentials]
+자바 예시
+다음 예시에서는 자바용 BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]를 사용하여 JWT를 만들고 서명합니다. BigQuery API의 기본 범위는 클라이언트 라이브러리에서 https://www.googleapis.com/auth/bigquery로 설정됩니다.
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.common.collect.ImmutableList;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.URI;
+
+public class Example {
+    public static void main(String... args) throws IOException {
+        String projectId = "myproject";
+        // Load JSON file that contains service account keys and create ServiceAccountCredentials object.
+        String credentialsPath = "/path/to/key.json";
+        ServiceAccountCredentials credentials = null;
+        try (FileInputStream is = new FileInputStream(credentialsPath)) {
+          credentials =  ServiceAccountCredentials.fromStream(is);
+          // The default scope for BigQuery is used. 
+          // Alternatively, use `.setScopes()` to set custom scopes.
+          credentials = credentials.toBuilder()
+              .setUseJwtAccessWithScope(true)
+              .build();
+        }
+        // Instantiate BigQuery client with the credentials object.
+        BigQuery bigquery =
+                BigQueryOptions.newBuilder().setCredentials(credentials).build().getService();
+        // Use the client to list BigQuery datasets.
+        System.out.println("Datasets:");
+        bigquery
+            .listDatasets(projectId)
+            .iterateAll()
+            .forEach(dataset -> System.out.printf("%s%n", dataset.getDatasetId().getDataset()));
+    }
+}
+REST 또는 gcloud CLI로 JWT 만들기
+시스템 관리 서비스 계정의 경우 JWT를 수동으로 조합한 다음 REST 메서드 projects.serviceAccounts.signJwt [https://cloud.google.com/iam/docs/reference/credentials/rest/v1/projects.serviceAccounts/signJwt?hl=ko] 또는 Google Cloud CLI 명령어 gcloud beta iam service-accounts sign-jwt [https://cloud.google.com/sdk/gcloud/reference/beta/iam/service-accounts/sign-jwt?hl=ko]를 사용하여 JWT에 서명합니다. 이러한 방법 중 하나를 사용하려면 서비스 계정 토큰 생성자 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#service-accounts-roles] Identity and Access Management 역할의 구성원이어야 합니다.
+gcloud CLI 예시
+다음 예시에서는 JWT를 조합한 후 gcloud beta iam service-accounts sign-jwt 명령어를 사용하여 서명하는 bash 스크립트를 보여줍니다.
+#!/bin/bash
+
+SA_EMAIL_ADDRESS="myserviceaccount@myproject.iam.gserviceaccount.com"
+
+TMP_DIR=$(mktemp -d /tmp/sa_signed_jwt.XXXXX)
+trap "rm -rf ${TMP_DIR}" EXIT
+JWT_FILE="${TMP_DIR}/jwt-claim-set.json"
+SIGNED_JWT_FILE="${TMP_DIR}/output.jwt"
+
+IAT=$(date '+%s')
+EXP=$((IAT+3600))
+
+cat <<EOF > $JWT_FILE
+{
+  "aud": "https://bigquery.googleapis.com/",
+  "iat": $IAT,
+  "exp": $EXP,
+  "iss": "$SA_EMAIL_ADDRESS",
+  "sub": "$SA_EMAIL_ADDRESS"
+}
+EOF
+
+gcloud beta iam service-accounts sign-jwt --iam-account $SA_EMAIL_ADDRESS $JWT_FILE $SIGNED_JWT_FILE
+
+echo "Datasets:"
+curl -L -H "Authorization: Bearer $(cat $SIGNED_JWT_FILE)" \
+-X GET \
+"https://bigquery.googleapis.com/bigquery/v2/projects/myproject/datasets?alt=json"
+다음 단계
+BigQuery 인증 [https://cloud.google.com/bigquery/docs/authentication?hl=ko] 자세히 알아보기
+최종 사용자 인증 정보로 인증 [https://cloud.google.com/bigquery/docs/authentication/end-user-installed?hl=ko]하는 방법 알아보기
+의견 보내기

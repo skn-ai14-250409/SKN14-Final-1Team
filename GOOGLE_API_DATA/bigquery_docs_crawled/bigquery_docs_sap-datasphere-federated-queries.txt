@@ -1,0 +1,72 @@
+Source URL: https://cloud.google.com/bigquery/docs/sap-datasphere-federated-queries
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/sap-datasphere-federated-queries?hl=ko#limitations]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/sap-datasphere-federated-queries?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/sap-datasphere-federated-queries?hl=ko#required_roles]
+데이터 쿼리 [https://cloud.google.com/bigquery/docs/sap-datasphere-federated-queries?hl=ko#query_data]
+SAP Datasphere 테이블 스키마 보기 [https://cloud.google.com/bigquery/docs/sap-datasphere-federated-queries?hl=ko#view-schema]
+가격 책정 [https://cloud.google.com/bigquery/docs/sap-datasphere-federated-queries?hl=ko#pricing]
+다음 단계 [https://cloud.google.com/bigquery/docs/sap-datasphere-federated-queries?hl=ko#whats_next]
+SAP Datasphere 통합 쿼리
+bookmark_border
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 프리뷰 기능에 대한 지원을 받거나 의견을 보내려면 bq-sap-federation-support@google.com [mailto:bq-sap-federation-support@google.com]에 문의하세요.
+데이터 분석가는 통합 쿼리를 사용하여 BigQuery에서 SAP Datasphere의 관계형 데이터를 쿼리할 수 있습니다.
+BigQuery SAP Datasphere 통합을 사용하면 BigQuery에서 데이터 복사 또는 이동 없이 SAP Datasphere에 위치한 데이터를 실시간으로 쿼리할 수 있습니다.
+SAP Datasphere에서 SQL 쿼리를 실행하려면 BigQuery 내에서 EXTERNAL_QUERY 함수에 SQL 쿼리를 지정하세요. 그러면 결과가 SAP Datasphere에서 BigQuery로 전송됩니다.
+제한사항
+사용을 위해 노출 [https://help.sap.com/docs/SAP_DATASPHERE/43509d67b8b84e66a30851e832f66911/d7d56284bb5148c887ac4054689bfbca.html?locale=en-US]된 관계형 뷰만 쿼리할 수 있습니다. SAP Datasphere의 다른 객체는 EXTERNAL_QUERY를 통해 제휴된 쿼리에 액세스할 수 없습니다.
+제휴된 쿼리 지연 시간은 SAP Datasphere에서 직접 실행된 경우 동일한 쿼리보다 훨씬 더 길 수 있습니다.
+특정 프로젝트에서 SAP Datasphere 연결을 사용하는 첫 번째 쿼리는 실행하는 데 1분 이상 걸릴 수 있습니다.
+SAP Datasphere에는 추가 SQL 푸시다운 [https://cloud.google.com/bigquery/docs/federated-queries-intro?hl=ko#sql_pushdowns]이 지원되지 않습니다.
+SAP Datasphere SQL 쿼리는 함수 결과를 포함하는 열의 별칭을 지정해야 합니다.
+쿼리 프로젝트에서 Compute Engine API 사용이 VPC 서비스 제어 [https://cloud.google.com/vpc-service-controls/docs/overview?hl=ko]에 의해 제한되면 통합 쿼리가 실패합니다.
+시작하기 전에
+BigQuery 관리자가 SAP Datasphere 연결을 만들고 [https://cloud.google.com/bigquery/docs/connect-to-sap-datasphere?hl=ko] 사용자와 공유 [https://cloud.google.com/bigquery/docs/connect-to-sap-datasphere?hl=ko#share_connections]했는지 확인합니다.
+필요한 역할
+SAP Datasphere를 쿼리하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트에 대한 BigQuery 연결 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.connectionUser](roles/bigquery.connectionUser) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+데이터 쿼리
+GoogleSQL 쿼리에서 통합 쿼리를 SAP Datasphere로 보내려면 EXTERNAL_QUERY 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/federated_query_functions?hl=ko#external_query]를 사용합니다.
+다음 예는 SAP Datasphere의 ORDERS 테이블과 BigQuery의 mydataset.customers 테이블을 조인하는 통합 쿼리입니다.
+SELECT c.customer_id, c.name, rq.first_order_date
+FROM mydataset.customers AS c
+LEFT OUTER JOIN EXTERNAL_QUERY(
+  'connection_id',
+  '''SELECT CUSTOMER_ID, MIN(ORDER_DATE) AS first_order_date
+     FROM ORDERS
+     GROUP BY CUSTOMER_ID''') AS rq
+  ON rq.customer_id = c.customer_id
+GROUP BY c.customer_id, c.name, rq.first_order_date;
+SAP Datasphere 테이블 스키마 보기
+다음 예에서는 EXTERNAL_QUERY 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/federated_query_functions?hl=ko#external_query]를 사용하여 SAP Datasphere의 SYS 스키마에서 데이터베이스 메타데이터를 가져옵니다.
+-- List all views in a schema.
+SELECT * FROM EXTERNAL_QUERY(
+  'connection_id',
+  '''SELECT VIEW_NAME FROM SYS.VIEWS
+     WHERE SCHEMA_NAME = 'MY_SCHEMA'''');
+-- List all columns in a view.
+SELECT * FROM EXTERNAL_QUERY(
+  'connection_id',
+  '''SELECT COLUMN_NAME, DATA_TYPE_NAME
+     FROM SYS.VIEW_COLUMNS
+     WHERE SCHEMA_NAME = 'MY_SCHEMA' AND
+           VIEW_NAME = 'my_view'
+     ORDER BY POSITION''');
+가격 책정
+통합 쿼리 실행 비용은 다음 세 가지 요소를 기반으로 합니다.
+SAP Datasphere에서 쿼리를 실행하는 컴퓨팅 비용
+SAP Datasphere에서 BigQuery로 쿼리 결과를 전송하는 대역폭 비용
+BigQuery에서 쿼리를 실행하는 데 드는 컴퓨팅 비용
+SAP Datasphere 관련 비용은 사용하는 SAP 서비스 유형에 따라 다릅니다. 대역폭 비용을 제한하려면 최종 결과를 계산하는 데 필요하지 않은 모든 열과 행을 제외하도록 EXTERNAL_QUERY에 쿼리를 작성하는 것이 좋습니다.
+BigQuery에서 통합 쿼리를 실행하는 데는 추가 비용이 발생하지 않습니다. BigQuery 가격에 대한 자세한 내용은 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]을 참조하세요.
+다음 단계
+통합 쿼리 [https://cloud.google.com/bigquery/docs/federated-queries-intro?hl=ko] 알아보기
+지원되지 않는 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/federated_query_functions?hl=ko#unsupported_data_types] 알아보기
+의견 보내기

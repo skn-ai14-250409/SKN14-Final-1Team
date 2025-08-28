@@ -1,0 +1,278 @@
+Source URL: https://cloud.google.com/bigquery/docs/remote-functions-translation-tutorial
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/remote-functions-translation-tutorial?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/remote-functions-translation-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/remote-functions-translation-tutorial?hl=ko#before_you_begin]
+Google Cloud 프로젝트 설정 [https://cloud.google.com/bigquery/docs/remote-functions-translation-tutorial?hl=ko#setup-project]
+계정에 필요한 역할 [https://cloud.google.com/bigquery/docs/remote-functions-translation-tutorial?hl=ko#required_roles_for_your_account]
+원격 함수 및 Translation API 튜토리얼
+bookmark_border
+이 튜토리얼에서는 BigQuery 원격 함수 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko]를 만들고, Cloud Translation API [https://cloud.google.com/translate/docs/reference/api-overview?hl=ko]를 호출하고, SQL 및 Python을 사용하여 모든 언어에서 스페인어로 콘텐츠 번역을 수행하는 방법을 설명합니다.
+이 함수의 사용 사례에는 다음이 포함됩니다.
+웹사이트의 사용자 댓글을 현지 언어로 번역
+지원 케이스 작업자를 위해 여러 언어의 지원 요청을 하나의 공통 언어로 번역합니다.
+목표
+필요한 역할을 계정 할당하기
+Cloud Run 함수 만들기
+BigQuery 데이터 세트 만들기
+BigQuery 연결 및 서비스 계정 만들기
+BigQuery 서비스 계정에 권한 부여하기
+BigQuery 원격 함수 만들기
+BigQuery 원격 함수 호출하기
+비용
+이 문서에서는 비용이 청구될 수 있는 Google Cloud구성요소( )를 사용합니다.
+BigQuery [https://cloud.google.com/bigquery/pricing?hl=ko]
+Cloud Run functions [https://cloud.google.com/functions/pricing?hl=ko]
+Cloud Translation [https://cloud.google.com/translate/pricing?hl=ko]
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+시작하기 전에
+이 튜토리얼에서는 Google Cloud 프로젝트를 만드는 것이 좋습니다. 또한 이 튜토리얼을 완료하는 데 필요한 역할이 있는지 확인합니다.
+Google Cloud 프로젝트 설정
+이 튜토리얼을 위한 Google Cloud 프로젝트를 설정하려면 다음 단계를 완료하세요.
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, Cloud Translation, Cloud Run functions, Cloud Build, Cloud Logging, Cloud Pub/Sub, Artifact Registry, and Cloud Run Admin APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery%2Cbigqueryconnection.googleapis.com%2Ctranslate.googleapis.com%2Ccloudfunctions%2Ccloudbuild.googleapis.com%2Clogging.googleapis.com%2Cpubsub.googleapis.com%2Cartifactregistry.googleapis.com%2Crun.googleapis.com&hl=ko]
+계정에 필요한 역할
+이 튜토리얼의 작업을 수행하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트에 대한 다음 IAM 역할을 부여해 달라고 요청하세요.
+BigQuery 데이터 소유자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataOwner] (roles/bigquery.dataOwner)
+BigQuery 연결 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.connectionAdmin](roles/bigquery.connectionAdmin)
+Cloud Functions 개발자 [https://cloud.google.com/iam/docs/roles-permissions/cloudfunctions?hl=ko#cloudfunctions.developer](roles/cloudfunctions.developer)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이러한 사전 정의된 역할에는 이 튜토리얼의 작업을 수행하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+Compute Engine 기본 서비스 계정에 필요한 역할
+Cloud Run 함수용 API를 사용 설정하면 Compute Engine 기본 서비스 계정 [https://cloud.google.com/compute/docs/access/service-accounts?hl=ko#default_service_account]이 생성됩니다. 이 튜토리얼을 완료하려면 이 기본 서비스 계정에 Cloud Translation API 사용자 역할을 부여해야 합니다.
+프로젝트에 할당된 ID를 가져옵니다 [https://cloud.google.com/resource-manager/docs/creating-managing-projects?hl=ko#identifying_projects].
+Compute Engine 기본 서비스 계정을 복사합니다. 기본 서비스 계정은 다음과 같습니다.
+PROJECT_NUMBER-compute@developer.gserviceaccount.com
+PROJECT_NUMBER를 프로젝트 ID로 바꿉니다.
+Google Cloud 콘솔에서 IAM 페이지로 이동합니다.
+IAM으로 이동 [https://console.cloud.google.com/projectselector/iam-admin/iam?supportedpurview=project%2Cfolder%2CorganizationId&hl=ko]
+프로젝트를 선택합니다.
+person_add 액세스 권한 부여를 클릭한 후 새 주 구성원 필드에서 이전에 복사한 Compute Engine 기본 서비스 계정을 붙여넣습니다.
+역할 할당 목록에서 Cloud Translation API 사용자를 검색하여 선택합니다.
+저장을 클릭합니다.
+Cloud Run 함수 만들기
+Cloud Run을 사용하여 입력 텍스트를 스페인어로 번역하는 함수를 만듭니다.
+다음 사양으로 Cloud Run 함수를 만듭니다 [https://cloud.google.com/functions/docs/console-quickstart?hl=ko#create_a_function].
+환경에서 2세대를 선택합니다.
+함수 이름에 translation-handler를 입력합니다.
+리전에서 us-central1을 선택합니다.
+최대 인스턴스 수에 10를 입력합니다.
+이 설정은 런타임, 빌드, 연결, 보안 설정 섹션에 있습니다.
+이 튜토리얼에서는 Translation에 전송되는 요청 비율을 제어하기 위해 기본값보다 낮은 값을 사용합니다.
+런타임에 Python 3.10을 선택합니다.
+진입점에 handle_translation를 입력합니다.
+파일 목록에서 main.py를 선택한 후 다음 코드를 붙여넣습니다.
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요. 자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+from __future__ import annotations
+
+
+import flask
+import functions_framework
+from google.api_core.retry import Retry
+from google.cloud import translate
+
+# Construct a Translation Client object
+translate_client = translate.TranslationServiceClient()
+
+
+# Register an HTTP function with the Functions Framework
+@functions_framework.http
+def handle_translation(request: flask.Request) -> flask.Response:
+    """BigQuery remote function to translate input text.
+
+    Args:
+        request: HTTP request from BigQuery
+        https://cloud.google.com/bigquery/docs/reference/standard-sql/remote-functions#input_format
+
+    Returns:
+        HTTP response to BigQuery
+        https://cloud.google.com/bigquery/docs/reference/standard-sql/remote-functions#output_format
+    """
+    try:
+        # Parse request data as JSON
+        request_json = request.get_json()
+        # Get the project of the query
+        caller = request_json["caller"]
+        project = extract_project_from_caller(caller)
+        if project is None:
+            return flask.make_response(
+                flask.jsonify(
+                    {
+                        "errorMessage": (
+                            'project can\'t be extracted from "caller":' f" {caller}."
+                        )
+                    }
+                ),
+                400,
+            )
+        # Get the target language code, default is Spanish ("es")
+        context = request_json.get("userDefinedContext", {})
+        target = context.get("target_language", "es")
+
+        calls = request_json["calls"]
+        translated = translate_text([call[0] for call in calls], project, target)
+
+        return flask.jsonify({"replies": translated})
+    except Exception as err:
+        return flask.make_response(
+            flask.jsonify({"errorMessage": f"Unexpected error {type(err)}:{err}"}),
+            400,
+        )
+
+
+def extract_project_from_caller(job: str) -> str:
+    """Extract project id from full resource name of a BigQuery job.
+
+    Args:
+        job: full resource name of a BigQuery job, like
+          "//bigquery.googleapi.com/projects/<project>/jobs/<job_id>"
+
+    Returns:
+        project id which is contained in the full resource name of the job.
+    """
+    path = job.split("/")
+    return path[4] if len(path) > 4 else None
+
+
+def translate_text(
+    calls: list[str], project: str, target_language_code: str
+) -> list[str]:
+    """Translates the input text to specified language using Translation API.
+
+    Args:
+        calls: a list of input text to translate.
+        project: the project where the translate service will be used.
+        target_language_code: The ISO-639 language code to use for translation
+          of the input text. See
+          https://cloud.google.com/translate/docs/advanced/discovering-supported-languages-v3#supported-target
+            for the supported language list.
+
+    Returns:
+        a list of translated text.
+    """
+    location = "<your location>"
+    parent = f"projects/{project}/locations/{location}"
+    # Call the Translation API, passing a list of values and the target language
+    response = translate_client.translate_text(
+        request={
+            "parent": parent,
+            "contents": calls,
+            "target_language_code": target_language_code,
+            "mime_type": "text/plain",
+        },
+        retry=Retry(),
+    )
+    # Convert the translated value to a list and return it
+    return [translation.translated_text for translation in response.translations]
+<your location>을 us-central1로 업데이트합니다.
+파일 목록에서 requirements.txt를 선택한 후 다음 텍스트를 붙여넣습니다.
+Flask==2.2.2
+functions-framework==3.8.2
+google-cloud-translate==3.18.0
+Werkzeug==2.3.8
+배포를 클릭하고 함수가 배포될 때까지 기다립니다.
+트리거 탭을 클릭합니다.
+트리거 URL 값을 복사하고 나중에 사용할 수 있도록 저장하세요. BigQuery 원격 함수를 만들 때 이 URL을 사용해야 합니다.
+BigQuery 데이터 세트 만들기
+원격 함수를 포함할 BigQuery 데이터 세트를 만듭니다 [https://cloud.google.com/bigquery/docs/datasets?hl=ko#create-dataset]. 데이터 세트를 만들 때 다음 사양을 포함합니다.
+데이터 세트 ID에 remote_function_test를 입력합니다.
+위치 유형으로 멀티 리전을 선택합니다.
+멀티 리전에서 미국(미국의 여러 리전)을 선택합니다.
+BigQuery 연결 및 서비스 계정 만들기
+Cloud Run 함수 및 Cloud Run에서 지원되는 언어로 원격 함수를 구현할 수 있도록 BigQuery 연결을 만듭니다. 연결을 만들면 해당 연결에 대한 서비스 계정이 생성됩니다.
+다음 사양으로 Google Cloud 리소스 연결을 만듭니다 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection].
+연결 유형으로 BigLake 및 원격 함수(Cloud 리소스)를 선택합니다.
+연결 ID에 remote-function-connection을 입력합니다.
+위치 유형으로 멀티 리전을 선택합니다.
+멀티 리전에서 미국(미국의 여러 리전)을 선택합니다.
+외부 연결 목록을 열고 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#list-connections] us.remote-function-connection을 선택합니다.
+서비스 계정 ID를 복사하여 나중을 위해 저장합니다. 다음 단계에서 이 ID에 권한을 부여해야 합니다.
+BigQuery 서비스 계정에 권한 부여
+이전 단계에서 만든 서비스 계정에는 BigQuery 원격 함수가 Cloud Run 함수를 사용할 수 있도록 Cloud Run 사용 권한이 필요합니다. 서비스 계정에 권한을 부여하려면 다음 단계를 완료하세요.
+Cloud Run 페이지로 이동합니다.
+Cloud Run으로 이동 [https://console.cloud.google.com/project/_/run?hl=ko]
+프로젝트를 선택합니다.
+translation-handler 옆의 체크박스를 선택합니다.
+권한 패널에서 주 구성원 추가를 클릭합니다.
+새 주 구성원 필드에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 할당 목록에서 Cloud Run 호출자를 검색하여 선택합니다.
+저장을 클릭합니다.
+참고: 새 권한이 적용되려면 최대 1분이 걸릴 수 있습니다.
+BigQuery 원격 함수 만들기
+BigQuery 원격 함수로 텍스트를 스페인어로 번역하는 Cloud Run 함수를 사용하려면 다음 단계를 완료하세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 입력합니다.
+CREATE OR REPLACE FUNCTION `remote_function_test.translate_text`(x STRING)
+RETURNS
+STRING
+    REMOTE WITH CONNECTION `us.remote-function-connection`
+OPTIONS (
+    endpoint = '
+TRIGGER_URL',
+    max_batching_rows = 10);
+TRIGGER_URL을 이전에 Cloud Run 함수를 만들 때 저장한 트리거 URL로 바꿉니다.
+실행을 클릭합니다. 다음과 유사한 메시지가 표시됩니다.
+This statement created a new function named
+your_project.remote_function_test.translate_text.
+참고: HTTP 요청에 포함되는 행 수를 제한하기 위해 max_batching_rows 옵션이 10으로 설정됩니다. max_batching_rows 옵션을 지정하지 않으면 BigQuery가 HTTP 요청에 포함할 행 수를 결정합니다.
+BigQuery 원격 함수 호출
+원격 함수를 만든 후 테스트하여 Cloud Run 함수에 연결되고 스페인어로 예상되는 결과를 생성하는지 확인합니다.
+BigQuery 쿼리 편집기에서 다음 쿼리를 입력한 다음 실행을 클릭합니다.
+SELECT
+  remote_function_test.translate_text('This new feature is fantastic!')
+    AS translated_text;
+결과는 다음과 비슷합니다.
++-------------------------------------------+
+| translated_text                           |
++-------------------------------------------+
+| ¡Esta nueva característica es fantástica! |
++-------------------------------------------+
+선택사항: 공개 데이터 세트에서 원격 함수를 테스트하려면 다음 쿼리를 입력한 다음 실행을 클릭합니다. 반환되는 결과를 제한하려면 LIMIT 절을 사용합니다.
+SELECT
+    text,
+    remote_function_test.translate_text(text) AS translated_text
+FROM
+    (SELECT text FROM `bigquery-public-data.hacker_news.full` LIMIT 3);
+결과는 다음과 비슷합니다.
++---------------------------------------------------------------------------+
+| text                            | translated_text                         |
++---------------------------------------------------------------------------+
+| These benchmarks look good.     | Estos puntos de referencia se ven bien. |
+| Who is using Java?              | ¿Quién está usando Java?                |
+| You need more database storage. | Necesitas más almacenamiento.           |
++---------------------------------------------------------------------------+
+리소스 삭제
+이 프로젝트에서 이러한 함수를 사용하지 않을 경우 프로젝트를 삭제하여 추가 비용을 방지할 수 있습니다. 이렇게 하면 프로젝트와 연결된 모든 리소스가 영구적으로 삭제됩니다.
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+BigQuery에서 원격 함수 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko]를 사용하는 방법 알아보기
+Translation [https://cloud.google.com/translate/docs/overview?hl=ko] 알아보기
+Cloud Run Functions [https://cloud.google.com/functions/docs/concepts/overview?hl=ko]에 대해 알아봅니다.
+Cloud Run [https://cloud.google.com/run/docs/overview/what-is-cloud-run?hl=ko] 알아보기
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,155 @@
+Source URL: https://cloud.google.com/bigquery/docs/migration/schema-data-overview
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+스키마 및 데이터 마이그레이션 프로세스 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#schema_and_data_migration_process]
+BigQuery로 스키마 및 데이터 전송 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#migrating_data_and_schema_from_on-premises_to_bigquery]
+BigQuery에서 스키마 개선 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#evolving_your_schema_in_bigquery]
+스키마 및 데이터의 초기 전송 수행 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko##initial-data-transfer]
+전송 방법 선택 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#choose_a_transfer_method]
+데이터 변환 고려 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#consider_data_transformation]
+기존 스키마와 데이터를 파일로 추출 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#extract_the_existing_schema_and_data_into_files]
+Cloud Storage에 파일 업로드 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#upload-data]
+스키마 및 데이터 전송 개요
+bookmark_border
+이 문서에서는 스키마와 데이터를 기존 데이터 웨어하우스에서 BigQuery로 전송하기 위한 개념과 작업에 대해 설명합니다.
+데이터 웨어하우스를 클라우드로 마이그레이션하는 작업은 계획, 리소스, 시간을 필요로 하는 복잡한 프로세스입니다. 이러한 복잡성에 대처하려면 단계적, 반복적 방식으로 데이터 웨어하우스 마이그레이션에 접근해야 합니다. 스키마 및 데이터 마이그레이션을 여러 번 반복하면 결과가 개선될 수 있습니다.
+스키마 및 데이터 마이그레이션 프로세스
+마이그레이션 과정을 시작할 때는 기존 데이터 웨어하우스에 데이터를 공급하는 업스트림 시스템, 그리고 보고서, 대시보드에서 이 데이터를 사용하고 다른 프로세스의 피드로 사용하는 다운스트림 시스템이 있습니다.
+다음 다이어그램과 같이 이 일반적인 데이터 흐름은 다양한 분석 사용 사례 [https://cloud.google.com/bigquery/docs/migration/migration-overview?hl=ko#use-case]를 지원합니다.
+마이그레이션 과정의 최종 상태는 최대한 많은 사용 사례를 BigQuery에서 실행하는 것입니다. 이 상태에 이르면 기존 데이터 웨어하우스의 사용을 최소화하고 단계적으로 사용을 중단할 수 있습니다. 마이그레이션의 준비 및 탐색 [https://cloud.google.com/bigquery/docs/migration/migration-overview?hl=ko#prepare-and-discover] 단계에서 우선순위를 지정하여 마이그레이션되는 사용 사례와 시점을 제어할 수 있습니다.
+BigQuery로 스키마 및 데이터 전송
+마이그레이션 계획 [https://cloud.google.com/bigquery/docs/migration/migration-overview?hl=ko#plan] 단계에서 마이그레이션할 사용 사례를 파악합니다. 그런 다음 실행 [https://cloud.google.com/bigquery/docs/migration/migration-overview?hl=ko#execute] 단계에서 마이그레이션 반복을 시작합니다. 분석 환경을 실행하면서 최소한의 중단으로 반복을 관리하려면 대략적으로 다음과 같은 프로세스를 따르세요.
+테이블을 전송하고 다운스트림 프로세스를 구성 및 테스트합니다.
+BigQuery Data Transfer Service 또는 다른 ETL 도구를 사용하여 각 사용 사례의 테이블 그룹을 BigQuery로 마이그레이션합니다. 도구에 대한 자세한 내용은 초기 데이터 전송 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#initial-data-transfer] 섹션을 참조하세요.
+BigQuery 테이블에서 읽도록 다운스트림 프로세스의 테스트 버전을 구성합니다.
+이 초기 단계는 데이터의 흐름을 나눕니다. 다음 다이어그램에서 그 결과로 나타나는 흐름을 볼 수 있습니다. 현재 일부 다운스트림 시스템은 B 흐름에서 볼 수 있듯이 BigQuery에서 데이터를 읽지만 일부는 여전히 A 흐름과 같이 기존 데이터 웨어하우스에서 데이터를 읽습니다.
+기존 데이터 웨어하우스에 쓰는 대신(또는 기존 데이터베이스에 쓰기와 함께) BigQuery 테이블에 데이터를 쓰도록 일부 테스트 업스트림 프로세스를 구성합니다.
+테스트 후 BigQuery 테이블에서 쓰고 읽도록 프로덕션 업스트림 및 다운스트림 프로세스를 구성합니다. 이러한 프로세스는 BigQuery API [https://cloud.google.com/bigquery/docs/reference?hl=ko]를 사용하여 BigQuery에 연결하고 Looker Studio [https://lookerstudio.google.com/?hl=ko] 및 Dataflow [https://cloud.google.com/dataflow/docs?hl=ko]와 같은 새로운 클라우드 제품을 통합할 수 있습니다.
+이 시점에서 세 가지 데이터 흐름이 있습니다.
+기존. 데이터와 프로세스가 변경되지 않고 여전히 기존 데이터 웨어하우스에 집중됩니다.
+오프로드됨 [https://cloud.google.com/bigquery/docs/migration/migration-overview?hl=ko#offload]. 업스트림 프로세스가 기존 데이터 웨어하우스로 데이터를 피드하고, 데이터는 BigQuery로 오프로드된 다음 다운스트림 프로세스로 피드됩니다.
+완전히 마이그레이션됨 [https://cloud.google.com/bigquery/docs/migration/migration-overview?hl=ko#full-migration]. 업스트림 및 다운스트림 프로세스가 더 이상 기존 데이터 웨어하우스에서 쓰거나 읽지 않습니다.
+다음 다이어그램은 이러한 세 가지 흐름이 모두 포함된 시스템을 보여줍니다.
+마이그레이션을 위한 추가 사용 사례를 선택한 다음 1단계로 이동하여 새 실행 반복 [https://cloud.google.com/bigquery/docs/migration/migration-overview?hl=ko#migrating-using-an-iterative-approach]을 시작합니다. 모든 사용 사례가 BigQuery로 완전히 마이그레이션될 때까지 이 단계를 반복합니다. 사용 사례를 선택할 때 오프로드 상태로 남은 인스턴스를 다시 찾아 완전히 마이그레이션된 상태로 옮길 수 있습니다. 완전히 마이그레이션된 사용 사례의 경우 BigQuery에서 스키마 개선 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#evolving_your_schema_in_bigquery]의 가이드라인에 따라 개선 프로세스를 계속 진행할 수 있습니다.
+BigQuery에서 스키마 개선
+데이터 웨어하우스 스키마는 데이터를 구조화하는 방법을 정의하고 데이터 항목 간의 관계를 정의합니다. 스키마는 데이터 설계의 핵심이며 업스트림 및 다운스트림의 여러 프로세스에 영향을 미칩니다.
+데이터 웨어하우스 마이그레이션은 BigQuery로 이동된 스키마를 개선할 수 있는 고유한 기회를 제공합니다. 이 섹션에서는 일련의 단계를 사용하여 스키마를 개선하기 위한 가이드라인을 소개합니다. 이 가이드라인은 스키마 변경 중에 업스트림 및 다운스트림 프로세스의 중단을 최소화하면서 데이터 웨어하우스 환경을 실행하는 데 도움이 됩니다.
+이 섹션의 단계는 단일 사용 사례의 스키마 변환에 초점을 둡니다.
+원하는 개선의 정도에 따라 중간 단계에서 멈추거나 시스템이 완전히 개선될 때까지 계속 진행할 수 있습니다.
+사용 사례를 현재 상태 그대로 BigQuery로 전송합니다.
+다음 단계를 계속 진행하기 전에 사용 사례의 업스트림 및 다운스트림 프로세스가 이미 BigQuery에서 쓰고 읽는지 확인합니다. 다운스트림 프로세스만 BigQuery에서 읽고 있는 중간 상태에서 시작할 수도 있습니다. 이 시나리오에서는 다운스트림 부분에 대한 가이드라인만 적용합니다. 다음 다이어그램은 업스트림 및 다운스트림 프로세스가 BigQuery의 테이블에 쓰고 읽는 사용 사례를 보여줍니다.
+가벼운 최적화를 적용합니다.
+테이블을 다시 만들고 파티션 나누기 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko] 및 클러스터링을 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko] 적용합니다. 이 작업의 경우 쿼리 결과에서 테이블을 만드는 방법을 사용할 수 있습니다. 자세한 내용은 파티션을 나눈 테이블에 대한 토론 [https://cloud.google.com/bigquery/docs/creating-column-partitions?hl=ko#creating_a_partitioned_table_from_a_query_result] 및 예시 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#creating_a_partitioned_table_from_the_result_of_a_query]와 클러스터링된 테이블에 대한 토론 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko#create_a_clustered_table_from_a_query_result] 및 예시 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#creating_a_clustered_table_from_the_result_of_a_query]를 참조하세요.
+업스트림 및 다운스트림 프로세스를 새 테이블로 리디렉션합니다.
+퍼사드 뷰 만들기
+가벼운 최적화 이상으로 스키마를 더 개선하려면 테이블의 퍼사드 뷰를 만듭니다. 퍼사드 패턴 [https://wikipedia.org/wiki/Facade_pattern]은 복잡한 코드를 숨기도록 기반 코드 또는 구조를 마스킹하는 설계 방법입니다. 이 경우 퍼사드 뷰는 다운스트림 프로세스의 테이블 변경으로 인한 복잡성을 숨기기 위해 기반 테이블을 마스킹합니다.
+뷰는 새 스키마를 설명할 수 있고 기술 부채가 없으며 새 수집 및 소비 시나리오를 염두에 두고 모델링할 수 있습니다.
+내부적으로 테이블 및 뷰 쿼리 정의 자체가 변경될 수 있습니다. 하지만 뷰는 이러한 변경을 데이터 웨어하우스의 내부 구현 세부정보로 추상화하며 항상 동일한 결과를 반환합니다. 퍼사드 뷰로 구성되는 추상화 계층 [https://wikipedia.org/wiki/Abstraction_layer]은 필요한 만큼 업스트림 및 다운스트림 시스템을 변경으로부터 격리하고 적절한 경우에만 변경사항을 표면화합니다.
+다운스트림 프로세스를 변환합니다.
+실제 테이블 대신 퍼사드 뷰에서 읽도록 일부 다운스트림 프로세스를 변환할 수 있습니다. 이러한 프로세스는 개선된 스키마의 이점을 누릴 수 있습니다. 이러한 프로세스는 내부적으로 퍼사드 뷰가 여전히 소스 BigQuery 스키마에서 데이터를 가져오는 것을 알 수 없습니다(다음 다이어그램 참조).
+먼저 다운스트림 프로세스 변환에 대해 설명했습니다. 이를 통해 기술 지식이 없는 이해관계자에게 보이지 않는 업스트림을 변환한 경우에 비해 더 신속하게, 마이그레이션된 대시보드 또는 보고서 형식으로 비즈니스 가치를 보여줄 수 있습니다. 그러나 대신 업스트림 프로세스를 사용하여 변환을 시작할 수도 있습니다. 이러한 작업의 우선순위는 전적으로 사용자의 필요에 따라 다릅니다.
+업스트림 프로세스를 변환합니다.
+일부 업스트림 프로세스를 변환하여 새 스키마에 쓸 수 있습니다. 뷰는 읽기 전용이므로 새 스키마를 기반으로 테이블을 만든 다음 퍼사드 뷰의 쿼리 정의를 수정합니다. 일부 뷰는 여전히 소스 스키마를 쿼리하고 다른 뷰는 새로 만들어진 테이블을 쿼리하거나 두 가지 모두에서 SQL UNION 연산을 수행합니다(다음 다이어그램 참조).
+이 시점에서 새 테이블을 만들 때 중첩 및 반복 필드 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#denormalization]를 활용할 수 있습니다. 이를 통해 모델을 더 비정규화하고 BigQuery의 기반 열 데이터 표현을 직접 활용할 수 있습니다.
+퍼사드 뷰의 장점은 다운스트림 프로세스가 이러한 기반 스키마의 변경 및 업스트림 프로세스의 변경으로부터 독립적으로 변환을 계속할 수 있다는 것입니다.
+사용 사례를 완전히 개선합니다.
+마지막으로, 남은 업스트림 및 다운스트림 프로세스를 변환할 수 있습니다. 모두 새 테이블에 쓰고 새 퍼사드 뷰에서 읽도록 개선되면 파사드 뷰의 쿼리 정의를 수정하여 더 이상 소스 스키마에서 읽지 않도록 합니다. 그런 다음 데이터 흐름에서 소스 모델의 테이블을 폐기할 수 있습니다. 다음 다이어그램은 소스 테이블이 더 이상 사용되지 않는 상태를 보여줍니다.
+퍼사드 뷰가 필드를 집계하거나 열을 필터링하지 않는 경우 다음 다이어그램과 같이 개선된 테이블에서 읽은 후 파사드 뷰를 폐기하여 복잡성을 줄이도록 다운스트림 프로세스를 구성할 수 있습니다.
+스키마 및 데이터의 초기 전송 수행
+이 섹션에서는 스키마와 데이터를 기존 데이터 웨어하우스에서 BigQuery로 마이그레이션할 수 있도록 실질적인 고려 사항을 설명합니다.
+마이그레이션을 처음 반복하는 동안 변경 없이 스키마를 전송하는 것이 좋습니다. 이렇게 하면 다음과 같은 장점이 있습니다.
+데이터 웨어하우스에 데이터를 공급하는 데이터 파이프라인을 새 스키마에 맞게 조정할 필요가 없습니다.
+직원을 위한 교육 자료 목록에 새 스키마를 추가할 필요가 없습니다.
+자동화된 도구를 활용하여 스키마 및 데이터 전송을 수행할 수 있습니다.
+또한 개념 증명(PoC) 및 클라우드 기능을 활용하는 기타 데이터 탐색 활동은 마이그레이션이 진행되는 동안에도 중단 없이 진행할 수 있습니다.
+전송 방법 선택
+초기 전송은 여러 가지 방법 중 하나를 사용하여 수행할 수 있습니다.
+Amazon Redshift 및 Teradata 데이터 웨어하우스의 경우 BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/dts-introduction?hl=ko]를 사용하여 기존 시스템에서 BigQuery로 직접 스키마와 데이터를 로드할 수 있습니다. Cloud Storage는 마이그레이션 프로세스의 일부로 데이터를 스테이징하는 데 계속 사용됩니다.
+모든 데이터 웨어하우스의 경우 스키마와 데이터가 포함된 파일을 추출하고, 해당 파일을 Cloud Storage에 업로드한 후 다음 옵션 중 하나를 사용하여 해당 파일의 스키마와 데이터를 BigQuery로 로드할 수 있습니다.
+BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/dts-introduction?hl=ko]
+BigQuery Storage Write API [https://cloud.google.com/bigquery/docs/write-api?hl=ko]
+일괄 로드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko]
+데이터 전송 방법을 선택할 때 추가 고려 사항은 데이터 수집 방법 선택 [https://cloud.google.com/bigquery/docs/loading-data?hl=ko#methods]을 참조하세요.
+데이터 변환 고려
+데이터 추출 형식 및 BigQuery로 데이터를 로드하기 전에 데이터를 자르거나 보강할지 여부에 따라 데이터 변환 단계를 포함할 수 있습니다. 기존 환경 또는 Google Cloud에서 데이터를 변환할 수 있습니다.
+현재 환경에서 데이터를 변환하는 경우 사용 가능한 컴퓨팅 용량과 도구에 따라 처리량이 제한될 가능성을 고려해야 합니다. 또한 변환 프로세스 중 데이터를 보강하는 경우 전송 시간 또는 네트워크 대역폭이 추가로 필요한지 여부를 고려하세요.
+Google Cloud에서 데이터를 변환할 때 옵션에 대한 자세한 내용은 ETL 도구를 사용하여 데이터 로드 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#load_data_using_an_etl_tool]를 참조하세요.
+기존 스키마와 데이터를 파일로 추출
+기존 플랫폼은 데이터를 Apache AVRO [https://avro.apache.org/docs/current/] 또는 CSV와 같이 공급업체에 구속되지 않는 형식으로 내보내는 도구를 제공할 수 있습니다. 전송 복잡성을 줄이려면 AVRO, ORC [https://orc.apache.org/] 또는 Parquet [https://parquet.apache.org/]를 사용하는 것이 좋습니다. 여기서 스키마 정보는 데이터에 삽입됩니다. CSV 또는 이와 비슷한 단순한 구분 데이터 형식을 선택하는 경우 스키마를 개별적으로 지정해야 합니다. 수행 방법은 선택한 데이터 전송 방법에 따라 다릅니다. 예를 들어 일괄 업로드의 경우 로드 시 스키마를 지정하거나 CSV 파일 콘텐츠를 기준으로 스키마 자동 감지를 허용할 수 있습니다.
+기존 플랫폼에서 이러한 파일을 추출할 때 기존 환경의 스테이징 스토리지로 복사합니다.
+Cloud Storage에 파일 업로드
+BigQuery Data Transfer Service를 사용하여 기존 Amazon Redshift 또는 Teradata 데이터 웨어하우스에서 직접 데이터를 로드하지 않는 한 추출된 파일을 Cloud Storage의 버킷에 업로드해야 합니다. 전송하는 데이터 양과 사용 가능한 네트워크 대역폭에 따라 다음 전송 옵션 중에서 선택할 수 있습니다.
+추출된 데이터가 다른 클라우드 제공업체에 있는 경우 Storage Transfer Service [https://cloud.google.com/storage/transfer?hl=ko]를 사용합니다.
+데이터가 온프레미스 환경 또는 네트워크 대역폭이 충분한 코로케이션 시설에 있는 경우 Google Cloud CLI [https://cloud.google.com/sdk/gcloud/reference/storage?hl=ko]를 사용합니다. gcloud CLI는 멀티 스레드 병렬 업로드를 지원하고 오류가 발생하면 재개되며 보안을 위해 전송 중인 트래픽을 암호화합니다.
+gcloud CLI를 사용할 수 없는 경우 Google 파트너가 제공하는 서드 파티 [https://cloud.google.com/solutions/transferring-big-data-sets-to-gcp?hl=ko#third-party_tools] 도구를 사용할 수 있습니다.
+네트워크 대역폭이 제한된 경우 압축 기술 [https://cloud.google.com/solutions/transferring-big-data-sets-to-gcp?hl=ko#decrease_data_size]을 사용하여 데이터 크기를 제한하거나 현재 연결을 Google Cloud 로 수정하여 대역폭을 늘릴 수 있습니다. [https://cloud.google.com/solutions/transferring-big-data-sets-to-gcp?hl=ko#increase_network_bandwidth]
+네트워크 대역폭을 충분히 확보할 수 없는 경우 Transfer Appliance [https://cloud.google.com/transfer-appliance?hl=ko]를 사용하여 오프라인 전송을 수행할 수 있습니다.
+Cloud Storage 버킷을 만들고 네트워크를 통해 데이터를 전송할 때 데이터 센터에서 가장 가까운 위치를 선택하여 네트워크 지연 시간을 최소화합니다. 가능한 경우 버킷의 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko#data-locations]를 BigQuery 데이터 세트의 위치와 동일하게 선택합니다.
+비용 예측 등 Cloud Storage로 데이터를 이동할 때의 권장사항에 대한 자세한 내용은 빅데이터 세트 전송 전략 [https://cloud.google.com/solutions/transferring-big-data-sets-to-gcp?hl=ko]을 참조하세요.
+BigQuery에 스키마 및 데이터 로드
+전송 방법 선택 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#choose_a_transfer_method]에서 설명한 옵션 중 하나를 사용하여 스키마와 데이터를 BigQuery에 로드합니다.
+일회성 로드에 대한 자세한 내용은 BigQuery 문서에서 Cloud Storage에서 데이터를 로드하는 방법 소개 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage?hl=ko]를 참조하세요. 정기적으로 예약된 로드에 대한 자세한 내용은 BigQuery Data Transfer Service 문서의 Cloud Storage 전송 개요 [https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview?hl=ko]를 참조하세요.
+ETL 도구를 사용하여 데이터 로드
+BigQuery에 데이터를 로드할 때 데이터를 추가로 변환해야 하는 경우 다음 옵션 중 하나를 사용합니다.
+Cloud Data Fusion [https://cloud.google.com/data-fusion/docs?hl=ko]. 이 도구는 사전 구성된 커넥터 및 변환의 오픈소스 라이브러리를 사용하여 완전 관리형 ETL/ELT 데이터 파이프라인을 그래픽으로 구축합니다.
+Dataflow [https://cloud.google.com/dataflow/docs?hl=ko]. 이 도구는 Apache Beam [https://beam.apache.org/] 모델을 사용하여 복잡한 데이터 변환 및 보강 그래프를 정의하고 실행합니다. Dataflow는 서버리스이며 Google에서 완전하게 관리하므로 사실상 무제한 처리 용량에 액세스할 수 있습니다.
+Dataproc [https://cloud.google.com/dataproc/docs?hl=ko]. 완전 관리형 클라우드 서비스에서 Apache Spark 및 Apache Hadoop 클러스터를 실행합니다.
+타사 도구 파트너 [https://cloud.google.com/bigquery/docs/bigquery-ready-partners?hl=ko]에 문의하세요. 데이터 파이프라인 구축을 외부화하려는 경우 효과적인 선택을 제공할 수 있습니다.
+다음 다이어그램은 이 섹션에서 설명하는 패턴을 보여줍니다. 데이터 전송 도구는 gcloud CLI [https://cloud.google.com/sdk/gcloud/reference/storage?hl=ko]이며, Dataflow를 활용하고 BigQuery에 직접 쓰는 변환 단계가 있습니다. 이 과정에서 Apache Beam 내장 Google BigQuery I/O 커넥터 [https://beam.apache.org/documentation/io/built-in/google-bigquery/]를 사용할 수 있습니다.
+BigQuery에 초기 데이터 세트를 로드한 후에는 BigQuery의 강력한 기능 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]을 활용할 수 있습니다.
+그러나 스키마 전송과 마찬가지로 데이터 업로드는 반복 프로세스의 일부입니다. 이후 반복 작업은 BigQuery로 전송되는 데이터의 공간을 확장하여 시작할 수 있습니다. 그런 후 기존 데이터 웨어하우스를 실행 상태로 유지할 필요 없이 업스트림 데이터 피드를 BigQuery로 다시 라우팅할 수 있습니다. 이러한 주제에 대해서는 다음 섹션에서 다룹니다.
+데이터 유효성 검사
+이제 데이터가 BigQuery에 있으므로 데이터 유효성 검사 도구 [https://github.com/GoogleCloudPlatform/professional-services-data-validator](DVT)를 사용하여 데이터 전송 성공 여부를 확인할 수 있습니다. DVT는 다양한 소스의 데이터를 BigQuery의 대상과 비교할 수 있는 오픈소스 Python CLI 도구입니다. 실행할 집계(예: 개수, 합계, 평균)와 이를 적용할 열을 지정할 수 있습니다. 자세한 내용은 DVT를 사용하여 데이터 유효성 검사 자동화 [https://cloud.google.com/blog/products/databases/automate-data-validation-with-dvt?hl=ko]를 참조하세요.
+초기 전송 반복
+이 섹션에서는 BigQuery를 최대한 활용하기 위해 초기 데이터 전송 이후의 작업을 수행하는 방법을 설명합니다.
+이제 데이터의 하위 집합이 BigQuery에 있습니다. 이제 BigQuery에서 사용 중인 데이터의 공간을 늘려 이를 통해 기존 데이터 웨어하우스에 대한 종속성을 낮추고자 합니다.
+후속 반복을 위해 선택하는 방법은 사용 사례에서 초 단위의 현재 시간으로 데이터를 업데이트하는 것이 얼마나 중요한지에 따라 달라집니다. 데이터 분석가가 데이터 웨어하우스에 통합된 데이터를 반복적으로 사용할 수 있는 경우 예약된 옵션을 사용하는 것이 좋습니다. 초기 전송과 유사한 방식으로 예약된 전송을 생성할 수 있습니다. BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/cloud-storage-transfer-overview?hl=ko], Google의 Storage Transfer Service [https://cloud.google.com/storage/transfer?hl=ko]와 같은 다른 ETL 도구, 제3자 [https://cloud.google.com/solutions/transferring-big-data-sets-to-gcp?hl=ko#third-party_tools] 구현을 사용합니다.
+BigQuery Data Transfer Service를 사용하는 경우 먼저 이동할 테이블을 결정합니다. 그런 다음 이러한 테이블을 포함할 테이블 이름 패턴을 만듭니다. 마지막으로, 전송을 실행할 시간에 대한 반복 일정을 설정합니다.
+반면 사용 사례에서 새로운 데이터에 즉시 액세스해야 하는 경우 스트리밍 방식이 필요합니다. 다음과 같은 옵션을 선택할 수 있습니다.
+Google Cloud 제품으로 부하 파이프라인을 설정합니다. Google에서는 이러한 태스크를 용이하게 할 수 있도록 스트리밍 Dataflow 템플릿 [https://cloud.google.com/dataflow/docs/guides/templates/provided-streaming?hl=ko] 세트를 제공합니다.
+파트너 [https://cloud.google.com/bigquery/docs/bigquery-ready-partners?hl=ko] 중 하나의 솔루션을 사용합니다.
+단기적으로 BigQuery 데이터와 다운스트림 프로세스에 사용하기 위한 공간의 증대는 기존 데이터 웨어하우스를 이전하는 중기적 목표와 함께 우선순위가 가장 높은 사용 사례를 충족하는 데 초점을 맞춰야 합니다. 초기 반복을 현명하게 사용하고 기존 데이터 웨어하우스에서 BigQuery로 처리 파이프라인을 완벽하게 수행하는 데 리소스를 과도하게 소비하지 마세요. 결과적으로 기존 데이터 웨어하우스를 사용하지 않도록 파이프라인을 조정해야 합니다.
+스키마 최적화
+테이블을 있는 그대로 BigQuery로 마이그레이션하면 고유한 기능을 활용할 수 있습니다. 예를 들어 색인을 다시 빌드하고 데이터 블록을 다시 섞을(청소) 필요가 없으며 버전 업그레이드로 인한 다운타임 또는 성능 저하가 없습니다.
+그러나 마이그레이션의 초기 반복 이후까지 데이터 웨어하우스 모델을 그대로 유지하는 경우 다음과 같은 단점이 있습니다.
+스키마와 관련된 기존 문제 및 기술적 부채가 그대로 유지됩니다.
+쿼리 최적화는 제한적이며 나중에 스키마가 업데이트되는 경우 다시 실행해야 할 수 있습니다.
+중첩 및 반복 필드, 파티션 나누기, 클러스터링과 같은 기타 BigQuery 기능을 최대한 활용할 수 없습니다.
+최종 전송을 수행할 때는 스키마에서 만든 테이블에 파티션 나누기 및 클러스터링을 적용하여 시스템 성능을 개선하는 것이 좋습니다.
+파티션 나누기
+BigQuery를 사용하면 데이터를 파티션 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]이라고 하는 세그먼트로 분할하여 더 쉽고 효율적으로 데이터를 관리하고 쿼리할 수 있습니다. TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type] 또는 DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#date_type] 열을 기준으로 테이블의 파티션을 나눌 수 있습니다. 또는 BigQuery에서 유사 열을 추가하여 수집 중에 자동으로 데이터 파티션을 나눌 수 있습니다. 다루는 파티션의 크기가 작은 쿼리는 데이터의 하위 집합만 스캔하고 읽는 바이트 수를 최소화하여 비용을 줄일 수 있으므로 더 효율적입니다.
+파티션 나누기는 테이블의 기존 구조에 영향을 주지 않습니다. 따라서 스키마가 수정되지 않은 경우에도 파티션을 나눈 테이블을 만드는 것이 좋습니다.
+클러스터링
+BigQuery에서는 데이터를 쿼리하는 데 색인이 사용되지 않습니다. BigQuery 성능은 기본 모델, 스토리지 및 쿼리 기술, 대규모 병렬 아키텍처에 의해 최적화됩니다. 쿼리를 실행할 때 처리되는 데이터가 많을수록 더 많은 머신이 추가되어 동시에 데이터를 스캔하고 결과를 집계합니다. 이 기술은 큰 데이터 세트에는 잘 맞지만 색인을 다시 빌드하는 데는 맞지 않습니다.
+그럼에도 불구하고 클러스터링 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]과 같은 기법으로 쿼리를 더 최적화할 여지는 있습니다. 클러스터링을 사용하면 BigQuery는 사용자가 지정하는 몇 개 열의 값에 따라 자동으로 데이터를 정렬하고 최적 크기의 블록에 데이터를 배치합니다. 클러스터링은 클러스터링을 사용하지 않을 때보다 쿼리 성능을 향상시킵니다. 클러스터링을 사용하는 경우 BigQuery는 클러스터링을 사용하지 않을 때에 비해 더 정확히 쿼리 실행 비용을 예측할 수 있습니다. 클러스터링된 열을 사용하면 쿼리가 불필요한 데이터 스캔을 생략하고 블록이 유사한 값을 가진 레코드를 함께 배치하므로 더 신속하게 집계를 계산할 수 있습니다.
+필터링에 자주 사용되는 열의 쿼리를 검토하고 해당 열에서 클러스터링 된 테이블을 만듭니다.검새 클러스터링에 관한 자세한 내용은 클러스터형 테이블 소개 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]를 참조하세요.
+비정규화
+데이터 마이그레이션은 반복 프로세스입니다. 따라서 초기 스키마를 클라우드로 이전하고 가벼운 최적화를 수행하고 몇 가지 주요 사용 사례를 테스트한 후에는 BigQuery의 기반 설계가 제공하는 이점을 활용하는 추가 기능을 살펴볼 차례입니다. 여기에는 중첩 및 반복 필드가 포함됩니다.
+과거 데이터 웨어하우스 스키마는 다음 모델을 사용했습니다.
+별표 스키마 [https://wikipedia.org/wiki/Star_schema]. 팩트 테이블이 주문량, 할인, 수량 등의 측정항목과 키 그룹을 수집하는 비정규화된 모델입니다. 이러한 키는 고객, 공급업체, 리전 등의 측정기준 테이블에 속합니다. 그래픽 측면에서 모델은 별 모양과 유사하며 중앙의 팩트 테이블을 측정기준 테이블이 둘러싼 형태입니다.
+눈송이 스키마 [https://wikipedia.org/wiki/Snowflake_schema]. 별표 스키마와 유사하지만 측정기준 테이블이 정규화되고, 이로 인해 스키마는 고유한 눈송이 형태를 갖게 됩니다.
+BigQuery는 별표 및 눈송이 스키마를 모두 지원하지만 네이티브 스키마 표현은 이 두 가지가 아닙니다. BigQuery는 더 자연스러운 데이터 표현을 위해 중첩 및 반복 필드 [https://cloud.google.com/bigquery/docs/nested-repeated?hl=ko]를 사용합니다. 자세한 내용은 BigQuery 설명서의 예시 스키마 [https://cloud.google.com/bigquery/docs/nested-repeated?hl=ko#example_schema]를 참조하세요.
+중첩 및 반복 필드를 사용하도록 스키마를 변경하는 것은 개선을 위한 탁월한 선택입니다. 쿼리에 필요한 조인 수가 줄어들며 스키마를 BigQuery 내부 데이터 표현에 맞춥니 다. 내부적으로 BigQuery는 Dremel 모델 [https://research.google/pubs/dremel-interactive-analysis-of-web-scale-datasets/?hl=ko]을 사용하여 데이터를 구성하고 Capacitor [https://cloud.google.com/blog/products/bigquery/inside-capacitor-bigquerys-next-generation-columnar-storage-format?hl=ko]라는 열 스토리지 형식으로 저장합니다.
+사례에 맞는 최적의 비정규화 방식을 결정하려면 BigQuery의 중첩되고 반복되는 입력란 사용 [https://cloud.google.com/bigquery/docs/best-practices-performance-nested?hl=ko]과 스키마 변경 처리 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko] 기술을 살펴보세요.
+다음 단계
+데이터 웨어하우스 마이그레이션의 다음 단계를 자세히 알아보세요.
+마이그레이션 개요 [https://cloud.google.com/bigquery/docs/migration/migration-overview?hl=ko]
+마이그레이션 평가 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko]
+데이터 파이프라인 [https://cloud.google.com/bigquery/docs/migration/pipelines?hl=ko]
+일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]
+대화형 SQL 변환 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]
+데이터 보안 및 거버넌스 [https://cloud.google.com/bigquery/docs/data-governance?hl=ko]
+데이터 유효성 검사 도구 [https://github.com/GoogleCloudPlatform/professional-services-data-validator#data-validation-tool]
+특정 데이터 웨어하우스 기술에서 BigQuery로 이전하는 방법도 알아볼 수 있습니다.
+Netezza에서 마이그레이션 [https://cloud.google.com/architecture/dw2bq/netezza/netezza-bq-migration-guide?hl=ko]
+Oracle에서 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko]
+Amazon Redshift에서 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko]
+Teradata에서 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/teradata?hl=ko]
+Snowflake에서 마이그레이션 [https://cloud.google.com/architecture/dw2bq/snowflake/snowflake-bq-migration-guide?hl=ko]
+도움이 되었나요?
+의견 보내기

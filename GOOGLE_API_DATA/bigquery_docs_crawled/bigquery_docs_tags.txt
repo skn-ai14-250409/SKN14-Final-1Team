@@ -1,0 +1,1247 @@
+Source URL: https://cloud.google.com/bigquery/docs/tags
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/tags?hl=ko#limitations]
+필요한 역할 [https://cloud.google.com/bigquery/docs/tags?hl=ko#required_permissions]
+필수 권한 [https://cloud.google.com/bigquery/docs/tags?hl=ko#required_permissions]
+태그 키 및 값 만들기 [https://cloud.google.com/bigquery/docs/tags?hl=ko#create_tag_keys_and_values]
+데이터 세트 태그 [https://cloud.google.com/bigquery/docs/tags?hl=ko#tag_datasets]
+테이블, 뷰, 데이터 세트에 태그 지정
+bookmark_border
+이 문서에서는 태그를 사용하여 BigQuery 테이블, 뷰, 데이터 세트에 Identity and Access Management(IAM) [https://cloud.google.com/iam/docs/tags-access-control?hl=ko] 정책을 조건부로 적용하는 방법을 설명합니다.
+또한 태그를 사용하여 BigQuery 테이블, 뷰, 데이터 세트(프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages])에 대한 IAM 정책을 통해 조건부로 액세스를 거부 [https://cloud.google.com/iam/docs/deny-access?hl=ko]할 수도 있습니다. 자세한 내용은 거부 정책 [https://cloud.google.com/iam/docs/deny-overview?hl=ko]을 참조하세요.
+태그는 테이블, 뷰 또는 데이터 세트에 직접 연결할 수 있는 키-값 쌍 또는 테이블, 뷰 또는 데이터 세트가 다른Google Cloud 리소스에서 상속 [https://cloud.google.com/resource-manager/docs/tags/tags-overview?hl=ko#inheritance]할 수 있는 키-값 쌍입니다. 리소스에 특정 태그가 있는지 여부에 따라 정책을 조건부로 적용할 수 있습니다. 예를 들어 environment:dev 태그가 있는 모든 데이터 세트의 주 구성원에게 BigQuery 데이터 뷰어 역할을 조건부로 부여할 수 있습니다.
+Google Cloud 리소스 계층 구조에서 태그 사용에 대한 자세한 내용은 태그 개요 [https://cloud.google.com/resource-manager/docs/tags/tags-overview?hl=ko]를 참조하세요.
+아직 존재하지 않는 리소스를 포함하여 여러 관련 BigQuery 리소스에 동시에 권한을 부여하려면 IAM 조건 [https://cloud.google.com/bigquery/docs/conditions?hl=ko]을 사용하는 것이 좋습니다.
+제한사항
+BigQuery Omni 테이블, 숨겨진 데이터 세트의 테이블 또는 임시 테이블에는 테이블 태그가 지원되지 않습니다. BigQuery Omni 데이터 세트에는 데이터 세트 태그가 지원되지 않습니다. 또한 BigQuery Omni의 리전 간 쿼리는 다른 리전의 테이블에 대한 액세스 제어 검사 중에 태그를 사용하지 않습니다.
+테이블 또는 데이터 세트에 태그를 최대 50개까지 연결할 수 있습니다.
+와일드 카드 쿼리에서 참조하는 모든 테이블의 태그 키와 값 집합이 정확히 동일해야 합니다.
+데이터 세트나 테이블에 대한 조건부 액세스 권한이 있는 사용자는 Google Cloud 콘솔을 통해 해당 리소스에 대한 권한을 수정할 수 없습니다. 권한 수정은 bq 도구 및 BigQuery API를 통해서만 지원됩니다.
+BigQuery 외부의 일부 서비스는 IAM 태그 조건을 올바르게 확인할 수 없습니다. 태그 조건이 양수인 경우, 즉 리소스에 특정 태그가 있는 경우에만 사용자에게 리소스에 대한 역할이 부여되는 경우, 연결된 태그에 관계없이 리소스에 대한 액세스가 거부됩니다. 태그 조건이 부정인 경우, 즉 해당 리소스에 특정 태그가 없는 경우에만 사용자에게 리소스에 대한 역할이 부여되는 경우에는 태그 조건을 확인하지 않습니다.
+예를 들어 Data Catalog는 BigQuery 데이터 세트 및 테이블의 IAM 태그 조건을 확인할 수 없습니다. employee_type=intern 태그가 있는 데이터 세트에 대한 BigQuery 데이터 뷰어 역할을 인턴에게 부여하는 조건부 IAM 정책이 있다고 가정해 보겠습니다. 양수 태그 조건이므로 데이터 세트에 employee_type=intern 태그가 있어도 인턴이 Data Catalog에서 검색하여 데이터 세트를 볼 수 없습니다. 태그 조건이 부정으로 변경되어 인턴 직원이 employee_type=intern 태그가 없는 데이터 세트만 볼 수 있다면, 확인을 완전히 건너뛰게 되고 인턴은 평소에는 BigQuery에서 액세스할 수 없었던 데이터 세트를 볼 수 있게 됩니다.
+권장사항: 의도치 않게 역할이 부여되는 것을 방지하려면 음의 조건이 아닌 양의 IAM 태그 조건을 사용하세요.
+필요한 역할
+사용자에게 이 문서의 각 태스크를 수행하는 데 필요한 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]을 부여하는 IAM 역할을 부여해야 합니다.
+다음과 같은 사전 정의된 두 IAM 역할 모두에는 필요한 모든 BigQuery 권한이 포함되어 있습니다.
+BigQuery 데이터 소유자(roles/bigquery.dataOwner)
+BigQuery 관리자(roles/bigquery.admin)
+태그를 추가하고 삭제하는 Resource Manager 권한은 태그 사용자 역할 [https://cloud.google.com/resource-manager/docs/tags/tags-creating-and-managing?hl=ko#required-permissions-attach](roles/resourcemanager.tagUser)에 포함되어 있습니다.
+필수 권한
+BigQuery에서 태그를 사용하려면 다음 권한이 필요합니다.
+작업 BigQuery 인터페이스(API, CLI, 콘솔) 및 Terraform Cloud Resource Manager API 또는 gcloud
+테이블이나 뷰에 태그 연결
+테이블이나 뷰에 대한 bigquery.tables.createTagBinding 권한
+태그 값에 대한 resourcemanager.tagValueBindings.create 권한
+테이블이나 뷰를 만들 때 태그를 연결할 수 있는 bigquery.tables.create 권한
+테이블이나 뷰를 업데이트할 때 태그를 연결할 수 있는 bigquery.tables.update 권한
+테이블이나 뷰에 대한 bigquery.tables.createTagBinding 권한
+태그 값에 대한 resourcemanager.tagValueBindings.create 권한
+테이블이나 뷰에서 태그 삭제
+테이블이나 뷰에 대한 bigquery.tables.deleteTagBinding 권한
+태그 값에 대한 resourcemanager.tagValueBindings.delete 권한
+테이블이나 뷰를 업데이트할 때 태그를 삭제할 수 있는 bigquery.tables.update 권한
+테이블이나 뷰에 대한 bigquery.tables.deleteTagBinding 권한
+태그 값에 대한 resourcemanager.tagValueBindings.delete 권한
+데이터 세트에 태그 연결
+데이터 세트에 대한 bigquery.datasets.createTagBinding 권한
+태그 값에 대한 resourcemanager.tagValueBindings.create 권한
+데이터 세트를 만들 때 태그를 연결할 수 있는 bigquery.datasets.create 권한
+데이터 세트를 업데이트할 때 태그를 연결할 수 있는 bigquery.datasets.update 권한
+데이터 세트에 대한 bigquery.datasets.createTagBinding 권한
+태그 값에 대한 resourcemanager.tagValueBindings.create 권한
+데이터 세트에서 태그 삭제
+데이터 세트에 대한 bigquery.datasets.deleteTagBinding 권한
+태그 값에 대한 resourcemanager.tagValueBindings.delete 권한
+데이터 세트를 업데이트할 때 태그를 삭제할 수 있는 bigquery.datasets.update 권한
+데이터 세트에 대한 bigquery.datasets.deleteTagBinding 권한
+태그 값에 대한 resourcemanager.tagValueBindings.delete 권한
+Google Cloud 콘솔에서 태그 키와 키 값을 나열하려면 다음 권한이 필요합니다.
+상위 조직이나 프로젝트와 연결된 태그 키를 나열하려면 태그 키 상위 수준의 resourcemanager.tagKeys.list 권한과 각 태그 키에 대한 resourcemanager.tagKeys.get 권한이 필요합니다. BigQuery 콘솔에서 태그 키 목록을 보려면 데이터 세트 이름을 클릭한 후 세부정보 수정을 클릭하거나 테이블이나 뷰 이름을 클릭한 후 세부정보 > 세부정보 수정을 클릭합니다.
+상위 조직이나 프로젝트와 연결된 키의 태그 값을 나열하려면 태그 값 상위 수준의 resourcemanager.tagValues.list 권한과 각 태그 값에 대한 resourcemanager.tagValues.get 권한이 필요합니다. BigQuery 콘솔에서 태그 키 값 목록을 보려면 데이터 세트 이름을 클릭한 후 세부정보 수정을 클릭하거나 테이블이나 뷰 이름을 클릭한 후 세부정보 > 세부정보 수정을 클릭합니다.
+Cloud Resource Manager API 또는 gcloud에서 태그를 사용하려면 다음 권한이 필요합니다.
+Cloud Resource Manager API 또는 gcloud CLI를 사용하여 테이블 또는 뷰에 연결된 태그를 나열하려면 bigquery.tables.listTagBindings IAM 권한이 필요합니다.
+테이블 또는 뷰의 유효 태그를 나열하려면 bigquery.tables.listEffectiveTags IAM 권한이 필요합니다.
+Cloud Resource Manager API 또는 gcloud CLI를 사용하여 데이터 세트에 연결된 태그를 나열하려면 bigquery.datasets.listTagBindings IAM 권한이 필요합니다.
+데이터 세트의 유효 태그를 나열하려면 bigquery.datasets.listEffectiveTags IAM 권한이 필요합니다.
+태그 키 및 값 만들기
+BigQuery 리소스에 태그를 연결하기 전에 태그를 만들거나Google Cloud 콘솔을 사용하여 리소스를 만들 때 수동으로 태그를 만들 수 있습니다.
+태그 키와 태그 값을 만드는 방법은 Resource Manager 문서의 태그 만들기 [https://cloud.google.com/resource-manager/docs/tags/tags-creating-and-managing?hl=ko#creating_tag] 및 태그 값 추가 [https://cloud.google.com/resource-manager/docs/tags/tags-creating-and-managing?hl=ko#adding_tag_values]를 참조하세요.
+데이터 세트 태그
+다음 섹션에서는 새 데이터 세트와 기존 데이터 세트에 태그를 연결하고, 데이터 세트에 연결된 태그를 나열하고, 데이터 세트에서 태그를 분리하는 방법을 설명합니다.
+새 데이터 세트를 만들 때 태그 연결
+태그를 만든 후 새 BigQuery 데이터 세트에 연결할 수 있습니다. 지정된 태그 키의 데이터 세트에 태그 값 하나만 연결할 수 있습니다. 데이터 세트에 태그를 최대 50개까지 연결할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/tags?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 데이터 세트를 만들 프로젝트를 선택합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+새 데이터 세트의 정보를 입력합니다. 자세한 내용은 데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]를 참조하세요.
+태그 섹션을 펼칩니다.
+
+
+기존 태그를 적용하려면 다음을 수행합니다.
+
+
+범위 선택 옆에 있는 드롭다운 화살표를 클릭하고 현재 범위(현재 조직 선택 또는 현재 프로젝트 선택)를 선택합니다.
+
+또는 범위 선택을 클릭하여 리소스를 검색하거나 현재 리소스 목록을 확인합니다.
+키 1 및 값 1에 목록에서 적절한 값을 선택합니다.
+
+새 태그를 수동으로 입력하려면 다음을 수행합니다.
+
+
+범위 선택 옆에 있는 드롭다운 화살표를 클릭하고 ID 직접 입력 > 조직, 프로젝트 또는 태그를 선택합니다.
+프로젝트나 조직의 태그를 만드는 경우 대화상자에 PROJECT_ID 또는 ORGANIZATION_ID를 입력한 후 저장을 클릭합니다.
+키 1 및 값 1에 목록에서 적절한 값을 선택합니다.
+
+선택사항: 테이블에 태그를 추가하려면 태그 추가를 클릭하고 이전 단계를 수행합니다.
+
+데이터 세트 만들기를 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/tags?hl=ko#sql] ---
+CREATE SCHEMA 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_schema_statement]을 사용합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE SCHEMA PROJECT_ID.DATASET_ID
+OPTIONS (
+  tags = [('TAG_KEY_1', 'TAG_VALUE_1'), ('TAG_KEY_2', 'TAG_VALUE_2')];)
+
+
+다음을 바꿉니다.
+
+PROJECT_ID: 프로젝트 ID입니다.
+DATASET_ID: 개발자가 만들 데이터 세트의 ID
+TAG_KEY_1: 데이터 세트의 첫 번째 태그로 설정하려는 네임스페이스 키 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'my-project/env' 또는 '556741164180/department')
+TAG_VALUE_1: 태그 값 닉네임 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'prod' 또는 'sales')
+TAG_KEY_2: 두 번째 태그의 네임스페이스 키 이름
+TAG_VALUE_2: 두 번째 태그 값 닉네임
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/tags?hl=ko#bq] ---
+--add_tags 플래그와 함께 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset]를 사용합니다.
+
+bq mk --dataset \
+    --add_tags=TAG \
+    PROJECT_ID:DATASET_ID
+
+다음을 바꿉니다.
+
+
+TAG: 새 데이터 세트에 연결할 태그입니다. 태그가 여러 개면 쉼표로 구분합니다. 예를 들면 556741164180/env:prod,myProject/department:sales입니다. 각 태그에는 네임스페이스화된 키 이름 및 값 짧은 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions]이 있어야 합니다.
+PROJECT_ID: 데이터 세트를 만들 프로젝트의 ID입니다.
+DATASET_ID: 새 데이터 세트의 ID
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/tags?hl=ko#terraform] ---
+google_bigquery_dataset [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_dataset] 리소스를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 my_dataset라는 데이터 세트를 만든 후 resource_tags 필드를 채워 태그를 연결합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# Create tag keys and values
+data "google_project" "default" {}
+
+resource "google_tags_tag_key" "env_tag_key" {
+  parent     = "projects/${data.google_project.default.project_id}"
+  short_name = "env2"
+}
+
+resource "google_tags_tag_key" "department_tag_key" {
+  parent     = "projects/${data.google_project.default.project_id}"
+  short_name = "department2"
+}
+
+resource "google_tags_tag_value" "env_tag_value" {
+  parent     = "tagKeys/${google_tags_tag_key.env_tag_key.name}"
+  short_name = "prod"
+}
+
+resource "google_tags_tag_value" "department_tag_value" {
+  parent     = "tagKeys/${google_tags_tag_key.department_tag_key.name}"
+  short_name = "sales"
+}
+
+# Create a dataset
+resource "google_bigquery_dataset" "default" {
+  dataset_id                      = "my_dataset"
+  default_partition_expiration_ms = 2592000000  # 30 days
+  default_table_expiration_ms     = 31536000000 # 365 days
+  description                     = "dataset description"
+  location                        = "US"
+  max_time_travel_hours           = 96 # 4 days
+
+  # Attach tags to the dataset
+  resource_tags = {
+    (google_tags_tag_key.env_tag_key.namespaced_name) : google_tags_tag_value.env_tag_value.short_name,
+    (google_tags_tag_key.department_tag_key.namespaced_name) : google_tags_tag_value.department_tag_value.short_name
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+
+--- 탭: tabpanel-api ---
+datasets.insert 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko]를 호출하고 resource_tags 필드에 태그를 추가합니다.
+기존 데이터 세트에 태그 연결
+태그를 만든 후 기존 데이터 세트에 연결할 수 있습니다. 지정된 태그 키의 데이터 세트에 태그 값 하나만 연결할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/tags?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+데이터 세트 정보 섹션에서 mode_edit 세부정보 수정을 클릭합니다.
+태그 섹션을 펼칩니다.
+
+
+기존 태그를 적용하려면 다음을 수행합니다.
+
+
+범위 선택 옆에 있는 드롭다운 화살표를 클릭하고 현재 범위(현재 조직 선택 또는 현재 프로젝트 선택)를 선택합니다.
+
+또는 범위 선택을 클릭하여 리소스를 검색하거나 현재 리소스 목록을 확인합니다.
+키 1 및 값 1에 목록에서 적절한 값을 선택합니다.
+
+새 태그를 수동으로 입력하려면 다음을 수행합니다.
+
+
+범위 선택 옆에 있는 드롭다운 화살표를 클릭하고 ID 직접 입력 > 조직, 프로젝트 또는 태그를 선택합니다.
+프로젝트나 조직의 태그를 만드는 경우 대화상자에 PROJECT_ID 또는 ORGANIZATION_ID를 입력한 후 저장을 클릭합니다.
+키 1 및 값 1에 목록에서 적절한 값을 선택합니다.
+
+선택사항: 테이블에 태그를 추가하려면 태그 추가를 클릭하고 이전 단계를 수행합니다.
+
+저장을 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/tags?hl=ko#sql] ---
+ALTER SCHEMA SET OPTIONS 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_schema_set_options_statement]을 사용합니다.
+
+다음 예시에서는 기존 데이터 세트의 모든 태그를 덮어씁니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+ALTER SCHEMA PROJECT_ID.DATASET_ID
+SET OPTIONS (
+  tags = [('TAG_KEY_1', 'TAG_VALUE_1'), ('TAG_KEY_2', 'TAG_VALUE_2')];)
+
+
+다음을 바꿉니다.
+
+PROJECT_ID: 프로젝트 ID입니다.
+DATASET_ID: 테이블이 포함된 데이터 세트의 ID
+TABLE_ID: 태그를 지정할 테이블의 이름
+TAG_KEY_1: 테이블의 첫 번째 태그로 설정하려는 네임스페이스 키 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'my-project/env' 또는 '556741164180/department')
+TAG_VALUE_1: 태그 값 닉네임 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'prod' 또는 'sales')
+TAG_KEY_2: 두 번째 태그의 네임스페이스 키 이름
+TAG_VALUE_2: 두 번째 태그 값 닉네임
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+다음 예시에서는 += 연산자를 사용하여 기존 태그를 덮어쓰지 않고 태그를 데이터 세트에 연결합니다. 기존 태그의 키가 같으면 태그를 덮어씁니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+ALTER SCHEMA PROJECT_ID.DATASET_ID
+SET OPTIONS (
+  tags += [('TAG_KEY_1', 'TAG_VALUE_1'), ('TAG_KEY_2', 'TAG_VALUE_2')];)
+
+
+다음을 바꿉니다.
+
+PROJECT_ID: 프로젝트 ID입니다.
+DATASET_ID: 테이블이 포함된 데이터 세트의 ID
+TABLE_ID: 태그를 지정할 테이블의 이름
+TAG_KEY_1: 테이블의 첫 번째 태그로 설정하려는 네임스페이스 키 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'my-project/env' 또는 '556741164180/department')
+TAG_VALUE_1: 태그 값 닉네임 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'prod' 또는 'sales')
+TAG_KEY_2: 두 번째 태그의 네임스페이스 키 이름
+TAG_VALUE_2: 두 번째 태그 값 닉네임
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/tags?hl=ko#bq] ---
+--add_tags 플래그와 함께 bq update 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset]를 사용합니다.
+
+bq update \
+    --add_tags=TAG \
+    PROJECT_ID:DATASET_ID
+
+다음을 바꿉니다.
+
+
+TAG: 데이터 세트에 연결하는 태그입니다.
+태그가 여러 개면 쉼표로 구분합니다. 예를 들면 556741164180/env:prod,myProject/department:sales입니다. 각 태그에는 네임스페이스화된 키 이름 및 값 짧은 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions]이 있어야 합니다.
+PROJECT_ID: 기존 데이터 세트가 있는 프로젝트의 ID입니다.
+DATASET_ID: 기존 데이터 세트의 ID입니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/tags?hl=ko#gcloud] ---
+명령줄을 사용하여 태그를 데이터 세트에 연결하려면 gcloud resource-manager tags bindings create 명령어 [https://cloud.google.com/sdk/gcloud/reference/resource-manager/tags/bindings/create?hl=ko]를 사용하여 태그 binding 리소스를 만듭니다.
+
+gcloud resource-manager tags bindings create \
+    --tag-value=TAG_VALUE_NAME \
+    --parent=RESOURCE_ID \
+    --location=LOCATION
+
+
+다음을 바꿉니다.
+
+
+TAG_VALUE_NAME: 연결할 태그 값의 영구 ID 또는 네임스페이스 이름(예: tagValues/4567890123 또는 1234567/my_tag_key/my_tag_value)입니다.
+RESOURCE_ID: 리소스 유형을 식별하는 API 도메인 이름(//bigquery.googleapis.com/)을 포함한 데이터 세트의 전체 ID입니다. 예를 들면 //bigquery.googleapis.com/projects/my_project/datasets/my_dataset입니다.
+LOCATION: 데이터 세트 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다.
+
+--- 탭: tabpanel-terraform ---
+데이터 세트의 resource_tags 필드에 태그를 추가한 다음 google_bigquery_dataset 리소스를 사용하여 업데이트된 구성을 적용합니다. 자세한 내용은 새 데이터 세트를 만들 때 태그 연결 [https://cloud.google.com/bigquery/docs/tags?hl=ko#attach_tags_when_you_create_a_new_dataset]의 Terraform 예시를 참조하세요.
+
+--- 탭: tabpanel-api ---
+datasets.get 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/get?hl=ko]를 호출하여 resource_tags 필드를 포함한 데이터 세트 리소스를 가져옵니다. resource_tags 필드에 태그를 추가하고 datasets.update 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/update?hl=ko]를 사용하여 업데이트된 데이터 세트 리소스를 다시 전달합니다.
+데이터 세트에 연결된 태그 나열
+다음 단계에서는 데이터 세트에 직접 연결된 태그 binding 목록을 제공합니다. 이러한 메서드는 상위 리소스에서 상속된 태그를 반환하지 않습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/tags?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+
+태그가 데이터 세트 정보 섹션에 표시됩니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/tags?hl=ko#bq] ---
+데이터 세트에 연결된 태그를 나열하려면 bq show 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_show]를 사용합니다.
+
+bq show PROJECT_ID:DATASET_ID
+
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 데이터 세트가 포함된 프로젝트의 ID입니다.
+DATASET_ID: 태그를 나열할 데이터 세트의 ID입니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/tags?hl=ko#gcloud] ---
+리소스에 연결된 태그 binding 목록을 가져오려면 gcloud resource-manager tags bindings list 명령어 [https://cloud.google.com/sdk/gcloud/reference/resource-manager/tags/bindings/list?hl=ko]를 사용합니다.
+
+gcloud resource-manager tags bindings list \
+    --parent=RESOURCE_ID \
+    --location=LOCATION
+
+
+다음을 바꿉니다.
+
+
+RESOURCE_ID: 리소스 유형을 식별하는 API 도메인 이름(//bigquery.googleapis.com/)을 포함한 데이터 세트의 전체 ID입니다. 예를 들면 //bigquery.googleapis.com/projects/my_project/datasets/my_dataset입니다.
+LOCATION: 데이터 세트 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다.
+
+
+출력은 다음과 비슷합니다.
+
+name: tagBindings/%2F%2Fbigquery.googleapis.com%2Fprojects%2Fmy_project%2Fdatasets%2Fmy_dataset/tagValues/4567890123
+parent: //bigquery.googleapis.com/projects/my_project/datasets/my_dataset
+tagValue: tagValues/4567890123
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/tags?hl=ko#terraform] ---
+terraform state show 명령어를 사용하여 resource_tags 필드를 포함한 데이터 세트의 속성을 나열합니다. 데이터 세트의 Terraform 구성 파일이 실행된 디렉터리에서 이 명령어를 실행합니다.
+
+terraform state show google_bigquery_dataset.default
+
+--- 탭: tabpanel-api ---
+datasets.get 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/get?hl=ko]를 호출하여 데이터 세트 리소스를 가져옵니다. 데이터 세트 리소스에는 resource_tags 필드의 데이터 세트에 연결된 태그가 포함됩니다.
+
+--- 탭: tabpanel-뷰 ---
+INFORMATION_SCHEMA.SCHEMATA_OPTIONS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-datasets-schemata-options?hl=ko]를 사용합니다.
+
+예를 들어 다음 쿼리는 한 리전의 모든 데이터 세트에 연결된 모든 태그를 보여줍니다. 이 쿼리는 schema_name(데이터 세트 이름), option_name(항상 'tags'), object_type(항상 ARRAY<STRUCT<STRING, STRING>>), 각 데이터 세트와 연결된 태그를 나타내는 STRUCT 객체의 배열이 포함된 option_value 열이 있는 테이블을 반환합니다. 할당된 태그가 없는 데이터 세트의 경우 option_value 열에서 빈 배열을 반환합니다.
+
+SELECT * from region-REGION.INFORMATION_SCHEMA.SCHEMATA_OPTIONS
+WHERE option_name='tags'
+
+
+다음을 바꿉니다.
+
+
+REGION: 데이터 세트가 있는 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다.
+데이터 세트에서 태그 분리
+태그 바인딩 리소스를 삭제하여 리소스에서 태그를 분리할 수 있습니다. 태그를 삭제하는 경우 삭제하기 전에 데이터 세트에서 분리해야 합니다. 자세한 내용은 태그 삭제 [https://cloud.google.com/resource-manager/docs/tags/tags-creating-and-managing?hl=ko#deleting]를 참조하세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/tags?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+데이터 세트 정보 섹션에서 mode_edit 세부정보 수정을 클릭합니다.
+태그 섹션에서 삭제하려는 태그 옆에 있는 delete항목 삭제를 클릭합니다.
+저장을 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/tags?hl=ko#sql] ---
+ALTER SCHEMA SET OPTIONS 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_schema_set_options_statement]을 사용합니다.
+
+다음 예시에서는 -= 연산자를 사용하여 데이터 세트에서 태그를 분리합니다. 데이터 세트에서 모든 태그를 분리하려면 tags=NULL 또는 tags=[]를 지정하면 됩니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+ALTER TABLE PROJECT_ID.DATASET_ID.TABLE_ID
+SET OPTIONS (
+  tags -= [('TAG_KEY_1', 'TAG_VALUE_1'), ('TAG_KEY_2', 'TAG_VALUE_2')];)
+
+
+다음을 바꿉니다.
+
+PROJECT_ID: 프로젝트 ID입니다.
+DATASET_ID: 테이블이 포함된 데이터 세트의 ID
+TABLE_ID: 태그를 분리할 테이블의 이름
+TAG_KEY_1: 분리할 첫 번째 태그의 네임스페이스 키 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'my-project/env' 또는 '556741164180/department')
+TAG_VALUE_1: 분리할 태그 값의 닉네임 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'prod' 또는 'sales')
+TAG_KEY_2: 분리할 두 번째 태그의 네임스페이스 키 이름
+TAG_VALUE_2: 분리할 두 번째 태그 값의 닉네임
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/tags?hl=ko#bq] ---
+--remove_tags 플래그와 함께 bq update 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset]를 사용합니다.
+
+bq update \
+    --remove_tags=REMOVED_TAG \
+    PROJECT_ID:DATASET_ID
+
+다음을 바꿉니다.
+
+
+REMOVED_TAG: 데이터 세트에서 삭제할 태그입니다. 태그가 여러 개면 쉼표로 구분합니다. 값 쌍이 없는 키만 허용합니다. 예를 들면 556741164180/env,myProject/department입니다.
+각 태그에는 네임스페이스화된 키 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions]이 있어야 합니다.
+PROJECT_ID: 데이터 세트가 포함된 프로젝트의 ID입니다.
+DATASET_ID: 태그를 분리할 데이터 세트의 ID입니다.
+
+
+또는 데이터 세트에서 모든 태그를 삭제하려면 --clear_all_tags 플래그와 함께 bq update 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_update]를 사용합니다.
+
+bq update \
+    --clear_all_tags
+    PROJECT_ID:DATASET_ID
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/tags?hl=ko#gcloud] ---
+명령줄을 사용하여 데이터 세트에서 태그를 분리하려면 gcloud resource-manager tags bindings delete 명령어 [https://cloud.google.com/sdk/gcloud/reference/resource-manager/tags/bindings/delete?hl=ko]를 사용하여 태그 바인딩을 삭제합니다.
+
+gcloud resource-manager tags bindings delete \
+    --tag-value=TAG_VALUE_NAME \
+    --parent=RESOURCE_ID \
+    --location=LOCATION
+
+
+다음을 바꿉니다.
+
+
+TAG_VALUE_NAME: 분리할 태그 값의 영구 ID 또는 네임스페이스 이름(예: tagValues/4567890123 또는 1234567/my_tag_key/my_tag_value)입니다.
+RESOURCE_ID: 리소스 유형을 식별하는 API 도메인 이름(//bigquery.googleapis.com/)을 포함한 데이터 세트의 전체 ID입니다. 예를 들면 //bigquery.googleapis.com/projects/my_project/datasets/my_dataset입니다.
+LOCATION: 데이터 세트 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다.
+
+--- 탭: tabpanel-terraform ---
+데이터 세트의 resource_tags 필드에서 태그를 삭제한 다음 google_bigquery_dataset 리소스를 사용하여 업데이트된 구성을 적용합니다.
+
+--- 탭: tabpanel-api ---
+datasets.get 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/get?hl=ko]를 호출하여 resource_tags 필드를 포함한 데이터 세트 리소스를 가져옵니다. resource_tags 필드에서 태그를 삭제하고 datasets.update 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/update?hl=ko]를 사용하여 업데이트된 데이터 세트 리소스를 다시 전달합니다.
+테이블 태그하기
+다음 섹션에서는 새 테이블과 기존 테이블에 태그를 연결하고, 테이블에 연결된 태그를 나열하고, 테이블에서 태그를 분리하는 방법을 설명합니다.
+새 테이블을 만들 때 태그 연결
+태그를 만든 후 새 테이블에 연결할 수 있습니다. 지정된 태그 키의 테이블에 태그 값 하나만 연결할 수 있습니다. 테이블에 태그를 최대 50개까지 연결할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/tags?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트를 펼친 후 데이터 세트를 선택합니다.
+데이터 세트 정보 섹션에서 add_box 테이블 만들기를 클릭합니다.
+새 테이블의 정보를 입력합니다. 자세한 내용은 테이블 만들기 및 사용 [https://cloud.google.com/bigquery/docs/tables?hl=ko]을 참조하세요.
+태그 섹션을 펼칩니다.
+
+
+기존 태그를 적용하려면 다음을 수행합니다.
+
+
+범위 선택 옆에 있는 드롭다운 화살표를 클릭하고 현재 범위(현재 조직 선택 또는 현재 프로젝트 선택)를 선택합니다.
+
+또는 범위 선택을 클릭하여 리소스를 검색하거나 현재 리소스 목록을 확인합니다.
+키 1 및 값 1에 목록에서 적절한 값을 선택합니다.
+
+새 태그를 수동으로 입력하려면 다음을 수행합니다.
+
+
+범위 선택 옆에 있는 드롭다운 화살표를 클릭하고 ID 직접 입력 > 조직, 프로젝트 또는 태그를 선택합니다.
+프로젝트나 조직의 태그를 만드는 경우 대화상자에 PROJECT_ID 또는 ORGANIZATION_ID를 입력한 후 저장을 클릭합니다.
+키 1 및 값 1에 목록에서 적절한 값을 선택합니다.
+
+선택사항: 테이블에 태그를 추가하려면 태그 추가를 클릭하고 이전 단계를 수행합니다.
+
+테이블 만들기를 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/tags?hl=ko#sql] ---
+CREATE TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]을 사용합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE TABLE PROJECT_ID.DATASET_ID.TABLE_ID
+OPTIONS (
+  tags = [('TAG_KEY_1', 'TAG_VALUE_1'), ('TAG_KEY_2', 'TAG_VALUE_2')];)
+
+
+다음을 바꿉니다.
+
+PROJECT_ID: 프로젝트 ID입니다.
+DATASET_ID: 테이블을 만들 데이터 세트의 ID
+TABLE_ID: 새 테이블 이름
+TAG_KEY_1: 테이블의 첫 번째 태그로 설정하려는 네임스페이스 키 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'my-project/env' 또는 '556741164180/department')
+TAG_VALUE_1: 태그 값 닉네임 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'prod' 또는 'sales')
+TAG_KEY_2: 두 번째 태그의 네임스페이스 키 이름
+TAG_VALUE_2: 두 번째 태그 값 닉네임
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/tags?hl=ko#bq] ---
+--add_tags 플래그와 함께 bq mk --table 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-table]를 사용합니다.
+
+bq mk --table \
+    --schema=SCHEMA \
+    --add_tags=TAG \
+    PROJECT_ID:DATASET_ID.TABLE_ID
+
+다음을 바꿉니다.
+
+
+SCHEMA: 인라인 스키마 정의 [https://cloud.google.com/bigquery/docs/tables?hl=ko#create_an_empty_table_with_a_schema_definition]입니다.
+TAG: 새 테이블에 연결할 태그입니다. 태그가 여러 개면 쉼표로 구분합니다. 예를 들면 556741164180/env:prod,myProject/department:sales입니다. 각 태그에는 네임스페이스화된 키 이름 및 값 짧은 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions]이 있어야 합니다.
+PROJECT_ID: 테이블을 만들 프로젝트의 ID입니다.
+DATASET_ID: 테이블을 만들 데이터 세트의 ID입니다.
+TABLE_ID: 새 테이블 ID
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/tags?hl=ko#terraform] ---
+google_bigquery_table [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_table] 리소스를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 mytable이라는 테이블을 만든 후 resource_tags 필드를 채워 태그를 연결합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# Create tag keys and values
+data "google_project" "default" {}
+
+resource "google_tags_tag_key" "env_tag_key" {
+  parent     = "projects/${data.google_project.default.project_id}"
+  short_name = "env3"
+}
+
+resource "google_tags_tag_key" "department_tag_key" {
+  parent     = "projects/${data.google_project.default.project_id}"
+  short_name = "department3"
+}
+
+resource "google_tags_tag_value" "env_tag_value" {
+  parent     = "tagKeys/${google_tags_tag_key.env_tag_key.name}"
+  short_name = "prod"
+}
+
+resource "google_tags_tag_value" "department_tag_value" {
+  parent     = "tagKeys/${google_tags_tag_key.department_tag_key.name}"
+  short_name = "sales"
+}
+
+# Create a dataset
+resource "google_bigquery_dataset" "default" {
+  dataset_id                      = "MyDataset"
+  default_partition_expiration_ms = 2592000000  # 30 days
+  default_table_expiration_ms     = 31536000000 # 365 days
+  description                     = "dataset description"
+  location                        = "US"
+  max_time_travel_hours           = 96 # 4 days
+}
+
+# Create a table
+resource "google_bigquery_table" "default" {
+  dataset_id          = google_bigquery_dataset.default.dataset_id
+  table_id            = "mytable"
+  description         = "table description"
+  deletion_protection = false # set to "true" in production
+
+  # Attach tags to the table
+  resource_tags = {
+    (google_tags_tag_key.env_tag_key.namespaced_name) : google_tags_tag_value.env_tag_value.short_name,
+    (google_tags_tag_key.department_tag_key.namespaced_name) : google_tags_tag_value.department_tag_value.short_name
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+
+--- 탭: tabpanel-api ---
+테이블 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko]가 정의된 tables.insert 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert?hl=ko]를 호출합니다.
+resource_tags 필드에 태그를 포함합니다.
+기존 테이블에 태그 연결
+태그를 만든 후 기존 테이블에 연결할 수 있습니다. 지정된 태그 키의 테이블에 태그 값 하나만 연결할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/tags?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트와 데이터 세트를 펼친 후 테이블을 선택합니다.
+세부정보 탭을 클릭한 후 mode_edit 세부정보 수정을 클릭합니다.
+태그 섹션을 펼칩니다.
+
+
+기존 태그를 적용하려면 다음을 수행합니다.
+
+
+범위 선택 옆에 있는 드롭다운 화살표를 클릭하고 현재 범위(현재 조직 선택 또는 현재 프로젝트 선택)를 선택합니다.
+
+또는 범위 선택을 클릭하여 리소스를 검색하거나 현재 리소스 목록을 확인합니다.
+키 1 및 값 1에 목록에서 적절한 값을 선택합니다.
+
+새 태그를 수동으로 입력하려면 다음을 수행합니다.
+
+
+범위 선택 옆에 있는 드롭다운 화살표를 클릭하고 ID 직접 입력 > 조직, 프로젝트 또는 태그를 선택합니다.
+프로젝트나 조직의 태그를 만드는 경우 대화상자에 PROJECT_ID 또는 ORGANIZATION_ID를 입력한 후 저장을 클릭합니다.
+키 1 및 값 1에 목록에서 적절한 값을 선택합니다.
+
+선택사항: 테이블에 태그를 추가하려면 태그 추가를 클릭하고 이전 단계를 수행합니다.
+
+저장을 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/tags?hl=ko#sql] ---
+ALTER TABLE SET OPTIONS 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_set_options_statement]을 사용합니다.
+
+다음 예시에서는 기존 테이블의 모든 태그를 덮어씁니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+ALTER TABLE PROJECT_ID.DATASET_ID.TABLE_ID
+SET OPTIONS (
+  tags = [('TAG_KEY_1', 'TAG_VALUE_1'), ('TAG_KEY_2', 'TAG_VALUE_2')];)
+
+
+다음을 바꿉니다.
+
+PROJECT_ID: 프로젝트 ID입니다.
+DATASET_ID: 테이블이 포함된 데이터 세트의 ID
+TABLE_ID: 태그를 지정할 테이블의 이름
+TAG_KEY_1: 테이블의 첫 번째 태그로 설정하려는 네임스페이스 키 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'my-project/env' 또는 '556741164180/department')
+TAG_VALUE_1: 태그 값 닉네임 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'prod' 또는 'sales')
+TAG_KEY_2: 두 번째 태그의 네임스페이스 키 이름
+TAG_VALUE_2: 두 번째 태그 값 닉네임
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+다음 예시에서는 += 연산자를 사용하여 기존 태그를 덮어쓰지 않고 태그를 테이블에 연결합니다. 기존 태그의 키가 같으면 태그를 덮어씁니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+ALTER TABLE PROJECT_ID.DATASET_ID.TABLE_ID
+SET OPTIONS (
+  tags += [('TAG_KEY_1', 'TAG_VALUE_1'), ('TAG_KEY_2', 'TAG_VALUE_2')];)
+
+
+다음을 바꿉니다.
+
+PROJECT_ID: 프로젝트 ID입니다.
+DATASET_ID: 테이블이 포함된 데이터 세트의 ID
+TABLE_ID: 태그를 지정할 테이블의 이름
+TAG_KEY_1: 테이블의 첫 번째 태그로 설정하려는 네임스페이스 키 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'my-project/env' 또는 '556741164180/department')
+TAG_VALUE_1: 태그 값 닉네임 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'prod' 또는 'sales')
+TAG_KEY_2: 두 번째 태그의 네임스페이스 키 이름
+TAG_VALUE_2: 두 번째 태그 값 닉네임
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/tags?hl=ko#bq] ---
+--add_tags 플래그와 함께 bq update 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_update]를 사용합니다.
+
+bq update \
+    --add_tags=TAG \
+    PROJECT_ID:DATASET_ID.TABLE_ID
+
+다음을 바꿉니다.
+
+
+TAG: 테이블에 연결할 태그입니다. 태그가 여러 개면 쉼표로 구분합니다. 예를 들면 556741164180/env:prod,myProject/department:sales입니다. 각 태그에는 네임스페이스화된 키 이름 및 값 짧은 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions]이 있어야 합니다.
+PROJECT_ID: 테이블이 포함된 프로젝트의 ID입니다.
+DATASET_ID: 테이블이 포함된 데이터 세트의 ID입니다.
+TABLE_ID: 업데이트하려는 테이블의 ID입니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/tags?hl=ko#gcloud] ---
+명령줄을 사용하여 태그를 테이블에 연결하려면 gcloud resource-manager tags bindings create 명령어 [https://cloud.google.com/sdk/gcloud/reference/resource-manager/tags/bindings/create?hl=ko]를 사용하여 태그 binding 리소스를 만듭니다.
+
+gcloud resource-manager tags bindings create \
+    --tag-value=TAG_VALUE_NAME \
+    --parent=RESOURCE_ID \
+    --location=LOCATION
+
+
+다음을 바꿉니다.
+
+
+TAG_VALUE_NAME: 연결할 태그 값의 영구 ID 또는 네임스페이스 이름(예: tagValues/4567890123 또는 1234567/my_tag_key/my_tag_value)입니다.
+RESOURCE_ID: 리소스 유형을 식별하는 API 도메인 이름(//bigquery.googleapis.com/)을 포함한 테이블의 전체 ID입니다. 예를 들면 //bigquery.googleapis.com/projects/my_project/datasets/my_dataset/tables/my_table입니다.
+LOCATION: 테이블의 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다.
+
+--- 탭: tabpanel-terraform ---
+테이블의 resource_tags 필드에 태그를 추가한 후 google_bigquery_table 리소스를 사용하여 업데이트된 구성을 적용합니다. 자세한 내용은 새 테이블을 만들 때 태그 연결 [https://cloud.google.com/bigquery/docs/tags?hl=ko#attach_tags_when_you_create_a_new_table]의 Terraform 예시를 참조하세요.
+
+--- 탭: tabpanel-api ---
+테이블 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko]가 정의된 tables.update 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/update?hl=ko]를 호출합니다.
+resource_tags 필드에 태그를 포함합니다.
+테이블에 연결된 태그 나열
+테이블에 직접 연결된 태그를 나열할 수 있습니다. 이 프로세스는 상위 리소스에서 상속된 태그를 나열하지 않습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/tags?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트와 데이터 세트를 펼친 후 테이블을 선택합니다.
+
+태그는 세부정보 탭에 표시됩니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/tags?hl=ko#bq] ---
+bq show 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_show]를 사용하고 tags 열을 찾습니다. 테이블에 태그가 없으면 tags 열이 표시되지 않습니다.
+
+bq show \
+    PROJECT_ID:DATASET_ID.TABLE_ID
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 테이블이 포함된 프로젝트의 ID입니다.
+DATASET_ID: 테이블이 포함된 데이터 세트의 ID입니다.
+TABLE_ID: 테이블의 ID입니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/tags?hl=ko#gcloud] ---
+리소스에 연결된 태그 binding 목록을 가져오려면 gcloud resource-manager tags bindings list 명령어 [https://cloud.google.com/sdk/gcloud/reference/resource-manager/tags/bindings/list?hl=ko]를 사용합니다.
+
+gcloud resource-manager tags bindings list \
+    --parent=RESOURCE_ID \
+    --location=LOCATION
+
+
+다음을 바꿉니다.
+
+
+RESOURCE_ID: 리소스 유형을 식별하는 API 도메인 이름(//bigquery.googleapis.com/)을 포함한 테이블의 전체 ID입니다. 예를 들면 //bigquery.googleapis.com/projects/my_project/datasets/my_dataset/tables/my_table입니다.
+LOCATION: 데이터 세트 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다.
+
+
+출력은 다음과 비슷합니다.
+
+name: tagBindings/%2F%2Fbigquery.googleapis.com%2Fprojects%2Fmy_project%2Fdatasets%2Fmy_dataset/tagValues/4567890123
+parent: //bigquery.googleapis.com/projects/my_project/datasets/my_dataset
+tagValue: tagValues/4567890123
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/tags?hl=ko#terraform] ---
+terraform state show 명령어를 사용하여 resource_tags 필드를 포함한 테이블의 속성을 나열합니다. 테이블의 Terraform 구성 파일이 실행된 디렉터리에서 이 명령어를 실행합니다.
+
+terraform state show google_bigquery_table.default
+
+--- 탭: tabpanel-api ---
+정의된 테이블 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko]를 사용하여 tables.get 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/get?hl=ko]를 호출하고 resource_tags 필드를 찾습니다.
+
+--- 탭: tabpanel-뷰 ---
+INFORMATION_SCHEMA.TABLE_OPTIONS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-table-options?hl=ko]를 사용합니다.
+
+예를 들어 다음 쿼리는 데이터 세트의 모든 테이블에 연결된 모든 태그를 보여줍니다. 이 쿼리는 schema_name(데이터 세트 이름), option_name(항상 'tags'), object_type(항상 ARRAY<STRUCT<STRING, STRING>>), 각 데이터 세트와 연결된 태그를 나타내는 STRUCT 객체의 배열이 포함된 option_value 열이 있는 테이블을 반환합니다. 할당된 태그가 없는 테이블의 경우 option_value 열에서 빈 배열을 반환합니다.
+
+SELECT * from DATASET_ID.INFORMATION_SCHEMA.TABLE_OPTIONS
+WHERE option_name='tags'
+
+
+DATASET_ID를 테이블이 포함된 데이터 세트의 ID로 바꿉니다.
+테이블에서 태그 분리
+태그 바인딩을 삭제하여 테이블에서 태그 연결을 삭제할 수 있습니다. 태그를 삭제하는 경우 삭제하기 전에 테이블에서 분리해야 합니다. 자세한 내용은 태그 삭제 [https://cloud.google.com/resource-manager/docs/tags/tags-creating-and-managing?hl=ko#deleting]를 참조하세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/tags?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트와 데이터 세트를 펼친 후 테이블을 선택합니다.
+세부정보 탭을 클릭한 후 mode_edit 세부정보 수정을 클릭합니다.
+태그 섹션에서 삭제하려는 태그 옆에 있는 delete항목 삭제를 클릭합니다.
+저장을 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/tags?hl=ko#sql] ---
+ALTER TABLE SET OPTIONS 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_set_options_statement]을 사용합니다.
+
+다음 예시에서는 -= 연산자를 사용하여 테이블에서 태그를 분리합니다. 테이블에서 모든 태그를 분리하려면 tags=NULL 또는 tags=[]를 지정하면 됩니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+ALTER TABLE PROJECT_ID.DATASET_ID.TABLE_ID
+SET OPTIONS (
+  tags -= [('TAG_KEY_1', 'TAG_VALUE_1'), ('TAG_KEY_2', 'TAG_VALUE_2')];)
+
+
+다음을 바꿉니다.
+
+PROJECT_ID: 프로젝트 ID입니다.
+DATASET_ID: 테이블이 포함된 데이터 세트의 ID
+TABLE_ID: 태그를 분리할 테이블의 이름
+TAG_KEY_1: 분리할 첫 번째 태그의 네임스페이스 키 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'my-project/env' 또는 '556741164180/department')
+TAG_VALUE_1: 분리할 태그 값의 닉네임 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions](예: 'prod' 또는 'sales')
+TAG_KEY_2: 분리할 두 번째 태그의 네임스페이스 키 이름
+TAG_VALUE_2: 분리할 두 번째 태그 값의 닉네임
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/tags?hl=ko#bq] ---
+테이블에서 일부 태그를 삭제하려면 --remove_tags 플래그와 함께 bq update 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_update]를 사용합니다.
+
+bq update \
+    --remove_tags=TAG_KEYS \
+    PROJECT_ID:DATASET_ID.TABLE_ID
+
+다음을 바꿉니다.
+
+
+TAG_KEYS: 테이블에서 분리할 태그 키이며 쉼표로 구분됩니다. 예를 들면 556741164180/env,myProject/department입니다. 각 태그 키에는 네임스페이스화된 키 이름 [https://cloud.google.com/iam/docs/tags-access-control?hl=ko#definitions]이 있어야 합니다.
+PROJECT_ID: 테이블이 포함된 프로젝트의 ID입니다.
+DATASET_ID: 테이블이 포함된 데이터 세트의 ID입니다.
+TABLE_ID: 업데이트하려는 테이블의 ID입니다.
+
+
+테이블에서 모든 태그를 삭제하려면 --clear_all_tags 플래그와 함께 bq update 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_update]를 사용합니다.
+
+bq update \
+    --clear_all_tags \
+    PROJECT_ID:DATASET_ID.TABLE_ID
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/tags?hl=ko#gcloud] ---
+명령줄을 사용하여 테이블에서 태그 연결을 삭제하려면 gcloud resource-manager tags bindings delete 명령어 [https://cloud.google.com/sdk/gcloud/reference/resource-manager/tags/bindings/delete?hl=ko]를 사용하여 태그 바인딩을 삭제합니다.
+
+gcloud resource-manager tags bindings delete \
+    --tag-value=TAG_VALUE_NAME \
+    --parent=RESOURCE_ID \
+    --location=LOCATION
+
+
+다음을 바꿉니다.
+
+
+TAG_VALUE_NAME: 삭제할 태그 값의 영구 ID 또는 네임스페이스 이름(예: tagValues/4567890123 또는 1234567/my_tag_key/my_tag_value)입니다.
+RESOURCE_ID: 리소스 유형을 식별하는 API 도메인 이름(//bigquery.googleapis.com/)을 포함한 테이블의 전체 ID입니다. 예를 들면 //bigquery.googleapis.com/projects/my_project/datasets/my_dataset/tables/my_table입니다.
+LOCATION: 데이터 세트 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다.
+
+--- 탭: tabpanel-terraform ---
+테이블의 resource_tags 필드에서 태그를 삭제한 다음 google_bigquery_table 리소스를 사용하여 업데이트된 구성을 적용합니다.
+
+--- 탭: tabpanel-api ---
+정의된 테이블 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko]를 사용하여 tables.update 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/update?hl=ko]를 호출하고 resource_tags 필드에서 태그를 삭제합니다. 모든 태그를 삭제하려면 resource_tags 필드를 삭제합니다.
+다른 테이블과 유사한 리소스에 태그 지정
+마찬가지로 BigQuery 뷰, 구체화된 뷰, 클론, 스냅샷에 태그를 지정할 수 있습니다.
+태그 삭제
+테이블, 뷰, 데이터 세트에서 참조하는 태그는 삭제할 수 없습니다. 태그 키나 값 자체를 삭제하기 전에 기존 모든 태그 바인딩 리소스를 분리해야 합니다. 태그 키와 태그 값을 삭제하려면 태그 삭제 [https://cloud.google.com/resource-manager/docs/tags/tags-creating-and-managing?hl=ko#deleting]를 참조하세요.
+예
+조직의 관리자라고 가정해 보겠습니다. 데이터 분석가는 프로젝트 userData에 대한 BigQuery 데이터 뷰어 IAM 역할이 있는 analysts@example.com 그룹의 모든 구성원입니다. 데이터 분석가 인턴은 채용되며 회사 정책에 따라 userData 프로젝트에서 anonymousData 데이터 세트를 볼 수 있는 권한만 부여받아야 합니다. 태그를 사용하여 액세스를 제어할 수 있습니다.
+키가 employee_type이고 값이 intern인 태그를 만듭니다 [https://cloud.google.com/resource-manager/docs/tags/tags-creating-and-managing?hl=ko#creating_tag].
+Google Cloud 콘솔에서 IAM 페이지로 이동합니다.
+IAM으로 이동 [https://console.cloud.google.com/iam-admin/iam?hl=ko]
+제한하려는 데이터 세트 액세스 권한이 있는 인턴이 포함된 행을 찾고 이 행에서 edit주 구성원 수정을 클릭합니다.
+역할 메뉴에서 BigQuery 데이터 뷰어를 선택합니다.
+조건 추가를 클릭합니다.
+제목 필드와 설명 필드에 만들려는 IAM 태그 조건을 설명하는 값을 입력합니다.
+조건 작성 도구 탭에서 추가를 클릭합니다.
+조건 유형 메뉴에서 리소스를 선택한 후 태그를 선택합니다.
+연산자 메뉴에서 값 있음을 선택합니다.
+값 경로 필드에 ORGANIZATION/TAG_KEY/TAG_VALUE 형식으로 태그 값 경로(예: example.org/employee_type/intern)를 입력합니다.
+이 IAM 태그 조건은 intern 태그가 있는 데이터 세트에 대한 인턴의 액세스 권한을 제한합니다.
+태그 조건을 저장하려면 저장을 클릭합니다.
+권한 수정 창에서 변경한 모든 사항을 저장하려면 저장을 클릭합니다.
+intern 태그 값을 anonymousData 데이터 세트에 연결하려면 명령줄을 사용하여 gcloud resource-manager tags bindings create 명령어를 실행합니다. 예를 들면 다음과 같습니다.
+gcloud resource-manager tags bindings create \
+    --tag-value=tagValues/4567890123 \
+    --parent=//bigquery.googleapis.com/projects/userData/datasets/anonymousData \
+    --location=US
+다음 단계
+Google Cloud의 태그에 대한 개요는 태그 개요 [https://cloud.google.com/resource-manager/docs/tags/tags-overview?hl=ko]를 참조하세요.
+태그 사용 방법에 대한 자세한 내용은 태그 생성 및 관리 [https://cloud.google.com/resource-manager/docs/tags/tags-creating-and-managing?hl=ko]를 참조하세요.
+IAM 조건으로 BigQuery 리소스에 대한 액세스를 제어하는 방법에 관한 자세한 내용은 IAM 조건으로 액세스 제어 [https://cloud.google.com/bigquery/docs/conditions?hl=ko]를 참조하세요.
+도움이 되었나요?
+의견 보내기

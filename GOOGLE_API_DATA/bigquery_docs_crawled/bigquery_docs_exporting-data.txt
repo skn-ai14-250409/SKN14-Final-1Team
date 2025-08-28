@@ -1,0 +1,1766 @@
+Source URL: https://cloud.google.com/bigquery/docs/exporting-data
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+내보내기 제한 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#export_limitations]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#before_you_begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#required_permissions]
+내보내기 형식 및 압축 유형 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#export_formats_and_compression_types]
+데이터 내보내기 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#export-data-in-bigquery]
+테이블 데이터를 Cloud Storage로 내보내기
+bookmark_border
+이 페이지에서는 BigQuery 테이블에서 Cloud Storage로 데이터를 내보내거나 추출하는 방법을 설명합니다.
+데이터를 BigQuery에 로드 [https://cloud.google.com/bigquery/docs/loading-data?hl=ko]한 후에 여러 가지 형식으로 데이터를 내보낼 수 있습니다. BigQuery는 논리적 데이터 크기를 최대 1GB까지 단일 파일로 내보낼 수 있습니다. 1GB가 넘는 데이터를 내보내려면 데이터를 여러 파일 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#exporting_data_into_one_or_more_files]로 내보내야 합니다. 데이터를 여러 파일로 내보내면 파일 크기가 달라집니다.
+EXPORT DATA [https://cloud.google.com/bigquery/docs/reference/standard-sql/export-statements?hl=ko#export_data_statement] 문을 사용하여 쿼리 결과를 내보낼 수도 있습니다. EXPORT DATA OPTIONS [https://cloud.google.com/bigquery/docs/reference/standard-sql/export-statements?hl=ko#gcs_s3_export_option]를 사용하여 내보낸 데이터의 형식을 지정할 수 있습니다.
+마지막으로 Dataflow [https://cloud.google.com/dataflow/what-is-google-cloud-dataflow?hl=ko]와 같은 서비스를 사용하면 BigLake에서 데이터를 내보내지 않고 BigQuery에서 읽을 수 있습니다. Dataflow를 사용하여 BigQuery에서 읽기 및 쓰기에 대한 자세한 내용은 BigQuery I/O 문서 [https://beam.apache.org/documentation/io/built-in/google-bigquery]를 참고하세요.
+내보내기 제한
+BigQuery에서 데이터를 내보낼 때 다음 사항에 유의하세요.
+주의: Cloud Storage 버킷으로 데이터를 내보내는 경우 버킷에서 버킷 잠금 [https://cloud.google.com/storage/docs/using-bucket-lock?hl=ko#set-policy] 및 소프트 삭제 [https://cloud.google.com/storage/docs/use-soft-delete?hl=ko] 보관 정책을 사용 중지하는 것이 좋습니다. 이러한 보관 정책이 적용된 버킷으로 내보낼 때 BigQuery는 버킷에 파일을 다시 작성하려고 시도합니다. 이때 버킷의 보관 정책으로 인해 파일이 덮어쓰기되지 못하면 실패하여 추가 비용이 발생할 수 있습니다. 내보내기가 완료된 후 이러한 정책을 다시 사용 설정할 수 있습니다.
+테이블 데이터를 로컬 파일, Google Sheets 또는 Google Drive로 내보낼 수 없습니다. 유일하게 지원되는 내보내기 위치는 Cloud Storage입니다. 쿼리 결과 저장에 대한 정보는 쿼리 결과 다운로드 및 저장 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#downloading-saving-results-console]을 참조하세요.
+논리 테이블 데이터 크기를 최대 1GB까지 단일 파일로 내보낼 수 있습니다. 1GB가 넘는 데이터를 내보내려면 와일드 카드 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#exporting_data_into_one_or_more_files]를 사용하여 데이터를 여러 파일로 내보내세요. 데이터를 여러 파일로 내보내면 파일 크기가 달라집니다. 내보낸 파일 크기를 제한 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#limit_the_exported_file_size]하려면 데이터를 파티션으로 나누고 각 파티션을 내보내면 됩니다.
+EXPORT DATA 문을 사용할 때 생성되는 파일 크기는 보장되지 않습니다.
+내보내기 작업에서 생성되는 파일 수는 다를 수 있습니다.
+중첩되거나 반복되는 데이터는 CSV 형식으로 내보낼 수 없습니다. Avro, JSON, Parquet 내보내기에는 중첩 및 반복되는 데이터가 지원됩니다.
+데이터를 JSON [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#json_type] 형식으로 내보내는 경우 다른 시스템에서 데이터를 읽을 때 64비트 정밀도를 유지하기 위해서 INT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#integer_types](정수) 데이터 유형이 JSON 문자열로 인코딩됩니다.
+여러 테이블의 데이터를 단일 내보내기 작업으로 내보낼 수 없습니다.
+Google Cloud 콘솔을 사용하여 데이터를 내보내는 경우에는 GZIP 이외의 압축 유형을 선택할 수 없습니다.
+JSON 형식으로 테이블을 내보낼 때 <, >, & 기호는 유니코드 표기법 \uNNNN을 사용하여 변환됩니다. 여기서 N은 16진수입니다. 예를 들어 profit&loss는 profit\u0026loss가 됩니다. 이 유니코드 변환은 보안 취약점을 방지하기 위해 수행됩니다.
+내보낸 테이블 데이터의 순서는 EXPORT DATA [https://cloud.google.com/bigquery/docs/reference/standard-sql/export-statements?hl=ko#export_data_statement] 문을 사용하고 query_statement에서 ORDER BY 절을 지정하지 않는 한 보장되지 않습니다.
+BigQuery는 처음 이중 슬래시 다음에 슬래시 여러 개가 연속으로 포함된 Cloud Storage 리소스 경로를 지원하지 않습니다. Cloud Storage 객체 이름에는 연속된 슬래시('/') 문자 여러 개가 포함될 수 있습니다. 하지만 BigQuery는 연속된 슬래시 여러 개를 단일 슬래시로 변환합니다. 예를 들어 gs://bucket/my//object//name 리소스 경로는 Cloud Storage에서는 유효하지만 BigQuery에서는 작동하지 않습니다.
+내보내기 작업이 진행 중일 때 BigQuery에 로드되는 모든 새 데이터는 해당 내보내기 작업에 포함되지 않습니다 새 데이터를 내보내려면 새 내보내기 작업을 만들어야 합니다.
+시작하기 전에
+사용자에게 이 문서의 각 태스크를 수행하는 데 필요한 권한을 부여하는 Identity and Access Management(IAM) [https://cloud.google.com/iam/docs?hl=ko] 역할을 부여합니다.
+필수 권한
+이 문서의 태스크를 수행하려면 다음 권한이 필요합니다.
+BigQuery 테이블에서 데이터를 내보내는 권한
+BigQuery 테이블에서 데이터를 내보내려면 bigquery.tables.export IAM 권한이 필요합니다.
+사전 정의된 다음 각 IAM 역할에는 bigquery.tables.export 권한이 포함되어 있습니다.
+roles/bigquery.dataViewer
+roles/bigquery.dataOwner
+roles/bigquery.dataEditor
+roles/bigquery.admin
+내보내기 작업을 실행할 수 있는 권한
+내보내기 작업 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko]을 실행하려면 bigquery.jobs.create IAM 권한이 필요합니다.
+다음과 같은 사전 정의된 각 IAM 역할에는 내보내기 작업을 실행하는 데 필요한 권한이 포함되어 있습니다.
+roles/bigquery.user
+roles/bigquery.jobUser
+roles/bigquery.admin
+데이터를 Cloud Storage 버킷에 쓸 수 있는 권한
+데이터를 기존 Cloud Storage 버킷에 쓰려면 다음과 같은 IAM 권한이 필요합니다.
+storage.objects.create
+storage.objects.delete
+다음과 같은 사전 정의된 각 IAM 역할에는 기존 Cloud Storage 버킷에 데이터를 쓰는 데 필요한 권한이 포함되어 있습니다.
+roles/storage.objectAdmin
+roles/storage.admin
+BigQuery의 IAM 역할과 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]을 참조하세요.
+내보내기 형식 및 압축 유형
+BigQuery는 내보낸 데이터에 대해 다음과 같은 데이터 형식 및 압축 유형을 지원합니다.
+데이터 형식 지원되는 압축 유형 세부정보
+CSV GZIP
+--field_delimiter [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_extract] bq 명령줄 도구 플래그 또는 configuration.extract.fieldDelimiter [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#jobconfigurationextract] 추출 작업 속성을 사용하여 내보낸 데이터에서 CSV 구분 기호를 관리합니다.
+중첩 및 반복되는 데이터가 지원되지 않습니다.
+JSON GZIP 중첩 및 반복되는 데이터가 지원됩니다.
+Avro DEFLATE, SNAPPY
+Avro 내보내기에는 GZIP 압축이 지원되지 않습니다.
+중첩 및 반복되는 데이터가 지원됩니다. Avro 내보내기 세부정보 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#avro_export_details]를 참조하세요.
+Parquet SNAPPY, GZIP, ZSTD
+중첩 및 반복되는 데이터가 지원됩니다. Parquet 내보내기 세부정보 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#parquet_export_details]를 참조하세요.
+데이터 내보내기
+테이블 데이터를 내보내는 방법은 다음과 같습니다.
+Google Cloud 콘솔 사용
+bq 명령줄 도구에서 bq extract [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_extract] 명령어 사용
+API 또는 클라이언트 라이브러리를 사용하여 extract 작업 제출
+테이블 데이터 내보내기
+BigQuery 테이블에서 데이터를 내보내는 방법은 다음과 같습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 패널에서 프로젝트와 데이터 세트를 펼친 후 테이블을 선택합니다.
+세부정보 패널에서 내보내기를 클릭하고 Cloud Storage로 내보내기를 선택합니다.
+테이블을 Google Cloud Storage로 내보내기 대화상자에서
+
+
+Google Cloud Storage 위치 선택에서 데이터를 내보낼 버킷, 폴더 또는 파일을 찾습니다.
+내보내기 형식에서 내보낸 데이터 형식, CSV, JSON(줄바꿈으로 구분), Avro 또는 Parquet를 선택합니다.
+압축에 압축 형식을 선택하거나 압축하지 않음에 None을 선택합니다.
+저장을 클릭하여 테이블을 내보냅니다.
+
+
+
+작업 진행 상황을 확인하려면 작업 기록 창을 펼치고 추출 유형 작업을 찾습니다.
+
+뷰를 Cloud Storage로 내보내려면 EXPORT DATA OPTIONS 문이 [https://cloud.google.com/bigquery/docs/reference/standard-sql/export-statements?hl=ko] 필요합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#sql] ---
+EXPORT DATA 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/export-statements?hl=ko#export_data_statement]을 사용합니다.
+다음 예시에서는 mydataset.table1이라고 하는 테이블에서 선택한 필드를 내보냅니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+EXPORT DATA
+  OPTIONS (
+    uri = 'gs://bucket/folder/*.csv',
+    format = 'CSV',
+    overwrite = true,
+    header = true,
+    field_delimiter = ';')
+AS (
+  SELECT field1, field2
+  FROM mydataset.table1
+  ORDER BY field1
+);
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#bq] ---
+bq extract [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_extract] 명령어를 --destination_format 플래그와 함께 사용합니다.
+
+(선택사항) --location 플래그를 지정하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]로 설정합니다.
+
+다른 선택적 플래그에는 다음이 포함됩니다.
+
+
+--compression: 내보내는 파일에 사용할 압축 유형입니다.
+--field_delimiter: CSV 내보내기의 출력 파일에서 열 사이의 경계를 나타내는 문자입니다. \t와 tab 모두 탭 구분 기호로 사용할 수 있습니다.
+--print_header: 이 플래그를 지정하면 헤더가 있는 형식(예: CSV)의 헤더 행이 인쇄됩니다.
+
+
+bq extract --location=location \
+--destination_format format \
+--compression compression_type \
+--field_delimiter delimiter \
+--print_header=boolean \
+project_id:dataset.table \
+gs://bucket/filename.ext
+
+
+각 항목의 의미는 다음과 같습니다.
+
+
+location은 사용자 위치의 이름입니다. --location 플래그는 선택사항입니다. 예를 들어 도쿄 리전에서 BigQuery를 사용한다면 플래그 값을 asia-northeast1로 설정할 수 있습니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+format은 내보낸 데이터 형식입니다(CSV, NEWLINE_DELIMITED_JSON, AVRO 또는 PARQUET).
+compression_type은 데이터 형식에 지원되는 압축 유형입니다. 내보내기 형식 및 압축 유형 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#export_formats_and_compression_types]을 참조하세요.
+delimiter는 CSV 내보내기의 열 사이의 경계를 나타내는 문자입니다. \t 및 tab은 탭에 허용되는 이름입니다.
+boolean은 true 또는 false입니다. true로 설정하면 헤더 행은 데이터 형식이 헤더를 지원하는 경우 내보낸 데이터에 인쇄됩니다. 기본값은 true입니다.
+project_id는 프로젝트 ID입니다.
+dataset는 소스 데이터세트의 이름입니다.
+table은 내보내는 테이블입니다. 파티션 데코레이터 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#partition_decorators]를 사용할 경우 작은 따옴표를 사용해서 테이블 경로를 묶거나 $ 문자를 이스케이프해야 합니다.
+bucket은 데이터를 내보내는 Cloud Storage 버킷 이름입니다. BigQuery 데이터 세트와 Cloud Storage 버킷은 같은 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에 있어야 합니다.
+filename.ext는 내보낸 데이터 파일의 이름 및 확장자입니다. 와일드 카드 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#exporting_data_into_one_or_more_files]를 사용하여 여러 파일로 내보낼 수 있습니다.
+
+
+예시:
+
+예를 들어 다음 명령어는 mydataset.mytable을 myfile.csv라는 gzip 압축 파일로 내보냅니다. myfile.csv는 example-bucket이라는 Cloud Storage 버킷에 저장됩니다.
+
+bq extract \
+--compression GZIP \
+'mydataset.mytable' \
+gs://example-bucket/myfile.csv
+
+기본 대상 형식은 CSV입니다. JSON 또는 Avro로 내보내려면 destination_format 플래그를 사용하고 형식을 NEWLINE_DELIMITED_JSON 또는 AVRO로 설정합니다. 예를 들면 다음과 같습니다.
+
+bq extract \
+--destination_format NEWLINE_DELIMITED_JSON \
+'mydataset.mytable' \
+gs://example-bucket/myfile.json
+
+다음 명령어는 mydataset.mytable을 Snappy를 사용하여 압축된 Avro 파일로 내보냅니다. 파일 이름은 myfile.avro입니다. myfile.avro는 example-bucket라는 Cloud Storage 버킷으로 내보내집니다.
+
+bq extract \
+--destination_format AVRO \
+--compression SNAPPY \
+'mydataset.mytable' \
+gs://example-bucket/myfile.avro
+
+다음 명령어는 mydataset.my_partitioned_table의 단일 파티션을 Cloud Storage의 CSV 파일로 내보냅니다.
+
+bq extract \
+--destination_format CSV \
+'mydataset.my_partitioned_table$0' \
+gs://example-bucket/single_partition.csv
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#api] ---
+데이터를 내보내려면 extract 작업을 만들고 작업 구성을 게재합니다.
+참고: Parquet 형식으로 데이터를 내보내는 경우 BigQuery Storage API를 통해 Parquet로 BigQuery 내보내기 템플릿 [https://cloud.google.com/dataflow/docs/guides/templates/provided/bigquery-to-parquet?hl=ko]을 사용하는 것이 커스텀 솔루션을 작성하는 것보다 더 빠를 수 있습니다.
+(선택사항) 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 있는 location 속성에 사용자 위치를 지정합니다.
+
+
+BigQuery 소스 데이터와 Cloud Storage 대상을 가리키는 추출 작업을 만듭니다.
+프로젝트 ID, 데이터세트 ID, 테이블 ID를 포함하는 sourceTable 구성 객체를 사용하여 소스 테이블을 지정합니다.
+destination URI(s) 속성은 gs://bucket/filename.ext 형식으로 정규화되어야 합니다.
+각 URI에 와일드 카드 문자 '*' 하나가 포함될 수 있으며 이 문자는 버킷 이름 다음에 있어야 합니다.
+configuration.extract.destinationFormat 속성을 설정하여 데이터 형식을 지정합니다. 예를 들어 JSON 파일을 내보내려면 이 속성을 NEWLINE_DELIMITED_JSON 값으로 설정합니다.
+작업 상태를 확인하려면 초기 요청이 반환한 작업 ID를 사용하여 jobs.get(job_id) [https://cloud.google.com/bigquery/docs/reference/v2/jobs/get?hl=ko]을 호출합니다.
+
+
+status.state = DONE이면 작업이 성공적으로 완료된 것입니다.
+status.errorResult 속성이 있으면 요청이 실패한 것이며 해당 객체에 문제를 설명하는 정보가 포함됩니다.
+status.errorResult가 없으면 작업은 성공적으로 끝났지만 심각하지 않은 오류가 발생했을 수 있다는 의미입니다. 심각하지 않은 오류는 반환된 작업 객체의 status.errors 속성에 나열됩니다.
+
+
+
+API 참고:
+
+
+jobs.insert를 호출하여 작업을 만들 때 고유 ID를 생성하여 jobReference.jobId로 전달하는 것이 가장 좋습니다. 클라이언트가 알려진 작업 ID로 폴링하거나 재시도할 수 있으므로 이 방법은 네트워크 장애 시에 더 안정적입니다.
+특정한 작업 ID에 대한 jobs.insert 호출은 멱등성을 지닙니다. 즉, 같은 작업 ID로 원하는 만큼 다시 시도할 수 있으며 최대 한 번만 성공합니다.
+
+--- 탭: tabpanel-c ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 C# 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery C# API 참고 문서 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+using Google.Cloud.BigQuery.V2 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.html?hl=ko];
+using System;
+
+public class BigQueryExtractTable
+{
+    public void ExtractTable(
+        string projectId = "your-project-id",
+        string bucketName = "your-bucket-name")
+    {
+        BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko] client = BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_Create_System_String_Google_Apis_Auth_OAuth2_GoogleCredential_](projectId);
+        // Define a destination URI. Use a single wildcard URI if you think
+        // your exported data will be larger than the 1 GB maximum value.
+        string destinationUri = $"gs://{bucketName}/shakespeare-*.csv";
+        BigQueryJob [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryJob.html?hl=ko] job = client.CreateExtractJob [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_CreateExtractJob_Google_Apis_Bigquery_v2_Data_TableReference_System_Collections_Generic_IEnumerable_System_String__Google_Cloud_BigQuery_V2_CreateExtractJobOptions_](
+            projectId: "bigquery-public-data",
+            datasetId: "samples",
+            tableId: "shakespeare",
+            destinationUri: destinationUri
+        );
+        job = job.PollUntilCompleted [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryJob.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryJob_PollUntilCompleted_Google_Cloud_BigQuery_V2_GetJobOptions_Google_Api_Gax_PollSettings_]().ThrowOnAnyError();  // Waits for the job to complete.
+        Console.Write($"Exported table to {destinationUri}.");
+    }
+}
+
+--- 탭: tabpanel-go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// exportTableAsCompressedCSV demonstrates using an export job to
+// write the contents of a table into Cloud Storage as CSV.
+func exportTableAsCSV(projectID, gcsURI string) error {
+	// projectID := "my-project-id"
+	// gcsUri := "gs://mybucket/shakespeare.csv"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	srcProject := "bigquery-public-data"
+	srcDataset := "samples"
+	srcTable := "shakespeare"
+
+	gcsRef := bigquery.NewGCSReference [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_GCSReference_NewGCSReference](gcsURI)
+	gcsRef.FieldDelimiter = ","
+
+	extractor := client.DatasetInProject [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Client_DatasetInProject](srcProject, srcDataset).Table(srcTable).ExtractorTo(gcsRef)
+	extractor.DisableHeader = true
+	// You can choose to run the job in a specific location for more complex data locality scenarios.
+	// Ex: In this example, source dataset and GCS bucket are in the US.
+	extractor.Location [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Job_Location] = "US"
+
+	job, err := extractor.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err](); err != nil {
+		return err
+	}
+	return nil
+}
+
+--- 탭: tabpanel-자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.RetryOption [https://cloud.google.com/java/docs/reference/google-cloud-core/latest/com.google.cloud.RetryOption.html?hl=ko];
+import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-batch/latest/com.google.cloud.batch.v1.Job.html?hl=ko];
+import com.google.cloud.bigquery.Table [https://cloud.google.com/java/docs/reference/google-cloud-biglake/latest/com.google.cloud.bigquery.biglake.v1.Table.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+import org.threeten.bp.Duration [https://cloud.google.com/java/docs/reference/google-cloud-compute/latest/com.google.cloud.compute.v1.Duration.html?hl=ko];
+
+public class ExtractTableToCsv {
+
+  public static void runExtractTableToCsv() {
+    // TODO(developer): Replace these variables before running the sample.
+    String [https://cloud.google.com/java/docs/reference/google-cloud-bigtable/latest/com.google.cloud.bigtable.common.Type.String.html?hl=ko] projectId = "bigquery-public-data";
+    String [https://cloud.google.com/java/docs/reference/google-cloud-bigtable/latest/com.google.cloud.bigtable.common.Type.String.html?hl=ko] datasetName = "samples";
+    String [https://cloud.google.com/java/docs/reference/google-cloud-bigtable/latest/com.google.cloud.bigtable.common.Type.String.html?hl=ko] tableName = "shakespeare";
+    String [https://cloud.google.com/java/docs/reference/google-cloud-bigtable/latest/com.google.cloud.bigtable.common.Type.String.html?hl=ko] bucketName = "my-bucket";
+    String [https://cloud.google.com/java/docs/reference/google-cloud-bigtable/latest/com.google.cloud.bigtable.common.Type.String.html?hl=ko] destinationUri = "gs://" + bucketName + "/path/to/file";
+    // For more information on export formats available see:
+    // https://cloud.google.com/bigquery/docs/exporting-data#export_formats_and_compression_types
+    // For more information on Job see:
+    // https://googleapis.dev/java/google-cloud-clients/latest/index.html?com/google/cloud/bigquery/package-summary.html
+
+    String [https://cloud.google.com/java/docs/reference/google-cloud-bigtable/latest/com.google.cloud.bigtable.common.Type.String.html?hl=ko] dataFormat = "CSV";
+    extractTableToCsv(projectId, datasetName, tableName, destinationUri, dataFormat);
+  }
+
+  // Exports datasetName:tableName to destinationUri as raw CSV
+  public static void extractTableToCsv(
+      String [https://cloud.google.com/java/docs/reference/google-cloud-bigtable/latest/com.google.cloud.bigtable.common.Type.String.html?hl=ko] projectId,
+      String [https://cloud.google.com/java/docs/reference/google-cloud-bigtable/latest/com.google.cloud.bigtable.common.Type.String.html?hl=ko] datasetName,
+      String [https://cloud.google.com/java/docs/reference/google-cloud-bigtable/latest/com.google.cloud.bigtable.common.Type.String.html?hl=ko] tableName,
+      String [https://cloud.google.com/java/docs/reference/google-cloud-bigtable/latest/com.google.cloud.bigtable.common.Type.String.html?hl=ko] destinationUri,
+      String [https://cloud.google.com/java/docs/reference/google-cloud-bigtable/latest/com.google.cloud.bigtable.common.Type.String.html?hl=ko] dataFormat) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(projectId, datasetName, tableName);
+      Table [https://cloud.google.com/java/docs/reference/google-cloud-biglake/latest/com.google.cloud.bigquery.biglake.v1.Table.html?hl=ko] table = bigquery.getTable [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_getTable_com_google_cloud_bigquery_TableId_com_google_cloud_bigquery_BigQuery_TableOption____](tableId);
+
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-batch/latest/com.google.cloud.batch.v1.Job.html?hl=ko] job = table.extract [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Table.html?hl=ko#com_google_cloud_bigquery_Table_extract_java_lang_String_java_lang_String_com_google_cloud_bigquery_BigQuery_JobOption____](dataFormat, destinationUri);
+
+      // Blocks until this job completes its execution, either failing or succeeding.
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-batch/latest/com.google.cloud.batch.v1.Job.html?hl=ko] completedJob =
+          job.waitFor [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_waitFor_com_google_cloud_bigquery_BigQueryRetryConfig_com_google_cloud_RetryOption____](
+              RetryOption.initialRetryDelay(Duration.ofSeconds(1)),
+              RetryOption.totalTimeout(Duration.ofMinutes(3)));
+      if (completedJob == null) {
+        System.out.println("Job not executed since it no longer exists.");
+        return;
+      } else if (completedJob.getStatus [https://cloud.google.com/java/docs/reference/google-cloud-batch/latest/com.google.cloud.batch.v1.Job.html?hl=ko#com_google_cloud_batch_v1_Job_getStatus__]().getError() != null) {
+        System.out.println(
+            "BigQuery was unable to extract due to an error: \n" + job.getStatus [https://cloud.google.com/java/docs/reference/google-cloud-batch/latest/com.google.cloud.batch.v1.Job.html?hl=ko#com_google_cloud_batch_v1_Job_getStatus__]().getError());
+        return;
+      }
+      System.out.println(
+          "Table export successful. Check in GCS bucket for the " + dataFormat + " file.");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Table extraction job was interrupted. \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client libraries
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const {Storage} = require('@google-cloud/storage [https://cloud.google.com/nodejs/docs/reference/storage/latest/overview.html?hl=ko]');
+
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+const storage = new Storage();
+
+async function extractTableToGCS() {
+  // Exports my_dataset:my_table to gcs://my-bucket/my-file as raw CSV.
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const datasetId = "my_dataset";
+  // const tableId = "my_table";
+  // const bucketName = "my-bucket";
+  // const filename = "file.csv";
+
+  // Location must match that of the source table.
+  const options = {
+    location: 'US',
+  };
+
+  // Export data from the table into a Google Cloud Storage file
+  const [job] = await bigquery
+    .dataset(datasetId)
+    .table(tableId)
+    .extract(storage.bucket(bucketName).file(filename), options);
+
+  console.log(`Job ${job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id} created.`);
+
+  // Check the job's status for errors
+  const errors = job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].status.errors;
+  if (errors && errors.length > 0) {
+    throw errors;
+  }
+}
+
+--- 탭: tabpanel-php ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 PHP 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery PHP API 참고 문서 [https://cloud.google.com/php/docs/reference/cloud-bigquery/latest/BigQueryClient?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  use Google\Cloud\BigQuery\BigQueryClient;
+
+/**
+ * Extracts the given table as json to given GCS bucket.
+ *
+ * @param string $projectId The project Id of your Google Cloud Project.
+ * @param string $datasetId The BigQuery dataset ID.
+ * @param string $tableId The BigQuery table ID.
+ * @param string $bucketName Bucket name in Google Cloud Storage
+ */
+function extract_table(
+    string $projectId,
+    string $datasetId,
+    string $tableId,
+    string $bucketName
+): void {
+    $bigQuery = new BigQueryClient([
+      'projectId' => $projectId,
+    ]);
+    $dataset = $bigQuery->dataset($datasetId);
+    $table = $dataset->table($tableId);
+    $destinationUri = "gs://{$bucketName}/{$tableId}.json";
+    // Define the format to use. If the format is not specified, 'CSV' will be used.
+    $format = 'NEWLINE_DELIMITED_JSON';
+    // Create the extract job
+    $extractConfig = $table->extract($destinationUri)->destinationFormat($format);
+    // Run the job
+    $job = $table->runJob($extractConfig);  // Waits for the job to complete
+    printf('Exported %s to %s' . PHP_EOL, $table->id(), $destinationUri);
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # from google.cloud import bigquery
+# client = bigquery.Client()
+# bucket_name = 'my-bucket'
+project = "bigquery-public-data"
+dataset_id = "samples"
+table_id = "shakespeare"
+
+destination_uri = "gs://{}/{}".format(bucket_name, "shakespeare.csv")
+dataset_ref = bigquery.DatasetReference(project, dataset_id)
+table_ref = dataset_ref.table(table_id)
+
+extract_job = client.extract_table(
+    table_ref,
+    destination_uri,
+    # Location must match that of the source table.
+    location="US",
+)  # API request
+extract_job.result()  # Waits for job to complete.
+
+print(
+    "Exported {}:{}.{} to {}".format(project, dataset_id, table_id, destination_uri)
+)
+
+--- 탭: tabpanel-ruby ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Ruby 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Ruby API 참고 문서 [https://googleapis.dev/ruby/google-cloud-bigquery/latest/Google/Cloud/Bigquery.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  require "google/cloud/bigquery"
+
+def extract_table bucket_name = "my-bucket",
+                  dataset_id  = "my_dataset_id",
+                  table_id    = "my_table_id"
+  bigquery = Google::Cloud::Bigquery [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery-analytics_hub/latest/Google-Cloud-Bigquery.html?hl=ko].new [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery/latest/Google-Cloud-Bigquery.html?hl=ko]
+  dataset  = bigquery.dataset dataset_id
+  table    = dataset.table    table_id
+
+  # Define a destination URI. Use a single wildcard URI if you think
+  # your exported data will be larger than the 1 GB maximum value.
+  destination_uri = "gs://#{bucket_name}/output-*.csv"
+
+  extract_job = table.extract_job destination_uri do |config|
+    # Location must match that of the source table.
+    config.location = "US"
+  end
+  extract_job.wait_until_done! # Waits for the job to complete
+
+  puts "Exported #{table.id} to #{destination_uri}"
+end
+테이블 메타데이터 내보내기
+Iceberg 테이블 [https://cloud.google.com/bigquery/docs/iceberg-tables?hl=ko]에서 테이블 메타데이터를 내보내려면 다음 SQL 문을 사용합니다.
+EXPORT TABLE METADATA FROM `[[
+PROJECT_NAME.]
+DATASET_NAME.]
+TABLE_NAME`;
+다음을 바꿉니다.
+PROJECT_NAME: 테이블의 프로젝트 이름입니다. 값은 기본적으로 이 쿼리를 실행하는 프로젝트로 지정됩니다.
+DATASET_NAME: 테이블의 데이터 세트 이름입니다.
+TABLE_NAME: 테이블의 이름입니다.
+내보낸 메타데이터는 STORAGE_URI/metadata 폴더에 저장되며, 여기서 STORAGE_URI는 옵션에 설정된 테이블의 스토리지 위치입니다.
+Avro 내보내기 세부정보
+BigQuery는 Avro 형식의 데이터를 다음과 같은 방식으로 표현합니다.
+결과 내보내기 파일은 Avro 컨테이너 파일입니다.
+각 BigQuery 행은 Avro 레코드로 표시됩니다. 중첩된 데이터는 중첩된 레코드 객체로 표현됩니다.
+REQUIRED 필드는 해당 Avro 유형으로 표현됩니다. 예를 들어 BigQuery INTEGER 유형은 Avro LONG 유형에 매핑됩니다.
+NULLABLE 필드는 해당 유형과 'null'의 Avro 통합으로 표현됩니다.
+REPEATED 필드는 Avro 배열로 표현됩니다.
+TIMESTAMP 데이터 유형은 기본적으로 추출 작업과 내보내기 데이터 SQL 모두에서 timestamp-micros 논리 유형(Avro LONG 유형 주석 처리)으로 표시됩니다. (주의: Export Data Options에 use_avro_logical_types=False를 추가하여 논리 유형을 사용 중지하여 타임스탬프 열 대신 string 유형을 사용하도록 할 수 있지만 추출 작업에서는 항상 Avro 논리 유형을 사용합니다.)
+DATE 데이터 유형은 데이터 내보내기 SQL에서 기본적으로 date 논리 유형(Avro INT 유형 주석 처리)으로 표시되지만 추출 작업에서는 기본적으로 string 유형으로 표시됩니다. (참고: Export Data Options에 use_avro_logical_types=False를 추가하여 논리 유형을 사용 중지하거나 --use_avro_logical_types=True 플래그를 사용하여 추출 작업에서 논리 유형을 사용 설정할 수 있습니다.)
+TIME 데이터 유형은 데이터 내보내기 SQL에서 기본적으로 timestamp-micro 논리 유형(Avro LONG 유형 주석 처리)으로 표시되지만 추출 작업에서는 기본적으로 string 유형으로 표시됩니다. (참고: Export Data Options에 use_avro_logical_types=False를 추가하여 논리 유형을 사용 중지하거나 --use_avro_logical_types=True 플래그를 사용하여 추출 작업에서 논리 유형을 사용 설정할 수 있습니다.)
+DATETIME 데이터 유형은 데이터 내보내기 SQL에서 기본적으로 Avro STRING 유형(논리 유형이 커스텀으로 명명된 datetime인 문자열 유형)으로 표시되지만 추출 작업에서는 기본적으로 string로 표시됩니다. (참고: Export Data Options에 use_avro_logical_types=False를 추가하여 논리 유형을 사용 중지하거나 --use_avro_logical_types=True 플래그를 사용하여 추출 작업에서 논리 유형을 사용 설정할 수 있습니다.)
+Avro 내보내기에서는 RANGE 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#range_type]이 지원되지 않습니다.
+참고: 문자열 유형의 인코딩은 인터넷 엔지니어링 태스크포스(IETF) RFC 3339 [https://www.ietf.org/rfc/rfc3339.txt] 사양을 따릅니다.
+매개변수화된 NUMERIC(P[, S]) 및 BIGNUMERIC(P[, S]) 데이터 유형은 정밀도 및 확장 유형 매개변수를 Avro 10진수 논리 유형으로 전송합니다.
+주의사항:
+DATETIME 유형을 Avro로 내보내는 경우 변환된 STRING이 스키마와 일치하지 않으므로 Avro 파일을 동일한 테이블 스키마로 직접 다시 로드할 수 없습니다. 이 문제를 해결하려면 스테이징 테이블에 파일을 로드합니다. 그런 다음 SQL 쿼리를 사용하여 필드를 DATETIME 유형으로 변환하고 결과를 새 테이블에 저장합니다. 자세한 내용은 열의 데이터 유형 변경 [https://cloud.google.com/bigquery/docs/manually-changing-schemas?hl=ko#changing_a_columns_data_type]을 참조하세요.
+내보내기 데이터 옵션 use_avro_logical_types 및 추출 작업 플래그 --use_avro_logical_types가 지정되면 동시에 모든 논리 유형에 적용됩니다.
+Avro 형식은 GZIP 압축에 사용될 수 없습니다. Avro 데이터를 압축하려면 bq 명령줄 도구 또는 API를 사용하고 Avro 데이터에 대해 지원되는 압축 유형(DEFLATE 또는 SNAPPY) 중 하나를 지정하세요.
+Parquet 내보내기 세부정보
+BigQuery는 GoogleSQL 데이터 유형을 다음과 같은 Parquet 데이터 유형으로 변환합니다.
+BigQuery 데이터 유형 Parquet 기본 유형 Parquet 논리 유형
+정수 INT64 NONE
+숫자 FIXED_LEN_BYTE_ARRAY DECIMAL (precision = 38, scale = 9)
+숫자(P[, S)] FIXED_LEN_BYTE_ARRAY DECIMAL (precision = P, scale = S)
+BigNumeric FIXED_LEN_BYTE_ARRAY DECIMAL (precision = 76, scale = 38)
+BigNumeric(P[, S]) FIXED_LEN_BYTE_ARRAY DECIMAL (precision = P, scale = S)
+부동 소수점 FLOAT NONE
+Boolean BOOLEAN NONE
+문자열 BYTE_ARRAY STRING (UTF8)
+바이트 BYTE_ARRAY NONE
+날짜 INT32 DATE
+날짜/시간 INT64 TIMESTAMP (isAdjustedToUTC = false, unit = MICROS)
+시간 INT64 TIME (isAdjustedToUTC = true, unit = MICROS)
+타임스탬프 INT64 TIMESTAMP (isAdjustedToUTC = false, unit = MICROS)
+지역 BYTE_ARRAY GEOGRAPHY (edges = spherical)
+Parquet 스키마는 중첩된 데이터를 그룹으로 나타내고 반복 레코드를 반복 그룹으로 나타냅니다. BigQuery에서 중첩 및 반복 데이터 사용에 대한 자세한 내용은 중첩 및 반복 열 지정 [https://cloud.google.com/bigquery/docs/nested-repeated?hl=ko]을 참조하세요.
+주의: DATETIME 유형을 Parquet로 내보내는 경우 변환된 값이 스키마와 일치하지 않으므로 Parquet 파일을 동일한 테이블 스키마로 직접 다시 로드할 수 없습니다.
+DATETIME 유형에 대해 다음 해결 방법을 사용할 수 있습니다.
+파일을 스테이징 테이블에 로드합니다. 그런 다음 SQL 쿼리를 사용하여 필드를 DATETIME으로 변환하고 결과를 새 테이블에 저장합니다. 자세한 내용은 열의 데이터 유형 변경 [https://cloud.google.com/bigquery/docs/managing-table-schemas?hl=ko#change_a_columns_data_type]을 참조하세요.
+로드 작업에서 --schema 플래그를 사용하여 테이블의 스키마를 제공합니다. 날짜/시간 열을 col:DATETIME으로 정의합니다.
+GEOGRAPHY 논리적 유형은 내보낸 파일에 추가된 GeoParquet [https://geoparquet.org/] 메타데이터로 표시됩니다.
+데이터를 하나 이상의 파일로 내보내기
+destinationUris 속성은 BigQuery가 파일을 내보내는 하나 이상의 위치 및 파일 이름을 나타냅니다.
+BigQuery는 각 URI에서 와일드 카드 연산자 하나(*)를 지원합니다. 와일드 카드는 파일 이름 구성요소의 아무 곳에나 나타날 수 있습니다. 와일드 카드 연산자를 사용하면 BigQuery에 제공된 패턴을 기반으로 분할된 파일을 여러 개 만들도록 지시합니다. 와일드 카드 연산자는 숫자(0에서 시작)로 대체되고 왼쪽으로 12자리까지 채워집니다. 예를 들어 파일 이름 끝에 와일드 카드가 있는 URI는 첫 번째 파일에 000000000000을 추가하고 두 번째 파일에 000000000001을 추가하는 식으로 파일을 만듭니다.
+다음 테이블에서는 destinationUris 속성에 사용 가능한 몇 가지 옵션을 설명합니다.
+destinationUris 옵션
+단일 URI
+1GB 이하인 테이블 데이터를 내보내는 경우 단일 URI를 사용합니다. 내보낸 데이터는 일반적으로 최댓값인 1GB보다 작기 때문에 이 옵션은 가장 일반적인 사용 사례입니다. EXPORT DATA 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/export-statements?hl=ko#export_data_statement]에는 이 옵션이 지원되지 않습니다. 단일 와일드 카드 URI를 사용해야 합니다.
+속성 정의:
+['gs://my-bucket/file-name.json']
+생성:
+gs://my-bucket/file-name.json
+단일 와일드 카드 URI
+단일 와일드 카드는 URI의 파일 이름 구성요소에서만 사용할 수 있습니다.
+내보내는 데이터가 최댓값인 1GB보다 크다고 생각되면 단일 와일드 카드 URI를 사용합니다. BigQuery는 제공된 패턴을 기반으로 데이터를 여러 파일로 샤딩합니다. 내보낸 파일 크기는 다양합니다.
+속성 정의:
+['gs://my-bucket/file-name-*.json']
+생성:
+gs://my-bucket/file-name-000000000000.json
+gs://my-bucket/file-name-000000000001.json
+gs://my-bucket/file-name-000000000002.json
+...
+['gs://my-bucket/*']
+생성:
+gs://my-bucket/000000000000
+gs://my-bucket/000000000001
+gs://my-bucket/000000000002
+...
+내보내는 파일 크기 제한
+내보내기 한 번으로 1GB를 초과하는 데이터를 내보낼 때는 와일드 카드를 사용하여 데이터를 여러 파일로 내보내야 하며, 파일 크기는 다양합니다. 내보낸 각 파일의 최대 크기를 제한해야 하는 경우, 데이터를 무작위로 파티션을 나눈 후 각 파티션을 파일로 내보내는 방법이 있습니다.
+필요한 총 파티션 수를 결정합니다. 이는 총 데이터 크기를 선택한 내보낸 파일 크기로 나눈 값입니다. 예를 들어 8,000MB의 데이터가 있고 내보낸 각 파일이 약 20MB가 되도록 하려면 400개의 파티션이 필요합니다.
+무작위로 생성된 새로운 열인 export_id로 파티션을 나누고 클러스터링한 새 테이블을 만듭니다. 다음 예시에서는 선택한 파일 크기를 달성하기 위해 n 파티션이 필요한 source_table이라는 기존 테이블에서 새 processed_table을 만드는 방법을 보여줍니다.
+CREATE TABLE my_dataset.processed_table
+PARTITION BY RANGE_BUCKET(export_id, GENERATE_ARRAY(0, n, 1))
+CLUSTER BY export_id
+AS (
+  SELECT *, CAST(FLOOR(n*RAND()) AS INT64) AS export_id
+  FROM my_dataset.source_table
+);
+0에서 n-1 사이의 각 정수 i에 대해 다음 쿼리에서 EXPORT DATA 문을 실행합니다.
+SELECT * EXCEPT(export_id)
+FROM my_dataset.processed_table
+WHERE export_id = i;
+압축된 테이블 추출
+--- 탭: Go [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// exportTableAsCompressedCSV demonstrates using an export job to
+// write the contents of a table into Cloud Storage as compressed CSV.
+func exportTableAsCompressedCSV(projectID, gcsURI string) error {
+	// projectID := "my-project-id"
+	// gcsURI := "gs://mybucket/shakespeare.csv"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %w", err)
+	}
+	defer client.Close()
+
+	srcProject := "bigquery-public-data"
+	srcDataset := "samples"
+	srcTable := "shakespeare"
+
+	gcsRef := bigquery.NewGCSReference [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_GCSReference_NewGCSReference](gcsURI)
+	gcsRef.Compression [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Compression] = bigquery.Gzip [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_None_Gzip_Deflate_Snappy]
+
+	extractor := client.DatasetInProject [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Client_DatasetInProject](srcProject, srcDataset).Table(srcTable).ExtractorTo(gcsRef)
+	extractor.DisableHeader = true
+	// You can choose to run the job in a specific location for more complex data locality scenarios.
+	// Ex: In this example, source dataset and GCS bucket are in the US.
+	extractor.Location [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Job_Location] = "US"
+
+	job, err := extractor.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err](); err != nil {
+		return err
+	}
+	return nil
+}
+
+--- 탭: Java [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#java] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.ExtractJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.ExtractJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+
+// Sample to extract a compressed table
+public class ExtractTableCompressed {
+
+  public static void main(String[] args) {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectName = "MY_PROJECT_NAME";
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String bucketName = "MY-BUCKET-NAME";
+    String destinationUri = "gs://" + bucketName + "/path/to/file";
+    // For more information on export formats available see:
+    // https://cloud.google.com/bigquery/docs/exporting-data#export_formats_and_compression_types
+    String compressed = "gzip";
+    // For more information on Job see:
+    // https://googleapis.dev/java/google-cloud-clients/latest/index.html?com/google/cloud/bigquery/package-summary.html
+    String dataFormat = "CSV";
+
+    extractTableCompressed(
+        projectName, datasetName, tableName, destinationUri, dataFormat, compressed);
+  }
+
+  public static void extractTableCompressed(
+      String projectName,
+      String datasetName,
+      String tableName,
+      String destinationUri,
+      String dataFormat,
+      String compressed) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] tableId = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(projectName, datasetName, tableName);
+
+      ExtractJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.ExtractJobConfiguration.html?hl=ko] extractConfig =
+          ExtractJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.ExtractJobConfiguration.html?hl=ko].newBuilder(tableId, destinationUri)
+              .setCompression(compressed)
+              .setFormat [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.ExtractJobConfiguration.Builder.html?hl=ko#com_google_cloud_bigquery_ExtractJobConfiguration_Builder_setFormat_java_lang_String_](dataFormat)
+              .build();
+
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] job = bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](JobInfo.of(extractConfig));
+
+      // Blocks until this job completes its execution, either failing or succeeding.
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] completedJob = job.waitFor [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_waitFor_com_google_cloud_bigquery_BigQueryRetryConfig_com_google_cloud_RetryOption____]();
+      if (completedJob == null) {
+        System.out.println("Job not executed since it no longer exists.");
+        return;
+      } else if (completedJob.getStatus().getError() != null) {
+        System.out.println(
+            "BigQuery was unable to extract due to an error: \n" + job.getStatus().getError());
+        return;
+      }
+      System.out.println("Table extract compressed successful");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Table extraction job was interrupted. \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: Node.js [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#node.js] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client libraries
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const {Storage} = require('@google-cloud/storage [https://cloud.google.com/nodejs/docs/reference/storage/latest/overview.html?hl=ko]');
+
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+const storage = new Storage();
+
+async function extractTableCompressed() {
+  // Exports my_dataset:my_table to gcs://my-bucket/my-file as a compressed file.
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const datasetId = "my_dataset";
+  // const tableId = "my_table";
+  // const bucketName = "my-bucket";
+  // const filename = "file.csv";
+
+  // Location must match that of the source table.
+  const options = {
+    location: 'US',
+    gzip: true,
+  };
+
+  // Export data from the table into a Google Cloud Storage file
+  const [job] = await bigquery
+    .dataset(datasetId)
+    .table(tableId)
+    .extract(storage.bucket(bucketName).file(filename), options);
+
+  console.log(`Job ${job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id} created.`);
+
+  // Check the job's status for errors
+  const errors = job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].status.errors;
+  if (errors && errors.length > 0) {
+    throw errors;
+  }
+}
+
+--- 탭: Python [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#python] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # from google.cloud import bigquery
+# client = bigquery.Client()
+# bucket_name = 'my-bucket'
+
+destination_uri = "gs://{}/{}".format(bucket_name, "shakespeare.csv.gz")
+dataset_ref = bigquery.DatasetReference(project, dataset_id)
+table_ref = dataset_ref.table("shakespeare")
+job_config = bigquery.job.ExtractJobConfig()
+job_config.compression = bigquery.Compression.GZIP
+
+extract_job = client.extract_table(
+    table_ref,
+    destination_uri,
+    # Location must match that of the source table.
+    location="US",
+    job_config=job_config,
+)  # API request
+extract_job.result()  # Waits for job to complete.
+사용 사례
+이 예시에서는 데이터를 Cloud Storage로 내보내는 방법을 보여줍니다.
+엔드포인트 로그에서 Cloud Storage로 데이터를 지속적으로 스트리밍한다고 가정해 보겠습니다. 백업 및 보관처리 목적으로 일일 스냅샷을 Cloud Storage로 내보냅니다. 가장 좋은 방법은 특정 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko#export_jobs] 및 제한사항 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#export_limitations]이 적용되는 추출 작업 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#export-data-in-bigquery]입니다.
+API [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] 또는 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/libraries?hl=ko]로 추출 작업을 제출하여 고유 ID를 jobReference.jobId로 전달합니다. 추출 작업은 비동기식입니다. 작업을 만드는 데 사용된 고유한 작업 ID를 사용하여 작업 상태를 확인 [https://cloud.google.com/bigquery/docs/reference/v2/jobs/get?hl=ko]합니다. status.status가 DONE이면 작업이 성공적으로 완료된 것입니다. status.errorResult가 있으면 작업이 실패하며 다시 시도해야 합니다.
+일괄 데이터 처리
+야간 일괄 작업이 고정된 기한까지 데이터를 로드하는 데 사용된다고 가정해 보겠습니다. 이 로드 작업이 완료되면 이전 섹션의 설명대로 통계가 있는 테이블이 쿼리에서 구체화됩니다. 이 테이블의 데이터를 검색 후 PDF 보고서로 컴파일하여 규제 기관에 전송합니다.
+읽어야 하는 데이터 양이 적으므로 tabledata.list [https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list?hl=ko] API를 사용하여 JSON 사전 형식으로 테이블의 모든 행을 검색합니다. 1페이지를 초과하는 데이터가 있으면 결과에 pageToken 속성이 설정됩니다. 결과의 다음 페이지를 검색하려면 다른 tabledata.list를 호출하고 토큰 값을 pageToken 파라미터로 포함합니다. API 호출이 5xx 오류 [https://cloud.google.com/bigquery/docs/error-messages?hl=ko]로 실패하면 지수 백오프로 다시 시도합니다. 대부분의 4xx 오류는 다시 시도할 수 없습니다. BigQuery 내보내기와 보고서 생성을 더욱 효과적으로 분리하려면 결과를 디스크에 유지해야 합니다.
+할당량 정책
+내보내기 작업 할당량에 대한 자세한 내용은 할당량 및 한도 페이지의 내보내기 작업 [https://cloud.google.com/bigquery/quotas?hl=ko#export_jobs]을 참조하세요.
+내보내기 작업의 사용량은 INFORMATION_SCHEMA에서 확인할 수 있습니다. 내보내기 작업의 JOBS_BY_* 시스템 테이블에 있는 작업 항목에는 일일 50TB 미만으로 유지되도록 집계 사용량을 모니터링하는 데 사용할 수 있는 total_bytes_processed 값이 포함됩니다. INFORMATION_SCHEMA.JOBS 뷰를 쿼리하여 total_bytes_processed 값을 가져오는 방법을 알아보려면 INFORMATION_SCHEMA.JOBS 스키마 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko#schema]를 참고하세요.
+현재 할당량 사용량 보기
+INFORMATION_SCHEMA 쿼리를 실행하여 지정된 기간 동안 실행된 작업에 대한 메타데이터를 확인하여 쿼리, 로드, 추출, 복사 작업의 현재 사용량을 볼 수 있습니다. 현재 사용량을 할당량 한도와 비교하여 특정 유형 작업의 할당량 사용량을 결정할 수 있습니다. 다음 예시 쿼리는 INFORMATION_SCHEMA.JOBS 뷰를 사용하여 프로젝트별로 쿼리, 로드, 추출, 복사 작업 수를 나열합니다.
+SELECT
+  sum(case  when job_type="QUERY" then 1 else 0 end) as QRY_CNT,
+  sum(case  when job_type="LOAD" then 1 else 0 end) as LOAD_CNT,
+  sum(case  when job_type="EXTRACT" then 1 else 0 end) as EXT_CNT,
+  sum(case  when job_type="COPY" then 1 else 0 end) as CPY_CNT
+FROM `region-
+REGION_NAME`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE date(creation_time)= CURRENT_DATE()
+내보낸 바이트 수에 대한 알림을 제공하는 Cloud Monitoring [https://cloud.google.com/bigquery/docs/monitoring?hl=ko] 알림 정책을 설정할 수 있습니다.
+Google Cloud 콘솔에서 Monitoring 페이지로 이동합니다.
+Monitoring으로 이동 [https://console.cloud.google.com/monitoring?hl=ko]
+탐색창에서 측정항목 탐색기를 선택합니다.
+MQL 쿼리 편집기에서 다음 예시와 같이 하루에 내보낸 바이트를 모니터링하도록 알림을 설정합니다.
+fetch consumer_quota
+  | filter resource.service == 'bigquery.googleapis.com'
+  | { metric serviceruntime.googleapis.com/quota/rate/net_usage
+      | align delta_gauge(1m)
+      | group_by [resource.project_id, metric.quota_metric, resource.location],
+          sum(value.net_usage)
+    ; metric serviceruntime.googleapis.com/quota/limit
+      | filter metric.limit_name == 'ExtractBytesPerDay'
+      | group_by [resource.project_id, metric.quota_metric, resource.location],
+          sliding(1m), max(val()) }
+  | ratio
+  | every 1m
+  | condition gt(val(), 0.01 '1')
+알림을 설정하려면 쿼리 실행을 클릭합니다.
+자세한 내용은 MQL을 사용한 알림 정책 [https://cloud.google.com/monitoring/mql/alerts?hl=ko]을 참조하세요.
+문제 해결
+추출 작업 관련 문제를 진단하려면 로그 탐색기 [https://cloud.google.com/logging/docs/view/logs-explorer-interface?hl=ko]를 사용하여 특정 추출 작업의 로그를 검토하고 발생할 수 있는 오류를 식별하면 됩니다. 다음 로그 탐색기 필터는 추출 작업에 관한 정보를 반환합니다.
+resource.type="bigquery_resource"
+protoPayload.methodName="jobservice.insert"
+(protoPayload.serviceData.jobInsertRequest.resource.jobConfiguration.query.query=~"EXPORT" OR
+protoPayload.serviceData.jobCompletedEvent.eventName="extract_job_completed" OR
+protoPayload.serviceData.jobCompletedEvent.job.jobConfiguration.query.query=~"EXPORT")
+가격 책정
+데이터 내보내기 가격 책정에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#data_extraction_pricing] 페이지를 참조하세요.
+데이터를 내보낸 후 Cloud Storage에 데이터를 저장하면 요금이 청구됩니다. 자세한 내용은 Cloud Storage 가격 책정 [https://cloud.google.com/storage/pricing?hl=ko]을 참조하세요.
+테이블 보안
+BigQuery에서 테이블에 대한 액세스를 제어하려면 IAM으로 리소스에 대한 액세스 제어 [https://cloud.google.com/bigquery/docs/control-access-to-resources-iam?hl=ko]를 참고하세요.
+다음 단계
+Google Cloud 콘솔에 대한 자세한 내용은 Google Cloud 콘솔 사용 [https://cloud.google.com/bigquery/docs/bigquery-web-ui?hl=ko]을 참조하세요.
+bq 명령줄 도구에 대한 자세한 내용은 bq 명령줄 도구 사용 [https://cloud.google.com/bigquery/bq-command-line-tool?hl=ko]을 참고하세요.
+BigQuery API 클라이언트 라이브러리를 사용하여 애플리케이션을 만드는 방법은 클라이언트 라이브러리 빠른 시작 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,380 @@
+Source URL: https://cloud.google.com/bigquery/docs/process-document
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+지원되는 위치 [https://cloud.google.com/bigquery/docs/process-document?hl=ko#supported_locations]
+필수 권한 [https://cloud.google.com/bigquery/docs/process-document?hl=ko#required_permissions]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/process-document?hl=ko#before_you_begin]
+프로세서 만들기 [https://cloud.google.com/bigquery/docs/process-document?hl=ko#create_a_processor]
+연결 만들기 [https://cloud.google.com/bigquery/docs/process-document?hl=ko#create_a_connection]
+ML.PROCESS_DOCUMENT 함수를 사용하여 문서 처리
+bookmark_border
+이 문서에서는 ML.PROCESS_DOCUMENT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-process-document?hl=ko]를 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model-service?hl=ko]과 함께 사용하여 객체 테이블 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko]의 문서에서 유용한 정보를 추출하는 방법을 설명합니다.
+지원되는 위치
+US 또는 EU 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions]에서 이 절차에 사용할 원격 모델을 만들어야 합니다. 원격 모델과 같은 리전에서 ML.PROCESS_DOCUMENT 함수를 실행해야 합니다.
+필수 권한
+Document AI 프로세서를 만들려면 다음 역할이 필요합니다.
+roles/documentai.editor
+연결을 만들려면 다음 역할의 멤버십이 필요합니다.
+roles/bigquery.connectionAdmin
+BigQuery ML을 사용하여 모델을 만들려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+bigquery.models.updateMetadata
+추론을 실행하려면 다음 권한이 필요합니다.
+객체 테이블에 대한 bigquery.tables.getData
+모델에 대한 bigquery.models.getData
+bigquery.jobs.create
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection API, and Document AI APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Cdocumentai.googleapis.com&hl=ko]
+프로세서 만들기
+Document AI에서 문서를 처리할 프로세서를 만듭니다 [https://cloud.google.com/document-ai/docs/create-processor?hl=ko#create-processor]. 프로세서는 지원되는 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model-service?hl=ko#document_processor]이어야 합니다.
+연결 만들기
+클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 만들고 연결의 서비스 계정을 가져옵니다.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/process-document?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+연결을 만들려면 add 추가를 클릭한 다음 외부 데이터 소스에 연결을 클릭합니다.
+연결 유형 목록에서 Vertex AI 원격 모델, 원격 함수, BigLake(Cloud 리소스)를 선택합니다.
+연결 ID 필드에 연결 이름을 입력합니다.
+연결 만들기를 클릭합니다.
+연결로 이동을 클릭합니다.
+연결 정보 창에서 나중의 단계에 사용할 서비스 계정 ID를 복사합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/process-document?hl=ko#bq] ---
+명령줄 환경에서 연결을 만듭니다.
+
+bq mk --connection --location=REGION --project_id=PROJECT_ID \
+    --connection_type=CLOUD_RESOURCE CONNECTION_ID
+
+--project_id 매개변수는 기본 프로젝트를 재정의합니다.
+
+다음을 바꿉니다.
+
+
+REGION: 연결 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#supported_locations]
+PROJECT_ID: Google Cloud 프로젝트 ID
+CONNECTION_ID: 연결의 ID
+
+
+연결 리소스를 만들면 BigQuery가 고유한 시스템 서비스 계정을 만들고 이를 연결에 연계합니다.
+
+문제 해결: 다음 연결 오류가 발생하면 Google Cloud SDK를 업데이트 [https://cloud.google.com/sdk/docs/quickstart?hl=ko]하세요.
+
+Flags parsing error: flag --connection_type=CLOUD_RESOURCE: value should be one of...
+
+이후 단계에서 사용할 수 있도록 서비스 계정 ID를 가져와 복사합니다.
+
+bq show --connection PROJECT_ID.REGION.CONNECTION_ID
+
+출력은 다음과 유사합니다.
+
+name                          properties
+1234.REGION.CONNECTION_ID     {"serviceAccountId": "connection-1234-9u56h9@gcp-sa-bigquery-condel.iam.gserviceaccount.com"}
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/process-document?hl=ko#terraform] ---
+google_bigquery_connection [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_connection] 리소스를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 US 리전에 my_cloud_resource_connection이라는 Cloud 리소스 연결을 만듭니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# This queries the provider for project information.
+data "google_project" "default" {}
+
+# This creates a cloud resource connection in the US region named my_cloud_resource_connection.
+# Note: The cloud resource nested object has only one output field - serviceAccountId.
+resource "google_bigquery_connection" "default" {
+  connection_id = "my_cloud_resource_connection"
+  project       = data.google_project.default.project_id
+  location      = "US"
+  cloud_resource {}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Google Cloud 프로젝트에 Terraform 구성을 적용하려면 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 매개변수를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트를 엽니다 [https://console.cloud.google.com/?hl=ko]. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+서비스 계정에 액세스 권한 부여
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/process-document?hl=ko#%EC%BD%98%EC%86%94] ---
+IAM 및 관리자 페이지로 이동합니다.
+
+IAM 및 관리자로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko] 
+person_add 액세스 권한 부여를 클릭합니다.
+
+주 구성원 추가 대화상자가 열립니다.
+새 주 구성원 필드에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 Document AI를 선택한 후 Document AI 뷰어를 선택합니다.
+다른 역할 추가를 클릭합니다.
+역할 선택 필드에서 Cloud Storage를 선택한 후 스토리지 객체 뷰어를 선택합니다.
+저장을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/process-document?hl=ko#gcloud] ---
+gcloud projects add-iam-policy-binding [https://cloud.google.com/sdk/gcloud/reference/projects/add-iam-policy-binding?hl=ko] 명령어를 사용합니다.
+
+gcloud projects add-iam-policy-binding 'PROJECT_NUMBER' --member='serviceAccount:MEMBER' --role='roles/documentai.viewer' --condition=None
+gcloud projects add-iam-policy-binding 'PROJECT_NUMBER' --member='serviceAccount:MEMBER' --role='roles/storage.objectViewer' --condition=None
+
+
+다음을 바꿉니다.
+
+  PROJECT_NUMBER: 프로젝트 번호
+  MEMBER: 이전에 복사한 서비스 계정 ID입니다.
+권한을 부여하지 않으면 Permission denied 오류가 발생합니다.
+참고: 객체 테이블에서 사용하는 Cloud Storage 버킷과 다른 프로젝트에 프로세서를 만드는 경우 다음과 같이 서비스 계정에 Identity and Access Management(IAM) 역할을 부여하세요.
+프로세서가 포함된 프로젝트의 Document AI 뷰어 역할을 서비스 계정에 부여합니다.
+Cloud Storage 버킷이 있는 프로젝트에서 스토리지 객체 뷰어 역할을 서비스 계정에 부여합니다.
+데이터 세트 만들기
+모델과 객체 테이블을 포함할 데이터 세트를 만듭니다 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]. 데이터 세트, 연결, 문서 프로세서를 동일한 리전에 만들어야 합니다.
+모델 만들기
+CLOUD_AI_DOCUMENT_V1의 REMOTE_SERVICE_TYPE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model-service?hl=ko#remote_service_type]을 사용하여 원격 모델을 만듭니다.
+CREATE OR REPLACE MODEL
+`
+PROJECT_ID.
+DATASET_ID.
+MODEL_NAME`
+REMOTE WITH CONNECTION `
+PROJECT_ID.
+REGION.
+CONNECTION_ID`
+OPTIONS (
+  REMOTE_SERVICE_TYPE = 'CLOUD_AI_DOCUMENT_V1',
+  DOCUMENT_PROCESSOR = '
+PROCESSOR_ID'
+);
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트 ID
+DATASET_ID: 모델을 포함할 데이터 세트의 ID
+MODEL_NAME: 모델의 이름
+REGION: 연결에 사용되는 리전입니다.
+CONNECTION_ID: 연결 ID입니다(예: myconnection).
+Google Cloud 콘솔에서 연결 세부정보를 볼 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 때 연결 ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+PROCESSOR_ID: 문서 프로세서 ID. 이 값을 찾으려면 프로세서 세부정보를 확인 [https://cloud.google.com/document-ai/docs/create-processor?hl=ko#get-processor]한 다음 기본 정보 섹션의 ID 행을 확인합니다.
+중요: 연결이 기본 프로젝트에 있더라도 연결의 프로젝트 ID를 지정해야 합니다.
+모델 출력 열을 보려면 모델이 생성된 후 쿼리 결과에서 모델로 이동을 클릭합니다. 출력 열은 스키마 탭의 라벨 섹션에 표시됩니다.
+객체 테이블 만들기
+Cloud Storage의 문서 집합을 대상으로 객체 테이블을 만듭니다 [https://cloud.google.com/bigquery/docs/object-tables?hl=ko]. 객체 테이블의 문서는 지원되는 유형 [https://cloud.google.com/document-ai/docs/file-types?hl=ko]이어야 합니다.
+문서 처리
+ML.PROCESS_DOCUMENT를 사용하여 모든 문서를 처리합니다.
+SELECT *
+FROM ML.PROCESS_DOCUMENT(
+  MODEL `
+PROJECT_ID.
+DATASET_ID.
+MODEL_NAME`,
+  TABLE `
+PROJECT_ID.
+DATASET_ID.
+OBJECT_TABLE_NAME`
+  [, PROCESS_OPTIONS => ( JSON '
+PROCESS_OPTIONS')]
+);
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트 ID
+DATASET_ID: 모델이 포함된 데이터 세트의 ID
+MODEL_NAME: 모델의 이름
+OBJECT_TABLE_NAME: 처리할 문서의 URI가 포함된 객체 테이블의 이름
+PROCESS_OPTIONS: 문서를 처리하는 방법을 지정하는 JSON 구성. 예를 들어 레이아웃 파서의 문서 청크를 지정하는 데 사용합니다.
+또는 ML.PROCESS_DOCUMENT를 사용하여 일부 문서를 처리합니다.
+SELECT *
+FROM ML.PROCESS_DOCUMENT(
+  MODEL `
+PROJECT_ID.
+DATASET_ID.
+MODEL_NAME`,
+  (SELECT *
+  FROM `
+PROJECT_ID.
+DATASET_ID.
+OBJECT_TABLE_NAME`
+  WHERE 
+FILTERS
+  LIMIT 
+NUM_DOCUMENTS
+  )
+  [, PROCESS_OPTIONS => ( JSON '
+PROCESS_OPTIONS')]
+);
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트 ID
+DATASET_ID: 모델이 포함된 데이터 세트의 ID
+MODEL_NAME: 모델의 이름
+OBJECT_TABLE_NAME: 처리할 문서의 URI가 포함된 객체 테이블의 이름
+FILTERS: 객체 테이블 열에서 처리할 문서를 필터링하는 조건
+NUM_DOCUMENTS: 처리할 최대 문서 수
+PROCESS_OPTIONS: 구성을 정의하는 JSON 구성(예: 레이아웃 파서용 청크 구성)
+예시
+예시 1
+다음 예시에서는 비용 파서 [https://cloud.google.com/document-ai/docs/processors-list?hl=ko#processor_expense-parser]를 사용하여 documents 테이블로 표현되는 문서를 처리합니다.
+SELECT *
+FROM ML.PROCESS_DOCUMENT(
+  MODEL `myproject.mydataset.expense_parser`,
+  TABLE `myproject.mydataset.documents`
+);
+이 쿼리는 통화, 총 금액, 영수증 날짜, 비용 보고서의 항목을 포함하여 파싱된 비용 보고서를 반환합니다. ml_process_document_result 열에는 비용 파서의 원시 출력이 포함되고 ml_process_document_status 열에는 문서 처리에서 반환된 오류가 포함됩니다.
+예시 2
+다음 예시에서는 객체 테이블을 필터링하여 처리할 문서를 선택한 후 결과를 새 테이블에 쓰는 방법을 보여줍니다.
+CREATE TABLE `myproject.mydataset.expense_details`
+AS
+SELECT uri, content_type, receipt_date, purchase_time, total_amount, currency
+FROM
+  ML.PROCESS_DOCUMENT(
+    MODEL `myproject.mydataset.expense_parser`,
+    (SELECT * FROM `myproject.mydataset.expense_reports`
+    WHERE uri LIKE '%restaurant%'));
+다음 단계
+BigQuery ML의 모델 추론에 대한 자세한 내용은 모델 추론 개요 [https://cloud.google.com/bigquery/docs/reference/standard-sql/inference-overview?hl=ko] 참조하기
+각 모델 유형에 지원되는 SQL 문과 함수에 대한 자세한 내용은 각 모델의 엔드 투 엔드 사용자 경험 [https://cloud.google.com/bigquery/docs/e2e-journey?hl=ko] 참조하기
+도움이 되었나요?
+의견 보내기

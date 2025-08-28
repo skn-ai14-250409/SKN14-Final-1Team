@@ -1,0 +1,157 @@
+Source URL: https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+메타데이터 색인 새로고침 시간 보기 [https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables?hl=ko#view_the_metadata_index_refresh_time]
+열 메타데이터 색인 사용량 보기 [https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables?hl=ko#view_column_metadata_index_usage]
+전용 색인 생성 리소스 설정 [https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables?hl=ko#set_up_dedicated_indexing_resources]
+색인 생성 작업 정보 보기 [https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables?hl=ko#view_indexing_job_information]
+메타데이터 색인 생성 알림 구성 [https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables?hl=ko#configure_metadata_indexing_alerts]
+슬롯 사용량 알림 [https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables?hl=ko#slot_usage_alert]
+비활성 알림 [https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables?hl=ko#staleness_alert]
+제한사항 [https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables?hl=ko#limitations]
+BigQuery 테이블의 메타데이터 색인 생성
+bookmark_border
+이 문서에서는 BigQuery의 열 메타데이터 색인 생성을 설명하고 색인 새로고침과 쿼리 성능이 향상되도록 전용 리소스를 할당하는 방법을 설명합니다.
+BigQuery는 1GiB를 초과하는 BigQuery 테이블의 메타데이터 색인을 자동으로 생성합니다. 이 메타데이터에는 파일 위치, 파티셔닝 정보, 열 수준 속성이 포함되며 BigQuery는 이 메타데이터를 사용하여 쿼리를 최적화하고 가속화합니다.
+기본적으로 BigQuery의 메타데이터 색인 생성은 무료 백그라운드 작업이며 개발자가 어떠한 작업도 취하지 않아도 됩니다. 하지만 색인 새로고침은 사용 가능한 무료 리소스에 따라 달라지며 성능 서비스 수준 목표(SLO)가 없습니다. 사용 사례에서 색인 새로고침이 중요한 경우 BACKGROUND 예약 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#assignments]을 구성하는 것이 좋습니다.
+메타데이터 색인 새로고침 시간 보기
+테이블의 마지막 메타데이터 색인 새로고침 시간을 확인하려면 INFORMATION_SCHEMA.TABLE_STORAGE 뷰 [https://cloud.google.com/bigquery/docs/information-schema-table-storage?hl=ko]의 LAST_METADATA_INDEX_REFRESH_TIME 열을 쿼리합니다. 이렇게 하려면 다음을 수행합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 문을 입력합니다.
+SELECT
+  project_id,
+  project_number,
+  table_name,
+  last_metadata_index_refresh_time
+FROM
+  [
+PROJECT_ID.]region-
+REGION.INFORMATION_SCHEMA.TABLE_STORAGE;
+다음을 바꿉니다.
+PROJECT_ID: Google Cloud 프로젝트의 ID입니다. 지정하지 않으면 기본 프로젝트가 사용됩니다.
+REGION: 프로젝트가 있는 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko](예: region-us)
+play_circle 실행을 클릭합니다.
+열 메타데이터 색인 사용량 보기
+작업이 완료된 후 열 메타데이터 색인이 사용되었는지 보려면 작업 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko] 리소스의 TableMetadataCacheUsage 속성 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#tablemetadatacacheusage]을 확인합니다. unusedReason 필드가 비어 있으면(채워지지 않음) 열 메타데이터 색인이 사용된 것입니다. 채워진 경우 함께 제공되는 explanation 필드는 열 메타데이터 색인이 사용되지 않은 이유를 제공합니다.
+INFORMATION_SCHEMA.JOBS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]의 metadata_cache_statistics 필드를 사용하여 열 메타데이터 색인 사용량을 볼 수도 있습니다.
+예를 들어 다음에서는 my-job 작업의 열 메타데이터 색인 사용량을 보여줍니다.
+SELECT metadata_cache_statistics
+FROM `region-US`.INFORMATION_SCHEMA.JOBS
+WHERE job_id = 'my-job';
+또 다른 예시로 다음에서는 my-table 테이블의 열 메타데이터 색인을 사용한 작업 수를 표시합니다.
+SELECT COUNT(*)
+FROM
+  `region-US`.INFORMATION_SCHEMA.JOBS,
+  UNNEST(metadata_cache_statistics.table_metadata_cache_usage) AS stats
+WHERE
+  stats.table_reference.table_id='my-table' AND
+  stats.table_reference.dataset_id='my-dataset' AND
+  stats.table_reference.project_id='my-project' AND
+  stats.unusedReason IS NULL;
+전용 색인 생성 리소스 설정
+프로젝트에서 메타데이터 색인 생성 업데이트에 사용할 리소스를 설정하려면 먼저 프로젝트에 할당된 예약이 있어야 합니다. 이렇게 하려면 다음을 수행합니다.
+BACKGROND 예약을 만듭니다 [https://cloud.google.com/bigquery/docs/reservations-tasks?hl=ko].
+예약에 프로젝트를 할당합니다 [https://cloud.google.com/bigquery/docs/reservations-assignments?hl=ko#assign_my_prod_project_to_prod_reservation].
+예약을 설정한 후 다음 방법 중 하나를 선택하여 메타데이터 색인 생성 작업에 슬롯을 할당합니다. 기본적으로 슬롯이 유휴 상태인 경우 이러한 방식으로 할당된 슬롯이 다른 작업과 공유됩니다. 자세한 내용은 유휴 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko#idle_slots]을 참조하세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 용량 관리 페이지로 이동합니다.
+
+용량 관리로 이동 [https://console.cloud.google.com/bigquery/admin/reservations?hl=ko] 
+more_vert 예약 작업 > 할당 만들기를 클릭합니다.
+예약 프로젝트를 선택합니다.
+작업 유형을 백그라운드로 설정합니다.
+만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables?hl=ko#bq] ---
+bq mk 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mk]를 사용합니다.
+
+bq mk \
+  --project_id=ADMIN_PROJECT_ID \
+  --location=LOCATION \
+  --reservation_assignment \
+  --reservation_id=RESERVATION_NAME \
+  --assignee_id=PROJECT_ID \
+  --job_type=BACKGROUND \
+  --assignee_type=PROJECT
+
+다음을 바꿉니다.
+
+
+ADMIN_PROJECT_ID: 예약 리소스를 소유하는 관리 프로젝트 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#admin-project]의 프로젝트 ID
+LOCATION: 예약 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]
+RESERVATION_NAME: 예약 이름.
+PROJECT_ID: 이 예약에 할당할 프로젝트 ID
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/metadata-indexing-managed-tables?hl=ko#sql] ---
+예약을 프로젝트에 할당하려면 CREATE ASSIGNMENT DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_assignment_statement]을 사용합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery/?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+CREATE ASSIGNMENT
+ADMIN_PROJECT_ID.region-LOCATION.RESERVATION_NAME.ASSIGNMENT_ID
+OPTIONS (
+  assignee = 'projects/PROJECT_ID',
+  job_type = 'BACKGROUND');
+다음을 바꿉니다.
+
+
+ADMIN_PROJECT_ID: 예약 리소스를 소유하는 관리 프로젝트 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#admin-project]의 프로젝트 ID
+LOCATION: 예약 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]
+RESERVATION_NAME: 예약 이름
+ASSIGNMENT_ID: 할당 ID. ID는 프로젝트와 위치에 고유해야 하고 소문자 또는 숫자로 시작하고 끝나야 하며 소문자, 숫자, 대시만 포함해야 합니다.
+PROJECT_ID: 테이블이 포함된 프로젝트 ID. 이 프로젝트가 예약에 할당됩니다.
+
+play_circle 실행을 클릭합니다.
+색인 생성 작업 정보 보기
+전용 색인 생성 작업을 설정한 후 JOBS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 사용하여 색인 생성 작업에 대한 정보를 볼 수 있습니다. 다음 SQL 샘플에서는 PROJECT_NAME의 최근 새로고침 작업 5개를 보여줍니다.
+SELECT *
+FROM
+  region-us.INFORMATION_SCHEMA.JOBS
+WHERE
+  project_id = '
+PROJECT_NAME'
+  AND SEARCH(job_id, '`metadata_cache_refresh`')
+ORDER BY
+  creation_time DESC
+LIMIT 5;
+PROJECT_NAME을 메타데이터 색인 생성 작업이 포함된 프로젝트의 이름으로 바꿉니다.
+메타데이터 색인 생성 알림 구성
+BigQuery 성능이 정의된 기준을 충족하지 않으면 Cloud Monitoring 알림 프로세스에서 알림을 보냅니다. 자세한 내용은 알림 개요 [https://cloud.google.com/monitoring/alerts?hl=ko]를 참조하세요. 메타데이터 색인 생성을 사용하면 슬롯 사용량과 비활성에 대한 알림을 구성할 수 있습니다.
+슬롯 사용량 알림
+이 알림은 백그라운드 예약이 정의된 할당량 비율을 초과하면 전송됩니다. 기본값은 95%입니다. 특정 예약이나 모든 백그라운드 예약에 이 알림을 구성할 수 있습니다. 이 알림이 트리거되면 예약 크기를 늘리는 [https://cloud.google.com/bigquery/docs/reservations-tasks?hl=ko#update_reservations] 것이 좋습니다.
+모든 백그라운드 예약에 이 알림을 구성하려면 다음을 수행합니다.
+모니터링 알림 채널 [https://cloud.google.com/monitoring/support/notification-options?hl=ko#creating_channels]을 아직 설정하지 않았으면 설정합니다.
+통합 페이지로 이동합니다.
+통합으로 이동 [https://console.cloud.google.com/monitoring/integrations?hl=ko]
+BigQuery 통합을 찾고 세부정보 보기를 클릭합니다.
+알림 탭에서 슬롯 사용량 - 백그라운드 메타데이터 캐시 슬롯 사용량이 너무 높음을 선택합니다.
+선택사항: 이 알림을 추가로 맞춤설정하려면 옵션 표시 > 알림 정책 맞춤설정을 클릭합니다.
+알림 구성에서 알림 채널을 선택합니다.
+만들기를 클릭합니다.
+비활성 알림
+이 알림은 평균 열 메타데이터 색인 비활성이 기존 평균에 비해 너무 많이 증가하면 전송됩니다. 기본 기준점은 4시간 동안의 평균이 30분 이상 이전 평균의 2배를 초과하는 경우입니다. 이 알림이 트리거되면 예약 크기를 늘리거나 [https://cloud.google.com/bigquery/docs/reservations-tasks?hl=ko#update_reservations] 예약이 없는 경우 백그라운드 예약 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#assignments]을 만드는 것이 좋습니다.
+이 알림을 구성하려면 다음을 수행합니다.
+모니터링 알림 채널 [https://cloud.google.com/monitoring/support/notification-options?hl=ko#creating_channels]을 아직 설정하지 않았으면 설정합니다.
+통합 페이지로 이동합니다.
+통합으로 이동 [https://console.cloud.google.com/monitoring/integrations?hl=ko]
+BigQuery 통합을 찾고 세부정보 보기를 클릭합니다.
+알림 탭에서 열 메타데이터 색인 비활성 - 증가율이 너무 높음을 선택합니다.
+선택사항: 이 알림을 추가로 맞춤설정하려면 옵션 표시 > 알림 정책 맞춤설정을 클릭합니다.
+알림 구성에서 알림 채널을 선택합니다.
+만들기를 클릭합니다.
+제한사항
+메타데이터 쿼리 성능 개선사항은 SELECT, INSERT, CREATE TABLE AS SELECT 문에만 적용됩니다. DML 문은 메타데이터 색인 생성으로 개선되지 않습니다.
+다음 단계
+JOBS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 사용하여 프로젝트의 모든 작업을 확인하는 방법 알아보기
+슬롯 용량 및 사용률을 보는 [https://cloud.google.com/bigquery/docs/slot-estimator?hl=ko#view_slot_capacity_and_utilization] 방법을 알아보기
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,458 @@
+Source URL: https://cloud.google.com/bigquery/docs/migration/oracle-migration
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+마이그레이션 전 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#pre-migration]
+BigQuery 용량 계획 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#capacity_planning]
+Google Cloud에서의 보안 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#security_in]
+BigQuery와 Oracle 비교 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#and_oracle_comparison]
+스키마 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#schema_migration]
+Oracle 데이터 유형 및 BigQuery 매핑 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#oracle_data_types_and_mappings]
+색인 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#indexes]
+뷰 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#views]
+Oracle에서 BigQuery로 마이그레이션
+bookmark_border
+이 문서에서는 Oracle에서 BigQuery로 마이그레이션하는 방법에 대한 개략적인 안내를 제공합니다. 아키텍처의 근본적인 차이점을 설명하고 Exadata를 포함하여 Oracle RDBMS에서 실행되는 데이터 웨어하우스 및 데이터 마트에서 BigQuery로 마이그레이션하는 방법을 제안합니다. 이 문서에서는 호환되는 Oracle 소프트웨어를 사용하기 때문에 여기에 제공되는 세부정보를 Exadata, ExaCC, Oracle Autonomous Data Warehouse에도 적용할 수 있습니다.
+이 문서는 Oracle에서 BigQuery로 마이그레이션하고 마이그레이션 프로세스의 기술 과제를 해결하고자 하는 엔터프라이즈 아키텍트, DBA, 애플리케이션 개발자, IT 보안 전문가를 대상으로 합니다.
+또한 일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]을 사용하여 SQL 스크립트를 일괄적으로 마이그레이션하거나 대화형 SQL 변환 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]을 사용하여 임시 쿼리를 변환할 수 있습니다. Oracle SQL, PL/SQL, Exadata는 미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages] 상태의 두 도구 모두에서 지원됩니다.
+마이그레이션 전
+성공적인 데이터 웨어하우스 마이그레이션을 보장하기 위해 프로젝트 타임라인의 초기에 마이그레이션 전략을 계획합니다. 마이그레이션 작업을 체계적으로 계획하는 방법에 대한 자세한 내용은 마이그레이션 대상과 방법: 마이그레이션 프레임워크 [https://cloud.google.com/bigquery/docs/migration/migration-overview?hl=ko#what_and_how_to_migrate_the_migration_framework]를 참조하세요.
+BigQuery 용량 계획
+내부적으로 BigQuery의 분석 처리량은 슬롯으로 측정됩니다. BigQuery 슬롯은 SQL 쿼리를 실행하는 데 필요한 Google의 독점적인 컴퓨팅 용량 단위입니다.
+BigQuery는 실행 시 쿼리에 필요한 슬롯 수를 지속적으로 계산하지만 공정한 스케줄러 [https://cloud.google.com/bigquery/docs/slots?hl=ko#fair_scheduling_in_bigquery]를 기준으로 쿼리에 슬롯을 할당합니다.
+BigQuery 슬롯의 용량을 계획할 때는 다음 가격 책정 모델 중에서 선택할 수 있습니다.
+주문형 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]: 주문형 가격 책정의 경우 BigQuery가 처리된 바이트 수(데이터 크기)에 따라 요금을 청구하므로 실행한 쿼리에 대해서만 비용을 지불합니다. BigQuery에서 데이터 크기를 확인하는 방법에 대한 자세한 내용은 데이터 크기 계산 [https://cloud.google.com/bigquery/pricing?hl=ko#data]을 참조하세요. 슬롯에 따라 기본 컴퓨팅 용량이 결정되므로 처리된 바이트 수 대신 필요한 슬롯 수에 따라 BigQuery 사용 요금을 지불할 수 있습니다. 기본적으로 Google Cloud 프로젝트는 최대 2,000개의 슬롯으로 제한됩니다.
+용량 기반 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]: 용량 기반 가격 책정을 사용하면 실행하는 쿼리에 의해 처리된 바이트에 대한 비용을 지불하는 대신 BigQuery 슬롯 reservations [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko](최소 100개)을 구매할 수 있습니다. 일반적으로 소비를 예측할 수 있는 동시 보고 및 추출-로드-변환(ELT) 쿼리가 많은 엔터프라이즈 데이터 웨어하우스 작업 부하에는 용량 기반 가격 책정을 사용하는 것이 좋습니다.
+슬롯 추정에 도움이 되도록 Cloud Monitoring을 사용한 BigQuery 모니터링 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko]을 설정하고 BigQuery를 사용한 감사 로그를 분석 [https://cloud.google.com/bigquery/audit-logs?hl=ko]하는 것이 좋습니다. 많은 고객들이 Looker Studio [https://datastudio.google.com/?hl=ko](Looker Studio 대시보드 [https://datastudio.google.com/c/u/0/reporting/1kwNFt05J8_GCju5TBH1v4IlBmmAU74Nu/page/nSaN?hl=ko]의 오픈소스 예시 [https://github.com/GoogleCloudPlatform/professional-services/tree/master/examples/bigquery-audit-log] 참조), Looker [https://looker.com/], Tableau [https://www.tableau.com/]를 프런트엔드로 사용해서 특히 쿼리 및 프로젝트 전반의 슬롯 사용량과 관련하여 BigQuery 감사 로그 데이터를 시각화합니다. 또한 BigQuery 시스템 테이블 데이터를 사용하여 작업 및 예약 전반의 슬롯 사용률을 모니터링할 수도 있습니다. 예시를 보려면 Looker Studio 대시보드 [https://datastudio.google.com/s/kGZzZJWkeyA?hl=ko]의 오픈소스 예시 [https://github.com/GoogleCloudPlatform/bigquery-utils/tree/master/dashboards/system_tables]를 참조하세요.
+슬롯 사용률을 정기적으로 모니터링하고 분석하면 Google Cloud에서 성장하는 데 필요한 총 슬롯 수를 추정하는데 도움이 됩니다.
+예를 들어 처음에 4,000개의 BigQuery 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko]을 예약하여 100개의 중간 복잡성 쿼리를 동시에 실행한다고 가정해 보겠습니다. 쿼리 실행 계획에서 대기 시간이 길어지고 대시보드에 높은 슬롯 사용률이 표시되는 경우, 이는 워크로드를 지원하기 위해 추가 BigQuery 슬롯이 필요하다는 의미일 수 있습니다. 연간 또는 3년 약정을 통해 슬롯을 직접 구매하려면 Google Cloud 콘솔 또는 bq 명령줄 도구를 사용하여 BigQuery 예약을 시작 [https://cloud.google.com/bigquery/docs/reservations-get-started?hl=ko]하면 됩니다.
+현재 요금제 및 이전 옵션과 관련된 질문은 영업 담당자 [https://cloud.google.com/contact?hl=ko]에게 문의하세요.
+Google Cloud에서의 보안
+다음 섹션에서는 일반적인 Oracle 보안 제어 및 Google Cloud환경에서 데이터 웨어하우스에서 보호 상태를 유지하는데 도움이 되는 방법을 설명합니다.
+Identity and Access Management(IAM)
+Oracle은 리소스 액세스 관리를 위해 사용자, 권한, 역할, 프로필 [https://docs.oracle.com/cd/B19306_01/network.102/b14266/admusers.htm#DBSEG10000]을 제공합니다.
+BigQuery는 IAM [https://cloud.google.com/iam?hl=ko]을 사용하여 리소스 액세스를 관리하고 리소스 및 작업에 대해 중앙화된 액세스 관리 [https://cloud.google.com/bigquery/docs/access-control?hl=ko] 기능을 제공합니다. BigQuery에서 사용 가능한 리소스 유형에는 조직, 프로젝트, 데이터 세트, 테이블, 뷰가 포합됩니다. Cloud IAM 정책 계층 구조에서 BigQuery 데이터 세트는 프로젝트의 하위 리소스입니다. 테이블은 이를 포함하는 데이터 세트에서 권한을 상속합니다.
+리소스에 대한 액세스 권한을 부여하려면 사용자, 그룹 또는 서비스 계정에 역할을 하나 이상 할당합니다. 조직 및 프로젝트 역할은 작업 실행 또는 프로젝트를 관리하는 능력에 영향을 주지만, 데이터 세트 역할은 프로젝트의 내부 데이터에 액세스하거나 이를 수정하는 기능에 영향을 줍니다.
+IAM은 다음과 같은 유형의 역할을 제공합니다.
+사전 정의된 역할 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]은 일반적인 사용 사례와 액세스 제어 패턴을 지원합니다. 사전 정의된 역할은 특정 서비스에 대한 세분화된 액세스 권한을 제공하며 Google Cloud에서 관리합니다.
+기본 역할 [https://cloud.google.com/bigquery/docs/access-control-basic-roles?hl=ko]에는 소유자, 편집자, 뷰어 역할이 포함됩니다.
+주의: BigQuery의 데이터 세트 수준 기본 역할은 IAM 도입 전에도 존재했던 역할입니다. 기본 역할의 사용을 최소화하는 것이 좋습니다. 프로덕션 환경에서는 대체할 역할이 없는 경우가 아니라면 기본 역할을 부여하지 마세요. 대신 사전 정의된 IAM [https://cloud.google.com/bigquery/docs/access-control?hl=ko] 역할을 사용합니다.
+커스텀 역할 [https://cloud.google.com/iam/docs/understanding-custom-roles?hl=ko]은 사용자 지정 권한 목록에 따라 세분화된 액세스 권한을 제공합니다.
+사전 정의된 역할과 기본 역할을 모두 한 사용자에게 할당할 경우 각 개별 역할의 권한이 통합되어 부여됩니다.
+행 수준 보안
+Oracle 라벨 보안(OLS) [https://docs.oracle.com/database/121/TDPSG/GUID-72D524FF-5A86-495A-9D12-14CB13819D42.htm#TDPSG94446]은 행별 기준에 따라 데이터 액세스를 제한할 수 있게 해줍니다. 행 수준 보안의 일반적인 사용 사례는 영업 담당자의 액세스 범위를 자신이 관리하는 계정으로 제한하는 것입니다. 행 수준 보안을 구현하면 세분화된 액세스 제어가 가능합니다.
+BigQuery에서 행 수준 보안을 달성하기 위해서는 승인된 뷰 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko] 및 행 수준 액세스 정책 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko]을 사용할 수 있습니다. 이러한 정책을 디자인하고 구현하는 방법에 대한 자세한 내용은 BigQuery 행 수준 보안 소개 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko]를 참조하세요.
+전체 디스크 암호화
+Oracle은 저장 데이터 및 전송 중 데이터 암호화를 위해 투명 데이터 암호화(TDE) [https://docs.oracle.com/cd/E11882_01/network.112/e40393/asotrans.htm#ASOAG600] 및 네트워크 암호화 [https://docs.oracle.com/database/121/DBSEG/asoconfg.htm#DBSEG020]를 제공합니다. TDE에는 개별적으로 라이선스가 부여되는 고급 보안 옵션이 필요합니다.
+BigQuery는 소스 또는 기타 조건에 관계없이 기본적으로 저장 [https://cloud.google.com/security/encryption-at-rest?hl=ko] 및 전송 중 [https://cloud.google.com/security/encryption-in-transit?hl=ko]인 모든 데이터를 암호화하며 이 기능을 사용 중지할 수 없습니다. BigQuery는 또한 Cloud Key Management Service [https://cloud.google.com/kms/docs?hl=ko]에서 키 암호화 키를 제어하고 관리하려는 사용자를 위해 고객 관리 암호화 키 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko](CMEK)도 지원합니다. Google Cloud의 암호화에 관한 자세한 내용은 기본 저장 데이터 암호화 [https://cloud.google.com/security/encryption-at-rest/default-encryption?hl=ko] 및 전송 중인 데이터 암호화 [https://cloud.google.com/security/encryption-in-transit?hl=ko]를 참조하세요.
+데이터 마스킹 및 수정
+Oracle은 애플리케이션에서 수행되는 쿼리로부터 반환되는 데이터를 마스킹(수정)할 수 있게 해주는 Real Application Testing의 데이터 마스킹 [https://docs.oracle.com/cd/E11882_01/server.112/e41481/tdm_data_masking.htm#RATUG04000] 및 데이터 수정 [https://docs.oracle.com/cd/E11882_01/network.112/e40393/redaction.htm#ASOAG594] 기능을 사용합니다.
+BigQuery는 열 수준에서 동적 데이터 마스킹 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko]을 지원합니다. 데이터 마스킹을 사용하여 사용자 그룹의 열 데이터를 선택적으로 가릴 수 있지만 열 액세스를 계속 허용할 수 있습니다.
+Sensitive Data Protection [https://cloud.google.com/sensitive-data-protection/docs?hl=ko]를 사용하여 BigQuery에서 민감한 개인 식별 정보(PII)를 식별하고 수정할 수 있습니다.
+BigQuery와 Oracle 비교
+이 섹션에서는 BigQuery와 Oracle 사이의 주요 차이점에 대해 설명합니다. 이러한 주요 내용은 마이그레이션 장애물을 식별하고 필요한 변경을 계획하는 데 도움이 됩니다.
+시스템 아키텍처
+Oracle과 BigQuery 사이의 주요 차이점 중 하나는 BigQuery가 서버리스 클라우드 EDW라는 것입니다. 여기에는 쿼리 요구에 따라 확장 가능한 개별 스토리지 및 컴퓨팅 레이어가 포함됩니다. BigQuery 서버리스 제품의 특성에 따라 하드웨어 결정으로 제한되지 않으며, 예약을 통해 쿼리 및 사용자에 대해 더 많은 리소스를 요청할 수 있습니다. BigQuery는 확장 및 고가용성을 포함하여 운영체제(OS), 네트워크 시스템, 스토리지 시스템과 같은 기본 소프트웨어 및 인프라 구성이 필요하지 않습니다. BigQuery는 확장성, 관리 및 관리 운영을 처리합니다. 다음 다이어그램은 BigQuery 스토리지 계층 구조를 보여줍니다.
+스토리지(Colossus)와 쿼리 실행(Dremel) 분리 및Google Cloud 의 리소스(Borg) 할당 방법과 같은 기본적인 스토리지 및 쿼리 처리 아키텍처에 대한 지식은 행동적인 차이를 이해하고 쿼리 성능 및 비용 효율성을 최적화하는 데 도움이 될 수 있습니다. 자세한 내용은 BigQuery [https://cloud.google.com/blog/products/data-analytics/new-blog-series-bigquery-explained-overview?hl=ko], Oracle [https://www.oracle.com/webfolder/technetwork/tutorials/architecture-diagrams/18/technical-architecture/database-technical-architecture.html], Exadata [https://www.oracle.com/technetwork/database/exadata/exadata-x7-2-ds-3908482.pdf]에 대한 참조 시스템 아키텍처를 참조하세요.
+데이터 및 스토리지 아키텍처
+데이터 및 스토리지 구조는 쿼리 성능, 비용, 확장성 및 효율성에 영향을 주기 때문에 모든 데이터 분석 시스템의 중요한 부분입니다.
+BigQuery는 데이터 스토리지와 컴퓨팅을 분리 [https://cloud.google.com/blog/products/gcp/separation-of-storage-and-compute-in-bigquery?hl=ko]하고 Colossus에 데이터를 저장합니다. 여기에서 데이터를 압축하고 Capacitor [https://cloud.google.com/blog/products/gcp/inside-capacitor-bigquerys-next-generation-columnar-storage-format?hl=ko]라는 열 형식으로 데이터를 압축합니다.
+BigQuery는 Capacitor를 사용하여 압축을 해제하지 않고 압축된 데이터에서 직접 작동합니다. BigQuery는 다음 다이어그램에 표시된 것처럼 테이블에 대한 액세스 구성을 위해 최고 수준의 추상화로 데이터 세트 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]를 제공합니다. 스키마 [https://cloud.google.com/bigquery/docs/schemas?hl=ko] 및 라벨 [https://cloud.google.com/bigquery/docs/adding-using-labels?hl=ko]을 사용하여 추가적으로 테이블을 구성할 수 있습니다. BigQuery는 쿼리 성능 및 비용 개선과 정보 수명 주기 관리를 위해 파티션 나누기 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]를 제공합니다. 스토리지 리소스는 사용자가 이를 사용할 때 할당되며 데이터를 제거하거나 테이블을 삭제할 때 할당이 취소됩니다.
+Oracle은 세그먼트로 구성된 Oracle 블록 형식 [https://docs.oracle.com/cd/B28359_01/server.111/b28318/logical.htm#CNCPT004]을 사용하여 원시 형식으로 데이터를 저장합니다. 스키마(사용자 소유)는 테이블 및 기타 데이터베이스 객체를 구성하는 데 사용됩니다. Oracle 12c부터는 추가 격리를 위해 하나의 데이터베이스 인스턴스 내에 플러그형 데이터베이스를 만들기 위해 멀티테넌시 [https://www.oracle.com/technetwork/database/multitenant/learn-more/multitenantwp18c-4396158.pdf]가 사용됩니다. 파티션 나누기 [https://www.oracle.com/technetwork/database/options/partitioning/partitioning-wp-12c-1896137.pdf]를 사용하면 쿼리 성능 및 정보 수명 주기 작업을 향상시킬 수 있습니다. Oracle은 독립형 및 Real Application Cluster(RAC) [https://www.oracle.com/technetwork/database/options/clustering/rac-twp-overview-5303704.pdf] 데이터베이스(ASM, OS 파일 시스템, 클러스터 파일 시스템)를 위해 여러 스토리지 옵션 [https://docs.oracle.com/database/121/CNCPT/physical.htm#CNCPT88986]을 제공합니다.
+Exadata는 스토리지 셀 서버에서 최적화된 스토리지 인프라를 제공하고 Oracle 서버가 ASM [https://docs.oracle.com/cd/E11882_01/server.112/e18951/asmcon.htm#OSTMG036]을 사용하여 이 데이터에 투명하게 액세스하도록 허용합니다. Exadata는 사용자가 테이블 및 파티션을 압축할 수 있도록 하이브리드 열 형식 압축(HCC) [https://www.oracle.com/technetwork/database/exadata/ehcc-twp-131254.pdf] 옵션을 제공합니다.
+Oracle은 세그먼트, 데이터 파일, 테이블스페이스에 대해 사전 프로비저닝된 스토리지 용량, 신중한 크기 조정, 자동 증가 구성이 필요합니다.
+쿼리 실행 및 성능
+BigQuery는 비용 대비 성능을 극대화하기 위해 쿼리 수준에서 성능 및 규모를 관리합니다. 예를 들어 BigQuery에는 많은 최적화가 사용됩니다.
+인메모리 쿼리 실행 [https://cloud.google.com/blog/products/gcp/in-memory-query-execution-in-google-bigquery?hl=ko]
+Dremel [http://static.googleusercontent.com/media/research.google.com/en//pubs/archive/36632.pdf] 실행 엔진 기반의 다중 레벨 트리 아키텍처
+Capacitor 내 자동 스토리지 최적화
+Jupiter [https://cloudplatform.googleblog.com/2015/06/A-Look-Inside-Googles-Data-Center-Networks.html]를 통한 초당 1페타비트 규모의 총 바이섹션 대역폭
+고속 페타바이트급 쿼리를 제공하기 위한 리소스 관리 자동 확장 [https://cloud.google.com/blog/products/gcp/understanding-bigquerys-rapid-scaling-and-simple-pricing?hl=ko]
+BigQuery는 데이터를 로드하는 동안 열 통계를 수집하며 진단 쿼리 계획 [https://cloud.google.com/bigquery/query-plan-explanation?hl=ko] 및 타이밍 [https://cloud.google.com/bigquery/query-plan-explanation?hl=ko] 정보를 포함합니다. 쿼리 리소스는 쿼리 유형과 복잡성에 따라 할당됩니다. 각 쿼리에는 특정한 양의 CPU 및 RAM을 포함하는 계산 단위인 일정 개수의 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko]이 사용됩니다.
+Oracle은 데이터 통계 [https://docs.oracle.com/cd/B19306_01/server.102/b14211/stats.htm#g49431] 수집 작업을 제공합니다. 데이터베이스 최적화 [https://docs.oracle.com/cd/B10501_01/server.920/a96533/optimops.htm]는 통계를 사용하여 최적의 실행 계획 [https://docs.oracle.com/database/121/TGSQL/tgsql_genplan.htm#TGSQL271]을 제공합니다. 빠른 행 조회 및 조인 작업을 위해서는 색인 [https://docs.oracle.com/cd/E11882_01/server.112/e40540/indexiot.htm#CNCPT721]이 필요할 수 있습니다. Oracle은 또한 인메모리 분석을 위해 인메모리 열 저장소 [https://www.oracle.com/a/tech/docs/twp-oracle-database-in-memory-19c.pdf]를 제공합니다. Exadata는 셀 스마트 스캔, 스토리지 색인, 플래시 캐시, 스토리지 서버와 데이터베이스 서버 사이의 InfiniBand 연결과 같은 여러 성능 향상 기능을 제공합니다. Real Application Cluster(RAC) [https://www.oracle.com/technetwork/database/options/clustering/rac-twp-overview-5303704.pdf]를 사용하면 서버 고가용성을 달성하고 동일한 기본 스토리지를 사용하여 CPU 집약적인 데이터베이스 애플리케이션을 확장할 수 있습니다.
+Oracle에서 쿼리 성능을 최적화하기 위해서는 이러한 옵션과 데이터베이스 매개변수를 신중하게 고려해야 합니다. Oracle은 성능 조정을 위해 활성 세션 내역(ASH), 자동 데이터베이스 진단 모니터(ADDM), 자동 워크로드 저장소(AWR) 보고서, SQL 모니터링 및 조정 권고자, 실행 취소 및 메모리 조정 권고자 [https://docs.oracle.com/database/121/ADMQS/GUID-8DE70F1D-E161-45D2-BE01-E9972883BCEC.htm#ADMQS1031]와 같은 여러 도구를 제공합니다.
+애자일 분석
+BigQuery에서는 다른 프로젝트의 데이터 세트를 쿼리하도록 다른 프로젝트, 사용자, 그룹을 사용 설정할 수 있습니다. 쿼리 실행 구분을 통해 팀이 자신의 프로젝트 내에서 자율적으로 작업을 수행하도록 지원할 수 있습니다. 그리고 다른 프로젝트 및 데이터 세트를 호스팅하는 프로젝트로부터 슬롯 할당량과 쿼리 청구를 분리하여 다른 사용자 및 프로젝트에 영향을 주지 않습니다.
+고가용성, 백업, 재해 복구
+Oracle은 재해 복구 및 데이터베이스 복제 솔루션으로 Data Guard [https://www.oracle.com/database/data-guard/]를 제공합니다. 서버 가용성을 위해서는 Real Application Cluster(RAC) [https://www.oracle.com/database/technologies/rac.html]를 구성할 수 있습니다. 데이터베이스 및 아카이브 로그 백업을 위해서는 복구 관리자(RMAN) [https://www.oracle.com/database/technologies/high-availability/rman.html] 백업을 구성할 수 있으며, 복원 및 복구 작업에 이를 사용할 수 있습니다. 데이터베이스 플래시백으로 데이터베이스를 특정 시점으로 되돌리기 위해서는 플래시백 데이터베이스 [https://docs.oracle.com/html/E10643_07/rcmsynta023.htm] 기능을 사용할 수 있습니다. 실행 취소 테이블스페이스에는 테이블 스냅샷이 저장됩니다. 이전에 수행된 DML/DDL 작업과 실행 취소 보존 [https://docs.oracle.com/cd/B28359_01/server.111/b28310/undo002.htm#ADMIN10180] 설정에 따라 플래시백 쿼리 및 '기준 [https://docs.oracle.com/cd/E11882_01/appdev.112/e41502/adfns_flashback.htm#ADFNS01003]' 쿼리 절을 사용하여 이전 스냅샷을 쿼리할 수 있습니다. Oracle에서는 Oracle 백업에 strong consistency가 중요하고 복구 절차에 전체 기본 데이터가 포함되어야 하기 때문에 시스템 메타데이터, 실행 취소, 해당 테이블스페이스에 의존하는 테이블스페이스 내에서 데이터베이스의 전체 무결성을 관리해야 합니다. Oracle에서 PITR(point-in-time recovery)이 필요하지 않으면 테이블 스키마 수준에서 내보내기를 예약할 수 있습니다.
+BigQuery는 완전 관리형이며 전체 백업 기능 면에서 기존 데이터베이스 시스템과 다릅니다. 서버, 스토리지 실패, 시스템 버그, 물리적인 데이터 손상을 고려할 필요가 없습니다. BigQuery는 안정성 및 가용성을 극대화하기 위해 데이터 세트 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에 따라 여러 데이터 센터 간에 데이터를 복제합니다. BigQuery 멀티 리전 기능은 여러 리전 간에 데이터를 복제하고 리전 내 단일 영역의 사용 불능 상황을 막아줍니다. BigQuery 단일 리전 기능은 동일한 리전 내에 있는 여러 영역 간에 데이터를 복제합니다.
+BigQuery에서는 테이블의 이전 스냅샷을 최대 7일까지 쿼리할 수 있고 시간 이동 [https://cloud.google.com/bigquery/docs/time-travel?hl=ko]을 사용하여 2일 이내에 삭제된 테이블을 복원할 수 있습니다. 스냅샷 구문 [https://cloud.google.com/bigquery/docs/restore-deleted-tables?hl=ko](dataset.table@timestamp)을 사용하여 삭제된 테이블을 (복원하기 위해) 복사할 수 있습니다. 사용자의 작업 실수를 복구할 때와 같이 추가적인 백업이 필요한 경우를 위해 BigQuery 테이블에서 데이터를 내보낼 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko] 수 있습니다. 기존 데이터 웨어하우스(DWH) 시스템에 사용된 입증된 백업 전략과 일정을 백업에 사용할 수 있습니다.
+배치 작업 및 스냅샷 작성 기법에 따라 BigQuery에 대해 여러 백업 전략을 사용할 수 있으므로 변경되지 않은 테이블 및 파티션을 자주 내보낼 필요가 없습니다. 로드 또는 ETL 작업이 완료된 후 파티션 또는 테이블에 대해 내보내기 백업을 한 번 수행하는 것으로 충분합니다. 백업 비용을 줄이기 위해서는 Cloud Storage Nearline Storage 또는 Coldline Storage [https://cloud.google.com/storage/docs/storage-classes?hl=ko]에 내보내기 파일을 저장하고 데이터 보존 요구사항에 따라 특정 시간이 지난 후 파일을 삭제하도록 수명 주기 정책 [https://cloud.google.com/storage/docs/lifecycle?hl=ko]을 정의할 수 있습니다.
+캐싱
+BigQuery는 사용자별 캐시 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko]를 제공하며, 데이터가 변경되지 않으면 쿼리 결과가 약 24시간 동안 캐시됩니다. 캐시에서 결과를 검색하는 경우에는 쿼리 비용이 발생하지 않습니다.
+Oracle은 버퍼 캐시 [https://docs.oracle.com/database/121/TGDBA/tune_buffer_cache.htm#TGDBA294], 결과 캐시 [https://docs.oracle.com/database/121/TGDBA/tune_result_cache.htm#TGDBA616], Exadata 플래시 캐시 [http://www.oracle.com/us/solutions/exadata-smart-flash-cache-366203.pdf], 인메모리 열 저장소와 같이 데이터 및 쿼리 결과에 대해 여러 캐시를 제공합니다.
+연결
+BigQuery는 연결 관리를 처리하며 사용자가 서버 측 구성을 수행할 필요가 없습니다. BigQuery는 JDBC 및 ODBC [https://cloud.google.com/bigquery/partners/simba-drivers?hl=ko] 드라이버를 제공합니다. 대화형 쿼리에는 Google Cloud 콘솔 [https://cloud.google.com/bigquery/docs/bigquery-web-ui?hl=ko] 또는 bq command-line tool [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko]을 사용할 수 있습니다. REST API [https://cloud.google.com/bigquery/docs/reference/rest/v2?hl=ko] 및 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]를 사용하여 프로그래매틱 방식으로 BigQuery와 상호 작용할 수 있습니다. BigQuery에 직접 Google Sheets를 연결 [https://cloud.google.com/blog/products/g-suite/connecting-bigquery-and-google-sheets-to-help-with-hefty-data-analysis?hl=ko]할 수 있으며 ODBC 및 JDBC 드라이버 [https://cloud.google.com/bigquery/docs/reference/odbc-jdbc-drivers?hl=ko]를 사용하여 Excel에 연결할 수 있습니다. 데스크톱 클라이언트를 찾는 경우 DBeaver [https://dbeaver.io/]와 같은 무료 도구가 있습니다.
+Oracle은 데이터베이스 연결 [https://docs.oracle.com/database/121/NETAG/concepts.htm#NETAG002]을 처리하기 위해 리스너 [https://docs.oracle.com/database/121/NETAG/listenercfg.htm#NETAG010], 서비스 [https://docs.oracle.com/html/E25494_01/create007.htm], 서비스 핸들러, 몇 가지 구성 및 조정 매개변수 [https://docs.oracle.com/cd/B28359_01/network.111/b28317/listener.htm#NETRF293], 공유 및 전용 서버 [https://docs.oracle.com/cd/B28359_01/server.111/b28310/manproc001.htm#ADMIN11166]를 제공합니다. Oracle은 JDBC [https://docs.oracle.com/cd/E11882_01/appdev.112/e13995/oracle/jdbc/OracleDriver.html], JDBC Thin [https://docs.oracle.com/cd/B28359_01/java.111/b31224/jdbcthin.htm], ODBC [https://docs.oracle.com/database/121/ADFNS/adfns_odbc.htm#ADFNS1112] 드라이버, Oracle 클라이언트 [https://docs.oracle.com/cd/E11882_01/install.112/e47959/install.htm#NTCLI1280], TNS [https://docs.oracle.com/cd/B28359_01/network.111/b28317/tnsnames.htm#NETRF007] 연결을 제공합니다. RAC 구성 [https://docs.oracle.com/database/121/RILIN/undrstnd.htm#RILIN006]에는 스캔 리스너, 스캔 IP 주소, 스캔 이름이 필요합니다.
+가격 책정 및 라이선스
+Oracle에서는 라이선스 [https://www.oracle.com/assets/technology-price-list-070617.pdf]가 요구되며 데이터베이스 버전 및 데이터베이스 옵션 [https://docs.oracle.com/en/database/oracle/oracle-database/12.2/dblic/Licensing-Information.html#GUID-B6113390-9586-46D7-9008-DCC9EDA45AB4]을 위한 코어 수에 따른 지원 수수료도 필요합니다. 데이터베이스 옵션에는 RAC, 멀티테넌시, 활성 Data Guard, 파티션 나누기, 인메모리, Real Application 테스트, GoldenGate, Spatial 및 Graph 등이 있습니다.
+BigQuery는 스토리지, 쿼리, 스트리밍 삽입 사용을 기반으로 유연한 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 옵션을 제공합니다. BigQuery는 특정 리전에서 예측 가능한 비용 및 슬롯 용량이 필요한 고객을 위해 용량 기반 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]을 제공합니다. 스트리밍 삽입 및 로드에 사용되는 슬롯은 프로젝트 슬롯 용량으로 계산되지 않습니다. 데이터 웨어하우스에 대해 구입할 슬롯 수를 결정하려면 BigQuery 용량 계획 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#capacity_planning]을 참조하세요.
+BigQuery는 또한 90일 이상 저장되고 수정되지 않은 데이터에 대해 스토리지 비용을 자동으로 절반으로 줄여줍니다 [https://cloud.google.com/blog/products/gcp/google-bigquery-cuts-historical-data-storage-cost-in-half-and-accelerates-many-queries-by-10x?hl=ko].
+라벨 지정
+BigQuery 데이터 세트, 테이블 및 뷰에는 키-값 쌍으로 라벨을 지정 [https://cloud.google.com/bigquery/docs/adding-using-labels?hl=ko]할 수 있습니다. 라벨을 사용하여 스토리지 비용 및 내부 지불 거절을 구분할 수 있습니다.
+모니터링 및 감사 로깅
+Oracle은 여러 수준 및 종류의 데이터베이스 감사 [https://docs.oracle.com/cd/E11882_01/server.112/e10575/tdpsg_auditing.htm#TDPSG50000] 옵션과 개별적으로 라이선스가 부여되는 Audit Vault [https://www.oracle.com/database/technologies/security/audit-vault-firewall.html] 및 데이터베이스 방화벽 기능 [https://www.oracle.com/database/technologies/security/audit-vault-firewall.html]을 제공합니다. Oracle은 데이터베이스 모니터링을 위한 Enterprise Manager [https://www.oracle.com/technetwork/oem/enterprise-manager/overview/index.html]를 제공합니다.
+BigQuery의 경우 기본적으로 사용 설정되는 데이터 액세스 로그 및 감사 로그 모두에 대해 Cloud 감사 로그 [https://cloud.google.com/logging/docs/audit?hl=ko]가 사용됩니다. 데이터 액세스 로그는 30일 동안 제공되며 다른 시스템 이벤트 및 관리자 활동 로그는 400일 동안 제공됩니다. 더 오래 보관해야 할 경우에는 Google Cloud의 보안 로그 분석 [https://cloud.google.com/solutions/design-patterns-for-exporting-stackdriver-logging?hl=ko]에 설명된 것처럼 BigQuery, Cloud Storage, 또는 Pub/Sub로 로그를 내보낼 [https://cloud.google.com/solutions/design-patterns-for-exporting-stackdriver-logging?hl=ko] 수 있습니다. 기존 이슈 모니터링 도구와 통합이 필요하면 내보내기에 Pub/Sub를 사용할 수 있고 기존 도구로 커스텀 개발을 수행하여 Pub/Sub에서 로그를 읽을 수 있습니다.
+감사 로그에는 모든 API 호출, 쿼리 문, 작업 상태가 포함됩니다. Cloud Monitoring [https://cloud.google.com/bigquery/docs/monitoring?hl=ko]을 사용하여 슬롯 할당, 쿼리로 스캔하고 저장한 바이트, 기타 BigQuery 측정항목 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko#metrics]을 모니터링할 수 있습니다. BigQuery 쿼리 계획 및 타임라인 [https://cloud.google.com/bigquery/query-plan-explanation?hl=ko]을 사용하여 쿼리 단계와 성능을 분석할 수 있습니다.
+쿼리 작업 및 API 오류를 문제 해결하기 위해 오류 메시지 테이블 [https://cloud.google.com/bigquery/troubleshooting-errors?hl=ko]을 사용할 수 있습니다. 쿼리 또는 작업별 슬롯 할당을 구분하기 위해서는 이 유틸리티 [https://github.com/GoogleCloudPlatform/professional-services/tree/master/examples/bigquery-cross-project-slot-monitoring]를 사용할 수 있습니다. 이 유틸리티는 용량 기반 가격 책정을 사용하고 있고 많은 프로젝트가 여러 팀 간에 분산되어 있는 고객에게 유용합니다.
+유지보수, 업그레이드, 버전
+BigQuery는 완전 관리형 서비스이며 사용자가 유지보수 또는 업그레이드를 수행할 필요가 없습니다. BigQuery는 다른 버전을 제공하지 않습니다. 업그레이드는 연속적으로 수행되며 다운타임이 요구되거나 시스템 성능이 저하되지 않습니다. 자세한 내용은 출시 노트 [https://cloud.google.com/bigquery/docs/release-notes?hl=ko]를 참조하세요.
+Oracle 및 Exadata에서는 사용자가 데이터베이스 및 기본 인프라 수준의 패치 적용, 업그레이드 및 유지보수를 수행해야 합니다. Oracle은 여러 버전이 있으며 매년 새로운 메이저 버전 출시가 계획되어 있습니다. 새 버전은 하위 호환성을 갖지만 쿼리 성능, 컨텍스트, 기능이 변경될 수 있습니다.
+일부 애플리케이션에는 10g, 11g [https://docs.oracle.com/cd/B28359_01/server.111/b28279/chapter1.htm#NEWFTCH1], 12c [https://docs.oracle.com/database/121/NEWFT/chapter12102.htm#NEWFT003]와 같은 특정 버전이 필요할 수 있습니다. 주요 데이터베이스 업그레이드를 위해서는 신중한 계획과 테스트가 필요합니다. 여러 버전 간 마이그레이션에는 쿼리 절 및 데이터베이스 객체에 대해 서로 다른 기술적인 변환 요구가 포함될 수 있습니다.
+워크로드
+Oracle Exadata는 OLTP 워크로드를 포함하는 혼합 워크로드를 지원합니다. BigQuery는 분석용으로 설계되었으며 OLTP 워크로드를 처리하는 용도로 설계되지 않았습니다. 동일한 Oracle을 사용하는 OLTP 워크로드는Google Cloud의 Cloud SQL, Spanner, Firestore로 마이그레이션해야 합니다. Oracle은 고급 분석과 Spatial 및 Graph와 같은 추가 옵션을 제공합니다. 이러한 워크로드는 BigQuery로 마이그레이션하도록 다시 작성해야 할 수 있습니다. 자세한 내용은 Oracle 옵션 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#migrating-oracle-database-options]을 참조하세요.
+매개변수 및 설정
+Oracle의 경우 많은 매개변수가 제공되며, 서로 다른 워크로드 및 애플리케이션에 대해 OS [https://docs.oracle.com/en/database/oracle/oracle-database/12.2/cwlin/configuring-kernel-parameters-for-linux.html#GUID-6127884D-FB27-45FA-9498-B2540632CBD5], 데이터베이스 [https://docs.oracle.com/cd/B28359_01/server.111/b28320/dynviews_2085.htm#REFRN30176], RAC [https://docs.oracle.com/database/121/RACAD/GUID-59DEC066-5743-4EDE-9A02-E8896005F658.htm#RACAD017], ASM [https://docs.oracle.com/en/database/oracle/oracle-database/12.2/ostmg/init-params-asm-instance.html#GUID-E31FC459-3208-4390-9A27-2FB626520EC4], 리스너 [https://docs.oracle.com/cd/B19306_01/network.102/b14213/listener.htm] 수준에서 이러한 매개변수를 구성하고 조정해야 합니다. BigQuery는 완전 관리형 서비스이며 사용자가 초기화 매개변수를 구성할 필요가 없습니다.
+한도 및 할당량
+Oracle에는 인프라, 하드웨어 용량, 매개변수, 소프트웨어 버전, 라이선스를 기반으로 하는 하드 한도 및 소프트 한도가 있습니다. BigQuery에는 특정 작업 및 객체에 대한 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko]가 있습니다.
+BigQuery 프로비저닝
+BigQuery는 Platform as a Service(PaaS)이며 클라우드 기반의 대규모 병렬 처리 데이터 웨어하우스입니다. Google의 백엔드 관리에 따라 사용자 개입 없이 용량이 확장 및 축소됩니다. 따라서 많은 RDBMS 시스템과 달리 BigQuery에서는 사용자가 사용 전 리소스를 프로비저닝할 필요가 없습니다. BigQuery는 사용량 패턴에 따라 스토리지 및 쿼리 리소스를 동적으로 할당합니다. 스토리지 리소스는 사용자가 이를 사용할 때 할당되며 데이터를 제거하거나 테이블을 삭제할 때 할당이 취소됩니다. 쿼리 리소스는 쿼리 유형과 복잡성에 따라 할당됩니다. 각 쿼리에는 슬롯이 사용됩니다. 최종 공정성 스케줄러가 사용되므로 잠시 동안 일부 쿼리가 더 많은 슬롯을 차지하더라도 결국 스케줄러에서 문제가 해결됩니다.
+기존 VM의 측면에서 BigQuery는 다음과 같은 기능을 제공합니다.
+초당 청구
+초당 확장
+이를 위해 BigQuery는 다음을 수행합니다.
+빠르게 확장해야 할 필요가 없도록 방대한 양의 데이터를 배포한 상태로 유지합니다.
+멀티테넌시 리소스를 사용하여 한 번에 몇 초 동안 대규모 청크를 즉시 할당합니다.
+규모의 경제를 활용해서 여러 사용자 간에 리소스를 효율적으로 할당합니다.
+배포된 리소스가 아니라 실행하는 작업에 대해서만 비용을 청구하므로, 사용한 리소스에 대해 비용을 지불할 수 있습니다.
+가격 책정에 대한 자세한 내용은 BigQuery 빠른 확장과 간단한 가격 책정 이해 [https://cloud.google.com/blog/products/gcp/understanding-bigquerys-rapid-scaling-and-simple-pricing?hl=ko]를 참조하세요.
+스키마 마이그레이션
+Oracle에서 BigQuery로 데이터를 마이그레이션하려면 Oracle 데이터 유형과 BigQuery 매핑을 알아야 합니다.
+Oracle 데이터 유형 및 BigQuery 매핑
+Oracle 데이터 유형은 BigQuery 데이터 유형과 다릅니다. BigQuery 데이터 유형에 대한 자세한 내용은 공식 문서 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko]를 참조하세요.
+Oracle과 BigQuery 데이터 유형 간의 자세한 비교는 Oracle SQL 변환 가이드 [https://cloud.google.com/bigquery/docs/migration/oracle-sql?hl=ko]를 참조하세요.
+색인
+많은 분석 워크로드에서 열 형식 테이블이 행 저장소 대신 사용됩니다. 이렇게 하면 열 기반 작업이 증가하고 배치 분석에 색인을 사용할 필요가 없습니다. 또한 BigQuery는 열 형식으로 데이터를 저장하므로 BigQuery에서 색인이 필요하지 않습니다. 분석 워크로드에 소규모의 단일 행 기반 액세스가 필요하면 Bigtable [https://cloud.google.com/bigtable/docs/overview?hl=ko#top_of_page]이 더 나은 대안일 수 있습니다. 워크로드에 강력한 관계형 일관성을 지원하는 트랜잭션 처리가 필요하면 Spanner [https://cloud.google.com/spanner/docs/overview?hl=ko] 또는 Cloud SQL [https://cloud.google.com/sql/docs?hl=ko]이 더 나은 대안일 수 있습니다.
+요약하자면 BigQuery에서는 배치 분석을 위해 색인이 필요하지 않고 제공되지 않습니다. 파티션 나누기 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko] 또는 클러스터링 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]은 사용할 수 있습니다. BigQuery에서 쿼리 성능을 조정하고 개선하는 방법은 쿼리 성능 최적화 소개 [https://cloud.google.com/bigquery/docs/best-practices-performance-overview?hl=ko]를 참조하세요.
+뷰
+Oracle과 비슷하게 BigQuery에서도 커스텀 뷰 만들기가 허용됩니다. 그러나 BigQuery의 뷰 [https://cloud.google.com/bigquery/docs/views-intro?hl=ko]는 DML 문을 지원하지 않습니다.
+구체화된 뷰
+구체화된 뷰는 일반적으로 한 번 써서 여러 번 읽는 유형의 보고서 및 워크로드에서 보고서 렌더링 시간을 개선하기 위해 사용됩니다.
+구체화된 뷰는 Oracle에서 쿼리 결과 데이터 세트를 저장할 테이블을 만들고 유지관리하는 방식으로 뷰 성능을 개선하기 위해 제공됩니다. Oracle에서 구체화된 뷰를 새로고침하는 방법은 커밋 시 또는 요청 시의 두 가지입니다.
+BigQuery에서는 또한 구체화된 뷰 기능 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko]을 사용할 수 있습니다. BigQuery는 구체화된 뷰에서 미리 계산된 결과를 활용하고, 가능한 모든 경우에 기본 테이블에서 델타 변경사항만 읽어 최신 결과를 계산합니다.
+Looker Studio 또는 기타 최신 BI 도구의 캐싱 기능도 성능을 향상시킬 수 있으며, 동일한 쿼리를 다시 실행할 필요가 없으므로, 비용을 줄여줍니다.
+테이블 파티션 나누기
+테이블 파티션 나누기는 Oracle 데이터 웨어하우스에서 널리 사용됩니다. Oracle과 달리 BigQuery는 계층적 파티션 나누기를 지원하지 않습니다.
+BigQuery는 스캔되는 데이터 양을 줄이기 위해 파티션 나누기 열을 기준으로 쿼리가 조건자 필터를 지정하도록 허용하는 세 가지 유형의 테이블 파티션 나누기 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]를 구현합니다.
+수집 시간으로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko]: 데이터의 수집 시간을 기준으로 테이블이 파티션으로 구분됩니다.
+열을 기준으로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#date_timestamp_partitioned_tables]: TIMESTAMP 또는 DATE 열을 기준으로 테이블이 파티션으로 구분됩니다.
+정수 범위로 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/creating-integer-range-partitions?hl=ko]: 정수 열을 기준으로 테이블이 파티션으로 구분됩니다.
+BigQuery에서 파티션을 나눈 테이블에 적용되는 한도 및 할당량에 대한 자세한 내용은 파티션을 나눈 테이블 소개 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]를 참조하세요.
+BigQuery 제한사항이 마이그레이션된 데이터베이스의 기능에 영향을 주는 경우 파티션 나누기 대신 샤딩 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#dt_partition_shard] 사용을 고려하세요.
+또한 BigQuery는 EXCHANGE PARTITION이나 SPLIT PARTITION 또는 파티션을 나누지 않은 테이블을 파티션을 나눈 테이블로 전환하는 기능을 지원하지 않습니다.
+클러스터링
+클러스터링은 함께 액세스되는 경우가 많은 여러 열에 저장된 데이터를 효율적으로 구성하고 검색하는 데 도움이 됩니다. 그러나 Oracle과 BigQuery는 클러스터링 작동 효율이 높은 상황이 서로 다릅니다. BigQuery에서는 일반적으로 특정 열을 사용하여 테이블을 필터링하고 집계하는 경우에 클러스터링 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]을 사용합니다. Oracle에서는 목록으로 파티션을 나눈 [https://docs.oracle.com/database/121/VLDBG/GUID-7221F7EC-4AFB-412F-8A4F-766CBE24CAE0.htm] 테이블 또는 색인으로 구성된 [https://docs.oracle.com/cd/B28359_01/server.111/b28310/tables012.htm#ADMIN01506] 테이블을 마이그레이션하는 경우에 클러스터링을 고려할 수 있습니다.
+임시 테이블
+임시 테이블은 Oracle ETL 파이프라인에서 자주 사용됩니다. 임시 테이블은 사용자 세션 중에 데이터를 보관합니다. 세션이 종료되면 이 데이터가 자동으로 삭제됩니다.
+BigQuery는 임시 테이블을 사용하여 영구 테이블에 기록되지 않는 쿼리 결과를 캐시합니다. 쿼리가 완료된 후 최대 24시간 동안 임시 테이블이 존재합니다. 이 테이블은 특수 데이터 세트에 생성되고 무작위로 이름이 지정됩니다. 또한 고유한 용도로 임시 테이블을 만들 수 있습니다. 자세한 내용은 임시 테이블 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#temporary_tables]을 참조하세요.
+외부 테이블
+Oracle과 비슷하게 BigQuery에서도 외부 데이터 소스 [https://cloud.google.com/bigquery/external-data-sources?hl=ko]를 쿼리할 수 있습니다. BigQuery에서는 다음과 같은 외부 데이터 소스에서 직접 데이터를 쿼리할 수 있습니다.
+Amazon Simple Storage Service(Amazon S3)
+Azure Blob Storage
+Bigtable
+Spanner
+Cloud SQL
+Cloud Storage
+Google Drive
+데이터 모델링
+별표 또는 눈송이 데이터 모델은 분석 스토리지에 효율적일 수 있으며 Oracle Exadata에서 데이터 웨어하우스에 일반적으로 사용됩니다.
+비정규화된 테이블은 고비용 조인 작업을 없애고 대부분의 경우 BigQuery에서 더 나은 분석 성능을 제공합니다. 별표 및 눈송이 데이터 모델은 BigQuery에서도 지원됩니다. BigQuery의 데이터 웨어하우스 디자인 세부정보는 스키마 디자인 [https://cloud.google.com/solutions/bigquery-data-warehouse?hl=ko#designing_schema]을 참조하세요.
+행 형식과 열 형식, 서버 한도와 서버리스 비교
+Oracle에서는 테이블 행이 데이터 블록에 저장되는 행 형식이 사용되므로 특정 열의 필터링 및 집계를 기준으로 분석 쿼리용 블록 안으로 불필요한 열을 가져옵니다.
+Oracle에서는 메모리 및 스토리지와 같은 고정 하드웨어 리소스 종속 항목이 서버에 할당되는 모든 것을 공유하는 아키텍처가 사용됩니다. 이러한 것들은 스토리지 효율성과 분석 쿼리 성능을 개선하도록 발전된 많은 데이터 모델링 기법의 기본이 되는 두 가지 기본 요소입니다. 별표 및 눈송이 스키마와 데이터 저장소 모델링도 여기에 포함됩니다.
+BigQuery는 열 형식을 사용하여 데이터를 저장하며 고정된 스토리지 및 메모리 한도를 갖고 있지 않습니다. 이러한 아키텍처에서는 읽기 및 비즈니스 요구에 따라 스키마를 비정규화 및 디자인할 수 있으므로, 복잡성을 줄이고, 유연성, 확장성 및 성능을 높일 수 있습니다.
+비정규화
+관계형 데이터베이스 정규화의 기본 목표 중 하나는 데이터 중복성을 줄이는 것입니다. 이 모델은 행 형식을 사용하는 관계형 데이터베이스에 가장 적합하지만 열 형식 데이터베이스의 경우 데이터 비정규화가 선호됩니다. BigQuery에서 데이터 비정규화 및 기타 쿼리 최적화 전략의 이점은 비정규화 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko#denormalization]를 참조하세요.
+기존 스키마 평면화 기법
+BigQuery 기술은 열 형식 데이터 액세스와 처리, 인메모리 스토리지, 분산 처리 조합을 활용해서 고품질 쿼리 성능을 제공합니다.
+BigQuery DWH 스키마를 디자인할 때는 평면 테이블 구조로 팩트 테이블을 만드는 것(모든 측정기준 테이블을 팩트 테이블의 단일 레코드로 통합)이 여러 DWH 측정기준 테이블을 사용하는 것보다 스토리지 사용률에 더 효과적입니다. 스토리지 사용률이 낮을 뿐 아니라 BigQuery에서 평면 테이블을 사용함으로써 JOIN 사용량이 줄어듭니다. 다음 다이어그램은 스키마 평면화 예시를 보여줍니다.
+별표 스키마 평면화 예시
+그림 1은 4개의 테이블이 포함된 가상의 판매 관리 데이터베이스를 보여줍니다.
+주문/판매 테이블(팩트 테이블)
+직원 테이블
+위치 테이블
+고객 테이블
+판매 테이블의 기본 키는 다른 3개의 테이블에 대한 외래 키도 포함하는 OrderNum입니다.
+그림 1: 별표 스키마의 샘플 판매 데이터
+샘플 데이터
+주문/팩트 테이블 콘텐츠
+OrderNum CustomerID SalesPersonID amount 위치
+O-1 1234 12 234.22 18
+O-2 4567 1 192.10 27
+O-3 12 14.66 18
+O-4 4567 4 182.00 26
+직원 테이블 콘텐츠
+SalesPersonID FName LName title
+1 Alex Smith 판매 보조원
+4 Lisa Doe 판매 보조원
+12 John Doe 판매 보조원
+고객 테이블 콘텐츠
+CustomerID FName LName
+1234 Amanda Lee
+4567 Matt Ryan
+위치 테이블 콘텐츠
+위치 city city city
+18 Bronx NY 10452
+26 Mountain View CA 90210
+27 시카고 IL 60613
+LEFT OUTER JOIN을 사용하여 데이터를 평면화하는 쿼리
+#standardSQL
+INSERT INTO flattened
+SELECT
+  orders.ordernum,
+  orders.customerID,
+  customer.fname,
+  customer.lname,
+  orders.salespersonID,
+  employee.fname,
+  employee.lname,
+  employee.title,
+  orders.amount,
+  orders.location,
+  location.city,
+  location.state,
+  location.zipcode
+FROM orders
+LEFT OUTER JOIN customer
+  ON customer.customerID = orders.customerID
+LEFT OUTER JOIN employee
+  ON employee.salespersonID = orders.salespersonID
+LEFT OUTER JOIN location
+  ON location.locationID = orders.locationID
+참고: BigQuery는 왼쪽에서 오른쪽으로(위에서 아래로) JOIN를 처리합니다. 가능한 한 빨리 레코드 수를 줄여 주는 JOIN을 체인에 배치하면 응답 시간을 줄어들고 쿼리 효율이 늘어납니다.
+평면화된 데이터 출력
+OrderNum CustomerID FName LName SalesPersonID FName LName amount 위치 city state zipcode
+O-1 1234 Amanda Lee 12 John Doe 234.22 18 Bronx NY 10452
+O-2 4567 Matt Ryan 1 Alex Smith 192.10 27 Chicago IL 60613
+O-3 12 John Doe 14.66 18 Bronx NY 10452
+O-4 4567 Matt Ryan 4 Lisa Doe 182.00 26 Mountain
+보기
+CA 90210
+중첩되고 반복되는 필드
+측정기준 및 팩트 테이블이 저장된 별표 및 눈송이 스키마와 같이 관계형 스키마에서 DWH 스키마를 디자인하고 만들기 위해 BigQuery는 중첩되고 반복되는 필드 기능을 제공합니다. 따라서 성능에 영향을 주지 않고 관계형 정규화된(또는 부분 정규화된) DWH 스키마와 비슷한 방식으로 관계를 보존할 수 있습니다. 자세한 내용은 성능 권장사항 [https://cloud.google.com/bigquery/docs/best-practices-performance-input?hl=ko#denormalize_data_whenever_possible]을 참조하세요.
+중첩되고 반복되는 필드의 구현에 대해 더 자세히 알아보려면 CUSTOMERS 테이블 및 ORDER/SALES 테이블의 간단한 관계형 스키마를 참조하세요. 이것들은 2개의 서로 다른 테이블이며, 각 항목마다 하나씩 있고, JOIN을 사용하여 쿼리하면서 기본 키 및 외래 키와 같은 키를 테이블 사이의 링크로 사용하여 관계를 정의합니다. BigQuery 중첩되고 반복되는 필드를 사용하면 하나의 단일 테이블에서 항목 간에 동일한 관계를 유지할 수 있습니다. 주문 데이터가 각 고객에 대해 중첩되지만 모든 고객 데이터를 사용하여 이를 구현할 수 있습니다. 자세한 내용은 중첩 및 반복 열 지정 [https://cloud.google.com/bigquery/docs/nested-repeated?hl=ko]을 참조하세요.
+평면 구조를 중첩되거나 반복되는 스키마로 변환하려면 필드를 다음과 같이 중첩합니다.
+CustomerID, FName, LName이 Customer라는 새 필드에 중첩됩니다.
+SalesPersonID, FName, LName이 Salesperson이라는 새 필드에 중첩됩니다.
+LocationID, city, state, zip code가 Location이라는 새 필드에 중첩됩니다.
+OrderNum 및 amount 필드는 고유한 요소를 나타내므로 중첩되지 않습니다.
+모든 주문에 고객이 하나 이상(기본 및 보조) 포함되도록 스키마를 충분히 유연하게 만들어야 합니다. 고객 필드는 반복되는 것으로 표시됩니다. 그림 2는 중첩되고 반복되는 필드를 설명하는 결과 스키마를 보여줍니다.
+그림 2: 중첩 구조의 논리적 표현
+일부 경우에는 중첩되고 반복되는 필드를 사용하여 비정규화해도 성능 개선으로 이어지지 않습니다. 제한사항에 대한 자세한 내용은 테이블 스키마에 중첩 및 반복 열 지정 [https://cloud.google.com/bigquery/docs/nested-repeated?hl=ko]을 참조하세요.
+서로게이트 키
+테이블 내에서 고유 키로 행을 식별하는 것이 일반적입니다. Oracle에서는 일반적으로 이러한 키를 만들기 위해 시퀀스가 사용됩니다. BigQuery에서는 row_number 및 partition by 함수를 사용하여 서로게이트 키를 만들 수 있습니다. 자세한 내용은 BigQuery 및 서로게이트 키: 실용적 접근 방식 [https://cloud.google.com/blog/products/data-analytics/bigquery-and-surrogate-keys-practical-approach?hl=ko]을 참조하세요.
+변경사항 및 기록 추적
+BigQuery DWH 마이그레이션을 계획할 때는 느리게 변경되는 측정기준(SCD) 개념을 고려하세요. 일반적으로 SCD는 측정기준 테이블에서의 변경 수행 프로세스(DML 작업)를 나타냅니다.
+여러 이유로 인해 기존 데이터 웨어하우스는 느리게 변경되는 측정기준에서 데이터 변경을 처리하고 이전 데이터를 보관하기 위해 서로 다른 유형 [https://en.wikipedia.org/wiki/Slowly_changing_dimension]을 사용합니다. 이러한 유형 사용은 앞에서 논의한 하드웨어 제한 및 효율성 요구사항에 따라 필요합니다. 스토리지가 컴퓨팅보다 훨씬 저렴하고 무한하게 확장 가능하기 때문에 BigQuery에서 쿼리 속도가 빨라질 경우 데이터 중복성과 복제가 권장됩니다. 전체 데이터가 새로운 일일 파티션에 로드되는 데이터 스냅샷 작성 기술 [https://medium.com/%40maximebeauchemin/functional-data-engineering-a-modern-paradigm-for-batch-data-processing-2327ec32c42a]을 사용할 수 있습니다.
+역할별 뷰와 사용자별 뷰
+사용자가 서로 다른 팀에 속하고 필요한 레코드 및 결과만 볼 수 있게 하려면 역할별 뷰와 사용자별 뷰를 사용합니다.
+BigQuery는 column- [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko] 및 행 수준 보안 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko]을 지원합니다. 열 수준 보안은 정책 태그 또는 데이터의 유형 기반 분류를 사용하여 민감한 열에 대해 세분화된 액세스를 제공합니다. 행 수준 보안을 사용하면 사용자의 자격 조건을 기준으로 데이터를 필터링하고 테이블의 특정 행에 액세스하도록 허용할 수 있습니다.
+데이터 이전
+이 섹션에서는 초기 로드, 변경 데이터 캡처(CDC), ETL/ELT 도구 및 접근 방식을 포함하여 Oracle에서 BigQuery로 데이터 마이그레이션에 대해 자세히 설명합니다.
+마이그레이션 활동
+마이그레이션에 적합한 사용 사례를 식별하여 단계적으로 마이그레이션을 수행하는 것이 좋습니다. Oracle에서 Google Cloud로 데이터를 마이그레이션할 때는 여러 도구 및 서비스를 사용할 수 있습니다. 이 목록이 전부는 아니지만 마이그레이션 작업의 크기와 범위를 이해하는 데 도움이 됩니다.
+Oracle 외부로 데이터 내보내기: 자세한 내용은 초기 로드 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#initial_load]와 CDC 및 Oracle에서 BigQuery로 스트리밍 수집 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#cdc-streaming-oracle-bigquery]을 참조하세요. 초기 로드에 ETL 도구 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#etl-elt-migration]를 사용할 수 있습니다.
+데이터 스테이징(Cloud Storage): Cloud Storage는 Oracle에서 내보낸 데이터에 대해 권장되는 랜딩 장소(스테이징 영역)입니다. Cloud Storage는 구조화된 데이터 또는 구조화되지 않은 데이터를 빠르고 유연하게 수집할 수 있도록 디자인되었습니다.
+ETL 프로세스: 자세한 내용은 ETL/ELT 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#etl-elt-migration]을 참조하세요.
+BigQuery에 직접 데이터 로드: Dataflow 또는 실시간 스트리밍을 통해 Cloud Storage에서 직접 BigQuery로 데이터를 로드할 수 있습니다. 데이터 변환이 필요하면 Dataflow를 사용합니다.
+초기 로드
+기존 Oracle 데이터 웨어하우스에서 BigQuery로 초기 데이터를 마이그레이션하는 것은 데이터 크기 및 네트워크 대역폭에 따라 달라지는 증분적인 ETL/ELT 파이프라인과 다를 수 있습니다. 데이터 크기가 몇 테라바이트에 해당할 경우 동일한 ETL/ELT 파이프라인을 사용할 수 있습니다.
+데이터가 최대 몇 테라바이트에 해당하는 경우 데이터를 덤프하고 전송을 위해 gcloud storage을 사용하는 것이 JdbcIO [https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jdbc/JdbcIO.html]와 비슷한 프로그래매틱 데이터베이스 추출 방법을 사용하는 것보다 훨씬 효율적일 수 있습니다. 프로그래매틱 접근 방법은 훨씬 더 세부적인 성능 조정이 필요할 수 있기 때문입니다. 데이터 크기가 몇 테라바이트보다 크고 데이터가 클라우드 또는 온라인 스토리지(예: Amazon Simple Storage Service(Amazon S3))에 저장되어 있으면 BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/dts-introduction?hl=ko] 사용을 고려합니다. 대규모 전송(특히 네트워크 대역폭이 제한된 전송)의 경우에는 Transfer Appliance [https://cloud.google.com/transfer-appliance?hl=ko]가 유용한 옵션입니다.
+초기 로드 제약조건
+데이터 마이그레이션을 계획할 때는 다음을 고려합니다.
+Oracle DWH 데이터 크기: 스키마의 소스 크기는 특히 데이터 크기가 클 때(수 테라바이트 이상) 선택한 데이터 전송 방법에 큰 영향을 줍니다. 데이터 크기가 비교적 작으면 데이터 전송 프로세스를 더 적은 단계로 완료할 수 있습니다. 대규모 데이터 크기를 처리할 때는 전체 프로세스가 더 복잡해집니다.
+다운타임: BigQuery로 마이그레이션할 때는 다운타임 옵션을 선택할지 여부를 결정하는 것이 중요합니다. 다운타임을 줄이기 위해서는 이전 데이터를 일정하게 대량 로드하고 전송 프로세스 중에 발생하는 변경사항을 포착하도록 CDC 솔루션을 구성할 수 있습니다.
+가격 책정: 일부 시나리오에서는 추가 라이선스가 필요한 서드 파티 통합 도구(예: ETL 또는 복제 도구)가 필요할 수 있습니다.
+초기 데이터 전송(일괄)
+일괄 방법을 사용하는 데이터 전송은 CSV, Avro, Parquet 파일로 Oracle DWH 스키마 데이터를 내보내기거나 BigQuery에서 데이터 세트를 만들기 위해 Cloud Storage로 가져오는 경우와 같이 단일 프로세스에서 일관적으로 데이터를 내보낼 수 있습니다. 초기 로드를 위해서는 ETL/ELT 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#etl-elt-migration]에서 설명하는 모든 ETL 도구 및 개념을 사용할 수 있습니다.
+초기 로드에 ETL/ELT 도구를 사용하지 않으려면 데이터를 CSV, Avro, Parguet 파일로 내보내도록 커스텀 스크립트를 작성하고 gcloud storage, BigQuery Data Transfer Service, Transfer Appliance를 사용하여 이 데이터를 Cloud Storage에 업로드할 수 있습니다. 대규모 데이터 전송의 성능 조정 및 전송 옵션에 대한 자세한 내용은 대규모 데이터 세트 전송 [https://cloud.google.com/solutions/transferring-big-data-sets-to-gcp?hl=ko]을 참조하세요. 그런 후 Cloud Storage에서 BigQuery [https://cloud.google.com/bigquery/docs/introduction?hl=ko]로 데이터를 로드합니다.
+Cloud Storage는 데이터 초기 랜딩을 처리하는 데 이상적입니다. Cloud Storage는 파일 수에 대한 제한 없이 가용성과 내구성이 뛰어난 객체 스토리지 서비스이며, 사용하는 스토리지에 대해서만 비용을 지불할 수 있습니다. 이 서비스는 BigQuery 및 Dataflow와 같은 Google Cloud 서비스와 작동하도록 최적화되어 있습니다.
+Oracle에서 BigQuery로 CDC 및 스트리밍 수집
+Oracle에서 변경된 데이터를 캡처하는 방법은 여러 가지가 있습니다. 각 옵션은 주로 소스 시스템에 대한 성능 영향, 개발 및 구성 요구사항, 가격 책정 및 라이선스에 대한 절충점이 있습니다.
+로그 기반 CDC
+Oracle GoldenGate는 재실행 로그를 추출하기 위한 Oracle 권장 도구입니다. 빅 데이터용 GoldenGate [https://docs.oracle.com/en/middleware/goldengate/big-data/12.3.2.1/gadbd/using-bigquery-handler.html#GUID-4568CD10-5495-4DB0-8E75-10F40451A8A7]를 사용하여 BigQuery로 로그를 스트리밍할 수 있습니다. GoldenGate에는 CPU당 라이선스가 필요합니다. 가격에 대한 자세한 내용은 Oracle Technology 전역 가격 목록 [https://www.oracle.com/assets/technology-price-list-070617.pdf]을 참조하세요. 빅 데이터용 Oracle GoldenGate를 사용할 수 있는 경우(라이선스를 이미 획득한 경우) GoldenGate를 사용하여 데이터를 전송(초기 로드)할 데이터 파이프라인을 만들고 모든 데이터 수정을 동기화할 수 있습니다.
+Oracle XStream
+Oracle은 모든 커밋을 재실행 로그 파일에 저장하며, 이러한 재실행 파일을 CDC에 사용할 수 있습니다. Oracle XStream Out [https://docs.oracle.com/cd/E11882_01/server.112/e16545/xstrm_intro.htm#XSTRM72650]은 LogMiner를 기반으로 작성되었으며 Debezium [https://debezium.io/docs/connectors/oracle/](버전 0.8 기준)과 같은 타사 도구에서 제공되거나 Striim [https://www.striim.com/]과 같은 도구를 사용하여 상업적으로 제공됩니다. XStream API를 사용하려면 GoldenGate를 설치 및 사용하지 않더라도 Oracle GoldenGate 라이선스를 구입해야 합니다. XStream을 사용하면 Oracle과 다른 소프트웨어 사이에 Streams 메시지를 효율적으로 전파할 수 있습니다.
+Oracle LogMiner
+LogMiner [https://docs.oracle.com/en/database/oracle/oracle-database/18/sutil/oracle-logminer-utility.html#GUID-3417B738-374C-4EE3-B15C-3A66E01AE2B5]에는 특별한 라이선스가 필요하지 않습니다. Debezium 커뮤니티 커넥터 [https://github.com/erdemcer/kafka-connect-oracle]에서 LogMiner 옵션을 사용할 수 있습니다. 또한 Attunity, Striim, StreamSets [https://www.ibm.com/docs/en/streamsets-legacy-dc]와 같은 도구를 사용하여 상업적으로 제공됩니다. LogMiner는 매우 활성화된 소스 데이터베이스 성능에 영향을 줄 수 있으므로, 서버 CPU, 메모리, I/O 용량 및 사용률에 따라 변경사항 볼륨(재실행 크기)이 시간당 10GB를 초과하는 경우 주의해서 사용해야 합니다.
+SQL 기반 CDC
+이것은 SQL 쿼리가 단조롭게 증가하는 키 및 마지막으로 수정되었거나 삽입된 날짜를 보유하는 타임스탬프 열에 따라 소스 테이블에서 변경사항을 지속적으로 폴링하는 증분적 ETL 접근 방법입니다. 단조롭게 증가하는 키가 없는 경우 작은 정밀도(초)로 타임스탬프 열(수정된 날짜)을 사용하면 > 또는 >=과 같은 비교 연산자와 볼륨에 따라 레코드가 중복되거나 데이터가 누락될 수 있습니다.
+이러한 문제를 해결하기 위해서는 6자리 숫자(BigQuery에서 지원되는 최대 정밀도인 마이크로초)와 같이 타임스탬프 열에서 더 높은 정밀도를 사용하거나 비즈니스 키 및 데이터 특성에 따라 ETL/ELT 파이프라인에서 중복 제거 작업을 추가할 수 있습니다.
+추출 성능을 높이고 소스 데이터베이스에 대한 영향을 줄이려면 키 또는 타임스탬프 열에 색인이 있어야 합니다. 삭제 작업은 삭제된 플래그를 삽입하고 last_modified_date를 업데이트하는 것과 같이 소스 애플리케이션에서 소프트 삭제 방식으로 처리되어야 하기 때문에 이 방법으로 수행하기 어려운 작업입니다. 다른 방법은 트리거를 사용해서 다른 테이블에서 이러한 작업을 로깅하는 것입니다.
+트리거
+섀도우 저널 테이블에 변경사항을 로깅하도록 데이터베이스 트리거를 소스 테이블에 만들 수 있습니다. 저널 테이블은 모든 열 변경을 추적하도록 전체 행을 보관하거나 작업 유형(삽입, 업데이트, 삭제)에 따라 기본 키만 유지할 수 있습니다. 그런 후 SQL 기반 CDC [https://cloud.google.com/bigquery/docs/migration/oracle-migration?hl=ko#cdc-streaming-oracle-bigquery]에 설명된 SQL 기반 접근 방법에 따라 변경된 데이터를 캡처할 수 있습니다. 트리거를 사용하면 트랜잭션 성능에 영향을 줄 수 있고 전체 행이 저장된 경우 단일 행 DML 작업 대기 시간이 두 배로 증가할 수 있습니다. 기본 키만 저장하면 이 오버헤드를 줄일 수 있지만 이 경우 원래 테이블이 포함된 JOIN 작업이 SQL 기반 추출에 필요하여, 중간 변경이 누락됩니다.
+ETL/ELT 마이그레이션
+Google Cloud에서 ETL/ELT 처리를 위해서는 여러 가능성이 있습니다. 특정 ETL 워크로드 전환에 대한 기술적인 안내는 이 문서의 범위를 벗어납니다. 리프트 앤 시프트 접근 방법을 고려하거나 비용과 시간과 같은 제약조건에 따라 데이터 통합 플랫폼을 다시 설계할 수 있습니다. 데이터 파이프라인을 Google Cloud 로 마이그레이션하는 방법과 기타 여러 마이그레이션 개념에 대한 자세한 내용은 데이터 파이프라인 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/pipelines?hl=ko]을 참조하세요.
+리프트 앤 시프트 접근 방법
+기존 플랫폼에서 BigQuery가 지원되고 기존 데이터 통합 도구를 계속 사용하려는 경우에는 다음을 수행할 수 있습니다.
+ETL/ELT 플랫폼을 있는 그대로 유지하고 ETL/ELT 작업에서 BigQuery를 사용하여 필요한 스토리지 단계를 변경할 수 있습니다.
+ETL/ELT 플랫폼을 Google Cloud 로 마이그레이션하려면 해당 도구가 Google Cloud에서 라이선스가 부여되었는지 공급업체에 문의하고, 라이선스가 부여되었으면 이를 Compute Engine에 설치하거나 Google Cloud Marketplace를 확인할 수 있습니다.
+데이터 통합 솔루션 공급업체에 대한 자세한 내용은 BigQuery 파트너 [https://cloud.google.com/bigquery?hl=ko#section-6]를 참조하세요.
+ETL/ELT 플랫폼 다시 설계
+데이터 파이프라인을 다시 설계하려면 Google Cloud 서비스를 사용하는 것이 좋습니다.
+Cloud Data Fusion
+Cloud Data Fusion [https://cloud.google.com/data-fusion?hl=ko]은 Google Cloud 에서 드래그 앤 드롭 및 파이프라인 개발과 같은 태스크를 위해 많은 플러그인과 함께 시각적인 인터페이스를 제공하는 관리형 CDAP [https://cdap.io/]입니다. Cloud Data Fusion을 사용하여 여러 종류의 소스 시스템에서 데이터를 캡처하고 일괄 및 스트리밍 복제 기능을 제공할 수 있습니다. Cloud Data Fusion 또는 Oracle 플러그인을 사용하면 Oracle에서 데이터를 캡처할 수 있습니다. BigQuery 플러그인을 사용하면 데이터를 BigQuery로 로드하고 스키마 업데이트를 처리할 수 있습니다.
+출력 스키마는 소스 및 싱크 플러그인 모두에 정의되지 않으며 소스 플러그인에서도 select * from을 사용하여 새 열을 복제합니다.
+데이터 정리 및 준비를 위해 Cloud Data Fusion Wrangle 기능을 사용할 수 있습니다.
+Dataflow
+Dataflow [https://cloud.google.com/dataflow?hl=ko]는 일괄 및 스트리밍 데이터 처리를 수행하고 자동 확장할 수 있는 서버리스 데이터 처리 플랫폼입니다. Dataflow는 데이터 파이프라인을 코딩하고 스트리밍 및 일괄 워크로드 모두에 동일한 코드를 사용하려는 Python 및 Java 개발자에게 적합한 옵션일 수 있습니다. JDBC to BigQuery 템플릿 [https://cloud.google.com/dataflow/docs/guides/templates/provided-batch?hl=ko#jdbctobigquery]을 사용하여 Oracle 또는 기타 관계형 데이터베이스에서 데이터를 추출하고 이를 BigQuery에 로드합니다.
+Cloud Composer
+Cloud Composer [https://cloud.google.com/composer?hl=ko]는 Apache Airflow [https://airflow.apache.org/]를 기반으로 하는 Google Cloud 완전 관리형 워크플로 조정 서비스입니다. 클라우드 환경 및 온프레미스 데이터 센터에 걸쳐 있는 파이프라인을 작성, 예약 및 모니터링할 수 있습니다. Cloud Composer는 추출, 로드, 변환(ELT) 및 REST API 호출을 포함한 사용 사례에 대해 멀티 클라우드 기술을 실행할 수 있는 연산자 [https://airflow.apache.org/docs/apache-airflow/1.10.14/_api/index.html#operators] 및 기여 [https://airflow.apache.org/docs/apache-airflow/1.10.14/_api/airflow/contrib/operators/index.html]를 제공합니다.
+Cloud Composer는 워크플로 예약 및 오케스트레이션을 위해 방향성 비순환 그래프(DAG)를 사용합니다. 일반적인 Airflow 개념을 이해하려면 Airflow Apache 개념 [https://airflow.apache.org/concepts.html]을 참조하세요. DAG에 대한 자세한 내용은 DAG 작성(워크플로) [https://cloud.google.com/composer/docs/how-to/using/writing-dags?hl=ko]을 참조하세요. Apache Airflow를 사용하는 샘플 ETL 권장사항은 Airflow를 사용하는 ETL 권장사항 문서 사이트 [https://gtoonstra.github.io/etl-with-airflow/]를 참조하세요. 이 예시에서는 Hive 연산자를 BigQuery 연산자 [https://airflow.apache.org/docs/apache-airflow-providers-google/stable/operators/cloud/bigquery.html]로 바꿀 수 있고 동일한 개념을 적용할 수 있습니다.
+다음 샘플 코드는 이전 다이어그램에서 샘플 DAG의 상위 부분입니다.
+    default_args = {
+      'owner': 'airflow',
+      'depends_on_past': False,
+     'start_date': airflow.utils.dates.days_ago(2),
+     'email': ['airflow@example.com'],
+     'email_on_failure': False,
+     'email_on_retry': False,
+     'retries': 2,
+     'retry_delay': timedelta(minutes=10),
+    }
+    schedule_interval = "00 01 * * *"
+    dag = DAG('load_db1_db2',catchup=False, default_args=default_args,
+    schedule_interval=schedule_interval)
+    tables = {
+      'DB1_TABLE1': {'database':'DB1', 'table_name':'TABLE1'},
+      'DB1_TABLE2': {'database':'DB1', 'table_name':'TABLE2'},
+      'DB1_TABLEN': {'database':'DB1', 'table_name':'TABLEN'},
+      'DB2_TABLE1': {'database':'DB2', 'table_name':'TABLE1'},
+      'DB2_TABLE2': {'database':'DB2', 'table_name':'TABLE2'},
+      'DB2_TABLEN': {'database':'DB2', 'table_name':'TABLEN'},
+    }
+    start_db1_daily_incremental_load = DummyOperator(
+       task_id='start_db1_daily_incremental_load', dag=dag)
+    start_db2_daily_incremental_load = DummyOperator(
+       task_id='start_db2_daily_incremental_load', dag=dag)
+
+    load_denormalized_table1 = BigQueryOperator(
+       task_id='load_denormalized_table1',
+       use_legacy_sql=False,
+       write_disposition='WRITE_TRUNCATE',
+       allow_large_results=True,
+       trigger_rule='all_done',
+       bql='''
+       #standardSQL
+       select
+           t1.*,tN.* except (ID)
+           from `ingest-project.ingest_db1.TABLE1` as t1
+           left join `ingest-project.ingest_db1.TABLEN` as tN on t1.ID = tN.ID
+        ''',    destination_dataset_table='datamart-project.dm1.dt1', dag=dag)
+
+        load_denormalized_table2 = BigQueryOperator(
+           task_id='load_denormalized_table2',
+           use_legacy_sql=False,
+           write_disposition='WRITE_TRUNCATE',
+           allow_large_results=True,
+           trigger_rule='all_done',
+        bql='''
+        #standardSQL
+        select
+           t1.*,t2.* except (ID),tN.* except (ID)
+           from `ingest-project.ingest_db1.TABLE1` as t1
+           left join `ingest-project.ingest_db2.TABLE2` as t2 on t1.ID = t2.ID
+           left join `ingest-project.ingest_db2.TABLEN` as tN on t2.ID = tN.ID
+        ''',    destination_dataset_table='datamart-project.dm1.dt2', dag=dag)
+
+        load_denormalized_table_all = BigQueryOperator(
+           task_id='load_denormalized_table_all',
+           use_legacy_sql=False,
+           write_disposition='WRITE_TRUNCATE',
+           allow_large_results=True,
+          trigger_rule='all_done',
+        bql='''
+        #standardSQL
+        select
+           t1.*,t2.* except (ID),t3.* except (ID)
+           from `datamart-project.dm1.dt1` as t1
+           left join `ingest-project.ingest_db1.TABLE2` as t2 on t1.ID = t2.ID
+           left join `datamart-project.dm1.dt2` as t3 on t2.ID = t3.ID
+        ''',    destination_dataset_table='datamart-project.dm1.dt_all', dag=dag)
+
+        def start_pipeline(database,table,...):
+        #start initial or incremental load job here
+        #you can write your custom operator to integrate ingestion tool
+        #or you can use operators available in composer instead
+
+        for table,table_attr in tables.items():
+        tbl=table_attr['table_name']
+        db=table_attr['database'])
+        load_start = PythonOperator(
+        task_id='start_load_{db}_{tbl}'.format(tbl=tbl,db=db),
+        python_callable=start_pipeline,
+        op_kwargs={'database': db,
+        'table':tbl},
+        dag=dag
+        )
+
+        load_monitor = HttpSensor(
+          task_id='load_monitor_{db}_{tbl}'.format(tbl=tbl,db=db),
+          http_conn_id='ingestion-tool',
+          endpoint='restapi-endpoint/',
+          request_params={},
+          response_check=lambda response: """{"status":"STOPPED"}""" in
+          response.text,
+          poke_interval=1,
+          dag=dag,
+        )
+
+        load_start.set_downstream(load_monitor)
+
+        if table_attr['database']=='db1':
+          load_start.set_upstream(start_db1_daily_incremental_load)
+        else:
+          load_start.set_upstream(start_db2_daily_incremental_load)
+
+        if table_attr['database']=='db1':
+          load_monitor.set_downstream(load_denormalized_table1)
+        else:
+          load_monitor.set_downstream(load_denormalized_table2)
+          load_denormalized_table1.set_downstream(load_denormalized_table_all)
+          load_denormalized_table2.set_downstream(load_denormalized_table_all)
+이전 코드는 설명 목적으로 제공되었으며, 있는 그대로 사용할 수 없습니다.
+Dataprep by Trifacta
+Dataprep [https://cloud.google.com/dataprep?hl=ko]은 구조화된 데이터와 구조화되지 않은 데이터를 시각적으로 탐색하고 정리하여 분석, 보고, 머신러닝용으로 준비해 주는 데이터 서비스입니다. 소스 데이터를 JSON 또는 CSV 파일로 내보내고, Dataprep을 사용하여 데이터를 변환하고, Dataflow를 사용하여 데이터를 로드합니다. 예를 들어 Dataflow 및 Dataprep을 사용하여 Oracle 데이터(ETL)를 BigQuery로 전환 [https://medium.com/google-cloud/oracle-data-to-google-bigquery-using-google-cloud-dataflow-and-dataprep-20884571a9e5]을 참조하세요.
+Dataproc
+Dataproc [https://cloud.google.com/dataproc?hl=ko]는 Google 관리형 Hadoop 서비스입니다. Sqoop를 사용해서 Oracle 및 많은 관계형 데이터베이스에서 Cloud Storage로 Avro 파일 형식으로 데이터를 내보내고 bq tool [https://medium.com/google-cloud/moving-data-with-apache-sqoop-in-google-cloud-dataproc-4056b8fa2600]을 사용하여 Avro 파일을 BigQuery로 로드할 수 있습니다. JDBC를 사용하는 Hadoop에 CDAP와 같은 ETL 도구를 설치하여 데이터를 추출하고 데이터 변환을 위해 Apache Spark 또는 MapReduce를 사용하는 것이 매우 일반적입니다.
+데이터 마이그레이션을 위한 파트너 도구
+추출, 변환, 로드(ETL) 공간에는 여러 공급업체가 있습니다. Informatica, Talend, Matillion, Infoworks, Stitch, Fivetran, Striim과 같은 ETL 업계 선두업체는 BigQuery 및 Oracle 모두와 심층적으로 통합되어 있으며 데이터 추출, 변환, 로드와 처리 워크플로 관리에 도움을 줄 수 있습니다.
+ETL 도구는 여러 해 동안 사용되었습니다. 일부 조직은 신뢰할 수 있는 ETL 스크립트의 기존 투자를 활용하는 것이 편리할 수 있습니다. 주요 파트너 솔루션은 BigQuery 파트너 웹사이트 [https://cloud.google.com/bigquery?hl=ko#section-6]에 포함되어 있습니다.Google Cloud 기본 제공 유틸리티 대신 파트너 도구를 선택해야 할 경우는 현재 인프라와 Java 또는 Python 코드로 데이터 파이프라인을 개발하는 데 있어서 IT 팀의 편의성에 따라 달라집니다.
+비즈니스 인텔리전스(BI) 도구 마이그레이션
+BigQuery는 활용 가능한 보고 및 분석을 위해 비즈니스 인텔리전스(BI) 솔루션이 포함된 유연한 제품군 [https://cloud.google.com/solutions/business-intelligence?hl=ko]을 지원합니다. BI 도구 마이그레이션 및 BigQuery 통합에 대한 자세한 내용은 BigQuery 분석 개요 [https://cloud.google.com/bigquery/docs/query-overview?hl=ko]를 참조하세요.
+쿼리(SQL) 변환
+BigQuery의 GoogleSQL [https://cloud.google.com/bigquery/docs/reference/standard-sql?hl=ko]은 SQL 2011 표준을 준수하며 중첩 및 반복 데이터 쿼리를 지원하는 확장 프로그램을 포함합니다. 모든 ANSI 호환 SQL 함수와 연산자를 최소한으로만 수정하여 사용할 수 있습니다. Oracle 및 BigQuery SQL 구문과 함수를 자세히 비교하려면 Oracle에서 BigQuery로 SQL 변환 참조 [https://cloud.google.com/bigquery/docs/migration/oracle-sql?hl=ko]를 확인하세요.
+일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]을 사용하여 SQL 코드를 일괄적으로 마이그레이션하거나 대화형 SQL 변환 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]을 사용하여 임시 쿼리를 변환합니다.
+Oracle 옵션 마이그레이션
+이 섹션에서는 Oracle Data Mining, R, Spatial 및 Graph 기능을 사용하는 애플리케이션을 변환하기 위한 아키텍처 권장사항과 참조에 대해 설명합니다.
+Oracle 고급 분석 옵션
+Oracle은 데이터 마이닝, 기본 머신러닝(ML) 알고리즘, R 사용에 대한 고급 분석 옵션을 제공합니다. 고급 분석 옵션에는 라이선스가 필요합니다. 개발부터 생산까지 규모에 맞는 사용자 니즈에 따라 포괄적인 Google AI/ML 제품 목록 중에서 선택할 수 있습니다.
+Oracle R Enterprise
+Oracle Advanced Analytics 옵션 중 하나의 구성요소인 Oracle R Enterprise(ORE)는 오픈소스인 R 통계적 프로그래밍 언어를 Oracle Database와 통합합니다. 표준 ORE 배포에서 R은 Oracle 서버에 설치됩니다.
+대규모 데이터 또는 웨어하우징 접근 방법에서 BigQuery와 R의 통합은 이상적인 옵션입니다. 오픈소스 bigrquery [https://cloud.google.com/blog/products/gcp/google-cloud-platform-for-data-scientists-using-r-with-google-bigquery?hl=ko] R 라이브러리를 사용하여 R을 BigQuery와 통합할 수 있습니다.
+Google은 이 분야의 최첨단 도구를 사용자들에게 제공하기 위해 RStudio [https://rstudio.com/resources/rstudioconf-2018/large-scale-machine-learning-using-tensorflow-bigquery-and-cloudml-engine-within-rstudio/]와 제휴했습니다. RStudio를 사용하면 TensorFlow에서 BigQuery 적합 모델에 있는 테라바이트급 데이터에 액세스하고 AI Platform을 사용하여 규모에 맞게 머신러닝 모델을 실행할 수 있습니다. Google Cloud에서는 규모에 맞게 R [https://cloud.google.com/solutions/running-r-at-scale?hl=ko]을 Compute Engine [https://cloud.google.com/solutions/running-r-at-scale?hl=ko]에 설치할 수 있습니다.
+Oracle Data Mining
+Oracle Advanced Analytics 옵션 중 하나의 구성요소인 Oracle Data Mining(ODM)은 개발자가 Oracle에서 Oracle PL/SQL Developer를 사용하여 머신러닝 모델을 빌드할 수 있게 해줍니다.
+BigQuery ML은 개발자가 선형 회귀, 바이너리 로지스틱 회귀, 멀티클래스 로지스틱 회귀, k-평균 클러스터링, TensorFlow 모델 가져오기 등 여러 다른 유형의 모델을 실행할 수 있게 해줍니다. 자세한 내용은 BigQuery ML 소개 [https://cloud.google.com/bigquery/docs/bigqueryml-intro?hl=ko]를 참조하세요.
+ODM 작업을 전환하려면 코드를 다시 작성해야 할 수 있습니다. BigQuery ML [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko], AI API(Speech-to-Text [https://cloud.google.com/speech-to-text?hl=ko], Text-to-Speech [https://cloud.google.com/text-to-speech?hl=ko], Dialogflow [https://cloud.google.com/dialogflow?hl=ko], Cloud Translation [https://cloud.google.com/translate/docs?hl=ko], Cloud Natural Language API [https://cloud.google.com/natural-language?hl=ko], Cloud Vision [https://cloud.google.com/vision?hl=ko], Timeseries Insights API [https://cloud.google.com/timeseries-insights?hl=ko] 등) 또는 Vertex AI [https://cloud.google.com/vertex-ai?hl=ko]와 같은 포괄적인 Google AI 제품 서비스 [https://cloud.google.com/products/ai?hl=ko] 중에서 선택할 수 있습니다.
+Vertex AI Workbench [https://cloud.google.com/ai-platform-notebooks?hl=ko]는 데이터 과학자를 위한 개발 환경으로 사용되고, Vertex AI Training [https://cloud.google.com/vertex-ai/docs/training/overview?hl=ko]은 학습 및 스코어링 워크로드를 규모에 맞게 실행하는 데 사용됩니다.
+Spatial 및 Graph 옵션
+Oracle은 도형 및 그래프 쿼리를 위해 Spatial 및 Graph 옵션을 제공합니다. 이 옵션에는 라이선스가 필요합니다. BigQuery에서는 추가 비용 또는 라이선스 없이 도형 기능을 사용할 수 있으며, Google Cloud에서 다른 그래프 데이터베이스를 사용할 수 있습니다.
+Spatial
+BigQuery는 지리정보 분석 [https://cloud.google.com/bigquery/docs/gis?hl=ko] 기능과 데이터 유형을 제공합니다. 자세한 내용은 지리정보 분석 데이터 [https://cloud.google.com/bigquery/docs/gis-data?hl=ko] 작업 [https://cloud.google.com/bigquery/docs/gis-data?hl=ko]을 참조하세요. Oracle Spatial 데이터 유형 및 함수는 BigQuery 표준 SQL [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko]의 지리 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko]로 전환할 수 있습니다. 지리 함수는 표준 BigQuery 가격 책정에서 추가 비용을 발생시키지 않습니다.
+그래프
+JanusGraph [https://docs.janusgraph.org/]는 Bigtable [https://cloud.google.com/bigtable?hl=ko]을 스토리지 백엔드로 사용할 수 있는 오픈소스 그래프 데이터베이스 솔루션입니다. 자세한 내용은 Bigtable을 사용하여 GKE에서 JanusGraph 실행 [https://cloud.google.com/solutions/running-janusgraph-with-bigtable?hl=ko]을 참조하세요.
+Neo4j [https://neo4j.com/neo4j-for-google-cloud/]는 Google Kubernetes Engine(GKE)에서 실행되고 Google Cloud 서비스로 제공되는 또 다른 그래프 데이터베이스 솔루션입니다.
+Oracle Application Express
+Oracle Application Express(APEX) 애플리케이션은 Oracle의 고유한 기능이며 재작성될 필요가 있습니다. Looker Studio [https://datastudio.google.com/c/u/0/navigation/reporting?hl=ko] 또는 BI 엔진을 사용하여 보고 및 데이터 시각화 기능을 개발할 수 있지만 행 만들기 및 수정과 같은 애플리케이션 수준의 기능은 Cloud SQL [https://cloud.google.com/sql/docs?hl=ko]을 사용하여 AppSheet [https://www.appsheet.com/]에서 코딩을 수행하지 않고 개발할 수 있습니다.
+다음 단계
+전반적인 성능 최적화 및 비용 감소를 위한 워크로드 최적화 [https://cloud.google.com/bigquery/docs/admin-intro?hl=ko#optimize_workloads] 방법 알아보기
+BigQuery에서 스토리지 최적화 [https://cloud.google.com/bigquery/docs/best-practices-storage?hl=ko] 방법 알아보기
+BigQuery 업데이트의 경우 출시 노트 [https://cloud.google.com/bigquery/docs/release-notes?hl=ko]를 참조하세요.
+Oracle SQL 변환 가이드 [https://cloud.google.com/bigquery/docs/migration/oracle-sql?hl=ko]를 참조하세요.
+도움이 되었나요?
+의견 보내기

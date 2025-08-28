@@ -1,0 +1,2684 @@
+Source URL: https://cloud.google.com/bigquery/docs/customer-managed-encryption
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#before_you_begin]
+암호화 사양 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#encryption_specification]
+수동 또는 자동 키 생성 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#manual_or_automated_key_creation]
+수동으로 키링 및 키 만들기 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#manually_create_key_ring_and_key]
+암호화 및 복호화 권한 부여 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#grant_permission]
+고객 관리 Cloud KMS 키
+bookmark_border
+참고: 특정 BigQuery 버전으로 생성된 예약을 사용하는 경우에는 이 기능을 사용하지 못할 수 있습니다. 각 버전에서 사용 설정된 기능에 대한 자세한 내용은 BigQuery 버전 소개 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]를 참조하세요.
+기본적으로 BigQuery는 비활성 상태로 저장된 콘텐츠를 암호화 [https://cloud.google.com/security/encryption/default-encryption?hl=ko]합니다. BigQuery는 사용자의 추가 작업 없이 이 암호화를 처리하고 관리합니다. 먼저 BigQuery 테이블에 있는 데이터는 데이터 암호화 키를 통해 암호화됩니다. 그런 다음 이 데이터 암호화 키는 봉투 암호화 [https://cloud.google.com/kms/docs/envelope-encryption?hl=ko]라고 하는 키 암호화 키로 암호화됩니다. 키 암호화 키는 직접 데이터를 암호화하지 않지만 Google에서 사용자의 데이터를 암호화할 때 사용하는 데이터 암호화 키를 암호화하는 데 사용됩니다.
+암호화를 직접 제어하려면 BigQuery용 고객 관리 암호화 키(CMEK)를 사용합니다. Google에서 사용자 데이터를 보호하는 키 암호화 키를 소유하고 관리하는 대신에 사용자가 Cloud KMS [https://cloud.google.com/kms/docs?hl=ko]에서 키 암호화 키를 직접 제어하고 관리할 수 있습니다. 이 문서에서는 BigQuery용 Cloud KMS 키를 수동으로 만드는 방법을 자세히 설명합니다.
+암호화 옵션 Google Cloud [https://cloud.google.com/security/encryption/default-encryption?hl=ko]에 대해 자세히 알아보세요. CMEK의 이점 및 제한사항을 포함한 자세한 내용은 고객 관리 암호화 키 [https://cloud.google.com/kms/docs/cmek?hl=ko]를 참조하세요.
+시작하기 전에
+BigQuery 관리형 스토리지에 있는 모든 데이터 애셋은 CMEK를 지원합니다. 하지만 CMEK로 암호화된 데이터가 있는 Cloud Storage와 같은 외부 데이터 소스 [https://cloud.google.com/bigquery/docs/external-data-sources?hl=ko]에 저장된 데이터도 쿼리하는 경우 데이터 암호화는 Cloud Storage [https://cloud.google.com/storage/docs/encryption/customer-managed-keys?hl=ko]에서 관리합니다. 예를 들어 BigLake 테이블은 Cloud Storage에서 CMEK로 암호화된 데이터를 지원합니다.
+BigQuery 및 BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko]은 고객 제공 암호화 키(CSEK)를 지원하지 않습니다.
+BigQuery와 Cloud KMS를 동일한 Google Cloud 프로젝트에서 실행할지 아니면 다른 프로젝트에서 실행할지 결정합니다. 이 문서의 예시에서는 다음 규칙을 적용합니다.
+PROJECT_ID: BigQuery를 실행하는 프로젝트의 프로젝트 ID
+PROJECT_NUMBER: BigQuery를 실행하는 프로젝트의 프로젝트 번호
+KMS_PROJECT_ID: Cloud KMS를 실행하는 프로젝트의 프로젝트 ID(BigQuery를 실행하는 프로젝트와 같은 경우도 해당)
+Google Cloud 프로젝트 ID와 프로젝트 번호에 대한 자세한 내용은 프로젝트 식별 [https://cloud.google.com/resource-manager/docs/creating-managing-projects?hl=ko#identifying_projects]을 참조하세요.
+BigQuery는 새 프로젝트에서 자동으로 사용 설정됩니다. 기존 프로젝트를 이용해 BigQuery를 실행하려면 BigQuery API를 사용 설정 [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]해야 합니다.
+Cloud KMS를 실행하는 Google Cloud 프로젝트의 경우 Cloud Key Management Service API를 사용 설정합니다 [https://console.cloud.google.com/flows/enableapi?apiid=cloudkms.googleapis.com&%3Bredirect=https%3A%2F%2Fconsole.cloud.google.com&hl=ko].
+CMEK로 암호화된 테이블에 대해 쿼리당 1번 Cloud KMS를 사용하여 복호화 호출이 수행됩니다. 자세한 내용은 Cloud KMS 가격 책정 [https://cloud.google.com/kms/pricing?hl=ko]을 참조하세요.
+암호화 사양
+BigQuery의 데이터 보호에 사용하는 Cloud KMS 키는 AES-256 키입니다. 이러한 키는 BigQuery에서 키 암호화 키로 사용되며, 사용자의 데이터를 암호화하는 데이터 암호화 키를 암호화하는 역할을 합니다.
+수동 또는 자동 키 생성
+CMEK 키를 직접 만들거나 Cloud KMS Autokey를 사용할 수 있습니다. Autokey는 프로비저닝 및 할당을 자동화하여 CMEK 키 생성 및 관리를 간소화합니다. Autokey를 사용하면 키링, 키, 서비스 계정을 미리 프로비저닝할 필요가 없습니다. 대신 BigQuery 리소스 생성 중에 필요에 따라 생성됩니다. 자세한 내용은 Autokey 개요 [https://cloud.google.com/kms/docs/autokey-overview?hl=ko]를 참조하세요.
+수동으로 키링 및 키 만들기
+Cloud KMS를 실행하는 Google Cloud 프로젝트의 경우 키링 및 키 만들기 [https://cloud.google.com/kms/docs/creating-keys?hl=ko]에 설명된 대로 키링과 키를 만듭니다. BigQuery 데이터 세트의 위치와 일치하는 위치에서 키링을 만듭니다.
+모든 멀티 리전 데이터 세트는 일치하는 위치의 멀티 리전 키링을 사용해야 합니다. 예를 들어 US 리전에 있는 데이터 세트는 us 리전의 키링으로 보호해야 하고, EU 리전에 있는 데이터 세트는 europe 리전의 키링으로 보호해야 합니다.
+각 리전의 데이터 세트는 일치하는 리전 키를 사용해야 합니다. 예를 들어 asia-northeast1 리전의 데이터 세트는 asia-northeast1 리전의 키 링으로 보호되어야 합니다.
+Google Cloud 콘솔에서 BigQuery용 CMEK를 구성할 때 global 리전을 사용할 수 없습니다. 하지만 bq 명령줄 도구 또는 GoogleSQL을 사용하여 BigQuery용 CMEK를 구성할 때는 global 리전을 사용할 수 있습니다.
+BigQuery와 Cloud KMS가 지원하는 위치에 대한 자세한 내용은 [https://cloud.google.com/about/locations?hl=ko]Cloud 위치를 참조하세요.
+암호화 및 복호화 권한 부여
+CMEK 키로 BigQuery 데이터를 보호하려면 BigQuery 서비스 계정에 해당 키를 암호화하고 복호화할 수 있는 권한을 부여합니다. Cloud KMS CryptoKey 암호화/복호화 [https://cloud.google.com/kms/docs/reference/permissions-and-roles?hl=ko#predefined_roles] 역할이 이 권한을 부여합니다.
+서비스 계정이 생성되었는지 확인한 다음 Google Cloud 콘솔을 사용하여 BigQuery 서비스 계정 ID를 확인합니다. 다음으로 Cloud KMS를 사용하여 암호화 및 복호화할 수 있는 적절한 역할을 서비스 계정에 제공합니다.
+서비스 계정 만들기 트리거
+BigQuery 서비스 계정은 프로젝트를 만들 때 초기에 생성되지 않습니다. 서비스 계정 생성을 트리거하려면 서비스 계정을 사용하는 명령어(예: bq show --encryption_service_account [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#encryption_service_account_flag] 명령어)를 입력하거나 projects.getServiceAccount [https://cloud.google.com/bigquery/docs/reference/rest/v2/projects/getServiceAccount?hl=ko] API 메서드를 호출합니다. 예를 들면 다음과 같습니다.
+bq show --encryption_service_account --project_id=
+PROJECT_ID
+서비스 계정 ID 확인
+BigQuery 서비스 계정 ID의 형식은 다음과 같습니다.
+bq-
+PROJECT_NUMBER@bigquery-encryption.iam.gserviceaccount.com
+다음 기법은 프로젝트의 BigQuery 서비스 계정 ID를 확인하는 방법을 보여줍니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 대시보드 페이지 [https://console.cloud.google.com/home?hl=ko]로 이동합니다.
+
+대시보드 페이지로 이동 [https://console.cloud.google.com/home?hl=ko]
+페이지 상단에서 선택 드롭다운 목록을 클릭합니다. 선택 창이 나타나면 프로젝트를 선택합니다.
+프로젝트 ID와 프로젝트 번호가 모두 프로젝트 대시보드의 프로젝트 정보 카드에 표시됩니다.
+
+
+다음 문자열에서 PROJECT_NUMBER를 프로젝트 번호로 바꿉니다. 새 문자열은 BigQuery 서비스 계정 ID를 식별합니다.
+
+bq-PROJECT_NUMBER@bigquery-encryption.iam.gserviceaccount.com
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#bq] ---
+bq show 명령어를 --encryption_service_account 플래그와 함께 사용하여 서비스 계정 ID를 결정합니다.
+
+bq show --encryption_service_account
+
+
+이 명령어는 서비스 계정 ID를 표시합니다.
+
+                  ServiceAccountID
+-------------------------------------------------------------
+bq-PROJECT_NUMBER@bigquery-encryption.iam.gserviceaccount.com
+암호화/복호화 역할 할당
+클립보드에 복사한 BigQuery 시스템 서비스 계정에 Cloud KMS CryptoKey Encrypter/Decrypter 역할 [https://cloud.google.com/kms/docs/reference/permissions-and-roles?hl=ko#predefined_roles]을 할당합니다. 이 계정의 형식은 다음과 같습니다.
+bq-
+PROJECT_NUMBER@bigquery-encryption.iam.gserviceaccount.com
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 암호화 키 페이지를 엽니다.
+암호화 키 페이지 열기 [https://console.cloud.google.com/security/kms?hl=ko]
+키가 포함된 키링의 이름을 클릭합니다.
+역할을 추가할 암호화 키의 체크박스를 클릭합니다. 권한 탭이 열립니다.
+구성원 추가를 클릭합니다.
+서비스 계정의 이메일 주소(bq-PROJECT_NUMBER@bigquery-encryption.iam.gserviceaccount.com)를 입력합니다.
+
+
+서비스 계정이 구성원 목록에 이미 있는 경우 기존 역할이 있는 것입니다. bq-PROJECT_NUMBER@bigquery-encryption.iam.gserviceaccount.com 서비스 계정의 현재 역할 드롭다운 목록을 클릭합니다.
+
+역할 선택 드롭다운 목록에서 Cloud KMS를 클릭한 후 Cloud KMS CryptoKey 암호화/복호화 역할을 클릭합니다.
+저장을 클릭하여 bq-PROJECT_NUMBER@bigquery-encryption.iam.gserviceaccount.com 서비스 계정에 역할을 적용합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#gcloud] ---
+Google Cloud CLI를 사용하여 역할을 할당할 수 있습니다.
+
+gcloud kms keys add-iam-policy-binding \
+--project=KMS_PROJECT_ID \
+--member serviceAccount:bq-PROJECT_NUMBER@bigquery-encryption.iam.gserviceaccount.com \
+--role roles/cloudkms.cryptoKeyEncrypterDecrypter \
+--location=KMS_KEY_LOCATION \
+--keyring=KMS_KEY_RING \
+KMS_KEY
+
+
+다음을 바꿉니다.
+
+
+KMS_PROJECT_ID: Cloud KMS를 실행하는 Google Cloud프로젝트의 ID
+PROJECT_NUMBER: BigQuery를 실행하는 Google Cloud 프로젝트의 프로젝트 번호(프로젝트 ID 아님)
+KMS_KEY_LOCATION: Cloud KMS 키의 위치 이름
+KMS_KEY_RING: Cloud KMS 키의 키링 이름
+KMS_KEY: Cloud KMS 키의 키 이름
+키 리소스 ID
+예시와 같이 CMEK를 사용하려면 Cloud KMS 키의 리소스 ID가 필요합니다. 이 키는 대소문자를 구분합니다.
+projects/
+KMS_PROJECT_ID/locations/
+LOCATION/keyRings/
+KEY_RING/cryptoKeys/
+KEY
+참고: /cryptoKeyVersions/ 토큰이 포함된 키 리소스 ID를 지정할 수 없습니다. BigQuery는 테이블이 만들어질 때 항상 primary로 표시된 키 버전을 사용하여 테이블을 보호합니다.
+키 리소스 ID 검색
+Google Cloud 콘솔에서 암호화 키 페이지를 엽니다.
+암호화 키 페이지 열기 [https://console.cloud.google.com/security/kms?hl=ko]
+키가 포함된 키링의 이름을 클릭합니다.
+리소스 ID를 검색할 키에 대하여 더보기 more_vert를 클릭합니다.
+리소스 이름 복사를 클릭합니다. 키의 리소스 ID가 클립보드에 복사됩니다. 리소스 ID는 리소스 이름이라고도 합니다.
+Cloud KMS로 보호되는 테이블 만들기
+Cloud KMS로 보호되는 테이블을 만드는 방법:
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 패널에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+more_vert 작업 옵션을 펼치고 열기를 클릭합니다.
+세부정보 패널에서 테이블 만들기add_box를 클릭합니다.
+테이블 만들기 페이지에서 스키마 정의가 있는 빈 테이블 만들기 [https://cloud.google.com/bigquery/docs/tables?hl=ko#create_an_empty_table_with_a_schema_definition]에 필요한 정보를 입력합니다.
+테이블 만들기를 클릭하기 전에 암호화 유형을 설정하고 테이블과 함께 사용할 Cloud KMS 키를 지정해야 합니다.
+
+
+고급 옵션을 클릭합니다.
+고객 관리 키를 클릭합니다.
+키를 선택합니다. 사용하려는 키가 목록에 없으면 키의 리소스 ID [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#key_resource_id]를 입력합니다.
+
+테이블 만들기를 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#sql] ---
+CREATE TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]을 kms_key_name 옵션과 함께 사용합니다.
+
+
+
+
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE TABLE DATASET_ID.TABLE_ID (
+  name STRING, value INT64
+) OPTIONS (
+    kms_key_name
+      = 'projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY');
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#bq] ---
+bq 명령줄 도구를 --destination_kms_key 플래그와 함께 사용하여 테이블을 만들 수 있습니다. --destination_kms_key 플래그는 테이블과 함께 사용할 키의 리소스 ID [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#key_resource_id]를 지정합니다.
+
+스키마가 있는 빈 테이블을 만드는 방법:
+
+bq mk --schema name:string,value:integer -t \
+--destination_kms_key projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY \
+DATASET_ID.TABLE_ID
+
+
+쿼리에서 테이블을 만드는 방법:
+
+bq query --destination_table=DATASET_ID.TABLE_ID \
+--destination_kms_key projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY \
+"SELECT name,count FROM DATASET_ID.TABLE_ID WHERE gender = 'M' ORDER BY count DESC LIMIT 6"
+
+
+bq 명령줄 도구에 대한 자세한 내용은 bq 명령줄 도구 사용 [https://cloud.google.com/bigquery/bq-command-line-tool?hl=ko]을 참조하세요.
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#terraform] ---
+google_bigquery_table [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_table] 리소스를 사용합니다.
+
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 mytable이라는 테이블을 만들고 google_kms_crypto_key [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/kms_crypto_key] 및 google_kms_key_ring [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/kms_key_ring] 리소스도 사용해서 테이블에 대해 Cloud Key Management Service 키 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 지정합니다.
+
+이 예시를 실행하려면 Cloud Resource Manager API [https://console.cloud.google.com/flows/enableapi?apiid=cloudresourcemanager.googleapis.com&%3Bredirect=https%3A%2F%2Fconsole.cloud.google.com&hl=ko]와 Cloud Key Management Service API [https://console.cloud.google.com/flows/enableapi?apiid=cloudkms.googleapis.com&%3Bredirect=https%3A%2F%2Fconsole.cloud.google.com&hl=ko]를 사용 설정해야 합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+
+
+  resource "google_bigquery_dataset" "default" {
+  dataset_id                      = "mydataset"
+  default_partition_expiration_ms = 2592000000  # 30 days
+  default_table_expiration_ms     = 31536000000 # 365 days
+  description                     = "dataset description"
+  location                        = "US"
+  max_time_travel_hours           = 96 # 4 days
+
+  labels = {
+    billing_group = "accounting",
+    pii           = "sensitive"
+  }
+}
+
+resource "google_bigquery_table" "default" {
+  dataset_id          = google_bigquery_dataset.default.dataset_id
+  table_id            = "mytable"
+  deletion_protection = false # set to "true" in production
+
+  schema = <<EOF
+[
+  {
+    "name": "ID",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Item ID"
+  },
+  {
+    "name": "Item",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  }
+]
+EOF
+
+  encryption_configuration {
+    kms_key_name = google_kms_crypto_key.crypto_key.id
+  }
+
+  depends_on = [google_project_iam_member.service_account_access]
+}
+
+resource "google_kms_crypto_key" "crypto_key" {
+  name     = "example-key"
+  key_ring = google_kms_key_ring.key_ring.id
+}
+
+resource "random_id" "default" {
+  byte_length = 8
+}
+
+resource "google_kms_key_ring" "key_ring" {
+  name     = "${random_id.default.hex}-example-keyring"
+  location = "us"
+}
+
+# Enable the BigQuery service account to encrypt/decrypt Cloud KMS keys
+data "google_project" "project" {
+}
+
+resource "google_project_iam_member" "service_account_access" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member  = "serviceAccount:bq-${data.google_project.project.number}@bigquery-encryption.iam.gserviceaccount.com"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Google Cloud 프로젝트에 Terraform 구성을 적용하려면 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 매개변수를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트를 엽니다 [https://console.cloud.google.com/?hl=ko]. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+
+--- 탭: tabpanel-go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// createTableWithCMEK demonstrates creating a table protected with a customer managed encryption key.
+func createTableWithCMEK(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydatasetid"
+	// tableID := "mytableid"
+	ctx := context.Background()
+
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	tableRef := client.Dataset(datasetID).Table(tableID)
+	meta := &bigquery.TableMetadata{
+		EncryptionConfig: &bigquery.EncryptionConfig{
+			// TODO: Replace this key with a key you have created in Cloud KMS.
+			KMSKeyName: "projects/cloud-samples-tests/locations/us/keyRings/test/cryptoKeys/test",
+		},
+	}
+	if err := tableRef.Create(ctx, meta); err != nil {
+		return err
+	}
+	return nil
+}
+
+--- 탭: tabpanel-java ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.EncryptionConfiguration;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.bigquery.StandardTableDefinition;
+import com.google.cloud.bigquery.TableDefinition;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
+
+// Sample to create a cmek table
+public class CreateTableCMEK {
+
+  public static void runCreateTableCMEK() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String kmsKeyName = "MY_KEY_NAME";
+    Schema schema =
+        Schema.of(
+            Field.of("stringField", StandardSQLTypeName.STRING),
+            Field.of("booleanField", StandardSQLTypeName.BOOL));
+    // i.e. projects/{project}/locations/{location}/keyRings/{key_ring}/cryptoKeys/{cryptoKey}
+    EncryptionConfiguration encryption =
+        EncryptionConfiguration.newBuilder().setKmsKeyName(kmsKeyName).build();
+    createTableCMEK(datasetName, tableName, schema, encryption);
+  }
+
+  public static void createTableCMEK(
+      String datasetName, String tableName, Schema schema, EncryptionConfiguration configuration) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      TableId tableId = TableId.of(datasetName, tableName);
+      TableDefinition tableDefinition = StandardTableDefinition.of(schema);
+      TableInfo tableInfo =
+          TableInfo.newBuilder(tableId, tableDefinition)
+              .setEncryptionConfiguration(configuration)
+              .build();
+
+      bigquery.create(tableInfo);
+      System.out.println("Table cmek created successfully");
+    } catch (BigQueryException e) {
+      System.out.println("Table cmek was not created. \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+
+
+
+
+테이블을 만들기 전에 Table.encryption_configuration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table?hl=ko#google_cloud_bigquery_table_Table_encryption_configuration] 속성을 EncryptionConfiguration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.encryption_configuration.EncryptionConfiguration?hl=ko] 객체로 설정하여 고객 관리 암호화 키로 새 테이블을 보호합니다.
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery
+
+client = bigquery.Client()
+
+# TODO(dev): Change table_id to the full name of the table you want to create.
+table_id = "your-project.your_dataset.your_table_name"
+
+# Set the encryption key to use for the table.
+# TODO: Replace this key with a key you have created in Cloud KMS.
+kms_key_name = "projects/your-project/locations/us/keyRings/test/cryptoKeys/test"
+
+table = bigquery.Table(table_id)
+table.encryption_configuration = bigquery.EncryptionConfiguration(
+    kms_key_name=kms_key_name
+)
+table = client.create_table(table)  # API request
+
+print(f"Created {table_id}.")
+print(f"Key: {table.encryption_configuration.kms_key_name}.")
+Cloud KMS 키로 보호하는 테이블 쿼리
+Cloud KMS로 보호되는 테이블을 쿼리할 때는 특별한 준비가 필요하지 않습니다. BigQuery는 테이블 콘텐츠 암호화에 사용한 키의 이름을 저장하여 Cloud KMS로 보호되는 테이블을 쿼리할 때 사용합니다.
+BigQuery가 테이블 콘텐츠 암호화에 사용되는 Cloud KMS 키에 액세스할 수 있는 한, 모든 기존 도구와 BigQuery 콘솔 및 bq 명령줄 도구는 기본 암호화 테이블과 같은 방식으로 실행됩니다.
+쿼리 결과를 Cloud KMS 키로 보호
+기본적으로 쿼리 결과는Google-owned and Google-managed encryption key로 암호화된 임시 테이블에 저장됩니다. 프로젝트에 이미 기본 키 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#project_default_key]가 있는 경우 해당 키가 임시(기본) 쿼리 결과 테이블에 적용됩니다. 대신 Cloud KMS 키를 사용하여 쿼리 결과를 암호화하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+새 쿼리 작성을 클릭합니다.
+쿼리 텍스트 영역에 유효한 GoogleSQL 쿼리를 입력합니다.
+더보기를 클릭하고 쿼리 설정을 클릭한 다음 고급 옵션을 클릭합니다.
+고객 관리 암호화를 선택합니다.
+키를 선택합니다. 사용하려는 키가 목록에 없으면 키의 리소스 ID [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#key_resource_id]를 입력합니다.
+저장을 클릭합니다.
+실행을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#bq] ---
+--destination_kms_key 플래그를 지정하여 Cloud KMS 키로 대상 테이블이나 쿼리 결과(임시 테이블을 사용하는 경우)를 보호합니다.
+--destination_kms_key 플래그는 대상 테이블이나 결과 테이블과 함께 사용할 키의 리소스 ID [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#key_resource_id]를 지정합니다.
+
+필요에 따라 --destination_table 플래그를 사용하여 쿼리 결과의 대상을 지정할 수 있습니다. --destination_table을 사용하지 않으면 쿼리 결과가 임시 테이블에 기록됩니다.
+
+테이블을 쿼리하는 방법은 다음과 같습니다.
+
+bq query \
+--destination_table=DATASET_ID.TABLE_ID \
+--destination_kms_key projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY \
+"SELECT name,count FROM DATASET_ID.TABLE_ID WHERE gender = 'M' ORDER BY count DESC LIMIT 6"
+
+
+bq 명령줄 도구에 대한 자세한 내용은 bq 명령줄 도구 사용 [https://cloud.google.com/bigquery/bq-command-line-tool?hl=ko]을 참조하세요.
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+
+
+
+
+테이블을 만들기 전에 Table.encryption_configuration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table?hl=ko#google_cloud_bigquery_table_Table_encryption_configuration] 속성을 EncryptionConfiguration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.encryption_configuration.EncryptionConfiguration?hl=ko] 객체로 설정하여 고객 관리 암호화 키로 새 테이블을 보호합니다.
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryWithDestinationCMEK demonstrates saving query results to a destination table and protecting those results
+// by specifying a customer managed encryption key.
+func queryWithDestinationCMEK(w io.Writer, projectID, dstDatasetID, dstTableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query("SELECT 17 as my_col")
+	q.Location = "US" // Location must match the dataset(s) referenced in query.
+	q.QueryConfig.Dst = client.Dataset(dstDatasetID).Table(dstTableID)
+	q.DestinationEncryptionConfig = &bigquery.EncryptionConfig{
+		// TODO: Replace this key with a key you have created in Cloud KMS.
+		KMSKeyName: "projects/cloud-samples-tests/locations/us-central1/keyRings/test/cryptoKeys/test",
+	}
+	// Run the query and print results when the query job is completed.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err(); err != nil {
+		return err
+	}
+	it, err := job.Read(ctx)
+	for {
+		var row []bigquery.Value
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+--- 탭: Java [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#java] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+
+
+
+
+테이블을 만들기 전에 Table.encryption_configuration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table?hl=ko#google_cloud_bigquery_table_Table_encryption_configuration] 속성을 EncryptionConfiguration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.encryption_configuration.EncryptionConfiguration?hl=ko] 객체로 설정하여 고객 관리 암호화 키로 새 테이블을 보호합니다.
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.EncryptionConfiguration;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.TableResult;
+
+// Sample to query on destination table with encryption key
+public class QueryDestinationTableCMEK {
+
+  public static void runQueryDestinationTableCMEK() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String kmsKeyName = "MY_KMS_KEY_NAME";
+    String query =
+        String.format("SELECT stringField, booleanField FROM %s.%s", datasetName, tableName);
+    EncryptionConfiguration encryption =
+        EncryptionConfiguration.newBuilder().setKmsKeyName(kmsKeyName).build();
+    queryDestinationTableCMEK(query, encryption);
+  }
+
+  public static void queryDestinationTableCMEK(String query, EncryptionConfiguration encryption) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      QueryJobConfiguration config =
+          QueryJobConfiguration.newBuilder(query)
+              // Set the encryption key to use for the destination.
+              .setDestinationEncryptionConfiguration(encryption)
+              .build();
+
+      TableResult results = bigquery.query(config);
+
+      results
+          .iterateAll()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s,", val.toString())));
+      System.out.println("Query performed successfully with encryption key.");
+    } catch (BigQueryException | InterruptedException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    
+QueryJobConfig.destination_encryption_configuration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJobConfig?hl=ko#google_cloud_bigquery_job_QueryJobConfig_destination_encryption_configuration] 속성을 EncryptionConfiguration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.encryption_configuration.EncryptionConfiguration?hl=ko]으로 설정하여 고객 관리 암호화 키로 쿼리 대상 테이블을 보호하고 쿼리를 실행합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery
+
+# Construct a BigQuery client object.
+client = bigquery.Client()
+
+# TODO(developer): Set table_id to the ID of the destination table.
+# table_id = "your-project.your_dataset.your_table_name"
+
+# Set the encryption key to use for the destination.
+# TODO(developer): Replace this key with a key you have created in KMS.
+# kms_key_name = "projects/{}/locations/{}/keyRings/{}/cryptoKeys/{}".format(
+#     your-project, location, your-ring, your-key
+# )
+
+job_config = bigquery.QueryJobConfig(
+    destination=table_id,
+    destination_encryption_configuration=bigquery.EncryptionConfiguration(
+        kms_key_name=kms_key_name
+    ),
+)
+
+# Start the query, passing in the extra configuration.
+query_job = client.query(
+    "SELECT 17 AS my_col;", job_config=job_config
+)  # Make an API request.
+query_job.result()  # Wait for the job to complete.
+
+table = client.get_table(table_id)  # Make an API request.
+if table.encryption_configuration.kms_key_name == kms_key_name:
+    print("The destination table is written using the encryption configuration")
+Cloud KMS로 보호되는 테이블 로드
+데이터 파일을 Cloud KMS로 보호되는 테이블에 로드하려면 다음 안내를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#%EC%BD%98%EC%86%94] ---
+테이블을 로드할 때 키를 지정하여 고객 관리 암호화 키로 로드 작업 대상 테이블을 보호합니다.
+
+
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 패널에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+세부정보 패널에서 테이블 만들기를 클릭합니다.
+테이블 로드에 사용할 옵션을 입력합니다. 테이블 만들기를 클릭하기 전에 먼저 고급 옵션을 클릭합니다.
+암호화에서 고객 관리 키를 선택합니다.
+고객 관리 키 선택 드롭다운 목록을 클릭하고 사용할 키를 선택합니다. 사용 가능한 키가 표시되지 않으면 키 리소스 ID [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#key_resource_id]를 입력합니다.
+
+
+테이블 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#bq] ---
+--destination_kms_key 플래그를 설정하여 고객 관리 암호화 키로 로드 작업 대상 테이블을 보호합니다.
+
+bq --location=LOCATION load \
+--autodetect \
+--source_format=FORMAT \
+--destination_kms_key projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY \
+DATASET.TABLE \
+path_to_source
+
+예를 들면 다음과 같습니다.
+bq load \
+--autodetect \
+--source_format=NEWLINE_DELIMITED_JSON \
+--destination_kms_key projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY \
+test2.table4 \
+gs://cloud-samples-data/bigquery/us-states/us-states.json
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// importJSONWithCMEK demonstrates loading newline-delimited JSON from Cloud Storage,
+// and protecting the data with a customer-managed encryption key.
+func importJSONWithCMEK(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	gcsRef := bigquery.NewGCSReference("gs://cloud-samples-data/bigquery/us-states/us-states.json")
+	gcsRef.SourceFormat = bigquery.JSON
+	gcsRef.AutoDetect = true
+	loader := client.Dataset(datasetID).Table(tableID).LoaderFrom(gcsRef)
+	loader.WriteDisposition = bigquery.WriteEmpty
+	loader.DestinationEncryptionConfig = &bigquery.EncryptionConfig{
+		// TODO: Replace this key with a key you have created in KMS.
+		KMSKeyName: "projects/cloud-samples-tests/locations/us-central1/keyRings/test/cryptoKeys/test",
+	}
+
+	job, err := loader.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Err() != nil {
+		return fmt.Errorf("job completed with error: %v", status.Err())
+	}
+
+	return nil
+}
+
+--- 탭: Java [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#java] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.EncryptionConfiguration;
+import com.google.cloud.bigquery.FormatOptions;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.LoadJobConfiguration;
+import com.google.cloud.bigquery.TableId;
+
+// Sample to load JSON data with configuration key from Cloud Storage into a new BigQuery table
+public class LoadJsonFromGCSCMEK {
+
+  public static void runLoadJsonFromGCSCMEK() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String kmsKeyName = "MY_KMS_KEY_NAME";
+    String sourceUri = "gs://cloud-samples-data/bigquery/us-states/us-states.json";
+    // i.e. projects/{project}/locations/{location}/keyRings/{key_ring}/cryptoKeys/{cryptoKey}
+    EncryptionConfiguration encryption =
+        EncryptionConfiguration.newBuilder().setKmsKeyName(kmsKeyName).build();
+    loadJsonFromGCSCMEK(datasetName, tableName, sourceUri, encryption);
+  }
+
+  public static void loadJsonFromGCSCMEK(
+      String datasetName, String tableName, String sourceUri, EncryptionConfiguration encryption) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      TableId tableId = TableId.of(datasetName, tableName);
+      LoadJobConfiguration loadConfig =
+          LoadJobConfiguration.newBuilder(tableId, sourceUri)
+              // Set the encryption key to use for the destination.
+              .setDestinationEncryptionConfiguration(encryption)
+              .setFormatOptions(FormatOptions.json())
+              .setAutodetect(true)
+              .build();
+
+      // Load data from a GCS JSON file into the table
+      Job job = bigquery.create(JobInfo.of(loadConfig));
+      // Blocks until this load table job completes its execution, either failing or succeeding.
+      job = job.waitFor();
+      if (job.isDone()) {
+        System.out.println("Table loaded succesfully from GCS with configuration key");
+      } else {
+        System.out.println(
+            "BigQuery was unable to load into the table due to an error:"
+                + job.getStatus().getError());
+      }
+    } catch (BigQueryException | InterruptedException e) {
+      System.out.println("Column not added during load append \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    
+LoadJobConfig.destination_encryption_configuration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.LoadJobConfig?hl=ko#google_cloud_bigquery_job_LoadJobConfig_destination_encryption_configuration] 속성을 EncryptionConfiguration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.encryption_configuration.EncryptionConfiguration?hl=ko]으로 설정하여 고객 관리 암호화 키로 로드 작업 대상 테이블을 보호하고 테이블을 로드합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery
+
+# Construct a BigQuery client object.
+client = bigquery.Client()
+
+# TODO(developer): Set table_id to the ID of the table to create.
+# table_id = "your-project.your_dataset.your_table_name
+
+# Set the encryption key to use for the destination.
+# TODO: Replace this key with a key you have created in KMS.
+# kms_key_name = "projects/{}/locations/{}/keyRings/{}/cryptoKeys/{}".format(
+#     "cloud-samples-tests", "us", "test", "test"
+# )
+
+job_config = bigquery.LoadJobConfig(
+    autodetect=True,
+    source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+    destination_encryption_configuration=bigquery.EncryptionConfiguration(
+        kms_key_name=kms_key_name
+    ),
+)
+
+uri = "gs://cloud-samples-data/bigquery/us-states/us-states.json"
+
+load_job = client.load_table_from_uri(
+    uri,
+    table_id,
+    location="US",  # Must match the destination dataset location.
+    job_config=job_config,
+)  # Make an API request.
+
+assert load_job.job_type == "load"
+
+load_job.result()  # Waits for the job to complete.
+
+assert load_job.state == "DONE"
+table = client.get_table(table_id)
+
+if table.encryption_configuration.kms_key_name == kms_key_name:
+    print("A table loaded with encryption configuration key")
+Cloud KMS로 보호되는 테이블에 스트리밍하기
+추가 매개변수를 지정하지 않고도 CMEK로 보호되는 BigQuery 테이블에 데이터를 스트리밍할 수 있습니다. 이 데이터는 버퍼와 최종 위치 모두에서 Cloud KMS 키로 암호화됩니다. CMEK 테이블로 스트리밍하기 전에 키 가용성 및 접근성 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#key_access]에 대한 요구사항을 검토합니다.
+스트리밍에 대한 자세한 내용은 BigQuery Storage Write API를 사용하여 데이터 스트리밍하기 [https://cloud.google.com/bigquery/docs/write-api?hl=ko]를 참고하세요.
+테이블을 기본 암호화에서 Cloud KMS 보호로 변경
+--- 탭: bq [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#bq] ---
+bq cp 명령어를 --destination_kms_key 플래그와 함께 사용하면 기본 암호화로 보호되는 테이블을 새 테이블이나 Cloud KMS로 보호되는 원본 테이블에 복사할 수 있습니다. --destination_kms_key 플래그는 대상 테이블과 함께 사용할 키의 리소스 ID [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#key_resource_id]를 지정합니다.
+
+기본 암호화를 사용하는 테이블을 Cloud KMS 보호를 사용하는 새 테이블에 복사하는 방법:
+
+bq cp \
+--destination_kms_key projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY \
+SOURCE_DATASET_ID.SOURCE_TABLE_ID DESTINATION_DATASET_ID.DESTINATION_TABLE_ID
+
+
+기본 암호화를 사용하는 테이블을 Cloud KMS 보호를 사용하는 같은 테이블에 복사하는 방법:
+
+bq cp -f \
+--destination_kms_key projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY \
+DATASET_ID.TABLE_ID DATASET_ID.TABLE_ID
+
+
+Cloud KMS 보호를 사용하는 테이블을 기본 암호화로 변경하려면 --destination_kms_key 플래그를 사용하지 않고 bq cp를 실행하여 파일을 같은 파일에 복사합니다.
+
+bq 명령줄 도구에 대한 자세한 내용은 bq 명령줄 도구 사용 [https://cloud.google.com/bigquery/bq-command-line-tool?hl=ko]을 참조하세요.
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// copyTableWithCMEK demonstrates creating a copy of a table and ensuring the copied data is
+// protected with a customer managed encryption key.
+func copyTableWithCMEK(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	srcTable := client.DatasetInProject("bigquery-public-data", "samples").Table("shakespeare")
+	copier := client.Dataset(datasetID).Table(tableID).CopierFrom(srcTable)
+	copier.DestinationEncryptionConfig = &bigquery.EncryptionConfig{
+		// TODO: Replace this key with a key you have created in Cloud KMS.
+		KMSKeyName: "projects/cloud-samples-tests/locations/us-central1/keyRings/test/cryptoKeys/test",
+	}
+	job, err := copier.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+--- 탭: Java [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#java] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.CopyJobConfiguration;
+import com.google.cloud.bigquery.EncryptionConfiguration;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.TableId;
+
+// Sample to copy a cmek table
+public class CopyTableCMEK {
+
+  public static void runCopyTableCMEK() {
+    // TODO(developer): Replace these variables before running the sample.
+    String destinationDatasetName = "MY_DESTINATION_DATASET_NAME";
+    String destinationTableId = "MY_DESTINATION_TABLE_NAME";
+    String sourceDatasetName = "MY_SOURCE_DATASET_NAME";
+    String sourceTableId = "MY_SOURCE_TABLE_NAME";
+    String kmsKeyName = "MY_KMS_KEY_NAME";
+    EncryptionConfiguration encryption =
+        EncryptionConfiguration.newBuilder().setKmsKeyName(kmsKeyName).build();
+    copyTableCMEK(
+        sourceDatasetName, sourceTableId, destinationDatasetName, destinationTableId, encryption);
+  }
+
+  public static void copyTableCMEK(
+      String sourceDatasetName,
+      String sourceTableId,
+      String destinationDatasetName,
+      String destinationTableId,
+      EncryptionConfiguration encryption) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      TableId sourceTable = TableId.of(sourceDatasetName, sourceTableId);
+      TableId destinationTable = TableId.of(destinationDatasetName, destinationTableId);
+
+      // For more information on CopyJobConfiguration see:
+      // https://googleapis.dev/java/google-cloud-clients/latest/com/google/cloud/bigquery/JobConfiguration.html
+      CopyJobConfiguration configuration =
+          CopyJobConfiguration.newBuilder(destinationTable, sourceTable)
+              .setDestinationEncryptionConfiguration(encryption)
+              .build();
+
+      // For more information on Job see:
+      // https://googleapis.dev/java/google-cloud-clients/latest/index.html?com/google/cloud/bigquery/package-summary.html
+      Job job = bigquery.create(JobInfo.of(configuration));
+
+      // Blocks until this job completes its execution, either failing or succeeding.
+      Job completedJob = job.waitFor();
+      if (completedJob == null) {
+        System.out.println("Job not executed since it no longer exists.");
+        return;
+      } else if (completedJob.getStatus().getError() != null) {
+        System.out.println(
+            "BigQuery was unable to copy table due to an error: \n" + job.getStatus().getError());
+        return;
+      }
+      System.out.println("Table cmek copied successfully.");
+    } catch (BigQueryException | InterruptedException e) {
+      System.out.println("Table cmek copying job was interrupted. \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: Python [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#python] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    
+QueryJobConfig.destination_encryption_configuration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.CopyJobConfig?hl=ko#google_cloud_bigquery_job_CopyJobConfig_destination_encryption_configuration] 속성을 EncryptionConfiguration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.encryption_configuration.EncryptionConfiguration?hl=ko]으로 설정하여 고객 관리 암호화 키로 테이블 복사본 대상을 보호하고 테이블을 복사합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery
+
+# Construct a BigQuery client object.
+client = bigquery.Client()
+
+# TODO(developer): Set dest_table_id to the ID of the destination table.
+# dest_table_id = "your-project.your_dataset.your_table_name"
+
+# TODO(developer): Set orig_table_id to the ID of the original table.
+# orig_table_id = "your-project.your_dataset.your_table_name"
+
+# Set the encryption key to use for the destination.
+# TODO(developer): Replace this key with a key you have created in KMS.
+# kms_key_name = "projects/{}/locations/{}/keyRings/{}/cryptoKeys/{}".format(
+#     your-project, location, your-ring, your-key
+# )
+
+job_config = bigquery.CopyJobConfig(
+    destination_encryption_configuration=bigquery.EncryptionConfiguration(
+        kms_key_name=kms_key_name
+    )
+)
+job = client.copy_table(orig_table_id, dest_table_id, job_config=job_config)
+job.result()  # Wait for the job to complete.
+
+dest_table = client.get_table(dest_table_id)  # Make an API request.
+if dest_table.encryption_configuration.kms_key_name == kms_key_name:
+    print("A copy of the table created")
+테이블이 Cloud KMS로 보호되는지 확인
+Google Cloud 콘솔에서 데이터 세트 왼쪽에 있는 파란색 화살표를 클릭하여 데이터 세트를 확장하거나 데이터 세트 이름을 더블클릭합니다. 그러면 데이터 세트에 있는 테이블과 뷰가 표시됩니다.
+테이블 이름을 클릭합니다.
+세부정보를 클릭하면 테이블 세부정보 페이지에 테이블 설명과 테이블 정보가 표시됩니다.
+테이블이 Cloud KMS로 보호된다면 고객 관리 암호화 키 필드에 키 리소스 ID가 표시됩니다.
+만들었거나 테이블을 보호하는 각 키에서 키가 키 사용 추적으로 보호하는 리소스를 확인할 수 있습니다. 자세한 내용은 키 사용량 보기 [https://cloud.google.com/kms/docs/view-key-usage?hl=ko]를 참조하세요.
+BigQuery 테이블의 Cloud KMS 키 변경
+CMEK로 보호되는 기존 테이블의 Cloud KMS 키를 변경하려면 ALTER TABLE 쿼리를 실행하거나 API를 사용하거나 bq 명령줄 도구를 사용합니다. API 및 bq 명령줄 도구를 사용하여 Cloud KMS 키를 수정하는 방법에는 update 또는 cp 두 가지가 있습니다.
+update를 사용하면 CMEK로 보호되는 테이블의 Cloud KMS 키를 변경할 수 있습니다.
+cp를 사용하면 CMEK로 보호되는 테이블의 Cloud KMS 키를 변경하거나 테이블을 기본 암호화에서 CMEK 보호로 변경하거나 테이블을 CMEK 보호를 기본 암호화로 변경할 수 있습니다.
+update의 장점은 cp보다 빠르고 테이블 데코레이터 [https://cloud.google.com/bigquery/docs/table-decorators?hl=ko]를 사용할 수 있다는 점입니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#sql] ---
+ALTER TABLE SET OPTIONS 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_set_options_statement]을 사용하여 테이블의 kms_key_name 필드를 업데이트합니다.
+
+
+
+
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+ALTER TABLE DATASET_ID.mytable
+SET OPTIONS (
+  kms_key_name
+    = 'projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY');
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#bq] ---
+bq cp 명령어를 --destination_kms_key 플래그와 함께 사용하면 Cloud KMS로 보호되는 테이블의 키를 변경할 수 있습니다. --destination_kms_key 플래그는 테이블과 함께 사용할 키의 리소스 ID [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#key_resource_id]를 지정합니다.
+
+bq update \
+--destination_kms_key projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY \
+-t DATASET_ID.TABLE_ID
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// updateTableChangeCMEK demonstrates how to change the customer managed encryption key that protects a table.
+func updateTableChangeCMEK(projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydatasetid"
+	// tableID := "mytableid"
+	ctx := context.Background()
+
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	tableRef := client.Dataset(datasetID).Table(tableID)
+	meta, err := tableRef.Metadata(ctx)
+	if err != nil {
+		return err
+	}
+	update := bigquery.TableMetadataToUpdate{
+		EncryptionConfig: &bigquery.EncryptionConfig{
+			// TODO: Replace this key with a key you have created in Cloud KMS.
+			KMSKeyName: "projects/cloud-samples-tests/locations/us-central1/keyRings/test/cryptoKeys/otherkey",
+		},
+	}
+	if _, err := tableRef.Update(ctx, update, meta.ETag); err != nil {
+		return err
+	}
+	return nil
+}
+
+--- 탭: Java [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#java] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.EncryptionConfiguration;
+import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableId;
+
+// Sample to update a cmek table
+public class UpdateTableCMEK {
+
+  public static void runUpdateTableCMEK() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String kmsKeyName = "MY_KEY_NAME";
+    // Set a new encryption key to use for the destination.
+    // i.e. projects/{project}/locations/{location}/keyRings/{key_ring}/cryptoKeys/{cryptoKey}
+    EncryptionConfiguration encryption =
+        EncryptionConfiguration.newBuilder().setKmsKeyName(kmsKeyName).build();
+    updateTableCMEK(datasetName, tableName, encryption);
+  }
+
+  public static void updateTableCMEK(
+      String datasetName, String tableName, EncryptionConfiguration encryption) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      Table table = bigquery.getTable(TableId.of(datasetName, tableName));
+      bigquery.update(table.toBuilder().setEncryptionConfiguration(encryption).build());
+      System.out.println("Table cmek updated successfully");
+    } catch (BigQueryException e) {
+      System.out.println("Table cmek was not updated. \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-python ---
+Table.encryption_configuration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.Table?hl=ko#google_cloud_bigquery_table_Table_encryption_configuration] 속성을 새 EncryptionConfiguration [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.encryption_configuration.EncryptionConfiguration?hl=ko] 객체로 변경하여 테이블의 고객 관리 암호화 키를 변경하고 테이블을 업데이트합니다.
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # from google.cloud import bigquery
+# client = bigquery.Client()
+
+assert table.encryption_configuration.kms_key_name == original_kms_key_name
+
+# Set a new encryption key to use for the destination.
+# TODO: Replace this key with a key you have created in KMS.
+updated_kms_key_name = (
+    "projects/cloud-samples-tests/locations/us/keyRings/test/cryptoKeys/otherkey"
+)
+table.encryption_configuration = bigquery.EncryptionConfiguration(
+    kms_key_name=updated_kms_key_name
+)
+
+table = client.update_table(table, ["encryption_configuration"])  # API request
+
+assert table.encryption_configuration.kms_key_name == updated_kms_key_name
+assert original_kms_key_name != updated_kms_key_name
+데이터 세트 기본 키 설정
+테이블을 만들 때 다른 Cloud KMS 키를 지정하는 경우 외에는 데이터 세트 내에 새로 생성된 모든 테이블에 적용되는 데이터 세트 전체 기본 Cloud KMS 키를 설정할 수 있습니다. 기본 키는 기존 테이블에는 적용되지 않습니다. 기본 키를 변경해도 기존 테이블은 수정되지 않으며 변경 후에 생성된 새 테이블에만 적용됩니다.
+다음 방법으로 데이터 세트 기본 키를 적용, 변경 또는 삭제할 수 있습니다.
+datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 또는 datasets.patch [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/patch?hl=ko] 메서드를 호출할 때 EncryptionConfiguration.kmsKeyName [https://cloud.google.com/bigquery/docs/reference/rest/v2/EncryptionConfiguration?hl=ko#FIELDS.kms_key_name] 필드에 기본 키 지정
+bq mk --dataset [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mk] 명령어를 실행할 때 --default_kms_key 플래그에 기본 키 지정
+bq mk \
+--default_kms_key projects/
+KMS_PROJECT_ID/locations/
+LOCATION/keyRings/
+KEY_RING/cryptoKeys/
+KEY \
+--dataset 
+DATASET_ID
+bq update \
+--default_kms_key projects/
+KMS_PROJECT_ID/locations/
+LOCATION/keyRings/
+KEY_RING/cryptoKeys/
+KEY \
+--dataset 
+DATASET_ID
+참고: 기본 Cloud KMS 키가 적용된 데이터 세트에서는 고객 관리 암호화 키 이외의 키로 새 테이블을 암호화할 수 없습니다. 즉, 데이터 세트에 기본 Cloud KMS 키가 있으면 고객 관리 암호화 키가 아닌 키를 사용하여 데이터 세트의 새 테이블을 암호화할 수 없습니다.
+프로젝트 기본 키 설정
+다른 Cloud KMS 키를 지정하지 않는 한 해당 위치의 프로젝트에 있는 모든 쿼리 결과 및 새로 생성된 테이블에 적용되는 프로젝트 기본 Cloud KMS 키를 설정할 수 있습니다. 기본 키는 기존 테이블에는 적용되지 않습니다. 기본 키를 변경해도 기존 테이블은 수정되지 않으며 변경 후에 생성된 새 테이블에만 적용됩니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#sql] ---
+ALTER PROJECT SET OPTIONS 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_project_set_options_statement]을 사용하여 프로젝트의 default_kms_key_name 필드를 업데이트합니다. Cloud KMS 페이지에서 키의 리소스 이름을 확인할 수 있습니다.
+
+
+
+
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+ALTER PROJECT PROJECT_ID
+SET OPTIONS (
+  `region-LOCATION.default_kms_key_name`
+    = 'projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY');
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#bq] ---
+bq 명령어를 사용하여 ALTER PROJECT SET OPTIONS 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_project_set_options_statement]을 실행하고 프로젝트의 default_kms_key_name 필드를 업데이트할 수 있습니다.
+
+bq query --nouse_legacy_sql \
+  'ALTER PROJECT PROJECT_ID
+  SET OPTIONS (
+  `region-LOCATION.default_kms_key_name`
+    ="projects/KMS_PROJECT_ID/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY");'
+CMEK를 사용하여 BigQuery ML 모델 보호
+BigQuery ML은 CMEK를 지원합니다. BigQuery에서 제공하는 기본 암호화와 함께 가져온 TensorFlow 모델로 자체 Cloud Key Management Service 키를 사용하여 머신러닝 모델을 암호화할 수 있습니다.
+Cloud KMS 키로 암호화된 모델 만들기
+암호화된 모델을 만들려면 CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko]을 사용하고 학습 옵션에서 KMS_KEY_NAME을 지정합니다.
+    CREATE MODEL my_dataset.my_model
+    OPTIONS(
+      model_type='linear_reg',
+      input_label_cols=['your_label'],
+      kms_key_name='projects/my_project/locations/my_location/keyRings/my_ring/cryptoKeys/my_key')
+    AS SELECT * FROM my_dataset.my_data
+가져온 TensorFlow 모델에도 동일한 문법이 적용됩니다.
+    CREATE MODEL my_dataset.my_model
+    OPTIONS(
+      model_type='tensorflow',
+      path='gs://bucket/path/to/saved_model/*',
+      kms_key_name='projects/my_project/locations/my_location/keyRings/my_ring/cryptoKeys/my_key')
+    AS SELECT * FROM my_dataset.my_data
+제한사항
+고객 관리 암호화 키에는 머신러닝 모델을 암호화할 때 다음과 같은 제한사항이 있습니다.
+다음 유형의 모델에는 Global 리전 CMEK 키가 지원되지 않습니다.
+DNN [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-dnn-models?hl=ko]
+와이드 앤 딥 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-wnd-models?hl=ko]
+Autoencoder [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-autoencoder?hl=ko]
+부스티드 트리 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko]
+다음 유형의 모델을 만들 때는 Global 리전 CMEK 키 및 멀티 리전 CMEK 키(예: EU 또는 US)가 지원되지 않습니다.
+AutoML Tables 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-automl?hl=ko]
+원격 모델에는 CMEK 키가 지원되지 않습니다.
+Vertex AI 기본 제공 모델을 통한 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko]
+Vertex AI 호스팅 모델을 통한 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model-https?hl=ko]
+Cloud AI 서비스를 통한 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model-service?hl=ko]
+모델을 기본 암호화에서 Cloud KMS 보호로 변경
+bq cp 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_cp]를 --destination_kms_key 플래그와 함께 사용해서 기본 암호화로 보호되는 모델을 Cloud KMS로 보호되는 새 모델에 복사할 수 있습니다. 또는 bq cp 명령어를 -f 플래그와 함께 사용해서 기본 암호화로 보호되는 모델을 덮어쓰고 대신 Cloud KMS 보호를 사용하도록 업데이트할 수 있습니다. --destination_kms_key 플래그는 대상 모델과 함께 사용할 키의 리소스 ID [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#key_resource_id]를 지정합니다.
+기본 암호화를 사용하는 모델을 Cloud KMS 보호를 사용하는 새 모델에 복사하려면 다음을 수행합니다.
+bq cp \
+--destination_kms_key projects/
+KMS_PROJECT_ID/locations/
+LOCATION/keyRings/
+KEY_RING/cryptoKeys/
+KEY \
+SOURCE_DATASET_ID.
+SOURCE_MODEL_ID 
+DESTINATION_DATASET_ID.
+DESTINATION_MODEL_ID
+기본 암호화를 사용하는 모델을 Cloud KMS 보호를 사용하는 동일한 모델에 복사하려면 다음을 수행합니다.
+bq cp -f \
+--destination_kms_key projects/
+KMS_PROJECT_ID/locations/
+LOCATION/keyRings/
+KEY_RING/cryptoKeys/
+KEY \
+DATASET_ID.
+MODEL_ID 
+DATASET_ID.
+MODEL_ID
+모델을 Cloud KMS 보호에서 기본 암호화로 변경하려면 다음을 수행합니다.
+bq cp -f \
+DATASET_ID.
+MODEL_ID 
+DATASET_ID.
+MODEL_ID
+bq 명령줄 도구에 대한 자세한 내용은 bq 명령줄 도구 사용 [https://cloud.google.com/bigquery/bq-command-line-tool?hl=ko]을 참조하세요.
+모델이 Cloud KMS로 보호되는지 확인
+bq show 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_show]를 사용하여 모델이 Cloud KMS 키로 보호되는지 확인합니다. 암호화 키는 kmsKeyName 필드에 있습니다.
+bq show -m my_dataset.my_model
+Google Cloud 콘솔을 사용하여 암호화된 모델의 Cloud KMS 키를 찾을 수도 있습니다. CMEK 정보는 모델의 세부정보 창에서 모델 세부정보 섹션의 고객 관리 키 필드에 있습니다.
+암호화된 모델의 Cloud KMS 키 변경
+bq update 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_update]를 --destination_kms_key 플래그와 함께 사용하면 Cloud KMS로 보호되는 모델의 키를 변경할 수 있습니다.
+bq update --destination_kms_key \
+projects/
+my_project/locations/
+my_location/keyRings/
+my_ring/cryptoKeys/
+my_key \
+-t my_dataset.my_model
+기본 프로젝트 또는 데이터 세트 키 사용
+프로젝트 또는 데이터 세트 수준에서 기본 Cloud KMS 키를 설정하면 BigQuery ML은 모델을 만들 때 이 키를 자동으로 사용합니다. 기본 키를 사용하지 않으려면 CREATE MODEL 문을 사용하여 모델을 암호화할 다른 키를 지정합니다.
+암호화된 모델에서 BigQuery ML 함수 사용
+암호화 키를 지정하지 않고도 모든 BigQuery ML 함수를 암호화된 모델에서 사용할 수 있습니다.
+CMEK를 사용하여 BigQuery Connection API 보호
+Cloud SQL 연결의 경우 CMEK를 사용하여 BigQuery Connection API 사용자 인증 정보를 보호할 수 있습니다.
+CMEK 보호 연결을 만드는 방법에 관한 자세한 내용은 Cloud SQL 연결 만들기 [https://cloud.google.com/bigquery/docs/connect-to-sql?hl=ko#create-sql-connection]를 참조하세요.
+Cloud KMS 키에 대한 BigQuery의 액세스 권한 제거
+Cloud KMS 키에 대한 Identity and Access Management(IAM) 권한을 취소하여 언제든지 Cloud KMS 키에 대한 BigQuery의 액세스 권한을 삭제할 수 있습니다.
+참고: 키에 대한 BigQuery 액세스 권한을 삭제해도 이 변경사항은 바로 적용되지 않고 IAM 권한 변경 적용 후 1시간 이내에 적용됩니다. 이때 쿼리를 실행 중인 경우 쿼리는 완료되지만 결과가 표시되지 않을 수 있습니다.
+BigQuery가 Cloud KMS 키에 액세스하지 못하면 사용자 경험이 크게 저하되고 데이터 손실이 발생할 수 있습니다.
+CMEK로 보호되는 테이블의 데이터에 더 이상 액세스할 수 없습니다. query, cp, extract, tabledata.list는 모두 실패하게 됩니다.
+CMEK로 보호되는 테이블에 새 데이터를 추가할 수 없습니다.
+액세스 권한이 다시 부여되면 이러한 테이블에 대한 쿼리 성능이 며칠간 저하될 수 있습니다.
+조직 정책으로 CMEK 사용 제어
+BigQuery는 CMEK 조직 정책 제약 조건 [https://cloud.google.com/resource-manager/docs/organization-policy/org-policy-constraints?hl=ko]과 통합되어 조직의 BigQuery 리소스에 대한 암호화 규정 준수 요구사항을 지정할 수 있습니다.
+통합을 통해 다음을 수행할 수 있습니다.
+프로젝트의 모든 BigQuery 리소스에 CMEK를 요구합니다.
+프로젝트의 리소스를 보호하는 데 사용할 수 있는 Cloud KMS 키를 제한합니다.
+모든 리소스에 CMEK 필요
+일반적인 정책에서는 특정 프로젝트 집합의 모든 리소스를 보호하기 위해 CMEK를 사용하도록 요구합니다. constraints/gcp.restrictNonCmekServices 제약조건을 사용하여 BigQuery에서 이 정책을 시행할 수 있습니다.
+이 조직 정책을 설정하면 지정된 Cloud KMS 키가 없는 모든 리소스 만들기 요청이 실패합니다.
+이 정책을 설정하면 프로젝트의 새 리소스에만 적용됩니다. Cloud KMS 키가 설정되지 않은 기존 리소스도 계속 존재하며 문제 없이 액세스할 수 있습니다.
+참고: 이 제약조건은 데이터가 포함된 리소스에만 적용됩니다. 지정된 Cloud KMS 키만 새 리소스의 기본값으로만 사용되는 리소스(예: 데이터 세트 및 프로젝트 구성)도 Cloud KMS 키 없이 만들거나 업데이트할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#%EC%BD%98%EC%86%94] ---
+조직 정책 페이지를 엽니다.
+
+조직 정책으로 이동 [https://console.cloud.google.com/iam-admin/orgpolicies/list?hl=ko] 
+필터 필드에 constraints/gcp.restrictNonCmekServices를 입력한 다음 CMEK 없이 리소스를 만들 수 있는 서비스 제한을 클릭합니다.
+edit 수정을 클릭합니다.
+맞춤설정을 선택하고 바꾸기를 선택한 다음 규칙 추가를 클릭합니다.
+커스텀을 선택한 다음 거부를 클릭합니다.
+커스텀 값 필드에 is:bigquery.googleapis.com을 입력합니다.
+완료를 클릭한 다음 저장을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#gcloud] ---
+gcloud resource-manager org-policies --project=PROJECT_ID \
+    deny gcp.restrictNonCmekServices is:bigquery.googleapis.com
+정책이 성공적으로 적용되었는지 확인하려면 프로젝트에 테이블을 만들어 보면 됩니다. Cloud KMS 키를 지정하지 않으면 프로세스가 실패합니다.
+이 정책은 프로젝트의 쿼리 결과 테이블에도 적용됩니다. 사용자가 프로젝트에서 쿼리를 실행할 때마다 키를 수동으로 지정하지 않아도 되도록 프로젝트 기본 키 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#project_default_key]를 지정할 수 있습니다.
+BigQuery 프로젝트의 Cloud KMS 키 제한
+constraints/gcp.restrictCmekCryptoKeyProjects 제약조건을 사용하여 BigQuery 프로젝트의 리소스를 보호하는 데 사용할 수 있는 Cloud KMS 키를 제한할 수 있습니다.
+규칙을 지정할 수 있는데, 예를 들어 'projects/my-company-data-project의 모든 BigQuery 리소스에 대해 이 프로젝트에서 사용되는 Cloud KMS 키는 projects/my-company-central-keys 또는 projects/team-specific-keys에서 가져와야 한다"와 같이 지정하면 됩니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#%EC%BD%98%EC%86%94] ---
+조직 정책 페이지를 엽니다.
+
+조직 정책으로 이동 [https://console.cloud.google.com/iam-admin/orgpolicies/list?hl=ko] 
+필터 필드에 constraints/gcp.restrictCmekCryptoKeyProjects를 입력한 다음 CMEK에 KMS CryptoKey를 제공할 수 있는 프로젝트 제한을 클릭합니다.
+edit 수정을 클릭합니다.
+맞춤설정을 선택하고 바꾸기를 선택한 다음 규칙 추가를 클릭합니다.
+커스텀을 선택한 다음 허용을 클릭합니다.
+커스텀 값 필드에 under:projects/<var>KMS_PROJECT_ID</var>을 입력합니다.
+완료를 클릭한 다음 저장을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#gcloud] ---
+gcloud resource-manager org-policies --project=PROJECT_ID \
+    allow gcp.restrictCmekCryptoKeyProjects under:projects/KMS_PROJECT_ID
+정책이 성공적으로 적용되었는지 확인하려면 다른 프로젝트의 Cloud KMS 키를 사용하여 테이블을 만들어 보면 됩니다. 프로세스가 실패할 것입니다.
+조직 정책의 제한사항
+조직 정책 설정과 관련된 제한사항이 있습니다.
+전파 지연
+조직 정책을 설정하거나 업데이트한 후 새 정책이 적용되는 데 최대 15분이 걸릴 수 있습니다. BigQuery는 쿼리 및 테이블 생성 지연 시간에 부정적인 영향을 미치지 않도록 정책을 캐시합니다.
+조직 정책을 설정하는 데 필요한 권한
+테스트 목적으로는 조직 정책을 설정하거나 업데이트할 수 있는 권한을 획득하기 어려울 수 있습니다. 조직 정책 관리자 역할 [https://cloud.google.com/resource-manager/docs/organization-policy/using-constraints?hl=ko#required-roles]을 부여받아야 하며, 이 역할은 프로젝트 또는 폴더 수준이 아닌 조직 수준에서만 부여할 수 있습니다.
+조직 수준에서 역할을 부여받아야 하지만 특정 프로젝트나 폴더에만 적용되는 정책을 지정할 수 있습니다.
+Cloud KMS 키 순환이 미치는 영향
+테이블과 연결된 Cloud KMS 키가 순환될 때 BigQuery는 테이블 암호화 키를 자동으로 순환하지 않습니다. 기존 테이블의 모든 데이터는 생성될 때 사용한 키 버전으로 계속 보호됩니다.
+새로 생성된 테이블은 생성될 때의 기본 키 버전을 사용합니다.
+테이블에서 최신 키 버전을 사용하도록 업데이트하려면 테이블을 다른 Cloud KMS 키로 변경한 후 원본으로 되돌립니다.
+Cloud KMS 결제에 미치는 영향
+CMEK로 보호되는 테이블을 만들거나 자르면 BigQuery는 지정된 Cloud KMS 키로 암호화된 중간 키 암호화 키를 생성합니다.
+즉, 청구를 위해 Cloud KMS를 호출하지 않거나 관련 비용이 테이블 크기에 따라 조정되지 않습니다. CMEK로 보호되는 테이블의 경우 테이블을 만들거나 자를 때마다 Cloud KMS cryptoKeys.encrypt [https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys/encrypt?hl=ko]를 1회 호출 및 쿼리에 관련된 각 테이블에 Cloud KMS cryptoKeys.decrypt [https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys/decrypt?hl=ko]를 1회 호출을 예상할 수 있습니다. 이러한 두 가지 방법 모두 Cloud KMS 가격 책정 [https://cloud.google.com/kms/pricing?hl=ko]에 나열된 키 작업: 암호화 카테고리에 속합니다.
+CMEK로 보호되는 기존 테이블을 읽거나 쓰면 중간 키가 복호화되어야 하므로 Cloud KMS cryptoKeys.decrypt가 호출됩니다.
+제한사항
+Cloud KMS 키에 대한 BigQuery 액세스 권한
+Cloud KMS 키는 다음과 같은 조건에서 BigQuery에서 사용 가능하며 액세스할 수 있습니다.
+키가 사용 설정 [https://cloud.google.com/kms/docs/key-states?hl=ko#enabled]되어 있음
+BigQuery 서비스 계정에 키에 대한 암호화 및 복호화 권한이 있음
+다음 섹션에서는 키에 액세스할 수 없을 때 스트리밍 삽입 및 장기간 액세스 불가한 데이터에 미치는 영향을 설명합니다.
+스트리밍 삽입에 미치는 영향
+스트리밍 삽입 요청 후 48시간 동안 최소 24시간 연속으로 Cloud KMS 키를 사용하고 액세스할 수 있어야 합니다. 키를 사용할 수 없고 액세스할 수 없으면 스트리밍된 데이터가 완전히 유지되지 않으며 손실될 수 있습니다. 스트리밍 삽입에 대한 자세한 내용은 BigQuery에 데이터 스트리밍 [https://cloud.google.com/bigquery/docs/streaming-data-into-bigquery?hl=ko]을 참조하세요.
+장기간 액세스할 수 없는 데이터에 미치는 영향
+BigQuery는 관리형 스토리지를 제공하기 때문에 장기간 액세스 불가한 데이터는 BigQuery의 아키텍처와 호환되지 않습니다. BigQuery 테이블의 Cloud KMS 키를 60일 연속으로 사용하고 액세스할 수 없으면 BigQuery는 테이블과 관련 데이터를 삭제할 수 있습니다. BigQuery는 데이터가 삭제되기 최소 7일 전에 결제 계정과 연결된 이메일 주소로 이메일을 보냅니다.
+외부 데이터 소스 사용
+CMEK로 암호화된 데이터가 있는 Cloud Storage와 같은 외부 데이터 소스 [https://cloud.google.com/bigquery/docs/external-data-sources?hl=ko]에 저장된 데이터를 쿼리하는 경우 데이터 암호화는 Cloud Storage [https://cloud.google.com/storage/docs/encryption/customer-managed-keys?hl=ko]에서 관리합니다. 예를 들어 BigLake 테이블은 Cloud Storage에서 CMEK로 암호화된 데이터를 지원합니다.
+BigQuery 및 BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko]은 고객 제공 암호화 키(CSEK)를 지원하지 않습니다.
+CMEK로 보호되는 암호화와 기본 암호화 간 전환
+기본 암호화와 CMEK 암호화 간에 테이블을 전환할 수 없습니다. 암호화를 전환하려면 대상 암호화 정보가 설정된 테이블을 복사 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#copy-table]하거나 SELECT * 쿼리를 사용하여 WRITE_TRUNCATE 처리로 테이블을 자체 선택합니다.
+테이블 데코레이터 사용
+Cloud KMS로 테이블을 보호한 후 load, cp, query 작업의 WRITE_TRUNCATE 값을 사용하여 테이블의 데이터를 바꾸는 경우 범위 데코레이터 [https://cloud.google.com/bigquery/docs/table-decorators?hl=ko#range_decorators]는 암호화 변경 경계에서 작동하지 않습니다. 범위 데코레이터를 포함한 테이블 데코레이터를 사용하여 경계 전후의 데이터를 쿼리하거나 특정 시점에서 스냅샷을 쿼리할 수 있습니다.
+와일드 카드 테이블 쿼리
+CMEK로 보호되는 테이블은 와일드 카드 서픽스 [https://cloud.google.com/bigquery/docs/querying-wildcard-tables?hl=ko]로 쿼리할 수 없습니다.
+스크립트 지원
+스크립트 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko]는 CMEK 작업의 대상 테이블을 정의할 수 없습니다.
+버전 지원
+BigQuery의 CMEK 지원은 BigQuery Enterprise, BigQuery Enterprise Plus, BigQuery 주문형에만 제공됩니다.
+참고: CMEK를 지원하지 않는 프로젝트에서 CMEK를 사용하여 BigQuery 프로젝트의 데이터를 쿼리하는 것은 허용되지만, 데이터를 저장하는 프로젝트는 호환되는 BigQuery 버전 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#editions-support]을 사용해야 하며 서비스 계정에 적절한 Cloud KMS 키 권한 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#grant_permission]이 있어야 합니다.
+BigQuery Studio 지원
+저장된 쿼리 [https://cloud.google.com/bigquery/docs/saved-queries-introduction?hl=ko]와 노트북 [https://cloud.google.com/bigquery/docs/notebooks-introduction?hl=ko]을 비롯한 BigQuery Studio 코드 애셋은 CMEK를 지원하지 않습니다.
+자주 묻는 질문(FAQ)
+Cloud KMS 키에 대한 권한이 필요한 사람은 누구인가요?
+고객 관리 암호화 키를 사용하면 반복해서 권한을 지정하지 않아도 됩니다. BigQuery 서비스 계정에 Cloud KMS 키를 사용하여 암호화 및 복호화할 수 있는 권한이 있다면, BigQuery 테이블에 대한 권한이 있는 사용자는 Cloud KMS 키에 직접 액세스할 수 없더라도 데이터에 액세스할 수 있습니다.
+어떤 서비스 계정을 사용하나요?
+테이블의 Google Cloud 프로젝트와 관련된 BigQuery 서비스 계정이 해당 테이블의 데이터 복호화에 사용됩니다. BigQuery 서비스 계정은 프로젝트마다 고유합니다. Cloud KMS로 보호되는 익명 테이블에 데이터를 기록하는 작업의 경우 프로젝트 서비스 계정을 사용합니다.
+예를 들어 CMEK로 보호되는 테이블 3개 table1, table2, table3가 있다고 가정해 보겠습니다. 대상 테이블 {project3.table3}로 {project1.table1, project2.table2}의 데이터를 쿼리하는 방법은 다음과 같습니다.
+project1.table1에 서비스 계정 project1 사용
+project2.table2에 서비스 계정 project2 사용
+project3.table3에 서비스 계정 project3 사용
+BigQuery는 어떤 방식으로 Cloud KMS 키를 사용하나요?
+BigQuery는 Cloud KMS 키를 사용하여 사용자 쿼리(예: tabledata.list [https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list?hl=ko] 또는 jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko])에 대한 응답 데이터를 복호화합니다.
+BigQuery는 읽기에 최적화된 형식으로 데이터 변환 작업과 같은 데이터 유지보수 및 스토리지 최적화 작업에도 이 키를 사용합니다.
+어떤 암호화 라이브러리가 사용되나요?
+BigQuery는 CMEK 기능에 Cloud KMS를 사용합니다. Cloud KMS는 암호화에 Tink [https://github.com/google/tink]를 사용합니다.
+도움이 더 필요하면 어떻게 해야 하나요?
+여기에서 질문에 대한 답변을 찾지 못하면 BigQuery 지원 [https://cloud.google.com/bigquery/docs/getting-support?hl=ko]을 참조하세요.
+오류 해결
+다음은 일반적인 오류 및 권장되는 해결 방법입니다.
+오류 권장사항
+Cloud KMS CryptoKey에 암호화/복호화 역할을 부여하세요. 프로젝트와 연결된 BigQuery 서비스 계정에 지정된 Cloud KMS 키에서 작업하기에 충분한 IAM 권한이 없습니다. 오류나 본 문서 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#grant_permission]의 안내에 따라 적절한 IAM 권한을 부여하세요.
+기존 테이블 암호화 설정이 요청에서 지정하는 암호화 설정과 일치하지 않습니다. 이 오류는 대상 테이블의 암호화 설정이 사용자 요청의 암호화 설정과 일치하지 않을 때 발생합니다. 해결을 위해 쓰기 방식 TRUNCATE로 테이블을 교체하거나 다른 대상 테이블을 지정하세요.
+이 리전은 지원되지 않습니다. Cloud KMS 키의 리전이 대상 테이블의 BigQuery 데이터 세트 리전과 일치하지 않습니다. 해결을 위해 데이터 세트와 일치하는 리전의 키를 선택하거나 키 리전과 일치하는 데이터 세트에 로드하세요.
+관리자가 프로젝트 PROJECT_ID.의 쿼리에 암호화 키를 지정하라고 요구합니다. 조직 정책으로 인해 리소스를 만들거나 쿼리를 실행할 수 없습니다. 이 정책에 대한 자세한 내용은 BigQuery 프로젝트의 모든 리소스에 CMEK 요구 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#services_constraint]를 참조하세요.
+관리자가 프로젝트 KMS_PROJECT_ID의 KMS 키를 사용하여 프로젝트 PROJECT_ID의 리소스를 보호하는 것을 차단합니다. 조직 정책으로 인해 리소스를 만들거나 쿼리를 실행할 수 없습니다. 이 정책에 대한 자세한 내용은 BigQuery 프로젝트의 Cloud KMS 키 제한 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#projects_constraint]을 참조하세요.
+도움이 되었나요?
+의견 보내기

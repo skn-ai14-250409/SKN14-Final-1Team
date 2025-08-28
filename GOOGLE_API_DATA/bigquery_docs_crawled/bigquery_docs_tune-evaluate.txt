@@ -1,0 +1,357 @@
+Source URL: https://cloud.google.com/bigquery/docs/tune-evaluate
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필요한 역할 [https://cloud.google.com/bigquery/docs/tune-evaluate?hl=ko#required_roles]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/tune-evaluate?hl=ko#before_you_begin]
+비용 [https://cloud.google.com/bigquery/docs/tune-evaluate?hl=ko#costs]
+테스트 테이블 만들기 [https://cloud.google.com/bigquery/docs/tune-evaluate?hl=ko#create_test_tables]
+기준 모델 만들기 [https://cloud.google.com/bigquery/docs/tune-evaluate?hl=ko#create_a_baseline_model]
+조정 및 평가로 모델 성능 향상
+bookmark_border
+이 문서에서는 Vertex AI gemini-2.0-flash-001 모델 [https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models?hl=ko#gemini-models]을 참조하는 BigQuery ML 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko]을 만드는 방법을 설명합니다. 그런 다음 지도 조정 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko#supervised_tuning]을 사용하여 새 학습 데이터로 모델을 조정한 후 ML.EVALUATE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]로 모델을 평가합니다.
+튜닝은 모델의 예상 동작을 프롬프트에서 간결하게 정의하기 어렵거나 프롬프트가 예상 결과를 충분히 일관되게 생성하지 않는 경우와 같이 호스팅된 Vertex AI 모델을 맞춤설정해야 하는 시나리오를 해결하는 데 도움이 될 수 있습니다. 지도 조정은 다음과 같은 방식으로 모델에 영향을 줍니다.
+모델이 특정 응답 스타일(예: 더 간결하거나 더 상세함)을 반환하도록 안내합니다.
+특정 캐릭터로서 프롬프트에 응답하는 등 새로운 행동을 모델에 학습시킵니다.
+모델이 새 정보를 사용하여 자체적으로 업데이트되도록 합니다.
+이 튜토리얼에서는 모델이 제공된 그라운드 트루스 콘텐츠와 스타일 및 콘텐츠가 최대한 일치하는 텍스트를 생성하는 것을 목표로 합니다.
+필요한 역할
+이 튜토리얼을 실행하려면 다음 Identity and Access Management (IAM) 역할이 필요합니다.
+BigQuery 데이터 세트, 연결, 모델을 만들고 사용하려면 BigQuery 관리자 (roles/bigquery.admin)가 필요합니다.
+연결의 서비스 계정에 권한 부여: 프로젝트 IAM 관리자(roles/resourcemanager.projectIamAdmin)
+이러한 사전 정의된 역할에는 이 문서의 작업을 수행하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 확장하세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko]을 사용하여 이 권한을 부여받을 수도 있습니다.
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, Vertex AI, and Compute Engine APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Caiplatform.googleapis.com%2Ccompute.googleapis.com&hl=ko]
+비용
+이 문서에서는 비용이 청구될 수 있는 Google Cloud구성요소( )를 사용합니다.
+BigQuery: You incur costs for the queries that you run in BigQuery.
+BigQuery ML: You incur costs for the model that you create and the processing that you perform in BigQuery ML.
+Vertex AI: You incur costs for calls to and supervised tuning of the gemini-1.0-flash-002 model.
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+자세한 내용은 다음 리소스를 참조하세요.
+BigQuery 스토리지 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]
+BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]
+Vertex AI 가격 책정 [https://cloud.google.com/vertex-ai/pricing?hl=ko]
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/tune-evaluate?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/tune-evaluate?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/tune-evaluate?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/tune-evaluate?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+테스트 테이블 만들기
+Hugging Face의 공개 task955_wiki_auto_style_transfer [https://huggingface.co/datasets/Lots-of-LoRAs/task955_wiki_auto_style_transfer] 데이터 세트를 기반으로 학습 및 평가 데이터 테이블을 만듭니다.
+Cloud Shell [https://console.cloud.google.com/bigquery?cloudshell=true&hl=ko]을 엽니다.
+Cloud Shell에서 다음 명령어를 실행하여 테스트 및 평가 데이터 테이블을 만듭니다.
+python3 -m pip install pandas pyarrow fsspec huggingface_hub
+
+python3 -c "import pandas as pd; df_train = pd.read_parquet('hf://datasets/Lots-of-LoRAs/task955_wiki_auto_style_transfer/data/train-00000-of-00001.parquet').drop('id', axis=1); df_train['output'] = [x[0] for x in df_train['output']]; df_train.to_json('wiki_auto_style_transfer_train.jsonl', orient='records', lines=True);"
+
+python3 -c "import pandas as pd; df_valid = pd.read_parquet('hf://datasets/Lots-of-LoRAs/task955_wiki_auto_style_transfer/data/valid-00000-of-00001.parquet').drop('id', axis=1); df_valid['output'] = [x[0] for x in df_valid['output']]; df_valid.to_json('wiki_auto_style_transfer_valid.jsonl', orient='records', lines=True);"
+
+bq rm -t bqml_tutorial.wiki_auto_style_transfer_train
+
+bq rm -t bqml_tutorial.wiki_auto_style_transfer_valid
+
+bq load --source_format=NEWLINE_DELIMITED_JSON bqml_tutorial.wiki_auto_style_transfer_train wiki_auto_style_transfer_train.jsonl input:STRING,output:STRING
+
+bq load --source_format=NEWLINE_DELIMITED_JSON bqml_tutorial.wiki_auto_style_transfer_valid wiki_auto_style_transfer_valid.jsonl input:STRING,output:STRING
+기준 모델 만들기
+Vertex AI gemini-1.0-flash-002 모델을 통해 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko]을 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 문을 실행하여 원격 모델을 만듭니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.gemini_baseline`
+REMOTE WITH CONNECTION DEFAULT
+OPTIONS (ENDPOINT ='gemini-2.0-flash-001');
+쿼리가 완료되는 데 몇 초 정도 걸리며 그 이후에는 gemini_baseline 모델이 탐색기 창의 bqml_tutorial 데이터 세트에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+기준 모델 성능 확인
+원격 모델로 ML.GENERATE_TEXT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-text?hl=ko]를 실행하여 조정 없이 평가 데이터에서 성능을 확인합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+SELECT ml_generate_text_llm_result, ground_truth
+FROM
+  ML.GENERATE_TEXT(
+    MODEL `bqml_tutorial.gemini_baseline`,
+    (
+      SELECT
+        input AS prompt, output AS ground_truth
+      FROM `bqml_tutorial.wiki_auto_style_transfer_valid`
+      LIMIT 10
+    ),
+    STRUCT(TRUE AS flatten_json_output));
+출력 데이터를 검사하고 ml_generate_text_llm_result 값과 ground_truth 값을 비교하면 기준 모델이 그라운드 트루스 콘텐츠에 제공된 사실을 정확하게 반영하는 텍스트를 생성하지만 텍스트 스타일은 상당히 다른 것을 확인할 수 있습니다.
+기준 모델 평가
+모델 성능에 대한 자세한 평가를 수행하려면 ML.EVALUATE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]를 사용합니다. 이 함수는 생성된 텍스트의 정확성과 품질을 측정하는 모델 측정항목을 계산하여 모델의 응답과 이상적인 응답의 비교 방법을 보여줍니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+SELECT *
+FROM
+  ML.EVALUATE(
+    MODEL `bqml_tutorial.gemini_baseline`,
+    (
+      SELECT
+        input AS input_text, output AS output_text
+      FROM `bqml_tutorial.wiki_auto_style_transfer_valid`
+    ),
+    STRUCT('text_generation' AS task_type));
+결과는 다음과 유사합니다.
+   +---------------------+---------------------+-------------------------------------------+--------------------------------------------+
+   | bleu4_score         | rouge-l_precision   | rouge-l_recall      | rouge-l_f1_score    | evaluation_status                          |
+   +---------------------+---------------------+---------------------+---------------------+--------------------------------------------+
+   | 0.23317359667074181 | 0.37809145226740043 | 0.45902937167791508 | 0.40956844061733139 | {                                          |
+   |                     |                     |                     |                     |  "num_successful_rows": 176,               |
+   |                     |                     |                     |                     |  "num_total_rows": 176                     |
+   |                     |                     |                     |                     | }                                          |
+   +---------------------+---------------------+ --------------------+---------------------+--------------------------------------------+
+   
+평가 측정항목을 보면 기준 모델 성능이 나쁘지는 않지만 생성된 텍스트와 정답의 유사성이 낮은 것을 알 수 있습니다. 따라서 지도 조정을 수행하여 이 사용 사례에서 모델 성능을 개선할 수 있는지 확인할 가치가 있습니다.
+조정된 모델 만들기
+모델 만들기 [https://cloud.google.com/bigquery/docs/tune-evaluate?hl=ko#create_a_baseline_model]에서 만든 것과 매우 비슷한 원격 모델을 만들지만 이번에는 AS SELECT 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko#as_select]을 지정하여 모델을 조정하기 위한 학습 데이터를 제공합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 문을 실행하여 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko]을 만듭니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.gemini_tuned`
+  REMOTE
+    WITH CONNECTION DEFAULT
+  OPTIONS (
+    endpoint = 'gemini-2.0-flash-001',
+    max_iterations = 500,
+    data_split_method = 'no_split')
+AS
+SELECT
+  input AS prompt, output AS label
+FROM `bqml_tutorial.wiki_auto_style_transfer_train`;
+쿼리가 완료되는 데 몇 분 정도 걸리며 그 이후에는 gemini_tuned 모델이 탐색기 창의 bqml_tutorial 데이터 세트에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+조정된 모델 성능 확인
+ML.GENERATE_TEXT 함수를 실행하여 조정된 모델이 평가 데이터에서 수행되는 방법을 확인합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+SELECT ml_generate_text_llm_result, ground_truth
+FROM
+  ML.GENERATE_TEXT(
+    MODEL `bqml_tutorial.gemini_tuned`,
+    (
+      SELECT
+        input AS prompt, output AS ground_truth
+      FROM `bqml_tutorial.wiki_auto_style_transfer_valid`
+      LIMIT 10
+    ),
+    STRUCT(TRUE AS flatten_json_output));
+출력 데이터를 검토하면 조정된 모델에서 정답 콘텐츠와 스타일이 훨씬 유사한 텍스트를 생성하는 것을 확인할 수 있습니다.
+조정된 모델 평가
+ML.EVALUATE 함수를 사용하여 조정된 모델의 응답을 이상적인 응답과 비교하는 방법을 확인하세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+SELECT *
+FROM
+  ML.EVALUATE(
+    MODEL `bqml_tutorial.gemini_tuned`,
+    (
+      SELECT
+        input AS prompt, output AS label
+      FROM `bqml_tutorial.wiki_auto_style_transfer_valid`
+    ),
+    STRUCT('text_generation' AS task_type));
+결과는 다음과 유사합니다.
+   +---------------------+---------------------+-------------------------------------------+--------------------------------------------+
+   | bleu4_score         | rouge-l_precision   | rouge-l_recall      | rouge-l_f1_score    | evaluation_status                          |
+   +---------------------+---------------------+---------------------+---------------------+--------------------------------------------+
+   | 0.416868792119966   | 0.642001000843349   | 0.55910008048151372 | 0.5907226262084847  | {                                          |
+   |                     |                     |                     |                     |  "num_successful_rows": 176,               |
+   |                     |                     |                     |                     |  "num_total_rows": 176                     |
+   |                     |                     |                     |                     | }                                          |
+   +---------------------+---------------------+ --------------------+---------------------+--------------------------------------------+
+   
+학습 데이터 세트에서 1,408개의 예만 사용했음에도 불구하고 평가 측정항목이 더 높은 것으로 보아 성능이 눈에 띄게 향상된 것을 알 수 있습니다.
+삭제
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+도움이 되었나요?
+의견 보내기

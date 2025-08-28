@@ -1,0 +1,391 @@
+Source URL: https://cloud.google.com/bigquery/docs/create-bigtable-external-table
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/create-bigtable-external-table?hl=ko#before-you-begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/create-bigtable-external-table?hl=ko#roles]
+데이터 세트 만들기 또는 식별 [https://cloud.google.com/bigquery/docs/create-bigtable-external-table?hl=ko#dataset]
+(선택사항) 클러스터 지정 또는 만들기 [https://cloud.google.com/bigquery/docs/create-bigtable-external-table?hl=ko#cluster]
+앱 프로필 식별 또는 만들기 [https://cloud.google.com/bigquery/docs/create-bigtable-external-table?hl=ko#app-profile]
+Bigtable 외부 테이블 만들기
+bookmark_border
+이 페이지에서는 Bigtable에 저장된 데이터를 쿼리하는 데 사용할 수 있는 BigQuery 영구 외부 테이블을 만드는 방법을 설명합니다. Bigtable의 데이터 쿼리는 모든 Bigtable 위치 [https://cloud.google.com/bigtable/docs/locations?hl=ko]에서 사용 가능합니다.
+시작하기 전에
+외부 테이블을 만들기 전에 몇 가지 정보를 수집하고 테이블을 만들 권한이 있는지 확인합니다.
+필요한 역할
+Bigtable 데이터를 쿼리하는 데 사용할 외부 테이블을 만들려면 소스 테이블이 포함된 인스턴스의 Bigtable 관리자(roles/bigtable.admin) 역할의 주 구성원이어야 합니다.
+bigquery.tables.create BigQuery Identity and Access Management(IAM) 권한도 필요합니다.
+다음과 같이 사전 정의된 각 Identity and Access Management 역할에 이 권한이 포함되어 있습니다.
+BigQuery 데이터 편집자(roles/bigquery.dataEditor)
+BigQuery 데이터 소유자(roles/bigquery.dataOwner)
+BigQuery 관리자(roles/bigquery.admin)
+이러한 역할의 주 구성원이 아닌 경우 관리자에게 액세스 권한을 부여하거나 외부 테이블을 만들도록 요청하세요.
+BigQuery의 Identity and Access Management 역할 및 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]을 참조하세요. Bigtable 권한에 대한 자세한 내용은 Identity and Access Management를 통한 액세스 제어 [https://cloud.google.com/bigtable/docs/access-control?hl=ko]를 참조하세요.
+데이터 세트 만들기 또는 식별
+외부 테이블을 만들기 전에 외부 테이블을 포함할 데이터 세트를 만들어야 [https://cloud.google.com/bigquery/docs/datasets?hl=ko] 합니다. 기존 데이터 세트를 사용할 수도 있습니다.
+(선택사항) 클러스터 지정 또는 만들기
+프로덕션 애플리케이션에 제공되는 것과 동일한 데이터를 자주 쿼리하려는 경우 Bigtable 인스턴스의 클러스터를 BigQuery 분석에만 사용하도록 지정하는 것이 좋습니다. 이렇게 하면 애플리케이션의 읽기 및 쓰기에 사용하는 클러스터에서 트래픽이 격리됩니다. 복제 및 둘 이상의 클러스터가 있는 인스턴스 만들기에 대한 자세한 내용은 복제 정보 [https://cloud.google.com/bigtable/docs/replication-overview?hl=ko]를 참조하세요.
+앱 프로필 식별 또는 만들기
+외부 테이블을 만들기 전에 BigQuery가 데이터를 읽는 데 사용할 Bigtable 앱 프로필을 결정하세요. BigQuery에서만 사용하도록 지정한 앱 프로필을 사용하는 것이 좋습니다.
+Bigtable 인스턴스에 BigQuery 액세스 전용 클러스터가 있는 경우 해당 클러스터에 대한 단일 클러스터 라우팅을 사용하도록 앱 프로필을 구성합니다.
+Bigtable 앱 프로필의 작동 방식은 앱 프로필 정보 [https://cloud.google.com/bigtable/docs/app-profiles?hl=ko]를 참조하세요. 새 앱 프로필을 만드는 방법은 앱 프로필 만들기 및 구성 [https://cloud.google.com/bigtable/docs/configuring-app-profiles?hl=ko]을 참조하세요.
+Bigtable URI 검색
+Bigtable 데이터 소스의 외부 테이블을 만들려면 Bigtable URI를 제공해야 합니다. Bigtable URI를 검색하려면 다음을 수행합니다.
+콘솔에서 Bigtable 페이지를 엽니다.
+Bigtable로 이동 [https://console.cloud.google.com/bigtable?hl=ko]
+Bigtable 데이터 소스에 대한 다음 세부정보를 검색합니다.
+프로젝트 ID
+Bigtable 인스턴스 ID
+사용할 Bigtable 앱 프로필의 ID
+Bigtable 테이블의 이름
+다음 형식으로 Bigtable URI를 작성합니다. 각 항목의 의미는 다음과 같습니다.
+project_id: Bigtable 인스턴스가 들어 있는 프로젝트
+instance_id: Bigtable 인스턴스 ID
+(선택사항) app_profile: 사용할 앱 프로필 ID
+table_name: 쿼리중인 테이블의 이름
+https://googleapis.com/bigtable/projects/project_id/instances/instance_id[/appProfiles/app_profile]/tables/table_name
+참고: 정확하게 하나의 Bigtable URI를 지정할 수 있으며 이는 Bigtable 테이블에 대해 완전하게 지정된 유효한 HTTPS URL이어야 합니다. Bigtable 외부 데이터 소스에는 와일드 카드가 지원되지 않습니다.
+영구 외부 테이블 만들기
+BigQuery에 Bigtable 데이터 소스에 연결된 영구 외부 테이블을 만들 때 두 가지 방법으로 외부 테이블의 형식을 지정할 수 있습니다.
+API 또는 bq 명령줄 도구를 사용하는 경우 외부 테이블에 대해 스키마 및 메타데이터를 정의하는 테이블 정의 파일 [https://cloud.google.com/bigquery/docs/external-table-definition?hl=ko]을 만듭니다.
+SQL을 사용하는 경우 CREATE EXTERNAL TABLE 문의 uri 옵션을 사용하여 데이터를 가져올 Bigtable 테이블을 지정하고 bigtable_options 옵션을 사용하여 테이블 스키마를 지정합니다.
+외부 테이블 데이터는 BigQuery 테이블에 저장되지 않습니다. 테이블은 영구적이므로 데이터 세트 수준의 액세스 제어 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 사용하여 기본 Bigtable 데이터 소스에 대한 액세스 권한도 있는 다른 사용자와 테이블을 공유할 수 있습니다.
+영구 테이블을 만들려면 다음 방법 중 하나를 선택합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/create-bigtable-external-table?hl=ko#sql] ---
+CREATE EXTERNAL TABLE DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_external_table_statement]을 실행하여 영구 외부 테이블을 만들 수 있습니다.
+문 옵션의 일부로 테이블 스키마를 명시적으로 지정해야 합니다.
+
+
+
+
+
+
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE EXTERNAL TABLE DATASET.NEW_TABLE
+OPTIONS (
+  format = 'CLOUD_BIGTABLE',
+  uris = ['URI'],
+  bigtable_options = BIGTABLE_OPTIONS );
+
+
+다음을 바꿉니다.
+
+  DATASET: Bigtable 외부 테이블을 만들 데이터 세트입니다.
+  NEW_TABLE: Bigtable 외부 테이블의 이름입니다.
+  URI: 데이터 소스로 사용할 Bigtable 테이블의 URI입니다. 이 URI는 Bigtable URI 검색 [https://cloud.google.com/bigquery/docs/create-bigtable-external-table?hl=ko#bigtable-uri]에 설명된 형식을 따라야 합니다.
+  BIGTABLE_OPTIONS: JSON 형식의 Bigtable 테이블 스키마입니다. Bigtable 테이블 정의 옵션의 목록은 REST API 참조에서 BigtableOptions [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#bigtableoptions]를 참조하세요.
+
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+외부 Bigtable 테이블을 만드는 문은 다음과 비슷할 수 있습니다.
+CREATE EXTERNAL TABLE mydataset.BigtableTable
+OPTIONS (
+  format = 'CLOUD_BIGTABLE',
+  uris = ['https://googleapis.com/bigtable/projects/myproject/instances/myBigtableInstance/tables/table1'],
+  bigtable_options =
+    """
+    {
+      columnFamilies: [
+        {
+          "familyId": "familyId1",
+          "type": "INTEGER",
+          "encoding": "BINARY"
+        }
+      ],
+      readRowkeyAsString: true
+    }
+    """
+);
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/create-bigtable-external-table?hl=ko#bq] ---
+bq 명령줄 도구에서 bq mk 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mk]를 사용하여 테이블을 만듭니다. bq 명령줄 도구를 사용하여 외부 데이터 소스에 연결된 테이블을 만들 때는 테이블 정의 파일 [https://cloud.google.com/bigquery/docs/external-table-definition?hl=ko#tabledef-bigtable]을 사용하여 테이블 스키마를 식별합니다.
+
+
+bq mk 명령어를 사용하여 영구 테이블을 만듭니다.
+
+bq mk \
+--external_table_definition=DEFINITION_FILE \
+DATASET.TABLE
+
+다음을 바꿉니다.
+
+
+DEFINITION_FILE: 로컬 머신에 있는 테이블 정의 파일 [https://cloud.google.com/bigquery/docs/external-table-definition?hl=ko#tabledef-bigtable]의 경로입니다.
+DATASET: 테이블이 포함된 데이터 세트의 이름입니다.
+TABLE: 생성할 테이블의 이름입니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/create-bigtable-external-table?hl=ko#api] ---
+tables.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/insert?hl=ko] API 메서드를 사용하여, 전달한 Table 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#Table]에 ExternalDataConfiguration [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#externaldataconfiguration]을 생성합니다.
+
+Table 리소스의 sourceUris 속성으로 Bigtable URI [https://cloud.google.com/bigquery/docs/create-bigtable-external-table?hl=ko#bigtable-uri]를 하나만 지정합니다. 유효한 HTTPS URL이어야 합니다.
+
+sourceFormat 속성에 "BIGTABLE"을 지정합니다.
+
+--- 탭: Java [https://cloud.google.com/bigquery/docs/create-bigtable-external-table?hl=ko#java] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.BigtableColumn;
+import com.google.cloud.bigquery.BigtableColumnFamily;
+import com.google.cloud.bigquery.BigtableOptions;
+import com.google.cloud.bigquery.ExternalTableDefinition;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.TableResult;
+import com.google.common.collect.ImmutableList;
+import org.apache.commons.codec.binary.Base64;
+
+// Sample to queries an external bigtable data source using a permanent table
+public class QueryExternalBigtablePerm {
+
+  public static void main(String[] args) {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String bigtableInstanceId = "MY_INSTANCE_ID";
+    String bigtableTableName = "MY_BIGTABLE_NAME";
+    String bigqueryDatasetName = "MY_DATASET_NAME";
+    String bigqueryTableName = "MY_TABLE_NAME";
+    String sourceUri =
+        String.format(
+            "https://googleapis.com/bigtable/projects/%s/instances/%s/tables/%s",
+            projectId, bigtableInstanceId, bigtableTableName);
+    String query = String.format("SELECT * FROM %s ", bigqueryTableName);
+    queryExternalBigtablePerm(bigqueryDatasetName, bigqueryTableName, sourceUri, query);
+  }
+
+  public static void queryExternalBigtablePerm(
+      String datasetName, String tableName, String sourceUri, String query) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      BigtableColumnFamily.Builder statsSummary = BigtableColumnFamily.newBuilder();
+
+      // Configuring Columns
+      BigtableColumn connectedCell =
+          BigtableColumn.newBuilder()
+              .setQualifierEncoded(Base64.encodeBase64String("connected_cell".getBytes()))
+              .setFieldName("connected_cell")
+              .setType("STRING")
+              .setEncoding("TEXT")
+              .build();
+      BigtableColumn connectedWifi =
+          BigtableColumn.newBuilder()
+              .setQualifierEncoded(Base64.encodeBase64String("connected_wifi".getBytes()))
+              .setFieldName("connected_wifi")
+              .setType("STRING")
+              .setEncoding("TEXT")
+              .build();
+      BigtableColumn osBuild =
+          BigtableColumn.newBuilder()
+              .setQualifierEncoded(Base64.encodeBase64String("os_build".getBytes()))
+              .setFieldName("os_build")
+              .setType("STRING")
+              .setEncoding("TEXT")
+              .build();
+
+      // Configuring column family and columns
+      statsSummary
+          .setColumns(ImmutableList.of(connectedCell, connectedWifi, osBuild))
+          .setFamilyID("stats_summary")
+          .setOnlyReadLatest(true)
+          .setEncoding("TEXT")
+          .setType("STRING")
+          .build();
+
+      // Configuring BigtableOptions is optional.
+      BigtableOptions options =
+          BigtableOptions.newBuilder()
+              .setIgnoreUnspecifiedColumnFamilies(true)
+              .setReadRowkeyAsString(true)
+              .setColumnFamilies(ImmutableList.of(statsSummary.build()))
+              .build();
+
+      TableId tableId = TableId.of(datasetName, tableName);
+      // Create a permanent table linked to the Bigtable table
+      ExternalTableDefinition externalTable =
+          ExternalTableDefinition.newBuilder(sourceUri, options).build();
+      bigquery.create(TableInfo.of(tableId, externalTable));
+
+      // Example query
+      TableResult results = bigquery.query(QueryJobConfiguration.of(query));
+
+      results
+          .iterateAll()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s,", val.toString())));
+
+      System.out.println("Query on external permanent table performed successfully.");
+    } catch (BigQueryException | InterruptedException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+외부 테이블 쿼리
+자세한 내용은 Bigtable 데이터 쿼리 [https://cloud.google.com/bigquery/docs/external-data-bigtable?hl=ko]를 참조하세요.
+생성된 스키마
+기본적으로 BigQuery는 column family의 값을 열 배열과 그 안의 다른 타임스탬프에 작성된 값 배열로 노출합니다. 이 스키마는 Bigtable에서 데이터의 기본 레이아웃을 보존하지만 SQL 쿼리는 어려울 수 있습니다. 상위 column family 내의 하위 필드로 열을 승격하고 각 셀에서 최신 값만 읽을 수 있습니다. 이는 기본 스키마의 두 배열을 모두 스칼라 값으로 나타낼 수 있습니다.
+예시
+가상의 소셜 네트워크를 위한 사용자 프로필을 저장하고 있습니다. 이를 위한 한 가지 데이터 모델로 gender, age, email에 대한 개별 열이 있는 profile column family가 있습니다.
+rowkey | profile:gender| profile:age| profile:email
+-------| --------------| -----------| -------------
+alice  | female        | 30         | alice@gmail.com
+다음은 기본 스키마를 사용하여 30세가 넘는 남성 사용자 수를 계산하는 GoogleSQL 쿼리입니다.
+SELECT
+  COUNT(1)
+FROM
+  `
+dataset.table`
+OMIT
+  RECORD IF NOT SOME(profile.column.name = "gender"
+    AND profile.column.cell.value = "male")
+  OR NOT SOME(profile.column.name = "age"
+    AND INTEGER(profile.column.cell.value) > 30)
+gender와 age가 하위 필터로 노출되는 경우 데이터 쿼리가 더 쉬워집니다. 이들을 하위 필드로 노출하려면 테이블을 정의할 때 profile column family에 gender와 age를 명명된 열로 나열합니다. 대개 최신 값과 유일한 값에만 관심이 있으므로 이 column family부터 최신 값을 노출하도록 BigQuery에 지시할 수도 있습니다.
+다음은 열을 하위 필드로 노출한 후 30세가 넘는 남성 사용자 수를 계산하는 GoogleSQL 쿼리입니다.
+SELECT
+  COUNT(1)
+FROM
+  `
+dataset.table`
+WHERE
+  profile.gender.cell.value="male"
+  AND profile.age.cell.value > 30
+gender와 age가 어떻게 필드로 직접 참조되는지 확인하세요. 이 설정의 JSON 구성은 다음과 같습니다.
+  "bigtableOptions": {
+    "readRowkeyAsString": "true",
+    "columnFamilies": [
+      {
+          "familyId": "profile",
+          "onlyReadLatest": "true",
+          "columns": [
+              {
+                  "qualifierString": "gender",
+                  "type": "STRING"
+              },
+              {
+                  "qualifierString": "age",
+                  "type": "INTEGER"
+              }
+          ]
+      }
+    ]
+  }
+값 인코딩
+Bigtable은 데이터를 데이터 인코딩에 관계없이 원시 바이트로 저장합니다. 그러나 바이트 값은 SQL 쿼리 분석에서 제한적으로 사용됩니다. Bigtable은 텍스트와 HBase-바이너리라는 두 가지 기본 유형의 스칼라 디코딩을 제공합니다.
+텍스트 형식은 모든 값이 영숫자 텍스트 문자열로 저장된다고 가정합니다. 예를 들어 정수 768은 문자열 '768'로 저장됩니다. 바이너리 인코딩은 데이터를 인코딩하는 데 메서드의 HBase Bytes.toBytes [https://hbase.apache.org/devapidocs/org/apache/hadoop/hbase/util/Bytes.html] 클래스가 사용되었다고 가정하고 적절한 디코딩 메서드를 적용합니다.
+지원되는 리전 및 영역
+지원되는 모든 Bigtable 영역에서 Bigtable의 데이터를 쿼리할 수 있습니다. 여기 [https://cloud.google.com/bigtable/docs/locations?hl=ko]에서 영역 목록을 찾을 수 있습니다. 멀티 클러스터 인스턴스의 경우 BigQuery는 Cloud Bigtable 앱 프로필 [https://cloud.google.com/bigtable/docs/app-profiles?hl=ko] 설정을 기반으로 트래픽을 라우팅합니다.
+제한사항
+외부 테이블에 적용되는 제한사항에 대한 자세한 내용은 외부 테이블 제한사항 [https://cloud.google.com/bigquery/docs/external-tables?hl=ko#limitations]을 참조하세요.
+Compute Engine 인스턴스의 범위
+Compute Engine 인스턴스를 만들 때 인스턴스의 범위 목록을 지정할 수 있습니다. 범위는 Bigtable을 포함하여 Google Cloud제품에 대한 인스턴스의 액세스를 제어합니다. VM에서 실행되는 애플리케이션은 서비스 계정을 사용하여 Google Cloud API를 호출합니다.
+서비스 계정 [https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances?hl=ko]으로 실행되도록 Compute Engine 인스턴스를 설정하고 서비스 계정이 Bigtable 데이터 소스에 연결된 외부 테이블에 액세스하는 경우 인스턴스에 Bigtable 읽기 전용 데이터 액세스 범위(https://www.googleapis.com/auth/bigtable.data.readonly)를 추가해야 합니다. 자세한 내용은 Bigtable용 Compute Engine 인스턴스 만들기 [https://cloud.google.com/bigtable/docs/creating-compute-instance?hl=ko]를 참조하세요.
+Compute Engine 인스턴스에 범위를 적용하는 방법은 인스턴스의 서비스 계정 및 액세스 범위 변경 [https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances?hl=ko#changeserviceaccountandscopes]을 참조하세요. Compute Engine 서비스 계정에 대한 자세한 내용은 서비스 계정 [https://cloud.google.com/compute/docs/access/service-accounts?hl=ko]을 참조하세요.
+다음 단계
+Bigtable 스키마 디자인 자세히 알아보기 [https://cloud.google.com/bigtable/docs/schema-design?hl=ko]
+외부 데이터 소스 소개 검토하기 [https://cloud.google.com/bigquery/docs/external-data-sources?hl=ko]
+도움이 되었나요?
+의견 보내기

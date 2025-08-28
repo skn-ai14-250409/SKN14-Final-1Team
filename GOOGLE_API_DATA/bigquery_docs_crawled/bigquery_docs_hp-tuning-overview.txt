@@ -1,0 +1,698 @@
+Source URL: https://cloud.google.com/bigquery/docs/hp-tuning-overview
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+위치 [https://cloud.google.com/bigquery/docs/hp-tuning-overview?hl=ko#locations]
+초매개변수 설정 [https://cloud.google.com/bigquery/docs/hp-tuning-overview?hl=ko#set_hyperparameters]
+초매개변수 및 목표 [https://cloud.google.com/bigquery/docs/hp-tuning-overview?hl=ko#hyperparameters_and_objectives]
+검색 시작점 [https://cloud.google.com/bigquery/docs/hp-tuning-overview?hl=ko#search_starting_point]
+데이터 분할 [https://cloud.google.com/bigquery/docs/hp-tuning-overview?hl=ko#data_split]
+초매개변수 조정 개요
+bookmark_border
+머신러닝에서 초매개변수를 조정하면 학습 알고리즘에 대한 최적의 초매개변수를 찾을 수 있습니다. 초매개변수는 모델 인수이며, 해당 모델 인수 값은 학습 과정이 시작되기 전에 설정됩니다. 이와 달리, 선형 모델 계수와 같은 기타 매개변수 값은 학습됩니다.
+초매개변수 조정을 통해 초매개변수를 수동으로 반복하는 시간은 단축되고 데이터로부터 유용한 정보를 확보하는 데 집중하는 시간을 늘릴 수 있습니다.
+다음 모델 유형에 초매개변수 조정 옵션을 지정할 수 있습니다.
+선형 및 로지스틱 회귀 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-glm?hl=ko]
+k-평균 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-kmeans?hl=ko]
+행렬 분해 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-matrix-factorization?hl=ko]
+Autoencoder [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-autoencoder?hl=ko]
+부스티드 트리 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko]
+랜덤 포레스트 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-random-forest?hl=ko]
+심층신경망(DNN) [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-dnn-models?hl=ko]
+와이드 앤 딥 네트워크 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-wnd-models?hl=ko]
+이러한 모델 유형의 경우 CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko]의 NUM_TRIALS 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko#num_trials] 값을 지정할 때 초매개변수 조정이 사용 설정됩니다.
+선형 회귀 모델에서 초매개변수 조정을 실행하려면 BigQuery ML 초매개변수 조정을 사용하여 모델 성능 향상 [https://cloud.google.com/bigquery/docs/hyperparameter-tuning-tutorial?hl=ko]을 참고하세요.
+다음 모델도 초매개변수 조정을 지원하지만 특정 값을 지정할 수 없습니다.
+AutoML Tables 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-automl?hl=ko]에는 기본적으로 모델 학습에 자동 초매개변수 조정이 삽입되어 있습니다.
+ARIMA_PLUS 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko]을 사용하면 auto.ARIMA 알고리즘을 사용하여 초매개변수 조정을 수행하도록 AUTO_ARIMA 인수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#auto_arima]를 설정할 수 있습니다. 이 알고리즘은 트렌드 모듈에 초매개변수 조정을 수행합니다. 전체 모델링 파이프라인 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#modeling-pipeline]에서는 초매개변수 조정이 지원되지 않습니다.
+각 모델 유형에 지원되는 SQL 문과 함수에 대한 자세한 내용은 각 모델의 엔드 투 엔드 사용자 경험 [https://cloud.google.com/bigquery/docs/e2e-journey?hl=ko]을 참조하세요.
+위치
+초매개변수 조정을 지원하는 위치에 대한 자세한 내용은 BigQuery ML 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko#bqml-loc]를 참조하세요.
+초매개변수 설정
+초매개변수를 조정하려면 모델이 일련의 시도에 사용할 수 있는 초매개변수의 값 범위를 지정해야 합니다. 단일 값을 제공하는 대신 CREATE MODEL 문에서 초매개변수를 설정할 때 다음 키워드 중 하나를 사용하여 이 작업을 수행할 수 있습니다.
+HPARAM_RANGE: 초매개변수 연속 값 검색 공간의 최소 및 최대 경계를 정의하는 2요소 ARRAY(FLOAT64) 값입니다. 초매개변수 값 범위를 지정하려면 이 옵션을 사용합니다(예: LEARN_RATE = HPARAM_RANGE(0.0001, 1.0)).
+HPARAM_CANDIDATES: 초매개변수 개별 값 집합을 지정하는 ARRAY(STRUCT) 값입니다. 초매개변수 값 집합을 지정하려면 이 옵션을 사용합니다(예: OPTIMIZER = HPARAM_CANDIDATES(['ADAGRAD', 'SGD', 'FTRL'])).
+초매개변수 및 목표
+다음 표에서는 초매개변수 조정을 지원하는 각 모델 유형에 지원되는 초매개변수와 목표가 나와 있습니다.
+모델 유형 초매개변수 목표 초매개변수 유효 범위 기본 범위 배율 유형
+LINEAR_REG MEAN_ABSOLUTE_ERROR
+
+MEAN_SQUARED_ERROR
+
+MEAN_SQUARED_LOG_ERROR
+
+MEDIAN_ABSOLUTE_ERROR
+
+R2_SCORE(기본값)
+
+EXPLAINED_VARIANCE L1_REG
+
+L2_REG (0, ∞]
+
+(0, ∞] (0, 10]
+
+(0, 10] LOG
+
+LOG
+LOGISTIC_REG PRECISION
+
+RECALL
+
+ACCURACY
+
+F1_SCORE
+
+LOG_LOSS
+
+ROC_AUC(기본값) L1_REG
+
+L2_REG (0, ∞]
+
+(0, ∞] (0, 10]
+
+(0, 10] LOG
+
+LOG
+KMEANS DAVIES_BOULDIN_INDEX NUM_CLUSTERS [2, 100] [2, 10] LINEAR
+MATRIX_
+FACTORIZATION(명시적) MEAN_SQUARED_ERROR NUM_FACTORS
+
+L2_REG [2, 200]
+
+(0, ∞) [2, 20]
+
+(0, 10] LINEAR
+
+LOG
+MATRIX_
+FACTORIZATION(암시적) MEAN_AVERAGE_PRECISION(기본값)
+
+MEAN_SQUARED_ERROR
+
+NORMALIZED_DISCOUNTED_CUMULATIVE_GAIN
+
+AVERAGE_RANK NUM_FACTORS
+
+L2_REG
+
+WALS_ALPHA [2, 200]
+
+(0, ∞)
+
+[0, ∞) [2, 20]
+
+(0, 10]
+
+[0, 100] LINEAR
+
+LOG
+
+LINEAR
+AUTOENCODER MEAN_ABSOLUTE_ERROR
+
+MEAN_SQUARED_ERROR(기본값)
+
+MEAN_SQUARED_LOG_ERROR LEARN_RATE
+
+BATCH_SIZE
+
+L1_REG
+
+L2_REG
+
+L1_REG_ACTIVATION
+
+DROPOUT
+
+HIDDEN_UNITS
+
+
+OPTIMIZER
+
+
+
+ACTIVATION_FN [0, 1]
+
+(0, ∞)
+
+(0, ∞)
+
+(0, ∞)
+
+(0, ∞)
+
+
+[0, 1)
+
+[1, ∞) 배열
+
+{ADAM, ADAGRAD, FTRL, RMSPROP, SGD}
+
+{RELU, RELU6, CRELU, ELU, SELU, SIGMOID, TANH} [0, 1]
+
+[16, 1024]
+
+(0, 10]
+
+(0, 10]
+
+(0, 10]
+
+
+[0, 0.8]
+
+해당 사항 없음
+
+{ADAM, ADAGRAD, FTRL, RMSPROP, SGD}
+
+해당 사항 없음 LOG
+
+LOG
+
+LOG
+
+LOG
+
+LOG
+
+
+LINEAR
+
+해당 사항 없음
+
+해당 사항 없음
+
+
+
+해당 사항 없음
+DNN_CLASSIFIER PRECISION
+
+RECALL
+
+ACCURACY
+
+F1_SCORE
+
+LOG_LOSS
+
+ROC_AUC(기본값) BATCH_SIZE
+
+DROPOUT
+
+HIDDEN_UNITS
+
+LEARN_RATE
+
+OPTIMIZER
+
+
+
+L1_REG
+
+L2_REG
+
+ACTIVATION_FN (0, ∞)
+
+[0, 1)
+
+[1, ∞) 배열
+
+[0, 1]
+
+{ADAM, ADAGRAD, FTRL, RMSPROP, SGD}
+
+(0, ∞)
+
+(0, ∞)
+
+{RELU, RELU6, CRELU, ELU, SELU, SIGMOID, TANH} [16, 1024]
+
+[0, 0.8]
+
+해당 사항 없음
+
+[0, 1]
+
+{ADAM, ADAGRAD, FTRL, RMSPROP, SGD}
+
+(0, 10]
+
+(0, 10]
+
+해당 사항 없음 LOG
+
+LINEAR
+
+해당 사항 없음
+
+LINEAR
+
+해당 사항 없음
+
+
+
+LOG
+
+LOG
+
+해당 사항 없음
+DNN_REGRESSOR MEAN_ABSOLUTE_ERROR
+
+MEAN_SQUARED_ERROR
+
+MEAN_SQUARED_LOG_ERROR
+
+MEDIAN_ABSOLUTE_ERROR
+
+R2_SCORE(기본값)
+
+EXPLAINED_VARIANCE
+DNN_LINEAR_
+COMBINED_
+CLASSIFIER PRECISION
+
+RECALL
+
+ACCURACY
+
+F1_SCORE
+
+LOG_LOSS
+
+ROC_AUC(기본값) BATCH_SIZE
+
+DROPOUT
+
+HIDDEN_UNITS
+
+L1_REG
+
+L2_REG
+
+ACTIVATION_FN (0, ∞)
+
+[0, 1)
+
+[1, ∞) 배열
+
+(0, ∞)
+
+(0, ∞)
+
+{RELU, RELU6, CRELU, ELU, SELU, SIGMOID, TANH} [16, 1024]
+
+[0, 0.8]
+
+해당 사항 없음
+
+(0, 10]
+
+(0, 10]
+
+해당 사항 없음 LOG
+
+LINEAR
+
+해당 사항 없음
+
+LOG
+
+LOG
+
+해당 사항 없음
+DNN_LINEAR_
+COMBINED_
+REGRESSOR MEAN_ABSOLUTE_ERROR
+
+MEAN_SQUARED_ERROR
+
+MEAN_SQUARED_LOG_ERROR
+
+MEDIAN_ABSOLUTE_ERROR
+
+R2_SCORE(기본값)
+
+EXPLAINED_VARIANCE
+BOOSTED_TREE_
+CLASSIFIER PRECISION
+
+RECALL
+
+ACCURACY
+
+F1_SCORE
+
+LOG_LOSS
+
+ROC_AUC(기본값) LEARN_RATE
+
+L1_REG
+
+L2_REG
+
+DROPOUT
+
+MAX_TREE_DEPTHMAX_TREE_DEPTH
+
+SUBSAMPLE
+
+MIN_SPLIT_LOSS
+
+NUM_PARALLEL_TREE
+
+MIN_TREE_CHILD_WEIGHT
+
+COLSAMPLE_BYTREE
+
+COLSAMPLE_BYLEVEL
+
+COLSAMPLE_BYNODE
+
+BOOSTER_TYPE
+
+DART_NORMALIZE_TYPE
+
+TREE_METHOD [0, ∞)
+
+(0, ∞)
+
+(0, ∞)
+
+[0, 1]
+
+[1, 20]
+
+
+
+(0, 1]
+
+[0, ∞)
+
+[1, ∞)
+
+
+[0, ∞)
+
+
+[0, 1]
+
+
+[0, 1]
+
+
+[0, 1]
+
+
+{GBTREE, DART}
+
+{TREE, FOREST}
+
+{AUTO, EXACT, APPROX, HIST} [0, 1]
+
+(0, 10]
+
+(0, 10]
+
+해당 사항 없음
+
+[1, 10]
+
+
+
+(0, 1]
+
+해당 사항 없음
+
+해당 사항 없음
+
+
+해당 사항 없음
+
+
+해당 사항 없음
+
+
+해당 사항 없음
+
+
+해당 사항 없음
+
+
+해당 사항 없음
+
+해당 사항 없음
+
+해당 사항 없음 LINEAR
+
+LOG
+
+LOG
+
+LINEAR
+
+LINEAR
+
+
+
+LINEAR
+
+LINEAR
+
+LINEAR
+
+
+LINEAR
+
+
+LINEAR
+
+
+LINEAR
+
+
+LINEAR
+
+
+해당 사항 없음
+
+해당 사항 없음
+
+해당 사항 없음
+BOOSTED_TREE_
+REGRESSOR
+
+
+
+
+
+MEAN_ABSOLUTE_ERROR
+
+MEAN_SQUARED_ERROR
+
+MEAN_SQUARED_LOG_ERROR
+
+MEDIAN_ABSOLUTE_ERROR
+
+R2_SCORE(기본값)
+
+EXPLAINED_VARIANCE
+RANDOM_FOREST_
+CLASSIFIER PRECISION
+
+RECALL
+
+ACCURACY
+
+F1_SCORE
+
+LOG_LOSS
+
+ROC_AUC(기본값) L1_REG
+
+L2_REG
+
+MAX_TREE_DEPTH
+
+SUBSAMPLE
+
+MIN_SPLIT_LOSS
+
+NUM_PARALLEL_TREE
+
+MIN_TREE_CHILD_WEIGHT
+
+COLSAMPLE_BYTREE
+
+COLSAMPLE_BYLEVEL
+
+COLSAMPLE_BYNODE
+
+TREE_METHOD (0, ∞)
+
+(0, ∞)
+
+[1, 20]
+
+(0, 1)
+
+[0, ∞)
+
+[2, ∞)
+
+
+[0, ∞)
+
+
+[0, 1]
+
+
+[0, 1]
+
+
+[0, 1]
+
+{AUTO, EXACT, APPROX, HIST} (0, 10]
+
+(0, 10]
+
+[1, 20]
+
+(0, 1)
+
+해당 사항 없음
+
+[2, 200]
+
+
+해당 사항 없음
+
+
+해당 사항 없음
+
+
+해당 사항 없음
+
+
+해당 사항 없음
+
+
+해당 사항 없음 LOG
+
+LOG
+
+LINEAR
+
+LINEAR
+
+LINEAR
+
+LINEAR
+
+
+LINEAR
+
+
+LINEAR
+
+
+LINEAR
+
+
+LINEAR
+
+
+해당 사항 없음
+RANDOM_FOREST_
+REGRESSOR
+
+
+
+
+
+MEAN_ABSOLUTE_ERROR
+
+MEAN_SQUARED_ERROR
+
+MEAN_SQUARED_LOG_ERROR
+
+MEDIAN_ABSOLUTE_ERROR
+
+R2_SCORE(기본값)
+
+EXPLAINED_VARIANCE
+대부분의 LOG 확장 초매개변수에서는 0의 개방형 하한 경계를 사용합니다. 여전히 HPARAM_RANGE 키워드를 사용하여 초매개변수 범위를 설정해 0을 하한 경계로 설정할 수 있습니다. 예를 들어 부스티드 트리 분류 모델에서 L1_REG 초매개변수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko#L1_REG] 범위를 L1_REG = HPARAM_RANGE(0, 5)로 설정할 수 있습니다. 0 값은 1e-14로 변환됩니다.
+조건부 초매개변수가 지원됩니다. 예를 들어 부스티드 트리 회귀 모델에서는 BOOSTER_TYPE 초매개변수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko#booster_type] 값이DART일 때만 DART_NORMALIZE_TYPE 초매개변수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko#dart_normalize_type] 값을 조정할 수 있습니다. 이 경우 다음 예시와 같이 두 검색 공간을 지정하면 조건이 자동으로 처리됩니다.
+BOOSTER_TYPE = HPARAM_CANDIDATES(['DART', 'GBTREE'])
+DART_NORMALIZE_TYPE = HPARAM_CANDIDATES(['TREE', 'FOREST'])
+검색 시작점
+HPARAM_RANGE 또는 HPARAM_CANDIDATES를 사용하여 초매개변수 검색 공간을 지정하지 않으면 해당 모델 유형의 CREATE MODEL 주제에 설명된 대로 검색이 해당 초매개변수의 기본값부터 시작합니다. 예를 들어 부스티드 트리 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko]에 초매개변수 조정을 실행하지만 L1_REG 초매개변수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-boosted-tree?hl=ko#l1_reg] 값을 지정하지 않으면 검색은 기본값인 0에서 시작합니다.
+HPARAM_RANGE 또는 HPARAM_CANDIDATES를 사용하여 초매개변수 검색 공간을 지정하면 해당 모델 유형의 CREATE MODEL 주제에 설명된 대로 검색 시작점은 지정된 검색 공간에 해당 초매개변수 기본값이 포함되어 있는지 여부에 따라 달라집니다.
+지정된 범위에 기본값이 포함되어 있으면 여기에서 검색이 시작합니다. 예를 들어 암시적 행렬 분해 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-matrix-factorization?hl=ko]에 초매개변수 조정을 실행하고 WALS_ALPHA 초매개변수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-matrix-factorization?hl=ko#wals_alpha]에 [20, 30, 40, 50] 값을 지정하면 검색은 기본값인 이40에서 시작합니다.
+지정된 범위에 기본값이 없으면 검색은 기본값에서 가장 가까운 지정된 범위의 지점에서 시작합니다. 예를 들어 WALS_ALPHA 초매개변수에 [10, 20, 30] 값을 지정하면 검색은 40 기본값에서 가장 가까운 값인 30에서 시작합니다.
+데이터 분할
+NUM_TRIALS 옵션의 값을 지정하면 서비스에서 초매개변수 조정 수행을 식별하고 입력 데이터에서 자동으로 3방향 분할을 수행하여 학습, 평가, 테스트 세트로 나눕니다. 기본적으로 입력 데이터에 무작위로 순서가 지정된 후 학습에 80%, 평가에 10%, 테스트에 10%로 분할됩니다.
+학습 및 평가 세트는 초매개변수 조정을 사용하지 않는 모델에서와 같이 각 시도 학습에서 사용됩니다. 시도 초매개변수 추천은 해당 모델 유형의 모델 평가 측정항목 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko#output]을 기준으로 계산됩니다. 각 시도 학습이 끝날 때 테스트 세트를 사용하여 시도를 테스트하고 모델에 측정항목을 기록합니다. 따라서 아직 모델에서 분석하지 않은 데이터를 사용하여 최종 보고 평가 측정항목의 목표를 보장합니다. 평가 데이터는 초매개변수 추천의 중간 측정항목을 계산하는 데 사용되며 테스트 데이터는 최종 목표 모델 측정항목을 계산하는 데 사용됩니다.
+학습 세트만 사용하려면 CREATE MODEL 문의 DATA_SPLIT_METHOD 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko#data_split_method]에 NO_SPLIT을 지정합니다.
+학습 세트와 평가 세트만 사용하려면 CREATE MODEL 문의 DATA_SPLIT_TEST_FRACTION 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko#data_split_test_fraction]에 0을 지정합니다. 테스트 세트가 비어 있으면 평가 세트가 최종 평가 측정항목 보고의 테스트 세트로 사용됩니다.
+데이터 분할 비율이 동일할 때만 일반 학습 작업에서 생성된 모델의 측정항목과 초매개변수 조정 학습 작업의 측정항목을 비교할 수 있습니다. 예를 들어 다음 모델을 비교할 수 있습니다.
+초매개변수 조정 아님: DATA_SPLIT_METHOD='RANDOM', DATA_SPLIT_EVAL_FRACTION=0.2
+초매개변수 조정: DATA_SPLIT_METHOD='RANDOM', DATA_SPLIT_EVAL_FRACTION=0.2, DATA_SPLIT_TEST_FRACTION=0
+성능
+초매개변수 조정을 사용할 때 모델 성능은 일반적으로 초매개변수 조정을 사용하지 않고 기본 검색 공간을 사용할 때의 모델 성능보다 나쁘지 않습니다. 기본 검색 공간을 사용하지만 초매개변수 조정을 사용하지 않는 모델은 항상 첫 번째 시도에서 기본 초매개변수를 사용합니다.
+초매개변수 조정을 통해 제공되는 모델 성능 개선 사항을 확인하려면 초매개변수 조정 모델의 최적 시도를 초매개변수 조정 아님 모델의 첫 번째 시도와 비교합니다.
+전이 학습
+CREATE MODEL 문의 HPARAM_TUNING_ALGORITHM 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko#hparam_tuning_algorithm]을 VIZIER_DEFAULT로 설정하면 기본적으로 전이 학습이 사용 설정됩니다. 다음과 같은 요구사항이 충족되는 경우 모델의 초매개변수를 조정하면 이전에 조정된 모델에서 학습할 수 있습니다.
+이전에 조정된 모델과 동일한 모델 유형이 있습니다.
+이전에 조정된 모델과 동일한 프로젝트에 있습니다.
+이전에 조정된 모델의 초매개변수 검색 공간과 동일한 초매개변수 검색 공간이나 하위 집합을 사용합니다. 하위 집합은 동일한 초매개변수 이름과 유형을 사용하지만 범위가 같을 필요는 없습니다. 예를 들어 (a:[0, 10])은 (a:[-1, 1], b:[0, 1]) 하위 집합으로 간주됩니다.
+전이 학습에서는 입력 데이터가 같을 필요가 없습니다.
+전이 학습은 첫 번째 시도 배치 중에 시스템에서 무작위 탐색 분석을 수행하는 콜드 스타트 문제를 해결하는 데 도움이 됩니다. 전이 학습은 초매개변수와 해당 목표에 대한 초기 지식 일부를 시스템에 제공합니다. 모델 품질을 지속적으로 향상시키려면 항상 같은 초매개변수나 초매개변수 하위 집합으로 새로운 초매개변수 조정 모델을 학습시킵니다.
+전이 학습은 하위 모델이 수렴하는 데 도움이 되는 대신 초매개변수 조정을 더 빠르게 수렴하는 데 도움이 됩니다.
+오류 처리
+초매개변수 조정은 다음과 같은 방법으로 오류를 처리합니다.
+취소: 학습 작업이 실행 중에 취소되면 성공한 모든 시도를 계속 사용할 수 있습니다.
+잘못된 입력: 사용자 입력이 잘못되면 서비스가 사용자 오류를 반환합니다.
+잘못된 초매개변수: 초매개변수가 시도에 유효하지 않으면 시도를 건너뛰고 ML.TRIAL_INFO 함수의 출력에 INFEASIBLE로 표시합니다.
+시도 내부 오류: INTERNAL_ERROR로 인해 NUM_TRIALS 값의 10% 넘게 실패하면 학습 작업이 중지되고 사용자 오류를 반환합니다.
+INTERNAL_ERROR로 인해 NUM_TRIALS 값의 10% 미만이 실패하면 학습이 ML.TRIAL_INFO 함수의 출력에서 FAILED로 표시된 실패한 시도를 계속합니다.
+모델 서빙 함수
+초매개변수 조정의 출력 모델을 기존의 여러 모델 서빙 함수와 함께 사용할 수 있습니다. 이러한 함수를 사용하려면 다음 규칙을 따르세요.
+함수에서 입력 데이터를 가져오면 시도 하나의 결과만 반환됩니다. 기본적으로 이는 최적의 시도이지만 지정된 함수의 인수로 TRIAL_ID를 지정하여 특정 시도를 선택할 수도 있습니다. ML.TRIAL_INFO 함수의 출력에서 TRIAL_ID를 가져올 수 있습니다. 지원되는 함수는 다음과 같습니다.
+ML.CONFUSION_MATRIX [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-confusion?hl=ko]
+ML.EVALUATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]
+ML.PREDICT [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko]
+ML.RECOMMEND [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-recommend?hl=ko]
+ML.ROC_CURVE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-roc?hl=ko]
+함수에서 입력 데이터를 가져오지 않으면 모든 시도 결과가 반환되고 첫 번째 출력 열은 TRIAL_ID입니다. 지원되는 함수는 다음과 같습니다.
+ML.CENTROIDS [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-centroids?hl=ko]
+ML.EVALUATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-evaluate?hl=ko]
+ML.WEIGHTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-weights?hl=ko]
+모든 시도는 동일한 입력 데이터를 공유하므로 ML.FEATURE_INFO [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-feature?hl=ko]의 출력은 변경되지 않습니다.
+입력 데이터가 분할되는 방식으로 인해 ML.EVALUATE 및 ML.TRIAL_INFO의 평가 측정항목이 다를 수 있습니다. 기본적으로 ML.EVALUATE는 테스트 데이터에 대해 실행되지만 ML.TRIAL_INFO는 평가 데이터에 대해 실행됩니다. 자세한 내용은 데이터 분할 [https://cloud.google.com/bigquery/docs/hp-tuning-overview?hl=ko#data_split]을 참조하세요.
+지원되지 않는 함수
+ML.TRAINING_INFO 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-train?hl=ko]는 각 반복에 대한 정보를 반환하고 반복 결과는 초매개변수 조정 모델에 저장되지 않습니다. 대신 시도 결과가 저장됩니다. ML.TRIAL_INFO 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-trial-info?hl=ko]를 사용하여 시도 결과에 대한 정보를 가져올 수 있습니다.
+모델 내보내기
+EXPORT MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-export-model?hl=ko]을 사용하여 초매개변수 조정으로 만든 모델을 Cloud Storage 위치로 내보낼 수 있습니다. 기본 최적 시도나 지정된 시도를 내보낼 수 있습니다.
+가격 책정
+초매개변수 조정 학습 비용은 실행된 모든 시도 비용의 합계입니다. 무료 체험판 가격 책정은 기존 BigQuery ML 가격 책정 모델 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]과 일치합니다.
+FAQ
+이 섹션에서는 하이퍼파라미터 조정에 관해 자주 묻는 질문에 대한 답변을 제공합니다.
+모델을 조정해야 하는 시도를 얼마나 자주 하나요?
+초매개변수 1개당 시도를 최소 10개 이상 사용하는 것이 좋으므로 총 시도 횟수는 최소 10 * num_hyperparameters 이상이어야 합니다. 기본 검색 공간을 사용하는 경우 기본적으로 지정된 모델 유형에 조정된 초매개변수 수는 초매개변수 및 목표 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-hyperparameter-tuning?hl=ko#hyperparameters_and_objectives] 표의 초매개변수 열을 참조하세요.
+초매개변수 조정을 사용하여 성능이 개선되지 않으면 어떻게 해야 하나요?
+이 문서의 안내에 따라 공정하게 비교해야 합니다. 그래도 성능이 향상되지 않으면 기본 초매개변수가 이미 잘 작동하기 때문일 수 있습니다. 초매개변수 조정을 한 번 더 시도하기 전에 특성 추출에 집중하거나 다른 모델 유형을 사용해 보는 것이 좋습니다.
+모델을 계속 미세 조정하려면 어떻게 해야 하나요?
+같은 검색 공간을 사용하여 새 초매개변수 조정 모델을 학습시킵니다. 기본 제공 전이 학습을 사용하면 이전에 미세 조정된 모델을 기반으로 계속 조정할 수 있습니다.
+모든 데이터와 최적의 초매개변수를 사용하여 모델을 다시 학습시켜야 하나요?
+다음 요소에 따라 달라집니다.
+k-평균 모델은 이미 모든 데이터를 학습 데이터로 사용하므로 모델을 다시 학습시킬 필요가 없습니다.
+행렬 분해 모델의 경우 선택한 초매개변수와 모든 입력 데이터로 모델을 다시 학습시켜 사용자와 항목의 적용 범위를 더 넓힐 수 있습니다.
+다른 모든 모델 유형의 경우 일반적으로 재학습이 필요하지 않습니다. 서비스는 이미 기본 임의 데이터 분할 중에 학습용 입력 데이터의 80%를 유지합니다. 데이터 세트가 작으면 더 많은 학습 데이터와 일부 초매개변수를 사용하여 모델을 계속 다시 학습시킬 수 있지만 조기 중단을 위한 평가 데이터가 거의 없으면 과적합이 악화될 수 있습니다.
+다음 단계
+초매개변수 조정을 실행하려면 BigQuery ML 초매개변수 조정을 사용하여 모델 성능 향상 [https://cloud.google.com/bigquery/docs/hyperparameter-tuning-tutorial?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

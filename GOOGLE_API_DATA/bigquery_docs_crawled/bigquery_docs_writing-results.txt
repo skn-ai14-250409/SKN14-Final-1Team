@@ -1,0 +1,1878 @@
+Source URL: https://cloud.google.com/bigquery/docs/writing-results
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+임시 테이블과 영구 테이블 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#temporary_and_permanent_tables]
+필수 권한 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#required_permissions]
+영구 테이블에 쿼리 결과 쓰기 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#permanent-table]
+쿼리 결과 쓰기 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#writing_query_results]
+크기가 큰 쿼리 결과 쓰기 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#large-results]
+제한사항 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#limitations]
+Legacy SQL을 사용하여 크기가 큰 결과 쓰기 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#writing_large_results_using_legacy_sql]
+Google Cloud 콘솔에서 쿼리 결과 다운로드 및 저장 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#downloading-saving-results-console]
+쿼리 결과 쓰기
+bookmark_border
+이 문서에서는 쿼리 결과를 임시 또는 영구 테이블에 쓰는 방법을 설명합니다.
+임시 테이블과 영구 테이블
+BigQuery는 모든 쿼리 결과를 영구 또는 임시 테이블에 저장합니다.
+BigQuery는 임시 테이블을 사용하여 영구 테이블에 기록되지 않는 쿼리 결과를 캐시 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko]합니다. 이 테이블은 특수 데이터 세트에 생성되고 무작위로 이름이 지정됩니다. 또한 다중 문 쿼리 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#temporary_tables]와 세션 [https://cloud.google.com/bigquery/docs/sessions-write-queries?hl=ko#use_temporary_tables_in_sessions] 내에서 고유한 용도로 임시 테이블을 만들 수도 있습니다. 임시 캐시 쿼리 결과 테이블 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko]에는 비용이 청구되지 않습니다. 캐시된 쿼리 결과가 아닌 임시 테이블에는 요금이 청구됩니다.
+쿼리가 완료된 후 최대 24시간 동안 임시 테이블이 존재합니다. 테이블 구조와 데이터를 보려면 BigQuery 콘솔 [https://console.cloud.google.com/bigquery?hl=ko]로 이동하고 개인 기록을 클릭한 후 임시 테이블을 만든 쿼리를 선택합니다. 그런 후 대상 테이블 행에서 임시 테이블을 클릭합니다.
+임시 테이블 데이터에 대한 액세스는 쿼리 작업을 만든 사용자나 서비스 계정으로 제한됩니다.
+임시 테이블은 공유할 수 없으며, 표준 목록 또는 다른 테이블 조작 방법을 사용하여 표시되지 않습니다. 쿼리 중인 테이블과 동일한 리전에 임시 테이블이 생성됩니다.
+사용자가 액세스할 수 있는 데이터 세트의 새 테이블이나 기존 테이블은 영구 테이블이 될 수 있습니다. 쿼리 결과를 새 테이블에 쓰는 경우, 데이터 저장 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]에 대한 비용이 청구됩니다. 쿼리 결과를 영구 테이블에 쓰는 경우, 쿼리하는 테이블이 대상 테이블이 포함된 데이터 세트와 같은 위치에 있어야 합니다.
+도메인 제한 조직 정책 [https://cloud.google.com/resource-manager/docs/organization-policy/restricting-domains?hl=ko]이 사용 설정된 경우 임시 테이블에 쿼리 결과를 저장할 수 없습니다. 해결 방법으로 도메인 제한 조직 정책을 일시적으로 사용 중지하고 쿼리를 실행한 다음 정책을 다시 사용 설정합니다. 또는 대상 테이블에 쿼리 결과를 저장할 수 있습니다.
+참고: 어떤 프로젝트에서 다른 프로젝트에 저장된 데이터로 데이터를 쿼리하는 경우, 쿼리하는 프로젝트에 쿼리 작업에 대한 요금이 청구되고, 데이터를 저장하는 프로젝트에는 BigQuery에 저장된 데이터 양에 대한 요금이 청구됩니다.
+필수 권한
+쿼리 결과를 테이블에 쓰려면 최소한 다음 권한이 부여되어 있어야 합니다.
+새 테이블을 만들기 위한 bigquery.tables.create 권한
+새 테이블에 데이터를 쓰거나, 테이블을 덮어쓰거나, 테이블에 데이터를 추가하기 위한 bigquery.tables.updateData 권한
+쿼리 작업을 실행하기 위한 bigquery.jobs.create 권한
+쿼리할 데이터에 액세스하려면 bigquery.tables.getData와 같은 추가 권한이 필요할 수 있습니다.
+다음과 같은 사전 정의된 IAM 역할에는 bigquery.tables.create 권한과 bigquery.tables.updateData 권한이 모두 포함되어 있습니다.
+bigquery.dataEditor
+bigquery.dataOwner
+bigquery.admin
+다음과 같은 사전 정의된 IAM 역할에는 bigquery.jobs.create 권한이 포함되어 있습니다.
+bigquery.user
+bigquery.jobUser
+bigquery.admin
+또한 bigquery.datasets.create 권한이 있는 사용자는 데이터 세트를 만들 때 해당 데이터 세트에 대한 bigquery.dataOwner 액세스 권한을 부여받습니다. bigquery.dataOwner 액세스 권한이 있는 사용자는 데이터 세트에서 테이블을 만들고 업데이트할 수 있습니다.
+BigQuery의 IAM 역할과 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]을 참조하세요.
+영구 테이블에 쿼리 결과 쓰기
+쿼리 결과를 영구 테이블에 쓸 때 새 테이블을 만들거나 결과를 기존 테이블에 추가하거나 기존 테이블을 덮어쓸 수 있습니다.
+쿼리 결과 쓰기
+다음 절차를 따라 영구 테이블에 쿼리 결과를 작성합니다. 쿼리를 실행하기 전 데이터를 미리 보면 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#preview-data] 비용을 관리할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 패널에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+유효한 SQL 쿼리를 입력하세요.
+더보기를 클릭한 다음 쿼리 옵션을 선택합니다.
+
+ 
+쿼리 결과의 대상 테이블 설정 옵션을 선택합니다.
+
+ 
+대상 섹션에서 테이블을 만들 데이터 세트를 선택한 다음 테이블 ID를 선택합니다.
+대상 테이블 쓰기 환경설정 섹션에서 다음 중 하나를 선택합니다.
+
+
+비어 있으면 쓰기 — 테이블이 비어 있는 경우에만 쿼리 결과를 테이블에 씁니다.
+테이블에 추가 — 쿼리 결과를 기존 테이블에 추가합니다.
+테이블 덮어쓰기 — 쿼리 결과를 사용하여 기존 테이블을 같은 이름으로 덮어씁니다.
+
+(선택사항) 데이터 위치에서 해당 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]를 선택합니다.
+쿼리 설정을 업데이트하려면 저장을 클릭합니다.
+실행을 클릭합니다. 그러면 지정한 테이블에 쿼리 결과를 쓰는 쿼리 작업이 생성됩니다.
+
+
+또는 쿼리를 실행하기 전에 대상 테이블 지정을 잊은 경우 편집기 위의 결과 저장 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#save-query-results] 버튼을 클릭하여 캐시된 결과 테이블을 영구 테이블에 복사할 수 있습니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#sql] ---
+다음 예시에서는 CREATE TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]을 사용하여 공개 bikeshare_trips 테이블의 데이터로부터 trips 테이블을 만듭니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE TABLE mydataset.trips AS (
+  SELECT
+    bike_id,
+    start_time,
+    duration_minutes
+  FROM
+    bigquery-public-data.austin_bikeshare.bikeshare_trips
+);
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+자세한 내용은 기존 테이블에서 새 테이블 만들기 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#creating_a_new_table_from_an_existing_table]를 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#bq] ---
+In the Google Cloud console, activate Cloud Shell.
+    Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+    
+      At the bottom of the Google Cloud console, a
+      Cloud Shell [https://cloud.google.com/shell/docs/how-cloud-shell-works?hl=ko]
+      session starts and displays a command-line prompt. Cloud Shell is a shell environment
+      with the Google Cloud CLI
+      already installed and with values already set for
+      your current project. It can take a few seconds for the session to initialize.
+    
+    
+  
+
+
+
+
+
+
+
+
+
+
+bq query [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query] 명령어를 입력하고 --destination_table 플래그를 지정하여 쿼리 결과에 기반한 영구 테이블을 만듭니다. GoogleSQL 문법을 사용하려면 use_legacy_sql=false 플래그를 지정합니다. 기본 프로젝트에 없는 테이블에 쿼리 결과를 쓰려면 프로젝트 ID를 project_id:dataset 형식으로 데이터 세트 이름에 추가합니다.
+
+(선택사항) --location 플래그를 지정하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]로 설정합니다.
+
+기존 대상 테이블의 쓰기 처리를 제어하려면 다음 플래그 옵션 중 하나를 지정합니다.
+
+
+--append_table: 대상 테이블이 있으면 쿼리 결과가 테이블에 추가됩니다.
+--replace: 대상 테이블이 있으면 쿼리 결과로 테이블을 덮어씁니다.
+
+bq --location=location query \
+--destination_table project_id:dataset.table \
+--use_legacy_sql=false 'query'
+
+다음을 바꿉니다.
+location은 쿼리 처리에 사용되는 위치의 이름입니다. --location 플래그는 선택사항입니다. 예를 들어 도쿄 리전에서 BigQuery를 사용하는 경우에는 플래그 값을 asia-northeast1로 설정하면 됩니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+project_id는 프로젝트 ID입니다.
+dataset는 쿼리 결과를 쓸 테이블이 포함된 데이터 세트의 이름입니다.
+table은 쿼리 결과를 쓸 테이블의 이름입니다.
+query는 GoogleSQL 문법의 쿼리입니다.
+
+쓰기 처리 플래그를 지정하지 않으면 비어 있는 경우에만 테이블에 결과를 쓰는 것이 기본 동작입니다. 테이블이 있지만 비어 있지 않으면 다음 오류가 반환됩니다.
+BigQuery error in query operation: Error processing job
+project_id:bqjob_123abc456789_00000e1234f_1: Already
+Exists: Table project_id:dataset.table.
+
+예를 들면 다음과 같습니다.
+참고: 이 예시에서는 미국 기반의 공개 데이터 세트를 쿼리합니다. 공개 데이터 세트가 미국의 멀티 리전 위치에 저장되기 때문에, 대상 테이블을 포함하는 데이터 세트도 미국에 있어야 합니다. 한 위치에서 데이터 세트를 쿼리하고 결과를 다른 위치에 있는 대상 테이블에 기록할 수는 없습니다.
+mydataset에 있는 mytable이라는 대상 테이블에 쿼리 결과를 쓰려면 다음 명령어를 입력합니다. 데이터 세트는 기본 프로젝트에 있습니다.
+명령어에 쓰기 처리 플래그가 지정되지 않았으므로 테이블은 새 테이블이거나 비어 있어야 합니다. 그렇지 않으면 Already exists 오류가 반환됩니다. 쿼리는 USA Name Data 공개 데이터 세트 [https://console.cloud.google.com/marketplace/product/social-security-administration/us-names?hl=ko]에서 데이터를 검색합니다.
+
+bq query [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query] \
+--destination_table mydataset.mytable \
+--use_legacy_sql=false \
+'SELECT
+name,
+number
+FROM
+`bigquery-public-data`.usa_names.usa_1910_current
+WHERE
+gender = "M"
+ORDER BY
+number DESC'
+
+쿼리 결과를 사용하여 mydataset에 있는 mytable이라는 대상 테이블을 덮어쓰려면 다음 명령어를 입력합니다. 데이터 세트는 기본 프로젝트에 있습니다. 이 명령어는 --replace 플래그를 사용하여 대상 테이블을 덮어씁니다.
+
+bq query [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query] \
+--destination_table mydataset.mytable \
+--replace \
+--use_legacy_sql=false \
+'SELECT
+name,
+number
+FROM
+`bigquery-public-data`.usa_names.usa_1910_current
+WHERE
+gender = "M"
+ORDER BY
+number DESC'
+
+mydataset에 있는 mytable이라는 대상 테이블에 쿼리 결과를 추가하려면 다음 명령어를 입력합니다. 데이터 세트는 기본 프로젝트가 아닌 my-other-project에 있습니다. 이 명령어는 --append_table 플래그를 사용하여 쿼리 결과를 대상 테이블에 추가합니다.
+
+bq query [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query] \
+--append_table \
+--use_legacy_sql=false \
+--destination_table my-other-project:mydataset.mytable \
+'SELECT
+name,
+number
+FROM
+`bigquery-public-data`.usa_names.usa_1910_current
+WHERE
+gender = "M"
+ORDER BY
+number DESC'
+
+이러한 각 예시의 출력은 다음과 같습니다. 읽기 편하도록 출력 일부는 잘려 있습니다.
+
+Waiting on bqjob_r123abc456_000001234567_1 ... (2s) Current status: DONE
++---------+--------+
+|  name   | number |
++---------+--------+
+| Robert  |  10021 |
+| John    |   9636 |
+| Robert  |   9297 |
+| ...              |
++---------+--------+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+ API 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+  
+  
+  
+  
+
+쿼리 결과를 영구 테이블에 저장하려면 jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] 메서드를 호출하고, query 작업을 구성하고, destinationTable 속성의 값을 포함합니다. 기존 대상 테이블의 쓰기 처리를 제어하려면 writeDisposition 속성을 구성합니다.
+
+쿼리 작업의 처리 위치를 제어하려면 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 location 속성을 지정합니다.
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+Go
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryWithDestination demonstrates saving the results of a query to a specific table by setting the destination
+// via the API properties.
+func queryWithDestination(w io.Writer, projectID, destDatasetID, destTableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	// tableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query("SELECT 17 as my_col")
+	q.Location [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Job_Location] = "US" // Location must match the dataset(s) referenced in query.
+	q.QueryConfig [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_QueryConfig].Dst = client.Dataset(destDatasetID).Table(destTableID)
+	// Run the query and print results when the query job is completed.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err](); err != nil {
+		return err
+	}
+	it, err := job.Read(ctx)
+	for {
+		var row []bigquery.Value [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Value]
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+Java
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+
+쿼리 결과를 영구 테이블에 저장하려면 QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration?hl=ko]에서 대상 테이블 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_setDestinationTable_com_google_cloud_bigquery_TableId_]을 원하는 TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId?hl=ko]로 설정합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+
+public class SaveQueryToTable {
+
+  public static void runSaveQueryToTable() {
+    // TODO(developer): Replace these variables before running the sample.
+    String query = "SELECT corpus FROM `bigquery-public-data.samples.shakespeare` GROUP BY corpus;";
+    String destinationTable = "MY_TABLE";
+    String destinationDataset = "MY_DATASET";
+
+    saveQueryToTable(destinationDataset, destinationTable, query);
+  }
+
+  public static void saveQueryToTable(
+      String destinationDataset, String destinationTableId, String query) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      // Identify the destination table
+      TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko] destinationTable = TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(destinationDataset, destinationTableId);
+
+      // Build the query job
+      QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko] queryConfig =
+          QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko].newBuilder(query).setDestinationTable(destinationTable).build();
+
+      // Execute the query.
+      bigquery.query [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_query_com_google_cloud_bigquery_QueryJobConfiguration_com_google_cloud_bigquery_BigQuery_JobOption____](queryConfig);
+
+      // The results are now saved in the destination table.
+
+      System.out.println("Saved query ran successfully");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Saved query did not run \n" + e.toString());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+ Node.js 
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function queryDestinationTable() {
+  // Queries the U.S. given names dataset for the state of Texas
+  // and saves results to permanent table.
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const datasetId = 'my_dataset';
+  // const tableId = 'my_table';
+
+  // Create destination table reference
+  const dataset = bigquery.dataset(datasetId);
+  const destinationTable = dataset.table(tableId);
+
+  const query = `SELECT name
+    FROM \`bigquery-public-data.usa_names.usa_1910_2013\`
+    WHERE state = 'TX'
+    LIMIT 100`;
+
+  // For all options, see https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
+  const options = {
+    query: query,
+    // Location must match that of the dataset(s) referenced in the query.
+    location: 'US',
+    destination: destinationTable,
+  };
+
+  // Run the query as a job
+  const [job] = await bigquery.createQueryJob(options);
+
+  console.log(`Job ${job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id} started.`);
+  console.log(`Query results loaded to table ${destinationTable.id}`);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+Python
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+    
+쿼리 결과를 영구 테이블에 저장하려면 QueryJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJob?hl=ko#google_cloud_bigquery_job_QueryJob]를 만들고 대상 [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJob?hl=ko#google_cloud_bigquery_job_QueryJob_destination]을 원하는 TableReference [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.table.TableReference?hl=ko]로 설정합니다.
+작업 구성을 쿼리 메서드 [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client?hl=ko#google_cloud_bigquery_client_Client_query]에 전달합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set table_id to the ID of the destination table.
+# table_id = "your-project.your_dataset.your_table_name"
+
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].QueryJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJobConfig.html?hl=ko](destination=table_id)
+
+sql = """
+    SELECT corpus
+    FROM `bigquery-public-data.samples.shakespeare`
+    GROUP BY corpus;
+"""
+
+# Start the query, passing in the extra configuration.
+query_job = client.query [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko](sql, job_config=job_config)  # Make an API request.
+query_job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.dbapi.Cursor.html?hl=ko#google_cloud_bigquery_dbapi_Cursor_query_job].result()  # Wait for the job to complete.
+
+print("Query results loaded to the table {}".format(table_id))
+크기가 큰 쿼리 결과 쓰기
+일반적으로 쿼리에는 최대 응답 크기 [https://cloud.google.com/bigquery/quotas?hl=ko#query_jobs]가 있습니다. 이보다 큰 결과를 반환할 수 있는 쿼리를 실행하려면 다음 중 하나를 수행합니다.
+GoogleSQL에서 쿼리 결과의 대상 테이블을 지정합니다.
+Legacy SQL에서 대상 테이블을 지정하고 allowLargeResults 옵션을 설정합니다.
+크기가 큰 쿼리 결과의 대상 테이블을 지정하면 데이터 저장 [https://cloud.google.com/bigquery/pricing?hl=ko#storage] 요금이 청구됩니다.
+제한사항
+Legacy SQL에서는 크기가 큰 결과 쓰기에 다음과 같은 제한이 있습니다.
+대상 테이블을 지정해야 합니다.
+최상위 ORDER BY, TOP 또는 LIMIT 절은 지정할 수 없습니다. 지정할 경우 쿼리 출력을 더 이상 동시에 계산할 수 없게 되므로 allowLargeResults를 사용할 때의 이점이 사라집니다.
+윈도우 함수 [https://cloud.google.com/bigquery/query-reference?hl=ko#windowfunctions]는 PARTITION BY 절과 함께 사용하는 경우에만 크기가 큰 쿼리 결과를 반환할 수 있습니다.
+Legacy SQL을 사용하여 크기가 큰 결과 쓰기
+Legacy SQL을 사용하여 크기가 큰 결과 세트를 쓰려면 다음 안내를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+새 쿼리 작성을 클릭합니다.
+쿼리 편집기 텍스트 영역에 유효한 SQL 쿼리를 입력합니다. #legacySQL 프리픽스를 사용하거나 쿼리 설정에서 Legacy SQL 사용이 선택되어 있는지 확인합니다.
+더보기를 클릭한 다음 쿼리 설정을 선택합니다.
+
+ 
+대상에서 쿼리 결과의 대상 테이블 설정을 선택합니다.
+
+ 
+데이터 세트에서 테이블을 저장할 데이터 세트를 선택합니다.
+테이블 ID 필드에 테이블 이름을 입력합니다.
+기존 테이블에 큰 결과 집합을 작성하는 경우 대상 테이블 쓰기 환경설정 옵션을 사용하여 대상 테이블의 쓰기 처리를 제어할 수 있습니다.
+
+
+비어 있으면 쓰기: 테이블이 비어 있는 경우에만 쿼리 결과를 테이블에 씁니다.
+테이블에 추가: 쿼리 결과를 기존 테이블에 추가합니다.
+테이블 덮어쓰기: 쿼리 결과를 사용하여 기존 테이블을 같은 이름으로 덮어씁니다.
+
+결과 크기에 크기가 큰 결과 허용(크기 제한 없음)을 선택합니다.
+(선택사항) 데이터 위치에서 해당 데이터의 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]를 선택합니다.
+저장을 클릭하여 쿼리 설정을 업데이트합니다.
+실행을 클릭합니다. 그러면 지정한 테이블에 크기가 큰 결과 세트를 쓰는 쿼리 작업이 생성됩니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#bq] ---
+--allow_large_results플래그를 --destination_table 플래그와 함께 사용하여 크기가 큰 결과 세트를 보관할 대상 테이블을 만듭니다. --allow_large_results 옵션은 legacy SQL에만 적용되므로 --use_legacy_sql=true 플래그도 지정해야 합니다. 기본 프로젝트에 없는 테이블에 쿼리 결과를 쓰려면 프로젝트 ID를 PROJECT_ID:DATASET 형식으로 데이터 세트 이름에 추가합니다.
+--location 플래그를 지정하고 값을 사용자의 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]로 설정합니다.
+
+기존 대상 테이블의 쓰기 처리를 제어하려면 다음 플래그 옵션 중 하나를 지정합니다.
+
+
+--append_table: 대상 테이블이 있으면 쿼리 결과가 테이블에 추가됩니다.
+--replace: 대상 테이블이 있으면 쿼리 결과로 테이블을 덮어씁니다.
+
+
+bq --location=location query \
+--destination_table PROJECT_ID:DATASET.TABLE \
+--use_legacy_sql=true \
+--allow_large_results "QUERY"
+
+다음을 바꿉니다.
+
+
+LOCATION은 쿼리 처리에 사용되는 위치의 이름입니다. --location 플래그는 선택사항입니다. 예를 들어 도쿄 리전에서 BigQuery를 사용하는 경우에는 플래그 값을 asia-northeast1로 설정하면 됩니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+PROJECT_ID는 프로젝트 ID입니다.
+DATASET는 쿼리 결과를 쓸 테이블이 포함된 데이터 세트의 이름입니다.
+TABLE은 쿼리 결과를 쓸 테이블의 이름입니다.
+QUERY는 legacy SQL 구문의 쿼리입니다.
+
+
+예를 들면 다음과 같습니다.
+참고: 이 예시에서는 공개 데이터 세트를 쿼리합니다. 데이터 세트가 US 멀티 리전 위치에 저장되기 때문에 대상 데이터 세트도 미국에 있어야 합니다. 다른 리전에 있는 테이블에는 공개 데이터 쿼리 결과를 쓸 수 없습니다. 
+mydataset에 있는 mytable이라는 대상 테이블에 크기가 큰 쿼리 결과를 쓰려면 다음 명령어를 입력합니다. 데이터 세트는 기본 프로젝트에 있습니다. 명령어에 쓰기 처리 플래그가 지정되지 않았으므로 테이블은 새 테이블이거나 비어 있어야 합니다. 그렇지 않으면 Already exists 오류가 반환됩니다. 쿼리는 USA Name Data 공개 데이터 세트 [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=usa_names&%3Bpage=dataset&hl=ko]에서 데이터를 검색합니다.
+이 쿼리는 예시 목적으로만 사용됩니다. 반환되는 결과 세트는 최대 응답 크기를 초과하지 않습니다.
+bq query \
+--destination_table mydataset.mytable \
+--use_legacy_sql=true \
+--allow_large_results \
+"SELECT
+  name,
+  number
+FROM
+  [bigquery-public-data:usa_names.usa_1910_current]
+WHERE
+  gender = 'M'
+ORDER BY
+  number DESC"
+
+크기가 큰 쿼리 결과를 사용하여 mydataset에 있는 mytable이라는 대상 테이블을 덮어쓰려면 다음 명령어를 입력합니다. 데이터 세트는 기본 프로젝트가 아닌 myotherproject에 있습니다. 이 명령어는 --replace 플래그를 사용하여 대상 테이블을 덮어씁니다.
+bq query \
+--destination_table mydataset.mytable \
+--replace \
+--use_legacy_sql=true \
+--allow_large_results \
+"SELECT
+  name,
+  number
+FROM
+  [bigquery-public-data:usa_names.usa_1910_current]
+WHERE
+  gender = 'M'
+ORDER BY
+  number DESC"
+
+mydataset에 있는 mytable이라는 대상 테이블에 크기가 큰 쿼리 결과를 추가하려면 다음 명령어를 입력합니다. 데이터 세트는 기본 프로젝트가 아닌 myotherproject에 있습니다. 이 명령어는 --append_table 플래그를 사용하여 쿼리 결과를 대상 테이블에 추가합니다.
+bq query \
+--destination_table myotherproject:mydataset.mytable \
+--append_table \
+--use_legacy_sql=true \
+--allow_large_results \
+"SELECT
+  name,
+  number
+FROM
+  [bigquery-public-data:usa_names.usa_1910_current]
+WHERE
+  gender = 'M'
+ORDER BY
+  number DESC"
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#api] ---
+대상 테이블에 크기가 큰 결과를 쓰려면 jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] 메서드를 호출하고, query 작업을 구성하고, allowLargeResults 속성을 true로 설정합니다.
+destinationTable 속성을 사용하여 대상 테이블을 지정합니다. 기존 대상 테이블의 쓰기 처리를 제어하려면 writeDisposition 속성을 구성합니다.
+
+작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 있는 location 속성에 사용자 위치를 지정합니다.
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryLegacyLargeResults demonstrates issuing a legacy SQL query and writing a large result set
+// into a destination table.
+func queryLegacyLargeResults(w io.Writer, projectID, datasetID, tableID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "destinationdataset"
+	// tableID := "destinationtable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query(
+		"SELECT corpus FROM [bigquery-public-data:samples.shakespeare] GROUP BY corpus;")
+	q.UseLegacySQL = true
+	q.AllowLargeResults = true
+	q.QueryConfig [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_QueryConfig].Dst = client.Dataset(datasetID).Table(tableID)
+	// Run the query and print results when the query job is completed.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_JobStatus_Err](); err != nil {
+		return err
+	}
+	it, err := job.Read(ctx)
+	for {
+		var row []bigquery.Value [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Value]
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+--- 탭: tabpanel-자바 ---
+크기가 큰 결과를 사용 설정하려면 크기가 큰 결과 허용 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_setAllowLargeResults_java_lang_Boolean_]을 true로 설정하고 QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration?hl=ko]에서 대상 테이블 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId?hl=ko]을 원하는 TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId?hl=ko]로 설정합니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko];
+import com.google.cloud.bigquery.TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko];
+import com.google.cloud.bigquery.TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko];
+
+// Sample to run query with large results and save the results to a table.
+public class QueryLargeResults {
+
+  public static void runQueryLargeResults() {
+    // TODO(developer): Replace these variables before running the sample.
+    String destinationDataset = "MY_DESTINATION_DATASET_NAME";
+    String destinationTable = "MY_DESTINATION_TABLE_NAME";
+    String query = "SELECT corpus FROM [bigquery-public-data:samples.shakespeare] GROUP BY corpus;";
+    queryLargeResults(destinationDataset, destinationTable, query);
+  }
+
+  public static void queryLargeResults(
+      String destinationDataset, String destinationTable, String query) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko] queryConfig =
+          // To use legacy SQL syntax, set useLegacySql to true.
+          QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko].newBuilder(query)
+              .setUseLegacySql(true)
+              // Save the results of the query to a permanent table.
+              .setDestinationTable(TableId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableId.html?hl=ko].of(destinationDataset, destinationTable))
+              // Allow results larger than the maximum response size.
+              // If true, a destination table must be set.
+              .setAllowLargeResults(true)
+              .build();
+
+      TableResult [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko] results = bigquery.query [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_query_com_google_cloud_bigquery_QueryJobConfiguration_com_google_cloud_bigquery_BigQuery_JobOption____](queryConfig);
+
+      results
+          .iterateAll [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.TableResult.html?hl=ko#com_google_cloud_bigquery_TableResult_iterateAll__]()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s,", val.toString())));
+
+      System.out.println("Query large results performed successfully.");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] | InterruptedException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function queryLegacyLargeResults() {
+  // Query enables large result sets.
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample
+   */
+  // const projectId = "my_project"
+  // const datasetId = "my_dataset";
+  // const tableId = "my_table";
+
+  const query = `SELECT word FROM [bigquery-public-data:samples.shakespeare] LIMIT 10;`;
+
+  // For all options, see https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query
+  const options = {
+    query: query,
+    // Location must match that of the dataset(s) referenced
+    // in the query and of the destination table.
+    useLegacySql: true,
+    allowLargeResult: true,
+    destinationTable: {
+      projectId: projectId,
+      datasetId: datasetId,
+      tableId: tableId,
+    },
+  };
+
+  const [job] = await bigquery.createQueryJob(options);
+  console.log(`Job ${job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id} started.`);
+
+  // Wait for the query to finish
+  const [rows] = await job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].getQueryResults [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/job.html?hl=ko]();
+
+  // Print the results
+  console.log('Rows:');
+  rows.forEach(row => console.log(row));
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set table_id to the ID of the destination table.
+# table_id = "your-project.your_dataset.your_table_name"
+
+# Set the destination table and use_legacy_sql to True to use
+# legacy SQL syntax.
+job_config = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].QueryJobConfig [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJobConfig.html?hl=ko](
+    allow_large_results=True, destination=table_id, use_legacy_sql=True
+)
+
+sql = """
+    SELECT corpus
+    FROM [bigquery-public-data:samples.shakespeare]
+    GROUP BY corpus;
+"""
+
+# Start the query, passing in the extra configuration.
+query_job = client.query [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko](sql, job_config=job_config)  # Make an API request.
+query_job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.dbapi.Cursor.html?hl=ko#google_cloud_bigquery_dbapi_Cursor_query_job].result()  # Wait for the job to complete.
+
+print("Query results loaded to the table {}".format(table_id))
+Google Cloud 콘솔에서 쿼리 결과 다운로드 및 저장
+Google Cloud 콘솔을 사용하여 SQL 쿼리를 실행한 후에 다른 위치에 결과를 저장할 수 있습니다. Google Cloud 콘솔을 사용하여 쿼리 결과를 로컬 파일, Google Sheets 또는 Google Drive로 다운로드할 수 있습니다. 먼저 쿼리 결과를 열별로 정렬하면 다운로드한 데이터에 순서가 유지됩니다. 결과를 로컬 파일, Google Sheets 또는 Google Drive에 저장하는 기능은 bq 명령줄 도구 또는 API에서 지원되지 않습니다.
+제한사항
+쿼리 결과 다운로드 및 저장에는 다음 제한사항이 적용됩니다.
+쿼리 결과를 CSV 또는 줄바꿈으로 구분된 JSON 형식으로만 다운로드할 수 있습니다.
+중첩되고 반복되는 데이터가 포함된 쿼리 결과를 Google Sheets에 저장할 수 없습니다.
+Google Cloud 콘솔을 사용하여 쿼리 결과를 Google Drive에 저장하려면 결과 세트가 1GB 이하여야 합니다. 결과가 크면 대신 테이블에 결과를 저장할 수 있습니다.
+쿼리 결과를 로컬 CSV 파일에 저장하는 경우 최대 다운로드 크기는 10MB입니다. 최대 다운로드 크기는 tabledata.list [https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list?hl=ko] 메서드 응답에서 반환된 각 행의 크기를 기준으로 하며 쿼리 결과의 스키마에 따라 다를 수 있습니다. 따라서 다운로드한 CSV 파일 크기가 다를 수 있으며 최대 다운로드 크기 한도보다 작을 수 있습니다.
+쿼리 결과를 Google 드라이브에 저장할 때는 CSV 또는 줄바꿈으로 구분된 JSON 형식으로만 저장할 수 있습니다.
+다음 단계
+프로그래매틱 방식으로 테이블을 JSON 파일로 내보내는 [https://cloud.google.com/bigquery/docs/samples/bigquery-extract-table-json?hl=ko] 방법 알아보기
+쿼리 작업의 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko#query_jobs] 알아보기
+BigQuery 스토리지 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#storage] 알아보기
+도움이 되었나요?
+의견 보내기

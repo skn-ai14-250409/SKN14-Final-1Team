@@ -1,0 +1,117 @@
+Source URL: https://cloud.google.com/bigquery/docs/authorized-routines
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+루틴 승인 [https://cloud.google.com/bigquery/docs/authorized-routines?hl=ko#authorize_routines]
+할당량 및 한도 [https://cloud.google.com/bigquery/docs/authorized-routines?hl=ko#quotas_and_limits]
+승인된 루틴 예시 [https://cloud.google.com/bigquery/docs/authorized-routines?hl=ko#authorized_routine_example]
+승인된 루틴
+bookmark_border
+승인된 루틴을 사용하면 결과를 생성한 기본 테이블에 대해 액세스 권한을 부여하지 않고도 특정 사용자 또는 그룹에 쿼리 결과를 공유할 수 있습니다. 예를 들어 승인된 루틴은 데이터에 대한 집계를 계산하거나 테이블 값을 조회하고 이 값을 계산에 사용할 수 있습니다.
+기본적으로 사용자가 루틴을 호출할 경우 사용자에게 테이블 데이터를 읽을 수 있는 액세스 권한이 있어야 합니다. 또는 참조된 테이블이 포함된 데이터 세트에 루틴이 액세스하도록 승인할 수 있습니다. 루틴을 호출하는 사용자가 테이블을 직접 쿼리할 수 없더라도 승인된 루틴은 데이터 세트의 테이블을 쿼리할 수 있습니다.
+다음 유형의 루틴을 승인할 수 있습니다.
+테이블 함수 [https://cloud.google.com/bigquery/docs/table-functions?hl=ko]
+사용자 정의 함수(UDF) [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko]
+저장 프로시져 [https://cloud.google.com/bigquery/docs/procedures?hl=ko]
+주의: 루틴으로 승인된 저장 프러시저에는 DDL 및 DML 액세스 권한이 포함됩니다. 이러한 프러시저는 데이터베이스 객체를 만들고, 수정, 삭제할 수 있습니다. 승인된 저장 프러시저 액세스 권한이 있는 주 구성원은 IAM 권한을 우회하고 일반적으로 자신에게 거부된 작업을 수행할 수 있습니다. 신뢰하는 주 구성원에 대해서만 전체 프러시저를 실행하도록 승인된 저장 프러시저 액세스 권한을 부여하세요.
+루틴 승인
+루틴을 승인하려면 Google Cloud 콘솔, bq 명령줄 도구 또는 REST API를 사용합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/authorized-routines?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색 패널의 탐색기 섹션에서 프로젝트를 펼치고 데이터 세트를 선택합니다.
+세부정보 패널에서 공유를 펼친 후 루틴 승인을 클릭합니다.
+승인된 루틴 페이지의 루틴 승인 섹션에서 승인하려는 루틴의 프로젝트, 데이터 세트, 루틴을 선택합니다.
+승인 추가를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/authorized-routines?hl=ko#bq] ---
+bq show 명령어를 사용하여 루틴이 액세스할 데이터 세트의 JSON 표현을 가져옵니다. 이 명령어의 출력은 Dataset [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko#Dataset] 리소스의 JSON 표현입니다.
+결과를 로컬 파일에 저장합니다.
+
+bq show --format=prettyjson TARGET_DATASET > dataset.json
+
+TARGET_DATASET를 루틴이 액세스할 수 있는 데이터 세트의 이름으로 바꿉니다.
+파일을 편집하여 다음 JSON 객체를 Dataset 리소스의 access 배열에 추가합니다.
+
+{
+ "routine": {
+   "datasetId": "DATASET_NAME",
+   "projectId": "PROJECT_ID",
+   "routineId": "ROUTINE_NAME"
+ }
+}
+
+각 항목의 의미는 다음과 같습니다.
+
+
+DATASET_NAME: 루틴이 포함된 데이터 세트의 이름
+PROJECT_ID: 루틴이 포함된 프로젝트의 프로젝트 ID
+ROUTINE_NAME: 루틴의 이름
+
+bq update 명령어를 사용하여 데이터 세트를 업데이트합니다.
+
+bq update --source dataset.json TARGET_DATASET
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/authorized-routines?hl=ko#api] ---
+datasets.get [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/get?hl=ko] 메서드를 호출하여 루틴이 액세스할 데이터 세트를 가져옵니다. 응답 본문에는 Dataset [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko#Dataset] 리소스의 표현이 포함됩니다.
+다음 JSON 객체를 Dataset 리소스의 access 배열에 추가합니다.
+
+{
+ "routine": {
+   "datasetId": "DATASET_NAME",
+   "projectId": "PROJECT_ID",
+   "routineId": "ROUTINE_NAME"
+ }
+}
+
+각 항목의 의미는 다음과 같습니다.
+
+
+DATASET_NAME: UDF가 포함된 데이터 세트의 이름
+PROJECT_ID: UDF가 포함된 프로젝트의 프로젝트 ID
+ROUTINE_NAME: 루틴의 이름
+
+수정된 Dataset 표현을 사용하여 dataset.update [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/update?hl=ko] 메서드를 호출합니다.
+참고: CREATE OR REPLACE 문(CREATE OR REPLACE FUNCTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_function_statement], CREATE OR REPLACE PROCEDURE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_procedure], 또는 CREATE OR REPLACE TABLE FUNCTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_function_statement]) 문을 실행하여 루틴을 수정하는 경우, 루틴을 다시 인증해야 합니다.
+할당량 및 한도
+승인된 루틴에는 데이터 세트 한도가 적용됩니다. 자세한 내용은 데이터 세트 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#dataset_limits]를 참조하세요.
+승인된 루틴 예시
+다음은 승인된 UDF를 만들고 사용하는 엔드 투 엔드 예시입니다.
+private_dataset와 public_dataset라는 데이터 세트 두 개를 만듭니다. 데이터 세트를 만드는 방법에 대한 자세한 내용은 데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/datasets?hl=ko#create-dataset]를 참조하세요.
+다음 문을 실행하여 private_dataset에 private_table이라는 테이블을 만듭니다
+CREATE OR REPLACE TABLE private_dataset.private_table
+AS SELECT key FROM UNNEST(['key1', 'key1','key2','key3']) key;
+다음 문을 실행하여 public_dataset에 count_key이라는 UDF를 만듭니다. UDF는 private_table에 SELECT 문을 포함합니다.
+CREATE OR REPLACE FUNCTION public_dataset.count_key(input_key STRING)
+RETURNS INT64
+AS
+((SELECT COUNT(1) FROM private_dataset.private_table t WHERE t.key = input_key));
+public_dataset 데이터 세트에서 사용자에게 bigquery.dataViewer 역할을 부여합니다. 이 역할에는 사용자가 루틴을 호출할 수 있는 bigquery.routines.get 권한이 포함되어 있습니다. 데이터 세트에 액세스 제어를 할당하는 방법은 데이터 세트에 대한 액세스 제어 [https://cloud.google.com/bigquery/docs/dataset-access-controls?hl=ko]를 참조하세요.
+참고: 기본 제공 역할을 사용하는 대신 최소한의 권한으로 커스텀 역할을 만드는 것이 좋습니다. 자세한 내용은 커스텀 역할 생성 및 관리 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]를 참조하세요.
+이때 사용자는 count_key 루틴을 호출할 수 있는 권한을 가지고 있지만 private_dataset의 테이블에 액세스할 수 없습니다. 사용자가 루틴을 호출하려고 하면 다음과 비슷한 오류 메시지가 표시됩니다.
+Access Denied: Table myproject:private_dataset.private_table: User does
+not have permission to query table myproject:private_dataset.private_table.
+bq 명령줄 도구를 사용하여 다음과 같이 show 명령어를 실행합니다.
+bq show --format=prettyjson private_dataset > dataset.json
+출력은 dataset.json이라는 로컬 파일에 저장됩니다.
+dataset.json을 수정하여 다음 JSON 객체를 access 배열에 추가합니다.
+{
+ "routine": {
+   "datasetId": "public_dataset",
+   "projectId": "
+PROJECT_ID",
+   "routineId": "count_key"
+ }
+}
+PROJECT_ID를 public_dataset의 프로젝트 ID로 바꿉니다.
+bq 명령줄 도구를 사용하여 다음과 같이 update 명령어를 실행합니다.
+bq update --source dataset.json private_dataset
+UDF가 private_dataset에 액세스했는지 확인하려면 사용자가 다음 쿼리를 실행하면 됩니다.
+SELECT public_dataset.count_key('key1');
+도움이 되었나요?
+의견 보내기

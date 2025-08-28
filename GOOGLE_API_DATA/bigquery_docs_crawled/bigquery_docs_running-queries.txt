@@ -1,0 +1,3402 @@
+Source URL: https://cloud.google.com/bigquery/docs/running-queries
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+쿼리 유형 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#interactive-batch]
+필요한 역할 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#required_permissions]
+문제 해결 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#troubleshooting]
+대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]
+일괄 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#batch]
+쿼리 실행
+bookmark_border
+이 문서에서는 BigQuery에서 쿼리를 실행하고 테스트 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#dry-run]을 통해 수행 전 쿼리가 처리할 데이터 양을 파악하는 방법을 보여줍니다.
+쿼리 유형
+다음 쿼리 작업 유형 중 하나를 사용하여 BigQuery 데이터를 쿼리 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko]할 수 있습니다.
+대화형 쿼리 작업 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]. 기본적으로 BigQuery는 대화형(주문형) 쿼리 작업을 최대한 빨리 실행합니다.
+일괄 처리 작업 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#batch]. 이러한 작업을 통해 BigQuery는 사용자를 대신하여 각 일괄 쿼리를 큐에 포함시키고 유휴 리소스를 사용할 수 있으면(대개 몇 분 소요) 쿼리를 시작합니다.
+연속 쿼리 작업 [https://cloud.google.com/bigquery/docs/continuous-queries-introduction?hl=ko](미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages]). 이러한 작업을 사용하면 쿼리가 연속적으로 실행되므로 BigQuery에서 수신되는 데이터를 실시간으로 분석한 후 결과를 BigQuery 테이블에 쓰거나 결과를 Bigtable 또는 Pub/Sub로 내보낼 수 있습니다. 이 기능을 사용하여 통계를 만들어 즉시 조치, 실시간 머신러닝(ML) 추론 적용, 이벤트 기반 데이터 파이프라인 빌드 등 시간에 민감한 작업을 수행할 수 있습니다.
+다음 메서드를 사용하여 쿼리 작업을 실행할 수 있습니다.
+Google Cloud 콘솔 [https://cloud.google.com/bigquery/bigquery-web-ui?hl=ko#overview]에서 쿼리를 작성하고 실행합니다.
+bq 명령줄 도구 [https://cloud.google.com/bigquery/bq-command-line-tool?hl=ko]에서 bq query 명령어를 실행합니다.
+BigQuery REST API [https://cloud.google.com/bigquery/docs/reference/rest/v2?hl=ko]의 jobs.query [https://cloud.google.com/bigquery/docs/reference/v2/jobs/query?hl=ko] 또는 jobs.insert [https://cloud.google.com/bigquery/docs/reference/v2/jobs/insert?hl=ko] 메서드를 프로그래매틱 방식으로 호출합니다.
+BigQuery 클라이언트 라이브러리 [https://cloud.google.com/bigquery/docs/reference/libraries?hl=ko]를 사용합니다.
+기본적으로 BigQuery는 가능한 한 빨리 실행되는 대화형 쿼리 작업으로 쿼리를 실행합니다. BigQuery는 리소스 가용성을 기준으로 동시 쿼리 한도를 동적으로 계산하고 일괄 쿼리보다 많은 동시 대화형 쿼리 실행을 선호합니다. 동시 쿼리 한도에 도달하면 추가 쿼리가 큐에서 대기합니다. 자세한 내용은 쿼리 큐 [https://cloud.google.com/bigquery/docs/query-queues?hl=ko]를 참조하세요.
+BigQuery는 쿼리 결과를 임시 테이블(기본값) 또는 영구 테이블 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#temporary_and_permanent_tables]에 저장합니다. 영구 테이블을 결과의 대상 테이블로 지정할 때 기존 테이블을 추가 또는 덮어쓸지, 아니면 고유한 이름으로 새 테이블을 만들지 선택할 수 있습니다.
+참고: 어떤 프로젝트에서 다른 프로젝트에 저장된 데이터로 데이터를 쿼리하는 경우, 쿼리하는 프로젝트에 쿼리 작업에 대한 요금이 청구되고, 데이터를 저장하는 프로젝트에는 BigQuery에 저장된 데이터 양에 대한 요금이 청구됩니다.
+필요한 역할
+쿼리 작업을 실행하는 데 필요한 권한을 얻으려면 관리자에게 다음 IAM 역할을 부여해 달라고 요청하세요.
+프로젝트에 대한 BigQuery 작업 사용자 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#bigquery.jobUser](roles/bigquery.jobUser)입니다.
+쿼리에서 참조하는 모든 테이블과 뷰에 대한 BigQuery 데이터 뷰어 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#bigquery.dataViewer](roles/bigquery.dataViewer)입니다. 뷰를 쿼리하려면 모든 기본 테이블 및 뷰에도 이 역할이 필요합니다. 승인된 뷰 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko] 또는 승인된 데이터 세트 [https://cloud.google.com/bigquery/docs/authorized-datasets?hl=ko]를 사용하는 경우 기본 소스 데이터에 액세스할 필요가 없습니다.
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이러한 사전 정의된 역할에는 쿼리 작업을 실행하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko]을 사용하여 이 권한을 부여받을 수도 있습니다.
+문제 해결
+Access Denied: Project [project_id]: User does not have bigquery.jobs.create
+permission in project [project_id].
+이 오류는 주 구성원에게 프로젝트에서 쿼리 작업을 만들 수 있는 권한이 없을 때 발생합니다.
+해결 방법: 관리자가 쿼리 중인 프로젝트에 대한 bigquery.jobs.create 권한을 부여해야 합니다. 쿼리된 데이터에 액세스하는 데 필요한 권한 외에도 이 권한이 필요합니다.
+BigQuery 권한에 대한 자세한 내용은 IAM으로 액세스 제어 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+대화형 쿼리 실행
+대화형 쿼리를 실행하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+add_box SQL 쿼리를 클릭합니다.
+쿼리 편집기에서 유효한 GoogleSQL 쿼리를 입력합니다.
+
+예를 들어 BigQuery 공개 데이터 세트 usa_names [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=usa_names&%3Bpage=dataset&hl=ko]를 쿼리해 1910년부터 2013년까지 미국에서 가장 흔한 이름을 확인합니다.
+SELECT
+  name, gender,
+  SUM(number) AS total
+FROM
+  `bigquery-public-data.usa_names.usa_1910_2013`
+GROUP BY
+  name, gender
+ORDER BY
+  total DESC
+LIMIT
+  10;
+
+선택사항: 추가 쿼리 설정 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#query-settings]을 선택하려면 settings 더보기를 클릭한 다음 쿼리 설정을 클릭합니다.
+play_circle 실행을 클릭합니다.
+
+대상 테이블을 지정하지 않으면 쿼리 작업은 출력을 임시(캐시) 테이블에 씁니다.
+
+이제 쿼리 결과 창의 결과 탭에서 쿼리 결과를 살펴볼 수 있습니다.
+선택사항: 열별로 쿼리 결과를 정렬하려면 열 이름 옆에 있는 arrow_drop_down정렬 메뉴 열기를 클릭하고 정렬 순서를 선택합니다. 정렬에 처리되는 예상 바이트 수가 0보다 크면 메뉴 상단에 바이트 수가 표시됩니다.
+선택사항: 쿼리 결과 시각화를 보려면 차트 탭으로 이동합니다. 차트를 확대 또는 축소하거나 차트를 PNG 파일로 다운로드하거나 범례 공개 상태를 전환할 수 있습니다.
+
+차트 구성 창에서 차트 유형(선, 막대 또는 분산)을 변경하고 차트의 측정과 측정기준을 구성할 수 있습니다. 이 창의 필드는 쿼리의 대상 테이블 스키마에서 추론된 초기 구성으로 미리 채워집니다. 동일한 쿼리 편집기에서는 다음 쿼리 실행 간에 구성이 보존됩니다. 측정기준은 INT64, FLOAT64, NUMERIC, BIGNUMERIC, TIMESTAMP, DATE, DATETIME, TIME 및 STRING 데이터 유형을 지원하며 측정에서는 INT64, FLOAT64, NUMERIC 및 BIGNUMERIC 데이터 유형을 지원합니다.
+선택사항: JSON 탭에서 JSON 형식으로 쿼리 결과를 탐색할 수 있습니다. 여기서 키는 열 이름이고 값은 해당 열에 대한 결과입니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#bq] ---
+In the Google Cloud console, activate Cloud Shell.
+    Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+    
+      At the bottom of the Google Cloud console, a
+      Cloud Shell [https://cloud.google.com/shell/docs/how-cloud-shell-works?hl=ko]
+      session starts and displays a command-line prompt. Cloud Shell is a shell environment
+      with the Google Cloud CLI
+      already installed and with values already set for
+      your current project. It can take a few seconds for the session to initialize.
+    
+    
+  
+
+
+
+
+
+
+
+
+
+
+  
+  
+bq query 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query]를 사용합니다.
+다음 예시에서는 --use_legacy_sql=false 플래그를 사용하여 GoogleSQL 구문을 사용할 수 있습니다.
+
+bq query \
+    --use_legacy_sql=false \
+    'QUERY'
+
+QUERY를 유효한 GoogleSQL 쿼리로 바꿉니다. 예를 들어 BigQuery 공개 데이터 세트 usa_names [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=usa_names&%3Bpage=dataset&hl=ko]를 쿼리해 1910년부터 2013년까지 미국에서 가장 흔한 이름을 확인합니다.
+bq query \
+    --use_legacy_sql=false \
+    'SELECT
+      name, gender,
+      SUM(number) AS total
+    FROM
+      `bigquery-public-data.usa_names.usa_1910_2013`
+    GROUP BY
+      name, gender
+    ORDER BY
+      total DESC
+    LIMIT
+      10;'
+
+쿼리 작업이 출력을 임시(캐시) 테이블에 씁니다.
+
+선택사항으로 쿼리 결과의 대상 테이블 및 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]를 지정할 수 있습니다. 기존 테이블에 결과를 쓰려면 적절한 플래그를 포함하여 테이블을 추가(--append_table=true)하거나 덮어씁니다(--replace=true).
+
+bq query \
+    --location=LOCATION \
+    --destination_table=TABLE \
+    --use_legacy_sql=false \
+    'QUERY'
+
+다음을 바꿉니다.
+
+
+LOCATION: 대상 테이블의 리전 또는 멀티 리전입니다(예: US).
+
+이 예시에서 usa_names 데이터 세트는 US 멀티 리전 위치에 저장됩니다. 이 쿼리의 대상 테이블을 지정하는 경우 대상 테이블이 포함된 데이터 세트도 US 멀티 리전에 있어야 합니다. 한 위치에서 데이터 세트를 쿼리하고 결과를 다른 위치에 있는 테이블에 기록할 수는 없습니다.
+
+.bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+TABLE: 대상 테이블의 이름입니다(예: myDataset.myTable).
+
+대상 테이블이 새 테이블이면 BigQuery는 쿼리를 실행할 때 테이블을 만듭니다. 하지만 기존 데이터 세트를 지정해야 합니다.
+
+테이블이 현재 프로젝트에 없으면 PROJECT_ID:DATASET.TABLE 형식을 사용하여 Google Cloud 프로젝트 ID를 추가합니다(예: myProject:myDataset.myTable). --destination_table을 지정하지 않으면 임시 테이블에 출력을 쓰는 쿼리 작업이 생성됩니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#api] ---
+API를 사용하여 쿼리를 실행하려면 새 작업을 삽입 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko]하고 query 작업 구성 속성을 채웁니다. (선택사항) 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 있는 location 속성에 사용자 위치를 지정합니다.
+
+getQueryResults [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults?hl=ko]를 호출하여 결과를 폴링합니다.
+jobComplete가 true가 될 때까지 폴링해야 합니다. 그런 다음 errors 목록에 오류나 경고가 있는지 확인합니다.
+
+--- 탭: C# [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#c] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 C# 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery C# API 참고 문서 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+  
+
+
+
+  
+
+
+  
+using Google.Cloud.BigQuery.V2;
+using System;
+
+public class BigQueryQuery
+{
+    public void Query(
+        string projectId = "your-project-id"
+    )
+    {
+        BigQueryClient client = BigQueryClient.Create(projectId);
+        string query = @"
+            SELECT name FROM `bigquery-public-data.usa_names.usa_1910_2013`
+            WHERE state = 'TX'
+            LIMIT 100";
+        BigQueryJob job = client.CreateQueryJob(
+            sql: query,
+            parameters: null,
+            options: new QueryOptions { UseQueryCache = false });
+        // Wait for the job to complete.
+        job = job.PollUntilCompleted().ThrowOnAnyError();
+        // Display the results
+        foreach (BigQueryRow row in client.GetQueryResults(job.Reference))
+        {
+            Console.WriteLine($"{row["name"]}");
+        }
+    }
+}
+
+--- 탭: tabpanel-go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryBasic demonstrates issuing a query and reading results.
+func queryBasic(w io.Writer, projectID string) error {
+	// projectID := "my-project-id"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query(
+		"SELECT name FROM `bigquery-public-data.usa_names.usa_1910_2013` " +
+			"WHERE state = \"TX\" " +
+			"LIMIT 100")
+	// Location must match that of the dataset(s) referenced in the query.
+	q.Location = "US"
+	// Run the query and print results when the query job is completed.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err(); err != nil {
+		return err
+	}
+	it, err := job.Read(ctx)
+	for {
+		var row []bigquery.Value
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+--- 탭: tabpanel-자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.TableResult;
+
+public class SimpleQuery {
+
+  public static void runSimpleQuery() {
+    // TODO(developer): Replace this query before running the sample.
+    String query = "SELECT corpus FROM `bigquery-public-data.samples.shakespeare` GROUP BY corpus;";
+    simpleQuery(query);
+  }
+
+  public static void simpleQuery(String query) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      // Create the query job.
+      QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).build();
+
+      // Execute the query.
+      TableResult result = bigquery.query(queryConfig);
+
+      // Print the results.
+      result.iterateAll().forEach(rows -> rows.forEach(row -> System.out.println(row.getValue())));
+
+      System.out.println("Query ran successfully");
+    } catch (BigQueryException | InterruptedException e) {
+      System.out.println("Query did not run \n" + e.toString());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+프록시를 사용하여 쿼리를 실행하려면 프록시 구성 [https://github.com/googleapis/google-cloud-java#configuring-a-proxy]을 참조하세요.
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library using default credentials
+const {BigQuery} = require('@google-cloud/bigquery');
+const bigquery = new BigQuery();
+async function query() {
+  // Queries the U.S. given names dataset for the state of Texas.
+
+  const query = `SELECT name
+    FROM \`bigquery-public-data.usa_names.usa_1910_2013\`
+    WHERE state = 'TX'
+    LIMIT 100`;
+
+  // For all options, see https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query
+  const options = {
+    query: query,
+    // Location must match that of the dataset(s) referenced in the query.
+    location: 'US',
+  };
+
+  // Run the query as a job
+  const [job] = await bigquery.createQueryJob(options);
+  console.log(`Job ${job.id} started.`);
+
+  // Wait for the query to finish
+  const [rows] = await job.getQueryResults();
+
+  // Print the results
+  console.log('Rows:');
+  rows.forEach(row => console.log(row));
+}
+
+--- 탭: tabpanel-php ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 PHP 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery PHP API 참고 문서 [https://cloud.google.com/php/docs/reference/cloud-bigquery/latest/BigQueryClient?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  use Google\Cloud\BigQuery\BigQueryClient;
+use Google\Cloud\Core\ExponentialBackoff;
+
+/** Uncomment and populate these variables in your code */
+// $projectId = 'The Google project ID';
+// $query = 'SELECT id, view_count FROM `bigquery-public-data.stackoverflow.posts_questions`';
+
+$bigQuery = new BigQueryClient([
+    'projectId' => $projectId,
+]);
+$jobConfig = $bigQuery->query($query);
+$job = $bigQuery->startQuery($jobConfig);
+
+$backoff = new ExponentialBackoff(10);
+$backoff->execute(function () use ($job) {
+    print('Waiting for job to complete' . PHP_EOL);
+    $job->reload();
+    if (!$job->isComplete()) {
+        throw new Exception('Job has not yet completed', 500);
+    }
+});
+$queryResults = $job->queryResults();
+
+$i = 0;
+foreach ($queryResults as $row) {
+    printf('--- Row %s ---' . PHP_EOL, ++$i);
+    foreach ($row as $column => $value) {
+        printf('%s: %s' . PHP_EOL, $column, json_encode($value));
+    }
+}
+printf('Found %s row(s)' . PHP_EOL, $i);
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery
+
+# Construct a BigQuery client object.
+client = bigquery.Client()
+
+query = """
+    SELECT name, SUM(number) as total_people
+    FROM `bigquery-public-data.usa_names.usa_1910_2013`
+    WHERE state = 'TX'
+    GROUP BY name, state
+    ORDER BY total_people DESC
+    LIMIT 20
+"""
+rows = client.query_and_wait(query)  # Make an API request.
+
+print("The query data:")
+for row in rows:
+    # Row values can be accessed by field name or index.
+    print("name={}, count={}".format(row[0], row["total_people"]))
+
+--- 탭: tabpanel-ruby ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Ruby 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Ruby API 참고 문서 [https://googleapis.dev/ruby/google-cloud-bigquery/latest/Google/Cloud/Bigquery.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  require "google/cloud/bigquery"
+
+def query
+  bigquery = Google::Cloud::Bigquery.new
+  sql = "SELECT name FROM `bigquery-public-data.usa_names.usa_1910_2013` " \
+        "WHERE state = 'TX' " \
+        "LIMIT 100"
+
+  # Location must match that of the dataset(s) referenced in the query.
+  results = bigquery.query sql do |config|
+    config.location = "US"
+  end
+
+  results.each do |row|
+    puts row.inspect
+  end
+end
+일괄 쿼리 실행
+일괄 쿼리를 실행하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+add_box SQL 쿼리를 클릭합니다.
+쿼리 편집기에서 유효한 GoogleSQL 쿼리를 입력합니다.
+
+예를 들어 BigQuery 공개 데이터 세트 usa_names [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=usa_names&%3Bpage=dataset&hl=ko]를 쿼리해 1910년부터 2013년까지 미국에서 가장 흔한 이름을 확인합니다.
+SELECT
+  name, gender,
+  SUM(number) AS total
+FROM
+  `bigquery-public-data.usa_names.usa_1910_2013`
+GROUP BY
+  name, gender
+ORDER BY
+  total DESC
+LIMIT
+  10;
+
+settings 더보기를 클릭한 다음 쿼리 설정을 클릭합니다.
+리소스 관리 섹션에서 일괄을 선택합니다.
+선택사항: 쿼리 설정 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#query-settings]을 조정합니다.
+저장을 클릭합니다.
+play_circle 실행을 클릭합니다.
+
+대상 테이블을 지정하지 않으면 쿼리 작업은 출력을 임시(캐시) 테이블에 씁니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#bq] ---
+In the Google Cloud console, activate Cloud Shell.
+    Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+    
+      At the bottom of the Google Cloud console, a
+      Cloud Shell [https://cloud.google.com/shell/docs/how-cloud-shell-works?hl=ko]
+      session starts and displays a command-line prompt. Cloud Shell is a shell environment
+      with the Google Cloud CLI
+      already installed and with values already set for
+      your current project. It can take a few seconds for the session to initialize.
+    
+    
+  
+
+
+
+
+
+
+
+
+
+
+  
+  
+bq query 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query]를 사용하고 --batch 플래그를 지정합니다. 다음 예시에서는 --use_legacy_sql=false 플래그를 사용하여 GoogleSQL 구문을 사용할 수 있습니다.
+
+bq query \
+    --batch \
+    --use_legacy_sql=false \
+    'QUERY'
+
+QUERY를 유효한 GoogleSQL 쿼리로 바꿉니다. 예를 들어 BigQuery 공개 데이터 세트 usa_names [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=usa_names&%3Bpage=dataset&hl=ko]를 쿼리해 1910년부터 2013년까지 미국에서 가장 흔한 이름을 확인합니다.
+bq query \
+    --batch \
+    --use_legacy_sql=false \
+    'SELECT
+      name, gender,
+      SUM(number) AS total
+    FROM
+      `bigquery-public-data.usa_names.usa_1910_2013`
+    GROUP BY
+      name, gender
+    ORDER BY
+      total DESC
+    LIMIT
+      10;'
+
+쿼리 작업이 출력을 임시(캐시) 테이블에 씁니다.
+
+선택사항으로 쿼리 결과의 대상 테이블 및 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]를 지정할 수 있습니다. 기존 테이블에 결과를 쓰려면 적절한 플래그를 포함하여 테이블을 추가(--append_table=true)하거나 덮어씁니다(--replace=true).
+
+bq query \
+    --batch \
+    --location=LOCATION \
+    --destination_table=TABLE \
+    --use_legacy_sql=false \
+    'QUERY'
+
+다음을 바꿉니다.
+
+
+LOCATION: 대상 테이블의 리전 또는 멀티 리전입니다(예: US).
+
+이 예시에서 usa_names 데이터 세트는 US 멀티 리전 위치에 저장됩니다. 이 쿼리의 대상 테이블을 지정하는 경우 대상 테이블이 포함된 데이터 세트도 US 멀티 리전에 있어야 합니다. 한 위치에서 데이터 세트를 쿼리하고 결과를 다른 위치에 있는 테이블에 기록할 수는 없습니다.
+
+.bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+TABLE: 대상 테이블의 이름입니다(예: myDataset.myTable).
+
+대상 테이블이 새 테이블이면 BigQuery는 쿼리를 실행할 때 테이블을 만듭니다. 하지만 기존 데이터 세트를 지정해야 합니다.
+
+테이블이 현재 프로젝트에 없으면 PROJECT_ID:DATASET.TABLE 형식을 사용하여 Google Cloud 프로젝트 ID를 추가합니다(예: myProject:myDataset.myTable). --destination_table을 지정하지 않으면 임시 테이블에 출력을 쓰는 쿼리 작업이 생성됩니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#api] ---
+API를 사용하여 쿼리를 실행하려면 새 작업을 삽입 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko]하고 query 작업 구성 속성을 채웁니다. (선택사항) 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 있는 location 속성에 사용자 위치를 지정합니다.
+
+쿼리 작업 속성을 채울 때는 configuration.query.priority 속성을 포함하고 값을 BATCH로 설정합니다.
+
+getQueryResults [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults?hl=ko]를 호출하여 결과를 폴링합니다.
+jobComplete가 true가 될 때까지 폴링해야 합니다. 그런 다음 errors 목록에 오류나 경고가 있는지 확인합니다.
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+	"time"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// queryBatch demonstrates issuing a query job using batch priority.
+func queryBatch(w io.Writer, projectID, dstDatasetID, dstTableID string) error {
+	// projectID := "my-project-id"
+	// dstDatasetID := "mydataset"
+	// dstTableID := "mytable"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	// Build an aggregate table.
+	q := client.Query(`
+		SELECT
+  			corpus,
+  			SUM(word_count) as total_words,
+  			COUNT(1) as unique_words
+		FROM ` + "`bigquery-public-data.samples.shakespeare`" + `
+		GROUP BY corpus;`)
+	q.Priority = bigquery.BatchPriority
+	q.QueryConfig.Dst = client.Dataset(dstDatasetID).Table(dstTableID)
+
+	// Start the job.
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	// Job is started and will progress without interaction.
+	// To simulate other work being done, sleep a few seconds.
+	time.Sleep(5 * time.Second)
+	status, err := job.Status(ctx)
+	if err != nil {
+		return err
+	}
+
+	state := "Unknown"
+	switch status.State {
+	case bigquery.Pending:
+		state = "Pending"
+	case bigquery.Running:
+		state = "Running"
+	case bigquery.Done:
+		state = "Done"
+	}
+	// You can continue to monitor job progress until it reaches
+	// the Done state by polling periodically.  In this example,
+	// we print the latest status.
+	fmt.Fprintf(w, "Job %s in Location %s currently in state: %s\n", job.ID(), job.Location(), state)
+
+	return nil
+
+}
+
+--- 탭: tabpanel-자바 ---
+일괄 쿼리를 실행하려면 QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration?hl=ko]을 만들 때 쿼리 우선순위 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Builder?hl=ko#com_google_cloud_bigquery_QueryJobConfiguration_Builder_setPriority_com_google_cloud_bigquery_QueryJobConfiguration_Priority_]를 QueryJobConfiguration.Priority.BATCH [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.Priority?hl=ko#staticFields]로 설정합니다.
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.TableResult;
+
+// Sample to query batch in a table
+public class QueryBatch {
+
+  public static void runQueryBatch() {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    String query =
+        "SELECT corpus"
+            + " FROM `"
+            + projectId
+            + "."
+            + datasetName
+            + "."
+            + tableName
+            + " GROUP BY corpus;";
+    queryBatch(query);
+  }
+
+  public static void queryBatch(String query) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      QueryJobConfiguration queryConfig =
+          QueryJobConfiguration.newBuilder(query)
+              // Run at batch priority, which won't count toward concurrent rate limit.
+              .setPriority(QueryJobConfiguration.Priority.BATCH)
+              .build();
+
+      TableResult results = bigquery.query(queryConfig);
+
+      results
+          .iterateAll()
+          .forEach(row -> row.forEach(val -> System.out.printf("%s,", val.toString())));
+
+      System.out.println("Query batch performed successfully.");
+    } catch (BigQueryException | InterruptedException e) {
+      System.out.println("Query batch not performed \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library and create a client
+const {BigQuery} = require('@google-cloud/bigquery');
+const bigquery = new BigQuery();
+
+async function queryBatch() {
+  // Runs a query at batch priority.
+
+  // Create query job configuration. For all options, see
+  // https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationquery
+  const queryJobConfig = {
+    query: `SELECT corpus
+            FROM \`bigquery-public-data.samples.shakespeare\` 
+            LIMIT 10`,
+    useLegacySql: false,
+    priority: 'BATCH',
+  };
+
+  // Create job configuration. For all options, see
+  // https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfiguration
+  const jobConfig = {
+    // Specify a job configuration to set optional job resource properties.
+    configuration: {
+      query: queryJobConfig,
+    },
+  };
+
+  // Make API request.
+  const [job] = await bigquery.createJob(jobConfig);
+
+  const jobId = job.metadata.id;
+  const state = job.metadata.status.state;
+  console.log(`Job ${jobId} is currently in state ${state}`);
+}
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery
+
+# Construct a BigQuery client object.
+client = bigquery.Client()
+
+job_config = bigquery.QueryJobConfig(
+    # Run at batch priority, which won't count toward concurrent rate limit.
+    priority=bigquery.QueryPriority.BATCH
+)
+
+sql = """
+    SELECT corpus
+    FROM `bigquery-public-data.samples.shakespeare`
+    GROUP BY corpus;
+"""
+
+# Start the query, passing in the extra configuration.
+query_job = client.query(sql, job_config=job_config)  # Make an API request.
+
+# Check on the progress by getting the job's updated state. Once the state
+# is `DONE`, the results are ready.
+query_job = client.get_job(
+    query_job.job_id, location=query_job.location
+)  # Make an API request.
+
+print("Job {} is currently in state {}".format(query_job.job_id, query_job.state))
+연속 쿼리 실행
+연속 쿼리 작업을 실행하려면 추가 구성이 필요합니다. 자세한 내용은 연속 쿼리 만들기 [https://cloud.google.com/bigquery/docs/continuous-queries?hl=ko]를 참고하세요.
+쿼리 설정
+쿼리를 실행할 때 다음 설정을 지정할 수 있습니다.
+쿼리 결과의 대상 테이블 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko#permanent-table]입니다.
+작업의 우선순위입니다.
+캐시된 쿼리 결과 [https://cloud.google.com/bigquery/docs/cached-results?hl=ko]를 사용할지 여부입니다.
+작업 제한 시간(밀리초)입니다.
+세션 모드 [https://cloud.google.com/bigquery/docs/sessions-intro?hl=ko]를 사용할지 여부입니다.
+사용할 암호화 [https://cloud.google.com/bigquery/docs/encryption-at-rest?hl=ko] 유형입니다.
+쿼리에 대해 청구된 최대 바이트 수입니다.
+사용할 SQL 언어 [https://cloud.google.com/bigquery/docs/introduction-sql?hl=ko]입니다.
+쿼리를 실행할 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]입니다. 쿼리는 쿼리에서 참조하는 테이블과 동일한 위치에서 실행되어야 합니다.
+짧은 쿼리에 최적화된 모드
+Preview
+This product or feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1]. Pre-GA products and features are available "as is" and might have limited support. For more information, see the launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+참고: 이 기능에 대한 의견을 제공하거나 지원을 요청하려면 bq-short-query-preview@google.com으로 이메일을 보내세요.
+짧은 쿼리에 최적화된 모드는 대시보드나 데이터 탐색과 같은 워크로드에서 일반적인 짧은 쿼리의 전체 지연 시간을 개선하기 위한 것입니다. 쿼리를 실행하고 SELECT 문에 대한 결과를 인라인으로 반환합니다. 짧은 쿼리에 최적화된 모드를 사용하는 쿼리는 BigQuery에서 쿼리를 완료하는 데 작업 생성이 필요하다고 판단하지 않는 한 실행 시 작업을 생성하지 않습니다.
+짧은 쿼리에 최적화된 모드를 사용 설정하려면 jobs.query [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query?hl=ko] 요청 본문에서 QueryRequest [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query?hl=ko#QueryRequest] 인스턴스의 jobCreationMode 필드를 JOB_CREATION_OPTIONAL로 설정합니다.
+이 필드의 값이 JOB_CREATION_OPTIONAL로 설정되면 BigQuery는 쿼리에서 짧은 쿼리에 최적화된 모드를 새로 사용할 수 있는지 결정합니다. 사용할 수 있는 경우 BigQuery는 쿼리를 실행하고 응답의 rows 필드에 모든 결과를 반환합니다. 이 쿼리에 대한 작업이 생성되지 않으므로 BigQuery는 응답 본문에 jobReference를 반환하지 않습니다. 대신 INFORMATION_SCHEMA.JOBS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko#short-query-optimized]를 사용하여 쿼리에 관한 인사이트를 가져오는 데 사용할 수 있는 queryId 필드를 반환합니다. 작업이 생성되지 않으므로 jobs.get [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get?hl=ko] 및 jobs.getQueryResults [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults?hl=ko] API에 전달하여 짧은 쿼리를 조회할 수 있는 jobReference가 없습니다.
+BigQuery에서 쿼리를 완료하는 데 작업이 필요하다고 판단하면 jobReference가 반환됩니다. INFORMATION_SCHEMA.JOBS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko#short-query-optimized]에서 job_creation_reason 필드를 검사하여 쿼리에 대해 작업이 생성된 이유를 확인할 수 있습니다. 이 경우 쿼리가 완료되면 jobs.getQueryResults [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults?hl=ko]를 사용하여 결과를 가져와야 합니다.
+JOB_CREATION_OPTIONAL 값을 사용할 때는 jobReference 필드가 응답에 항상 포함된다고 가정해서는 안 됩니다. 액세스 전에 필드가 있는지 확인해야 합니다.
+짧은 쿼리에 최적화된 모드에는 기본 데이터가 변경되지 않을 때 반복 쿼리의 성능을 개선하는 쿼리 결과 캐시도 포함되어 있습니다. QueryRequest [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query?hl=ko#QueryRequest]에서 useQueryCache: true(지정하지 않으면 기본값은 true) 및 jobCreationMode: JOB_CREATION_OPTIONAL을 지정하면 BigQuery가 캐시에서 결과를 제공하려고 시도합니다. 캐싱은 최선의 방식으로 수행됩니다.
+짧은 쿼리에 최적화된 모드를 사용하여 쿼리를 실행하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+add_box SQL 쿼리를 클릭합니다.
+쿼리 편집기에서 유효한 GoogleSQL 쿼리를 입력합니다.
+
+예를 들어 BigQuery 공개 데이터 세트 usa_names [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=usa_names&%3Bpage=dataset&hl=ko]를 쿼리해 1910년부터 2013년까지 미국에서 가장 흔한 이름을 확인합니다.
+SELECT
+  name, gender,
+  SUM(number) AS total
+FROM
+  `bigquery-public-data.usa_names.usa_1910_2013`
+GROUP BY
+  name, gender
+ORDER BY
+  total DESC
+LIMIT
+  10;
+
+settings 더보기를 클릭한 다음 쿼리 모드 선택에서 짧은 쿼리 최적화를 클릭합니다. 확인을 클릭하여 선택사항을 확인합니다.
+play_circle 실행을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#bq] ---
+In the Google Cloud console, activate Cloud Shell.
+    Activate Cloud Shell [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+    
+      At the bottom of the Google Cloud console, a
+      Cloud Shell [https://cloud.google.com/shell/docs/how-cloud-shell-works?hl=ko]
+      session starts and displays a command-line prompt. Cloud Shell is a shell environment
+      with the Google Cloud CLI
+      already installed and with values already set for
+      your current project. It can take a few seconds for the session to initialize.
+    
+    
+  
+
+
+
+
+
+
+
+
+
+
+  
+  
+bq query 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query]를 사용하고 --job_creation_mode=JOB_CREATION_OPTIONAL 플래그를 지정합니다. 다음 예시에서는 --use_legacy_sql=false 플래그를 사용하여 GoogleSQL 구문을 사용할 수 있습니다.
+
+bq query \
+    --rpc=true \
+    --use_legacy_sql=false \
+    --job_creation_mode=JOB_CREATION_OPTIONAL \
+    --location=LOCATION \
+    'QUERY'
+
+QUERY를 유효한 GoogleSQL 쿼리로 바꾸고 LOCATION을 데이터 세트가 있는 유효한 리전으로 바꿉니다. 예를 들어 BigQuery 공개 데이터 세트 usa_names [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=usa_names&%3Bpage=dataset&hl=ko]를 쿼리해 1910년부터 2013년까지 미국에서 가장 흔한 이름을 확인합니다.
+bq query \
+    --rpc=true \
+    --use_legacy_sql=false \
+    --job_creation_mode=JOB_CREATION_OPTIONAL \
+    --location=us \
+    'SELECT
+      name, gender,
+      SUM(number) AS total
+    FROM
+      `bigquery-public-data.usa_names.usa_1910_2013`
+    GROUP BY
+      name, gender
+    ORDER BY
+      total DESC
+    LIMIT
+      10;'
+
+쿼리 작업이 응답에 인라인으로 출력을 반환합니다.
+참고: 필요한 경우 --apilog=stdout을 사용하여 API 요청 및 응답을 로깅하여 queryId를 추출할 수 있습니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#api] ---
+API를 사용하여 짧은 쿼리 모드에서 쿼리를 실행하려면 동기식으로 쿼리를 실행 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query?hl=ko]하고 QueryRequest [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query?hl=ko#QueryRequest] 속성을 채웁니다. jobCreationMode 속성을 포함하고 값을 JOB_CREATION_OPTIONAL로 설정합니다.
+
+대답을 확인합니다. jobComplete가 true와 같고 jobReference가 비어 있으면 rows 필드에서 결과를 읽습니다. 응답에서 queryId를 가져올 수도 있습니다.
+
+jobRefernence가 있는 경우 BigQuery에서 작업을 생성한 이유를 jobCreationReason에서 확인할 수 있습니다. getQueryResults [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults?hl=ko]를 호출하여 결과를 폴링합니다.
+jobComplete가 true가 될 때까지 폴링해야 합니다. 그런 다음 errors 목록에 오류나 경고가 있는지 확인합니다.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#%EC%9E%90%EB%B0%94] ---
+사용 가능한 버전: 2.37.1 이상
+
+QUERY_PREVIEW_ENABLED=true 환경 변수를 설정해야 합니다.
+
+
+  예: Linux 또는 macOS
+  
+      export QUERY_PREVIEW_ENABLED=TRUE
+  
+  
+
+
+
+  예: Windows
+  
+      $env:QUERY_PREVIEW_ENABLED=TRUE
+  
+  
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.JobId;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.TableResult;
+
+// Sample demonstrating short mode query execution.
+//
+// While this feature is still in preview, it is controlled by
+// setting the environment variable QUERY_PREVIEW_ENABLED=TRUE
+// to request short mode execution.
+public class QueryShortMode {
+
+  public static void main(String[] args) {
+    String query =
+        "SELECT name, gender, SUM(number) AS total FROM "
+            + "bigquery-public-data.usa_names.usa_1910_2013 GROUP BY "
+            + "name, gender ORDER BY total DESC LIMIT 10";
+    queryShortMode(query);
+  }
+
+  public static void queryShortMode(String query) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs
+      // to be created once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      // Execute the query. The returned TableResult provides access information
+      // about the query execution as well as query results.
+      TableResult results = bigquery.query(QueryJobConfiguration.of(query));
+
+      JobId jobId = results.getJobId();
+      if (jobId != null) {
+        System.out.println("Query was run with job state.  Job ID: " + jobId.toString());
+      } else {
+        System.out.println("Query was run in short mode.  Query ID: " + results.getQueryId());
+      }
+
+      // Print the results.
+      results
+          .iterateAll()
+          .forEach(
+              row -> {
+                System.out.print("name:" + row.get("name").getStringValue());
+                System.out.print(", gender: " + row.get("gender").getStringValue());
+                System.out.print(", total: " + row.get("total").getLongValue());
+                System.out.println();
+              });
+
+    } catch (BigQueryException | InterruptedException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+프록시를 사용하여 쿼리를 실행하려면 프록시 구성 [https://github.com/googleapis/google-cloud-java#configuring-a-proxy]을 참조하세요.
+
+--- 탭: tabpanel-python ---
+사용 가능한 버전: 3.21.0 이상
+
+QUERY_PREVIEW_ENABLED=true 환경 변수를 설정해야 합니다.
+
+
+  예: Linux 또는 macOS
+  
+      export QUERY_PREVIEW_ENABLED=TRUE
+  
+  
+
+
+
+  예: Windows
+  
+      $env:QUERY_PREVIEW_ENABLED=TRUE
+  
+  
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # This example demonstrates issuing a query that may be run in short query mode.
+#
+# To enable the short query mode preview feature, the QUERY_PREVIEW_ENABLED
+# environmental variable should be set to `TRUE`.
+from google.cloud import bigquery
+
+# Construct a BigQuery client object.
+client = bigquery.Client()
+
+query = """
+    SELECT
+        name,
+        gender,
+        SUM(number) AS total
+    FROM
+        bigquery-public-data.usa_names.usa_1910_2013
+    GROUP BY
+        name, gender
+    ORDER BY
+        total DESC
+    LIMIT 10
+"""
+# Run the query.  The returned `rows` iterator can return information about
+# how the query was executed as well as the result data.
+rows = client.query_and_wait(query)
+
+if rows.job_id is not None:
+    print("Query was run with job state.  Job ID: {}".format(rows.job_id))
+else:
+    print("Query was run in short mode.  Query ID: {}".format(rows.query_id))
+
+print("The query data:")
+for row in rows:
+    # Row values can be accessed by field name or index.
+    print("name={}, gender={}, total={}".format(row[0], row[1], row["total"]))
+
+--- 탭: tabpanel-노드 ---
+사용 가능한 버전: 7.6.1 이상
+
+QUERY_PREVIEW_ENABLED=true 환경 변수를 설정해야 합니다.
+
+
+  예: Linux 또는 macOS
+  
+      export QUERY_PREVIEW_ENABLED=TRUE
+  
+  
+
+
+
+  예: Windows
+  
+      $env:QUERY_PREVIEW_ENABLED=TRUE
+  
+  
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Demonstrates issuing a query that may be run in short query mode.
+// To enable the short query mode preview feature, the QUERY_PREVIEW_ENABLED
+// environmental variable should be set to `TRUE`.
+
+// Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery');
+const bigquery = new BigQuery();
+
+async function queryShortMode() {
+  // SQL query to run.
+
+  const sqlQuery = `
+    SELECT name, gender, SUM(number) AS total
+    FROM bigquery-public-data.usa_names.usa_1910_2013
+    GROUP BY name, gender
+    ORDER BY total DESC
+    LIMIT 10`;
+
+  // Run the query
+  const [rows, , res] = await bigquery.query(sqlQuery);
+
+  if (!res.jobReference) {
+    console.log(`Query was run in short mode. Query ID: ${res.queryId}`);
+  } else {
+    const jobRef = res.jobReference;
+    const qualifiedId = `${jobRef.projectId}.${jobRef.location}.${jobRef.jobId}`;
+    console.log(
+      `Query was run with job state. Job ID: ${qualifiedId}, Query ID: ${res.queryId}`
+    );
+  }
+  // Print the results
+  console.log('Rows:');
+  rows.forEach(row => console.log(row));
+}
+
+--- 탭: tabpanel-go ---
+사용 가능한 버전: 1.58.0 이상
+
+QUERY_PREVIEW_ENABLED=true 환경 변수를 설정해야 합니다.
+
+
+  예: Linux 또는 macOS
+  
+      export QUERY_PREVIEW_ENABLED=TRUE
+  
+  
+
+
+
+  예: Windows
+  
+      $env:QUERY_PREVIEW_ENABLED=TRUE
+  
+  
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// queryShortMode demonstrates issuing a query that may be run in short query mode.
+//
+// To enable the short query mode preview feature, the QUERY_PREVIEW_ENABLED
+// environmental variable should be set to `TRUE`.
+func queryShortMode(w io.Writer, projectID string) error {
+	// projectID := "my-project-id"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %w", err)
+	}
+	defer client.Close()
+
+	q := client.Query(`
+		SELECT
+  			name, gender,
+  			SUM(number) AS total
+		FROM
+			bigquery-public-data.usa_names.usa_1910_2013
+		GROUP BY 
+			name, gender
+		ORDER BY
+			total DESC
+		LIMIT 10
+		`)
+	// Run the query and process the returned row iterator.
+	it, err := q.Read(ctx)
+	if err != nil {
+		return fmt.Errorf("query.Read(): %w", err)
+	}
+
+	// The iterator provides information about the query execution.
+	// Queries that were run in short query mode will not have the source job
+	// populated.
+	if it.SourceJob() == nil {
+		fmt.Fprintf(w, "Query was run in short mode.  Query ID: %q\n", it.QueryID())
+	} else {
+		j := it.SourceJob()
+		qualifiedJobID := fmt.Sprintf("%s:%s.%s", j.ProjectID(), j.Location(), j.ID())
+		fmt.Fprintf(w, "Query was run with job state.  Job ID: %q, Query ID: %q\n",
+			qualifiedJobID, it.QueryID())
+	}
+
+	// Print row data.
+	for {
+		var row []bigquery.Value
+		err := it.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, row)
+	}
+	return nil
+}
+
+--- 탭: tabpanel-jdbc-드라이버 ---
+사용 가능한 버전: JDBC v1.6.1
+
+연결 문자열에 JobCreationMode=2를 설정해야 합니다.
+
+
+      jdbc:bigquery://https://www.googleapis.com/bigquery/v2:443;JobCreationMode=2;Location=US;
+  
+
+참고: 연결 문자열에 LogLevel=6;LogPath=log.txt를 추가하여 TRACE 수준 로깅을 사용 설정하고 필요한 경우 queryId를 포함한 문제 해결 정보를 추출할 수 있습니다.
+
+--- 탭: tabpanel-odbc-드라이버 ---
+사용 가능한 버전: ODBC v3.0.7.1016
+
+.ini 파일에서 JobCreationMode=2를 설정해야 합니다.
+
+
+      [ODBC Data Sources]
+    Sample DSN=Simba Google BigQuery ODBC Connector 64-bit
+    [Sample DSN]
+    JobCreationMode=2
+  
+
+참고: .ini 파일에 LogLevel=6 및 LogPath=log.txt를 추가하여 상세한 수준의 로깅을 사용 설정하고 필요한 경우 queryId를 포함한 문제 해결 정보를 추출할 수 있습니다.
+할당량
+대화형 및 일괄 쿼리와 관련된 할당량에 대한 자세한 내용은 쿼리 작업 [https://cloud.google.com/bigquery/quotas?hl=ko#query_jobs]을 참조하세요.
+쿼리 모니터링
+작업 탐색기 [https://cloud.google.com/bigquery/docs/admin-jobs-explorer?hl=ko]를 사용하거나 INFORMATION_SCHEMA.JOBS_BY_PROJECT 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 쿼리하여 실행 중인 쿼리에 대한 정보를 가져올 수 있습니다.
+테스트 실행
+BigQuery의 테스트 실행 기능은 다음 정보를 제공합니다.
+주문형 모드 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]의 예상 요금
+쿼리 검증
+용량 모드 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]에서 쿼리로 처리된 대략적인 바이트 수
+테스트 실행은 쿼리 슬롯을 사용하지 않습니다. 테스트 실행 수행에 따른 요금이 부과되지 않습니다. 테스트 실행에서 반환된 추정값을 사용하여 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]에서 쿼리 비용을 계산할 수 있습니다.
+참고: 외부 데이터 소스를 사용하는 통합 쿼리의 테스트 실행은 행이 반환되더라도 0바이트의 하한 데이터를 보고할 수 있습니다. 이는 외부 테이블에서 처리되는 데이터 양을 실제 쿼리가 완료될 때까지 확인할 수 없기 때문입니다. 통합 쿼리를 실행해도 여전히 이 데이터 처리 비용이 발생합니다.
+테스트 실행 수행
+시험 이전을 수행하려면 다음을 수행합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 쿼리를 입력합니다.
+
+쿼리가 유효하면 쿼리에서 처리할 데이터 양과 함께 체크표시가 자동으로 표시됩니다. 쿼리가 유효하지 않으면 느낌표가 오류 메시지와 함께 표시됩니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#bq] ---
+--dry_run 플래그를 사용하여 다음과 같은 쿼리를 입력합니다.
+
+bq query \
+--use_legacy_sql=false \
+--dry_run \
+'SELECT
+   COUNTRY,
+   AIRPORT,
+   IATA
+ FROM
+   `project_id`.dataset.airports
+ LIMIT
+   1000'
+ 
+
+유효한 쿼리인 경우 이 명령어는 다음 응답을 생성합니다.
+
+Query successfully validated. Assuming the tables are not modified,
+running this query will process 10918 bytes of data.
+
+참고: 쿼리에서 소량의 데이터를 처리하는 경우 처리되는 바이트를 KB에서 MB로 변환해야 할 수도 있습니다. MB는 가격 계산기에서 사용하는 최소 측정 단위입니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#api] ---
+API를 사용하여 테스트 실행을 수행하려면 JobConfiguration [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#jobconfiguration] 유형에서 dryRun을 true로 설정한 채로 쿼리 작업을 제출합니다.
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// queryDryRun demonstrates issuing a dry run query to validate query structure and
+// provide an estimate of the bytes scanned.
+func queryDryRun(w io.Writer, projectID string) error {
+	// projectID := "my-project-id"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query(`
+	SELECT
+		name,
+		COUNT(*) as name_count
+	FROM ` + "`bigquery-public-data.usa_names.usa_1910_2013`" + `
+	WHERE state = 'WA'
+	GROUP BY name`)
+	q.DryRun = true
+	// Location must match that of the dataset(s) referenced in the query.
+	q.Location = "US"
+
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	// Dry run is not asynchronous, so get the latest status and statistics.
+	status := job.LastStatus()
+	if err := status.Err(); err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "This query will process %d bytes\n", status.Statistics.TotalBytesProcessed)
+	return nil
+}
+
+--- 탭: tabpanel-java ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.JobStatistics;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+
+// Sample to run dry query on the table
+public class QueryDryRun {
+
+  public static void runQueryDryRun() {
+    String query =
+        "SELECT name, COUNT(*) as name_count "
+            + "FROM `bigquery-public-data.usa_names.usa_1910_2013` "
+            + "WHERE state = 'WA' "
+            + "GROUP BY name";
+    queryDryRun(query);
+  }
+
+  public static void queryDryRun(String query) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      QueryJobConfiguration queryConfig =
+          QueryJobConfiguration.newBuilder(query).setDryRun(true).setUseQueryCache(false).build();
+
+      Job job = bigquery.create(JobInfo.of(queryConfig));
+      JobStatistics.QueryStatistics statistics = job.getStatistics();
+
+      System.out.println(
+          "Query dry run performed successfully." + statistics.getTotalBytesProcessed());
+    } catch (BigQueryException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery');
+const bigquery = new BigQuery();
+
+async function queryDryRun() {
+  // Runs a dry query of the U.S. given names dataset for the state of Texas.
+
+  const query = `SELECT name
+    FROM \`bigquery-public-data.usa_names.usa_1910_2013\`
+    WHERE state = 'TX'
+    LIMIT 100`;
+
+  // For all options, see https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query
+  const options = {
+    query: query,
+    // Location must match that of the dataset(s) referenced in the query.
+    location: 'US',
+    dryRun: true,
+  };
+
+  // Run the query as a job
+  const [job] = await bigquery.createQueryJob(options);
+
+  // Print the status and statistics
+  console.log('Status:');
+  console.log(job.metadata.status);
+  console.log('\nJob Statistics:');
+  console.log(job.metadata.statistics);
+}
+
+--- 탭: tabpanel-php ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 PHP 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery PHP API 참고 문서 [https://cloud.google.com/php/docs/reference/cloud-bigquery/latest/BigQueryClient?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  use Google\Cloud\BigQuery\BigQueryClient;
+
+/** Uncomment and populate these variables in your code */
+// $projectId = 'The Google project ID';
+// $query = 'SELECT id, view_count FROM `bigquery-public-data.stackoverflow.posts_questions`';
+
+// Construct a BigQuery client object.
+$bigQuery = new BigQueryClient([
+    'projectId' => $projectId,
+]);
+
+// Set job configs
+$jobConfig = $bigQuery->query($query);
+$jobConfig->useQueryCache(false);
+$jobConfig->dryRun(true);
+
+// Extract query results
+$queryJob = $bigQuery->startJob($jobConfig);
+$info = $queryJob->info();
+
+printf('This query will process %s bytes' . PHP_EOL, $info['statistics']['totalBytesProcessed']);
+
+--- 탭: tabpanel-python ---
+QueryJobConfig.dry_run [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJob?hl=ko#google_cloud_bigquery_job_QueryJob_dry_run] 속성을 True로 설정합니다.
+테스트 실행 쿼리 구성을 제공하면 Client.query() [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client?hl=ko#google_cloud_bigquery_client_Client_query]는 항상 완료된 QueryJob [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJob?hl=ko#google_cloud_bigquery_job_QueryJob]을 반환합니다.
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery
+
+# Construct a BigQuery client object.
+client = bigquery.Client()
+
+job_config = bigquery.QueryJobConfig(dry_run=True, use_query_cache=False)
+
+# Start the query, passing in the extra configuration.
+query_job = client.query(
+    (
+        "SELECT name, COUNT(*) as name_count "
+        "FROM `bigquery-public-data.usa_names.usa_1910_2013` "
+        "WHERE state = 'WA' "
+        "GROUP BY name"
+    ),
+    job_config=job_config,
+)  # Make an API request.
+
+# A dry run query completes immediately.
+print("This query will process {} bytes.".format(query_job.total_bytes_processed))
+다음 단계
+쿼리 작업 관리 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko] 방법 알아보기
+쿼리 기록을 확인 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#view_job_details_2] 방법 알아보기
+쿼리 저장 및 공유 [https://cloud.google.com/bigquery/docs/saving-sharing-queries?hl=ko] 방법 알아보기
+쿼리 큐 [https://cloud.google.com/bigquery/docs/query-queues?hl=ko] 알아보기
+쿼리 결과를 작성 [https://cloud.google.com/bigquery/docs/writing-results?hl=ko]하는 방법 알아보기
+도움이 되었나요?
+의견 보내기

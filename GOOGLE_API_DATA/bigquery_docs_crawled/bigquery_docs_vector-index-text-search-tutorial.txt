@@ -1,0 +1,354 @@
+Source URL: https://cloud.google.com/bigquery/docs/vector-index-text-search-tutorial
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필요한 역할
+비용
+시작하기 전에
+데이터 세트 만들기
+텍스트 임베딩 생성을 위한 원격 모델 만들기
+시맨틱 검색 및 검색 증강 생성 수행
+bookmark_border
+이 튜토리얼에서는 시맨틱 검색 및 검색 증강 생성(RAG) [https://cloud.google.com/use-cases/retrieval-augmented-generation?hl=ko]을 위한 텍스트 임베딩 [https://cloud.google.com/bigquery/docs/generative-ai-overview?hl=ko#text_embedding]을 만들고 사용하는 엔드 투 엔드 프로세스를 안내합니다.
+이 튜토리얼에서는 다음 태스크를 다룹니다.
+Vertex AI 임베딩 모델을 통해 BigQuery ML 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko] 만들기
+원격 모델을 ML.GENERATE_EMBEDDING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding?hl=ko]와 함께 사용하여 BigQuery 테이블의 텍스트에서 임베딩 생성
+검색 성능을 개선하기 위해 임베딩의 색인을 생성하는 벡터 색인 [https://cloud.google.com/bigquery/docs/vector-index?hl=ko] 만들기
+임베딩과 함께 VECTOR_SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search]를 사용하여 유사한 텍스트를 검색하기
+ML.GENERATE_TEXT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-text?hl=ko]로 텍스트를 생성하고 벡터 검색 결과를 사용하여 프롬프트 입력을 보강하고 결과를 개선하여 RAG 수행하기
+이 튜토리얼에서는 BigQuery 공개 테이블 patents-public-data.google_patents_research.publications를 사용합니다.
+필요한 역할
+이 튜토리얼을 실행하려면 다음 Identity and Access Management(IAM) 역할이 필요합니다.
+BigQuery 데이터 세트, 연결, 모델을 만들고 사용하기: BigQuery 관리자(roles/bigquery.admin)
+연결의 서비스 계정에 권한 부여: 프로젝트 IAM 관리자(roles/resourcemanager.projectIamAdmin)
+이러한 사전 정의된 역할에는 이 문서의 작업을 수행하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 확장하세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko]을 사용하여 이 권한을 부여받을 수도 있습니다.
+비용
+이 문서에서는 비용이 청구될 수 있는 Google Cloud구성요소( )를 사용합니다.
+BigQuery ML: You incur costs for the data that you process in BigQuery.
+Vertex AI: You incur costs for calls to the Vertex AI service that's represented by the remote model.
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+BigQuery 가격 책정에 대한 자세한 내용은 BigQuery 문서의 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]을 참조하세요.
+Vertex AI 가격 책정에 대한 자세한 내용은 Vertex AI 가격 책정 [https://cloud.google.com/vertex-ai/pricing?hl=ko#generative_ai_models] 페이지를 참조하세요.
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, and Vertex AI APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Caiplatform.googleapis.com&hl=ko]
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+텍스트 임베딩 생성을 위한 원격 모델 만들기
+호스팅된 Vertex AI 텍스트 임베딩 생성 모델을 나타내는 원격 모델을 만들어 보겠습니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.embedding_model`
+  REMOTE WITH CONNECTION DEFAULT
+  OPTIONS (ENDPOINT = 'text-embedding-005');
+쿼리가 완료되는 데 몇 초 정도 걸리며 그 이후에는 embedding_model 모델이 탐색기 창의 bqml_tutorial 데이터 세트에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+텍스트 임베딩 생성
+ML.GENERATE_EMBEDDING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding?hl=ko]를 사용하여 특허 검색 초록에서 텍스트 임베딩을 생성한 후 BigQuery 테이블에 작성하여 이를 검색할 수 있게 합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE TABLE `bqml_tutorial.embeddings` AS
+SELECT * FROM ML.GENERATE_EMBEDDING(
+  MODEL `bqml_tutorial.embedding_model`,
+  (
+    SELECT *, abstract AS content
+    FROM `patents-public-data.google_patents_research.publications`
+    WHERE LENGTH(abstract) > 0 AND LENGTH(title) > 0 AND country = 'Singapore'
+  )
+)
+WHERE LENGTH(ml_generate_embedding_status) = 0;
+이 쿼리를 완료하는 데 약 5분이 소요됩니다.
+Vertex AI LLM 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko#cloud_ai_service_functions] 또는 서비스 사용 불가로 인해 ML.GENERATE_EMBEDDING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding?hl=ko]를 사용한 임베딩 생성이 실패할 수 있습니다. 오류 세부정보는 ml_generate_embedding_status 열에 반환됩니다. 빈 ml_generate_embedding_status 열은 임베딩 생성에 성공했음을 나타냅니다.
+BigQuery의 대체 텍스트 임베딩 생성 방법은 사전 학습된 TensorFlow 모델을 사용하여 텍스트 임베딩 튜토리얼 [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko]을 참조하세요.
+벡터 색인 만들기
+임베딩 열에 벡터 색인을 만들면 해당 열에서 실행되는 벡터 검색은 근사 최근접 이웃 [https://en.wikipedia.org/wiki/Nearest_neighbor_search#Approximation_methods] 검색 기법을 사용합니다. 이 기법은 벡터 검색 성능을 향상시키고 재현율 [https://developers.google.com/machine-learning/crash-course/classification/precision-and-recall?hl=ko#recallsearch_term_rules]을 줄여 더 나은 근사치의 결과를 반환합니다.
+벡터 색인을 만들려면 CREATE VECTOR INDEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_vector_index_statement] 데이터 정의 언어(DDL) 문을 사용합니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 SQL 문을 실행합니다.
+CREATE OR REPLACE VECTOR INDEX my_index
+ON `bqml_tutorial.embeddings`(ml_generate_embedding_result)
+OPTIONS(index_type = 'IVF',
+  distance_type = 'COSINE',
+  ivf_options = '{"num_lists":500}')
+벡터 색인을 만드는 데는 일반적으로 몇 초밖에 걸리지 않습니다. 벡터 색인이 채워지고 사용할 준비가 되기까지 2~3분 정도 더 걸립니다.
+벡터 색인 준비 상태 확인
+벡터 색인은 비동기적으로 채워집니다. INFORMATION_SCHEMA.VECTOR_INDEXES 뷰 [https://cloud.google.com/bigquery/docs/information-schema-vector-indexes?hl=ko]를 쿼리하고 coverage_percentage 열 값이 0보다 크고 last_refresh_time 열 값이 NULL이 아닌 것을 확인하여 색인을 사용할 준비가 되었는지 여부를 체크할 수 있습니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 SQL 문을 실행합니다.
+SELECT table_name, index_name, index_status,
+coverage_percentage, last_refresh_time, disable_reason
+FROM `
+PROJECT_ID.bqml_tutorial.INFORMATION_SCHEMA.VECTOR_INDEXES`
+PROJECT_ID를 프로젝트 ID로 바꿉니다.
+벡터 색인을 사용하여 텍스트 유사성 검색 실행
+VECTOR_SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search]를 사용하여 텍스트 쿼리에서 생성된 임베딩과 일치하는 관련 특허를 검색합니다.
+top_k 인수는 반환할 일치 항목 수를 결정합니다. 이 경우 5입니다. fraction_lists_to_search 옵션은 검색할 벡터 색인 목록의 비율을 결정합니다. 생성한 벡터 색인 [https://cloud.google.com/bigquery/docs/vector-index-text-search-tutorial?hl=ko#create_a_vector_index]에 목록이 500개 있으므로 .01의 fraction_lists_to_search 값은 이 벡터 검색이 목록 중 5개를 스캔함을 나타냅니다. 여기에 표시된 대로 fraction_lists_to_search 값이 낮으면 재현율 [https://developers.google.com/machine-learning/crash-course/classification/accuracy-precision-recall?hl=ko#recall]이 낮아지고 성능이 빨라집니다. 벡터 색인 목록에 관한 자세한 내용은 num_lists 벡터 색인 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#vector_index_option_list]을 참조하세요.
+이 쿼리에서 임베딩을 생성하는 데 사용하는 모델은 비교하려는 테이블에서 임베딩을 생성하는 데 사용하는 모델과 동일해야 하며 그렇지 않으면 검색 결과가 정확하지 않습니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 SQL 문을 실행합니다.
+SELECT query.query, base.publication_number, base.title, base.abstract
+FROM VECTOR_SEARCH(
+  TABLE `bqml_tutorial.embeddings`, 'ml_generate_embedding_result',
+  (
+  SELECT ml_generate_embedding_result, content AS query
+  FROM ML.GENERATE_EMBEDDING(
+  MODEL `bqml_tutorial.embedding_model`,
+  (SELECT 'improving password security' AS content))
+  ),
+  top_k => 5, options => '{"fraction_lists_to_search": 0.01}')
+출력은 다음과 비슷합니다.
++-----------------------------+--------------------+-------------------------------------------------+-------------------------------------------------+
+|            query            | publication_number |                       title                     |                      abstract                   |
++-----------------------------+--------------------+-------------------------------------------------+-------------------------------------------------+
+| improving password security | SG-120868-A1       | Data storage device security method and a...    | Methods for improving security in data stora... |
+| improving password security | SG-10201610585W-A  | Passsword management system and process...      | PASSSWORD MANAGEMENT SYSTEM AND PROCESS ...     |
+| improving password security | SG-148888-A1       | Improved system and method for...               | IMPROVED SYSTEM AND METHOD FOR RANDOM...        |
+| improving password security | SG-194267-A1       | Method and system for protecting a password...  | A system for providing security for a...        |
+| improving password security | SG-120868-A1       | Data storage device security...                 | Methods for improving security in data...       |
++-----------------------------+--------------------+-------------------------------------------------+-------------------------------------------------+
+텍스트 생성을 위한 원격 모델 만들기
+호스팅된 Vertex AI 텍스트 생성 모델을 나타내는 원격 모델을 만들어 보겠습니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.text_model`
+  REMOTE WITH CONNECTION DEFAULT
+  OPTIONS (ENDPOINT = 'gemini-2.0-flash-001');
+쿼리가 완료되는 데 몇 초 정도 걸리며 그 이후에는 text_model 모델이 탐색기 창의 bqml_tutorial 데이터 세트에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+벡터 검색 결과로 보강된 텍스트 생성
+ML.GENERATE_TEXT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-text?hl=ko]를 사용하여 텍스트를 생성하기 위해 프롬프트로 검색 결과를 제공합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+SELECT ml_generate_text_llm_result AS generated, prompt
+FROM ML.GENERATE_TEXT(
+  MODEL `bqml_tutorial.text_model`,
+  (
+    SELECT CONCAT(
+      'Propose some project ideas to improve user password security using the context below: ',
+      STRING_AGG(
+        FORMAT("patent title: %s, patent abstract: %s", base.title, base.abstract),
+        ',\n')
+      ) AS prompt,
+    FROM VECTOR_SEARCH(
+      TABLE `bqml_tutorial.embeddings`, 'ml_generate_embedding_result',
+      (
+        SELECT ml_generate_embedding_result, content AS query
+        FROM ML.GENERATE_EMBEDDING(
+          MODEL `bqml_tutorial.embedding_model`,
+         (SELECT 'improving password security' AS content)
+        )
+      ),
+    top_k => 5, options => '{"fraction_lists_to_search": 0.01}')
+  ),
+  STRUCT(600 AS max_output_tokens, TRUE AS flatten_json_output));
+출력은 다음과 비슷합니다.
++------------------------------------------------+------------------------------------------------------------+
+|            generated                           | prompt                                                     |
++------------------------------------------------+------------------------------------------------------------+
+| These patents suggest several project ideas to | Propose some project ideas to improve user password        |
+| improve user password security.  Here are      | security using the context below: patent title: Active     |
+| some, categorized by the patent they build     | new password entry dialog with compact visual indication   |
+| upon:                                          | of adherence to password policy, patent abstract:          |
+|                                                | An active new password entry dialog provides a compact     |
+| **I. Projects based on "Active new password    | visual indication of adherence to password policies. A     |
+| entry dialog with compact visual indication of | visual indication of progress towards meeting all          |
+| adherence to password policy":**               | applicable password policies is included in the display    |
+|                                                | and updated as new password characters are being...        |
++------------------------------------------------+------------------------------------------------------------+
+ 
+삭제
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+검색 증강 생성(RAG) 파이프라인에서 PDF 파싱 [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko] 튜토리얼을 통해 파싱된 PDF 콘텐츠를 기반으로 RAG 파이프라인을 만드는 방법을 알아보세요.
+도움이 되었나요?
+의견 보내기
