@@ -1,0 +1,49 @@
+Source URL: https://cloud.google.com/bigquery/docs/write-api-best-practices
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+스트림 생성 속도 제한 [https://cloud.google.com/bigquery/docs/write-api-best-practices?hl=ko#limit_the_rate_of_stream_creation]
+연결 풀 관리 [https://cloud.google.com/bigquery/docs/write-api-best-practices?hl=ko#connection_pool_management]
+스트림 오프셋을 관리하여 1회만 실행되는 시맨틱스를 달성 [https://cloud.google.com/bigquery/docs/write-api-best-practices?hl=ko#manage_stream_offsets_to_achieve_exactly-once_semantics]
+AppendRows 호출 차단 안함 [https://cloud.google.com/bigquery/docs/write-api-best-practices?hl=ko#do_not_block_on_appendrows_calls]
+스키마 업데이트 처리 [https://cloud.google.com/bigquery/docs/write-api-best-practices?hl=ko#handle_schema_updates]
+BigQuery Storage Write API 권장사항
+bookmark_border
+이 문서는 BigQuery Storage Write API 사용과 관련된 권장사항을 제공합니다. 이 문서를 읽기 전에 BigQuery Storage Write API 개요 [https://cloud.google.com/bigquery/docs/write-api?hl=ko#overview]를 읽어보세요.
+스트림 생성 속도 제한
+스트림을 만들기 전에 기본 스트림 [https://cloud.google.com/bigquery/docs/write-api?hl=ko#default_stream]을 사용할 수 있는지 고려하세요. 스트리밍 시나리오의 경우 기본 스트림에는 할당량 제한이 적으며 애플리케이션에서 만든 스트림을 사용하는 것보다 더 잘 확장할 수 있습니다. 애플리케이션에서 만든 스트림을 사용하는 경우 추가 스트림을 만들기 전에 각 스트림에서는 최대 처리량을 활용해야 합니다. 예를 들어 비동기 쓰기 [https://cloud.google.com/bigquery/docs/write-api-best-practices?hl=ko#do_not_block_on_appendrows_calls]를 사용합니다.
+애플리케이션에서 만든 스트림의 경우 높은 빈도로 CreateWriteStream을 호출하지 마세요. 일반적으로 초당 호출 수가 40~50개를 초과하면 API 호출의 지연 시간이 크게 늘어납니다(25초 초과). 애플리케이션이 콜드 스타트를 수락하고 스트림 수를 점진적으로 늘릴 수 있는지 확인하고 CreateWriteStream 호출 속도를 제한합니다. DeadlineExceeded 오류와 함께 실패하지 않도록 호출이 완료될 때까지 더 큰 기한을 설정할 수도 있습니다. 또한 CreateWriteStream 호출의 최대 비율에 대한 장기 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko#createwritestream]도 있습니다. 스트림을 만드는 것은 리소스 집약적인 프로세스이므로 스트림 생성 속도를 줄이고 기존 스트림을 최대한 활용하는 것이 이 한도를 초과하지 않는 가장 좋은 방법입니다.
+연결 풀 관리
+AppendRows 메서드는 스트림에 대한 양방향 연결을 만듭니다. 기본 스트림에서는 여러 연결을 열 수 있지만 애플리케이션에서 생성된 스트림에서는 단일 활성 연결만 열 수 있습니다.
+기본 스트림을 사용하는 경우 Storage Write API 다중화를 통해 공유 연결을 사용하여 여러 대상 테이블에 쓸 수 있습니다. 리소스 처리량 및 사용률을 높이기 위한 풀 연결 다중화입니다. 워크플로에 동시 연결이 20개를 초과하는 경우 다중화를 사용하는 것이 좋습니다. 자바 및 Go에서 다중화를 사용할 수 있습니다. 자바 구현 세부정보는 다중화 사용 [https://cloud.google.com/bigquery/docs/write-api-streaming?hl=ko#use_multiplexing]을 참조하세요. Go 구현 세부정보는 연결 공유(다중화) [https://pkg.go.dev/cloud.google.com/go/bigquery/storage/managedwriter#hdr-Connection_Sharing__Multiplexing_]를 참조하세요. 1회 이상 실행되는 시맨틱스가 있는 Beam 커넥터 [https://beam.apache.org/documentation/io/built-in/google-bigquery/#at-least-once-semantics]를 사용하는 경우 UseStorageApiConnectionPool [https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html#setUseStorageApiConnectionPool-java.lang.Boolean-]을 통해 다중화를 사용 설정할 수 있습니다. Dataproc Spark 커넥터는 기본적으로 다중화가 사용 설정되어 있습니다.
+최상의 성능을 위해 하나의 연결에 가능한 한 많은 데이터 쓰기를 사용하세요. 한 번의 쓰기에 하나의 연결을 사용하거나, 여러 개의 작은 쓰기를 위해 스트림을 열고 닫는 것은 좋지 않습니다.
+프로젝트당 동시에 열 수 있는 동시 연결 [https://cloud.google.com/bigquery/quotas?hl=ko#concurrent_connections] 수에 할당량이 있습니다. 한도를 초과하면 AppendRows 호출이 실패합니다. 하지만 동시 연결의 할당량을 늘릴 수 있으며 일반적으로 확장을 제한하는 요소가 되지 않습니다.
+AppendRows를 호출할 때마다 새 데이터 작성기 객체가 생성됩니다. 따라서 애플리케이션에서 만든 스트림을 사용하는 경우 연결 수는 생성된 스트림 수에 해당합니다. 일반적으로 단일 연결은 1MBps 이상의 처리량을 지원합니다. 상한값은 네트워크 대역폭, 데이터 스키마, 서버 부하와 같은 여러 요소에 따라 달라지지만 10MBps를 초과할 수 있습니다.
+프로젝트당 총 처리량 [https://cloud.google.com/bigquery/quotas?hl=ko#writeapi_throughput]에도 할당량이 있습니다. 이는 Storage Write API 서비스를 통과하는 모든 연결의 초당 바이트를 나타냅니다. 프로젝트가 이 할당량을 초과하면 할당량 조정을 요청 [https://cloud.google.com/docs/quotas/help/request_increase?hl=ko]할 수 있습니다. 일반적으로 동시 연결 할당량과 같이 그에 수반되는 할당량도 동일한 비율로 늘려야 합니다.
+스트림 오프셋을 관리하여 1회만 실행되는 시맨틱스를 달성
+Storage Write API는 스트림의 현재 끝에 대한 쓰기만 허용하며, 스트림은 데이터가 추가됨에 따라 이동합니다. 스트림의 현재 위치는 스트림 시작부터 오프셋으로 지정됩니다.
+애플리케이션에서 만든 스트림에 쓰는 경우 1회만 실행되는 쓰기 시맨틱스를 갖도록 스트림 오프셋을 지정할 수 있습니다.
+오프셋을 지정하면 쓰기 작업이 멱등성을 가지므로 네트워크 오류나 서버의 응답 오류로 인해 재시도할 수 있습니다. 오프셋과 관련된 다음 오류를 처리합니다.
+ALREADY_EXISTS(StorageErrorCode.OFFSET_ALREADY_EXISTS): 행이 이미 작성되었습니다. 이 오류는 무시해도 됩니다.
+OUT_OF_RANGE(StorageErrorCode.OFFSET_OUT_OF_RANGE): 이전 쓰기 작업이 실패했습니다. 마지막으로 성공한 쓰기에서 다시 시도합니다.
+잘못된 오프셋 값을 설정한 경우에도 이러한 오류가 발생할 수 있으므로 오프셋을 신중하게 관리해야 합니다.
+스트림 오프셋을 사용하기 전에 1회만 실행되는 시맨틱스가 필요한지 여부를 고려합니다. 예를 들어 업스트림 데이터 파이프라인이 1회 이상 실행되는 쓰기를 보장하거나 데이터 수집 후 중복을 쉽게 감지할 수 있는 경우 1회만 실행되는 쓰기가 필요하지 않을 수도 있습니다. 이 경우에는 행 오프셋을 추적할 필요가 없는 기본 스트림을 사용하는 것이 좋습니다.
+AppendRows 호출 차단 안함
+AppendRows 메서드는 비동기적입니다. 각 쓰기에 대한 응답을 개별적으로 차단하지 않고 일련의 쓰기를 전송할 수 있습니다. 양방향 연결의 응답 메시지는 요청이 큐에 추가된 것과 동일한 순서로 도착합니다. 최대 처리량을 확보하려면 AppendRows를 차단하지 않고 호출하여 응답을 기다립니다.
+스키마 업데이트 처리
+데이터 스트리밍 시나리오의 경우 테이블 스키마는 일반적으로 스트리밍 파이프라인 외부에서 관리됩니다. 스키마는 새 null 허용 필드를 추가하는 등 시간이 지남에 따라 발전하는 경우가 많습니다. 강력한 파이프라인이 대역 외 스키마 업데이트를 처리해야 합니다.
+Storage Write API는 다음과 같이 테이블 스키마를 지원합니다.
+첫 번째 쓰기 요청에 스키마가 포함됩니다.
+각 데이터 행을 바이너리 프로토콜 버퍼로 보냅니다. BigQuery는 데이터를 스키마에 매핑 [https://cloud.google.com/bigquery/docs/write-api?hl=ko#data_type_conversions]합니다.
+null 허용 필드는 생략할 수 있지만 현재 스키마에 없는 필드는 포함할 수 없습니다. 추가 필드가 있는 행을 보내면 Storage Write API는 StorageErrorCode.SCHEMA_MISMATCH_EXTRA_FIELD와 함께 StorageError [https://cloud.google.com/bigquery/docs/reference/storage/rpc/google.cloud.bigquery.storage.v1?hl=ko#google.cloud.bigquery.storage.v1.StorageError]를 반환합니다.
+페이로드에서 새 필드를 전송하려면 먼저 BigQuery에서 테이블 스키마를 업데이트해야 합니다. Storage Write API는 잠시 후 몇 분 내에 스키마 변경사항을 감지합니다. Storage Write API가 스키마 변경을 감지하면 AppendRowsResponse [https://cloud.google.com/bigquery/docs/reference/storage/rpc/google.cloud.bigquery.storage.v1?hl=ko#google.cloud.bigquery.storage.v1.AppendRowsResponse] 응답 메시지에 새 스키마를 설명하는 TableSchema 객체가 포함됩니다.
+업데이트된 스키마를 사용하여 데이터를 전송하려면 기존 연결을 닫고 새 스키마로 새 연결을 열어야 합니다.
+자바 클라이언트. 자바 클라이언트 라이브러리는 JsonStreamWriter [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter?hl=ko] 클래스를 통해 스키마 업데이트에 대한 몇 가지 추가 기능을 제공합니다. 스키마 업데이트 후 JsonStreamWriter가 업데이트된 스키마에 자동으로 다시 연결됩니다. 연결을 명시적으로 닫았다가 다시 열 필요는 없습니다. 프로그래매틱 방식으로 스키마 변경사항을 확인하려면 append 메서드가 완료된 후 AppendRowsResponse.hasUpdatedSchema [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.AppendRowsResponse?hl=ko#com_google_cloud_bigquery_storage_v1_AppendRowsResponse_getUpdatedSchema__]를 호출합니다.
+참고: 스키마 업데이트는 클라이언트 라이브러리에 즉시 표시되지 않지만 몇 분 내에 감지됩니다.
+입력 데이터에서 알 수 없는 필드를 무시하도록 JsonStreamWriter를 구성할 수도 있습니다. 이 동작을 설정하려면 setIgnoreUnknownFields [https://cloud.google.com/java/docs/reference/google-cloud-bigquerystorage/latest/com.google.cloud.bigquery.storage.v1.JsonStreamWriter.Builder?hl=ko#com_google_cloud_bigquery_storage_v1_JsonStreamWriter_Builder_setIgnoreUnknownFields_boolean_]를 호출하세요. 이 동작은 기존 tabledata.insertAll [https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll?hl=ko] API를 사용할 때의 ignoreUnknownValues 옵션과 유사합니다. 하지만 알 수 없는 필드가 자동으로 삭제되므로 의도치 않은 데이터 손실이 발생할 수 있습니다.
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,81 @@
+Source URL: https://cloud.google.com/bigquery/docs/alloydb-federated-queries
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/alloydb-federated-queries?hl=ko#before_you_begin]
+데이터 쿼리 [https://cloud.google.com/bigquery/docs/alloydb-federated-queries?hl=ko#query_data]
+AlloyDB 테이블 스키마 보기 [https://cloud.google.com/bigquery/docs/alloydb-federated-queries?hl=ko#view_a_table_schema]
+BigQuery 통합 쿼리 추적 [https://cloud.google.com/bigquery/docs/alloydb-federated-queries?hl=ko#track_federated_queries]
+문제 해결 [https://cloud.google.com/bigquery/docs/alloydb-federated-queries?hl=ko#troubleshooting]
+다음 단계 [https://cloud.google.com/bigquery/docs/alloydb-federated-queries?hl=ko#whats_next]
+AlloyDB 통합 쿼리
+bookmark_border
+데이터 분석가는 통합 쿼리 [https://cloud.google.com/bigquery/docs/federated-queries-intro?hl=ko]를 사용하여 BigQuery에서 PostgreSQL용 AlloyDB의 데이터를 쿼리할 수 있습니다.
+BigQuery AlloyDB 통합을 사용하면 BigQuery에서 데이터 복사 또는 이동 없이 AlloyDB에 위치한 데이터를 실시간으로 쿼리할 수 있습니다.
+시작하기 전에
+BigQuery 관리자가 AlloyDB 연결 [https://cloud.google.com/bigquery/docs/connect-to-alloydb?hl=ko#create-alloydb-connection]을 만들어 사용자와 공유 [https://cloud.google.com/bigquery/docs/connect-to-alloydb?hl=ko#share_connections]했는지 확인합니다.
+AlloyDB 인스턴스를 쿼리하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트에 대한 BigQuery 연결 사용자 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#bigquery.connectionUser](roles/bigquery.connectionUser) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko]을 통해 필요한 권한을 얻을 수도 있습니다.
+데이터 쿼리
+GoogleSQL 쿼리에서 통합 쿼리를 AlloyDB로 보내려면 EXTERNAL_QUERY 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/federated_query_functions?hl=ko#external_query]를 사용합니다.
+고객 테이블은 BigQuery에, 판매 테이블은 AlloyDB에 저장되어 있는 상황에서 하나의 쿼리로 두 테이블을 조인하려는 경우가 있습니다. 다음 예시에서는 orders라는 AlloyDB 테이블에 통합 쿼리를 만들고 결과를 mydataset.customers라는 BigQuery 테이블과 조인합니다.
+예시 쿼리는 다음과 같은 세 개의 부분으로 구성됩니다.
+AlloyDB 데이터베이스에서 외부 쿼리 SELECT customer_id, MIN(order_date) AS first_order_date FROM orders GROUP BY customer_id를 실행하여 EXTERNAL_QUERY 함수를 통해 각 고객의 첫 주문 날짜를 구합니다.
+customer_id를 기준으로 BigQuery에서 외부 쿼리 결과 테이블을 고객 테이블과 조인합니다.
+최종 결과 집합에서 고객 정보와 첫 주문 날짜를 선택합니다.
+SELECT c.customer_id, c.name, rq.first_order_date
+FROM mydataset.customers AS c
+LEFT OUTER JOIN EXTERNAL_QUERY(
+  'us.connection_id',
+  '''SELECT customer_id, MIN(order_date) AS first_order_date
+  FROM orders
+  GROUP BY customer_id''') AS rq ON rq.customer_id = c.customer_id
+GROUP BY c.customer_id, c.name, rq.first_order_date;
+AlloyDB 테이블 스키마 보기
+EXTERNAL_QUERY 함수를 사용하여 information_schema 테이블을 쿼리하여 데이터베이스 메타데이터에 액세스할 수 있습니다. 예를 들어 데이터베이스의 모든 테이블을 나열하거나 테이블 스키마를 볼 수 있습니다. 자세한 내용은 PostgreSQL information_schema 테이블 [https://www.postgresql.org/docs/9.1/information-schema.html]을 참조하세요.
+-- List all tables in a database.
+SELECT * FROM EXTERNAL_QUERY("region.connection_id",
+"select * from information_schema.tables;");
+-- List all columns in a table.
+SELECT * FROM EXTERNAL_QUERY("region.connection_id",
+"select * from information_schema.columns where table_name='x';");
+BigQuery 통합 쿼리 추적
+AlloyDB에 대해 통합 쿼리를 실행하면 BigQuery는 다음과 유사한 주석으로 쿼리에 주석을 추가합니다.
+/* Federated query from BigQuery. Project ID: PROJECT_ID, BigQuery Job ID: JOB_ID. */
+다음 주석을 사용하면 로그의 쿼리 사용량을 모니터링할 때 BigQuery에서 수신되는 쿼리를 식별할 수 있습니다.
+로그 탐색기 페이지로 이동합니다.
+로그 탐색기로 이동 [https://console.cloud.google.com/logs/query?hl=ko]
+쿼리 탭에서 다음 쿼리를 입력합니다.
+resource.type="alloydb.googleapis.com/Instance"
+textPayload=~"Federated query from BigQuery"
+쿼리 실행을 클릭합니다.
+BigQuery 통합 쿼리에 사용할 수 있는 레코드가 있는 경우 쿼리 결과에 다음과 유사한 레코드 목록이 표시됩니다.
+YYYY-MM-DD hh:mm:ss.millis UTC [3210064]: [4-1]
+db=DATABASE, user=USER_ACCOUNT
+STATEMENT: SELECT 1 FROM (SELECT FROM company_name_table) t;
+/* Federated query from BigQuery.
+Project ID: PROJECT_ID, BigQuery Job ID: JOB_ID
+*/
+
+YYYY-MM-DD hh:mm:ss.millis UTC [3210532]: [2-1]
+db=DATABASE, user=USER_ACCOUNT
+STATEMENT: SELECT "company_id", "company type_id" FROM
+(SELECT FROM company_name_table) t;
+/* Federated query from BigQuery.
+Project ID: PROJECT_ID, BigQuery Job ID: JOB_ID
+*/
+Cloud Logging에 대한 자세한 내용은 Cloud Logging [https://cloud.google.com/logging/docs/view/logs-explorer-interface?hl=ko]을 참조하세요.
+문제 해결
+이 섹션에서는 통합 쿼리를 AlloyDB에 전송할 때 발생할 수 있는 잠재적 오류를 설명하고 가능한 문제 해결 방법을 제공합니다.
+문제: 다음 오류로 데이터베이스 서버에 연결할 수 없음: Invalid table-valued function EXTERNAL_QUERY Connect to PostgreSQL server failed: server closed the connection unexpectedly. This probably means the server terminated abnormally before or while processing the request.
+해결 방법: AlloyDB에 대한 연결 [https://cloud.google.com/bigquery/docs/connect-to-alloydb?hl=ko#create-alloydb-connection]을 만드는 동안 유효한 사용자 인증 정보를 사용하고 모든 기본 요건을 따랐는지 확인합니다. AlloyDB에 연결할 때 자동으로 생성되는 서비스 계정에 AlloyDB 클라이언트(roles/alloydb.client) 역할이 있는지 확인합니다. 자세한 내용은 서비스 계정에 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/connect-to-alloydb?hl=ko#access-alloydb]를 참조하세요.
+다음 단계
+통합 쿼리 [https://cloud.google.com/bigquery/docs/federated-queries-intro?hl=ko] 알아보기
+PostgreSQL에서 BigQuery로의 데이터 유형 매핑 [https://cloud.google.com/bigquery/docs/reference/standard-sql/federated_query_functions?hl=ko#postgresql_mapping] 알아보기
+지원되지 않는 데이터 유형 [https://cloud.google.com/bigquery/docs/reference/standard-sql/federated_query_functions?hl=ko#unsupported_data_types] 알아보기
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,2512 @@
+Source URL: https://cloud.google.com/bigquery/docs/migration/snowflake-sql
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+데이터 유형 [https://cloud.google.com/bigquery/docs/migration/snowflake-sql?hl=ko#data-types]
+쿼리 구문 및 쿼리 연산자 [https://cloud.google.com/bigquery/docs/migration/snowflake-sql?hl=ko#query_syntax_and_query_operators]
+SELECT 문 [https://cloud.google.com/bigquery/docs/migration/snowflake-sql?hl=ko#select_statement]
+FROM 절 [https://cloud.google.com/bigquery/docs/migration/snowflake-sql?hl=ko#from_clause]
+WHERE 절 [https://cloud.google.com/bigquery/docs/migration/snowflake-sql?hl=ko#where_clause]
+Snowflake SQL 변환 가이드
+bookmark_border
+이 문서에서는 EDW(엔터프라이즈 데이터 웨어하우스)를 BigQuery로 이전하는 작업의 계획과 실행을 가속화하기 위해 Snowflake와 BigQuery 간의 SQL 구문 유사점과 차이점을 자세히 설명합니다. Snowflake 데이터 웨어하우징은 Snowflake 관련 SQL 구문으로 작동하도록 설계되었습니다. 서비스마다 SQL 언어가 다르므로 Snowflake용으로 작성된 스크립트를 BigQuery에서 사용하려면 먼저 변경해야 할 수 있습니다. 일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]을 사용하여 SQL 스크립트를 일괄적으로 마이그레이션하거나 대화형 SQL 변환 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]을 사용하여 임시 쿼리를 변환합니다. Snowflake SQL은 두 도구 모두에서 프리뷰 [https://cloud.google.com/products?hl=ko#product-launch-stages] 버전으로 지원됩니다.
+참고: Snowflake 및 BigQuery의 SQL 요소와 직접 대응하는 BigQuery의 SQL 요소가 없는 경우도 있습니다. 그러나 대부분의 경우에는 이 문서의 예시와 같이 대체 수단을 사용하여 Snowflake에서와 동일한 기능을 BigQuery에서 사용할 수 있습니다.
+데이터 유형
+이 섹션에서는 Snowflake와 BigQuery의 데이터 유형 간의 유사점을 보여줍니다.
+
+
+Snowflake BigQuery 참고
+NUMBER/ DECIMAL/NUMERIC [https://docs.snowflake.com/en/sql-reference/data-types-numeric.html#decimal-numeric] NUMERIC/BIGNUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#decimal_types] 정밀도와 소수 자릿수에 따라 NUMERIC 또는 BIGNUMERIC에 매핑될 수 있습니다.
+
+Snowflake의 NUMBER 데이터 유형은 38자리의 정밀도와 37자리의 소수 자릿수를 지원합니다. 사용자에 따라 정밀도와 소수 자릿수를 지정할 수 있습니다.
+
+BigQuery는 특정 범위 내에서 정밀도 및 소수 자릿수를 선택적으로 지정 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#decimal_types]하는 NUMERIC 및 BIGNUMERIC을 지원합니다.
+INT/INTEGER [https://docs.snowflake.com/en/sql-reference/data-types-numeric.html#int-integer-bigint-smallint-tinyint-byteint] BIGNUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#decimal_types] INT/INTEGER 및 다른 모든 INT와 비슷한 데이터 유형(예: BIGINT, TINYINT, SMALLINT, BYTEINT)은 정밀도 및 소수 자릿수를 지정할 수 없으며 항상 NUMBER(38, 0)인 NUMBER 데이터 유형의 별칭을 나타냅니다.
+
+REWRITE_ZERO_SCALE_NUMERIC_AS_INTEGER 구성 옵션 [https://cloud.google.com/bigquery/docs/config-yaml-translation?hl=ko#optimize_and_improve_the_performance_of_translated_sql]을 사용하여 INTEGER 및 관련 유형을 INT64로 대신 변환할 수 있습니다.
+BIGINT [https://docs.snowflake.com/en/sql-reference/data-types-numeric.html#int-integer-bigint-smallint-tinyint-byteint] BIGNUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#decimal_types]
+SMALLINT [https://docs.snowflake.com/en/sql-reference/data-types-numeric.html#int-integer-bigint-smallint-tinyint-byteint] BIGNUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#decimal_types]
+TINYINT [https://docs.snowflake.com/en/sql-reference/data-types-numeric.html#int-integer-bigint-smallint-tinyint-byteint] BIGNUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#decimal_types]
+BYTEINT [https://docs.snowflake.com/en/sql-reference/data-types-numeric.html#int-integer-bigint-smallint-tinyint-byteint] BIGNUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#decimal_types]
+FLOAT/ FLOAT4/ FLOAT8 [https://docs.snowflake.com/en/sql-reference/data-types-numeric.html#float-float4-float8] FLOAT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#floating_point_types] Snowflake의 FLOAT 데이터 유형은 'NaN'을 > X로 설정합니다. 여기서 X는 FLOAT 값('NaN' 자체가 아닌 경우)입니다.
+
+BigQuery의 FLOAT 데이터 유형은 'NaN'을 < X로 설정합니다. 여기서 X는 FLOAT 값('NaN' 자체가 아닌 경우)입니다.
+DOUBLE/ DOUBLE PRECISION/ [https://docs.snowflake.com/en/sql-reference/data-types-numeric.html#double-double-precision-real]
+REAL [https://docs.snowflake.com/en/sql-reference/data-types-numeric.html#double-double-precision-real] FLOAT64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#floating_point_types] Snowflake의 DOUBLE 데이터 유형은 Snowflake의 FLOAT 데이터 유형과 동의어이지만 일반적으로 FLOAT로 잘못 표시됩니다. DOUBLE로 올바르게 저장됩니다.
+VARCHAR [https://docs.snowflake.com/en/sql-reference/data-types-text.html#varchar] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type] Snowflake의 VARCHAR 데이터 유형은 최대 길이가 16MB (비압축)입니다. 길이를 지정하지 않을 경우 기본값은 최대 길이입니다.
+
+BigQuery의 STRING 데이터 유형은 가변 길이 UTF-8로 인코딩된 유니코드로 저장됩니다. 최대 길이는 16,000자입니다.
+CHAR/CHARACTER [https://docs.snowflake.com/en/sql-reference/data-types-text.html#char-character] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type] Snowflake의 CHAR 데이터 유형은 최대 길이는 1입니다.
+STRING/TEXT [https://docs.snowflake.com/en/sql-reference/data-types-text.html#string-text] STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#string_type] Snowflake의 STRING 데이터 유형은 Snowflake의 VARCHAR와 동의어입니다.
+BINARY [https://docs.snowflake.com/en/sql-reference/data-types-text.html#binary] BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bytes_type]
+VARBINARY [https://docs.snowflake.com/en/sql-reference/data-types-text.html#varbinary] BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#bytes_type]
+BOOLEAN [https://docs.snowflake.com/en/sql-reference/data-types-logical.html#boolean] BOOL [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#boolean_type] BigQuery의 BOOL 데이터 유형은 TRUE/FALSE/NULL을 허용하는 Snowflake의 BOOL 데이터 유형과 달리 TRUE/FALSE만 허용할 수 있습니다.
+DATE [https://docs.snowflake.com/en/sql-reference/data-types-datetime.html#date] DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#date_type] Snowflake의 DATE 유형은 가장 일반적인 날짜 형식을 허용하는 반면 BigQuery의 DATE 유형은 'YYYY-[M]M-[D]D' 형식의 날짜만 허용합니다.
+TIME [https://docs.snowflake.com/en/sql-reference/data-types-datetime.html#time] TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#time_type] Snowflake의 TIME 유형은 0~9나노초의 정밀도를 지원하는 반면 BigQuery의 TIME 유형은 0~6나노초의 정밀도를 지원합니다.
+TIMESTAMP [https://docs.snowflake.com/en/sql-reference/data-types-datetime.html#timestamp] DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#datetime_type] TIMESTAMP는 BigQuery에서 DATETIME에 매핑되는 기본값이 TIMESTAMP_NTZ [https://docs.snowflake.com/en/sql-reference/data-types-datetime#timestamp-ltz-timestamp-ntz-timestamp-tz]인 사용자가 구성할 수 있는 별칭입니다.
+TIMESTAMP_LTZ [https://docs.snowflake.com/en/sql-reference/data-types-datetime.html#timestamp-ltz-timestamp-ntz-timestamp-tz] TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type]
+TIMESTAMP_NTZ/DATETIME [https://docs.snowflake.com/en/sql-reference/data-types-datetime.html#timestamp-ltz-timestamp-ntz-timestamp-tz] DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#datetime_type]
+TIMESTAMP_TZ [https://docs.snowflake.com/en/sql-reference/data-types-datetime.html#timestamp-ltz-timestamp-ntz-timestamp-tz] TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type]
+OBJECT [https://docs.snowflake.com/en/sql-reference/data-types-semistructured.html#object] JSON [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#json_type] Snowflake의 OBJECT 유형은 명시적인 유형 값을 지원하지 않습니다. 값은 VARIANT 유형입니다.
+VARIANT [https://docs.snowflake.com/en/sql-reference/data-types-semistructured#variant] JSON [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#json_type] Snowflake의 OBJECT 유형은 명시적인 유형 값을 지원하지 않습니다. 값은 VARIANT 유형입니다.
+ARRAY [https://docs.snowflake.com/en/sql-reference/data-types-semistructured.html#array] ARRAY<JSON> [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#array_type] Snowflake의 ARRAY 유형은 VARIANT 유형만 지원할 수 있는 반면 BigQuery의 ARRAY 유형은 배열 자체를 제외한 모든 데이터 유형을 지원할 수 있습니다.
+또한 BigQuery에는 직접 Snowflake 아날로그가 없는 다음과 같은 데이터 유형도 있습니다.
+DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#datetime_type]
+GEOGRAPHY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#geography_type]
+쿼리 구문 및 쿼리 연산자
+이 섹션에서는 Snowflake와 BigQuery 간 쿼리 구문의 차이점을 설명합니다.
+SELECT 문
+대부분의 Snowflake SELECT 문 [https://docs.snowflake.net/manuals/sql-reference/sql/select.html]은 BigQuery와 호환됩니다. 아래 표에는 기타 다른 차이점 목록이 포함되어 있습니다.
+Snowflake BigQuery
+SELECT TOP [https://docs.snowflake.net/manuals/sql-reference/constructs/top_n.html] ...
+FROM table
+SELECT [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#select_list] expression
+FROM table
+ORDER BY expression DESC
+LIMIT number
+SELECT
+x/total AS probability,
+ROUND(100 * probability, 1) AS pct
+FROM raw_data
+
+참고: Snowflake는 동일한 SELECT 문에서 별칭 생성 및 참조를 지원합니다.
+SELECT
+x/total AS probability,
+ROUND(100 * (x/total), 1) AS pct
+FROM raw_data
+SELECT * FROM (
+VALUES [https://docs.snowflake.com/en/sql-reference/constructs/values.html] (1), (2), (3)
+)
+SELECT AS VALUE STRUCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#value_tables](1, 2, 3)
+Snowflake 별칭 및 식별자는 기본적으로 대소문자를 구분하지 않습니다. 대소문자를 유지하려면 별칭과 식별자를 큰따옴표(")로 묶습니다.
+FROM 절
+쿼리의 FROM 절 [https://docs.snowflake.net/manuals/sql-reference/constructs/from.html]은 SELECT 문에서 사용할 수 있는 테이블, 뷰, 서브 쿼리 또는 테이블 함수를 지정합니다. 이러한 모든 테이블 참조는 BigQuery에서 지원됩니다.
+아래 표에는 기타 다른 차이점 목록이 포함되어 있습니다.
+Snowflake BigQuery
+SELECT $1, $2 FROM (VALUES [https://docs.snowflake.net/manuals/sql-reference/constructs/values.html#values] (1, 'one'), (2, 'two'));
+WITH table1 AS
+(
+SELECT STRUCT(1 as number, 'one' as spelling)
+UNION ALL
+SELECT STRUCT(2 as number, 'two' as spelling)
+)
+SELECT *
+FROM [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#from_clause] table1
+SELECT* FROM table SAMPLE [https://docs.snowflake.net/manuals/sql-reference/constructs/sample.html](10)
+SELECT* FROM table
+TABLESAMPLE [https://cloud.google.com/spanner/docs/query-syntax?hl=ko#tablesample_operator]
+BERNOULLI (0.1 PERCENT)
+SELECT * FROM table1 AT [https://docs.snowflake.net/manuals/sql-reference/constructs/at-before.html#at-before](TIMESTAMP => timestamp) SELECT * FROM table1 BEFORE [https://docs.snowflake.net/manuals/sql-reference/constructs/at-before.html#at-before](STATEMENT => statementID)
+SELECT * FROM table
+FOR SYSTEM_TIME AS OF [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#for_system_time_as_of] timestamp
+
+참고: BigQuery에는 Snowflake의 문 ID를 사용하는 BEFORE를 대신할 항목이 없습니다. 타임스탬프 값은 현재 타임스탬프로부터 7일 이하여야 합니다.
+@[namespace]<stage_name>[/path]
+BigQuery는 스테이징된 파일 개념을 지원하지 않습니다.
+SELECT*
+FROM table
+START WITH predicate
+CONNECT BY [https://docs.snowflake.com/en/sql-reference/constructs/connect-by.html]
+[PRIOR] col1 = [PRIOR] col2
+[, ...]
+...
+BigQuery는 Snowflake의 CONNECT BY를 직접 대신할 항목을 제공하지 않습니다.
+FROM 절에서 다음을 사용하여 BigQuery 테이블을 참조할 수 있습니다.
+[project_id].[dataset_id].[table_name]
+[dataset_id].[table_name]
+[table_name]
+BigQuery는 추가 테이블 참조 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#from_clause]도 지원합니다.
+FOR SYSTEM_TIME AS OF [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#sql_syntax]를 사용하는 테이블 정의 및 행의 이전 버전
+필드 경로 또는 데이터 유형 내에서 필드로 확인되는 경로(즉, STRUCT)
+평면화된 배열 [https://cloud.google.com/bigquery/docs/arrays?hl=ko#querying_nested_arrays]
+WHERE 절
+Snowflake WHERE [https://docs.snowflake.net/manuals/sql-reference/constructs/where.html] 절과 BigQuery WHERE [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#where_clause] 절은 다음을 제외하고 동일합니다.
+Snowflake BigQuery
+SELECT col1, col2 FROM table1, table2 WHERE col1 = col2(+)
+SELECT col1, col2
+FROM table1 INNER JOIN table2
+ON col1 = col2
+
+참고: BigQuery는 JOIN에 (+) 구문을 지원하지 않습니다.
+JOIN 유형
+Snowflake와 BigQuery 모두 다음 유형의 조인을 지원합니다.
+[INNER] JOIN
+LEFT [OUTER] JOIN
+RIGHT [OUTER] JOIN
+FULL [OUTER] JOIN
+CROSS JOIN과 이에 상응하는 암시적 '쉼표 교차 조인' [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#cross_join]
+Snowflake와 BigQuery 모두 ON 및 USING 절을 지원합니다.
+아래 표에는 기타 다른 차이점 목록이 포함되어 있습니다.
+Snowflake BigQuery
+SELECT col1
+FROM table1
+NATURAL JOIN [https://docs.snowflake.com/en/sql-reference/constructs/join.html]
+table2
+SELECT col1
+FROM table1
+INNER JOIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#inner_join]
+table2
+USING (col1, col2 [, ...])
+
+참고: BigQuery에서 JOIN 절은 교차 조인이 아니거나 조인된 테이블 중 하나가 데이터 유형 또는 배열 내의 필드인 경우를 제외하고 조인 조건이 필요합니다.
+SELECT ... FROM table1 AS t1, LATERAL [https://docs.snowflake.net/manuals/sql-reference/constructs/join-lateral.html] ( SELECT*
+FROM table2 AS t2
+WHERE t1.col = t2.col )
+
+참고: 비측면 조인의 출력과 달리 측면 조인의 출력에는 인라인 뷰에서 생성된 행만 포함됩니다. 왼쪽 행은 인라인 뷰로 전달되어 이미 고려되었으므로 왼쪽 행은 오른쪽에 조인할 필요가 없습니다.
+SELECT ... FROM table1 as t1 LEFT JOIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#left_join] table2 as t2
+ON t1.col = t2.col
+참고: BigQuery는 LATERAL JOIN의 직접 대신할 항목을 지원하지 않습니다.
+WITH 절
+BigQuery WITH 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#with_clause]은 명명된 서브 쿼리를 한 개 이상 포함하며, 이는 후속 SELECT 문에서 참조할 때마다 실행됩니다. Snowflake WITH [https://docs.snowflake.net/manuals/sql-reference/constructs/with.html] 절은 BigQuery와 동일하게 작동하지만 BigQuery는 WITH RECURSIVE를 지원하지 않습니다.
+GROUP BY 절
+Snowflake GROUP BY 절은 GROUP BY [https://docs.snowflake.net/manuals/sql-reference/constructs/group-by.html], GROUP BY ROLLUP [https://docs.snowflake.net/manuals/sql-reference/constructs/group-by-rollup.html], GROUP BY GROUPING SETS [https://docs.snowflake.net/manuals/sql-reference/constructs/group-by-grouping-sets.html], GROUP BY CUBE [https://docs.snowflake.net/manuals/sql-reference/constructs/group-by-cube.html]를 지원하고 BigQuery GROUP BY 절은 GROUP BY [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_clause], GROUP BY ALL [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_all], GROUP BY ROLLUP [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_rollup], GROUP BY GROUPING SETS [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_grouping_sets], GROUP BY CUBE [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_cube]을 지원합니다.
+Snowflake HAVING [https://docs.snowflake.net/manuals/sql-reference/constructs/having.html]와 BigQuery HAVING [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#having_clause]은 동의어입니다. HAVING은 GROUP BY 및 집계 이후 그리고 ORDER BY 이전에 발생합니다.
+Snowflake BigQuery
+SELECT col1 as one, col2 as two
+FROM table GROUP BY [https://docs.snowflake.net/manuals/sql-reference/constructs/group-by.html] (one, 2)
+SELECT col1 as one, col2 as two
+FROM table GROUP BY [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_clause] (one, 2)
+SELECT col1 as one, col2 as two
+FROM table GROUP BY ROLLUP [https://docs.snowflake.net/manuals/sql-reference/constructs/group-by-rollup.html] (one, 2)
+SELECT col1 as one, col2 as two
+FROM table GROUP BY ROLLUP [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_rollup] (one, 2)
+SELECT col1 as one, col2 as two
+FROM table GROUP BY GROUPING SETS [https://docs.snowflake.net/manuals/sql-reference/constructs/group-by-grouping-sets.html] (one, 2)
+
+참고: Snowflake는 동일한 쿼리 블록에서 최대 128개의 그룹화 세트를 허용합니다.
+SELECT col1 as one, col2 as two
+FROM table GROUP BY GROUPING SETS [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_grouping_sets] (one, 2)
+SELECT col1 as one, col2 as two
+FROM table GROUP BY CUBE [https://docs.snowflake.net/manuals/sql-reference/constructs/group-by-cube.html] (one,2)
+
+참고: Snowflake는 각 큐브에서 최대 7개의 요소(그룹화 세트 128개)를 허용합니다.
+SELECT col1 as one, col2 as two
+FROM table GROUP BY CUBE [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_cube] (one, 2)
+ORDER BY 절
+Snowflake ORDER BY [https://docs.snowflake.net/manuals/sql-reference/constructs/order-by.html] 절과 BigQuery ORDER BY [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#order_by_clause] 절 사이에는 몇 가지 사소한 차이가 있습니다.
+Snowflake BigQuery
+Snowflake에서 NULL은 기본적으로 마지막에 옵니다(오름차순). BigQuery에서 NULLS는 기본적으로 처음에 옵니다(내림차순).
+NULLS FIRST 또는 NULLS LAST를 사용하여 NULL 값을 먼저 정렬할지 또는 마지막으로 정렬할지 지정할 수 있습니다. BigQuery에서 NULL 값을 먼저 정렬할지 또는 마지막으로 정렬할지 지정하는 항목이 없습니다.
+LIMIT/FETCH 절
+Snowflake의 LIMIT/FETCH [https://docs.snowflake.net/manuals/sql-reference/constructs/limit.html] 절은 문 또는 서브 쿼리에서 반환되는 최대 행 수를 제한합니다. LIMIT [https://docs.snowflake.net/manuals/sql-reference/constructs/limit.html](Postgres 문법) 및 FETCH [https://docs.snowflake.net/manuals/sql-reference/constructs/limit.html](ANSI 문법)는 동일한 결과를 생성합니다.
+Snowflake와 BigQuery에서는 쿼리에 LIMIT 절을 적용해도 쿼리가 읽는 데이터 양은 달라지지 않습니다.
+Snowflake BigQuery
+SELECT col1, col2
+FROM table
+ORDER BY col1
+LIMIT [https://docs.snowflake.net/manuals/sql-reference/constructs/limit.html] count OFFSET start
+
+SELECT ...
+FROM ...
+ORDER BY ...
+OFFSET start {[ROW | ROWS]} FETCH [https://docs.snowflake.net/manuals/sql-reference/constructs/limit.html] {[FIRST | NEXT]} count
+{[ROW | ROWS]} [ONLY]
+
+참고: NULL, 빈 문자열('') 및 $$$$ 값이 허용되며 '무제한'으로 처리됩니다. 주로 커넥터와 드라이버에 사용됩니다.
+SELECT col1, col2
+FROM table
+ORDER BY col1
+LIMIT [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#limit_and_offset_clause] count OFFSET start
+
+참고: BigQuery는 FETCH를 지원하지 않습니다. LIMIT이 FETCH를 대체합니다.
+
+참고: BigQuery에서 OFFSET을 LIMIT count와 함께 사용해야 합니다. 최적의 성능을 위해 count INT64 값을 필요한 최소 정렬 행으로 설정해야 합니다. 모든 결과 행을 정렬하면 쿼리 실행 성능이 저하됩니다.
+QUALIFY 절
+Snowflake에서 QUALIFY [https://docs.snowflake.net/manuals/sql-reference/constructs/qualify.html] 절을 사용하면 HAVING이 집계 함수와 GROUP BY 절로 수행하는 기능과 유사한 윈도우 함수의 결과를 필터링할 수 있습니다.
+Snowflake BigQuery
+SELECT col1, col2 FROM table QUALIFY [https://docs.snowflake.net/manuals/sql-reference/constructs/qualify.html] ROW_NUMBER() OVER (PARTITION BY col1 ORDER BY col2) = 1;
+ROW_NUMBER(), COUNT()와 같은 분석 함수나 OVER PARTITION BY를 사용하는 Snowflake QUALIFY 절은 BigQuery에서 분석 값을 포함하는 서브 쿼리에 WHERE [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#where_clause] 절로 표현됩니다.
+
+ROW_NUMBER [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#row_number]() 사용:
+
+SELECT col1, col2
+FROM ( SELECT col1, col2
+ROW NUMBER() OVER (PARTITION BY col1 ORDER by col2) RN FROM table ) WHERE RN = 1;
+
+더 큰 파티션을 지원하는 ARRAY_AGG() [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#array_agg] 사용:
+
+SELECT result.* FROM ( SELECT ARRAY_AGG(table ORDER BY table.col2 DESC LIMIT 1) [OFFSET(0)] FROM table
+GROUP BY col1 ) AS result;
+함수
+다음 섹션에는 Snowflake 함수와 그에 해당하는 BigQuery 함수가 나와 있습니다.
+집계 함수
+다음 표는 일반적인 Snowflake 집계, 집계 분석, 근사치 집계 함수와 그에 해당하는 BigQuery 함수 간의 매핑을 보여줍니다.
+Snowflake BigQuery
+ANY_VALUE [https://docs.snowflake.net/manuals/sql-reference/functions/any_value.html]([DISTINCT] expression) [OVER ...]
+
+참고: DISTINCT는 효과가 없습니다.
+ANY_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#any_value](expression) [OVER ...]
+APPROX_COUNT_DISTINCT [https://docs.snowflake.net/manuals/sql-reference/functions/approx_count_distinct.html]([DISTINCT] expression) [OVER ...]
+
+참고: DISTINCT는 효과가 없습니다.
+APPROX_COUNT_DISTINCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_count_distinct](expression)
+
+참고: BigQuery는 윈도우 함수에서 APPROX_COUNT_DISTINCT를 지원하지 않습니다.
+APPROX_PERCENTILE [https://docs.snowflake.net/manuals/sql-reference/functions/approx_percentile.html](expression, percentile) [OVER ...]
+
+참고: Snowflake에는 RESPECT NULLS 옵션이 없습니다.
+APPROX_QUANTILES [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_quantiles]([DISTINCT] expression,100) [OFFSET((CAST(TRUNC(percentile * 100) as INT64))]
+
+참고: BigQuery는 윈도우 함수에서 APPROX_QUANTILES를 지원하지 않습니다.
+APPROX_PERCENTILE_ACCUMULATE [https://docs.snowflake.net/manuals/sql-reference/functions/approx_percentile_accumulate.html] (expression)
+BigQuery는 근사치 값을 예측할 때 중간 상태를 저장하는 기능을 지원하지 않습니다.
+APPROX_PERCENTILE_COMBINE [https://docs.snowflake.net/manuals/sql-reference/functions/approx_percentile_combine.html](state)
+BigQuery는 근사치 값을 예측할 때 중간 상태를 저장하는 기능을 지원하지 않습니다.
+APPROX_PERCENTILE_ESTIMATE [https://docs.snowflake.net/manuals/sql-reference/functions/approx_percentile_estimate.html](state, percentile)
+BigQuery는 근사치 값을 예측할 때 중간 상태를 저장하는 기능을 지원하지 않습니다.
+APPROX_TOP_K [https://docs.snowflake.net/manuals/sql-reference/functions/approx_top_k.html](expression, [number [counters]]
+
+참고: 숫자 매개변수를 지정하지 않을 경우 기본값은 1입니다. 카운터가 숫자보다 훨씬 커야 합니다.
+APPROX_TOP_COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko#approx_top_count](expression, number)
+
+참고: BigQuery는 윈도우 함수에서 APPROX_TOP_COUNT를 지원하지 않습니다.
+APPROX_TOP_K_ACCUMULATE [https://docs.snowflake.net/manuals/sql-reference/functions/approx_top_k_accumulate.html](expression, counters)
+BigQuery는 근사치 값을 예측할 때 중간 상태를 저장하는 기능을 지원하지 않습니다.
+APPROX_TOP_K_COMBINE [https://docs.snowflake.net/manuals/sql-reference/functions/approx_top_k_combine.html](state, [counters])
+BigQuery는 근사치 값을 예측할 때 중간 상태를 저장하는 기능을 지원하지 않습니다.
+APPROX_TOP_K_ESTIMATE [https://docs.snowflake.net/manuals/sql-reference/functions/approx_top_k_estimate.html](state, [k])
+BigQuery는 근사치 값을 예측할 때 중간 상태를 저장하는 기능을 지원하지 않습니다.
+APPROXIMATE_JACCARD_INDEX [https://docs.snowflake.net/manuals/sql-reference/functions/approximate_jaccard_index.html]([DISTINCT] expression)
+
+커스텀 UDF를 사용하여 k개의 고유한 해시 함수로 MINHASH를 구현할 수 있습니다. MINHASH의 편차를 줄이는 또 다른 방법은
+해시 함수의 최솟값을 k로 유지하는 것입니다. 이 경우 Jaccard 색인은 다음과 같이 추산할 수 있습니다.
+WITH
+minhash_A AS (
+SELECT DISTINCT FARM_FINGERPRINT(TO_JSON_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#farm_fingerprint](t)) AS h
+FROM TA AS t
+ORDER BY h
+LIMIT k),
+minhash_B AS (
+SELECT DISTINCT FARM_FINGERPRINT(TO_JSON_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#farm_fingerprint](t)) AS h
+FROM TB AS t
+ORDER BY h
+LIMIT k)
+SELECT
+COUNT(*) / k AS APPROXIMATE_JACCARD_INDEX
+FROM minhash_A
+INNER JOIN minhash_B
+ON minhash_A.h = minhash_B.h
+APPROXIMATE_SIMILARITY [https://docs.snowflake.net/manuals/sql-reference/functions/approximate_similarity.html]([DISTINCT] expression)
+
+APPROXIMATE_JACCARD_INDEX [https://docs.snowflake.net/manuals/sql-reference/functions/approximate_jaccard_index.html]의 동의어이며 동일한 방식으로 구현할 수 있습니다.
+ARRAY_AGG [https://docs.snowflake.net/manuals/sql-reference/functions/array_agg.html]([DISTINCT] expression1) [WITHIN GROUP (ORDER BY ...)]
+[OVER ([PARTITION BY expression2])]
+Note: Snowflake does not support ability to IGNORE|RESPECT NULLS and to LIMIT directly in ARRAY_AGG.
+ARRAY_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#array_agg]([DISTINCT] expression1
+[{IGNORE|RESPECT}] NULLS] [ORDER BY ...] LIMIT ...])
+[OVER (...)]
+AVG [https://docs.snowflake.net/manuals/sql-reference/functions/avg.html]([DISTINCT] expression) [OVER ...]
+AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg]([DISTINCT] expression) [OVER ...]
+
+참고: BigQuery의 AVG는 STRING에서 자동 변환을 수행하지 않습니다.
+BITAND_AGG [https://docs.snowflake.net/manuals/sql-reference/functions/bitand_agg.html](expression)
+[OVER ...]
+BIT_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_and](expression) [OVER ...]
+참고: BigQuery는 암시적으로 문자/텍스트 열을 가장 가까운 INTEGER로 변환하지 않습니다.
+BITOR_AGG [https://docs.snowflake.net/manuals/sql-reference/functions/bitor_agg.html](expression)
+[OVER ...]
+BIT_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_or](expression)
+[OVER ...]
+
+참고: BigQuery는 암시적으로 문자/텍스트 열을 가장 가까운 INTEGER로 변환하지 않습니다.
+BITXOR_AGG [https://docs.snowflake.net/manuals/sql-reference/functions/bitxor_agg.html]([DISTINCT] expression) [OVER ...]
+BIT_XOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_xor]([DISTINCT] expression) [OVER ...]
+
+참고: BigQuery는 암시적으로 문자/텍스트 열을 가장 가까운 INTEGER로 변환하지 않습니다.
+BOOLAND_AGG [https://docs.snowflake.net/manuals/sql-reference/functions/booland_agg.html](expression) [OVER ...]
+
+참고: Snowflake를 사용하면 숫자, 십진수, 부동 소수점 값을 TRUE로 처리할 수 있습니다(0이 아닌 경우).
+LOGICAL_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_and](expression)
+[OVER ...]
+BOOLOR_AGG [https://docs.snowflake.net/manuals/sql-reference/functions/boolor_agg.html](expression)
+[OVER ...]
+
+참고: Snowflake를 사용하면 숫자, 십진수, 부동 소수점 값을 TRUE로 처리할 수 있습니다(0이 아닌 경우).
+LOGICAL_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_or](expression)
+[OVER ...]
+BOOLXOR_AGG [https://docs.snowflake.net/manuals/sql-reference/functions/boolxor_agg.html](expression)
+[OVER ([PARTITION BY <partition_expr> ])
+
+참고: Snowflake를 사용하면 숫자, 십진수, 부동 소수점 값을 TRUE로 처리할 수 있습니다(0이 아닌 경우). 숫자 표현식의 경우:
+SELECT
+CASE COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count](*)
+WHEN 1 THEN TRUE
+WHEN 0 THEN NULL
+ELSE FALSE
+END AS BOOLXOR_AGG
+FROM T
+WHERE expression != 0
+
+OVER를 사용하려면 다음 명령어를 실행합니다(제공된 불리언 예시).
+SELECT
+CASE COUNT(expression) OVER (PARTITION BY partition_expr)
+WHEN 0 THEN NULL
+ELSE
+CASE COUNT(
+CASE expression
+WHEN TRUE THEN 1
+END) OVER (PARTITION BY partition_expr)
+WHEN 1 THEN TRUE
+ELSE FALSE
+END
+END AS BOOLXOR_AGG
+FROM T
+CORR [https://docs.snowflake.net/manuals/sql-reference/functions/corr.html](dependent, independent)
+[OVER ...]
+CORR [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#corr](dependent, independent)
+[OVER ...]
+COUNT [https://docs.snowflake.net/manuals/sql-reference/functions/count.html]([DISTINCT] expression [,expression2]) [OVER ...]
+COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count]([DISTINCT] expression [,expression2]) [OVER ...]
+COVAR_POP [https://docs.snowflake.net/manuals/sql-reference/functions/covar_pop.html](dependent, independent) [OVER ...]
+COVAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_pop](dependent, independent) [OVER ...]
+COVAR_SAMP [https://docs.snowflake.net/manuals/sql-reference/functions/covar_samp.html](dependent, independent)
+[OVER ...]
+COVAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_samp](dependent, independent)
+[OVER ...]
+GROUPING [https://docs.snowflake.net/manuals/sql-reference/functions/grouping.html](expression1, [,expression2...])
+BigQuery는 Snowflake의 GROUPING를 직접 대신할 항목을 지원하지 않습니다. 사용자 정의 함수를 통해 사용할 수 있습니다.
+GROUPING_ID [https://docs.snowflake.net/manuals/sql-reference/functions/grouping_id.html](expression1, [,expression2...])
+BigQuery는 Snowflake의 GROUPING_ID를 직접 대신할 항목을 지원하지 않습니다. 사용자 정의 함수를 통해 사용할 수 있습니다.
+HASH_AGG [https://docs.snowflake.net/manuals/sql-reference/functions/hash_agg.html]([DISTINCT] expression1, [,expression2])
+[OVER ...]
+SELECT
+BIT_XOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_xor](
+FARM_FINGERPRINT [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#farm_fingerprint](
+TO_JSON_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions?hl=ko#to_json_string](t))) [OVER]
+FROM t
+SELECT HLL [https://docs.snowflake.net/manuals/sql-reference/functions/hll.html]([DISTINCT] expression1, [,expression2])
+[OVER ...]
+
+참고: Snowflake에서는 정밀도를 지정할 수 없습니다.
+SELECT HLL_COUNT.EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions?hl=ko#hll_countextract](sketch) FROM (
+SELECT HLL_COUNT.INIT [https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions?hl=ko#hll_countinit](expression)
+AS sketch FROM table )
+
+참고: BigQuery는 윈도우 함수에서 HLL_COUNT… 를 지원하지 않습니다. 사용자는 단일 HLL_COUNT... 함수에 여러 표현식을 포함할 수 없습니다.
+HLL_ACCUMULATE [https://docs.snowflake.net/manuals/sql-reference/functions/hll_accumulate.html]([DISTINCT] expression)
+
+참고: Snowflake에서는 정밀도를 지정할 수 없습니다. HLL_COUNT.INIT [https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions?hl=ko#hll_countinit](expression [, precision])
+HLL_COMBINE [https://docs.snowflake.net/manuals/sql-reference/functions/hll_combine.html]([DISTINCT] state)
+HLL_COUNT.MERGE_PARTIAL [https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions?hl=ko#hll_countmerge_partial](sketch)
+HLL_ESTIMATE [https://docs.snowflake.net/manuals/sql-reference/functions/hll_estimate.html](state)
+HLL_COUNT.EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions?hl=ko#hll_countextract](sketch)
+HLL_EXPORT [https://docs.snowflake.net/manuals/sql-reference/functions/hll_export.html](binary)
+BigQuery는 Snowflake의 HLL_EXPORT를 직접 대신할 항목을 지원하지 않습니다.
+HLL_IMPORT [https://docs.snowflake.net/manuals/sql-reference/functions/hll_import.html](object)
+BigQuery는 Snowflake의 HLL_IMPORT를 직접 대신할 항목을 지원하지 않습니다.
+KURTOSIS [https://docs.snowflake.net/manuals/sql-reference/functions/kurtosis.html](expression)
+[OVER ...]
+BigQuery는 Snowflake의 KURTOSIS를 직접 대신할 항목을 지원하지 않습니다.
+LISTAGG [https://docs.snowflake.net/manuals/sql-reference/functions/listagg.html](
+[DISTINCT] aggregate_expression
+[, delimiter]
+)
+[OVER ...]
+STRING_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#string_agg](
+[DISTINCT] aggregate_expression
+[, delimiter]
+)
+[OVER ...]
+MEDIAN [https://docs.snowflake.net/manuals/sql-reference/functions/median.html](expression) [OVER ...]
+
+참고: Snowflake는 ARRAY_AGG.에서 직접 IGNORE|RESPECT NULLS 및 LIMIT 에 대한 기능을 지원하지 않습니다.
+PERCENTILE_CONT [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#percentile_cont](
+value_expression,
+0.5
+[ {RESPECT | IGNORE} NULLS]
+) OVER()
+MAX [https://docs.snowflake.net/manuals/sql-reference/functions/min.html](expression) [OVER ...]
+
+MIN [https://docs.snowflake.net/manuals/sql-reference/functions/min.html](expression) [OVER ...]
+MAX [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#max](expression) [OVER ...]
+
+MIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#min](expression) [OVER ...]
+MINHASH [https://docs.snowflake.net/manuals/sql-reference/functions/minhash.html](k, [DISTINCT] expressions)
+커스텀 UDF를 사용하여 k개의 고유한 해시 함수로 MINHASH를 구현할 수 있습니다. MINHASH의 편차를 줄이는 또 다른 방법은 해시 함수의 최솟값을 k로 유지하는 것입니다. SELECT DISTINCT
+FARM_FINGERPRINT [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#farm_fingerprint](
+TO_JSON_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions?hl=ko#to_json_string](t)) AS MINHASH
+FROM t
+ORDER BY MINHASH
+LIMIT k
+MINHASH_COMBINE [https://docs.snowflake.net/manuals/sql-reference/functions/minhash_combine.html]([DISTINCT] state)
+<code<select
+FROM (
+SELECT DISTINCT
+FARM_FINGERPRINT [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#farm_fingerprint](
+TO_JSON_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions?hl=ko#to_json_string](t)) AS h
+FROM TA AS t
+ORDER BY h
+LIMIT k
+UNION
+SELECT DISTINCT
+FARM_FINGERPRINT [https://cloud.google.com/bigquery/docs/reference/standard-sql/hash_functions?hl=ko#farm_fingerprint](
+TO_JSON_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions?hl=ko#to_json_string](t)) AS h
+FROM TB AS t
+ORDER BY h
+LIMIT k
+)
+ORDER BY h
+LIMIT k
+MODE [https://docs.snowflake.net/manuals/sql-reference/functions/mode.html](expr1)
+OVER ( [ PARTITION BY <expr2> ] )
+SELECT expr1
+FROM (
+SELECT
+expr1,
+ROW_NUMBER [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#row_number]() OVER (
+PARTITION BY expr2
+ORDER BY cnt DESC) rn
+FROM (
+SELECT
+expr1,
+expr2,
+COUNTIF [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#countif](expr1 IS NOT NULL) OVER
+(PARTITION BY expr2, expr1) cnt
+FROM t))
+WHERE rn = 1
+OBJECT_AGG [https://docs.snowflake.net/manuals/sql-reference/functions/object_agg.html](key, value) [OVER ...]
+TO_JSON_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions?hl=ko#to_json_string]을 사용하여 값을 JSON 형식 문자열로 변환하는 것이 좋습니다.
+PERCENTILE_CONT [https://docs.snowflake.net/manuals/sql-reference/functions/percentile_cont.html](percentile) WITHIN GROUP (ORDER BY value_expression)
+[OVER ...]
+PERCENTILE_CONT [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#percentile_cont](
+value_expression,
+percentile
+[ {RESPECT | IGNORE} NULLS]
+) OVER()
+PERCENTILE_DISC [https://docs.snowflake.net/manuals/sql-reference/functions/percentile_disc.html](percentile) WITHIN GROUP (ORDER BY value_expression)
+[OVER ...]
+PERCENTILE_DISC [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#percentile_disc](
+value_expression,
+percentile
+[ {RESPECT | IGNORE} NULLS]
+) OVER()
+REGR_AVGX [https://docs.snowflake.net/manuals/sql-reference/functions/regr_avgx.html](dependent, independent)
+[OVER ...]
+SELECT AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg](independent) [OVER ...]
+FROM table
+WHERE (
+(dependent IS NOT NULL) AND
+(independent IS NOT NULL)
+)
+REGR_AVGY [https://docs.snowflake.net/manuals/sql-reference/functions/regr_avgy.html](dependent, independent)
+[OVER ...]
+SELECT AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg](dependent) [OVER ...]
+FROM table
+WHERE (
+(dependent IS NOT NULL) AND
+(independent IS NOT NULL)
+)
+REGR_COUNT [https://docs.snowflake.net/manuals/sql-reference/functions/regr_count.html](dependent, independent)
+[OVER ...]
+SELECT COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count](*) [OVER ...]
+FROM table
+WHERE (
+(dependent IS NOT NULL) AND
+(independent IS NOT NULL)
+)
+REGR_INTERCEPT [https://docs.snowflake.net/manuals/sql-reference/functions/regr_intercept.html](dependent, independent)
+[OVER ...]
+SELECT
+AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg](dependent) -
+COVAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_pop](dependent,independent)/
+VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop](dependent) *
+AVG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#avg](independent)
+[OVER ...]
+FROM table
+WHERE (
+(dependent IS NOT NULL) AND
+(independent IS NOT NULL)
+)
+[GROUP BY ...]
+REGR_R2 [https://docs.snowflake.net/manuals/sql-reference/functions/regr_r2.html](dependent, independent)
+[OVER ...]
+SELECT
+CASE
+WHEN VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop](independent) = 0
+THEN NULL
+WHEN VAR_POP(dependent) = 0 AND VAR_POP(independent) != 0
+THEN 1
+ELSE POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power](CORR [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#corr](dependent, independent), 2)
+END AS ...
+FROM table
+WHERE (
+(dependent IS NOT NULL) AND
+(independent IS NOT NULL)
+)
+[GROUP BY ...]
+REGR_SLOPE [https://docs.snowflake.net/manuals/sql-reference/functions/regr_slope.html](dependent, independent)
+[OVER ...]
+SELECT
+COVAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#covar_pop](dependent,independent)/
+VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop](dependent)
+[OVER ...]
+FROM table
+WHERE (
+(dependent IS NOT NULL) AND
+(independent IS NOT NULL)
+)
+[GROUP BY ...]
+REGR_SXX [https://docs.snowflake.net/manuals/sql-reference/functions/regr_sxx.html](dependent, independent)
+[OVER ...]
+SELECT COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count](*)*VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop](independent)
+[OVER ...]
+FROM table
+WHERE (
+(dependent IS NOT NULL) AND
+(independent IS NOT NULL)
+)
+[GROUP BY ...]
+REGR_SYY [https://docs.snowflake.net/manuals/sql-reference/functions/regr_syy.html](dependent, independent)
+[OVER ...]
+SELECT COUNT [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#count](*)*VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop](dependent)
+[OVER ...]
+FROM table
+WHERE (
+(dependent IS NOT NULL) AND
+(independent IS NOT NULL)
+)
+[GROUP BY ...]
+SKEW [https://docs.snowflake.net/manuals/sql-reference/functions/skew.html](expression)
+BigQuery는 Snowflake의 SKEW를 대신한 항목을 지원하지 않습니다.
+STDDEV [https://docs.snowflake.net/manuals/sql-reference/functions/stddev.html]([DISTINCT] expression)
+[OVER ...]
+STDDEV [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev]([DISTINCT] expression)
+[OVER ...]
+STDDEV_POP [https://docs.snowflake.net/manuals/sql-reference/functions/stddev_pop.html]([DISTINCT] expression)
+[OVER ...]
+STDDEV_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_pop]([DISTINCT] expression)
+[OVER ...]
+STDDEV_SAMP [https://docs.snowflake.net/manuals/sql-reference/functions/stddev_samp.html]([DISTINCT] expression)
+[OVER ...]
+STDDEV_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#stddev_samp]([DISTINCT] expression)
+[OVER ...]
+SUM [https://docs.snowflake.net/manuals/sql-reference/functions/sum.html]([DISTINCT] expression)
+[OVER ...]
+SUM [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#sum]([DISTINCT] expression)
+[OVER ...]
+VAR_POP [https://docs.snowflake.net/manuals/sql-reference/functions/var_pop.html]([DISTINCT] expression)
+[OVER ...]
+
+참고: Snowflake는 VARCHAR을 부동 소수점 값으로 변환하는 기능을 지원합니다.
+VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop]([DISTINCT] expression)
+[OVER ...]
+VARIANCE_POP [https://docs.snowflake.net/manuals/sql-reference/functions/variance_pop.html]([DISTINCT] expression)
+[OVER ...]
+
+참고: Snowflake는 VARCHAR을 부동 소수점 값으로 변환하는 기능을 지원합니다.
+VAR_POP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_pop]([DISTINCT] expression)
+[OVER ...]
+VAR_SAMP [https://docs.snowflake.net/manuals/sql-reference/functions/var_samp.html]([DISTINCT] expression)
+[OVER ...]
+
+참고: Snowflake는 VARCHAR을 부동 소수점 값으로 변환하는 기능을 지원합니다.
+VAR_SAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#var_samp]([DISTINCT] expression)
+[OVER ...]
+VARIANCE [https://docs.snowflake.net/manuals/sql-reference/functions/variance.html]([DISTINCT] expression)
+[OVER ...]
+
+참고: Snowflake는 VARCHAR을 부동 소수점 값으로 변환하는 기능을 지원합니다.
+VARIANCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/statistical_aggregate_functions?hl=ko#variance]([DISTINCT] expression)
+[OVER ...]
+BigQuery는 다음과 같은 집계 [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko], 집계 분석 [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_analytic_functions?hl=ko], 근사치 집계 [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko] 함수도 제공하며 이 함수는 Snowflake에 직접 아날로그가 없습니다.
+COUNTIF [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#countif]
+ARRAY_CONCAT_AGG [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#array_concat_agg]
+HLL_COUNT.MERGE [https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions?hl=ko#hll_countmerge]
+비트 표현식 함수
+다음 표는 일반적인 Snowflake 비트 표현식 함수와 그에 해당하는 BigQuery 함수 간의 매핑을 보여줍니다.
+표현식의 데이터 유형이 INTEGER가 아니면 Snowflake가 INTEGER로 변환하려고 시도합니다. 하지만 BigQuery는 INTEGER로 변환을 시도하지 않습니다.
+Snowflake BigQuery
+BITAND [https://docs.snowflake.net/manuals/sql-reference/functions/bitand.html](expression1, expression2)
+BIT_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_and](x) FROM UNNEST([expression1, expression2]) AS x expression1 & expression2
+BITNOT [https://docs.snowflake.net/manuals/sql-reference/functions/bitnot.html](expression)
+~ [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko] expression
+BITOR [https://docs.snowflake.net/manuals/sql-reference/functions/bitor.html](expression1, expression2)
+BIT_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_or](x) FROM UNNEST([expression1, expression2]) AS x
+
+expression1 | [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko] expression2
+BITSHIFTLEFT [https://docs.snowflake.net/manuals/sql-reference/functions/bitshiftleft.html] (expression, n)
+expression << [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko] n
+BITSHIFTRIGHT [https://docs.snowflake.net/manuals/sql-reference/functions/bitshiftright.html]
+(expression, n)
+expression >> [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko] n
+BITXOR [https://docs.snowflake.net/manuals/sql-reference/functions/bitxor.html](expression, expression)
+
+참고: Snowflake는 DISTINCT.를 지원하지 않습니다.
+BIT_XOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#bit_xor]([DISTINCT] x) FROM UNNEST([expression1, expression2]) AS x
+
+expression ^ expression
+조건부 표현식 함수
+다음 표는 일반적인 Snowflake 조건식과 그에 해당하는 BigQuery 조건식 간의 매핑을 보여줍니다.
+Snowflake BigQuery
+expression [ NOT ] BETWEEN [https://docs.snowflake.net/manuals/sql-reference/functions/between.html] lower AND upper
+(expression >= [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko] lower AND expression <= upper)
+BOOLAND [https://docs.snowflake.net/manuals/sql-reference/functions/booland.html](expression1, expression2)
+
+참고: Snowflake를 사용하면 숫자, 십진수, 부동 소수점 값을 TRUE로 처리할 수 있습니다(0이 아닌 경우).
+LOGICAL_AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_and](x)
+FROM UNNEST([expression1, expression2]) AS x
+
+expression1 AND [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko] expression2
+BOOLNOT [https://docs.snowflake.net/manuals/sql-reference/functions/boolnot.html](expression1)
+
+참고: Snowflake를 사용하면 숫자, 십진수, 부동 소수점 값을 TRUE로 처리할 수 있습니다(0이 아닌 경우).
+NOT [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko] expression
+BOOLOR [https://docs.snowflake.net/manuals/sql-reference/functions/boolor.html]
+
+참고: Snowflake를 사용하면 숫자, 십진수, 부동 소수점 값을 TRUE로 처리할 수 있습니다(0이 아닌 경우).
+LOGICAL_OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/aggregate_functions?hl=ko#logical_or](x) FROM UNNEST([expression1, expression2]) AS x
+
+expression1 OR [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko] expression2
+BOOLXOR [https://docs.snowflake.net/manuals/sql-reference/functions/boolxor.html]
+
+참고: Snowflake를 사용하면 숫자, 십진수, 부동 소수점 값을 TRUE로 처리할 수 있습니다(0이 아닌 경우). BigQuery는 Snowflake의 BOOLXOR.을 직접 대신할 항목을 지원하지 않습니다.
+CASE [https://docs.snowflake.net/manuals/sql-reference/functions/case.html] [expression] WHEN condition1 THEN result1 [WHEN condition2 THEN result2]
+[...]
+[ELSE result3]
+END
+CASE [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko] [expression] WHEN condition1 THEN result1 [WHEN condition2 THEN result2]
+[...]
+[ELSE result3]
+END
+COALESCE [https://docs.snowflake.net/manuals/sql-reference/functions/coalesce.html](expr1, expr2, [,...])
+
+참고: Snowflake에는 표현식이 두 개 이상 필요합니다. BigQuery에는 하나만 필요합니다.
+COALESCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko#coalesce](expr1, [,...])
+DECODE [https://docs.snowflake.net/manuals/sql-reference/functions/decode.html](expression, search1, result1, [search2, result2...] [,default])
+CASE [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko] [expression] WHEN condition1 THEN result1 [WHEN condition2 THEN result2]
+[...]
+[ELSE result3]
+END
+참고: BigQuery는 조건 문에서 서브 쿼리를 지원합니다. 이를 사용하여 Snowflake의 DECODE를 재현할 수 있습니다. NULL 선택 표현식과 NULL 검색 표현식을 일치시키려면 사용자가 = NULL 대신 IS NULL을 사용해야 합니다.
+EQUAL_NULL [https://docs.snowflake.net/manuals/sql-reference/functions/equal_null.html](expression1, expression2)
+BigQuery는 Snowflake의 EQUAL_NULL.을 직접 대신할 항목을 지원하지 않습니다.
+GREATEST [https://docs.snowflake.net/manuals/sql-reference/functions/greatest.html](expression1, [,expression2]...)
+GREATEST [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#greatest](expression1, [,expression2]...)
+IFF [https://docs.snowflake.net/manuals/sql-reference/functions/iff.html](condition, true_result, false_result)
+IF [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko](condition, true_result, false_result)
+IFNULL [https://docs.snowflake.net/manuals/sql-reference/functions/ifnull.html](expression1, expression2)
+IFNULL [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko](expression1, expression2)
+[ NOT ] IN [https://docs.snowflake.net/manuals/sql-reference/functions/in.html] ...
+[ NOT ] IN [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko] ...
+expression1 IS [ NOT ] DISTINCT FROM [https://docs.snowflake.net/manuals/sql-reference/functions/is-distinct-from.html] expression2
+BigQuery는 Snowflake의 IS [ NOT ] DISTINCT FROM.을 직접 대신할 항목을 지원하지 않습니다.
+expression IS [ NOT ] NULL [https://docs.snowflake.net/manuals/sql-reference/functions/is-null.html]
+expression IS [ NOT ] NULL [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko]
+IS_NULL_VALUE [https://docs.snowflake.net/manuals/sql-reference/functions/is_null_value.html](variant_expr)
+BigQuery는 VARIANT 데이터 유형을 지원하지 않습니다.
+LEAST [https://docs.snowflake.net/manuals/sql-reference/functions/least.html](expression,...)
+LEAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#least](expression,...)
+NULLIF [https://docs.snowflake.net/manuals/sql-reference/functions/nullif.html](expression1,expression2)
+NULLIF [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko](expression1,expression2)
+NVL [https://docs.snowflake.net/manuals/sql-reference/functions/nvl.html](expression1, expression2)
+IFNULL [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko](expression1,expression2)
+NVL2 [https://docs.snowflake.net/manuals/sql-reference/functions/nvl2.html](expr1,expr2,expr2)
+IF [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko](expr1 IS NOT NULL, expr2,expr3)
+REGR_VALX [https://docs.snowflake.net/manuals/sql-reference/functions/regr_valx.html](expr1,expr2)
+IF [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko](expr1 IS NULL, NULL, expr2)
+참고: BigQuery는 Snowflake의 REGR... 함수를 직접 대신할 항목을 지원하지 않습니다.
+REGR_VALY [https://docs.snowflake.net/manuals/sql-reference/functions/regr_valy.html](expr1,expr2)
+IF [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko](expr2 IS NULL, NULL, expr1)
+
+참고: BigQuery는 Snowflake의 REGR... 함수를 직접 대신할 항목을 지원하지 않습니다.
+ZEROIFNULL [https://docs.snowflake.net/manuals/sql-reference/functions/zeroifnull.html](expression)
+IFNULL [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko](expression,0)
+컨텍스트 함수
+다음 표는 일반적인 Snowflake 컨텍스트 함수와 그에 해당하는 BigQuery 함수 간의 매핑을 보여줍니다.
+Snowflake BigQuery
+CURRENT_ACCOUNT [https://docs.snowflake.net/manuals/sql-reference/functions/current_account.html]()
+SESSION_USER [https://cloud.google.com/bigquery/docs/reference/standard-sql/security_functions?hl=ko#session_user]()
+
+참고: 직접적으로 비교되는 항목이 아닙니다. Snowflake는 계정 ID를 반환하고 BigQuery는 사용자 이메일 주소를 반환합니다.
+CURRENT_CLIENT [https://docs.snowflake.net/manuals/sql-reference/functions/current_client.html]()
+BigQuery에서 사용되지 않는 개념
+CURRENT_DATABASE [https://docs.snowflake.net/manuals/sql-reference/functions/current_database.html]()
+SELECT catalog_name
+FROM INFORMATION_SCHEMA.SCHEMATA [https://cloud.google.com/bigquery/docs/information-schema-datasets?hl=ko]
+프로젝트 이름 테이블이 반환됩니다. 직접 비교가 아닙니다.
+CURRENT_DATE [https://docs.snowflake.net/manuals/sql-reference/functions/current_date.html][()]
+
+참고: Snowflake는 ANSI 표준을 준수하기 위해 CURRENT_DATE 명령어 뒤에 '()'를 적용하지 않습니다.
+CURRENT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#current_date]([timezone])
+
+참고: BigQuery의 CURRENT_DATE는 선택적 시간대 지정을 지원합니다.
+CURRENT_REGION [https://docs.snowflake.net/manuals/sql-reference/functions/current_region.html]()
+SELECT location
+FROM INFORMATION_SCHEMA.SCHEMATA [https://cloud.google.com/bigquery/docs/information-schema-datasets?hl=ko]
+
+참고: BigQuery의 INFORMATION_SCHEMA.SCHEMATA는 Snowflake의 CURRENT_REGION()보다 더 일반화된 위치 참조를 반환합니다. 직접 비교가 아닙니다.
+CURRENT_ROLE [https://docs.snowflake.net/manuals/sql-reference/functions/current_role.html]()
+BigQuery에서 사용되지 않는 개념
+CURRENT_SCHEMA [https://docs.snowflake.net/manuals/sql-reference/functions/current_schema.html]()
+SELECT schema_name
+FROM INFORMATION_SCHEMA.SCHEMATA [https://cloud.google.com/bigquery/docs/information-schema-datasets?hl=ko]
+이는 프로젝트 또는 리전에서 사용할 수 있는 모든 데이터 세트(스키마라고도 함)의 테이블을 반환합니다. 직접 비교가 아닙니다.
+CURRENT_SCHEMAS [https://docs.snowflake.net/manuals/sql-reference/functions/current_schemas.html]()
+BigQuery에서 사용되지 않는 개념
+CURRENT_SESSION [https://docs.snowflake.net/manuals/sql-reference/functions/current_session.html]()
+BigQuery에서 사용되지 않는 개념
+CURRENT_STATEMENT [https://docs.snowflake.net/manuals/sql-reference/functions/current_statement.html]()
+SELECT query
+FROM INFORMATION_SCHEMA.JOBS_BY_* [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]
+
+참고: BigQuery의 INFORMATION_SCHEMA.JOBS_BY_*를 사용하면 작업 유형, 시작/종료 유형 등으로 쿼리를 검색할 수 있습니다.
+CURRENT_TIME [https://docs.snowflake.net/manuals/sql-reference/functions/current_time.html][([frac_sec_prec])]
+
+참고: Snowflake는 선택적 소수부 초 단위 정밀도를 허용합니다. 유효한 값의 범위는 0~9나노초입니다. 기본값은 9입니다. ANSI를 준수하기 위해 '()' 없이 호출할 수 있습니다.
+CURRENT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#current_time]()
+CURRENT_TIMESTAMP [https://docs.snowflake.net/manuals/sql-reference/functions/current_timestamp.html][([frac_sec_prec])]
+
+참고: Snowflake는 선택적 소수부 초 단위 정밀도를 허용합니다. 유효한 값의 범위는 0~9나노초입니다. 기본값은 9입니다. ANSI를 준수하기 위해 '()' 없이 호출할 수 있습니다. TIMEZONE을 세션 매개변수로 설정합니다.
+CURRENT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#current_datetime]([timezone]) CURRENT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#current_timestamp]()
+
+참고: CURRENT_DATETIME은 DATETIME 데이터 유형(Snowflake에서 지원되지 않음)을 반환합니다. CURRENT_TIMESTAMP는 TIMESTAMP 데이터 유형을 반환합니다.
+CURRENT_TRANSACTION [https://docs.snowflake.net/manuals/sql-reference/functions/current_transaction.html]()
+SELECT job_id
+FROM INFORMATION_SCHEMA.JOBS_BY_* [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]
+참고: BigQuery의 INFORMATION_SCHEMA.JOBS_BY_* [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 사용하면 작업 유형, 시작/종료 유형 등으로 작업 ID를 검색할 수 있습니다.
+CURRENT_USER[()]
+
+참고: Snowflake는 ANSI 표준을 준수하기 위해 CURRENT_USER 명령어 뒤에 '()'를 적용하지 않습니다.
+SESSION_USER()
+
+SELECT user_email
+FROM INFORMATION_SCHEMA.JOBS_BY_* [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]
+참고: 직접적으로 비교되는 항목이 아닙니다. Snowflake에서 사용자 이름을 반환하고 BigQuery는 사용자 이메일 주소를 반환합니다.
+CURRENT_VERSION [https://docs.snowflake.net/manuals/sql-reference/functions/current_version.html]()
+BigQuery에서 사용되지 않는 개념
+CURRENT_WAREHOUSE() [https://docs.snowflake.net/manuals/sql-reference/functions/current_warehouse.html]
+SELECT catalg_name
+FROM INFORMATION_SCHEMA.SCHEMATA [https://cloud.google.com/bigquery/docs/information-schema-datasets?hl=ko]
+LAST_QUERY_ID [https://docs.snowflake.net/manuals/sql-reference/functions/last_query_id.html]([num])
+SELECT job_id
+FROM INFORMATION_SCHEMA.JOBS_BY_* [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]
+
+참고: BigQuery의 INFORMATION_SCHEMA.JOBS_BY_*를 사용하면 작업 유형, 시작/종료 유형 등으로 작업 ID를 검색할 수 있습니다.
+LAST_TRANSACTION [https://docs.snowflake.net/manuals/sql-reference/functions/last_transaction.html]()
+SELECT job_id
+FROM INFORMATION_SCHEMA.JOBS_BY_* [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]
+
+참고: BigQuery의 INFORMATION_SCHEMA.JOBS_BY_* [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 사용하면 작업 유형, 시작/종료 유형 등으로 작업 ID를 검색할 수 있습니다.
+LOCALTIME [https://docs.snowflake.net/manuals/sql-reference/functions/localtime.html]()
+
+참고: Snowflake는 ANSI 표준을 준수하기 위해 LOCALTIME 명령어 뒤에 '()'를 적용하지 않습니다.
+CURRENT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#current_time]()
+LOCALTIMESTAMP [https://docs.snowflake.net/manuals/sql-reference/functions/localtimestamp.html]()
+CURRENT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#current_datetime]([timezone]) CURRENT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#current_timestamp]()
+
+참고: CURRENT_DATETIME은 DATETIME 데이터 유형(Snowflake에서 지원되지 않음)을 반환합니다. CURRENT_TIMESTAMP는 TIMESTAMP 데이터 유형을 반환합니다.
+변환 함수
+다음 표는 일반적인 Snowflake 변환 함수와 그에 해당하는 BigQuery 함수 간의 매핑을 보여줍니다.
+Snowflake와 BigQuery에서 동일하게 보이는 함수가 서로 다른 데이터 유형을 반환할 수 있습니다.
+Snowflake BigQuery
+CAST [https://docs.snowflake.net/manuals/sql-reference/functions/cast.html](expression AS type)
+
+expression :: type
+CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast](expression AS type)
+TO_ARRAY [https://docs.snowflake.net/manuals/sql-reference/functions/to_array.html](expression)
+[expression] [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#using_array_literals]
+
+ARRAY [https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions?hl=ko#array](subquery)
+TO_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/to_binary.html](expression[, format])
+
+참고: Snowflake는 HEX, BASE64, UTF-8 변환을 지원합니다. 또한 Snowflake는 VARIANT 데이터 유형을 사용하여 TO_BINARY를 지원합니다. BigQuery에는 VARIANT 데이터 유형의 대안이 없습니다.
+TO_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_hex](CAST(expression AS BYTES)) TO_BASE64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_base64](CAST(expression AS BYTES))
+CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko#casting](expression AS BYTES)
+
+참고: BigQuery의 기본 STRING 변환은 UTF-8 인코딩을 사용합니다. Snowflake에는 BASE32 인코딩을 지원하는 옵션이 없습니다.
+TO_BOOLEAN [https://docs.snowflake.net/manuals/sql-reference/functions/to_boolean.html](expression)
+
+참고:
+INT64
+TRUE: 외의 경우에는 FALSE: 0입니다.
+STRING
+TRUE: "true"/"t"/"yes"/"y"/"on"/"1", FALSE: "false"/"f"/"no"/"n"/"off"/"0"
+CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast](expression AS BOOL)
+
+참고:
+INT64
+TRUE: 외의 경우에는 FALSE: 0입니다.
+STRING
+TRUE: "true", FALSE: "false"
+TO_CHAR [https://docs.snowflake.net/manuals/sql-reference/functions/to_char.html](expression[, format])
+
+TO_VARCHAR [https://docs.snowflake.net/manuals/sql-reference/functions/to_char.html](expression[, format])
+
+참고: Snowflake의 형식 모델은 여기 [https://docs.snowflake.net/manuals/sql-reference/sql-format-models.html]에서 확인할 수 있습니다. BigQuery에는 VARIANT 데이터 유형의 대안이 없습니다.
+CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast](expression AS STRING)
+
+참고: BigQuery의 입력 표현식은 FORMAT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#format_date], FORMAT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime], FORMAT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#format_time] 또는 FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp]를 사용하여 형식을 지정할 수 있습니다.
+TO_DATE [https://docs.snowflake.net/manuals/sql-reference/functions/to_date.html](expression[, format])
+
+DATE [https://docs.snowflake.net/manuals/sql-reference/functions/to_date.html](expression[, format])
+
+참고: Snowflake는 INTEGER 유형을 DATE 유형으로 직접 변환하는 기능을 지원합니다. Snowflake의 형식 모델은 여기 [https://docs.snowflake.net/manuals/sql-reference/functions-conversion.html#date-and-time-formats-in-conversion-functions]에서 확인할 수 있습니다. BigQuery에는 VARIANT 데이터 유형의 대안이 없습니다.
+CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast](expression AS DATE)
+
+참고: BigQuery의 입력 표현식은 FORMAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#format_string], FORMAT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime] 또는 FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp]를 사용하여 형식을 지정할 수 있습니다.
+TO_DECIMAL [https://docs.snowflake.net/manuals/sql-reference/functions/to_decimal.html](expression[, format]
+[,precision[, scale]]
+
+TO_NUMBER [https://docs.snowflake.net/manuals/sql-reference/functions/to_decimal.html](expression[, format]
+[,precision[, scale]]
+
+TO_NUMERIC [https://docs.snowflake.net/manuals/sql-reference/functions/to_decimal.html](expression[, format]
+[,precision[, scale]]
+
+참고: DECIMAL, NUMBER, NUMERIC 데이터 유형에 대한 Snowflake의 형식 모델은 여기 [https://docs.snowflake.net/manuals/sql-reference/sql-format-models.html]에서 확인할 수 있습니다. BigQuery에는 VARIANT 데이터 유형의 대안이 없습니다.
+ROUND [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#round](CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast](expression AS NUMERIC)
+, x)
+
+참고: BigQuery의 입력표현식은 FORMAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#format_string].을 사용하여 형식을 지정할 수 있습니다.
+TO_DOUBLE [https://docs.snowflake.net/manuals/sql-reference/functions/to_double.html](expression[, format])
+
+참고: DOUBLE 데이터 유형에 대한 Snowflake의 형식 모델은 여기 [https://docs.snowflake.net/manuals/sql-reference/sql-format-models.html]에서 확인할 수 있습니다. BigQuery에는 VARIANT 데이터 유형의 대안이 없습니다.
+CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast](expression AS FLOAT64)
+
+참고: BigQuery의 입력표현식은 FORMAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#format_string].을 사용하여 형식을 지정할 수 있습니다.
+TO_JSON [https://docs.snowflake.net/manuals/sql-reference/functions/to_json.html](variant_expression)
+BigQuery에는 Snowflake의 VARIANT 데이터 유형의 대안이 없습니다.
+TO_OBJECT [https://docs.snowflake.net/manuals/sql-reference/functions/to_object.html](variant_expression)
+BigQuery에는 Snowflake의 VARIANT 데이터 유형의 대안이 없습니다.
+TO_TIME [https://docs.snowflake.net/manuals/sql-reference/functions/to_time.html](expression[, format])
+
+TIME [https://docs.snowflake.net/manuals/sql-reference/functions/to_time.html](expression[, format])
+
+참고: STRING 데이터 유형에 대한 Snowflake의 형식 모델은 여기 [https://docs.snowflake.net/manuals/sql-reference/functions-conversion.html]에서 확인할 수 있습니다. BigQuery에는 VARIANT 데이터 유형의 대안이 없습니다.
+CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast](expression AS TIME)
+
+참고: BigQuery에는 Snowflake의 VARIANT 데이터 유형의 대안이 없습니다. BigQuery의 입력 표현식은 FORMAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#format_string], FORMAT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime], FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp] 또는 FORMAT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#format_time]을 사용하여 형식을 지정할 수 있습니다.
+TO_TIMESTAMP [https://docs.snowflake.net/manuals/sql-reference/functions/to_timestamp.html](expression[, scale])
+
+TO_TIMESTAMP_LTZ [https://docs.snowflake.net/manuals/sql-reference/functions/to_timestamp.html](expression[, scale])
+
+TO_TIMESTAMP_NTZ [https://docs.snowflake.net/manuals/sql-reference/functions/to_timestamp.html](expression[, scale])
+
+TO_TIMESTAMP_TZ [https://docs.snowflake.net/manuals/sql-reference/functions/to_timestamp.html](expression[, scale])
+
+참고: BigQuery에는 VARIANT 데이터 유형의 대안이 없습니다.
+CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast](expression AS TIMESTAMP)
+
+참고: BigQuery의 입력 표현식은 FORMAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#format_string], FORMAT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#format_date], FORMAT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime], FORMAT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#format_time]를 사용하여 형식을 지정할 수 있습니다. FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp] 매개변수를 통해 시간대를 포함하거나 포함하지 않을 수 있습니다.
+TO_VARIANT [https://docs.snowflake.net/manuals/sql-reference/functions/to_variant.html](expression)
+BigQuery에는 Snowflake의 VARIANT 데이터 유형의 대안이 없습니다.
+TO_XML [https://docs.snowflake.net/manuals/sql-reference/functions/to_xml.html](variant_expression)
+BigQuery에는 Snowflake의 VARIANT 데이터 유형의 대안이 없습니다.
+TRY_CAST [https://docs.snowflake.net/manuals/sql-reference/functions/try_cast.html](expression AS type)
+SAFE_CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#safe_casting](expression AS type)
+TRY_TO_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/try_to_binary.html](expression[, format])
+TO_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_hex](SAFE_CAST(expression AS BYTES)) TO_BASE64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_base64](SAFE_CAST(expression AS BYTES))
+SAFE_CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko#casting](expression AS BYTES)
+TRY_TO_BOOLEAN [https://docs.snowflake.net/manuals/sql-reference/functions/try_to_boolean.html](expression)
+SAFE_CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko#casting](expression AS BOOL)
+TRY_TO_DATE [https://docs.snowflake.net/manuals/sql-reference/functions/try_to_date.html](expression)
+SAFE_CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko#casting](expression AS DATE)
+TRY_TO_DECIMAL [https://docs.snowflake.net/manuals/sql-reference/functions/to_decimal.html](expression[, format]
+[,precision[, scale]]
+
+TRY_TO_NUMBER [https://docs.snowflake.net/manuals/sql-reference/functions/to_decimal.html](expression[, format]
+[,precision[, scale]]
+
+TRY_TO_NUMERIC [https://docs.snowflake.net/manuals/sql-reference/functions/to_decimal.html](expression[, format]
+[,precision[, scale]]
+ROUND [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#round](
+SAFE_CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko#casting](expression AS NUMERIC)
+, x)
+TRY_TO_DOUBLE [https://docs.snowflake.net/manuals/sql-reference/functions/try_to_double.html](expression)
+SAFE_CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko#casting](expression AS FLOAT64)
+TRY_TO_TIME [https://docs.snowflake.net/manuals/sql-reference/functions/try_to_time.html](expression)
+SAFE_CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko#casting](expression AS TIME)
+TRY_TO_TIMESTAMP [https://docs.snowflake.net/manuals/sql-reference/functions/try_to_timestamp.html](expression)
+
+TRY_TO_TIMESTAMP_LTZ [https://docs.snowflake.net/manuals/sql-reference/functions/try_to_timestamp.html](expression)
+
+TRY_TO_TIMESTAMP_NTZ [https://docs.snowflake.net/manuals/sql-reference/functions/try_to_timestamp.html](expression)
+
+TRY_TO_TIMESTAMP_TZ [https://docs.snowflake.net/manuals/sql-reference/functions/try_to_timestamp.html](expression)
+SAFE_CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko#casting](expression AS TIMESTAMP)
+BigQuery는 Snowflake에 직접 아날로그가 없는 다음과 같은 변환 함수도 제공합니다.
+CODE_POINTS_TO_BYTES [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#code_points_to_bytes]
+CODE_POINTS_TO_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#code_points_to_string]
+FORMAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#format_string]
+FROM_BASE32 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_base32]
+FROM_BASE64 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_base64]
+FROM_HEX [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#from_hex]
+SAFE_CONVERT_BYTES_TO_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#safe_convert_bytes_to_string]
+TO_BASE32 [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_base32]
+TO_CODE_POINTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#to_code_points]
+데이터 생성 함수
+다음 표에서는 일반적인 Snowflake 데이터 생성 함수와 그에 해당하는 BigQuery 함수 간의 매핑을 보여줍니다.
+Snowflake BigQuery
+NORMAL [https://docs.snowflake.net/manuals/sql-reference/functions/normal.html](mean, stddev, gen)
+BigQuery는 Snowflake의 NORMAL.와 직접적으로 비교되는 항목을 지원하지 않습니다.
+RANDOM [https://docs.snowflake.net/manuals/sql-reference/functions/random.html]([seed])
+IF(RAND [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#rand]()>0.5, CAST(RAND()*POW(10, 18) AS INT64),
+(-1)*CAST(RAND()*POW(10, 18) AS
+INT64))
+
+참고: BigQuery는 시드를 지원하지 않습니다.
+RANDSTR [https://docs.snowflake.net/manuals/sql-reference/functions/randstr.html](length, gen)
+BigQuery는 Snowflake의 RANDSTR.과 직접적으로 비교되는 항목을 지원하지 않습니다.
+SEQ1 / SEQ2 / SEQ4 / SEQ8 [https://docs.snowflake.net/manuals/sql-reference/functions/seq1.html] BigQuery는 Snowflake의 SEQ_.와 직접적으로 비교되는 항목을 지원하지 않습니다.
+UNIFORM [https://docs.snowflake.net/manuals/sql-reference/functions/uniform.html](min, max, gen)
+CAST(min + RAND()*(max-min) AS INT64)
+
+참고: 영구 UDF를 사용하여 Snowflake의 UNIFORM에 상응하는 항목을 만드세요. 여기 [https://medium.com/@hoffa/new-in-bigquery-persistent-udfs-c9ea4100fd83]에서 예시 참조
+UUID_STRING [https://docs.snowflake.net/manuals/sql-reference/functions/uuid_string.html]([uuid, name])
+
+참고: Snowflake는 임의의 128비트를 반환합니다. Snowflake는 버전 4(랜덤) 및 버전 5(이름이 지정된) UUID를 모두 지원합니다.
+GENERATE_UUID [https://cloud.google.com/bigquery/docs/reference/standard-sql/uuid_functions?hl=ko#generate_uuid]()
+
+참고: BigQuery는 122개의 임의 비트를 반환합니다. BigQuery는 버전 4 UUID만 지원합니다.
+ZIPF [https://docs.snowflake.net/manuals/sql-reference/functions/zipf.html](s, N, gen)
+BigQuery는 Snowflake의 ZIPF.와 직접적으로 비교되는 항목을 지원하지 않습니다.
+날짜 및 시간 함수
+다음 표는 일반적인 Snowflake 날짜 및 시간 함수와 그에 해당하는 BigQuery 함수 간의 매핑을 보여줍니다. BigQuery 날짜 및 시간 함수에는 날짜 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko], 날짜/시간 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko], 시간 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko], 타임스탬프 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko]가 포함됩니다.
+Snowflake BigQuery
+ADD_MONTHS [https://docs.snowflake.net/manuals/sql-reference/functions/add_months.html](date, months)
+CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#cast](
+DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add](
+date,
+INTERVAL integer MONTH
+) AS TIMESTAMP
+)
+CONVERT_TIMEZONE [https://docs.snowflake.net/manuals/sql-reference/functions/convert_timezone.html](source_tz, target_tz, source_timestamp)
+
+CONVERT_TIMEZONE [https://docs.snowflake.net/manuals/sql-reference/functions/convert_timezone.html](target_tz, source_timestamp)
+PARSE_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#parse_timestamp](
+"%c%z",
+FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp](
+"%c%z",
+timestamp,
+target_timezone
+)
+)
+
+참고: BigQuery에서 source_timezone은 항상 UTC입니다.
+DATE_FROM_PARTS [https://docs.snowflake.net/manuals/sql-reference/functions/date_from_parts.html](year, month, day)
+
+참고: Snowflake는 오버플로 및 음수 날짜를 지원합니다. 예를 들어 DATE_FROM_PARTS(2000, 1 + 24, 1) 는 2002년 1월 1일을 반환합니다. BigQuery에서는 지원되지 않습니다.
+DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date](year, month, day)
+
+DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date](timestamp_expression[, timezone])
+
+DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date](datetime_expression)
+DATE_PART [https://docs.snowflake.net/manuals/sql-reference/functions/date_part.html](part, dateOrTime)
+
+참고: Snowflake는 요일 ISO, 나노초, 에포크 초/밀리초/마이크로초/나노초 부분 유형을 지원합니다. BigQuery에서는 지원되지 않습니다. Snowflake 부분 유형의 전체 목록은 여기 [https://docs.snowflake.net/manuals/sql-reference/functions-date-time.html#label-supported-date-time-parts]에서 확인하세요.
+EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract](part FROM dateOrTime)
+
+참고: BigQuery는 주(<weekday>), 마이크로초, 밀리초 부분 유형을 지원합니다. Snowflake는 그렇지 않습니다. BigQuery 부분 유형의 전체 목록은 여기 [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract] 및 여기 [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract]를 참조하세요.
+DATE_TRUNC [https://docs.snowflake.net/manuals/sql-reference/functions/date_trunc.html](part, dateOrTime)
+
+참고: Snowflake는 나노초 부분 유형을 지원합니다. BigQuery에서는 지원되지 않습니다. Snowflake 부분 유형의 전체 목록은 여기 [https://docs.snowflake.net/manuals/sql-reference/functions-date-time.html#label-supported-date-time-parts]에서 확인하세요.
+DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](date, part)
+
+DATETIME_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_trunc](datetime, part)
+
+TIME_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_trunc](time, part)
+
+TIMESTAMP_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_trunc](timestamp, part[, timezone])
+
+참고: BigQuery는 주(<weekday>), ISO 주, ISO 연도 부분 유형을 지원합니다. Snowflake는 그렇지 않습니다.
+DATEADD [https://docs.snowflake.net/manuals/sql-reference/functions/dateadd.html](part, value, dateOrTime)
+DATE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_add](date, INTERVAL value part)
+DATEDIFF [https://docs.snowflake.net/manuals/sql-reference/functions/datediff.html](
+part,
+start_date_or_time,
+end_date_or_time
+)
+
+참고: Snowflake는 이 함수에서 두 날짜, 시간, 타임스탬프 유형 간의 차이 계산을 지원합니다.
+DATE_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_diff](
+end_date,
+start_date,
+part
+)
+
+DATETIME_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_diff](
+end_datetime,
+start_datetime,
+part
+)
+
+TIME_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_diff](
+start_time,
+end_time,
+part
+)
+
+TIMESTAMP_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_diff](
+end_timestamp,
+start_timestamp,
+part
+)
+
+참고: BigQuery는 주(<weekday>) 및 ISO 연도 부분 유형을 지원합니다.
+DAYNAME [https://docs.snowflake.net/manuals/sql-reference/functions/dayname.html](dateOrTimestamp)
+FORMAT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#format_date]('%a', date)
+
+FORMAT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime]('%a', datetime)
+
+FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp]('%a', timestamp)
+EXTRACT [https://docs.snowflake.net/manuals/sql-reference/functions/extract.html](part FROM dateOrTime)
+
+참고: Snowflake는 요일 ISO, 나노초, 에포크 초/밀리초/마이크로초/나노초 부분 유형을 지원합니다. BigQuery에서는 지원되지 않습니다. Snowflake 부분 유형의 전체 목록은 여기 [https://docs.snowflake.net/manuals/sql-reference/functions-date-time.html#label-supported-date-time-parts]에서 확인하세요.
+EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract](part FROM dateOrTime)
+
+참고: BigQuery는 주(<weekday>), 마이크로초, 밀리초 부분 유형을 지원합니다. Snowflake는 그렇지 않습니다. BigQuery 부분 유형의 전체 목록은 여기 [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#extract] 및 여기 [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract]를 참조하세요.
+[HOUR, MINUTE, SECOND] [https://docs.snowflake.net/manuals/sql-reference/functions/hour-minute-second.html](timeOrTimestamp)
+EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract](part FROM timestamp [AT THE ZONE timezone])
+LAST_DAY [https://docs.snowflake.net/manuals/sql-reference/functions/last_day.html](dateOrTime[, part])
+DATE_SUB( DATE_TRUNC(
+DATE_ADD(date, INTERVAL
+1 part),
+part),
+INTERVAL 1 DAY)
+MONTHNAME(dateOrTimestamp) [https://docs.snowflake.net/manuals/sql-reference/functions/monthname.html]
+FORMAT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#format_date]('%b', date)
+
+FORMAT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime]('%b', datetime)
+
+FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp]('%b', timestamp)
+NEXT_DAY [https://docs.snowflake.net/manuals/sql-reference/functions/next_day.html](dateOrTime, dowString)
+DATE_ADD(
+DATE_TRUNC(
+date,
+WEEK(dowString)),
+INTERVAL 1 WEEK)
+
+참고: dowString의 형식을 다시 지정해야 할 수 있습니다. 예를 들어 Snowflake의 'su'는 BigQuery의 'SUNDAY'가 됩니다.
+PREVIOUS_DAY [https://docs.snowflake.net/manuals/sql-reference/functions/previous_day.html](dateOrTime, dowString)
+DATE_TRUNC(
+date,
+WEEK(dowString)
+)
+
+참고: dowString의 형식을 다시 지정해야 할 수 있습니다. 예를 들어 Snowflake의 'su'는 BigQuery의 'SUNDAY'가 됩니다.
+TIME_FROM_PARTS [https://docs.snowflake.net/manuals/sql-reference/functions/time_from_parts.html](hour, minute, second[, nanosecond)
+
+참고: Snowflake는 오버플로 시간을 지원합니다. 예를 들어 TIME_FROM_PARTS(0, 100, 0) 는 01:40:00...을 반환합니다. BigQuery에서는 지원되지 않습니다. BigQuery는 나노초를 지원하지 않습니다.
+TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time](hour, minute, second)
+
+TIME(timestamp, [timezone])
+
+TIME(datetime)
+TIME_SLICE [https://docs.snowflake.net/manuals/sql-reference/functions/time_slice.html](dateOrTime, sliceLength, part[, START]
+
+TIME_SLICE(dateOrTime, sliceLength, part[, END]
+DATE_TRUNC(
+DATE_SUB(CURRENT_DATE(),
+INTERVAL value MONTH),
+MONTH)
+
+DATE_TRUNC(
+DATE_ADD(CURRENT_DATE(),
+INTERVAL value MONTH),
+MONTH)
+
+참고: BigQuery에서는 Snowflake의 TIME_SLICE에 직접적으로 정확하게 비교되는 항목을 지원하지 않습니다. 적절한 데이터 유형에 DATETINE_TRUNC, TIME_TRUNC, TIMESTAMP_TRUNC를 사용합니다.
+TIMEADD [https://docs.snowflake.net/manuals/sql-reference/functions/timeadd.html](part, value, dateOrTime)
+TIME_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_add](time, INTERVAL value part)
+TIMEDIFF [https://docs.snowflake.net/manuals/sql-reference/functions/timediff.html](
+part,
+expression1,
+expression2,
+)
+
+참고: Snowflake는 이 함수에서 두 날짜, 시간, 타임스탬프 유형 간의 차이 계산을 지원합니다.
+DATE_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_diff](
+dateExpression1,
+dateExpression2,
+part
+)
+
+DATETIME_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_diff](
+datetimeExpression1,
+datetimeExpression2,
+part
+)
+
+TIME_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_diff](
+timeExpression1,
+timeExpression2,
+part
+)
+
+TIMESTAMP_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_diff](
+timestampExpression1,
+timestampExpression2,
+part
+)
+
+참고: BigQuery는 주(<weekday>) 및 ISO 연도 부분 유형을 지원합니다.
+TIMESTAMP_[LTZ, NTZ, TZ _]FROM_PARTS [https://docs.snowflake.net/manuals/sql-reference/functions/timestamp_from_parts.html] (year, month, day, hour, second [, nanosecond][, timezone])
+TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp](
+string_expression[, timezone] | date_expression[, timezone] |
+datetime_expression[, timezone]
+)
+
+참고: BigQuery에서는 타임스탬프를 STRING 유형으로 입력해야 합니다. 예를 들면 "2008-12-25 15:30:00"입니다.
+TIMESTAMPADD [https://docs.snowflake.net/manuals/sql-reference/functions/timestampadd.html](part, value, dateOrTime)
+TIMESTAMPADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_add](timestamp, INTERVAL value part)
+TIMESTAMPDIFF [https://docs.snowflake.net/manuals/sql-reference/functions/timestampdiff.html](
+part,
+expression1,
+expression2,
+)
+
+참고: Snowflake는 이 함수에서 두 날짜, 시간, 타임스탬프 유형 간의 차이 계산을 지원합니다.
+DATE_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_diff](
+dateExpression1,
+dateExpression2,
+part
+)
+
+DATETIME_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_diff](
+datetimeExpression1,
+datetimeExpression2,
+part
+)
+
+TIME_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_diff](
+timeExpression1,
+timeExpression2,
+part
+)
+
+TIMESTAMP_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_diff](
+timestampExpression1,
+timestampExpression2,
+part
+)
+
+참고: BigQuery는 주(<weekday>) 및 ISO 연도 부분 유형을 지원합니다.
+TRUNC [https://docs.snowflake.net/manuals/sql-reference/functions/trunc2.html](dateOrTime, part)
+
+참고: Snowflake는 나노초 부분 유형을 지원합니다. BigQuery에서는 지원되지 않습니다. Snowflake 부분 유형의 전체 목록은 여기 [https://docs.snowflake.net/manuals/sql-reference/functions-date-time.html#label-supported-date-time-parts]에서 확인하세요.
+DATE_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_trunc](date, part)
+
+DATETIME_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_trunc](datetime, part)
+
+TIME_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_trunc](time, part)
+
+TIMESTAMP_TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_trunc](timestamp, part[, timezone])
+
+참고: BigQuery는 주(<weekday>), ISO 주, ISO 연도 부분 유형을 지원합니다. Snowflake는 그렇지 않습니다.
+[YEAR*, DAY*, WEEK*, MONTH, QUARTER] [https://docs.snowflake.net/manuals/sql-reference/functions/year.html](dateOrTimestamp)
+EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract](part FROM timestamp [AT THE ZONE timezone])
+BigQuery는 Snowflake에 직접 아날로그가 없는 다음과 같은 날짜 및 시간 함수도 제공합니다.
+DATE_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub]
+PARSE_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#parse_date]
+DATETIME_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_add]
+PARSE_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#parse_datetime]
+PARSE_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#parse_time]
+TIMESTAMP_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_sub]
+TIMESTAMP_SECONDS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_seconds]
+UNIX_SECONDS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_seconds]
+DATE_FROM_UNIX_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_from_unix_date]
+UNIX_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#unix_date]
+DATETIME_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime_sub]
+TIME_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#time_sub]
+STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#string]
+FORMAT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#format_timestamp]
+TIMESTAMP_MILLIS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_millis]
+UNIX_MILLIS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_millis]
+FORMAT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#format_date]
+DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#datetime]
+FORMAT_DATETIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/datetime_functions?hl=ko#format_datetime]
+FORMAT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#format_time]
+TIMESTAMP_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_add]
+PARSE_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#parse_timestamp]
+TIMESTAMP_MICROS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#timestamp_micros]
+UNIX_MICROS [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#unix_micros]
+정보 스키마 및 테이블 함수
+BigQuery는 Snowflake의 정보 스키마 및 테이블 함수를 개념적으로 지원하지 않습니다. Snowflake는 BigQuery에 직접 아날로그가 없는 다음과 같은 정보 스키마 및 테이블 함수를 제공합니다.
+AUTOMATIC_CLUSTERING_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/automatic_clustering_history.html]
+COPY_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/copy_history.html]
+DATA_TRANSFER_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/data_transfer_history.html]
+DATABASE_REFRESH_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/database_refresh_history.html]
+DATABASE_REFRESH_PROGRESS, DATABASE_REFRESH_PROGRESS_BY_JOB [https://docs.snowflake.net/manuals/sql-reference/functions/database_refresh_progress.html]
+DATABASE_STORAGE_USAGE_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/database_storage_usage_history.html]
+EXTERNAL_TABLE_FILES [https://docs.snowflake.net/manuals/sql-reference/functions/external_table_files.html]
+EXTERNAL_TABLE_FILE_REGISTRATION_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/external_table_registration_history.html]
+LOGIN_HISTORY, LOGIN_HISTORY_BY_USER [https://docs.snowflake.net/manuals/sql-reference/functions/login_history.html]
+MATERIALIZED_VIEW_REFRESH_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/materialized_view_refresh_history.html]
+PIPE_USAGE_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/pipe_usage_history.html]
+REPLICATION_USAGE_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/replication_usage_history.html]
+STAGE_STORAGE_USAGE_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/stage_storage_usage_history.html]
+TASK_DEPENDENTS [https://docs.snowflake.net/manuals/sql-reference/functions/task_dependents.html]
+VALIDATE_PIPE_LOAD [https://docs.snowflake.net/manuals/sql-reference/functions/validate_pipe_load.html]
+WAREHOUSE_LOAD_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/warehouse_load_history.html]
+WAREHOUSE_METERING_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/warehouse_metering_history.html]
+다음은 연결된 BigQuery 및 Snowflake 정보 스키마와 테이블 함수의 목록입니다.
+Snowflake BigQuery
+QUERY_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/query_history.html]
+
+QUERY_HISTORY_BY_* [https://docs.snowflake.net/manuals/sql-reference/functions/query_history.html] INFORMATION_SCHEMA.JOBS_BY_* [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]
+
+참고: 직접적으로 대체하는 항목이 아닙니다.
+TASK_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/task_history.html] INFORMATION_SCHEMA.JOBS_BY_* [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]
+
+참고: 직접적으로 대체하는 항목이 아닙니다.
+BigQuery는 Snowflake에 직접 아날로그가 없는 다음 정보 스키마 및 테이블 함수를 제공합니다.
+INFORMATION_SCHEMA.SCHEMATA [https://cloud.google.com/bigquery/docs/information-schema-datasets?hl=ko]
+INFORMATION_SCHEMA.ROUTINES [https://cloud.google.com/bigquery/docs/information-schema-routines?hl=ko]
+INFORMATION_SCHEMA.TABLES [https://cloud.google.com/bigquery/docs/information-schema-tables?hl=ko]
+INFORMATION_SCHEMA.VIEWS [https://cloud.google.com/bigquery/docs/information-schema-views?hl=ko]
+숫자 함수
+다음 표는 일반적인 Snowflake 숫자 함수와 그에 해당하는 BigQuery 함수 간의 매핑을 보여줍니다.
+Snowflake BigQuery
+ABS [https://docs.snowflake.net/manuals/sql-reference/functions/abs.html](expression)
+ABS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#abs](expression)
+ACOS [https://docs.snowflake.net/manuals/sql-reference/functions/acos.html](expression)
+ACOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#acos](expression)
+ACOSH [https://docs.snowflake.net/manuals/sql-reference/functions/acosh.html](expression)
+ACOSH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#acosh](expression)
+ASIN [https://docs.snowflake.net/manuals/sql-reference/functions/asin.html](expression)
+ASIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#asin](expression)
+ASINH [https://docs.snowflake.net/manuals/sql-reference/functions/asinh.html](expression)
+ASINH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#asinh](expression)
+ATAN [https://docs.snowflake.net/manuals/sql-reference/functions/atan.html](expression)
+ATAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#atan](expression)
+ATAN2 [https://docs.snowflake.net/manuals/sql-reference/functions/atan2.html](y, x)
+ATAN2 [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#atan2](y, x)
+ATANH [https://docs.snowflake.net/manuals/sql-reference/functions/atanh.html](expression)
+ATANH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#atanh](expression)
+CBRT [https://docs.snowflake.net/manuals/sql-reference/functions/cbrt.html](expression)
+POW [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#pow](expression, ⅓)
+CEIL [https://docs.snowflake.net/manuals/sql-reference/functions/ceil.html](expression [, scale])
+CEIL [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ceil](expression)
+
+참고: BigQuery의 CEIL는 정밀도 또는 소수 자릿수를 표시하는 기능을 지원하지 않습니다. ROUND 에서는 반올림을 지정할 수 없습니다.
+COS [https://docs.snowflake.net/manuals/sql-reference/functions/cos.html](expression)
+COS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#cos](expression)
+COSH [https://docs.snowflake.net/manuals/sql-reference/functions/cosh.html](expression)
+COSH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#cosh](expression)
+COT [https://docs.snowflake.net/manuals/sql-reference/functions/cot.html](expression)
+1/TAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#tan](expression)
+DEGREES [https://docs.snowflake.net/manuals/sql-reference/functions/degrees.html](expression)
+(expression)*(180/ACOS(-1))
+EXP [https://docs.snowflake.net/manuals/sql-reference/functions/exp.html](expression)
+EXP [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#exp](expression)
+FACTORIAL [https://docs.snowflake.net/manuals/sql-reference/functions/factorial.html](expression)
+BigQuery는 Snowflake의 FACTORIAL을 대신할 항목이 없습니다. 사용자 정의 함수를 사용합니다.
+FLOOR [https://docs.snowflake.net/manuals/sql-reference/functions/floor.html](expression [, scale])
+FLOOR [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#floor](expression)
+
+참고: BigQuery의 FLOOR는 정밀도 또는 소수 자릿수를 표시하는 기능을 지원하지 않습니다. ROUND 에서는 반올림을 지정할 수 없습니다. TRUNC는 절대값을 평가하므로 양수에 대해서는 동의어로 수행되지만 음수에는 수행되지 않습니다.
+HAVERSINE [https://docs.snowflake.net/manuals/sql-reference/functions/haversine.html](lat1, lon1, lat2, lon2)
+ST_DISTANCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_distance]( ST_GEOGPOINT [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_geogpoint](lon1, lat1),
+ST_GEOGPOINT(lon2, lat2)
+)/1000
+
+참고: 일치검색은 아니지만 매우 유사합니다.
+LN [https://docs.snowflake.net/manuals/sql-reference/functions/ln.html](expression)
+LN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ln](expression)
+LOG [https://docs.snowflake.net/manuals/sql-reference/functions/log.html](base, expression)
+LOG [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#log](expression [,base])
+
+LOG10 [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#log10](expression)
+
+참고: LOG의 기본 기본값은 10입니다.
+MOD [https://docs.snowflake.net/manuals/sql-reference/functions/mod.html](expression1, expression2)
+MOD [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#mod](expression1, expression2)
+PI [https://docs.snowflake.net/manuals/sql-reference/functions/pi.html]()
+ACOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#acos](-1)
+POW [https://docs.snowflake.net/manuals/sql-reference/functions/pow.html](x, y)
+
+POWER [https://docs.snowflake.net/manuals/sql-reference/functions/pow.html](x, y)
+POW [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#pow](x, y)
+
+POWER [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#power](x, y)
+RADIANS [https://docs.snowflake.net/manuals/sql-reference/functions/radians.html](expression)
+(expression)*(ACOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#acos](-1)/180)
+ROUND [https://docs.snowflake.net/manuals/sql-reference/functions/round.html](expression [, scale])
+ROUND [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#round](expression, [, scale])
+SIGN [https://docs.snowflake.net/manuals/sql-reference/functions/sign.html](expression)
+SIGN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sign](expression)
+SIN [https://docs.snowflake.net/manuals/sql-reference/functions/sin.html](expression)
+SIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sin](expression)
+SINH [https://docs.snowflake.net/manuals/sql-reference/functions/sinh.html](expression)
+SINH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sinh](expression)
+SQRT [https://docs.snowflake.net/manuals/sql-reference/functions/sqrt.html](expression)
+SQRT [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#sqrt](expression)
+SQUARE [https://docs.snowflake.net/manuals/sql-reference/functions/square.html](expression)
+POW [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#pow](expression, 2)
+TAN [https://docs.snowflake.net/manuals/sql-reference/functions/tan.html](expression)
+TAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#tan](expression)
+TANH [https://docs.snowflake.net/manuals/sql-reference/functions/tanh.html](expression)
+TANH [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#tanh](expression)
+TRUNC [https://docs.snowflake.net/manuals/sql-reference/functions/trunc.html](expression [, scale])
+
+TRUNCATE [https://docs.snowflake.net/manuals/sql-reference/functions/trunc.html](expression [, scale])
+TRUNC [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#trunc](expression [, scale])
+
+참고: BigQuery의 반환 값은 표현식보다 작아야 합니다. 같은 값은 지원하지 않습니다.
+BigQuery는 다음과 같은 수학 [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko] 함수도 제공하며, Snowflake에는 직접적인 유사 항목이 없습니다.
+IS_INF [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#is_inf]
+IS_NAN [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#is_nan]
+IEEE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#ieee_divide]
+DIV [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#div]
+SAFE_DIVIDE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#safe_divide]
+SAFE_MULTIPLY [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#safe_multiply]
+SAFE_NEGATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#safe_negate]
+SAFE_ADD [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#safe_add]
+SAFE_SUBTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#safe_subtract]
+RANGE_BUCKET [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#range_bucket]
+반정형 데이터 함수
+Snowflake BigQuery
+ARRAY_APPEND [https://docs.snowflake.net/manuals/sql-reference/functions/array_append.html] 커스텀 사용자 정의 함수입니다.
+ARRAY_CAT [https://docs.snowflake.net/manuals/sql-reference/functions/array_cat.html] ARRAY_CONCAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions?hl=ko#array_concat]
+ARRAY_COMPACT [https://docs.snowflake.net/manuals/sql-reference/functions/array_compact.html] 커스텀 사용자 정의 함수입니다.
+ARRAY_CONSTRUCT [https://docs.snowflake.net/manuals/sql-reference/functions/array_construct.html] [ ] [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#using_array_literals]
+ARRAY_CONSTRUCT_COMPACT [https://docs.snowflake.net/manuals/sql-reference/functions/array_construct_compact.html] 커스텀 사용자 정의 함수입니다.
+ARRAY_CONTAINS [https://docs.snowflake.net/manuals/sql-reference/functions/array_contains.html] 커스텀 사용자 정의 함수입니다.
+ARRAY_INSERT [https://docs.snowflake.net/manuals/sql-reference/functions/array_insert.html] 커스텀 사용자 정의 함수입니다.
+ARRAY_INTERSECTION [https://docs.snowflake.net/manuals/sql-reference/functions/array_intersection.html] 커스텀 사용자 정의 함수입니다.
+ARRAY_POSITION [https://docs.snowflake.net/manuals/sql-reference/functions/array_position.html] 커스텀 사용자 정의 함수입니다.
+ARRAY_PREPEND [https://docs.snowflake.net/manuals/sql-reference/functions/array_prepend.html] 커스텀 사용자 정의 함수입니다.
+ARRAY_SIZE [https://docs.aws.amazon.com/redshift/latest/dg/r_DATEADD_function.html] ARRAY_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions?hl=ko#array_length]
+ARRAY_SLICE [https://docs.snowflake.net/manuals/sql-reference/functions/array_slice.html] 커스텀 사용자 정의 함수입니다.
+ARRAY_TO_STRING [https://docs.snowflake.net/manuals/sql-reference/functions/array_to_string.html] ARRAY_TO_STRING [https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions?hl=ko#array_to_string]
+ARRAYS_OVERLAP [https://docs.snowflake.net/manuals/sql-reference/functions/arrays_overlap.html] 커스텀 사용자 정의 함수입니다.
+AS_<object_type> [https://docs.snowflake.net/manuals/sql-reference/functions/as.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+AS_ARRAY [https://docs.snowflake.net/manuals/sql-reference/functions/as_array.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+AS_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/as_binary.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+AS_BOOLEAN [https://docs.snowflake.net/manuals/sql-reference/functions/as_boolean.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+AS_CHAR , AS_VARCHAR [https://docs.snowflake.net/manuals/sql-reference/functions/as_char-varchar.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+AS_DATE [https://docs.snowflake.net/manuals/sql-reference/functions/as_date.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+AS_DECIMAL , AS_NUMBER [https://docs.snowflake.net/manuals/sql-reference/functions/as_decimal-number.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+AS_DOUBLE , AS_REAL [https://docs.snowflake.net/manuals/sql-reference/functions/as_double-real.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+AS_INTEGER [https://docs.snowflake.net/manuals/sql-reference/functions/as_integer.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+AS_OBJECT [https://docs.snowflake.net/manuals/sql-reference/functions/as_object.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+AS_TIME [https://docs.snowflake.net/manuals/sql-reference/functions/as_time.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+AS_TIMESTAMP_* [https://docs.snowflake.net/manuals/sql-reference/functions/as_timestamp.html] CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_rules?hl=ko]
+CHECK_JSON [https://docs.snowflake.net/manuals/sql-reference/functions/check_json.html] 커스텀 사용자 정의 함수입니다.
+CHECK_XML [https://docs.snowflake.net/manuals/sql-reference/functions/check_xml.html] 커스텀 사용자 정의 함수입니다.
+FLATTEN [https://docs.snowflake.net/manuals/sql-reference/functions/flatten.html] UNNEST [https://cloud.google.com/bigquery/docs/arrays?hl=ko#flattening_arrays]
+GET [https://docs.snowflake.net/manuals/sql-reference/functions/get.html] 커스텀 사용자 정의 함수입니다.
+GET_IGNORE_CASE [https://docs.snowflake.net/manuals/sql-reference/functions/get_ignore_case.html] 커스텀 사용자 정의 함수입니다.
+GET_PATH , :
+커스텀 사용자 정의 함수입니다.
+IS_<object_type> [https://docs.snowflake.net/manuals/sql-reference/functions/is.html] 커스텀 사용자 정의 함수입니다.
+IS_ARRAY [https://docs.snowflake.net/manuals/sql-reference/functions/is_array.html] 커스텀 사용자 정의 함수입니다.
+IS_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/is_binary.html] 커스텀 사용자 정의 함수입니다.
+IS_BOOLEAN [https://docs.snowflake.net/manuals/sql-reference/functions/is_boolean.html] 커스텀 사용자 정의 함수입니다.
+IS_CHAR , IS_VARCHAR [https://docs.snowflake.net/manuals/sql-reference/functions/is_char-varchar.html] 커스텀 사용자 정의 함수입니다.
+IS_DATE , IS_DATE_VALUE [https://docs.snowflake.net/manuals/sql-reference/functions/is_date-value.html] 커스텀 사용자 정의 함수입니다.
+IS_DECIMAL [https://docs.snowflake.net/manuals/sql-reference/functions/is_decimal.html] 커스텀 사용자 정의 함수입니다.
+IS_DOUBLE , IS_REAL [https://docs.snowflake.net/manuals/sql-reference/functions/is_double-real.html] 커스텀 사용자 정의 함수입니다.
+IS_INTEGER [https://docs.snowflake.net/manuals/sql-reference/functions/is_integer.html] 커스텀 사용자 정의 함수입니다.
+IS_OBJECT [https://docs.snowflake.net/manuals/sql-reference/functions/is_object.html] 커스텀 사용자 정의 함수입니다.
+IS_TIME [https://docs.snowflake.net/manuals/sql-reference/functions/is_time.html] 커스텀 사용자 정의 함수입니다.
+IS_TIMESTAMP_* [https://docs.snowflake.net/manuals/sql-reference/functions/is_timestamp.html] 커스텀 사용자 정의 함수입니다.
+OBJECT_CONSTRUCT [https://docs.snowflake.net/manuals/sql-reference/functions/object_construct.html] 커스텀 사용자 정의 함수입니다.
+OBJECT_DELETE [https://docs.snowflake.net/manuals/sql-reference/functions/object_delete.html] 커스텀 사용자 정의 함수입니다.
+OBJECT_INSERT [https://docs.snowflake.net/manuals/sql-reference/functions/object_insert.html] 커스텀 사용자 정의 함수입니다.
+PARSE_JSON [https://docs.snowflake.net/manuals/sql-reference/functions/parse_json.html] JSON_EXTRACT [https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions?hl=ko#json_extract]
+PARSE_XML [https://docs.snowflake.net/manuals/sql-reference/functions/parse_xml.html] 커스텀 사용자 정의 함수입니다.
+STRIP_NULL_VALUE [https://docs.snowflake.net/manuals/sql-reference/functions/strip_null_value.html] 커스텀 사용자 정의 함수입니다.
+STRTOK_TO_ARRAY [https://docs.snowflake.net/manuals/sql-reference/functions/strtok_to_array.html] SPLIT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#split]
+TRY_PARSE_JSON [https://docs.snowflake.net/manuals/sql-reference/functions/try_parse_json.html] 커스텀 사용자 정의 함수입니다.
+TYPEOF [https://docs.snowflake.net/manuals/sql-reference/functions/typeof.html] 커스텀 사용자 정의 함수입니다.
+XMLGET [https://docs.snowflake.net/manuals/sql-reference/functions/xmlget.html] 커스텀 사용자 정의 함수입니다.
+문자열 및 바이너리 함수
+Snowflake BigQuery
+string1 || string2
+CONCAT(string1, string2)
+ASCII [https://docs.snowflake.net/manuals/sql-reference/functions/ascii.html]
+TO_CODE_POINTS(string1)[OFFSET(0)]
+BASE64_DECODE_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/base64_decode_binary.html]
+SAFE_CONVERT_BYTES_TO_STRING(
+FROM_BASE64(<bytes_input>)
+)
+BASE64_DECODE_STRING [https://docs.snowflake.net/manuals/sql-reference/functions/base64_decode_string.html]
+SAFE_CONVERT_BYTES_TO_STRING(
+FROM_BASE64(<string1>)
+)
+BASE64_ENCODE [https://docs.snowflake.net/manuals/sql-reference/functions/base64_encode.html]
+TO_BASE64(
+SAFE_CAST(<string1> AS BYTES)
+)
+BIT_LENGTH [https://docs.snowflake.net/manuals/sql-reference/functions/bit_length.html]
+BYTE_LENGTH * 8
+CHARACTER_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#character_length]
+CHARINDEX(substring, string)
+STRPOS(string, substring)
+CHR,CHAR [https://docs.snowflake.net/manuals/sql-reference/functions/chr.html]
+CODE_POINTS_TO_STRING([number])
+COLLATE [https://docs.snowflake.net/manuals/sql-reference/functions/collate.html] 커스텀 사용자 정의 함수입니다.
+COLLATION [https://docs.snowflake.net/manuals/sql-reference/functions/collation.html] 커스텀 사용자 정의 함수입니다.
+COMPRESS [https://docs.snowflake.net/manuals/sql-reference/functions/compress.html] 커스텀 사용자 정의 함수입니다.
+CONCAT(string1, string2)
+CONCAT(string1, string2)
+참고:: BigQuery의 CONCAT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#concat](...)는 원하는 수의 문자열을 연결할 수 있도록 지원합니다.
+CONTAINS [https://docs.snowflake.net/manuals/sql-reference/functions/contains.html] 커스텀 사용자 정의 함수입니다.
+DECOMPRESS_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/decompress_binary.html] 커스텀 사용자 정의 함수입니다.
+DECOMPRESS_STRING [https://docs.snowflake.net/manuals/sql-reference/functions/decompress_string.html] 커스텀 사용자 정의 함수입니다.
+EDITDISTANCE [https://docs.snowflake.net/manuals/sql-reference/functions/editdistance.html] EDIT_DISTANCE [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#edit_distance]
+ENDSWITH [https://docs.snowflake.net/manuals/sql-reference/functions/endswith.html] 커스텀 사용자 정의 함수입니다.
+HEX_DECODE_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/hex_decode_binary.html]
+SAFE_CONVERT_BYTES_TO_STRING(
+FROM_HEX(<string1>)
+HEX_DECODE_STRING [https://docs.snowflake.net/manuals/sql-reference/functions/hex_decode_string.html]
+SAFE_CONVERT_BYTES_TO_STRING(
+FROM_HEX(<string1>)
+HEX_ENCODE [https://docs.snowflake.net/manuals/sql-reference/functions/hex_encode.html]
+TO_HEX(
+SAFE_CAST(<string1> AS BYTES))
+ILIKE [https://docs.snowflake.net/manuals/sql-reference/functions/ilike.html] 커스텀 사용자 정의 함수입니다.
+ILIKE ANY [https://docs.snowflake.net/manuals/sql-reference/functions/ilike_any.html] 커스텀 사용자 정의 함수입니다.
+INITCAP [https://docs.snowflake.net/manuals/sql-reference/functions/initcap.html] INITCAP [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#initcap]
+INSERT [https://docs.snowflake.net/manuals/sql-reference/functions/insert.html] 커스텀 사용자 정의 함수입니다.
+LEFT [https://docs.snowflake.net/manuals/sql-reference/functions/left.html] 사용자 정의 함수 [https://github.com/GoogleCloudPlatform/bigquery-utils/blob/master/udfs/migration/teradata/left.sqlx]
+LENGTH [https://docs.snowflake.net/manuals/sql-reference/functions/length.html]
+LENGTH(expression)
+LIKE [https://docs.snowflake.net/manuals/sql-reference/functions/like.html] LIKE [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators]
+LIKE ALL [https://docs.snowflake.net/manuals/sql-reference/functions/like_all.html] 커스텀 사용자 정의 함수입니다.
+LIKE ANY [https://docs.snowflake.net/manuals/sql-reference/functions/like_any.html] 커스텀 사용자 정의 함수입니다.
+LOWER [https://docs.snowflake.net/manuals/sql-reference/functions/lower.html]
+LOWER(string)
+LPAD [https://docs.snowflake.net/manuals/sql-reference/functions/lpad.html]
+LPAD(string1, length[, string2])
+LTRIM [https://docs.snowflake.net/manuals/sql-reference/functions/ltrim.html]
+LTRIM(string1, trim_chars)
+MD5,MD5_HEX
+MD5(string)
+MD5_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/md5_binary.html] 커스텀 사용자 정의 함수입니다.
+OCTET_LENGTH [https://docs.snowflake.net/manuals/sql-reference/functions/octet_length.html] 커스텀 사용자 정의 함수입니다.
+PARSE_IP [https://docs.snowflake.net/manuals/sql-reference/functions/parse_ip.html] 커스텀 사용자 정의 함수입니다.
+PARSE_URL [https://docs.snowflake.net/manuals/sql-reference/functions/parse_url.html] 커스텀 사용자 정의 함수입니다.
+POSITION [https://docs.snowflake.net/manuals/sql-reference/functions/position.html]
+STRPOS(string, substring)
+REPEAT [https://docs.snowflake.net/manuals/sql-reference/functions/repeat.html]
+REPEAT(string, integer)
+REPLACE [https://docs.snowflake.net/manuals/sql-reference/functions/replace.html]
+REPLACE(string1, old_chars, new_chars)
+REVERSE [https://docs.snowflake.net/manuals/sql-reference/functions/reverse.html]
+number_characters
+)
+REVERSE(expression)
+RIGHT [https://docs.snowflake.net/manuals/sql-reference/functions/right.html] 사용자 정의 함수 [https://github.com/GoogleCloudPlatform/bigquery-utils/blob/master/udfs/migration/teradata/right.sqlx]
+RPAD [https://docs.snowflake.net/manuals/sql-reference/functions/rpad.html] RPAD [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#rpad]
+RTRIM [https://docs.snowflake.net/manuals/sql-reference/functions/rtrim.html]
+RTRIM(string, trim_chars)
+RTRIMMED_LENGTH [https://docs.snowflake.net/manuals/sql-reference/functions/rtrimmed_length.html] 커스텀 사용자 정의 함수입니다.
+SHA1,SHA1_HEX [https://docs.snowflake.net/manuals/sql-reference/functions/sha1.html]
+SHA1(string)
+SHA1_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/sha1_binary.html] 커스텀 사용자 정의 함수입니다.
+SHA2,SHA2_HEX [https://docs.snowflake.net/manuals/sql-reference/functions/sha2.html] 커스텀 사용자 정의 함수입니다.
+SHA2_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/sha2_binary.html] 커스텀 사용자 정의 함수입니다.
+SOUNDEX [https://docs.snowflake.net/manuals/sql-reference/functions/soundex.html] 커스텀 사용자 정의 함수입니다.
+SPACE [https://docs.snowflake.net/manuals/sql-reference/functions/space.html] 커스텀 사용자 정의 함수입니다.
+SPLIT [https://docs.snowflake.net/manuals/sql-reference/functions/split.html] SPLIT [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#split]
+SPLIT_PART [https://docs.snowflake.net/manuals/sql-reference/functions/split_part.html] 커스텀 사용자 정의 함수입니다.
+SPLIT_TO_TABLE [https://docs.snowflake.net/manuals/sql-reference/functions/split_to_table.html] 커스텀 사용자 정의 함수입니다.
+STARTSWITH [https://docs.snowflake.net/manuals/sql-reference/functions/startswith.html] 커스텀 사용자 정의 함수입니다.
+STRTOK [https://docs.snowflake.net/manuals/sql-reference/functions/strtok.html]
+SPLIT(instring, delimiter)[ORDINAL(tokennum)]
+
+참고: 전체 구분 기호 문자열 인수는 단일 구분 기호로 사용됩니다. 기본 구분 기호는 쉼표입니다.
+STRTOK_SPLIT_TO_TABLE [https://docs.snowflake.net/manuals/sql-reference/functions/strtok_split_to_table.html] 커스텀 사용자 정의 함수입니다.
+SUBSTR,SUBSTRING [https://docs.snowflake.net/manuals/sql-reference/functions/substr.html] SUBSTR [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#substr]
+TRANSLATE [https://docs.snowflake.net/manuals/sql-reference/functions/translate.html] 커스텀 사용자 정의 함수입니다.
+TRIM [https://docs.snowflake.net/manuals/sql-reference/functions/trim.html] TRIM [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#trim]
+TRY_BASE64_DECODE_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/try_base64_decode_binary.html] 커스텀 사용자 정의 함수입니다.
+TRY_BASE64_DECODE_STRING [https://docs.snowflake.net/manuals/sql-reference/functions/try_base64_decode_string.html]
+SUBSTR(string, 0, integer)
+TRY_HEX_DECODE_BINARY [https://docs.snowflake.net/manuals/sql-reference/functions/try_hex_decode_binary.html]
+SUBSTR(string, -integer)
+TRY_HEX_DECODE_STRING [https://docs.snowflake.net/manuals/sql-reference/functions/try_hex_decode_string.html]
+LENGTH(expression)
+UNICODE [https://docs.snowflake.net/manuals/sql-reference/functions/unicode.html] 커스텀 사용자 정의 함수입니다.
+UPPER
+UPPER [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#upper]
+문자열 함수(정규 표현식)
+Snowflake BigQuery
+REGEXP [https://docs.snowflake.net/manuals/sql-reference/functions/regexp.html]
+IF(REGEXP_CONTAINS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_contains],1,0)=1
+REGEXP_COUNT [https://docs.snowflake.net/manuals/sql-reference/functions/regexp_count.html]
+ARRAY_LENGTH [https://cloud.google.com/bigquery/docs/reference/standard-sql/array_functions?hl=ko#array_length](
+REGEXP_EXTRACT_ALL [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#regexp_extract_all](
+source_string,
+pattern
+)
+)
+
+position이 지정된 경우:
+ARRAY_LENGTH(
+REGEXP_EXTRACT_ALL(
+SUBSTR [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#substr](source_string, IF(position <= 0, 1, position)),
+pattern
+)
+)
+
+참고: BigQuery는 re2 [https://github.com/google/re2/wiki/Syntax] 라이브러리를 사용하여 정규 표현식을 지원합니다. 정규 표현식 구문은 해당 문서를 참조하세요.
+REGEXP_INSTR [https://docs.snowflake.net/manuals/sql-reference/functions/regexp_instr.html]
+IFNULL [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko](
+STRPOS [https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions?hl=ko#strpos](
+source_string,
+REGEXP_EXTRACT(
+source_string,
+pattern)
+), 0)
+
+position이 지정된 경우 [https://cloud.google.com/bigquery/docs/reference/standard-sql/conditional_expressions?hl=ko]:
+IFNULL(
+STRPOS(
+SUBSTR(source_string, IF(position <= 0, 1, position)),
+REGEXP_EXTRACT(
+SUBSTR(source_string, IF(position <= 0, 1, position)),
+pattern)
+) + IF(position <= 0, 1, position) - 1, 0)
+
+occurrence가 지정된 경우:
+IFNULL(
+STRPOS(
+SUBSTR(source_string, IF(position <= 0, 1, position)),
+REGEXP_EXTRACT_ALL(
+SUBSTR(source_string, IF(position <= 0, 1, position)),
+pattern
+)[SAFE_ORDINAL [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#array_subscript_operator](occurrence)]
+) + IF(position <= 0, 1, position) - 1, 0)
+
+참고: BigQuery는 re2 [https://github.com/google/re2/wiki/Syntax] 라이브러리를 사용하여 정규 표현식을 지원합니다. 정규 표현식 구문은 해당 문서를 참조하세요.
+REGEXP_LIKE
+IF(REGEXP_CONTAINS,1,0)=1
+REGEXP_REPLACE [https://docs.snowflake.net/manuals/sql-reference/functions/regexp_replace.html]
+REGEXP_REPLACE(
+source_string,
+pattern,
+""
+)
+
+replace_string이 지정된 경우:
+REGEXP_REPLACE(
+source_string,
+pattern,
+replace_string
+)
+
+position가 지정된 경우:
+CASE
+WHEN position > LENGTH(source_string) THEN source_string
+WHEN position <= 0 THEN
+REGEXP_REPLACE(
+source_string,
+pattern,
+""
+)
+ELSE
+CONCAT(
+SUBSTR(
+source_string, 1, position - 1),
+REGEXP_REPLACE(
+SUBSTR(source_string, position),
+pattern,
+replace_string
+)
+)
+END
+
+참고: BigQuery는 re2 [https://github.com/google/re2/wiki/Syntax] 라이브러리를 사용하여 정규 표현식을 지원합니다. 정규 표현식 구문은 해당 문서를 참조하세요.
+REGEXP_SUBSTR [https://docs.snowflake.net/manuals/sql-reference/functions/regexp_substr.html]
+REGEXP_EXTRACT(
+source_string,
+pattern
+)
+
+position이 지정된 경우:
+REGEXP_EXTRACT(
+SUBSTR(source_string, IF(position <= 0, 1, position)),
+pattern
+)
+
+occurrence가 지정된 경우:
+REGEXP_EXTRACT_ALL(
+SUBSTR(source_string, IF(position <= 0, 1, position)),
+pattern
+)[SAFE_ORDINAL(occurrence)]
+
+참고: BigQuery는 re2 [https://github.com/google/re2/wiki/Syntax] 라이브러리를 사용하여 정규 표현식을 지원합니다. 정규 표현식 구문은 해당 문서를 참조하세요.
+RLIKE [https://docs.snowflake.net/manuals/sql-reference/functions/rlike.html]
+IF(REGEXP_CONTAINS,1,0)=1
+시스템 함수
+Snowflake BigQuery
+SYSTEM$ABORT_SESSION [https://docs.snowflake.net/manuals/sql-reference/functions/system_abort_session.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$ABORT_TRANSACTION [https://docs.snowflake.net/manuals/sql-reference/functions/system_abort_transaction.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$CANCEL_ALL_QUERIES [https://docs.snowflake.net/manuals/sql-reference/functions/system_cancel_all_queries.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$CANCEL_QUERY [https://docs.snowflake.net/manuals/sql-reference/functions/system_cancel_query.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$CLUSTERING_DEPTH [https://docs.snowflake.net/manuals/sql-reference/functions/system_clustering_depth.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$CLUSTERING_INFORMATION [https://docs.snowflake.net/manuals/sql-reference/functions/system_clustering_information.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$CLUSTERING_RATIO — Deprecated [https://docs.snowflake.net/manuals/sql-reference/functions/system_clustering_ratio.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$CURRENT_USER_TASK_NAME [https://docs.snowflake.net/manuals/sql-reference/functions/system_current_user_task_name.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$DATABASE_REFRESH_HISTORY [https://docs.snowflake.net/manuals/sql-reference/functions/system_database_refresh_history.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$DATABASE_REFRESH_PROGRESS , SYSTEM$DATABASE_REFRESH_PROGRESS_BY_JOB [https://docs.snowflake.net/manuals/sql-reference/functions/system_database_refresh_progress.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$GET_AWS_SNS_IAM_POLICY [https://docs.aws.amazon.com/redshift/latest/dg/r_DATEADD_function.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$GET_PREDECESSOR_RETURN_VALUE [https://docs.snowflake.net/manuals/sql-reference/functions/system_get_predecessor_return_value.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$LAST_CHANGE_COMMIT_TIME [https://docs.snowflake.net/manuals/sql-reference/functions/system_last_change_commit_time.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$PIPE_FORCE_RESUME [https://docs.snowflake.net/manuals/sql-reference/functions/system_pipe_force_resume.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$PIPE_STATUS [https://docs.snowflake.net/manuals/sql-reference/functions/system_pipe_status.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$SET_RETURN_VALUE [https://docs.snowflake.net/manuals/sql-reference/functions/system_set_return_value.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$SHOW_OAUTH_CLIENT_SECRETS [https://docs.snowflake.net/manuals/sql-reference/functions/system_show_oauth_client_secrets.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$STREAM_GET_TABLE_TIMESTAMP [https://docs.snowflake.net/manuals/sql-reference/functions/system_stream_get_table_timestamp.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$STREAM_HAS_DATA [https://docs.snowflake.net/manuals/sql-reference/functions/system_stream_has_data.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$TASK_DEPENDENTS_ENABLE [https://docs.snowflake.net/manuals/sql-reference/functions/system_task_dependents_enable.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$TYPEOF [https://docs.snowflake.net/manuals/sql-reference/functions/system_typeof.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$USER_TASK_CANCEL_ONGOING_EXECUTIONS [https://docs.snowflake.net/manuals/sql-reference/functions/system_user_task_cancel_ongoing_executions.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$WAIT [https://docs.snowflake.net/manuals/sql-reference/functions/system_wait.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$WHITELIST [https://docs.snowflake.net/manuals/sql-reference/functions/system_whitelist.html] 커스텀 사용자 정의 함수입니다.
+SYSTEM$WHITELIST_PRIVATELINK [https://docs.snowflake.net/manuals/sql-reference/functions/system_whitelist_privatelink.html] 커스텀 사용자 정의 함수입니다.
+테이블 함수
+Snowflake BigQuery
+GENERATOR [https://docs.snowflake.net/manuals/sql-reference/functions/generator.html] 커스텀 사용자 정의 함수입니다.
+GET_OBJECT_REFERENCES [https://docs.snowflake.net/manuals/sql-reference/functions/get_object_references.html] 커스텀 사용자 정의 함수입니다.
+RESULT_SCAN [https://docs.snowflake.net/manuals/sql-reference/functions/result_scan.html] 커스텀 사용자 정의 함수입니다.
+VALIDATE [https://docs.snowflake.net/manuals/sql-reference/functions/validate.html] 커스텀 사용자 정의 함수입니다.
+유틸리티 및 해시 함수
+Snowflake BigQuery
+GET_DDL [https://docs.snowflake.net/manuals/sql-reference/functions/get_ddl.html] 기능 요청 [https://issuetracker.google.com/issues/119245739?hl=ko]
+HASH [https://docs.snowflake.net/manuals/sql-reference/functions/hash.html] HASH는 Snowflake 관련 독점 함수입니다. Snowflake에서 사용되는 기본 로직을 알지 못하면 변환할 수 없습니다.
+윈도우 함수
+Snowflake BigQuery
+CONDITIONAL_CHANGE_EVENT [https://docs.snowflake.net/manuals/sql-reference/functions/conditional_change_event.html] 커스텀 사용자 정의 함수입니다.
+CONDITIONAL_TRUE_EVENT [https://docs.snowflake.net/manuals/sql-reference/functions/conditional_true_event.html] 커스텀 사용자 정의 함수입니다.
+CUME_DIST [https://docs.snowflake.net/manuals/sql-reference/functions/cume_dist.html] CUME_DIST [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#cume_dist]
+DENSE_RANK [https://docs.snowflake.net/manuals/sql-reference/functions/dense_rank.html] DENSE_RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#dense_rank]
+FIRST_VALUE [https://docs.snowflake.net/manuals/sql-reference/functions/first_value.html] FIRST_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#first_value]
+LAG [https://docs.snowflake.net/manuals/sql-reference/functions/lag.html] LAG [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#lag]
+LAST_VALUE [https://docs.snowflake.net/manuals/sql-reference/functions/last_value.html] LAST_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#last_value]
+LEAD [https://docs.snowflake.net/manuals/sql-reference/functions/lead.html] LEAD [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#lead]
+NTH_VALUE [https://docs.snowflake.net/manuals/sql-reference/functions/nth_value.html] NTH_VALUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/navigation_functions?hl=ko#nth_value]
+NTILE [https://docs.snowflake.net/manuals/sql-reference/functions/ntile.html] NTILE [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#ntile]
+PERCENT_RANK [https://docs.snowflake.net/manuals/sql-reference/functions/percent_rank.html] PERCENT_RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#percent_rank]
+RANK [https://docs.snowflake.net/manuals/sql-reference/functions/rank.html] RANK [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#rank]
+RATIO_TO_REPORT [https://docs.snowflake.net/manuals/sql-reference/functions/ratio_to_report.html] 커스텀 사용자 정의 함수입니다.
+ROW_NUMBER [https://docs.snowflake.net/manuals/sql-reference/functions/row_number.html] ROW_NUMBER [https://cloud.google.com/bigquery/docs/reference/standard-sql/numbering_functions?hl=ko#row_number]
+WIDTH_BUCKET [https://docs.snowflake.net/manuals/sql-reference/functions/width_bucket.html] 커스텀 사용자 정의 함수입니다.
+또한 BigQuery는 BigQuery가 변환을 수행할 수 없을 때 NULL을 반환하는 SAFE_CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#safe_casting](expression AS typename)를 지원합니다. 예를 들어 SAFE_CAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/conversion_functions?hl=ko#safe_casting]('apple' AS INT64)는 NULL을 반환합니다.
+연산자
+다음 섹션에는 Snowflake 연산자와 그에 해당하는 BigQuery 함수가 나와 있습니다.
+산술 연산자
+다음 표에서는 Snowflake 산술 연산자 [https://docs.snowflake.net/manuals/sql-reference/operators-arithmetic.html]와 그에 해당하는 BigQuery 연산자 간의 매핑을 보여줍니다.
+Snowflake BigQuery
+(Unary) (+'5')
+CAST("5" AS NUMERIC)
+a + b
+a + b
+(Unary) (-'5')
+(-1) * CAST("5" AS NUMERIC)
+
+참고: BigQuery는 표준 단항 뺄셈을 지원하지만 문자열 형식의 정수를 INT64, NUMERIC 또는 FLOAT64 유형으로 변환하지 않습니다.
+a - b
+a - b
+date1 - date2
+
+date1 - 365
+DATE_DIFF [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_diff](date1, date2, date_part) DATE_SUB [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#date_sub](date1, date2, date_part)
+a * b
+a * b
+a / b
+a / b
+a % b
+MOD [https://cloud.google.com/bigquery/docs/reference/standard-sql/mathematical_functions?hl=ko#mod](a, b)
+산술 작업을 수행할 때 Snowflake 소수 자릿수 및 정밀도 세부정보를 보려면 Snowflake 문서 [https://docs.snowflake.net/manuals/sql-reference/operators-arithmetic.html#scale-and-precision-in-arithmetic-operations]를 참조하세요.
+비교 연산자
+Snowflake 비교 연산자 [https://docs.snowflake.net/manuals/sql-reference/operators-comparison.html]와 BigQuery 비교 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#comparison_operators]는 동일합니다.
+논리/불리언 연산자
+Snowflake 논리/불리언 연산자 [https://docs.snowflake.net/manuals/sql-reference/operators-logical.html]와 BigQuery 논리/불리언 연산자 [https://cloud.google.com/bigquery/docs/reference/standard-sql/operators?hl=ko#logical_operators]는 동일합니다.
+집합 연산자
+다음 표에서는 Snowflake 설정 연산자 [https://docs.snowflake.net/manuals/sql-reference/operators-query.html]와 그에 해당하는 BigQuery 연산자 간의 매핑을 보여줍니다.
+Snowflake BigQuery
+SELECT ... INTERSECT [https://docs.snowflake.net/manuals/sql-reference/operators-query.html#intersect] SELECT ...
+SELECT ...
+INTERSECT DISTINCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#intersect]
+SELECT...
+SELECT ... MINUS [https://docs.snowflake.net/manuals/sql-reference/operators-query.html#minus-except] SELECT ...
+SELECT ... EXCEPT [https://docs.snowflake.net/manuals/sql-reference/operators-query.html#minus-except] SELECT …
+
+참고: MINUS 및 EXCEPT 는 동의어입니다.
+SELECT ... EXCEPT DISTINCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#except] SELECT ...
+SELECT ... UNION [https://docs.snowflake.net/manuals/sql-reference/operators-query.html#union-all] SELECT ...
+SELECT ... UNION ALL [https://docs.snowflake.net/manuals/sql-reference/operators-query.html#union-all] SELECT ...
+SELECT ... UNION DISTINCT [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#union] SELECT ...
+
+SELECT ... UNION ALL [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#union] SELECT ...
+서브 쿼리 연산자
+다음 표에서는 Snowflake 서브 쿼리 연산자 [https://docs.snowflake.net/manuals/sql-reference/operators-subquery.html]와 그에 해당하는 BigQuery 연산자 간의 매핑을 보여줍니다.
+Snowflake BigQuery
+SELECT ... FROM ... WHERE col <operator> ALL [https://docs.snowflake.net/manuals/sql-reference/operators-subquery.html#all-any] … SELECT ... FROM ... WHERE col <operator> ANY [https://docs.snowflake.net/manuals/sql-reference/operators-subquery.html#all-any] ...
+BigQuery는 Snowflake의 ALL/ANY를 직접 대신할 항목을 지원하지 않습니다.
+SELECT ... FROM ...
+WHERE [NOT] EXISTS [https://docs.snowflake.net/manuals/sql-reference/operators-subquery.html#not-exists]...
+SELECT ... FROM ...
+WHERE [NOT] EXISTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/expression_subqueries?hl=ko]...
+SELECT ... FROM ...
+WHERE [NOT] IN [https://docs.snowflake.net/manuals/sql-reference/operators-subquery.html#not-in]...
+SELECT ... FROM ...
+WHERE [NOT] IN [https://cloud.google.com/bigquery/docs/reference/standard-sql/expression_subqueries?hl=ko]...
+SELECT * FROM table1
+UNION
+SELECT * FROM table2
+EXCEPT
+SELECT * FROM table3
+SELECT * FROM table1
+UNION ALL
+(
+SELECT * FROM table2
+EXCEPT
+SELECT * FROM table3
+)
+
+참고: BigQuery에서는 서로 다른 집합 작업을 분리하려면 괄호로 묶어야 합니다. 동일한 집합 연산자가 반복되는 경우 괄호가 필요하지 않습니다.
+DML 구문
+이 섹션에서는 Snowflake와 BigQuery 간 데이터 관리 언어 구문의 차이점을 설명합니다.
+INSERT 문
+Snowflake는 열에 대해 구성 가능한 DEFAULT 키워드를 제공합니다. BigQuery에서 null 허용 열의 DEFAULT 값은 NULL이며 DEFAULT는 필수 열에서 지원되지 않습니다. 대부분의 Snowflake INSERT 문 [https://docs.snowflake.net/manuals/sql-reference/sql/insert.html]은 BigQuery와 호환됩니다. 다음 표에는 예외 사항이 나와 있습니다.
+Snowflake BigQuery
+INSERT [https://docs.snowflake.net/manuals/sql-reference/sql/insert.html] [OVERWRITE] INTO table
+VALUES [... | DEFAULT | NULL] ...
+
+참고: BigQuery에서는 INSERT 문이 있는 JSON 객체 삽입이 지원되지 않습니다.
+INSERT [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#insert_statement] [INTO] table (column1 [, ...])
+VALUES (DEFAULT [, ...])
+
+참고: BigQuery는 Snowflake의 OVERWRITE를 직접 대신할 항목을 지원하지 않습니다. 대신 DELETE를 사용하세요.
+INSERT [https://docs.snowflake.net/manuals/sql-reference/sql/insert.html] INTO table (column1 [, ...]) SELECT... FROM ...
+INSERT [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#insert_statement] [INTO] table (column1, [,...])
+SELECT ...
+FROM ...
+INSERT [https://docs.snowflake.net/manuals/sql-reference/sql/insert-multi-table.html] [OVERWRITE] ALL <intoClause> ... INSERT [https://docs.snowflake.net/manuals/sql-reference/sql/insert-multi-table.html] [OVERWRITE] {FIRST | ALL} {WHEN condition THEN <intoClause>}
+[...]
+[ELSE <intoClause>]
+...
+
+참고: <intoClause>는 위에 나열된 표준 INSERT statement를 나타냅니다. BigQuery는 조건부 및 비조건부 다중 테이블 INSERTs를 지원하지 않습니다.
+BigQuery는 서브 쿼리를 사용한 값 삽입(서브 쿼리를 사용하여 값 중 하나를 계산)도 지원하는데 Snowflake의 경우 이를 지원하지 않습니다. 예를 들면 다음과 같습니다.
+INSERT INTO table (column1, column2)
+VALUES ('value_1', (
+  SELECT column2
+  FROM table2
+))
+COPY 문
+Snowflake는 스테이지 파일에서 기존 테이블로, 테이블에서 명명된 내부 단계, 이름이 지정된 외부 단계, 외부 위치(Amazon S3, Google Cloud Storage 또는 Microsoft Azure)로 데이터를 복사하는 기능을 지원합니다.
+COPY INTO <table> [https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html]
+COPY INTO <location> [https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html]
+BigQuery는 COPY 명령어를 사용하여 데이터를 로드하지 않지만, 여러 가지 비SQL 도구 및 옵션 [https://cloud.google.com/bigquery/docs/loading-data?hl=ko]을 사용하여 BigQuery 테이블에 데이터를 로드할 수 있습니다. 또한 Apache Spark [https://cloud.google.com/dataproc/docs/concepts/connectors/bigquery?hl=ko#other_sparkhadoop_clusters] 또는 Apache Beam [https://beam.apache.org/documentation/io/built-in/google-bigquery/#writing-to-bigquery]에서 제공되는 데이터 파이프라인 싱크를 사용하여 BigQuery에 데이터를 쓸 수 있습니다.
+UPDATE 문
+대부분의 Snowflake UPDATE 문은 BigQuery와 호환됩니다. 다음 표에는 예외 사항이 나와 있습니다.
+Snowflake BigQuery
+UPDATE [https://docs.snowflake.net/manuals/sql-reference/sql/update.html] table SET col = value [,...] [FROM ...] [WHERE ...]
+UPDATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#update_statement] table
+SET column = expression [,...]
+[FROM ...]
+WHERE TRUE
+
+참고: BigQuery의 모든 UPDATE 문에는 뒤에 조건이 나오는 WHERE 키워드가 필요합니다.
+DELETE 및 TRUNCATE TABLE 문
+테이블 스키마 또는 색인에 영향을 주지 않고 테이블에서 행을 삭제하려면 DELETE 및 TRUNCATE TABLE 문을 사용합니다.
+Snowflake에서 DELETE 및 TRUNCATE TABLE는 모두 데이터 보관 기간 동안 복구 목적으로 Snowflake의 시간 이동을 사용하여 삭제된 데이터를 유지합니다. 하지만 DELETE는 외부 파일 로드 기록과 로드 메타데이터를 삭제하지 않습니다.
+BigQuery의 DELETE 문에는 WHERE 절이 있어야 합니다. BigQuery의 DELETE에 대한 자세한 내용은 DML 문서에서 BigQuery DELETE 예시 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#delete_examples]를 참조하세요.
+Snowflake BigQuery
+DELETE [https://docs.snowflake.net/manuals/sql-reference/sql/delete.html] FROM table_name [USING ...]
+[WHERE ...]
+
+
+TRUNCATE [https://docs.snowflake.net/manuals/sql-reference/sql/truncate-table.html] [TABLE] [IF EXISTS] table_name
+DELETE [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#delete_statement] [FROM] table_name [alias]
+WHERE ...
+
+참고: BigQuery DELETE 문에는 WHERE 절이 필요합니다.
+MERGE 문
+MERGE 문은 INSERT, UPDATE, DELETE 작업을 단일 'upsert' 문으로 결합하여 자동으로 작업을 수행할 수 있습니다. MERGE 작업은 각 대상 행에 대해 최대 1개의 소스 행과 일치해야 합니다.
+BigQuery 테이블은 DML 문이 하루 1,000개로 제한되므로 다음 테이블과 같이 INSERT, UPDATE, DELETE 문을 단일 MERGE 문으로 통합하는 것이 이상적입니다.
+Snowflake BigQuery
+MERGE [https://docs.snowflake.net/manuals/sql-reference/sql/merge.html] INTO target USING source ON target.key = source.key WHEN MATCHED AND source.filter = 'Filter_exp' THEN
+UPDATE SET target.col1 = source.col1, target.col1 = source.col2,
+...
+
+참고: Snowflake는 비결정적 결과를 처리하기 위해 ERROR_ON_NONDETERMINISTIC_MERGE 세션 매개변수를 지원합니다.
+MERGE [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#merge_statement] target
+USING source
+ON target.key = source.key
+WHEN MATCHED AND source.filter = 'filter_exp' THEN
+UPDATE SET
+target.col1 = source.col1,
+target.col2 = source.col2,
+...
+
+
+참고: 모든 열을 업데이트하는 경우 모든 열을 나열해야 합니다.
+GET 및 LIST 문
+GET [https://docs.snowflake.net/manuals/sql-reference/sql/get.html] 문은 다음 Snowflake 단계 중 하나에서 데이터 파일을 클라이언트 머신의 로컬 디렉터리/폴더로 다운로드합니다.
+이름이 지정된 내부 단계
+지정된 테이블의 내부 단계
+현재 사용자의 내부 단계
+LIST [https://docs.snowflake.net/manuals/sql-reference/sql/list.html](LS) 문은 다음 Snowflake 단계 중 하나에서 스테이징된(즉, 로컬 파일 시스템에서 업로드되거나 테이블에서 언로드된) 파일 목록을 반환합니다.
+이름이 지정된 내부 단계
+이름이 지정된 외부 단계
+지정된 테이블의 단계
+현재 사용자의 단계
+BigQuery는 스테이징 개념을 지원하지 않으며 GET 및 LIST에 상응하는 개념이 없습니다.
+PUT 및 REMOVE 문
+PUT [https://docs.snowflake.net/manuals/sql-reference/sql/put.html] 문은 클라이언트 머신의 로컬 디렉터리/폴더에서 다음 Snowflake 단계 중 하나로 데이터 파일을 업로드(즉, 스테이징)합니다.
+이름이 지정된 내부 단계
+지정된 테이블의 내부 단계
+현재 사용자의 내부 단계
+REMOVE [https://docs.snowflake.net/manuals/sql-reference/sql/remove.html] (RM) 문은 다음 Snowflake 내부 단계 중 하나에 스테이징된 파일을 삭제합니다.
+이름이 지정된 내부 단계
+지정된 테이블의 단계
+현재 사용자의 단계
+BigQuery는 스테이징 개념을 지원하지 않으며 PUT 및 REMOVE에 상응하는 개념이 없습니다.
+DDL 구문
+이 섹션에서는 Snowflake와 BigQuery 간 데이터 정의 언어 구문의 차이점을 설명합니다.
+데이터베이스, 스키마, 공유 DDL
+대부분의 Snowflake 용어는 BigQuery의 용어와 일치합니다. 단, Snowflake 데이터베이스는 BigQuery 데이터 세트와 유사합니다. Snowflake에서 BigQuery로의 자세한 용어 매핑 [https://docs.google.com/document/d/1J-qvYV5d6WTPDv1WLIRD1diFzZ5kD0IMRuKVLOJjHEE/edit?hl=ko]을 참조하세요.
+CREATE DATABASE 문
+Snowflake는 데이터베이스 관리 명령어 [https://docs.snowflake.net/manuals/sql-reference/ddl-database.html#database-management]를 통해 데이터베이스 생성 및 관리를 지원하고 BigQuery는 데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]에 콘솔, CLI, 클라이언트 라이브러리 사용 등 여러 옵션을 제공합니다. 이 섹션에서는 Snowflake 명령어에 해당하는 BigQuery CLI 명령어를 사용하여 차이점을 설명합니다.
+Snowflake BigQuery
+CREATE DATABASE <name>
+
+참고: Snowflake는 데이터베이스 이름 지정에 관한 다음 요구사항 [https://docs.snowflake.net/manuals/sql-reference/identifiers-syntax.html]을 제공합니다. 이름으로 255자(영문 기준)만 허용됩니다.
+bq mk <name>
+
+참고: BigQuery에는 이름에 1,024자를 허용한다는 점을 제외하면 Snowflake와 데이터 세트 이름 지정 요구사항 [https://cloud.google.com/bigquery/docs/datasets?hl=ko#dataset-naming]이 비슷합니다.
+CREATE OR REPLACE DATABASE <name>
+BigQuery에서는 데이터 세트 바꾸기가 지원되지 않습니다.
+CREATE TRANSIENT DATABASE <name>
+BigQuery에서는 임시 데이터 세트 만들기가 지원되지 않습니다.
+CREATE DATABASE IF NOT EXISTS <name>
+BigQuery에서 지원되지 않는 개념입니다.
+CREATE DATABASE <name>
+CLONE <source_db>
+[ { AT | BEFORE }
+( { TIMESTAMP => <timestamp> |
+OFFSET => <time_difference> |
+STATEMENT => <id> } ) ]
+BigQuery에서는 아직 데이터 세트 클론이 지원되지 않습니다.
+CREATE DATABASE <name>
+DATA_RETENTION_TIME_IN_DAYS = <num>
+BigQuery에서는 데이터 세트 수준의 시간 이동이 지원되지 않습니다. 하지만 테이블 및 쿼리 결과의 시간 이동은 지원됩니다.
+CREATE DATABASE <name>
+DEFAULT_DDL_COLLATION = '<collation_specification>'
+BigQuery에서는 DDL의 콜레이션이 지원되지 않습니다.
+CREATE DATABASE <name>
+COMMENT = '<string_literal>'
+bq mk \
+--description "<string_literal>" \
+<name>
+CREATE DATABASE <name>
+FROM SHARE <provider_account>.<share_name>
+BigQuery에서는 공유 데이터 세트 만들기가 지원되지 않습니다. 하지만 데이터 세트가 생성되면 사용자가 콘솔/UI를 통해 데이터세트를 공유 [https://cloud.google.com/bigquery/docs/dataset-access-controls?hl=ko#controlling_access_to_a_dataset]할 수 있습니다.
+CREATE DATABASE <name>
+AS REPLICA OF
+<region>.<account>.<primary_db_name>
+AUTO_REFRESH_MATERIALIZED_VIEWS_ON_SECONDARY = { TRUE | FALSE }
+
+참고: Snowflake는 BigQuery에서 지원되지 않는 보조 데이터베이스의 구체화된 뷰에 대한 자동 백그라운드 유지보수 [https://docs.snowflake.net/manuals/sql-reference/sql/create-database.html#id1] 옵션을 제공합니다.
+bq mk --transfer_config \
+--target_dataset = <name> \
+--data_source = cross_region_copy \ --params='
+{"source_dataset_id":"<primary_db_name>"
+,"source_project_id":"<project_id>"
+,"overwrite_destination_table":"true"}'
+참고: BigQuery는 BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/transfer-service-overview?hl=ko]를 사용한 데이터 세트 복사 [https://cloud.google.com/bigquery/docs/copying-datasets?hl=ko]를 지원합니다. 데이터 세트 복사 기본 요건을 보려면 여기를 참조 [https://cloud.google.com/bigquery/docs/copying-datasets?hl=ko#before_you_begin]하세요.
+BigQuery는 Snowflake에 직접 아날로그가 없는 다음과 같은 bq mk 명령어 옵션도 제공합니다.
+--location <dataset_location>
+--default_table_expiration <time_in_seconds>
+--default_partition_expiration <time_in_seconds>
+ALTER DATABASE 문
+이 섹션에서는 Snowflake 명령어에 해당하는 BigQuery CLI 명령어를 사용하여 ALTER 문의 차이를 설명합니다.
+Snowflake BigQuery
+ALTER DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#syntax] [ IF EXISTS ] <name> RENAME TO <new_db_name>
+BigQuery에서는 데이터 세트 이름 변경이 지원되지 않지만 데이터 세트 복사는 지원됩니다.
+ALTER DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#syntax] <name>
+SWAP WITH <target_db_name>
+BigQuery에서는 데이터 세트 바꾸기가 지원되지 않습니다.
+ALTER DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#syntax] <name>
+SET
+[DATA_RETENTION_TIME_IN_DAYS = <num>]
+[ DEFAULT_DDL_COLLATION = '<value>']
+BigQuery에서는 데이터 세트 수준에서 데이터 보관 및 콜레이션이 지원되지 않습니다.
+ALTER [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#syntax] DATABASE <name>
+SET COMMENT = '<string_literal>'
+bq [https://cloud.google.com/bigquery/docs/updating-datasets?hl=ko#update-dataset-description] update \
+--description "<string_literal>" <name>
+ALTER DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#database-replication-and-failover-syntax] <name>
+ENABLE REPLICATION TO ACCOUNTS <snowflake_region>.<account_name>
+[ , <snowflake_region>.<account_name> ... ]
+BigQuery에서 지원되지 않는 개념입니다.
+ALTER DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#database-replication-and-failover-syntax] <name>
+DISABLE REPLICATION [ TO ACCOUNTS <snowflake_region>.<account_name>
+[ , <snowflake_region>.<account_name> ... ]]
+BigQuery에서 지원되지 않는 개념입니다.
+ALTER DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#database-replication-and-failover-syntax] <name>
+SET AUTO_REFRESH_MATERIALIZED_VIEWS_ON_SECONDARY = { TRUE | FALSE }
+BigQuery에서 지원되지 않는 개념입니다.
+ALTER DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#database-replication-and-failover-syntax] <name> REFRESH
+BigQuery에서 지원되지 않는 개념입니다.
+ALTER DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#database-replication-and-failover-syntax] <name>
+ENABLE FAILOVER TO ACCOUNTS <snowflake_region>.<account_name>
+[ , <snowflake_region>.<account_name> ... ]
+BigQuery에서 지원되지 않는 개념입니다.
+ALTER DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#database-replication-and-failover-syntax] <name>
+DISABLE FAILOVER [ TO ACCOUNTS <snowflake_region>.<account_name>
+[ , <snowflake_region>.<account_name> ... ]]
+BigQuery에서 지원되지 않는 개념입니다.
+ALTER DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#database-replication-and-failover-syntax] <name>
+PRIMARY
+BigQuery에서 지원되지 않는 개념입니다.
+DROP DATABASE 문
+이 섹션에서는 Snowflake 명령어에 해당하는 BigQuery CLI 명령어를 사용하여 DROP 문의 차이를 설명합니다.
+Snowflake BigQuery
+DROP DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/drop-database.html#syntax] [ IF EXISTS ] <name>
+[ CASCADE | RESTRICT ]
+
+참고: Snowflake에서 데이터베이스를 삭제해도 시스템에서 영구적으로 삭제되지는 않습니다. 삭제된 데이터베이스의 버전은 데이터베이스의 DATA_RETENTION_TIME_IN_DAYS 파라미터로 지정된 기간 동안 보관됩니다.
+bq rm [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#delete-datasets] -r -f -d <name>
+
+Where
+-r 데이터 세트의 모든 객체를 삭제
+-f is to skip confirmation for execution
+-d 데이터 세트를 표시
+
+참고: BigQuery에서 데이터 세트 삭제는 영구적입니다. 또한 데이터 세트의 모든 데이터와 객체가 삭제되므로 데이터 세트 수준에서 연쇄 삭제가 지원되지 않습니다.
+또한 Snowflake는 삭제된 데이터 세트의 최신 버전을 복원하는 UNDROP DATASET [https://docs.snowflake.net/manuals/sql-reference/sql/undrop-database.html] 명령어도 지원합니다. 이는 현재 BigQuery의 데이터 세트 수준에서 지원되지 않습니다.
+USE DATABASE 문
+Snowflake는 USE DATABASE [https://docs.snowflake.net/manuals/sql-reference/sql/use-database.html#use-database] 명령어를 사용하여 사용자 세션의 데이터베이스를 설정하는 옵션을 제공합니다. 이렇게 하면 SQL 명령어에서 정규화된 객체 이름을 지정할 필요가 없습니다. BigQuery에는 Snowflake의 USE DATABASE 명령어를 대체할 항목이 없습니다.
+SHOW DATABASE 문
+이 섹션에서는 Snowflake 명령어에 해당하는 BigQuery CLI 명령어를 사용하여 SHOW 문의 차이를 설명합니다.
+Snowflake BigQuery
+SHOW DATABASES [https://docs.snowflake.net/manuals/sql-reference/sql/show-databases.html#syntax]
+
+참고: Snowflake는 보관 기간 내에 있는 삭제된 데이터베이스를 포함한 모든 데이터베이스의 세부정보를 나열하고 표시하는 단일 옵션을 제공합니다. bq ls [https://cloud.google.com/bigquery/docs/listing-datasets?hl=ko#list_datasets] --format=prettyjson
+and / or
+bq show [https://cloud.google.com/bigquery/docs/listing-datasets?hl=ko#get_information_about_datasets] <dataset_name>
+
+참고: BigQuery에서 ls 명령어는 데이터 세트 이름과 기본 정보만 제공하고, show 명령어는 데이터 세트의 최종 수정된 타임스탬프, ACL, 라벨과 같은 세부정보를 제공합니다. BigQuery는 정보 스키마 [https://cloud.google.com/bigquery/docs/dataset-metadata?hl=ko#information_schema_beta]를 통해 데이터 세트에 대한 세부정보도 제공합니다.
+SHOW TERSE DATABASES [https://docs.snowflake.net/manuals/sql-reference/sql/show-databases.html#parameters]
+
+참고: TERSE 옵션을 사용하면 Snowflake에서 데이터 세트에 대한 특정 정보/필드만 표시할 수 있습니다. BigQuery에서 지원되지 않는 개념입니다.
+SHOW DATABASES HISTORY [https://docs.snowflake.net/manuals/sql-reference/sql/show-databases.html#parameters]
+시간 이동 컨셉은 BigQuery의 데이터 세트 수준에서 지원되지 않습니다.
+SHOW DATABASES [https://docs.snowflake.net/manuals/sql-reference/sql/show-databases.html#syntax]
+[LIKE '<pattern>']
+[STARTS WITH '<name_string>']
+BigQuery에서는 데이터 세트 이름별로 결과를 필터링할 수 없습니다. 하지만 라벨별 필터링 [https://cloud.google.com/bigquery/docs/dataset-metadata?hl=ko#getting_dataset_information]은 지원됩니다.
+SHOW DATABASES [https://docs.snowflake.net/manuals/sql-reference/sql/show-databases.html#syntax]
+LIMIT <rows> [FROM '<name_string>']
+
+참고: 기본적으로 Snowflake는 결과 수를 제한하지 않습니다. 하지만 한도 [https://docs.snowflake.net/manuals/sql-reference/sql/show-databases.html#usage-notes] 값은 10K를 초과할 수 없습니다.
+bq ls [https://cloud.google.com/bigquery/docs/listing-datasets?hl=ko#list_datasets] \
+--max_results <rows>
+
+참고: 기본적으로 BigQuery는 50개의 결과만 표시합니다.
+BigQuery는 Snowflake에 직접 아날로그가 없는 다음과 같은 bq 명령어 옵션도 제공합니다.
+bq ls --format=pretty: 기본 형식의 결과를 반환합니다.
+*bq ls -a: *익명 데이터 세트(밑줄로 시작하는 데이터 세트)만 반환합니다.
+bq ls --all: 익명 데이터 세트를 포함한 모든 데이터 세트를 반환합니다.
+bq ls --filter labels.key:value: 데이터 세트 라벨로 필터링된 결과를 반환합니다.
+bq ls --d: 익명 데이터 세트 양식 결과를 제외합니다.
+bq show --format=pretty: 모든 데이터 세트에 대한 상세한 기본 형식의 결과를 반환합니다.
+SCHEMA 관리
+Snowflake는 데이터베이스 관리 명령어와 유사한 여러 스키마 관리 [https://docs.snowflake.net/manuals/sql-reference/ddl-database.html#schema-management] 명령어를 제공합니다. 스키마 만들기 및 관리 개념은 BigQuery에서 지원되지 않습니다.
+하지만 BigQuery를 사용하면 데이터를 테이블에 로드할 때와 빈 테이블을 만들 때 테이블의 스키마를 지정할 수 있습니다. 또는 지원되는 데이터 형식의 스키마 자동 감지 [https://cloud.google.com/bigquery/docs/schema-detect?hl=ko#auto-detect]를 사용할 수 있습니다.
+SHARE 관리
+Snowflake는 데이터베이스 및 스키마 관리 명령어와 유사한 여러 공유 관리 [https://docs.snowflake.net/manuals/sql-reference/ddl-database.html#share-management] 명령어를 제공합니다. 공유 만들기 및 관리 개념은 BigQuery에서 지원되지 않습니다.
+테이블, 뷰, 시퀀스 DDL
+CREATE TABLE 문
+대부분의 CREATE TABLE 문은 BigQuery에서 사용되지 않는 다음 구문 요소를 제외하고 BigQuery와 호환됩니다.
+Snowflake BigQuery
+CREATE TABLE table_name
+(
+col1 data_type1 NOT NULL,
+col2 data_type2 NULL,
+col3 data_type3 UNIQUE,
+col4 data_type4 PRIMARY KEY,
+col5 data_type5
+)
+
+참고: UNIQUE 및 PRIMARY KEY 제약조건은 정보 제공용으로 Snowflake 시스템에 의해 시행되지 않습니다.
+CREATE TABLE table_name
+(
+col1 data_type1 NOT NULL,
+col2 data_type2,
+col3 data_type3,
+col4 data_type4,
+col5 data_type5,
+)
+CREATE TABLE table_name
+(
+col1 data_type1[,...]
+table_constraints
+)
+
+여기서 table_constraints 는 다음과 같습니다.
+[UNIQUE(column_name [, ... ])]
+[PRIMARY KEY(column_name [, ...])]
+[FOREIGN KEY(column_name [, ...])
+REFERENCES reftable [(refcolumn)]
+
+참고: UNIQUE 및 PRIMARY KEY 제약조건은 정보 제공용으로 Snowflake 시스템에 의해 시행되지 않습니다.
+CREATE TABLE table_name
+(
+col1 data_type1[,...]
+)
+PARTITION BY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#partition_expression] column_name
+CLUSTER BY [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#clustering_column_list] column_name [, ...]
+
+참고: BigQuery는 UNIQUE, PRIMARY KEY 또는 FOREIGN KEY 테이블 제약조건을 사용하지 않습니다. 쿼리 실행 중에 이러한 제약조건이 제공하는 것과 유사하게 최적화하려면 BigQuery 테이블을 파티션으로 나누고 클러스터링합니다. CLUSTER BY는 최대 4개의 열을 지원합니다.
+CREATE TABLE table_name
+LIKE original_table_name
+INFORMATION_SCHEMA 테이블을 사용해 열 이름, 데이터 유형, NOT NULL 제약조건을 새 테이블에 복사하는 방법을 알아보려면 이 예시 [https://cloud.google.com/bigquery/docs/information-schema-tables?hl=ko#example_3]를 참조하세요.
+CREATE TABLE table_name
+(
+col1 data_type1
+)
+BACKUP NO
+
+참고: Snowflake에서 BACKUP NO 설정은 '스냅샷을 만들고 스냅샷에서 복원할 때 처리 시간을 절약하고 저장공간을 줄이기'로 지정됩니다. BigQuery는 처리 시간이나 요금이 청구되는 스토리지에 영향을 미치지 않고 모든 테이블의 이전 버전을 최대 7일간 자동으로 보관하므로 BACKUP NO 테이블 옵션이 사용되지 않거나 필요하지 않습니다.
+CREATE TABLE table_name
+(
+col1 data_type1
+)
+table_attributes
+
+여기서 table_attributes 는 다음과 같습니다.
+[DISTSTYLE {AUTO|EVEN|KEY|ALL}]
+[DISTKEY (column_name)]
+[[COMPOUND|INTERLEAVED] SORTKEY
+(column_name [, ...])]
+BigQuery는 클러스터링을 지원하여 키를 정렬된 순서로 저장할 수 있습니다.
+CREATE TABLE table_name
+AS SELECT ...
+CREATE TABLE table_name
+AS SELECT ...
+CREATE TABLE IF NOT EXISTS table_name
+...
+CREATE TABLE IF NOT EXISTS table_name
+...
+또한 BigQuery는 테이블이 이미 있는 경우 덮어쓰는 DDL 문 CREATE OR REPLACE TABLE 문을 지원합니다.
+BigQuery의 CREATE TABLE 문은 Snowflake에는 해당되는 항목이 없는 다음 절을 지원합니다.
+PARTITION BY partition_statement [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#partition_expression]
+CLUSTER BY clustering_column_list [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#clustering_column_list]
+OPTIONS(table_options_list) [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#table_option_list]
+BigQuery의 CREATE TABLE에 대한 자세한 내용은 DDL 문서의 CREATE TABLE 문 예시 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create-table-examples]를 참조하세요.
+ALTER TABLE 문
+이 섹션에서는 Snowflake 명령어에 해당하는 BigQuery CLI 명령어를 사용하여 테이블의 ALTER 문 차이를 설명합니다.
+Snowflake BigQuery
+ALTER TABLE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-table.html] [ IF EXISTS ] <name> RENAME TO <new_name>
+ALTER TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_set_options_statement] [IF EXISTS] <name>
+SET OPTIONS (friendly_name="<new_name>")
+ALTER TABLE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-table.html] <name>
+SWAP WITH <target_db_name>
+BigQuery에서는 테이블 바꾸기가 지원되지 않습니다.
+ALTER TABLE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-table.html] <name>
+SET
+[DEFAULT_DDL_COLLATION = '<value>']
+BigQuery에서는 테이블의 데이터 콜레이션 관리가 지원되지 않습니다.
+ALTER TABLE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-database.html#syntax] <name>
+SET
+[DATA_RETENTION_TIME_IN_DAYS = <num>]
+ALTER TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_set_options_statement] [IF EXISTS] <name>
+SET OPTIONS (expiration_timestamp=<timestamp>)
+ALTER TABLE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-table.html] <name>
+SET
+COMMENT = '<string_literal>'
+ALTER TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_set_options_statement] [IF EXISTS] <name>
+SET OPTIONS (description='<string_literal>')
+또한 Snowflake는 BigQuery에서 지원되지 않는 테이블 변경을 위해 클러스터링, 열, 제약 조건 옵션 [https://docs.snowflake.net/manuals/sql-reference/sql/alter-table.html#syntax]을 제공합니다.
+DROP TABLE 및 UNDROP TABLE 문
+이 섹션에서는 Snowflake 명령어에 해당하는 BigQuery CLI 명령어를 사용하여 DROP 및 UNDROP 문의 차이를 설명합니다.
+Snowflake BigQuery
+DROP TABLE [https://docs.snowflake.net/manuals/sql-reference/sql/drop-table.html] [IF EXISTS] <table_name>
+[CASCADE | RESTRICT]
+
+참고: Snowflake에서 테이블을 삭제해도 시스템에서 영구적으로 삭제되지는 않습니다. 삭제된 테이블의 버전은 데이터베이스의 DATA_RETENTION_TIME_IN_DAYS 매개변수로 지정된 기간 동안 보존됩니다.
+bq rm [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#delete-datasets] -r -f -d <dataset_name>.<table_name>
+
+Where
+-r은 데이터세트에 있는 모든 객체를 삭제하는 것입니다.
+-f는 실행 확인을 건너뛰는 것입니다.
+-d는 데이터 세트를 나타냅니다.
+
+참고: BigQuery에서 테이블 삭제는 영구적이지 않지만 스냅샷은 현재 7일 동안만 유지됩니다.
+UNDROP TABLE [https://docs.snowflake.net/manuals/sql-reference/sql/undrop-table.html#syntax] <table_name>
+bq cp [https://cloud.google.com/bigquery/docs/restore-deleted-tables?hl=ko] \ <dataset_name>.<table_name>@<unix_timestamp> <dataset_name>.<new_table_name>
+
+참고: BigQuery에서는 먼저 테이블이 있었던 시점의 UNIX 타임스탬프(밀리초 단위)를 확인해야 합니다. 그런 다음 해당 타임스탬프에 있는 테이블을 새 테이블에 복사합니다. 새 테이블 이름은 삭제한 테이블의 이름과 달라야 합니다.
+CREATE EXTERNAL TABLE 문
+BigQuery를 사용하면 영구 및 임시 외부 테이블 [https://cloud.google.com/bigquery/external-data-sources?hl=ko]을 모두 만들고 다음에서 데이터를 직접 쿼리할 수 있습니다.
+Bigtable [https://cloud.google.com/bigquery/external-data-bigtable?hl=ko]
+Cloud Storage [https://cloud.google.com/bigquery/external-data-cloud-storage?hl=ko]
+Google Drive [https://cloud.google.com/bigquery/external-data-drive?hl=ko]
+Cloud SQL(베타) [https://cloud.google.com/bigquery/docs/cloud-sql-federated-queries?hl=ko]
+Snowflake를 사용하면 쿼리 시 지정된 외부 스테이지에 있는 하나 이상의 파일 집합에서 데이터를 읽는 영구 외부 테이블 [https://docs.snowflake.com/en/sql-reference/sql/create-external-table.html#create-external-table]을 만들 수 있습니다.
+이 섹션에서는 Snowflake 명령어에 해당하는 BigQuery CLI 명령어를 사용하여 CREATE EXTERNAL TABLE 문의 차이를 설명합니다.
+Snowflake BigQuery
+CREATE [OR REPLACE] EXTERNAL TABLE [https://docs.snowflake.com/en/sql-reference/sql/create-external-table.html#syntax]
+table
+((<col_name> <col_type> AS <expr> )
+| (<part_col_name> <col_type> AS <part_expr>)[ inlineConstraint ]
+[ , ... ] )
+LOCATION = externalStage
+FILE_FORMAT =
+({FORMAT_NAME='<file_format_name>'
+|TYPE=source_format [formatTypeOptions]})
+
+Where:
+externalStage = @[namespace.]ext_stage_name[/path]
+
+참고: Snowflake를 사용하면 읽을 데이터가 포함된 파일을 스테이징하고 외부 테이블의 형식 유형 옵션을 지정할 수 있습니다. Snowflake 형식 유형 - CSV, JSON, AVRO, PARQUET, ORC는 XML 유형을 제외하고 모두 BigQuery에서 지원됩니다.
+[1] bq mk [https://cloud.google.com/bigquery/external-data-cloud-storage?hl=ko#cli] \
+--external_table_definition=definition_file \
+dataset.table
+
+OR
+
+[2] bq mk [https://cloud.google.com/bigquery/external-data-cloud-storage?hl=ko#cli] \
+--external_table_definition=schema_file@source_format={Cloud Storage URI | drive_URI} \
+dataset.table
+
+OR
+
+[3] bq mk [https://cloud.google.com/bigquery/external-data-cloud-storage?hl=ko#cli] \
+--external_table_definition=schema@source_format = {Cloud Storage URI | drive_URI} \
+dataset.table
+
+참고: BigQuery에서는 테이블 정의 파일 [1], JSON 스키마 파일 [2] 또는 인라인 스키마 정의 [3]을 사용하여 데이터 소스에 연결된 영구 테이블을 만들 수 있습니다. 읽을 파일을 스테이징하고 형식 유형 옵션을 지정하는 것은 BigQuery에서 지원되지 않습니다.
+CREATE [OR REPLACE] EXTERNAL TABLE [https://docs.snowflake.com/en/sql-reference/sql/create-external-table.html#syntax] [IF EXISTS]
+<table_name>
+((<col_name> <col_type> AS <expr> )
+[ , ... ] )
+[PARTITION BY (<identifier>, ...)]
+LOCATION = externalStage
+[REFRESH_ON_CREATE = {TRUE|FALSE}]
+[AUTO_REFRESH = {TRUE|FALSE}]
+[PATTERN = '<regex_pattern>']
+FILE_FORMAT = ({FORMAT_NAME = '<file_format_name>' | TYPE = { CSV | JSON | AVRO | ORC | PARQUET} [ formatTypeOptions]})
+[COPY GRANTS]
+[COMMENT = '<string_literal>']
+bq mk [https://cloud.google.com/bigquery/external-data-cloud-storage?hl=ko#cli] \
+--external_table_definition=definition_file \
+dataset.table
+
+참고: BigQuery에서는 현재 Snowflake에서 외부 테이블을 만드는 데 제공하는 선택적 매개변수 옵션을 지원하지 않습니다. 파티셔닝의 경우 BigQuery는 _FILE_NAME 유사 열을 사용하여 외부 테이블에 파티션을 나눈 테이블/뷰를 만들 수 있습니다. 자세한 내용은 _FILE_NAME 유사 열 쿼리 [https://cloud.google.com/bigquery/docs/query-cloud-storage-data?hl=ko#query_the_file_name_pseudo-column]를 참조하세요.
+또한 BigQuery는 기본 하이브 파티션 나누기 레이아웃 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries-gcs?hl=ko#supported_data_layouts]을 사용하여 Google Cloud Storage에 저장되는 AVRO, PARQUET, ORC, JSON, CSV 형식의 외부에서 파티션을 나눈 데이터 쿼리 [https://cloud.google.com/bigquery/docs/hive-partitioned-queries-gcs?hl=ko]도 지원합니다.
+CREATE VIEW 문
+다음 표에서는 CREATE VIEW 문에 대해 Snowflake와 BigQuery 간 유사점을 보여줍니다.
+Snowflake BigQuery
+CREATE VIEW [https://docs.snowflake.com/en/sql-reference/sql/create-view.html] view_name AS SELECT ...
+CREATE VIEW [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_view_statement] view_name AS SELECT ...
+CREATE OR REPLACE VIEW view_name AS SELECT ...
+CREATE OR REPLACE VIEW [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_view_statement]
+view_name AS SELECT ...
+CREATE VIEW view_name
+(column_name, ...)
+AS SELECT ...
+CREATE VIEW view_name
+AS SELECT ...
+지원되지 않음 CREATE VIEW IF NOT EXISTS [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_view_statement]
+view_name
+OPTIONS(view_option_list [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#view_option_list])
+AS SELECT ...
+CREATE VIEW view_name
+AS SELECT ...
+WITH NO SCHEMA BINDING
+BigQuery에서 뷰를 만들려면 모든 참조 객체가 이미 존재해야 합니다.
+
+BigQuery를 사용하면 외부 데이터 소스 [https://cloud.google.com/bigquery/docs/external-data-sources?hl=ko]를 쿼리할 수 있습니다.
+CREATE SEQUENCE 문
+BigQuery에서는 시퀀스를 사용하지 않으며 다음과 같은 일괄 처리 방식으로 수행할 수 있습니다. 서로게이트 키와 지연 변경 측정기준(SCD)에 대한 자세한 내용은 다음 가이드를 참조하세요.
+BigQuery 서로게이트 키 [https://medium.com/google-cloud/bigquery-surrogate-keys-672b2e110f80]
+BigQuery 및 서로게이트 키: 실용적 접근 방식 [https://cloud.google.com/blog/products/data-analytics/bigquery-and-surrogate-keys-practical-approach?hl=ko]
+INSERT INTO dataset.table SELECT *, ROW_NUMBER() OVER () AS id FROM dataset.table
+데이터 로드 및 언로드 DDL
+Snowflake는 스테이지, 파일 형식, 파이프 관리 명령어를 통해 데이터 로드 및 언로드를 지원합니다. BigQuery는 bq load, BigQuery Data Transfer Service, bq extract 등 다양한 옵션을 제공합니다. 이 섹션에서는 데이터 로드 및 언로드에 사용되는 이러한 방법론의 차이점에 대해 설명합니다.
+계정 및 세션 DDL
+Snowflake의 계정 및 세션 개념은 BigQuery에서 지원되지 않습니다. BigQuery를 사용하면 모든 수준에서 Cloud IAM [https://cloud.google.com/bigquery/docs/access-control?hl=ko]을 통해 계정을 관리할 수 있습니다. 또한 BigQuery에서는 아직 멀티 문 트랜잭션이 지원되지 않습니다.
+사용자 정의 함수(UDF)
+UDF를 사용하면 커스텀 작업에 대한 함수를 만들 수 있습니다. 이러한 함수는 입력 열을 받아 작업을 수행하고 이러한 작업의 결과를 값으로 반환합니다.
+Snowflake [https://docs.snowflake.net/manuals/sql-reference/ddl-udf.html#udf-management]와 BigQuery [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko] 모두 SQL 표현식 및 JavaScript 코드를 사용한 UDF를 지원합니다.
+일반적인 BigQuery UDF 라이브러리는 GoogleCloudPlatform/bigquery-utils/ [https://github.com/GoogleCloudPlatform/bigquery-utils/tree/master/udfs/community] GitHub 저장소를 참조하세요.
+CREATE FUNCTION 구문
+다음 표에서는 Snowflake와 BigQuery 간의 SQL UDF 생성 구문 차이점을 설명합니다.
+Snowflake BigQuery
+CREATE [ OR REPLACE ] FUNCTION [https://docs.snowflake.net/manuals/sql-reference/sql/create-function.html]
+function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+AS sql_function_definition
+s
+CREATE [OR REPLACE] FUNCTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_function_statement] function_name
+([sql_arg_name sql_arg_data_type[,..]])
+AS sql_function_definition
+
+참고: BigQuery SQL UDF [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#sql-udf-structure]에서 반환 데이터 유형은 선택사항입니다. 쿼리가 함수를 호출하면 BigQuery는 SQL 함수 본문을 통해 함수 결과 유형을 추론합니다.
+CREATE [OR REPLACE] FUNCTION
+function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS TABLE (col_name, col_data_type[,..])
+AS sql_function_definition
+
+CREATE [OR REPLACE] FUNCTION function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+AS sql_function_definition
+
+참고: BigQuery SQL UDF [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#sql-udf-structure]에서 테이블 유형 반환은 현재 지원되지 않지만 제품 로드맵에 있으며 곧 제공될 예정입니다. 하지만 BigQuery는 STRUCT 유형의 ARRAY 반환을 지원합니다.
+CREATE [SECURE] FUNCTION [https://docs.snowflake.net/manuals/sql-reference/udf-secure.html]
+function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+AS sql_function_definition
+
+참고: Snowflake는 UDF 정의 및 세부정보를 승인된 사용자(즉, 뷰를 소유하는 역할을 부여받은 사용자)로 제한하는 보안 옵션을 제공합니다.
+CREATE FUNCTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_function_statement]
+function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+AS sql_function_definition
+
+참고: 함수 보안은 BigQuery에서 구성 가능한 파라미터가 아닙니다. BigQuery는 기본 역할 및 함수 정의에 대한 액세스를 제한하는 IAM 역할 및 권한 만들기를 지원합니다.
+CREATE [OR REPLACE] FUNCTION
+function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+[ { CALLED ON NULL INPUT | { RETURNS NULL ON NULL INPUT | STRICT } } ]
+AS sql_function_definition
+CREATE [OR REPLACE] FUNCTION function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+AS sql_function_definition
+
+참고: null 입력의 함수 동작은 BigQuery에서 암시적으로 처리되며 별도의 옵션으로 지정할 필요가 없습니다.
+CREATE [OR REPLACE] FUNCTION
+function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+[VOLATILE | IMMUTABLE]
+AS sql_function_definition
+CREATE [OR REPLACE] FUNCTION
+function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+AS sql_function_definition
+
+참고: 함수 변동성은 BigQuery에서 구성 가능한 파라미터가 아닙니다. 모든 BigQuery UDF 변동성은 Snowflake의 IMMUTABLE 변동성과 동일합니다. 즉, 데이터베이스 조회를 수행하지 않거나 인수 목록에 직접 포함되지 않은 정보를 사용하지 않습니다.
+CREATE [OR REPLACE] FUNCTION
+function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+AS [' | $$]
+sql_function_definition
+[' | $$]
+CREATE [OR REPLACE] FUNCTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_function_statement]
+function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+AS sql_function_definition
+
+참고: 작은따옴표 또는 달러 기호($$) is not required or supported in BigQuery. BigQuery implicitly interprets the SQL expression.
+CREATE [OR REPLACE] FUNCTION
+function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+[COMMENT = '<string_literal>']
+AS sql_function_definition
+CREATE [OR REPLACE] FUNCTION
+function_name
+([sql_arg_name sql_arg_data_type[,..]])
+RETURNS data_type
+AS sql_function_definition
+
+Note:Adding comments or descriptions in UDFs is currently not supported in BigQuery.
+CREATE [OR REPLACE] FUNCTION function_name
+(x integer, y integer)
+RETURNS integer
+AS $$)와 같은 문자 시퀀스 사용
+SELECT x + y
+$$
+
+Note: Snowflake does not support ANY TYPE for SQL UDFs. However, it supports using VARIANT [https://docs.snowflake.net/manuals/sql-reference/data-types-semistructured.html#variant] data types.
+CREATE [OR REPLACE] FUNCTION function_name
+(x ANY TYPE, y ANY TYPE)
+AS
+SELECT x + y
+
+
+Note: BigQuery supports using ANY TYPE as argument type. The function will accept an input of any type for this argument. For more information, see templated parameter [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#templated-sql-udf-parameters] in BigQuery.
+BigQuery also supports the CREATE FUNCTION IF NOT EXISTSstatement which treats the query as successful and takes no action if a function with the same name already exists.
+BigQuery's CREATE FUNCTIONstatement also supports creating TEMPORARY or TEMP functions [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko], which do not have a Snowflake equivalent. See calling UDFs [https://cloud.google.com/bigquery/docs/reference/standard-sql/syntax?hl=ko#calling_persistent_user-defined_functions_udfs] for details on executing a BigQuery persistent UDF.
+DROP FUNCTION syntax
+The following table addresses differences in DROP FUNCTION syntax between Snowflake and BigQuery.
+Snowflake BigQuery
+DROP FUNCTION [https://docs.snowflake.net/manuals/sql-reference/sql/drop-function.html] [IF EXISTS]
+function_name
+([arg_data_type, ... ])
+DROP FUNCTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#drop_function_statement] [IF EXISTS] dataset_name.function_name
+
+Note: BigQuery does not require using the function's signature (argument data type) for deleting the function.
+BigQuery requires that you specify the project_name if the function is not located in the current project.
+Additional function commands
+This section covers additional UDF commands supported by Snowflake that are not directly available in BigQuery.
+ALTER FUNCTION syntax
+Snowflake supports the following operations using ALTER FUNCTION [https://docs.snowflake.net/manuals/sql-reference/sql/alter-function.html] syntax.
+Renaming a UDF
+Converting to (or reverting from) a secure UDF
+Adding, overwriting, removing a comment for a UDF
+As configuring function security and adding function comments is not available in BigQuery, ALTER FUNCTION syntax is currently not supported. However, the CREATE FUNCTION [https://cloud.google.com/bigquery/docs/user-defined-functions?hl=ko#sql-udf-structure] statement can be used to create a UDF with the same function definition but a different name.
+DESCRIBE FUNCTION syntax
+Snowflake supports describing a UDF using DESC[RIBE] FUNCTION [https://docs.snowflake.net/manuals/sql-reference/sql/desc-function.html] syntax. This is currently not supported in BigQuery. However, querying UDF metadata via INFORMATION SCHEMA will be available soon as part of the product roadmap.
+SHOW USER FUNCTIONS syntax
+In Snowflake, SHOW USER FUNCTIONS [https://docs.snowflake.net/manuals/sql-reference/sql/show-user-functions.html] syntax can be used to list all UDFs for which users have access privileges. This is currently not supported in BigQuery. However, querying UDF metadata via INFORMATION SCHEMA will be available soon as part of the product roadmap.
+Stored procedures
+Snowflake stored procedures [https://docs.snowflake.net/manuals/sql-reference/stored-procedures-usage.html] are written in JavaScript, which can execute SQL statements by calling a JavaScript API. In BigQuery, stored procedures are defined using a block [https://cloud.google.com/bigquery/docs/reference/standard-sql/scripting?hl=ko#begin] of SQL statements.
+CREATE PROCEDURE syntax
+In Snowflake, a stored procedure is executed with a CALL [https://docs.snowflake.net/manuals/sql-reference/sql/call.html] command while in BigQuery, stored procedures are executed [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#examples_2] like any other BigQuery function.
+The following table addresses differences in stored procedure creation syntax between Snowflake and BigQuery.
+Snowflake BigQuery
+CREATE [OR REPLACE] PROCEDURE [https://docs.snowflake.net/manuals/sql-reference/sql/create-procedure.html]
+procedure_name
+([arg_name arg_data_type[,..]])
+RETURNS data_type
+AS procedure_definition;
+
+Note: Snowflake requires that stored procedures return a single value. Hence, return data type is a required option. CREATE [OR REPLACE] PROCEDURE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_procedure]
+procedure_name
+([arg_mode arg_name arg_data_type[,..]])
+BEGIN
+procedure_definition
+END;
+
+arg_mode: IN | OUT | INOUT
+
+Note: BigQuery doesn't support a return type for stored procedures. Also, it requires specifying argument mode for each argument passed.
+CREATE [OR REPLACE] PROCEDURE
+procedure_name
+([arg_name arg_data_type[,..]])
+RETURNS data_type
+AS
+$$
+javascript_code
+$$;
+CREATE [OR REPLACE] PROCEDURE
+procedure_name
+([arg_name arg_data_type[,..]])
+BEGIN
+statement_list
+END;
+CREATE [OR REPLACE] PROCEDURE
+procedure_name
+([arg_name arg_data_type[,..]])
+RETURNS data_type
+[{CALLED ON NULL INPUT | {RETURNS NULL ON NULL INPUT | STRICT}}]
+AS procedure_definition;
+CREATE [OR REPLACE] PROCEDURE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_procedure]
+procedure_name
+([arg_name arg_data_type[,..]])
+BEGIN
+procedure_definition
+END;
+
+참고: null 입력의 프로시저 동작은 BigQuery에서 암시적으로 처리되며 별도의 옵션으로 지정할 필요가 없습니다.
+CREATE [OR REPLACE] PROCEDURE [https://docs.snowflake.net/manuals/sql-reference/sql/create-procedure.html]
+procedure_name
+([arg_name arg_data_type[,..]])
+RETURNS data_type
+[VOLATILE | IMMUTABLE]
+AS procedure_definition;
+CREATE [OR REPLACE] PROCEDURE
+procedure_name
+([arg_name arg_data_type[,..]])
+BEGIN
+procedure_definition
+END;
+
+참고: 프러시저 변동성은 BigQuery에서 구성 가능한 파라미터가 아닙니다. Snowflake의 IMMUTABLE 변동성에 해당합니다.
+CREATE [OR REPLACE] PROCEDURE [https://docs.snowflake.net/manuals/sql-reference/sql/create-procedure.html]
+procedure_name
+([arg_name arg_data_type[,..]])
+RETURNS data_type
+[COMMENT = '<string_literal>']
+AS procedure_definition;
+CREATE [OR REPLACE] PROCEDURE
+procedure_name
+([arg_name arg_data_type[,..]])
+BEGIN
+procedure_definition
+END;
+
+참고: 프로시저 정의에 주석 또는 설명을 추가하는 기능은 현재 BigQuery에서 지원되지 않습니다.
+CREATE [OR REPLACE] PROCEDURE [https://docs.snowflake.net/manuals/sql-reference/sql/create-procedure.html]
+procedure_name
+([arg_name arg_data_type[,..]])
+RETURNS data_type
+[EXECUTE AS { CALLER | OWNER }]
+AS procedure_definition;
+
+참고: Snowflake에서는 실행 프로시저의 호출자 또는 소유자를 지정할 수 있습니다.
+CREATE [OR REPLACE] PROCEDURE
+procedure_name
+([arg_name arg_data_type[,..]])
+BEGIN
+procedure_definition
+END;
+
+참고: BigQuery 저장 프로시저는 항상 호출자로 실행됩니다.
+BigQuery는 CREATE PROCEDURE IF NOT EXISTS 문도 지원합니다. 이 문은 쿼리를 성공한 것으로 취급하고, 동일한 이름의 함수가 이미 있는 경우 조치를 취하지 않습니다.
+DROP PROCEDURE 구문
+다음 표에서는 Snowflake와 BigQuery 간의 DROP FUNCTION 구문 차이점을 설명합니다.
+Snowflake BigQuery
+DROP PROCEDURE [https://docs.snowflake.net/manuals/sql-reference/sql/drop-procedure.html] [IF EXISTS]
+procedure_name
+([arg_data_type, ... ])
+DROP PROCEDURE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#drop_procedure_statement] [IF EXISTS] dataset_name.procedure_name
+
+참고: BigQuery는 프로시저를 삭제할 때 프로시저의 서명(인수 데이터 유형)을 사용할 필요가 없습니다.
+BigQuery에서는 프러시저가 현재 프로젝트에 없는 경우 project_name을 지정해야 합니다.
+추가 프로시저 명령어
+Snowflake는 저장 프로시저를 관리하는 데 ALTER PROCEDURE [https://docs.snowflake.net/manuals/sql-reference/sql/alter-procedure.html], DESC[RIBE] PROCEDURE [https://docs.snowflake.net/manuals/sql-reference/sql/desc-procedure.html], SHOW PROCEDURES [https://docs.snowflake.net/manuals/sql-reference/sql/show-procedures.html]와 같은 추가 명령어를 제공합니다. 현재 BigQuery에서는 지원되지 않습니다.
+메타데이터 및 트랜잭션 SQL 문
+Snowflake BigQuery
+BEGIN [https://docs.snowflake.net/manuals/sql-reference/sql/begin.html] [ { WORK | TRANSACTION } ] [ NAME <name> ]; START_TRANSACTION [ name <name> ];
+BigQuery는 항상 스냅샷 격리를 사용합니다. 자세한 내용은 이 문서의 다른 부분에서 일관성 보장 [https://cloud.google.com/bigquery/docs/migration/snowflake-sql?hl=ko#consistency-guarantees-and-transaction-isolation]을 참조하세요.
+COMMIT;
+BigQuery에는 사용되지 않습니다.
+ROLLBACK;
+BigQuery에는 사용되지 않습니다.
+SHOW LOCKS [ IN ACCOUNT ]; SHOW TRANSACTIONS [ IN ACCOUNT ]; Note: If the user has the ACCOUNTADMIN role, the user can see locks/transactions for all users in the account.
+BigQuery에는 사용되지 않습니다.
+다중 문 및 여러 줄로 구성된 SQL 문
+Snowflake와 BigQuery는 모두 트랜잭션(세션)을 지원하므로 일관되게 함께 실행되는 세미콜론으로 구분된 문을 지원합니다. 자세한 내용은 멀티 문 트랜잭션 [https://cloud.google.com/bigquery/docs/transactions?hl=ko]을 참조하세요.
+스테이징된 파일의 메타데이터 열
+Snowflake는 내부 및 외부 스테이지의 파일에 대한 메타데이터를 자동으로 생성합니다. 이 메타데이터는 쿼리 [https://docs.snowflake.net/manuals/user-guide/querying-stage.html]하고 일반 데이터 열과 함께 테이블로 로드 [https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html]할 수 있습니다. 다음 메타데이터 열을 사용할 수 있습니다.
+METADATA$FILENAME [https://docs.snowflake.net/manuals/user-guide/querying-metadata.html#metadata-columns]
+METADATA$FILE_ROW_NUMBER [https://docs.snowflake.net/manuals/user-guide/querying-metadata.html#metadata-columns]
+일관성 보장 및 트랜잭션 격리
+Snowflake 및 BigQuery 모두 원자적인 특성을 갖습니다. 즉, 여러 행에 걸쳐 변형당 수준에서 ACID와 호환됩니다.
+거래
+각 Snowflake 트랜잭션에는 트랜잭션 ID로 설정된 고유한 시작 시간(밀리초 포함)이 할당됩니다. Snowflake는 READ COMMITTED [https://docs.snowflake.net/manuals/sql-reference/transactions.html#read-committed-isolation] 격리 수준만 지원합니다. 하지만 문이 동일한 트랜잭션에 있는 경우 다른 문으로 적용된 변경사항이 아직 커밋되지 않은 경우에도 문에서 볼 수 있습니다. Snowflake 트랜잭션은 리소스 수정 시 리소스(테이블)에서 잠금을 획득합니다. 사용자는 차단된 문이 타임아웃될 때까지 기다리는 최대 시간을 조정할 수 있습니다. AUTOCOMMIT [https://docs.snowflake.net/manuals/sql-reference/parameters.html#autocommit] 매개변수가 사용 설정되어 있으면 DML 문이 자동 커밋됩니다.
+BigQuery는 트랜잭션도 지원 [https://cloud.google.com/bigquery/docs/transactions?hl=ko]합니다. BigQuery는 쿼리가 시작되기 전에 마지막으로 커밋된 데이터를 쿼리가 읽는 스냅샷 격리 [https://en.wikipedia.org/wiki/Snapshot_isolation]를 사용하여 최적의 동시 실행 제어 [https://en.wikipedia.org/wiki/Optimistic_concurrency_control](첫 번째 성공 커밋)를 실행할 수 있습니다. 이 접근 방법은 행 및 변형 기준으로 그리고 동일한 DML 문 내의 여러 행에서 동일한 수준의 일관성을 보장하고 교착 상태도 방지합니다. 동일한 테이블에 대해 여러 DML 업데이트가 있는 경우 BigQuery는 최악 동시 실행 제어 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#limitations]로 전환됩니다. 로드 작업은 완전히 독립적으로 실행되고 테이블에 추가될 수 있습니다. 하지만 BigQuery는 아직 명시적인 트랜잭션 경계 또는 세션을 제공하지 않습니다.
+롤백
+트랜잭션이 커밋되거나 롤백되기 전에 Snowflake 트랜잭션의 세션이 예기치 않게 종료되면 트랜잭션이 분리된 상태로 남습니다. 사용자는 SYSTEM$ABORT_TRANSACTION을 실행하여 분리된 트랜잭션을 취소해야 합니다. 그렇지 않으면 Snowflake에서 4시간의 유휴 시간 후에 분리된 트랜잭션을 롤백합니다. 교착 상태가 발생하면 Snowflake는 교착 상태를 감지하고 롤백할 최신 문을 선택합니다. 명시적으로 열린 트랜잭션의 DML 문이 실패하면 변경사항이 롤백되지만 트랜잭션은 커밋되거나 롤백될 때까지 열린 상태로 유지됩니다. Snowflake의 DDL 문은 자동 커밋되므로 롤백할 수 없습니다.
+BigQuery는 ROLLBACK TRANSACTION 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#rollback_transaction]을 지원합니다. BigQuery에는 ABORT 문 [https://docs.teradata.com/reader/huc7AEHyHSROUkrYABqNIg/c6KYQ4ySu4QTCkKS4f5A2w]이 없습니다.
+데이터베이스 한도
+항상 BigQuery 공개 문서 [https://cloud.google.com/bigquery/quotas?hl=ko]에서 최신 할당량 및 한도를 확인하세요. 대규모 사용자를 위해 대량의 할당량은 Cloud 지원팀에 문의하여 늘릴 수 있습니다.
+모든 Snowflake 계정에는 기본적으로 소프트 한도가 설정되어 있습니다. 소프트 한도는 계정을 만드는 동안 설정되며 다를 수 있습니다. Snowflake 계정팀 또는 지원 티켓을 통해 많은 Snowflake 소프트 한도를 늘릴 수 있습니다.
+다음 표에서는 Snowflake와 BigQuery의 데이터베이스 한도를 비교합니다.
+한도 Snowflake BigQuery
+쿼리 텍스트의 크기 1MB 1MB
+최대 동시 쿼리 수 XS Warehouse - 8
+S Warehouse - 16
+M Warehouse - 32
+L Warehouse - 64
+XL Warehouse - 128 100
+도움이 되었나요?
+의견 보내기

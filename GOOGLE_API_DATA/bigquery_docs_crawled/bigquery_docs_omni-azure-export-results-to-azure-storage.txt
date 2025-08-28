@@ -1,0 +1,60 @@
+Source URL: https://cloud.google.com/bigquery/docs/omni-azure-export-results-to-azure-storage
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/omni-azure-export-results-to-azure-storage?hl=ko#limitations]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/omni-azure-export-results-to-azure-storage?hl=ko#before_you_begin]
+쿼리 결과 내보내기 [https://cloud.google.com/bigquery/docs/omni-azure-export-results-to-azure-storage?hl=ko#export_query_results]
+문제 해결 [https://cloud.google.com/bigquery/docs/omni-azure-export-results-to-azure-storage?hl=ko#troubleshooting]
+다음 단계 [https://cloud.google.com/bigquery/docs/omni-azure-export-results-to-azure-storage?hl=ko#whats_next]
+쿼리 결과를 Blob Storage로 내보내기
+bookmark_border
+이 문서에서는 BigLake 테이블 [https://cloud.google.com/bigquery/docs/biglake-intro?hl=ko]에서 실행되는 쿼리의 결과를 Azure Blob Storage로 내보내는 방법을 설명합니다.
+BigQuery와 Azure Blob Storage 간의 데이터 흐름 방식은 데이터를 내보낼 때 데이터 흐름 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#export-data]을 참조하세요.
+제한사항
+Amazon S3 및 Blob Storage를 기반으로 BigLake 테이블에 적용되는 전체 제한사항 목록은 제한사항 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#limitations]을 참조하세요.
+시작하기 전에
+다음 리소스가 있는지 확인합니다.
+Blob Storage에 액세스하기 위한 연결 [https://cloud.google.com/bigquery/docs/omni-azure-create-connection?hl=ko]. 연결 내에서 내보낼 Blob Storage 컨테이너 경로에 대한 정책을 만들어야 합니다. 그런 다음 이 정책 내에서 Microsoft.Storage/storageAccounts/blobServices/containers/write 권한이 있는 역할을 만듭니다.
+Blob 스토리지 BigLake 테이블 [https://cloud.google.com/bigquery/docs/omni-azure-create-external-table?hl=ko].
+용량 기반 가격 책정 모델 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]을 사용하는 경우 프로젝트에 BigQuery Reservation API [https://console.cloud.google.com/apis/library/bigqueryreservation.googleapis.com?hl=ko]를 사용 설정했는지 확인합니다. 가격 책정에 대한 자세한 내용은 BigQuery Omni 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqomni]을 참조하세요.
+쿼리 결과 내보내기
+BigQuery Omni는 기존 콘텐츠에 관계없이 지정된 Azure Blob Storage 위치에 씁니다. 내보내기 쿼리에서 기존 데이터를 덮어쓰거나 쿼리 결과를 기존 데이터와 혼합할 수 있습니다. 쿼리 결과를 비어 있는 Blob Storage 컨테이너로 내보내는 것이 좋습니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기 필드에 GoogleSQL 내보내기 쿼리를 입력합니다.
+EXPORT DATA WITH CONNECTION \`
+CONNECTION_REGION.
+CONNECTION_NAME\`
+OPTIONS(
+  uri="azure://
+AZURE_STORAGE_ACCOUNT_NAME.blob.core.windows.net/
+CONTAINER_NAME/
+FILE_PATH/*",
+  format="
+FORMAT"
+)
+AS 
+QUERY
+다음을 바꿉니다.
+CONNECTION_REGION: 연결이 생성된 리전
+CONNECTION_NAME: 컨테이너에 쓰는 데 필요한 권한으로 만든 연결 이름
+AZURE_STORAGE_ACCOUNT_NAME: 쿼리 결과를 기록하려는 Blob Storage 계정의 이름
+CONTAINER_NAME: 쿼리 결과를 기록하려는 컨테이너의 이름
+FILE_PATH: 내보낸 파일을 쓰려는 경로. 경로 문자열의 리프 디렉터리에는 정확히 하나의 와일드 카드(*)가 포함되어야 합니다(예: ../aa/*, ../aa/b*c, ../aa/*bc, ../aa/bc*). BigQuery는 내보낸 파일 수에 따라 *를 0000..N으로 바꿉니다. BigQuery에서 파일 수와 크기를 결정합니다. BigQuery에서 파일 2개를 내보내기로 한 경우 첫 번째 파일의 파일 이름에서 *가 000000000000으로 바뀌고, * 두 번째 파일의 파일 이름이 000000000001로 바뀝니다.
+FORMAT: 지원되는 형식은 JSON, AVRO, CSV, PARQUET입니다.
+QUERY: BigLake 테이블에 저장된 데이터를 분석하는 쿼리입니다.
+참고: 기본 프로젝트를 재정의하려면 --project_id=PROJECT_ID 파라미터를 사용하세요. PROJECT_ID를 Google Cloud 프로젝트의 ID로 바꾸세요.
+문제 해결
+quota failure 관련 오류가 발생하면 쿼리에 용량을 예약했는지 확인합니다. 슬롯 예약에 대한 자세한 내용은 이 문서의 시작하기 전에 [https://cloud.google.com/bigquery/docs/omni-azure-export-results-to-azure-storage?hl=ko#before_you_begin]를 참조하세요.
+다음 단계
+BigQuery Omni [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko] 알아보기
+테이블 데이터 내보내기 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko] 방법 알아보기
+Blob Storage에 저장된 데이터를 쿼리 [https://cloud.google.com/bigquery/docs/query-azure-data?hl=ko]하는 방법 알아보기
+BigQuery Omni의 VPC 서비스 제어 설정 [https://cloud.google.com/bigquery/docs/omni-vpc-sc?hl=ko] 방법 알아보기
+도움이 되었나요?
+의견 보내기

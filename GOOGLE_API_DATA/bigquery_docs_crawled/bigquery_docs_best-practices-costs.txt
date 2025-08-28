@@ -1,0 +1,871 @@
+Source URL: https://cloud.google.com/bigquery/docs/best-practices-costs
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+BigQuery 컴퓨팅 가격 책정 이해하기 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#understand-compute-pricing]
+가격 책정 모델 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#compute-pricing-models]
+각 모델에 대한 비용 제한 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#restrict-compute-costs]
+쿼리 비용 관리 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#control-query-cost]
+커스텀 쿼리 할당량 만들기 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#create-custom-cost-controls]
+쿼리를 실행하기 전에 예상 비용 확인 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#check-query-cost]
+쿼리 비용 추정 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#estimate-query-costs]
+쿼리를 실행하여 테이블 데이터 탐색 방지 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#preview-data]
+비용 예측 및 관리
+bookmark_border
+이 페이지에서는 BigQuery에서 비용을 추정하고 관리하기 위한 권장사항을 설명합니다.
+BigQuery의 기본 비용은 쿼리 처리 및 스토리지, BigQuery에 저장되는 데이터에 대한 컴퓨팅입니다. BigQuery에서는 쿼리 처리를 위한 두 가지 유형의 가격 책정 모델인 주문형 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing] 및 용량 기반 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing] 가격 책정 모델을 제공합니다. 각 모델은 비용 관리를 위한 다양한 권장사항을 제공합니다. BigQuery에 저장된 데이터 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]의 경우 비용은 각 데이터 세트에 대해 구성된 스토리지 청구 모델 [https://cloud.google.com/bigquery/docs/datasets-intro?hl=ko#dataset_storage_billing_models]에 따라 다릅니다.
+BigQuery 컴퓨팅 가격 책정 이해하기
+용량 계획 및 비용 관리에 영향을 미치는 BigQuery의 컴퓨팅 가격 책정에는 미묘한 차이가 있습니다.
+가격 책정 모델
+BigQuery의 주문형 컴퓨팅의 경우 BigQuery 쿼리에 대해 TiB당 요금이 청구됩니다.
+또는 BigQuery의 용량 컴퓨팅의 경우 쿼리 처리에 사용되는 컴퓨팅 리소스(슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko])에 대한 요금이 청구됩니다. 이 모델을 사용하려면 슬롯에 대한 예약 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko]을 구성합니다.
+예약에는 다음과 같은 기능이 있습니다.
+슬롯 풀에 할당되며 조직에 적합한 방식으로 용량을 관리하고 워크로드를 격리할 수 있습니다.
+하나의 관리 프로젝트에 있어야 하며 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#reservations]가 적용됩니다.
+용량 가격 책정 모델은 여러 버전 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]을 제공하며, 모두 슬롯 시간 단위로 청구되는 사용한 만큼 지불하는 옵션을 제공합니다. Enterprise 및 Enterprise Plus 버전은 사용한 만큼만 지불하는 요금보다 비용을 절약할 수 있는 1년 또는 3년 슬롯 약정(선택사항)도 제공합니다.
+사용한 만큼만 지불 옵션을 사용하여 자동 확장 예약 [https://cloud.google.com/bigquery/docs/slots-autoscaling-intro?hl=ko]을 설정할 수도 있습니다. 자세한 내용은 다음을 참조하세요.
+가격 책정 모델을 비교하려면 모델 선택 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko#choosing_a_model]을 참고하세요.
+가격 세부정보는 주문형 컴퓨팅 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing] 및 용량 컴퓨팅 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]을 참고하세요.
+각 모델에 대한 비용 제한
+주문형 가격 책정 모델을 사용하는 경우 비용을 제한하는 유일한 방법은 프로젝트 수준 또는 사용자 수준의 일일 할당량을 구성하는 것입니다. 그러나 이러한 할당량은 사용자가 할당량 한도를 초과하여 쿼리를 실행하지 못하도록 하는 하드캡을 적용합니다. 할당량을 설정하려면 커스텀 쿼리 할당량 만들기 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#create-custom-cost-controls]를 참고하세요.
+슬롯 예약을 사용하여 용량 요금 모델을 사용하는 경우 예약에 사용할 수 있는 최대 슬롯 수를 지정합니다. 약정 기간 동안 할인된 가격을 제공하는 슬롯 약정을 구매할 수도 있습니다.
+예약 기준을 0으로 설정하고 워크로드 요구 사항을 충족하는 설정으로 최대 설정하면 주문형 버전을 온전히 사용할 수 있습니다. BigQuery는 워크로드에 필요한 슬롯 수까지 자동으로 확장하며 사용자가 설정한 최대 값을 초과하지 않습니다. 자세한 내용은 예약을 사용한 워크로드 관리 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko]를 참조하세요.
+쿼리 비용 관리
+개별 쿼리의 비용을 관리하려면 먼저 쿼리 계산 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko] 및 스토리지 최적화 [https://cloud.google.com/bigquery/docs/best-practices-storage?hl=ko]에 관한 권장사항을 따르는 것이 좋습니다.
+다음 섹션에서는 쿼리 비용을 추가로 관리하는 데 사용할 수 있는 추가 권장사항을 간략하게 설명합니다.
+커스텀 쿼리 할당량 만들기
+권장사항: 커스텀 일일 쿼리 할당량을 사용하여 하루에 처리되는 데이터의 양을 제한합니다.
+프로젝트별 또는 사용자별로 하루에 처리되는 데이터 양의 한도를 지정하는 커스텀 할당량 [https://cloud.google.com/bigquery/docs/custom-quotas?hl=ko]을 설정하여 비용을 관리할 수 있습니다. 할당량에 도달하면 사용자는 쿼리를 실행할 수 없습니다.
+커스텀 할당량을 설정하려면 특정 역할 또는 권한 [https://cloud.google.com/bigquery/docs/custom-quotas?hl=ko#required_role]이 필요합니다. 설정할 할당량에 대해서는 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko]를 참고하세요.
+자세한 내용은 각 가격 책정 모델의 비용 제한 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#restrict-compute-costs]을 참고하세요.
+쿼리를 실행하기 전에 예상 비용 확인
+권장사항: 쿼리를 실행하기 전에 먼저 미리보기를 통해 예상 비용을 알아보세요.
+주문형 가격 책정 모델을 사용하는 경우 쿼리는 읽은 바이트 수에 따라 요금이 청구됩니다. 쿼리를 실행하기 전에 예상 비용을 알아보려면 다음을 사용합니다.
+Google Cloud 콘솔에서 쿼리 검사기를 사용 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#use-query-validator]합니다.
+쿼리에 대한 테스트 실행을 수행 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#perform-dry-run]합니다.
+참고: 쿼리에 청구되는 바이트 수의 추정값은 상한값이며, 쿼리 실행 후 청구되는 실제 바이트 수보다 클 수 있습니다.
+쿼리 검사기 사용
+Google Cloud 콘솔에 쿼리를 입력하면 쿼리 검사기가 쿼리 구문을 확인하고 읽을 바이트 수를 추정합니다. 이 추정값을 사용하여 가격 계산기에서 쿼리 비용을 계산할 수 있습니다.
+쿼리가 유효하지 않으면 쿼리 검사기에 오류 메시지가 표시됩니다. 예를 들면 다음과 같습니다.
+Not found: Table myProject:myDataset.myTable was not found in location US
+쿼리가 유효하면 쿼리 검사기에서 쿼리를 처리하는 데 필요한 바이트 수를 추정합니다. 예를 들면 다음과 같습니다.
+This query will process 623.1 KiB when run.
+테스트 실행 수행
+시험 이전을 수행하려면 다음을 수행합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 쿼리를 입력합니다.
+
+쿼리가 유효하면 쿼리에서 처리할 데이터 양과 함께 체크표시가 자동으로 표시됩니다. 쿼리가 유효하지 않으면 느낌표가 오류 메시지와 함께 표시됩니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#bq] ---
+--dry_run 플래그를 사용하여 다음과 같은 쿼리를 입력합니다.
+
+bq query \
+--use_legacy_sql=false \
+--dry_run \
+'SELECT
+   COUNTRY,
+   AIRPORT,
+   IATA
+ FROM
+   `project_id`.dataset.airports
+ LIMIT
+   1000'
+ 
+
+유효한 쿼리인 경우 이 명령어는 다음 응답을 생성합니다.
+
+Query successfully validated. Assuming the tables are not modified,
+running this query will process 10918 bytes of data.
+
+참고: 쿼리에서 소량의 데이터를 처리하는 경우 처리되는 바이트를 KB에서 MB로 변환해야 할 수도 있습니다. MB는 가격 계산기에서 사용하는 최소 측정 단위입니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#api] ---
+API를 사용하여 테스트 실행을 수행하려면 JobConfiguration [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#jobconfiguration] 유형에서 dryRun을 true로 설정한 채로 쿼리 작업을 제출합니다.
+
+--- 탭: Go [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#go] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// queryDryRun demonstrates issuing a dry run query to validate query structure and
+// provide an estimate of the bytes scanned.
+func queryDryRun(w io.Writer, projectID string) error {
+	// projectID := "my-project-id"
+	ctx := context.Background()
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	q := client.Query(`
+	SELECT
+		name,
+		COUNT(*) as name_count
+	FROM ` + "`bigquery-public-data.usa_names.usa_1910_2013`" + `
+	WHERE state = 'WA'
+	GROUP BY name`)
+	q.DryRun = true
+	// Location must match that of the dataset(s) referenced in the query.
+	q.Location = "US"
+
+	job, err := q.Run(ctx)
+	if err != nil {
+		return err
+	}
+	// Dry run is not asynchronous, so get the latest status and statistics.
+	status := job.LastStatus()
+	if err := status.Err(); err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "This query will process %d bytes\n", status.Statistics.TotalBytesProcessed)
+	return nil
+}
+
+--- 탭: tabpanel-java ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.JobStatistics;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+
+// Sample to run dry query on the table
+public class QueryDryRun {
+
+  public static void runQueryDryRun() {
+    String query =
+        "SELECT name, COUNT(*) as name_count "
+            + "FROM `bigquery-public-data.usa_names.usa_1910_2013` "
+            + "WHERE state = 'WA' "
+            + "GROUP BY name";
+    queryDryRun(query);
+  }
+
+  public static void queryDryRun(String query) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      QueryJobConfiguration queryConfig =
+          QueryJobConfiguration.newBuilder(query).setDryRun(true).setUseQueryCache(false).build();
+
+      Job job = bigquery.create(JobInfo.of(queryConfig));
+      JobStatistics.QueryStatistics statistics = job.getStatistics();
+
+      System.out.println(
+          "Query dry run performed successfully." + statistics.getTotalBytesProcessed());
+    } catch (BigQueryException e) {
+      System.out.println("Query not performed \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: tabpanel-node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery');
+const bigquery = new BigQuery();
+
+async function queryDryRun() {
+  // Runs a dry query of the U.S. given names dataset for the state of Texas.
+
+  const query = `SELECT name
+    FROM \`bigquery-public-data.usa_names.usa_1910_2013\`
+    WHERE state = 'TX'
+    LIMIT 100`;
+
+  // For all options, see https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query
+  const options = {
+    query: query,
+    // Location must match that of the dataset(s) referenced in the query.
+    location: 'US',
+    dryRun: true,
+  };
+
+  // Run the query as a job
+  const [job] = await bigquery.createQueryJob(options);
+
+  // Print the status and statistics
+  console.log('Status:');
+  console.log(job.metadata.status);
+  console.log('\nJob Statistics:');
+  console.log(job.metadata.statistics);
+}
+
+--- 탭: tabpanel-php ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 PHP 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery PHP API 참고 문서 [https://cloud.google.com/php/docs/reference/cloud-bigquery/latest/BigQueryClient?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  use Google\Cloud\BigQuery\BigQueryClient;
+
+/** Uncomment and populate these variables in your code */
+// $projectId = 'The Google project ID';
+// $query = 'SELECT id, view_count FROM `bigquery-public-data.stackoverflow.posts_questions`';
+
+// Construct a BigQuery client object.
+$bigQuery = new BigQueryClient([
+    'projectId' => $projectId,
+]);
+
+// Set job configs
+$jobConfig = $bigQuery->query($query);
+$jobConfig->useQueryCache(false);
+$jobConfig->dryRun(true);
+
+// Extract query results
+$queryJob = $bigQuery->startJob($jobConfig);
+$info = $queryJob->info();
+
+printf('This query will process %s bytes' . PHP_EOL, $info['statistics']['totalBytesProcessed']);
+
+--- 탭: tabpanel-python ---
+QueryJobConfig.dry_run [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJob?hl=ko#google_cloud_bigquery_job_QueryJob_dry_run] 속성을 True로 설정합니다.
+테스트 실행 쿼리 구성을 제공하면 Client.query() [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client?hl=ko#google_cloud_bigquery_client_Client_query]는 항상 완료된 QueryJob [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJob?hl=ko#google_cloud_bigquery_job_QueryJob]을 반환합니다.
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery
+
+# Construct a BigQuery client object.
+client = bigquery.Client()
+
+job_config = bigquery.QueryJobConfig(dry_run=True, use_query_cache=False)
+
+# Start the query, passing in the extra configuration.
+query_job = client.query(
+    (
+        "SELECT name, COUNT(*) as name_count "
+        "FROM `bigquery-public-data.usa_names.usa_1910_2013` "
+        "WHERE state = 'WA' "
+        "GROUP BY name"
+    ),
+    job_config=job_config,
+)  # Make an API request.
+
+# A dry run query completes immediately.
+print("This query will process {} bytes.".format(query_job.total_bytes_processed))
+쿼리 비용 추정
+주문형 가격 책정 모델 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]을 사용하는 경우 처리된 바이트 수를 계산하여 쿼리 실행 비용을 추정할 수 있습니다.
+주문형 쿼리 크기 계산
+다양한 유형의 쿼리에서 처리되는 바이트 수를 계산하려면 다음 섹션을 참조하세요.
+DML 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#on-demand-query-size-calculation]
+DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#on-demand-query-size-calculation]
+클러스터링된 테이블 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko#block-pruning]
+참고: 선택한 데이터 세트 스토리지 청구 모델 [https://cloud.google.com/bigquery/docs/datasets-intro?hl=ko#dataset_storage_billing_models]은 주문형 쿼리 비용 계산에 영향을 주지 않습니다. BigQuery는 항상 논리적(비압축) 바이트를 사용하여 주문형 쿼리 비용을 계산합니다.
+참고: ORC [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-orc?hl=ko#orc_conversions] 또는 Parquet [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-parquet?hl=ko#parquet_conversions]에 저장된 외부 테이블 데이터 [https://cloud.google.com/bigquery/docs/external-tables?hl=ko]를 쿼리하는 경우 청구되는 바이트 수는 BigQuery에서 읽는 열로 제한됩니다. 외부 데이터 소스의 데이터 유형은 쿼리에 의해 BigQuery 데이터 유형으로 변환되므로 읽은 바이트 수는 BigQuery 데이터 유형의 크기에 따라 계산됩니다.
+쿼리를 실행하여 테이블 데이터 탐색 방지
+권장사항: 쿼리를 실행하여 테이블 데이터를 탐색하거나 미리 보지 마세요.
+데이터를 실험하거나 탐색하는 경우, 테이블 프리뷰 옵션을 사용하여 할당량에 영향을 주지 않으면서 데이터를 무료로 볼 수 있습니다.
+BigQuery는 다음과 같은 데이터 미리보기 옵션을 지원합니다.
+Google Cloud 콘솔의 테이블 세부정보 페이지에서 미리보기 탭을 클릭하여 데이터를 샘플링합니다.
+bq 명령줄 도구에서 bq head [https://cloud.google.com/bigquery/docs/managing-table-data?hl=ko#browse-table] 명령어를 사용하여 미리보기를 수행할 행 번호를 지정합니다.
+API에서 tabledata.list [https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list?hl=ko]를 사용하여 지정된 행 세트에서 테이블 데이터를 검색합니다.
+클러스터링되지 않은 테이블에서 LIMIT를 사용하지 마세요. 클러스터링되지 않은 테이블의 경우 LIMIT 절은 컴퓨팅 비용을 줄이지 않습니다.
+쿼리당 청구되는 바이트 수 제한
+권장사항: 주문형 가격 책정 모델을 사용할 때는 청구 가능한 최대 바이트 설정을 사용하여 쿼리 비용을 제한하세요.
+청구 가능한 최대 바이트 설정을 사용하여 쿼리에 대해 청구되는 바이트 수를 제한할 수 있습니다. 청구 가능한 최대 바이트를 설정하면 쿼리가 실행되기 전에 쿼리가 읽는 바이트 수가 추정됩니다. 예상 바이트 수가 한도를 초과하면 비용이 발생하지 않고 쿼리는 실패합니다.
+참고: 이 권장사항은 주문형 쿼리에만 적용됩니다.
+클러스터링된 테이블의 경우 쿼리에 청구되는 바이트 수의 추정값은 상한값이며, 쿼리 실행 후 청구되는 실제 바이트 수보다 클 수 있습니다. 따라서 경우에 따라 청구 가능한 최대 바이트를 설정한 경우 청구 가능한 실제 바이트가 청구 가능한 최대 바이트 설정을 초과하지 않더라도 클러스터링된 테이블의 쿼리가 실패할 수 있습니다.
+청구 가능한 최대 바이트 설정으로 인해 쿼리가 실패하면 다음과 비슷한 오류가 반환됩니다.
+Error: Query exceeded limit for bytes billed: 1000000. 10485760 or higher required.
+청구 가능한 최대 바이트를 설정하려면 다음을 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#%EC%BD%98%EC%86%94] ---
+쿼리 편집기에서 더보기 > 쿼리 설정 > 고급 옵션을 클릭합니다.
+청구 가능한 최대 바이트 필드에 정수를 입력합니다.
+저장을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#bq] ---
+bq query 명령어를 --maximum_bytes_billed 플래그와 함께 사용합니다.
+
+  bq query --maximum_bytes_billed=1000000 \
+  --use_legacy_sql=false \
+  'SELECT
+     word
+   FROM
+     `bigquery-public-data`.samples.shakespeare'
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#api] ---
+JobConfigurationQuery [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#jobconfigurationquery] 또는 QueryRequest [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query?hl=ko#queryrequest]에서 maximumBytesBilled 속성을 설정합니다.
+클러스터링되지 않은 테이블에서 LIMIT를 사용하지 않음
+권장사항: 클러스터링되지 않은 테이블의 경우 비용 관리 방법으로 LIMIT 절을 사용하지 마세요.
+클러스터링되지 않은 테이블의 경우 LIMIT 절을 쿼리에 적용해도 읽은 데이터 양은 영향을 받지 않습니다. 쿼리가 하위 집합만 반환하더라도 쿼리에 표시된 대로 전체 테이블에서 읽은 모든 바이트 요금이 청구됩니다. 클러스터링된 테이블을 사용하면 LIMIT 절이 스캔되는 바이트 수를 줄일 수 있습니다. 결과를 가져오기 위해 충분한 블록이 스캔되면 스캔이 중지되기 때문입니다. 스캔된 바이트에 대해서만 요금이 청구됩니다.
+쿼리 결과를 단계별로 구체화하기
+권장사항: 가능한 경우 쿼리 결과를 단계별로 구체화합니다.
+대량의 다단계 쿼리를 만들면 실행할 때마다 BigQuery가 쿼리에 필요한 모든 데이터를 읽습니다. 쿼리가 실행될 때마다 읽는 모든 데이터에 대한 요금이 청구됩니다.
+하지만 쿼리를 단계별로 분할하면 각 단계에서 쿼리 결과를 대상 테이블 [https://cloud.google.com/bigquery/querying-data?hl=ko#permanent-table]에 기록하여 구체화할 수 있습니다. 작은 대상 테이블을 쿼리하므로 읽는 데이터의 양이 줄어들고 비용이 절감됩니다. 구체화된 결과를 저장하는 비용이 많은 양의 데이터를 처리하는 비용보다 훨씬 낮습니다.
+워크로드 비용 관리
+이 섹션에서는 워크로드 내에서 비용을 관리하기 위한 권장사항을 설명합니다. 워크로드는 관련 검색어 집합입니다. 예를 들어 워크로드는 매일 실행되는 데이터 변환 파이프라인, 비즈니스 분석가 그룹에서 실행하는 대시보드 세트 또는 데이터 과학자 그룹에서 실행하는 여러 임시 쿼리일 수 있습니다.
+Google Cloud 가격 계산기 사용
+권장사항: Google Cloud 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용하여 예상 사용량을 기준으로 BigQuery의 전체 월별 비용을 예상합니다. 그런 다음 이 추정치를 실제 비용과 비교하여 최적화할 영역을 파악할 수 있습니다.
+--- 탭: 주문형 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#%EC%A3%BC%EB%AC%B8%ED%98%95] ---
+주문형 가격 책정 모델을 사용할 때 Google Cloud 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]로 비용을 추정하려면 다음 단계를 따르세요.
+
+
+Google Cloud 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 엽니다.
+합산하여 추정을 클릭합니다.
+BigQuery를 선택합니다.
+서비스 유형에서 '주문형'을 선택합니다.
+쿼리를 실행할 위치를 선택합니다.
+쿼리된 데이터 양에 테스트 실행 또는 쿼리 검사기로 읽은 바이트 수 추정값을 입력합니다.
+활성 스토리지, 장기 스토리지, 스트리밍 삽입, 스트리밍 읽기에 대한 스토리지 사용량의 추정값을 입력합니다.
+데이터 세트 스토리지 청구 모델 [https://cloud.google.com/bigquery/docs/datasets-intro?hl=ko#dataset_storage_billing_models]에 따라 물리적 스토리지 또는 논리적 스토리지만 추정하면 됩니다.
+예상 비용은 비용 세부정보 패널에 표시됩니다. 예상 비용에 대한 자세한 내용을 보려면 세부정보 보기 열기를 클릭합니다. 예상 비용을 다운로드하고 공유할 수도 있습니다.
+
+
+자세한 내용은 주문형 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]을 참조하세요.
+
+--- 탭: 버전 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#%EB%B2%84%EC%A0%84] ---
+BigQuery 버전 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]과 함께 용량 기반 가격 책정 모델을 사용할 때 Google Cloud 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]로 비용을 추정하려면 다음 단계를 따르세요.
+
+
+Google Cloud 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 엽니다.
+합산하여 추정을 클릭합니다.
+BigQuery를 선택합니다.
+서비스 유형에서 '버전'을 선택합니다.
+슬롯이 사용되는 위치를 선택합니다.
+버전을 선택합니다.
+최대 슬롯, 기준 슬롯, 선택적 약정, 예상 자동 확장 사용률을 선택합니다.
+데이터가 저장되는 위치를 선택합니다.
+활성 스토리지, 장기 스토리지, 스트리밍 삽입, 스트리밍 읽기에 대한 스토리지 사용량의 추정값을 입력합니다.
+데이터 세트 스토리지 청구 모델 [https://cloud.google.com/bigquery/docs/datasets-intro?hl=ko#dataset_storage_billing_models]에 따라 물리적 스토리지 또는 논리적 스토리지만 추정하면 됩니다.
+예상 비용은 비용 세부정보 패널에 표시됩니다. 예상 비용에 대한 자세한 내용을 보려면 세부정보 보기 열기를 클릭합니다. 예상 비용을 다운로드하고 공유할 수도 있습니다.
+
+
+자세한 내용은 용량 기반 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]을 참조하세요.
+예약 및 약정 사용
+권장사항: BigQuery 예약 및 약정을 사용하여 비용을 관리하세요.
+자세한 내용은 각 가격 책정 모델의 비용 제한 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#restrict-compute-costs]을 참고하세요.
+슬롯 에스티메이터 사용
+권장사항: 슬롯 에스티메이터를 사용하여 워크로드에 필요한 슬롯 수를 추정합니다.
+BigQuery 슬롯 에스티메이터 [https://cloud.google.com/bigquery/docs/slot-estimator?hl=ko]를 사용하면 이전 성능의 측정항목을 기반으로 슬롯 용량을 관리할 수 있습니다.
+또한 주문형 가격 책정 모델을 사용하는 고객은 용량 기반 가격 책정으로 전환할 때 비슷한 성능의 약정 및 자동 확장 예약에 대한 크기 조정 권장 사항을 확인할 수 있습니다.
+불필요한 장기 실행 작업 취소
+용량을 확보하려면 장기 실행 중인 작업을 확인하여 계속 실행해야 하는지 확인합니다. 그렇지 않은 경우 취소 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#cancel_jobs]합니다.
+대시보드를 사용하여 비용 보기
+권장사항: BigQuery 사용량을 모니터링하고 조정할 수 있도록 Cloud Billing 데이터를 분석하는 대시보드를 만듭니다.
+BigQuery로 결제 데이터를 내보내고 [https://cloud.google.com/billing/docs/how-to/export-data-bigquery?hl=ko] Looker Studio와 같은 도구로 시각화할 수 있습니다. 결제 대시보드 만들기에 대한 튜토리얼은 BigQuery와 Looker Studio를 사용하여 Google Cloud 결제 시각화 [https://medium.com/google-cloud/visualize-gcp-billing-using-bigquery-and-data-studio-d3e695f90c08]를 참고하세요.
+결제 예산 및 알림 사용하기
+권장사항: Cloud Billing 예산 [https://cloud.google.com/billing/docs/how-to/budgets?hl=ko]을 사용하여 BigQuery 청구 내역을 한곳에서 모니터링하세요.
+Cloud Billing 예산을 사용하면 계획한 비용 대비 실제 비용을 추적할 수 있습니다. 예산 금액을 설정한 후에는 이메일 알림을 트리거하는 데 사용되는 예산 알림 기준 규칙을 설정합니다. 예산 알림 이메일을 통해 예산 대비 BigQuery 비용의 추이를 파악할 수 있습니다.
+스토리지 비용 관리
+BigQuery 스토리지 비용을 최적화하려면 다음 권장사항을 따르세요. 쿼리 성능을 위해 스토리지를 최적화 [https://cloud.google.com/bigquery/docs/best-practices-storage?hl=ko]할 수도 있습니다.
+장기 스토리지 사용
+권장사항: 장기 스토리지 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]을 사용하여 이전 데이터에 대한 비용을 줄이세요.
+데이터를 BigQuery 스토리지로 로드하면 데이터에 BigQuery 스토리지 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]이 적용됩니다. 이전 데이터의 경우 BigQuery의 장기 스토리지 가격 책정을 자동으로 활용할 수 있습니다.
+연속으로 90일 동안 테이블을 수정하지 않으면 테이블의 스토리지 가격이 자동으로 50% 인하됩니다. 파티션을 나눈 테이블이 있는 경우 각 파티션은 파티션을 나누지 않은 테이블에 적용되는 규칙과 동일한 규칙에 따라 장기 가격 적용 대상으로 별도 간주됩니다.
+스토리지 청구 모델 구성
+권장사항: 사용량 패턴에 따라 스토리지 청구 모델을 최적화하세요.
+BigQuery는 논리적(비압축) 바이트나 물리적(압축) 바이트 또는 이 둘의 조합을 사용하여 스토리지 청구를 지원합니다. 각 데이터 세트에 구성된 스토리지 청구 모델 [https://cloud.google.com/bigquery/docs/datasets-intro?hl=ko#dataset_storage_billing_models]에 따라 스토리지 가격이 결정되지만 쿼리 성능은 영향을 받지 않습니다.
+INFORMATION_SCHEMA 뷰를 사용하여 사용 패턴에 따라 [https://cloud.google.com/bigquery/docs/information-schema-table-storage?hl=ko#forecast_storage_billing] 가장 적합한 스토리지 청구 모델을 결정할 수 있습니다.
+테이블 덮어쓰기 방지
+권장사항: 물리적 스토리지 결제 모델을 사용하는 경우 테이블을 반복적으로 덮어쓰지 마세요.
+일괄 로드 작업 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#appending_to_or_overwriting_a_table]에서 --replace 매개변수를 사용하거나 TRUNCATE TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#truncate_table_statement] SQL 문을 사용하여 테이블을 덮어쓰는 경우 대체된 데이터는 시간 이동 및 장애 안전 기간 동안 유지됩니다. 테이블을 자주 덮어쓰면 추가 스토리지 요금이 발생합니다.
+대신 로드 작업의 WRITE_APPEND 매개변수, MERGE SQL 문을 사용하거나 storage write API [https://cloud.google.com/bigquery/docs/write-api?hl=ko]를 사용하여 데이터를 테이블에 점진적으로 로드할 수 있습니다.
+시간 이동 기간 줄이기
+권장사항: 요구사항에 따라 시간 이동 기간을 줄일 수 있습니다.
+시간 이동 [https://cloud.google.com/bigquery/docs/time-travel?hl=ko] 기간을 기본값인 7일에서 줄이면 테이블에서 삭제되거나 변경된 데이터의 보관 기간이 줄어듭니다. 물리적(압축) 스토리지 청구 모델 [https://cloud.google.com/bigquery/docs/datasets-intro?hl=ko#dataset_storage_billing_models]을 사용하는 경우에만 시간 이동 스토리지에 대한 요금이 청구됩니다.
+시간 이동 기간은 데이터 세트 수준에서 설정됩니다. 구성 설정 [https://cloud.google.com/bigquery/docs/default-configuration?hl=ko#configuration_settings]을 사용하여 새 데이터 세트의 기본 시간 이동 기간을 설정할 수도 있습니다.
+대상 테이블에 테이블 만료 시간 사용
+권장사항: 대량의 쿼리 결과를 대상 테이블에 쓰는 경우, 기본 테이블 만료 시간을 사용하여 더 이상 필요 없는 데이터를 삭제합니다.
+BigQuery 스토리지에 대량의 결과 집합을 보관하면 비용이 발생합니다. 결과에 영구적으로 액세스할 필요가 없으면 기본 테이블 만료 시간 [https://cloud.google.com/bigquery/docs/updating-datasets?hl=ko#table-expiration]을 사용하여 자동으로 데이터를 삭제합니다.
+Cloud Storage로 데이터 보관처리
+권장사항: Cloud Storage에 데이터를 보관처리하는 것이 좋습니다.
+보관처리에 대한 비즈니스 요구사항에 따라 BigQuery에서 Cloud Storage로 데이터를 이동할 수 있습니다. 권장사항은 BigQuery에서 데이터를 내보내기 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko] 전에 장기 스토리지 가격 책정 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#store-data-bigquery] 및 실제 스토리지 청구 모델 [https://cloud.google.com/bigquery/docs/best-practices-costs?hl=ko#storage-billing-model]을 고려하는 것입니다.
+다음 단계
+BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 알아보기
+쿼리 최적화 [https://cloud.google.com/bigquery/docs/best-practices-performance-compute?hl=ko] 방법 알아보기
+스토리지 최적화 [https://cloud.google.com/bigquery/docs/best-practices-storage?hl=ko] 방법 알아보기
+결제, 알림, 데이터 시각화에 대한 자세한 내용은 다음 주제 참조
+예산 생성, 수정 또는 삭제 및 예산 알림 [https://cloud.google.com/billing/docs/how-to/budgets?hl=ko]
+Cloud Billing 데이터를 BigQuery로 내보내기 [https://cloud.google.com/billing/docs/how-to/export-data-bigquery?hl=ko]
+Looker Studio로 비용 시각화하기 [https://cloud.google.com/billing/docs/how-to/visualize-data?hl=ko]
+도움이 되었나요?
+의견 보내기

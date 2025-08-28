@@ -1,0 +1,142 @@
+Source URL: https://cloud.google.com/bigquery/docs/history-based-optimizations
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+기록 기반 최적화 정보 [https://cloud.google.com/bigquery/docs/history-based-optimizations?hl=ko#about_history-based_optimizations]
+역할 및 권한 [https://cloud.google.com/bigquery/docs/history-based-optimizations?hl=ko#roles_and_permissions]
+기록 기반 최적화 사용 설정 [https://cloud.google.com/bigquery/docs/history-based-optimizations?hl=ko#enable-history-based-optimization]
+기록 기반 최적화 중지 [https://cloud.google.com/bigquery/docs/history-based-optimizations?hl=ko#disable-history-based-optimization]
+작업의 기록 기반 최적화 검토 [https://cloud.google.com/bigquery/docs/history-based-optimizations?hl=ko#review-history-based-optimization]
+기록 기반 최적화의 영향 추정 [https://cloud.google.com/bigquery/docs/history-based-optimizations?hl=ko#estimate-impact-of-history-based-optimization]
+기록 기반 최적화 사용
+bookmark_border
+이 가이드에서는 쿼리의 기록 기반 최적화를 사용 설정, 사용 중지, 분석하는 방법을 설명합니다.
+기록 기반 최적화 정보
+기록 기반 최적화는 이미 완료된 유사 쿼리 실행 정보를 사용하여 추가 최적화를 적용하고 사용된 슬롯 시간 및 쿼리 지연 시간과 같은 쿼리 성능을 더욱 향상시킵니다. 예를 들어 기록 기반 최적화를 적용하면 첫 번째 쿼리가 실행되는 데 60초가 걸릴 수 있지만 기록 기반 최적화가 식별된 경우에는 두 번째 쿼리 실행 시간이 30초에 불과할 수 있습니다. 이 프로세스는 추가할 최적화가 없을 때까지 계속됩니다.
+다음은 기록 기반 최적화가 BigQuery에서 작동하는 방식의 예시입니다.
+실행 횟수 소비된 쿼리 슬롯 시간 참고
+1 60 원래 실행.
+2 30 첫 번째 기록 기반 최적화가 적용되었습니다.
+3 20 두 번째 기록 기반 최적화가 적용되었습니다.
+4 21 적용할 추가 기록 기반 최적화가 없습니다.
+5 19 적용할 추가 기록 기반 최적화가 없습니다.
+6 20 적용할 추가 기록 기반 최적화가 없습니다.
+기록 기반 최적화는 쿼리 성능에 유용한 영향을 줄 것이라는 확신이 있는 경우에만 적용됩니다. 또한 최적화로 쿼리 성능이 크게 향상되지 않으면 해당 최적화가 취소되고 향후에 쿼리를 실행하는 데 사용되지 않습니다.
+역할 및 권한
+기록 기반 최적화를 사용 설정하거나 사용 중지하려면 BigQuery 기본 구성을 만드는 데 필요한 권한이 있어야 하며 ALTER PROJECT 문을 사용하여 기록 기반 최적화를 사용 설정해야 합니다. 기록 기반 최적화를 사용 설정하면 작업을 만든 사용자에 관계없이 해당 프로젝트의 모든 작업에서 기록 기반 최적화를 사용합니다. 기본 구성에 필요한 권한에 대한 자세한 내용은 기본 구성의 필수 권한 [https://cloud.google.com/bigquery/docs/default-configuration?hl=ko#create-configuration]을 참조하세요. 기록 기반 최적화를 사용 설정하려면 기록 기반 최적화 사용 설정 [https://cloud.google.com/bigquery/docs/history-based-optimizations?hl=ko#enable-history-based-optimization]을 참조하세요.
+INFORMATION_SCHEMA.JOBS 뷰를 사용하여 작업의 기록 기반 최적화를 검토하려면 필수 역할이 있어야 합니다. 자세한 내용은 INFORMATION_SCHEMA.JOBS 뷰의 필수 역할 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko#required_role]을 참조하세요.
+기록 기반 최적화 사용 설정
+기록 기반 최적화는 정식 버전으로 제공 [https://cloud.google.com/bigquery/docs/release-notes?hl=ko#September_30_2024]되며 단계적으로 배포되고 있습니다. 프로젝트에 기록 기반 최적화를 수동으로 사용 설정하려면 ALTER PROJECT [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_project_set_options_statement] 또는 ALTER ORGANIZATION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_organization_set_options_statement] 문에 default_query_optimizer_options = 'adaptive=on' 매개변수를 포함합니다. 예를 들면 다음과 같습니다.
+ALTER PROJECT PROJECT_NAME
+SET OPTIONS (
+  `region-LOCATION.default_query_optimizer_options` = 'adaptive=on'
+);
+다음을 바꿉니다.
+PROJECT_NAME: 프로젝트 이름
+LOCATION: 프로젝트의 위치
+참고: 기록 기반 최적화를 사용 설정한 후에는 성공적인 ALTER PROJECT 또는 ALTER ORGANIZATION 문에 대해 표시되는 다음 주의 메시지를 무시해도 됩니다. ALTER PROJECT succeeded. Please make sure no existing queries depend on the old defaults (such as the default time zone) or else these queries will be broken.
+기록 기반 최적화 중지
+프로젝트에서 기록 기반 최적화를 중지하려면 ALTER PROJECT [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_project_set_options_statement] 또는 ALTER ORGANIZATION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_organization_set_options_statement] 문에 default_query_optimizer_options = 'adaptive=off' 매개변수를 포함합니다. 예를 들면 다음과 같습니다.
+ALTER PROJECT PROJECT_NAME
+SET OPTIONS (
+  `region-LOCATION.default_query_optimizer_options` = 'adaptive=off'
+);
+다음을 바꿉니다.
+PROJECT_NAME: 프로젝트 이름
+LOCATION: 프로젝트의 위치
+참고: 기록 기반 최적화를 사용 중지한 후에는 성공적인 ALTER PROJECT 또는 ALTER ORGANIZATION 문에 대해 표시되는 다음 주의 메시지를 무시해도 됩니다. ALTER PROJECT succeeded. Please make sure no existing queries depend on the old defaults (such as the default time zone) or else these queries will be broken.
+작업의 기록 기반 최적화 검토
+작업의 기록 기반 최적화를 검토하려면 SQL 쿼리나 REST API 메서드 호출을 사용하면 됩니다.
+SQL [https://cloud.google.com/bigquery/docs/history-based-optimizations?hl=ko#sql]
+API [https://cloud.google.com/bigquery/docs/history-based-optimizations?hl=ko#api]
+쿼리를 사용하여 작업의 기록 기반 최적화를 가져올 수 있습니다. 쿼리에는 INFORMATION_SCHEMA.JOBS_BY_PROJECT [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko#schema] 및 query_info.optimization_details 열 이름이 포함되어야 합니다.
+다음 예시에서는 sample_job라는 작업의 최적화 세부정보가 반환됩니다. 기록 기반 최적화가 적용되지 않으면 NULL이 optimization_details에 생성됩니다.
+SELECT
+  job_id,
+  query_info.optimization_details
+FROM `PROJECT_NAME.region-LOCATION`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE job_id = 'sample_job'
+LIMIT 1;
+결과는 다음과 유사합니다.
+-- The JSON in optimization_details has been formatted for readability.
+/*------------+-----------------------------------------------------------------*
+ | job_id     | optimization_details                                            |
+ +------------+-----------------------------------------------------------------+
+ | sample_job | {                                                               |
+ |            |   "optimizations": [                                            |
+ |            |     {                                                           |
+ |            |       "semi_join_reduction": "web_sales.web_date,RIGHT"         |
+ |            |     },                                                          |
+ |            |     {                                                           |
+ |            |       "semi_join_reduction": "catalog_sales.catalog_date,RIGHT" |
+ |            |     },                                                          |
+ |            |     {                                                           |
+ |            |       "semi_join_reduction": "store_sales.store_date,RIGHT"     |
+ |            |     },                                                          |
+ |            |     {                                                           |
+ |            |       "join_commutation": "web_returns.web_item"                |
+ |            |     },                                                          |
+ |            |     {                                                           |
+ |            |       "parallelism_adjustment": "applied"                       |
+ |            |     },                                                          |
+ |            |   ]                                                             |
+ |            | }                                                               |
+ *------------+-----------------------------------------------------------------*/
+기록 기반 최적화의 영향 추정
+기록 기반 최적화의 영향을 추정하려면 다음 샘플 SQL 쿼리를 사용하여 실행 시간의 예상 개선이 가장 큰 프로젝트 쿼리를 식별하면 됩니다.
+  WITH
+    jobs AS (
+      SELECT
+        *,
+        query_info.query_hashes.normalized_literals AS query_hash,
+        TIMESTAMP_DIFF(end_time, start_time, MILLISECOND) AS elapsed_ms,
+        IFNULL(
+          ARRAY_LENGTH(JSON_QUERY_ARRAY(query_info.optimization_details.optimizations)) > 0,
+          FALSE)
+          AS has_history_based_optimization,
+      FROM region-LOCATION.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+      WHERE EXTRACT(DATE FROM creation_time) > DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+    ),
+    most_recent_jobs_without_history_based_optimizations AS (
+      SELECT *
+      FROM jobs
+      WHERE NOT has_history_based_optimization
+      QUALIFY ROW_NUMBER() OVER (PARTITION BY query_hash ORDER BY end_time DESC) = 1
+    )
+  SELECT
+    job.job_id,
+    100 * SAFE_DIVIDE(
+      original_job.elapsed_ms - job.elapsed_ms,
+      original_job.elapsed_ms) AS percent_execution_time_saved,
+    job.elapsed_ms AS new_elapsed_ms,
+    original_job.elapsed_ms AS original_elapsed_ms,
+  FROM jobs AS job
+  INNER JOIN most_recent_jobs_without_history_based_optimizations AS original_job
+    USING (query_hash)
+  WHERE
+    job.has_history_based_optimization
+    AND original_job.end_time < job.start_time
+  ORDER BY percent_execution_time_saved DESC
+  LIMIT 10;
+기록 기반 최적화가 적용된 경우 위 쿼리의 결과는 다음과 비슷합니다.
+  /*--------------+------------------------------+------------------+-----------------------*
+   |    job_id    | percent_execution_time_saved | new_execution_ms | original_execution_ms |
+   +--------------+------------------------------+------------------+-----------------------+
+   | sample_job1  |           67.806850186245114 |             7087 |                 22014 |
+   | sample_job2  |           66.485800412501987 |            10562 |                 31515 |
+   | sample_job3  |           63.285605271764254 |            97668 |                266021 |
+   | sample_job4  |           61.134141726887904 |           923384 |               2375823 |
+   | sample_job5  |           55.381272089713754 |          1060062 |               2375823 |
+   | sample_job6  |           45.396943168036479 |          2324071 |               4256302 |
+   | sample_job7  |           38.227031526376024 |            17811 |                 28833 |
+   | sample_job8  |           33.826608962725111 |            66360 |                100282 |
+   | sample_job9  |           32.087813758311604 |            44020 |                 64819 |
+   | sample_job10 |           28.356416319483539 |            19088 |                 26643 |
+   *--------------+------------------------------+------------------+-----------------------*/
+이 쿼리의 결과는 기록 기반 최적화 효과에 대한 추정치일 뿐입니다. 슬롯 가용성, 시간 경과에 따른 데이터 변경, 뷰 또는 UDF 정의, 쿼리 파라미터 값의 차이를 포함하되 이에 국한되지 않는 여러 요인이 쿼리 성능에 영향을 줄 수 있습니다.
+이 샘플 쿼리의 결과가 비어 있으면 기록 기반 최적화를 사용한 작업이 없거나 모든 쿼리가 최적화된 지 30일이 지난 것입니다.
+이 쿼리는 total_slot_ms 및 total_bytes_billed와 같은 다른 쿼리 성능 측정항목에 적용할 수 있습니다. 자세한 내용은 INFORMATION_SCHEMA.JOBS [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko#schema]의 스키마를 참조하세요.
+의견 보내기

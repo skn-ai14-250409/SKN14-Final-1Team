@@ -1,0 +1,213 @@
+Source URL: https://cloud.google.com/bigquery/docs/export-to-bigtable
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+Bigtable 테이블의 특성 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#characteristics_of_tables]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#required_roles]
+제한사항 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#limitations]
+위치 고려사항 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#data-locations]
+Bigtable로 데이터 내보내기(역방향 ETL)
+bookmark_border
+이 문서에서는 BigQuery에서 Bigtable로 역방향 ETL(RETL)을 설정하는 방법을 설명합니다. 이렇게 하려면 EXPORT DATA 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/export-statements?hl=ko]을 사용하여 BigQuery 테이블에서 Bigtable [https://cloud.google.com/bigtable/docs/overview?hl=ko] 테이블로 데이터를 내보냅니다.
+Bigtable에 대한 RETL 워크플로를 사용하여 BigQuery의 분석 기능과 Bigtable의 짧은 지연 시간 및 높은 처리량을 결합할 수 있습니다. 이 워크플로를 사용하면 BigQuery의 할당량 및 한도를 소진하지 않고 애플리케이션 사용자에게 데이터를 제공할 수 있습니다.
+Bigtable 테이블의 특성
+Bigtable 테이블 [https://cloud.google.com/bigtable/docs/overview?hl=ko#storage-model]은 다음과 같은 몇 가지 면에서 BigQuery 테이블과 다릅니다.
+Bigtable과 BigQuery 테이블은 모두 행으로 구성되지만 Bigtable 행은 동일한 column family에 속하는 임의의 수의 열이 있는 row key 및 column family로 구성됩니다.
+지정된 테이블의 column family는 테이블을 만들면 생성되지만 나중에 추가하거나 삭제할 수도 있습니다. column family를 만들 때 여기에 속하는 열을 지정할 필요가 없습니다.
+Bigtable 열은 미리 정의할 필요가 없으며, 테이블 내 데이터 크기 한도 [https://cloud.google.com/bigtable/quotas?hl=ko#limits-data-size] 안에서 이름(한정자라고도 함)에 데이터를 저장하는 데 사용할 수 있습니다.
+Bigtable 열은 테이블 내 데이터 크기 한도 [https://cloud.google.com/bigtable/quotas?hl=ko#limits-data-size] 범위에서 모든 바이너리 값을 가질 수 있습니다.
+Bigtable 열에는 항상 시간 측정기준(버전이라고도 함)이 있습니다. 타임스탬프가 다르다면, 어떤 값이든 동일한 열의 어떤 행에나 저장할 수 있습니다.
+Bigtable 타임스탬프는 유닉스 시간 [https://en.wikipedia.org/wiki/Unix_time] 이후의 마이크로초 단위로 측정됩니다. 예를 들어 0은 1970-01-01T00:00:00 UTC를 나타냅니다. 타임스탬프는 밀리초 단위에 음수가 아닌 마이크로초 수여야 합니다(1,000마이크로초의 배수만 허용됨). 기본 Bigtable 타임스탬프는 0입니다.
+Bigtable의 데이터는 row key, 여러 row key, row key 범위에서 읽거나, 필터를 사용한 읽기 [https://cloud.google.com/bigtable/docs/reads?hl=ko]가 수행됩니다. 전체 테이블 스캔을 제외한 모든 유형의 읽기 요청에는 row key 또는 row key 범위가 하나 이상 필요합니다.
+Bigtable로 내보낼 BigQuery 결과를 준비하는 방법에 대한 자세한 내용은 내보낼 쿼리 결과 준비 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#prepare_results]를 참조하세요.
+시작하기 전에
+내보낸 데이터를 수신하려면 Bigtable 인스턴스 [https://cloud.google.com/bigtable/docs/creating-instance?hl=ko]와 Bigtable 테이블 [https://cloud.google.com/bigtable/docs/managing-tables?hl=ko#create-table]을 만들어야 합니다.
+사용자에게 이 문서의 각 작업을 수행하는 데 필요한 권한을 부여하는 Identity and Access Management(IAM) [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#required_roles] 역할을 부여하세요.
+필요한 역할
+BigQuery 데이터를 Bigtable로 내보내는 데 필요한 권한을 얻으려면 관리자에게 프로젝트에 대한 다음 IAM 역할을 부여해 달라고 요청하세요.
+BigQuery 테이블에서 데이터 내보내기: BigQuery 데이터 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataViewer](roles/bigquery.dataViewer)
+내보내기 작업 실행: BigQuery 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.user](roles/bigquery.user)
+Bigtable 테이블에 데이터 쓰기: Bigtable 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigtable?hl=ko#bigtable.user](roles/bigtable.user)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+제한사항
+인코딩은 BINARY 및 TEXT로 제한됩니다.
+대상 Bigtable 앱 프로필 [https://cloud.google.com/bigtable/docs/app-profiles?hl=ko]은 단일 클러스터 라우팅 [https://cloud.google.com/bigtable/docs/routing?hl=ko#single-cluster] 및 낮은 요청 우선순위 수준 [https://cloud.google.com/bigtable/docs/request-priorities?hl=ko]으로 구성해야 합니다.
+BigQuery 데이터 세트와 함께 있는 Bigtable 클러스터로 데이터를 라우팅하도록 Bigtable 앱 프로필을 구성해야 합니다. 자세한 내용은 위치 고려사항 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#data-locations]을 참조하세요.
+Bigtable로 내보내기는 BigQuery Enterprise 또는 Enterprise Plus 버전 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]에서만 지원됩니다. BigQuery Standard 버전 및 주문형 컴퓨팅 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]에서는 지원되지 않습니다.
+Bigtable로 내보내기는 QUERY 할당 [https://cloud.google.com/bigquery/docs/reservations-assignments?hl=ko]이 있는 예약에만 지원됩니다.
+위치 고려사항
+BigQuery 데이터 세트가 멀티 리전에 있으면 해당 멀티 리전 내의 Bigtable 클러스터로 데이터를 라우팅하도록 Bigtable 앱 프로필 [https://cloud.google.com/bigtable/docs/app-profiles?hl=ko]을 구성해야 합니다. 예를 들어 BigQuery 데이터 세트가 US 멀티 리전에 있으면 Bigtable 클러스터는 미국 내 us-west1(오리건) 리전에 있을 수 있습니다.
+BigQuery 데이터 세트가 단일 리전에 있으면 같은 리전의 Bigtable 클러스터로 데이터를 라우팅하도록 Bigtable 앱 프로필 [https://cloud.google.com/bigtable/docs/app-profiles?hl=ko]을 구성해야 합니다. 예를 들어 BigQuery 데이터 세트가 asia-northeast1(도쿄) 리전에 있으면 Bigtable 클러스터도 asia-northeast1(도쿄) 리전에 있어야 합니다.
+자세한 내용은 Bigtable 위치 [https://cloud.google.com/bigtable/docs/locations?hl=ko]를 참조하세요.
+지원되는 BigQuery 유형
+Bigtable에 쓸 때 지원되는 데이터 유형은 다음과 같습니다.
+BigQuery 유형 Bigtable에 쓰여지는 값
+BYTES 있는 그대로 내보냅니다.
+STRING BYTES로 전환됩니다.
+INTEGER bigtable_options.column_families.encoding을 BINARY로 설정하면 값은 8바이트 big-endian 형식으로 기록됩니다(가장 중요한 바이트부터 먼저). bigtable_options.column_families.encoding이 TEXT로 설정된 경우 값은 인간이 읽을 수 있는 숫자로 표현됩니다.
+FLOAT IEEE 754 8바이트 출력 형식으로 값을 씁니다.
+BOOLEAN bigtable_options.column_families.encoding가 BINARY로 설정된 경우 값이 1바이트 값(false = 0x00 또는 true = 0x01)으로 기록됩니다. bigtable_options.column_families.encoding이 TEXT로 설정된 경우 값이 텍스트("true" 또는 "false")로 기록됩니다.
+JSON
+JSON 유형의 내보낸 열은 특정 Bigtable column family에 속하는 열 그룹으로 해석됩니다. JSON 객체의 구성원은 열로 해석되고 해당 값이 Bigtable에 기록됩니다. 작성할 열의 이름은 bigtable_options [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#bigtable_options] 구성을 사용하여 조정할 수 있습니다.
+
+예를 들면 다음과 같습니다.
+    JSON '{"
+FIELD1": "
+VALUE1", "
+FIELD2": "
+VALUE2"}' as 
+MY_COLUMN_FAMILY
+    
+여기서 VALUE1 및 VALUE2 값은 Bigtable에 FIELD1 및 FIELD2 열로 column family MY_COLUMN_FAMILY에 기록됩니다.
+참고: 다른 JSON 또는 STRUCT 유형에 중첩된 JSON 문서가 Bigtable에 문자열로 기록됩니다. 다른 구조체에 중첩된 STRUCT 값을 내보내는 경우 bigtable_options으로 내보내기 구성 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#bigtable_options] 섹션에 설명된 제한사항이 적용됩니다.
+STRUCT
+STRUCT 유형의 내보낸 열은 특정 Bigtable column family에 속하는 열 그룹으로 해석됩니다. 구조체의 구성원은 열로 해석되고 해당 값이 Bigtable에 기록됩니다. 작성할 열의 이름은 bigtable_options [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#bigtable_options] 구성을 사용하여 조정할 수 있습니다.
+
+예를 들면 다음과 같습니다.
+    STRUCT<
+FIELD1  STRING, 
+FIELD2 INTEGER> as 
+MY_COLUMN_FAMILY
+    
+여기서 FIELD1 및 FIELD2 값은 Bigtable에 FIELD1 및 FIELD2 열로 column family MY_COLUMN_FAMILY에 기록됩니다.
+이렇게 지원되는 데이터 유형은 BigQuery용 외부 Bigtable 테이블 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables?hl=ko#bigtablecolumnfamily]에서 읽는 것과 유사합니다.
+Bigtable의 NULL 값
+Bigtable의 NULL 값에는 다음과 같은 제약이 있습니다.
+Bigtable에는 NULL 값에 대한 아날로그가 없습니다. Bigtable에서 지정된 column family와 열에 대한 NULL 값을 내보내면 Bigtable 행에서 현재 값이 삭제됩니다.
+주어진 row key, column family, column qualifier, 타임스탬프가 있는 Bigtable 값이 내보내기 전에 존재하지 않으면 내보낸 NULL 값이 Bigtable 행에 영향을 주지 않습니다.
+STRUCT 또는 JSON 유형의 NULL 값을 내보내면 영향을 받는 행의 해당 column family에 속하는 모든 열 값이 삭제됩니다. SQL 엔진이 올바른 유형을 연결할 수 있도록 하려면 NULL 값을 STRUCT 또는 JSON 유형으로 변환해야 합니다. 다음 쿼리는 지정된 rowkey 집합이 있는 column family column_family1에서 모든 데이터를 삭제합니다.
+EXPORT DATA OPTIONS (...) AS
+SELECT
+  rowkey,
+CAST(NULL as STRUCT<INT64>) AS column_family1 FROM T
+row key가 NULL인 행은 내보내기 중에 건너뜁니다. 건너뛴 행의 수는 호출자에게 내보내기 통계에서 반환됩니다.
+bigtable_options으로 내보내기 구성
+내보내기 중에 bigtable_options 구성을 사용하여 BigQuery와 Bigtable 스토리지 모델 간의 차이점을 해결할 수 있습니다. 구성은 다음 예시와 같이 JSON 문자열 형식으로 표현됩니다.
+EXPORT DATA OPTIONS(
+   uri="https://bigtable.googleapis.com/projects/
+PROJECT_ID/instances/
+INSTANCE_ID/appProfiles/
+APP_PROFILE_ID/tables/
+TABLE",
+   bigtable_options = """{
+     "columnFamilies": [{
+       "familyId": "
+COLUMN_FAMILY_NAME",
+       "encoding": "
+ENCODING_VALUE",
+       "columns": [
+         {
+           "qualifierString": "
+BIGTABLE_COLUMN_QUALIFIER",
+           ["qualifierEncoded": "
+BASE_64_ENCODED_VALUE",]
+           "fieldName": "
+BIGQUERY_RESULT_FIELD_NAME"
+         }
+       ]
+    }]
+   }"""
+)
+다음 표에서는 bigtable_options 구성에 사용 가능한 필드를 설명합니다.
+필드 이름 설명
+columnFamilies column family 설명어의 배열입니다.
+columnFamilies.familyId Bigtable column family의 식별자입니다.
+columnFamilies.encoding 값은 BINARY 또는 TEXT로 설정할 수 있습니다. 유형 인코딩 방법에 대한 자세한 내용은 지원되는 BigQuery 유형 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#bigquery_types]을 참조하세요.
+columnFamilies.columns Bigtable 열 매핑의 배열입니다.
+columnFamilies.columns.qualifierString (선택사항): Bigtable column qualifier. column qualifier에 UTF-8이 아닌 코드가 없는 경우 이 값을 지정합니다. qualifierString 및 qualifierEncoding 필드는 상호 배타적입니다. qualifierString도 qualifierEncoded도 지정되지 않으면 fieldName이 column qualifier로 사용됩니다.
+columnFamilies.columns.qualifierEncoded (선택사항): Base64로 인코딩된 column qualifier. column qualifier에 UTF-8가 아닌 코드가 있어야 하는 경우 qualifierString의 경우와 비슷합니다.
+columnFamilies.columns.fieldName (필수): BigQuery 결과 세트 필드 이름입니다. 경우에 따라 빈 문자열이 될 수 있습니다. 어떻게 비어 있는 fieldName 값이 단순 유형의 필드에 사용되는지에 대한 예시를 보려면 내보낼 쿼리 결과 준비 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#prepare_results]를 참조하세요.
+내보낼 쿼리 결과 준비
+쿼리 결과를 Bigtable로 내보내려면 결과가 다음 요구사항을 충족해야 합니다.
+결과 집합에는 STRING 또는 BYTES 유형의 rowkey 열이 포함되어야 합니다.
+row key, column qualifier, 값, 타임스탬프는 Bigtable 테이블 내 데이터 크기 한도 [https://cloud.google.com/bigtable/quotas?hl=ko#limits-data-size]를 초과하면 안 됩니다.
+결과 집합에는 rowkey 이외의 열이 최소 하나 이상 있어야 합니다.
+각 결과 집합 열은 지원되는 BigQuery 유형 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#bigquery_types] 중 하나여야 합니다. 지원되지 않는 열 유형을 Bigtable로 내보내기 전에 지원되는 유형 중 하나로 변환해야 합니다.
+Bigtable에서는 유효한 BigQuery 열 이름이 되기 위해 column qualifier가 필요하지 않으며 Bigtable은 모든 바이트 사용을 지원합니다. 내보내기의 대상 column qualifier를 재정의하는 방법은 bigtable_options으로 내보내기 구성 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#bigtable_options]을 참조하세요.
+ReadModifyWriteRow [https://cloud.google.com/bigtable/docs/reference/data/rpc/google.bigtable.v2?hl=ko#google.bigtable.v2.Bigtable.ReadModifyWriteRow]와 같은 Bigtable API에서 내보낸 값을 사용하는 경우 모든 숫자 값은 올바른 바이너리 인코딩 [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#bigtable_options]을 사용해야 합니다.
+기본적으로 STRUCT 또는 JSON을 제외한 유형의 독립형 결과 열은 결과 열 이름과 동일한 대상 column family 값으로, column qualifier가 빈 문자열과 같게 해석됩니다.
+이러한 데이터 유형이 작성되는 방법을 보려면 다음 SQL 예시를 살펴보세요. 여기서 column 및 column2는 독립형 결과 열입니다.
+SELECT
+  x as column1, y as column2
+FROM table
+이 예시 쿼리에서, SELECT x as column1는 JSON 또는 STRUCT 이외의 유형을 처리할 때 column1 column family 및 ''(빈 문자열) column qualifier 아래 Bigtable에 값을 씁니다.
+다음 예시와 같이 bigtable_options [https://cloud.google.com/bigquery/docs/export-to-bigtable?hl=ko#bigtable_options] 구성을 사용하여 내보내기에서 이러한 유형이 기록되는 방법을 변경할 수 있습니다.
+EXPORT DATA OPTIONS (
+  …
+  bigtable_options="""{
+   "columnFamilies" : [
+      {
+        "familyId": "ordered_at",
+        "columns": [
+           {"qualifierString": "order_time", "fieldName": ""}
+        ]
+      }
+   ]
+}"""
+) AS
+SELECT
+  order_id as rowkey,
+  STRUCT(product, amount) AS sales_info,
+  EXTRACT (MILLISECOND FROM order_timestamp AT TIME ZONE "UTC") AS ordered_at
+FROM T
+이 예시에서 BigQuery 테이블 T에는 다음 행이 포함되어 있습니다.
+order_id order_timestamp product amount
+101 2023-03-28T10:40:54Z 조이스틱 2
+T 테이블에 앞의 bigtable_options 구성을 사용하는 경우 다음 데이터가 Bigtable에 기록됩니다.
+rowkey sales_info (column family) ordered_at (column family)
+101 제품 금액 order_time
+1970-01-01T00:00:00Z 조이스틱 1970-01-01T00:00:00Z 2 1680000054000
+1680000054000은 UTC 시간대의 유닉스 시간 이후의 2023-03-28T10:40:54Z를 밀리초 단위로 나타냅니다.
+_CHANGE_TIMESTAMP를 사용하여 행의 모든 셀에 타임스탬프 설정
+TIMESTAMP 유형의 _CHANGE_TIMESTAMP 열을 내보낼 결과에 추가할 수 있습니다. Bigtable에 기록되는 모든 셀은 내보낸 결과 행의 _CHANGE_TIMESTAMP에 있는 타임스탬프 값을 사용합니다.
+Bigtable은 유닉스 시간(1970-01-01T00:00:00Z) 이전의 타임스탬프를 지원하지 않습니다. _CHANGE_TIMESTAMP 값이 NULL이면 0의 유닉스 시간이 기본 타임스탬프 값으로 사용됩니다.
+다음 쿼리는 T 테이블의 order_timestamp 열에 지정된 타임스탬프를 사용하여 product 및 amount 열의 셀을 작성합니다.
+EXPORT DATA OPTIONS (...) AS
+SELECT
+  rowkey,
+  STRUCT(product, amount) AS sales_info,
+  order_timestamp as _CHANGE_TIMESTAMP
+FROM T
+지속적으로 내보내기
+내보내기 쿼리를 계속 처리하려면 연속 쿼리 [https://cloud.google.com/bigquery/docs/continuous-queries-introduction?hl=ko]로 구성하면 됩니다.
+동일한 rowkey 값으로 여러 결과 내보내기
+rowkey 값이 동일한 여러 행을 포함하는 결과를 내보내면 Bigtable에 기록된 값이 동일한 Bigtable 행에 위치하게 됩니다.
+이 메서드를 사용하면 같은 행에 여러 버전의 열 값을 생성할 수 있습니다. 이 예시에서 BigQuery의 orders 테이블에는 다음 데이터가 포함됩니다.
+id customer order_timestamp amount_spent
+100 Bob 2023-01-01T10:10:54Z 10.99
+101 Alice 2023-01-02T12:10:50Z 102.7
+102 Bob 2023-01-04T15:17:01Z 11.1
+그러면 사용자는 다음 EXPORT DATA 문을 실행합니다.
+EXPORT DATA OPTIONS (
+uri="https://bigtable.googleapis.com/projects/
+PROJECT-ID/instances/
+INSTANCE-ID/appProfiles/
+APP_PROFILE_ID/tables/
+TABLE",
+format="CLOUD_BIGTABLE"
+) AS
+SELECT customer as rowkey, STRUCT(amount_spent) as orders_column_family, order_timestamp as _CHANGE_TIMESTAMP
+FROM orders
+이 문을 BigQuery orders 테이블과 함께 사용하면 다음 데이터가 Bigtable에 기록됩니다.
+orders_column_family
+row key amount_spent
+Alice 2023-01-02T12:10:50Z 102.7
+Bob 2023-01-01T10:10:54Z 10.99
+2023-01-04T15:17:01Z 11.1
+Bigtable로 내보내면 전체 행이 바뀌지 않고 테이블에 새 값이 병합됩니다. Bigtable에 row key의 값이 이미 있으면 새 값이 column family, 열 이름, 기록 중인 셀의 타임스탬프에 따라 이전 값을 부분적으로 또는 완전히 재정의할 수 있습니다.
+주의: 동일한 row key, column family, column qualifier, 타임스탬프에 대하여 서로 다른 값을 가진 여러 행이 있는 결과를 내보내지 마세요. 이러한 내보내기의 결과는 확정적이지 않으며 BigQuery 내의 쿼리 계획 및 예약에 따라 달라집니다. BigQuery는 내보내기 중에 재정의된 값이 내보내기 전에 Bigtable에 존재했는지 아니면 동일한 내보내기 프로세스에 의해 이전에 삽입되었는지 확인할 수 없습니다.
+프로토콜 버퍼(Protobuf) 값으로 여러 열을 내보내기
+프로토콜 버퍼 [https://protobuf.dev/]는 구조화된 데이터를 직렬화하는 유연하고 효율적인 메커니즘을 제공합니다. Protobuf로 내보내기는 BigQuery와 Bigtable 간에 서로 다른 유형이 처리되는 방식을 고려할 때 유용할 수 있습니다. BigQuery 사용자 정의 함수(UDF)를 사용하여 데이터를 Protobuf 바이너리 값으로 내보낼 수 있습니다. 자세한 내용은 Protobuf 열로 데이터 내보내기 [https://cloud.google.com/bigquery/docs/protobuf-export?hl=ko]를 참조하세요.
+내보내기 최적화
+Bigtable 대상 클러스터 [https://cloud.google.com/bigtable/docs/instances-clusters-nodes?hl=ko]의 노드 수를 수정하여 BigQuery에서 Bigtable로 레코드를 내보내는 처리량을 변경할 수 있습니다. 처리량(초당 작성한 행 수)은 대상 클러스터의 노드 수에 따라 선형으로 확장됩니다. 예를 들어 대상 클러스터의 노드 수를 두 배로 늘리면 내보내기 처리량이 대략 두 배로 늘어납니다.
+가격 책정
+표준 쿼리에서 데이터를 내보내면 데이터 추출 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#data_extraction_pricing]을 사용하여 요금이 청구됩니다. 연속 쿼리에서 데이터를 내보내면 BigQuery 용량 계산 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]을 사용하여 요금이 청구됩니다. 연속 쿼리를 실행하려면 Enterprise 또는 Enterprise Plus 버전 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]을 사용하는 예약 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko] CONTINUOUS 작업 유형을 사용하는 예약 할당 [https://cloud.google.com/bigquery/docs/reservations-workload-management?hl=ko#assignments]이 있어야 합니다.
+데이터를 내보낸 후 Bigtable에 데이터를 저장하는 데는 요금이 청구됩니다. 자세한 내용은 Bigtable 가격 책정 [https://cloud.google.com/bigtable/pricing?hl=ko#storage]을 참조하세요.
+도움이 되었나요?
+의견 보내기

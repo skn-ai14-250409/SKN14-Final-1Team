@@ -1,0 +1,78 @@
+Source URL: https://cloud.google.com/bigquery/docs/slots
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+구매할 슬롯 수 예상 [https://cloud.google.com/bigquery/docs/slots?hl=ko#estimate-slots]
+슬롯을 사용한 쿼리 실행 [https://cloud.google.com/bigquery/docs/slots?hl=ko#query_execution_using_slots]
+슬롯 리소스 절약 모드로 쿼리 실행 [https://cloud.google.com/bigquery/docs/slots?hl=ko#query_execution_under_slot_resource_economy]
+유휴 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko#idle_slots]
+예약 내 슬롯 할당 [https://cloud.google.com/bigquery/docs/slots?hl=ko#slot_allocation_within_reservations]
+초과 슬롯 사용량 [https://cloud.google.com/bigquery/docs/slots?hl=ko#excess_slot_usage]
+BigQuery의 공정 예약 [https://cloud.google.com/bigquery/docs/slots?hl=ko#fair_scheduling_in_bigquery]
+슬롯 이해
+bookmark_border
+BigQuery 슬롯은 SQL 쿼리를 실행하기 위해 BigQuery에 사용되는 가상 CPU입니다. 쿼리 실행 중에 BigQuery는 쿼리 크기와 복잡성에 따라 쿼리에 필요한 슬롯 수를 자동으로 계산합니다.
+주문형 가격 책정 모델 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing] 또는 용량 기반 가격 책정 모델 [https://cloud.google.com/bigquery/pricing?hl=ko#flat_rate_pricing]을 사용하도록 선택할 수 있습니다. 두 모델 모두 데이터 처리를 위해 슬롯이 사용됩니다. 용량 기반 모델을 사용하면 전용 또는 자동 확장되는 쿼리 처리 용량을 사용할 수 있습니다. 용량 기반 모델은 슬롯 및 분석 용량을 명시적으로 제어할 수 있지만, 주문형 모델은 그렇지 않습니다.
+용량 기반 가격 책정 모델의 고객은 예약할 슬롯 수를 명시적으로 선택합니다. 쿼리는 해당 용량 범위 내에서 실행되며, 배포되는 매 초 동안 지속적으로 해당 용량의 비용을 지불합니다. 예를 들어 2,000개의 BigQuery 슬롯을 구매하면 집계 내의 쿼리가 언제든 2,000개 이하의 가상 CPU만 사용하도록 제한됩니다. 삭제할 때까지 이 용량이 제공되며 슬롯 2,000개에 대한 비용이 청구됩니다.
+BigQuery 주문형 가격 책정 모델 [https://cloud.google.com/bigquery/quotas?hl=ko#query_jobs]의 프로젝트는 일시적 버스트 기능이 포함된 프로젝트당 슬롯 할당량을 따릅니다. 대부분의 주문형 모델 사용자에게는 기본 슬롯 용량이면 충분합니다. 워크로드에 따라 슬롯을 늘리면 쿼리 성능이 향상됩니다. 계정에서 사용하는 슬롯 수를 확인하려면 BigQuery 모니터링 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko]을 참조하세요.
+구매할 슬롯 수 예상
+BigQuery는 리소스가 증가하면서 효율적으로 확장되도록 설계되었습니다. 워크로드에 따라, 용량이 점점 늘어나면서 혜택도 점점 커질 수 있습니다. 따라서 구매할 슬롯의 최적 개수는 성능, 처리량, 유틸리티의 요구사항에 따라 달라집니다.
+기준 및 자동 확장 슬롯을 실험하여 최적의 슬롯 구성을 파악할 수 있습니다. 예를 들어 기본 슬롯 500개, 1,000개, 1,500개, 2,000개로 워크로드를 테스트하고 성능에 미치는 영향을 확인할 수 있습니다.
+프로젝트의 현재 슬롯 사용량과 지불하려고 선택한 월별 요금을 확인할 수도 있습니다. 주문형 워크로드는 슬롯 개수를 2,000개 정도로 제한하고 있지만 INFORMATION_SCHEMA.JOBS* 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko], Cloud Logging, Jobs API 또는 BigQuery 감사 로그를 사용하여 프로젝트에서 실제로 사용 중인 슬롯 수를 확인하는 것이 중요합니다. 자세한 내용은 사용 가능한 슬롯 및 할당된 슬롯 시각화 [https://cloud.google.com/bigquery/docs/admin-resource-charts?hl=ko#view-resource-utilization]를 참조하세요.
+슬롯을 구매하고 워크로드를 7일 이상 실행한 후에는 슬롯 에스티메이터를 사용하여 성능을 분석하고 슬롯 확대 또는 축소 효과를 모델링할 수 있습니다. 자세한 내용은 슬롯 용량 요구사항 추정 [https://cloud.google.com/bigquery/docs/slot-estimator?hl=ko]을 참조하세요.
+슬롯을 사용한 쿼리 실행
+BigQuery는 쿼리 작업 실행 시 선언적 SQL 문을 실행 그래프로 변환하고 일련의 쿼리 스테이지로 세분화합니다. 각 쿼리 스테이지에는 더 세분화된 실행 단계 조합이 있습니다. BigQuery는 크게 분산된 병렬 아키텍처를 사용하여 이러한 쿼리를 실행하며, 스테이지는 많은 잠재적 작업자들이 동시에 실행할 수 있는 작업 단위를 모델링합니다. 스테이지는 빠른 분산 셔플 아키텍처 [https://cloud.google.com/blog/products/gcp/separation-of-compute-and-state-in-google-bigquery-and-cloud-dataflow-and-why-it-matters?hl=ko]를 통해 서로 통신합니다. 이 아키텍처에 대한 자세한 내용은 Google Cloud 블로그 [https://cloud.google.com/blog/products/bigquery/in-memory-query-execution-in-google-bigquery?hl=ko]를 참조하세요.
+BigQuery 쿼리 실행은 동적입니다. 즉, 쿼리가 실행되는 동안 쿼리 계획이 수정될 수 있습니다. 쿼리가 실행 중인 동안에 스테이지를 도입하는 목적은 쿼리 작업자 전체의 데이터 배포를 향상시키기 위한 경우가 많습니다.
+BigQuery는 동시에 [https://en.wikipedia.org/wiki/Instruction_pipelining] 여러 스테이지를 실행할 수 있습니다. BigQuery는 쿼리 실행 속도를 높이기 위해 예측 실행 [https://en.wikipedia.org/wiki/Speculative_execution]을 활용하고, 동시 처리를 최적화하기 위해 스테이지의 파티션을 동적으로 나눌 [https://cloud.google.com/blog/products/gcp/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow?hl=ko] 수 있습니다.
+BigQuery 슬롯은 쿼리의 각 스테이지별로 개별 작업 단위를 실행합니다. 예를 들어 BigQuery에서 스테이지의 최적 동시 처리 계수를 10으로 결정하면 해당 스테이지를 처리하기 위해 10개의 슬롯을 요청합니다.
+GoogleSQL 쿼리는 동적 DAG
+슬롯 리소스 절약 모드로 쿼리 실행
+쿼리가 현재 사용 가능한 슬롯보다 더 많은 슬롯을 요청하면 BigQuery는 개별 작업 단위를 큐에 추가한 후 슬롯이 사용 가능해질 때까지 대기합니다. 쿼리 실행이 진행되고 슬롯이 확보되면 큐에 추가된 작업 단위 중 실행 대상 작업이 자동으로 선택됩니다.
+BigQuery는 특정 쿼리 스테이지에 대해 아무리 많은 슬롯이라도 요청할 수 있습니다. 요청된 슬롯 수는 구매한 용량과는 관련 없으며, 해당 스테이지에 대해 BigQuery가 결정한 가장 최적의 동시 처리 계수를 나타냅니다. 작업 단위는 큐에 추가되고 슬롯 사용이 가능해지면 실행됩니다.
+쿼리 요구가 커밋된 슬롯을 초과해도 추가 슬롯에 대한 비용은 청구되지 않으며, 추가 주문형 요금에 대해서도 비용이 청구되지 않습니다. 개별 작업 단위는 큐에 추가됩니다.
+예를 들면 다음과 같습니다.
+쿼리 스테이지에서 2,000개의 슬롯을 요청했지만 1,000개만 사용 가능하다고 가정해 보겠습니다.
+BigQuery는 1,000개의 슬롯은 모두 사용하고 나머지 1,000개의 슬롯은 큐에 추가합니다.
+그 후에 100개의 슬롯 작업이 완료되면 큐에 있는 1,000개의 작업 단위에서 100개의 작업 단위가 동적으로 선택됩니다. 작업 단위 900개가 큐에 남게 됩니다.
+그런 다음 500개의 슬롯 작업이 완료되면 큐에 남은 900개의 작업 단위에서 500개의 작업 단위가 동적으로 선택됩니다. 이제 작업 단위 400개가 큐에 남게 됩니다.
+슬롯 요청이 가용 슬롯 수를 초과한 경우 큐에 추가된 BigQuery 슬롯
+유휴 슬롯
+어떤 시점에서든 일부 슬롯은 유휴 상태로 유지될 것입니다. 여기에는 다음이 포함될 수 있습니다.
+예약 기준에 할당되지 않은 슬롯 약정
+예약 기준에 할당되었지만 사용 중이 아닌 슬롯
+기본적으로 예약에서 실행되는 쿼리에는 동일한 관리 프로젝트 내부의 다른 예약에 있는 유휴 상태의 슬롯이 사용됩니다. BigQuery는 필요하면 할당된 예약에 슬롯을 즉시 할당합니다. 다른 예약에서 사용 중인 유휴 슬롯은 빠르게 선점됩니다. 총 슬롯 사용량이 모든 예약에서 지정한 최댓값을 초과하는 경우도 잠시 있을 수 있지만 이 추가 슬롯 사용량에 대한 요금은 청구되지 않습니다.
+예를 들어 다음과 같은 예약 설정이 있다고 가정해 보겠습니다.
+project_a는 자동 확장이 적용되지 않는 기준 슬롯 500개가 있는 reservation_a에 할당됩니다.
+project_b는 자동 확장이 없는 100개의 기준 슬롯이 있는 reservation_b에 할당됩니다.
+두 예약 모두 동일한 관리 프로젝트에 있으며 이러한 예약에 할당된 다른 프로젝트는 없습니다.
+project_b에서 query_b를 실행합니다. project_a에서 실행 중인 쿼리가 없으면 query_b은 reservation_a의 유휴 슬롯 500개에 액세스할 수 있습니다. query_b가 계속 실행되는 동안 최대 600개의 슬롯(기준 슬롯 100개 및 유휴 슬롯 500개)을 사용할 수 있습니다.
+query_b가 실행되는 동안 500개의 슬롯을 사용할 수 있는 project_a에서 query_a를 실행한다고 가정해 보겠습니다.
+project_a에 500개의 기준 슬롯이 예약되어 있으므로 query_a가 즉시 시작되고 500개의 슬롯이 할당됩니다.
+query_b에 할당된 슬롯 수는 100개의 기준 슬롯으로 빠르게 줄어듭니다.
+project_b에서 실행되는 추가 쿼리는 이러한 100개의 슬롯을 공유합니다. 후속 쿼리에 시작할 슬롯이 충분하지 않으면 현재 실행 중인 쿼리가 완료되고 슬롯이 사용 가능해질 때까지 큐에 추가됩니다.
+이 예시에서 project_b가 기준 슬롯이나 자동 확장이 없이 예약에 할당된 경우 query_a 실행이 시작된 후 query_b에는 슬롯이 없습니다. BigQuery는 유휴 슬롯이 사용 가능해지거나 쿼리 시간이 초과될 때까지 query_b를 일시중지합니다. project_b의 추가 쿼리는 유휴 슬롯이 사용 가능해질 때까지 큐에 추가됩니다.
+예약에 프로비저닝된 슬롯만 사용되도록 하려면 ignore_idle_slots를 true로 설정합니다. 하지만 ignore_idle_slots가 true로 설정된 예약은 유휴 슬롯을 다른 예약과 공유합니다.
+다른 버전 [https://cloud.google.com/bigquery/docs/editions-intro?hl=ko]의 예약 간에는 유휴 슬롯을 공유할 수 없습니다. 기준 슬롯 또는 약정 슬롯만 공유할 수 있습니다. 자동 확장 슬롯 [https://cloud.google.com/bigquery/docs/slots-autoscaling-intro?hl=ko]은 일시적으로 사용할 수 있지만 축소될 수 있으므로 다른 예약의 유휴 슬롯으로 공유할 수 없습니다.
+ignore_idle_slots이 false이면 예약은 슬롯 수 0개를 가질 수 있으며, 사용되지 않은 슬롯에 여전히 액세스할 수 있습니다. default 예약만 사용하는 경우 권장사항에 따라 ignore_idle_slots을 사용 중지합니다. 그런 후 해당 예약에 프로젝트 또는 폴더를 할당 [https://cloud.google.com/bigquery/docs/reservations-assignments?hl=ko#assign_my_prod_project_to_prod_reservation]할 수 있고 여기에는 유휴 슬롯만 사용됩니다.
+ML_EXTERNAL 유형의 할당은 BigQuery ML 외부 모델 생성 작업에 사용되는 슬롯이 비선점형이라는 측면에서 예외입니다. ML_EXTERNAL 및 QUERY 할당 유형의 예약에 포함된 슬롯은 해당 슬롯이 ML_EXTERNAL 작업으로 점유되지 않은 경우에만 다른 쿼리 작업에 사용할 수 있습니다. 또한 이러한 작업은 다른 예약의 유휴 슬롯을 사용할 수 없습니다.
+예약 내 슬롯 할당
+BigQuery는 공정 예약 [https://cloud.google.com/bigquery/docs/slots?hl=ko#fair_scheduling_in_bigquery]이라는 알고리즘을 사용하여 단일 예약 내에서 슬롯 용량을 할당합니다.
+BigQuery 스케줄러는 예약 내에서, 그리고 특정 프로젝트의 작업 내에서 쿼리를 실행 중인 프로젝트 간에 슬롯을 균등하게 공유합니다. 스케줄러는 최종 공정성을 제공합니다. 짧은 기간 동안 일부 작업에 슬롯 비율이 일정하지 않을 수 있지만 결과적으로 스케줄러가 이 문제를 해결합니다. 스케줄러의 목표는 실행 중인 태스크를 공격적으로 제거하는 방식(이 경우 슬롯 시간이 낭비됨)과 지나치게 관대한 방식(이 경우 장기 실행 태스크가 포함된 작업의 슬롯 시간 비율이 일정하지 않음) 간에 균형을 찾는 것입니다.
+스케줄러로부터 수신하는 것보다 많은 슬롯이 중요한 작업에 일관적으로 필요한 경우, 슬롯 수가 보장된 추가 예약을 만들고 작업을 이 예약에 할당할 수 있습니다.
+초과 슬롯 사용량
+작업이 슬롯을 너무 오래 보유하면 위에서 설명한 대로 [https://cloud.google.com/bigquery/docs/slots?hl=ko#slot_allocation_within_reservations] 슬롯을 불공정하게 배분받을 수 있습니다. 지연을 방지하기 위해 다른 작업에서 추가 슬롯을 빌려 총 슬롯 사용 기간이 지정된 슬롯 용량을 초과할 수 있습니다. 초과 슬롯 사용량은 공정한 분배보다 더 많은 슬롯을 받는 작업에만 귀속됩니다.
+초과 슬롯에 대한 요금은 직접 청구되지 않습니다. 대신 작업은 계속 실행되고 초과 사용량이 모두 일반 용량으로 충당될 때까지 적정 비율로 슬롯 사용량을 누적합니다. 초과 슬롯은 특정한 세부 실행 통계를 제외하고 보고된 슬롯 사용량에서 제외됩니다.
+일부 선점 슬롯 대여는 향후 지연을 줄이고 슬롯 비용 가변성 감소 및 꼬리 지연 시간 감소와 같은 다른 이점을 제공하기 위해 발생할 수 있습니다. 슬롯 대여는 총 슬롯 용량의 일부로 제한됩니다.
+BigQuery의 공정 예약
+슬롯은 여러 프로젝트 간 그리고 프로젝트 내의 여러 작업 내에 균등하게 배포됩니다. 즉, 모든 쿼리는 언제든지 사용 가능한 모든 슬롯에 액세스할 수 있으며, 각 쿼리에 필요한 용량의 증감에 따라 활성 쿼리 간에 용량을 동적으로 자동 재할당됩니다. 쿼리가 완료되면 새 쿼리가 다음 조건에서 실행되도록 제출됩니다.
+새 쿼리가 제출되면 용량은 실행 쿼리 간에 자동으로 재할당됩니다. 각 쿼리에 사용할 수 있는 용량이 추가되면 개별 작업 단위는 상황에 따라 일시 중지, 재개, 큐에 추가될 수 있습니다.
+쿼리가 완료될 때마다 해당 쿼리에서 사용된 용량은 자동으로 다른 모든 쿼리에서 즉시 사용할 수 있게 됩니다.
+쿼리의 동적 DAG 변경으로 인해 쿼리에 필요한 용량이 변경될 때마다 BigQuery는 이 쿼리와 다른 모든 쿼리용으로 사용 가능한 용량을 자동으로 다시 계산하여 필요에 따라 슬롯을 재할당하거나 일시 중지합니다.
+BigQuery의 공정 예약
+복잡성과 크기에 따라 쿼리는 소유권이 있는 슬롯이 모두 필요하지 않을 수도 있고 더 많은 슬롯이 필요할 수도 있습니다. BigQuery는 공정 예약을 통해 모든 슬롯이 언제든지 완전히 소진되도록 합니다.
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,209 @@
+Source URL: https://cloud.google.com/bigquery/docs/transactions
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+트랜잭션 범위 [https://cloud.google.com/bigquery/docs/transactions?hl=ko#transaction_scope]
+트랜잭션에서 지원되는 문 [https://cloud.google.com/bigquery/docs/transactions?hl=ko#statements_supported_in_transactions]
+트랜잭션의 날짜/시간 함수 [https://cloud.google.com/bigquery/docs/transactions?hl=ko#datetime_functions_in_transactions]
+트랜잭션 예시 [https://cloud.google.com/bigquery/docs/transactions?hl=ko#example_of_a_transaction]
+트랜잭션 동시 실행 [https://cloud.google.com/bigquery/docs/transactions?hl=ko#transaction_concurrency]
+트랜잭션 정보 보기 [https://cloud.google.com/bigquery/docs/transactions?hl=ko#viewing_transaction_information]
+커밋된 또는 롤백된 모든 트랜잭션 찾기 [https://cloud.google.com/bigquery/docs/transactions?hl=ko#find_all_committed_or_rolled_back_transactions]
+트랜잭션 시작 및 종료 시간 찾기 [https://cloud.google.com/bigquery/docs/transactions?hl=ko#find_the_start_and_end_time_of_a_transaction]
+멀티 문 트랜잭션
+bookmark_border
+BigQuery는 단일 쿼리 내에서 또는 세션 사용 시 여러 쿼리 간에 멀티 문 트랜잭션을 지원합니다. 멀티 문 트랜잭션을 사용하면 하나 이상의 테이블에서 행 삽입 또는 삭제와 같은 변형 작업을 수행하고 변경사항을 원자적으로 커밋 또는 롤백할 수 있습니다.
+멀티 문 트랜잭션의 용도는 다음과 같습니다.
+여러 테이블에서 단일 트랜잭션으로 DML 변형을 수행합니다. 테이블은 여러 데이터 세트 또는 프로젝트에 확장될 수 있습니다.
+중간 계산을 기반으로 여러 단계로 단일 테이블에 변형을 수행합니다.
+트랜잭션은 ACID [https://en.wikipedia.org/wiki/ACID] 속성을 보장하고 스냅샷 격리를 지원합니다. 트랜잭션 중에 모든 읽기는 트랜잭션에서 참조되는 테이블의 일관된 스냅샷을 반환합니다. 트랜잭션의 문이 테이블을 수정하는 경우 변경사항은 동일한 트랜잭션 내의 후속 문에 표시됩니다.
+참고: 트랜잭션 중에 기본 데이터 소스가 변경되면 외부 데이터 소스의 읽기는 트랜잭션 내에서 일관성을 보장하지 않습니다.
+트랜잭션 범위
+트랜잭션이 Session mode [https://cloud.google.com/bigquery/docs/sessions-intro?hl=ko]에 있는 경우를 제외하고 단일 SQL 쿼리에 포함되어야 합니다. 쿼리에는 여러 트랜잭션이 포함될 수 있지만 중첩될 수 없습니다. 세션의 여러 쿼리에서 멀티 문 트랜젝션 [https://cloud.google.com/bigquery/docs/sessions-write-queries?hl=ko#multi_transactions]을 실행할 수 있습니다.
+트랜잭션을 시작하려면 BEGIN TRANSACTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#begin_transaction] 문을 사용합니다. 다음 상황이 하나라도 발생하면 트랜잭션이 종료됩니다.
+이 쿼리는 COMMIT TRANSACTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#commit_transaction] 문을 실행합니다. 이 문은 트랜잭션 내에서 수행된 모든 변경사항을 원자적으로 커밋합니다.
+이 쿼리는 ROLLBACK TRANSACTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#rollback_transaction] 문을 실행합니다. 이 문은 트랜잭션 내부의 모든 변경사항을 무시합니다.
+쿼리가 위의 두 문 중 하나에 도달하기 전에 종료됩니다. 이 경우 BigQuery는 자동으로 트랜잭션을 롤백합니다.
+쿼리 중에 오류가 발생하고 스크립트에 예외 핸들러 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#beginexceptionend]가 있으면 BigQuery는 제어를 예외 핸들러로 전송합니다. 예외 블록 내에서 트랜잭션을 커밋할지 또는 롤백할지 선택할 수 있습니다.
+쿼리 중에 오류가 발생하고 예외 핸들러가 없으면 스크립트가 실패하고 BigQuery는 자동으로 트랜잭션을 롤백합니다.
+다음 예시에서는 트랜잭션을 롤백하는 예외 핸들러를 보여줍니다.
+BEGIN
+
+  BEGIN TRANSACTION;
+  INSERT INTO mydataset.NewArrivals
+    VALUES ('top load washer', 100, 'warehouse #1');
+  -- Trigger an error.
+  SELECT 1/0;
+  COMMIT TRANSACTION;
+
+EXCEPTION WHEN ERROR THEN
+  -- Roll back the transaction inside the exception handler.
+  SELECT @@error.message;
+  ROLLBACK TRANSACTION;
+END;
+트랜잭션에서 지원되는 문
+트랜잭션에서 지원되는 문 유형은 다음과 같습니다.
+쿼리 문: SELECT
+DML 문: INSERT, UPDATE, DELETE, MERGE, TRUNCATE TABLE
+임시 항목의 DDL 문:
+CREATE TEMP TABLE
+CREATE TEMP FUNCTION
+임시 테이블에 대한 DROP TABLE
+임시 함수에 대한 DROP FUNCTION
+데이터 세트, 테이블, 함수와 같은 영구 항목을 만들거나 삭제하는 DDL 문은 트랜잭션 내에서 지원되지 않습니다.
+트랜잭션의 날짜/시간 함수
+트랜잭션 내에서 다음 날짜/시간 함수는 특수한 동작을 수행합니다.
+CURRENT_TIMESTAMP [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#current_timestamp], CURRENT_DATE [https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions?hl=ko#current_date], CURRENT_TIME [https://cloud.google.com/bigquery/docs/reference/standard-sql/time_functions?hl=ko#current_time] 함수는 트랜잭션이 시작되었을 때 타임스탬프를 반환합니다.
+트랜잭션이 시작되었을 때 FOR SYSTEM_TIME AS OF [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#for_system_time_as_of] 절을 사용하여 타임스탬프 범위를 넘어서는 테이블을 읽을 수는 없습니다. 그렇게 하면 오류가 반환됩니다.
+트랜잭션 예시
+이 예시에서는 다음과 같이 생성된 Inventory 및 NewArrivals의 두 테이블이 있다고 가정합니다.
+CREATE OR REPLACE TABLE mydataset.Inventory
+(
+ product string,
+ quantity int64,
+ supply_constrained bool
+);
+
+CREATE OR REPLACE TABLE mydataset.NewArrivals
+(
+ product string,
+ quantity int64,
+ warehouse string
+);
+
+INSERT mydataset.Inventory (product, quantity)
+VALUES('top load washer', 10),
+     ('front load washer', 20),
+     ('dryer', 30),
+     ('refrigerator', 10),
+     ('microwave', 20),
+     ('dishwasher', 30);
+
+INSERT mydataset.NewArrivals (product, quantity, warehouse)
+VALUES('top load washer', 100, 'warehouse #1'),
+     ('dryer', 200, 'warehouse #2'),
+     ('oven', 300, 'warehouse #1');
+Inventory 테이블에는 현재 인벤토리에 대한 정보가 있고 NewArrivals에는 새로 도착한 항목에 대한 정보가 포함되어 있습니다.
+다음 트랜잭션은 Inventory를 새로 도착한 항목으로 업데이트하고 해당 레코드를 NewArrivals에서 삭제합니다. 모든 문이 성공적으로 완료되었다고 가정하면 두 테이블의 변경사항은 단일 트랜잭션으로 원자적으로 커밋됩니다.
+BEGIN TRANSACTION;
+
+-- Create a temporary table that holds new arrivals from 'warehouse #1'.
+CREATE TEMP TABLE tmp
+  AS SELECT * FROM mydataset.NewArrivals WHERE warehouse = 'warehouse #1';
+
+-- Delete the matching records from the NewArravals table.
+DELETE mydataset.NewArrivals WHERE warehouse = 'warehouse #1';
+
+-- Merge the records from the temporary table into the Inventory table.
+MERGE mydataset.Inventory AS I
+USING tmp AS T
+ON I.product = T.product
+WHEN NOT MATCHED THEN
+ INSERT(product, quantity, supply_constrained)
+ VALUES(product, quantity, false)
+WHEN MATCHED THEN
+ UPDATE SET quantity = I.quantity + T.quantity;
+
+-- Drop the temporary table and commit the transaction.
+DROP TABLE tmp;
+
+COMMIT TRANSACTION;
+트랜잭션 동시 실행
+트랜잭션이 테이블의 행을 변형(업데이트 또는 삭제)하면 동일한 테이블의 행을 변형하는 다른 트랜잭션이나 DML 문이 동시에 실행될 수 없습니다. 충돌하는 트랜잭션은 취소됩니다. 트랜잭션 외부에서 실행되는 충돌 DML 문은 큐 추가 한도 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#update_delete_merge_dml_concurrency]에 따라 나중에 실행되도록 큐에 추가됩니다.
+새 행을 읽거나 추가하는 작업은 트랜잭션과 동시에 실행될 수 있습니다. 예를 들어 트랜잭션이 동일한 테이블의 데이터를 변형하는 동안 다음과 같은 작업은 테이블에서 동시에 수행될 수 있습니다.
+SELECT 문
+BigQuery Storage Read API 읽기 작업
+BigQuery BI Engine의 쿼리
+INSERT 문
+WRITE_APPEND 처리를 사용하여 행을 추가하는 작업 로드
+스트리밍 쓰기
+트랜잭션이 테이블만 읽거나 테이블에 새 행을 추가하는 경우 해당 테이블에서 모든 작업을 동시에 수행할 수 있습니다.
+트랜잭션 정보 보기
+BigQuery는 각 멀티 문 트랜잭션에 트랜잭션 ID를 할당합니다. 트랜잭션 ID는 트랜잭션 내에서 실행되는 각 쿼리에 연결됩니다. 작업의 트랜잭션 ID를 보려면 transaction_id 열의 INFORMATION_SCHEMA.JOBS* [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko] 뷰를 쿼리합니다.
+다중 문 트랜잭션이 실행되면 BigQuery는 트랜잭션의 각 문에 대해 하위 작업을 만듭니다. 특정 트랜잭션의 경우 해당 트랜잭션과 연결된 모든 하위 작업은 동일한 transaction_id 값을 가집니다.
+다음 예시는 트랜잭션에 대한 정보를 찾는 방법을 보여줍니다.
+커밋된 또는 롤백된 모든 트랜잭션 찾기
+다음 쿼리는 성공적으로 커밋된 모든 트랜잭션을 반환합니다.
+SELECT transaction_id, parent_job_id, query
+FROM `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE statement_type = "COMMIT_TRANSACTION" AND error_result IS NULL;
+다음 쿼리는 성공적으로 롤백된 모든 트랜잭션을 반환합니다.
+SELECT
+  transaction_id, parent_job_id, query
+FROM `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE statement_type = "ROLLBACK_TRANSACTION" AND error_result IS NULL;
+트랜잭션 시작 및 종료 시간 찾기
+다음 쿼리는 지정된 트랜잭션 ID의 시작 시간과 종료 시간을 반환합니다.
+SELECT transaction_id, start_time, end_time, statement_type
+FROM `region-us`.INFORMATION_SCHEMA.JOBS_BY_USER
+WHERE transaction_id = "
+TRANSACTION_ID"
+AND statement_type IN
+  ("BEGIN_TRANSACTION", "COMMIT_TRANSACTION", "ROLLBACK_TRANSACTION")
+ORDER BY start_time;
+작업이 실행 중인 트랜잭션 찾기
+다음 쿼리는 지정된 작업 ID와 연결된 트랜잭션을 가져옵니다. 작업이 멀티 문 트랜잭션 내에서 실행되고 있지 않으면 NULL을 반환합니다.
+SELECT transaction_id
+FROM `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE job_id = '
+JOB_ID';
+트랜잭션 내에서 실행 중인 현재 작업 찾기
+다음 쿼리는 지정된 트랜잭션 내에서 현재 실행 중인 작업에 대한 정보를 반환합니다(있는 경우).
+SELECT job_id, query, start_time, total_slot_ms
+FROM `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE transaction_id = '
+TRANSACTION_ID' AND state = RUNNING;
+테이블에 영향을 주는 활성 트랜잭션 찾기
+다음 쿼리는 지정된 테이블에 영향을 주는 활성 트랜잭션을 반환합니다. 각 활성 트랜잭션에 대해 트랜잭션이 저장 프로시저 [https://cloud.google.com/bigquery/docs/procedures?hl=ko] 내와 같은 멀티 문 쿼리의 일부로 실행되는 경우 상위 작업 ID도 반환합니다. 트랜잭션이 세션 내에서 실행 중인 경우 세션 정보도 반환합니다.
+WITH running_transactions AS (
+  SELECT DISTINCT transaction_id
+  FROM
+    `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+  EXCEPT DISTINCT
+  SELECT transaction_id
+  FROM
+    `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+  WHERE
+    statement_type = 'COMMIT_TRANSACTION'
+    OR statement_type = 'ROLLBACK_TRANSACTION'
+)
+SELECT
+  jobs.transaction_id, parent_job_id, session_info, query
+FROM
+  `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT AS jobs, running_transactions
+WHERE
+  destination_table = ("
+PROJECT_NAME", "
+DATASET_NAME", "
+TABLE_NAME")
+  AND jobs.transaction_id = running_transactions.transaction_id;
+멀티 문 트랜잭션에서 실행 중인 활성 트랜잭션 찾기
+다음 쿼리는 다중 문 트랜잭션을 실행하는 작업의 ID로 지정된 특정 작업의 활성 트랜잭션을 반환합니다.
+SELECT DISTINCT transaction_id
+FROM
+  `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE
+  parent_job_id = "
+JOB_ID"
+EXCEPT DISTINCT
+SELECT transaction_id
+FROM
+  `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE
+  parent_job_id = "
+JOB_ID"
+  AND (statement_type = 'COMMIT_TRANSACTION'
+       OR statement_type = 'ROLLBACK_TRANSACTION');
+제한사항
+트랜잭션은 영구 항목에 영향을 미치는 DDL 문을 사용할 수 없습니다.
+트랜잭션 내에서 구체화된 뷰 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko]는 논리적 뷰로 해석됩니다. 트랜잭션 내에서 구체화된 뷰를 계속 쿼리할 수 있지만 동등한 논리 뷰와 비교하여 성능 개선 또는 비용 절감이 발생하지 않습니다.
+실패한 멀티 문 트랜잭션은 롤백 작업을 트리거하고, 대기 중인 모든 변경사항을 실행취소하고, 재시도가 불가능합니다.
+트랜잭션은 최대 100개의 테이블에서 데이터를 변형하고 최대 100,000개의 파티션 수정을 수행할 수 있습니다.
+BI Engine [https://cloud.google.com/bigquery/docs/bi-engine-intro?hl=ko]은 트랜잭션 내의 쿼리를 가속화하지 않습니다.
+시스템 프러시저 [https://cloud.google.com/bigquery/docs/reference/system-procedures?hl=ko#bqrefresh_external_metadata_cache]를 사용하여 트랜잭션 내에서 외부 데이터 소스의 메타데이터를 새로고침할 수 없습니다.
+도움이 되었나요?
+의견 보내기

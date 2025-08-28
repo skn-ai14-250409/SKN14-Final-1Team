@@ -1,0 +1,187 @@
+Source URL: https://cloud.google.com/bigquery/docs/query-insights
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필수 권한 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#required_permissions]
+실행 그래프 구조 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#execution_graph_structure]
+쿼리 성능 통계 보기 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#view_query_performance_insights]
+쿼리 성능 통계 해석 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#interpret_query_performance_insights]
+슬롯 경합 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#slot_contention]
+셔플 할당량 부족 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#insufficient_shuffle_quota]
+데이터 입력 배율 변경 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#data_input_scale_change]
+높은 카디널리티 조인 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#high_cardinality_join]
+쿼리 성능 통계 가져오기
+bookmark_border
+쿼리의 실행 그래프는 BigQuery에서 쿼리를 실행하는 데 필요한 단계를 시각적으로 나타낸 것입니다. 이 문서에서는 쿼리 실행 그래프를 사용하여 쿼리 성능 문제를 진단하고 쿼리 성능 통계를 확인하는 방법을 설명합니다.
+BigQuery는 강력한 쿼리 성능을 제공하지만 쿼리 속도에 영향을 줄 수 있는 많은 내부 및 외부 요소가 포함된 복잡한 분산 시스템이기도 합니다. SQL의 선언적 특성으로 인해 복잡한 쿼리 실행이 숨겨질 수도 있습니다. 즉, 쿼리가 예상보다 느리게 실행되거나 이전에 실행된 것보다 느려질 경우 원인을 파악하는 것이 어려울 수 있습니다.
+쿼리 실행 그래프는 쿼리 계획과 쿼리 성능 세부정보를 검사하기 위한 동적 그래픽 인터페이스를 제공합니다. 실행 중이거나 완료된 쿼리의 쿼리 실행 그래프를 검토할 수 있습니다.
+또한 쿼리 실행 그래프를 사용하여 쿼리에 대한 성능 통계를 얻을 수도 있습니다. 성능 통계는 쿼리 성능을 개선하는 데 도움이 되는 최선의 추천을 제공합니다. 쿼리 성능이 다면적이기 때문에 성능 통계는 전체 쿼리 성능 중 일부 그림만 제공할 수 있습니다.
+필수 권한
+쿼리 실행 그래프를 사용하려면 다음 권한이 있어야 합니다.
+bigquery.jobs.get
+bigquery.jobs.listAll
+이러한 권한은 다음 BigQuery 사전 정의된 Identity and Access Management(IAM) 역할을 통해 제공됩니다.
+roles/bigquery.admin
+roles/bigquery.resourceAdmin
+roles/bigquery.resourceEditor
+roles/bigquery.resourceViewer
+실행 그래프 구조
+쿼리 실행 그래프는 콘솔에서 쿼리 계획을 그래픽으로 보여줍니다. 각 상자는 다음과 같은 쿼리 계획의 스테이지 [https://cloud.google.com/bigquery/docs/query-plan-explanation?hl=ko#stage_overview]를 나타냅니다.
+입력: 표에서 데이터를 읽거나 특정 열을 선택
+조인: JOIN 조건을 기반으로 두 테이블의 데이터를 병합
+집계: SUM과 같은 계산 실행
+정렬: 결과 정렬
+스테이지는 스테이지 내에서 각 작업자가 실행하는 개별 작업을 설명하는 단계 [https://cloud.google.com/bigquery/docs/query-plan-explanation?hl=ko#per-stage_step_information]로 구성됩니다. 스테이지를 클릭하여 열고 단계를 볼 수 있습니다. 스테이지에는 상대 및 절대 타이밍 정보 [https://cloud.google.com/bigquery/docs/query-plan-explanation?hl=ko#per-stage_timing_classification]도 포함됩니다. 스테이지 이름은 수행하는 단계를 요약합니다. 예를 들어 이름에 join이 있는 스테이지는 스테이지의 기본 단계가 JOIN 작업임을 의미합니다. 끝에 +가 있는 스테이지 이름은 추가적인 중요한 단계를 실행한다는 의미입니다. 예를 들어 이름에 JOIN+가 있는 스테이지는 스테이지가 조인 작업과 기타 중요한 단계를 실행한다는 의미입니다.
+스테이지를 연결하는 선은 스테이지 간의 중간 데이터 교환을 나타냅니다. BigQuery는 스테이지가 실행되는 동안 셔플 메모리에 중간 데이터를 저장합니다. 가장자리의 숫자는 스테이지 간에 교환된 예상 행 수를 나타냅니다. 셔플 메모리 할당량은 계정에 할당된 슬롯 수와 상관관계가 있습니다. 셔플 할당량을 초과하면 셔플 메모리가 디스크로 유출되어 쿼리 성능이 크게 느려질 수 있습니다.
+쿼리 성능 통계 보기
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#%EC%BD%98%EC%86%94] ---
+쿼리 성능 통계를 보려면 다음 단계를 수행합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+편집기에서 개인 기록 또는 프로젝트 기록을 클릭합니다.
+작업 목록에서 원하는 쿼리 작업을 식별합니다. more_vert 작업을 클릭하고 편집기에서 쿼리 열기를 선택합니다.
+실행 그래프 탭을 선택하고 쿼리의 각 스테이지에 대한 그래픽 표현을 확인합니다.
+
+ 
+
+쿼리 스테이지에 성능 통계가 포함되었는지 확인하려면 표시된 아이콘을 조사합니다. info_outline 정보 아이콘이 있는 스테이지는 성능 통계를 포함합니다. check_circle_outline 확인 아이콘이 있는 스테이지는 성능 통계를 포함하지 않습니다.
+스테이지를 클릭하여 스테이지 세부정보 창을 엽니다. 여기에서 다음 정보를 볼 수 있습니다.
+
+
+스테이지의 쿼리 계획 정보 [https://cloud.google.com/bigquery/docs/query-plan-explanation?hl=ko#query_plan_information]
+스테이지에서 실행되는 단계 [https://cloud.google.com/bigquery/docs/query-plan-explanation?hl=ko#per-stage_step_information]
+적용 가능한 성능 통계
+
+
+ 
+선택사항: 실행 중인 쿼리를 조사하는 경우 sync 동기화를 클릭하여 쿼리의 현재 상태가 반영되도록 실행 그래프를 업데이트합니다.
+
+ 
+선택사항: 그래프에서 스테이지 기간을 기준으로 상위 스테이지를 강조표시하려면 기간별 상위 단계 강조표시를 클릭합니다.
+
+ 
+선택사항: 슬롯 시간에 따라 상위 스테이지를 그래프에 강조표시하려면 처리별 상위 단계 강조표시를 클릭합니다.
+
+ 
+선택사항: 그래프에 셔플 재분산 스테이지를 포함하려면 셔플 재분산 단계 표시를 클릭합니다.
+
+ 
+
+이 옵션을 사용하면 기본 실행 그래프에 숨겨진 다시 파티션 나누기 및 병합 스테이지를 표시할 수 있습니다.
+
+다시 파티션 나누기 및 병합 스테이지는 쿼리가 실행되는 동안 도입되며 쿼리를 처리하는 작업자 간의 데이터 배포를 개선하는 데 사용됩니다. 이러한 스테이지는 쿼리 텍스트와 관련이 없으므로 표시되는 쿼리 계획을 단순화하기 위해 숨겨져 있습니다.
+
+
+성능 회귀 문제가 있는 쿼리의 경우 쿼리의 작업 정보 탭에도 쿼리 통계가 표시됩니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#sql] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+SELECT
+  `bigquery-public-data`.persistent_udfs.job_url(
+    project_id || ':us.' || job_id) AS job_url,
+  query_info.performance_insights
+FROM
+  `region-REGION_NAME`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE
+  DATE(creation_time) >= CURRENT_DATE - 30 -- scan 30 days of query history
+  AND job_type = 'QUERY'
+  AND state = 'DONE'
+  AND error_result IS NULL
+  AND statement_type != 'SCRIPT'
+  AND EXISTS ( -- Only include queries which had performance insights
+    SELECT 1
+    FROM UNNEST(
+      query_info.performance_insights.stage_performance_standalone_insights
+    )
+    WHERE slot_contention OR insufficient_shuffle_quota
+    UNION ALL
+    SELECT 1
+    FROM UNNEST(
+      query_info.performance_insights.stage_performance_change_insights
+    )
+    WHERE input_data_change.records_read_diff_percentage IS NOT NULL
+  );
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#api] ---
+jobs.list [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/list?hl=ko] API 메서드를 호출하고 반환된 JobStatistics2 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobStatistics2] 정보를 조사하여 비그래픽 형식으로 쿼리 성능 통계를 확인할 수 있습니다.
+쿼리 성능 통계 해석
+이 섹션에서 성능 통계의 의미와 대처 방법을 자세히 알아보세요.
+성능 통계의 대상에는 다음 두 유형이 있습니다.
+분석가: 프로젝트에서 쿼리를 실행합니다. 이전에 실행한 쿼리가 예기치 않게 느리게 실행된 이유를 알아내고 쿼리의 성능을 높이는 방법을 알고자 합니다. 필수 권한 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#required_permissions]에 설명된 권한이 있습니다.
+데이터 레이크 또는 데이터 웨어하우스 관리자: 조직의 BigQuery 리소스 및 예약을 관리합니다. BigQuery 관리자 역할 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.admin]과 연결된 권한이 있습니다.
+다음의 각 섹션에서는 어떠한 역할을 담당하는지를 기준으로 확인된 성능 통계에 대처하는 방법을 안내합니다.
+슬롯 경합
+쿼리를 실행하면 BigQuery는 쿼리에 필요한 작업을 태스크로 분할하려고 시도합니다. 태스크는 한 스테이지에서 입출력되는 단일 데이터 슬라이스입니다. 스테이지에서 단일 슬롯이 태스크를 선택하여 데이터 슬라이스를 실행합니다. 이상적인 상황에서는 BigQuery 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko]이 이러한 태스크를 병렬로 실행하여 고성능을 달성합니다. 쿼리에서 많은 태스크가 실행되도록 준비했지만 BigQuery에서 사용 가능한 슬롯이 충분하지 않은 경우 슬롯 경합이 발생합니다.
+분석가인 경우 대처 방법
+쿼리에서 처리되는 데이터 감소 [https://cloud.google.com/bigquery/docs/best-practices-performance-communication?hl=ko]의 안내에 따라 쿼리에서 처리하는 데이터를 줄입니다.
+관리자인 경우 대처 방법
+다음 작업을 수행하여 가용 슬롯을 늘리거나 슬롯 사용량을 줄입니다.
+BigQuery의 주문형 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]을 사용하는 경우 쿼리는 공유 슬롯 풀을 사용합니다. 대신 예약 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko]을 구매하여 용량 기반 분석 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]으로 전환해 보세요. 예약을 사용하면 조직의 쿼리를 위한 전용 슬롯을 예약할 수 있습니다.
+BigQuery 예약을 사용하고 있는 경우 예약에서 쿼리를 실행한 프로젝트에 할당된 슬롯이 충분한지 확인합니다. 다음과 같은 시나리오에서는 예약의 슬롯이 부족할 수 있습니다.
+예약 슬롯을 다른 작업에서 사용하고 있습니다. 관리 리소스 차트 [https://cloud.google.com/bigquery/docs/admin-resource-charts?hl=ko]를 사용하면 조직의 예약 사용 현황을 확인할 수 있습니다.
+예약에 빠른 쿼리 실행을 위해 할당된 슬롯이 부족합니다. 슬롯 에스티메이터 [https://cloud.google.com/bigquery/docs/slot-estimator?hl=ko]를 사용하면 쿼리의 태스크를 효율적으로 처리하는 데 필요한 예약 크기를 예상할 수 있습니다.
+이 문제를 해결하려면 다음 솔루션 중 하나를 시도해 보세요.
+해당 예약에 슬롯(기준 슬롯 또는 최대 예약 슬롯)을 더 추가합니다.
+예약을 추가로 만들고 쿼리를 실행하는 프로젝트에 할당합니다.
+리소스 사용량이 많은 쿼리를 단일 예약 안에서 시간별로 분산하거나 여러 예약으로 분산합니다.
+쿼리하는 테이블을 클러스터링합니다 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]. 클러스터링은 BigQuery가 상관 데이터가 있는 열을 빠르게 읽는 데 도움이 됩니다.
+쿼리하는 테이블을 파티션으로 나눕니다 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]. 파티션을 나누지 않으면 BigQuery가 전체 테이블을 읽습니다. 테이블을 파티션으로 나누면 테이블에서 관심 있는 부분만 쿼리할 수 있습니다.
+셔플 할당량 부족
+BigQuery는 쿼리를 실행하기 전에 쿼리의 로직을 여러 스테이지로 분할 [https://cloud.google.com/bigquery/docs/query-plan-explanation?hl=ko#background]합니다. BigQuery 슬롯은 각 스테이지의 태스크를 실행합니다. 슬롯은 한 스테이지의 태스크 실행을 완료하면 셔플 [https://cloud.google.com/blog/products/bigquery/in-memory-query-execution-in-google-bigquery?hl=ko]에 중간 결과를 저장합니다. 쿼리의 후속 스테이지에서는 셔플의 데이터를 읽어서 쿼리 실행을 계속합니다. 셔플에 기록해야 하는 데이터가 셔플 용량을 초과하면 셔플 할당량 부족이 발생합니다.
+분석가인 경우 대처 방법
+슬롯 경합과 마찬가지로 쿼리가 처리하는 데이터 양을 줄이면 셔플 사용량이 줄어들 수 있습니다. 이렇게 하려면 쿼리에서 처리되는 데이터 감소 [https://cloud.google.com/bigquery/docs/best-practices-performance-communication?hl=ko]의 안내를 따르세요.
+SQL의 특정 작업, 특히 JOIN 작업 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#join_types]과 GROUP BY 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#group_by_clause]은 셔플을 집중적으로 사용하는 경향이 있습니다. 가능한 경우 이러한 작업에서 데이터의 양을 줄이면 셔플 사용량이 줄어들 수 있습니다.
+관리자인 경우 대처 방법
+다음 작업을 수행하여 셔플 할당량 경합을 줄입니다.
+슬롯 경합과 마찬가지로 BigQuery의 주문형 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]을 사용하는 경우 쿼리는 공유 슬롯 풀을 사용합니다. 대신 예약 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko]을 구매하여 용량 기반 분석 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]으로 전환해 보세요. 예약은 프로젝트의 쿼리를 위한 전용 슬롯과 셔플 용량을 제공합니다.
+BigQuery 예약을 사용하는 경우 슬롯에는 전용 셔플 용량이 제공됩니다. 예약에서 실행하는 일부 쿼리가 셔플을 집중적으로 사용하는 경우 병렬로 실행되는 다른 쿼리에서 셔플 용량이 부족해질 수 있습니다. INFORMATION_SCHEMA.JOBS_TIMELINE 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs-timeline?hl=ko]의 period_shuffle_ram_usage_ratio 열을 쿼리하면 셔플 용량을 집중적으로 사용하는 작업을 식별할 수 있습니다.
+이 문제를 해결하려면 다음 솔루션 중 하나 이상을 시도해 보세요.
+해당 예약에 슬롯을 더 추가합니다.
+예약을 추가로 만들고 쿼리를 실행하는 프로젝트에 할당합니다.
+셔플 사용량이 많은 쿼리를 단일 예약 안에서 시간별로 분산하거나 여러 예약으로 분산합니다.
+데이터 입력 배율 변경
+이러한 성능 통계가 수신되었다면 마지막으로 쿼리를 실행한 때보다 특정 입력 테이블에서 쿼리가 읽는 데이터 양이 50% 이상 증가한 것입니다. 테이블 변경 내역 [https://cloud.google.com/bigquery/docs/change-history?hl=ko]을 사용하면 쿼리에 사용된 테이블 크기가 최근에 증가했는지 확인할 수 있습니다.
+분석가인 경우 대처 방법
+쿼리에서 처리되는 데이터 감소 [https://cloud.google.com/bigquery/docs/best-practices-performance-communication?hl=ko]의 안내에 따라 쿼리에서 처리하는 데이터를 줄입니다.
+높은 카디널리티 조인
+쿼리에 조인 양쪽에서 비고유 키가 있는 조인이 포함된 경우 출력 테이블 크기가 입력 테이블의 어느 한쪽 크기보다 상당히 커질 수 있습니다. 이 통계는 입력 행 대비 출력 행의 비율이 높음을 나타내며 이러한 행 수에 대한 정보를 제공합니다.
+분석가인 경우 대처 방법
+조인 조건을 확인하여 출력 테이블의 크기 증가가 예상된 것인지 확인합니다. 교차 조인 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#cross_join]은 사용하지 않습니다. 교차 조인을 사용해야 할 경우에는 GROUP BY 절을 사용해서 결과를 미리 집계하거나 윈도우 함수를 사용합니다. 자세한 내용은 JOIN 사용 전 데이터 감소 [https://cloud.google.com/bigquery/docs/best-practices-performance-communication?hl=ko#reduce_data_before_using_a_join]를 참조하세요.
+파티션 편향
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+이 기능에 대한 의견을 제공하거나 지원을 요청하려면 bq-query-inspector-feedback@google.com [mailto:%0Abq-query-inspector-feedback@google.com]으로 이메일을 보내세요.
+편향된 데이터 분포로 인해 쿼리 실행 속도가 느려질 수 있습니다. 쿼리가 실행되면 BigQuery는 데이터를 작은 파티션으로 분할합니다. 슬롯 간에는 파티션을 공유할 수 없습니다. 따라서 데이터가 균일하지 않게 분산되면 일부 파티션이 매우 커지므로 크기가 큰 파티션을 처리하는 슬롯이 비정상 종료됩니다.
+편향은 JOIN 단계에서 발생합니다. JOIN 작업을 실행하면 BigQuery가 JOIN 작업의 오른쪽과 왼쪽의 데이터를 파티션으로 분할합니다. 파티션이 너무 큰 경우 다시 파티션 나누기 단계를 통해 데이터가 재분배됩니다. 편향이 너무 심하고 BigQuery를 추가로 재조정할 수 없는 경우 파티션 편향 통계가 'JOIN' 단계에 추가됩니다. 이 프로세스를 파티션 다시 나누기 단계라고 합니다. BigQuery에서 더 이상 분할할 수 없는 대규모 파티션을 감지하면 파티션 편향 통계가 JOIN 단계에 추가됩니다.
+분석가인 경우 대처 방법
+파티션 편향을 방지하려면 데이터를 가능한 한 빨리 필터링하세요.
+쿼리 스테이지 정보 해석
+쿼리 성능 통계 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko#interpret_query_performance_insights] 이외에도 쿼리 스테이지를 자세히 검토할 때 다음 가이드라인에 따라 쿼리에 문제가 있는지 확인할 수 있습니다.
+하나 이상의 스테이지에서 대기 시간(밀리초) 값이 이전 쿼리 실행에 비해 높은 경우:
+워크로드를 수용할 수 있도록 슬롯 [https://cloud.google.com/bigquery/docs/slots?hl=ko]이 충분한지 확인합니다. 그렇지 않으면 서로 경합하지 않도록 리소스 집약적인 쿼리를 실행할 때 부하를 분산합니다.
+대기 시간(밀리초) 값이 한 스테이지에 나타난 것보다 높으면 그 이전 스테이지를 조사해서 병목 현상이 있는지 확인합니다. 쿼리에 포함된 테이블의 데이터 또는 스키마가 크게 달라진 경우 쿼리 성능에 영향을 줄 수 있습니다.
+한 스테이지의 셔플 출력 바이트 값이 이전에 쿼리를 실행한 것보다 높거나 이전 스테이지보다 높으면 해당 스테이지에서 처리된 단계에서 데이터 양이 예기치 않게 크게 생성되었는지 확인합니다. 이에 대한 한 가지 일반적인 원인은 조인 양측에 중복된 키가 있을 때 하나의 단계로 INNER JOIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#inner_join]이 처리되는 경우입니다. 그러면 예기치 않게 많은 양의 데이터가 반환될 수 있습니다.
+실행 그래프를 사용하여 기간 및 처리별로 상위 스테이지를 조사합니다. 생성되는 데이터 양과 쿼리에 참조된 테이블 크기에 비례하는지 여부를 고려합니다. 그렇지 않으면 해당 스테이지의 단계를 검토하여 이로 인해 예기치 않게 중간 데이터가 크게 생성될 수 있는지 확인합니다.
+다음 단계
+쿼리 성능 향상에 대한 팁은 쿼리 최적화 가이드라인 [https://cloud.google.com/bigquery/docs/best-practices-performance-overview?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

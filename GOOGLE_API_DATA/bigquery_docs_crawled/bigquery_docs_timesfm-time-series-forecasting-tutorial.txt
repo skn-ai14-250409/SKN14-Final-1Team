@@ -1,0 +1,166 @@
+Source URL: https://cloud.google.com/bigquery/docs/timesfm-time-series-forecasting-tutorial
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+TimesFM 단변량 모델로 여러 시계열 예측
+bookmark_border
+출시 노트
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/timesfm-time-series-forecasting-tutorial?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/timesfm-time-series-forecasting-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/timesfm-time-series-forecasting-tutorial?hl=ko#before-you-begin]
+단일 자전거 공유 여행 시계열 예측 [https://cloud.google.com/bigquery/docs/timesfm-time-series-forecasting-tutorial?hl=ko#forecast_a_single_bike_share_trips_time_series]
+예측된 데이터를 입력 데이터와 비교 [https://cloud.google.com/bigquery/docs/timesfm-time-series-forecasting-tutorial?hl=ko#compare_the_forecasted_data_to_the_input_data]
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대해 의견을 제공하거나 지원을 요청하려면 bqml-feedback@google.com [mailto:bqml-feedback@google.com]으로 이메일을 보내세요.
+이 튜토리얼에서는 BigQuery ML의 내장 TimesFM 단변량 모델 [https://cloud.google.com/bigquery/docs/timesfm-model?hl=ko]과 함께 AI.FORECAST 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-ai-forecast?hl=ko]를 사용하여 특정 열의 과거 값을 기반으로 해당 열의 미래 값을 예측하는 방법을 설명합니다.
+이 튜토리얼에서는 공개 bigquery-public-data.san_francisco_bikeshare.bikeshare_trips [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=san_francisco_bikeshare&%3Bt=bikeshare_trips&%3Bpage=table&hl=ko] 테이블의 데이터를 사용합니다.
+목표
+이 튜토리얼에서는 내장 TimesFM 모델과 함께 AI.FORECAST 함수를 사용하여 자전거 공유 여행을 예측하는 방법을 안내합니다. 처음 두 섹션에서는 단일 시계열의 결과를 예측하고 시각화하는 방법을 다룹니다. 세 번째 섹션에서는 여러 시계열을 예측하는 방법을 다룹니다.
+비용
+이 튜토리얼에서는 비용이 청구될 수 있는 다음과 같은 Google Cloud구성요소를 사용합니다.
+BigQuery
+BigQuery ML
+BigQuery 비용에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지를 참조하세요.
+BigQuery ML 비용에 대한 자세한 내용은 BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]을 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery는 새 프로젝트에서 자동으로 사용 설정됩니다. 기존 프로젝트에서 BigQuery를 활성화하려면 다음을 수행합니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+단일 자전거 공유 여행 시계열 예측
+AI.FORECAST 함수를 사용하여 미래 시계열 값을 예측합니다.
+다음 쿼리는 지난 4개월의 과거 데이터를 기반으로 다음 달 (약 720시간)의 시간당 구독자 자전거 공유 여행 수를 예측합니다. confidence_level 인수는 쿼리가 95% 신뢰 수준의 예측 구간을 생성함을 나타냅니다.
+TimesFM 모델로 데이터를 예측하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT *
+FROM
+  AI.FORECAST(
+    (
+      SELECT TIMESTAMP_TRUNC(start_date, HOUR) as trip_hour, COUNT(*) as num_trips
+FROM `bigquery-public-data.san_francisco_bikeshare.bikeshare_trips`
+WHERE subscriber_type = 'Subscriber' AND start_date >= TIMESTAMP('2018-01-01')
+GROUP BY TIMESTAMP_TRUNC(start_date, HOUR)
+    ),
+    horizon => 720,
+    confidence_level => 0.95,
+    timestamp_col => 'trip_hour',
+    data_col => 'num_trips');
+결과는 다음과 유사합니다.
++-------------------------+-------------------+------------------+---------------------------------+---------------------------------+--------------------+
+| forecast_timestamp      | forecast_value    | confidence_level | prediction_interval_lower_bound | prediction_interval_upper_bound | ai_forecast_status |
++-------------------------+-------------------+------------------+---------------------------------+---------------------------------+--------------------+
+| 2018-05-01 00:00:00 UTC | 26.3045959...     |            0.95  | 21.7088378...                   | 30.9003540...                   |                    |
++-------------------------+-------------------+------------------+---------------------------------+---------------------------------+--------------------+
+| 2018-05-01 01:00:00 UTC | 34.0890502...     |            0.95  | 2.47682913...                   | 65.7012714...                   |                    |
++-------------------------+-------------------+------------------+---------------------------------+---------------------------------+--------------------+
+| 2018-05-01 02:00:00 UTC | 24.2154693...     |            0.95  | 2.87621605...                   | 45.5547226...                   |                    |
++-------------------------+-------------------+------------------+---------------------------------+---------------------------------+--------------------+
+| ...                     | ...               |  ...             | ...                             |  ...                            |                    |
++-------------------------+-------------------+------------------+---------------------------------+---------------------------------+--------------------+
+예측된 데이터를 입력 데이터와 비교
+AI.FORECAST 함수 출력과 함수 입력 데이터의 하위 집합을 함께 차트로 표시하여 비교합니다.
+다음 단계에 따라 함수 출력을 차트로 표시합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+WITH historical AS (
+SELECT TIMESTAMP_TRUNC(start_date, HOUR) as trip_hour, COUNT(*) as num_trips
+FROM `bigquery-public-data.san_francisco_bikeshare.bikeshare_trips`
+WHERE subscriber_type = 'Subscriber' AND start_date >= TIMESTAMP('2018-01-01')
+GROUP BY TIMESTAMP_TRUNC(start_date, HOUR)
+ORDER BY TIMESTAMP_TRUNC(start_date, HOUR)
+)
+SELECT * 
+FROM 
+(
+(SELECT
+    trip_hour as date,
+    num_trips AS historical_value,
+    NULL as forecast_value,
+    'historical' as type,
+    NULL as prediction_interval_low,
+    NULL as prediction_interval_upper_bound
+FROM
+    historical
+ORDER BY historical.trip_hour DESC
+LIMIT 400)
+UNION ALL
+(SELECT forecast_timestamp AS date,
+        NULL as historical_value,
+        forecast_value as forecast_value, 
+        'forecast' as type, 
+        prediction_interval_lower_bound, 
+        prediction_interval_upper_bound
+FROM
+    AI.FORECAST(
+    (
+    SELECT * FROM historical
+    ),
+    horizon => 720,
+    confidence_level => 0.99,
+    timestamp_col => 'trip_hour',
+    data_col => 'num_trips')))
+ORDER BY date asc;
+쿼리 실행이 완료되면 쿼리 결과 창에서 차트 탭을 클릭합니다. 결과 차트는 다음과 유사합니다.
+입력 데이터와 예측 데이터에서 비슷한 자전거 공유 사용량을 확인할 수 있습니다. 또한 예측된 시간대가 미래로 갈수록 예측 구간 하한과 상한이 증가하는 것을 확인할 수 있습니다.
+여러 자전거 공유 여행 시계열 예측
+다음 쿼리는 지난 4개월의 과거 데이터를 기반으로 다음 달 (약 720시간)의 구독자 유형별, 시간별 자전거 공유 여행 수를 예측합니다. confidence_level 인수는 쿼리가 95% 신뢰 수준의 예측 구간을 생성함을 나타냅니다.
+TimesFM 모델로 데이터를 예측하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+SELECT *
+FROM
+  AI.FORECAST(
+    (
+      SELECT TIMESTAMP_TRUNC(start_date, HOUR) as trip_hour, subscriber_type, COUNT(*) as num_trips
+      FROM `bigquery-public-data.san_francisco_bikeshare.bikeshare_trips`
+      WHERE start_date >= TIMESTAMP('2018-01-01')
+      GROUP BY TIMESTAMP_TRUNC(start_date, HOUR), subscriber_type
+    ),
+    horizon => 720,
+    confidence_level => 0.95,
+    timestamp_col => 'trip_hour',
+    data_col => 'num_trips',
+    id_cols => ['subscriber_type']);
+결과는 다음과 유사합니다.
++---------------------+--------------------------+------------------+------------------+---------------------------------+---------------------------------+--------------------+
+| subscriber_type     | forecast_timestamp       | forecast_value   | confidence_level | prediction_interval_lower_bound | prediction_interval_upper_bound | ai_forecast_status |
++---------------------+--------------------------+------------------+------------------+---------------------------------+---------------------------------+--------------------+
+| Subscriber          | 2018-05-01 00:00:00 UTC  | 26.3045959...    |            0.95  | 21.7088378...                   | 30.9003540...                   |                    |
++---------------------+--------------------------+------------------+------------------+---------------------------------+---------------------------------+--------------------+
+| Subscriber          |  2018-05-01 01:00:00 UTC | 34.0890502...    |            0.95  | 2.47682913...                   | 65.7012714...                   |                    |
++---------------------+-------------------+------------------+-------------------------+---------------------------------+---------------------------------+--------------------+
+| Subscriber          |  2018-05-01 02:00:00 UTC | 24.2154693...    |            0.95  | 2.87621605...                   | 45.5547226...                   |                    |
++---------------------+--------------------------+------------------+------------------+---------------------------------+---------------------------------+--------------------+
+| ...                 | ...                      |  ...             | ...              | ...                             |  ...                            |                    |
++---------------------+--------------------------+------------------+------------------+---------------------------------+---------------------------------+--------------------+
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트를 유지하고 개별 리소스를 삭제하세요.
+프로젝트 삭제
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+BigQuery의 AI 및 ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]에서 BigQuery ML 개요 참조하기
+도움이 되었나요?
+의견 보내기

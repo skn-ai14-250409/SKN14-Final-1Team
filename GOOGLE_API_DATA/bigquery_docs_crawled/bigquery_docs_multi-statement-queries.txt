@@ -1,0 +1,297 @@
+Source URL: https://cloud.google.com/bigquery/docs/multi-statement-queries
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+멀티 문 쿼리 작성, 실행, 저장 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#work_with_multi_statement_queries]
+멀티 문 쿼리 작성 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#write_a_multi_statement_query]
+멀티 문 쿼리 실행 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#run_multi_statement_queries]
+멀티 문 쿼리 테스트 실행 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#dryrun_multi_statement_queries]
+멀티 문 쿼리 저장 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#save_multi_statement_queries]
+멀티 문 쿼리 작업
+bookmark_border
+이 문서에서는 멀티 문 쿼리를 작성하는 방법, 멀티 문 쿼리에서 임시 테이블을 사용하는 방법, 멀티 문 쿼리에서 변수를 참조하는 방법, 멀티 문 쿼리를 디버깅하는 방법 등 BigQuery에서 멀티 문 쿼리를 사용하는 방법을 설명합니다.
+멀티 문 쿼리는 하나의 요청으로 실행할 수 있는 SQL 문 모음입니다. 멀티 문 쿼리를 사용하면 공유 상태로 한 시퀀스에서 여러 문을 실행할 수 있습니다. 멀티 문 쿼리에는 테이블 데이터 추가 또는 수정과 같은 부작용이 발생할 수 있습니다.
+멀티 문 쿼리는 저장 프로시져 [https://cloud.google.com/bigquery/docs/procedures?hl=ko]에서 자주 사용되며 변수 정의 및 제어 흐름 구현과 같은 작업을 수행할 수 있는 절차적 언어 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko]을 지원합니다.
+멀티 문 쿼리 작성, 실행, 저장
+멀티 문 쿼리는 세미콜론으로 구분된 하나 이상의 SQL 문으로 구성됩니다. 모든 유효한 SQL 문은 멀티 문 쿼리에서 사용할 수 있습니다. 멀티 문 쿼리에는 SQL 문을 사용하여 변수를 사용하거나 제어 흐름을 구현할 수 있는 절차적 언어 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko]도 포함될 수 있습니다.
+멀티 문 쿼리 작성
+BigQuery에서 멀티 문 쿼리를 작성할 수 있습니다. 다음 멀티 쿼리 문 쿼리는 변수를 선언하고 IF [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#if] 문 내에서 변수를 사용합니다.
+DECLARE day INT64;
+SET day = (SELECT EXTRACT(DAYOFWEEK from CURRENT_DATE));
+if day = 1 or day = 7 THEN
+  SELECT 'Weekend';
+ELSE
+  SELECT 'Weekday';
+END IF
+BigQuery는 문이 전적으로 CREATE TEMP FUNCTION 문 다음에 단일 SELECT 문 순으로 구성되지 않는 한, 여러 개의 문을 포함한 요청을 멀티 문 쿼리로 해석합니다. 예를 들어 다음은 멀티 문 쿼리로 간주되지 않습니다.
+CREATE TEMP FUNCTION Add(x INT64, y INT64) AS (x + y);
+SELECT Add(3, 4);
+멀티 문 쿼리 실행
+Google Cloud 콘솔에서, 또는 bq 명령줄 도구를 사용하여 다른 쿼리와 동일한 방식으로 멀티 문 쿼리를 실행할 수 있습니다.
+멀티 문 쿼리 테스트 실행
+멀티 문 쿼리에서 읽은 바이트 수를 추정하려면 테스트 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#dry-run]을 고려하세요. 멀티 문 쿼리의 테스트 실행은 SELECT 문만 포함된 쿼리에 가장 정확합니다.
+테스트 실행에서는 다음 쿼리 및 문 유형에 대해 특수 처리가 가능합니다.
+CALL 문: 테스트 실행에서는 호출된 프로시져가 존재하고 제공된 인수와 일치하는 서명이 있는지 검증합니다. 호출된 프로시져의 콘텐츠와 CALL 문 다음의 모든 문은 검증되지 않습니다.
+DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko]: 테스트 실행에서 첫 번째 DDL 문을 검증한 후 중지합니다. 이후의 모든 문은 건너뜁니다. CREATE TEMP TABLE 문의 테스트 실행은 지원되지 않습니다.
+DML 문 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko]: 테스트 실행으로 DML 문의 유효성을 검사한 후 후속 문의 유효성을 계속 검사합니다. 이 경우 바이트 추정치는 원래 테이블 크기를 기준으로 하며 DML 문의 결과는 고려하지 않습니다.
+EXECUTE IMMEDIATE 문: 테스트 실행은 쿼리 표현식의 유효성을 검사하지만 동적 쿼리 자체를 평가하지 않습니다. EXECUTE IMMEDIATE 문 다음에 오는 모든 문은 건너뜁니다.
+파티션 필터에서 변수를 사용하는 쿼리: 테스트 실행에서 초기 쿼리 및 후속 문의 유효성을 검사합니다. 하지만 테스트 실행에서는 파티션 필터의 변수의 런타임 값을 계산할 수 없습니다. 이는 읽은 바이트 추정치에 영향을 미칩니다.
+FOR SYSTEM TIME AS OF 절의 타임스탬프 표현식에서 변수를 사용하는 쿼리: 테스트 실행에서는 테이블의 현재 콘텐츠를 사용하고 FOR SYSTEM TIME AS OF 절을 무시합니다. 이는 현재 테이블과 테이블의 이전 반복 사이에 크기 차이가 있는 경우 읽기 추정 바이트 수에 영향을 미칩니다.
+FOR, IF, WHILE 제어 문: 테스트 실행이 즉시 중지됩니다. 조건 표현식, 제어문의 본문, 모든 후속 문은 검증되지 않습니다.
+테스트 실행은 최선의 방식으로 작동하며 기본 프로세스는 변경될 수 있습니다. 테스트 실행에는 다음 규정이 적용됩니다.
+시험 실행이 성공적으로 완료된 쿼리는 성공적으로 실행되지 않을 수 있습니다. 예를 들어 테스트 실행에서 감지되지 않는 이유로 런타임 시 쿼리가 실패할 수 있습니다.
+성공적으로 실행된 쿼리는 테스트 실행을 성공적으로 완료하지 못할 수 있습니다. 예를 들어 실행 시 포착된 이유로 인해 쿼리가 테스트 실행에 실패할 수 있습니다.
+오늘 성공적으로 실행된 연습 실행이 항상 향후에 실행된다는 보장은 없습니다. 예를 들어 테스트 실행 구현을 변경하면 이전에 감지되지 않은 쿼리에서 오류가 감지될 수 있습니다.
+멀티 문 쿼리 저장
+멀티 문 쿼리를 저장하려면 저장된 쿼리로 작업 [https://cloud.google.com/bigquery/docs/work-with-saved-queries?hl=ko]을 참조하세요.
+멀티 문 쿼리에서 변수 사용
+멀티 문 쿼리에는 사용자 생성 변수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#declare]와 시스템 변수 [https://cloud.google.com/bigquery/docs/reference/system-variables?hl=ko]가 포함될 수 있습니다.
+사용자 생성 변수를 선언하고 값을 할당하고 쿼리 전체에서 참조할 수 있습니다.
+쿼리에서 시스템 변수를 참조하여 일부 값에 값을 할당할 수 있지만 사용자 정의 변수와 달리 시스템 변수는 선언하지 않습니다. BigQuery에는 시스템 변수가 내장되어 있습니다.
+사용자 생성 변수 선언
+멀티 문 쿼리의 시작 부분이나 BEGIN [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#begin] 블록의 시작 부분에서 사용자 생성 변수를 선언해야 합니다. 멀티 문 쿼리 시작 부분에 선언된 변수는 전체 쿼리의 범위에 속합니다. BEGIN 블록 내에 선언된 변수에는 블록의 범위가 있습니다. 이는 해당 END 문 다음에 범위를 벗어납니다. 변수의 최대 크기는 1MB이며, 멀티 문 쿼리에 사용되는 모든 변수의 최대 크기는 10MB입니다.
+다음과 같이 DECLARE [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#declare] 절차 문으로 변수를 선언할 수 있습니다.
+DECLARE x INT64;
+
+BEGIN
+DECLARE y INT64;
+-- Here you can reference x and y
+END;
+
+-- Here you can reference x, but not y
+사용자 생성 변수 설정
+사용자 생성 변수를 선언한 후에는 SET [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#set] 절차 문으로 다음과 같이 변수에 값을 할당할 수 있습니다.
+DECLARE x INT64 DEFAULT 0;
+SET x = 10;
+시스템 변수 설정
+시스템 변수를 만들지 않지만 다음과 같이 일부 변수의 기본값을 재정의할 수 있습니다.
+SET @@dataset_project_id = 'MyProject';
+다중 문 쿼리에서 시스템 변수를 설정하고 암시적으로 사용할 수도 있습니다. 예를 들어 다음 쿼리에서는 새 테이블을 만들 때마다 프로젝트를 포함해야 합니다.
+BEGIN
+  CREATE TABLE MyProject.MyDataset.MyTempTableA (id STRING);
+  CREATE TABLE MyProject.MyDataset.MyTempTableB (id STRING);
+END;
+프로젝트를 테이블 경로에 여러 번 추가하지 않으려면 데이터 세트 프로젝트 ID MyProject를 멀티 문 쿼리의 @@dataset_project_id 시스템 변수에 할당하면 됩니다. 이 할당은 MyProject를 나머지 쿼리의 기본 프로젝트로 만듭니다.
+SET @@dataset_project_id = 'MyProject';
+
+BEGIN
+  CREATE TABLE MyDataset.MyTempTableA (id STRING);
+  CREATE TABLE MyDataset.MyTempTableB (id STRING);
+END;
+마찬가지로 @@dataset_id 시스템 변수를 설정하여 쿼리의 기본 데이터 세트를 할당할 수 있습니다. 예를 들면 다음과 같습니다.
+SET @@dataset_project_id = 'MyProject';
+SET @@dataset_id = 'MyDataset';
+
+BEGIN
+  CREATE TABLE MyTempTableA (id STRING);
+  CREATE TABLE MyTempTableB (id STRING);
+END;
+또한 멀티 문 쿼리의 많은 부분에서 @@dataset_id와 같은 시스템 변수를 명시적으로 참조할 수 있습니다. 자세한 내용은 시스템 변수 예시 [https://cloud.google.com/bigquery/docs/reference/system-variables?hl=ko#examples]를 참고하세요.
+사용자 생성 변수 참조
+사용자 생성 변수를 선언하고 설정한 후 멀티 문 쿼리에서 이를 참조할 수 있습니다. 변수와 열의 이름이 같으면 열이 우선 적용됩니다.
+column x + column x를 반환합니다.
+DECLARE x INT64 DEFAULT 0;
+SET x = 10;
+
+WITH Numbers AS (SELECT 50 AS x)
+SELECT (x+x) AS result FROM Numbers;
++--------+
+| result |
++--------+
+| 100    |
++--------+
+column y + variable x를 반환합니다.
+DECLARE x INT64 DEFAULT 0;
+SET x = 10;
+
+WITH Numbers AS (SELECT 50 AS y)
+SELECT (y+x) AS result FROM Numbers;
++--------+
+| result |
++--------+
+| 60     |
++--------+
+멀티 문 쿼리에서 임시 테이블 사용
+임시 테이블을 사용하면 중간 결과를 테이블에 저장할 수 있습니다. 임시 테이블은 BigQuery에서 관리되므로 이를 데이터 세트에 저장하거나 유지보수할 필요가 없습니다. 임시 테이블 스토리지의 비용이 청구됩니다.
+다중 문 쿼리에서 임시 테이블을 만들고 참조할 수 있습니다. 임시 테이블 사용을 마쳤으면 스토리지 비용을 최소화하기 위해 수동으로 삭제하거나 24시간 후 BigQuery가 삭제할 때까지 기다릴 수 있습니다.
+임시 테이블 만들기
+CREATE TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement] 문을 사용하여 멀티 문 쿼리의 임시 테이블을 만들 수 있습니다. 다음 예시에서는 쿼리 결과를 저장할 임시 테이블을 만들고 서브 쿼리에서 임시 테이블을 사용합니다.
+-- Find the top 100 names from the year 2017.
+CREATE TEMP TABLE top_names(name STRING)
+AS
+ SELECT name
+ FROM `bigquery-public-data`.usa_names.usa_1910_current
+ WHERE year = 2017
+ ORDER BY number DESC LIMIT 100
+;
+-- Which names appear as words in Shakespeare's plays?
+SELECT
+ name AS shakespeare_name
+FROM top_names
+WHERE name IN (
+ SELECT word
+ FROM `bigquery-public-data`.samples.shakespeare
+);
+TEMP 또는 TEMPORARY를 사용하는 것을 제외하면 이 구문은 CREATE TABLE 구문과 동일합니다.
+임시 테이블을 만들 때 테이블 이름에 프로젝트 또는 데이터 세트 한정자를 사용하지 마세요. 테이블은 특수 데이터 세트에 자동으로 생성됩니다.
+임시 테이블 참조
+현재 멀티 문 쿼리의 기간 동안 이름으로 임시 테이블을 참조할 수 있습니다. 여기에는 멀티 문 쿼리 내에서 프러시저로 만든 테이블이 포함됩니다. 임시 테이블은 공유할 수 없습니다. 임시 테이블은 무작위로 생성된 이름이 사용되는 숨겨진 _script% 데이터 세트에 있습니다. 데이터 세트 나열 [https://cloud.google.com/bigquery/docs/listing-datasets?hl=ko#bq] 문서에서는 숨겨진 데이터 세트 목록을 표시하는 방법을 설명합니다.
+임시 테이블 삭제
+DROP TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#drop_table_statement] 문을 사용하여 멀티 문 쿼리가 완료되기 전에 임시 테이블을 명시적으로 삭제할 수 있습니다.
+CREATE TEMP TABLE table1(x INT64);
+SELECT * FROM table1;  -- Succeeds
+DROP TABLE table1;
+SELECT * FROM table1;  -- Results in an error
+멀티 문 쿼리가 완료된 후 최대 24시간 동안 임시 테이블이 존재합니다.
+임시 테이블 데이터 보기
+임시 테이블을 만든 후에는 테이블의 구조와 해당 테이블의 모든 데이터를 볼 수 있습니다. 테이블 구조와 데이터를 보려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 BigQuery 탐색기 페이지로 이동합니다.
+탐색기로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 기록을 클릭합니다.
+임시 테이블을 만든 쿼리를 선택합니다.
+대상 테이블 행에서 임시 테이블을 클릭합니다.
+참고: 멀티 문 쿼리에 사용되는 임시 테이블의 이름은 유지되지 않습니다. Google Cloud 콘솔에서는 임의의 이름을 가집니다.
+_SESSION으로 임시 테이블 검증
+임시 테이블이 기본 데이터 세트와 함께 사용될 때 정규화되지 않은 테이블 이름은 임시 테이블을 참조하거나(임시 테이블이 있는 경우) 기본 데이터 세트의 테이블을 참조합니다. CREATE TABLE 문은 예외입니다. 여기서 대상 테이블은 임시 테이블로 간주됩니다(TEMP 또는 TEMPORARY 키워드가 있는 경우).
+예를 들어, 다음 멀티 문 쿼리를 살펴보겠습니다.
+-- Create table t1 in the default dataset
+CREATE TABLE t1 (x INT64);
+
+-- Create temporary table t1.
+CREATE TEMP TABLE t1 (x INT64);
+
+-- This statement selects from the temporary table.
+SELECT * FROM t1;
+
+-- Drop the temporary table
+DROP TABLE t1;
+
+-- Now that the temporary table is dropped, this statement selects from the
+-- table in the default dataset.
+SELECT * FROM t1;
+테이블 이름을 _SESSION으로 정규화하여 임시 테이블을 참조한다는 것을 명시적으로 나타낼 수 있습니다.
+-- Create a temp table
+CREATE TEMP TABLE t1 (x INT64);
+
+-- Create a temp table using the `_SESSION` qualifier
+CREATE TEMP TABLE _SESSION.t2 (x INT64);
+
+-- Select from a temporary table using the `_SESSION` qualifier
+SELECT * FROM _SESSION.t1;
+존재하지 않는 임시 테이블의 쿼리에 _SESSION 한정자를 사용하면 멀티 문 쿼리에서 테이블이 존재하지 않는다는 오류가 발생합니다. 예를 들어 t3라는 임시 테이블이 없는 경우 t3라는 테이블이 기본 데이터 세트에 있더라도 멀티 문 쿼리에서 오류가 발생합니다.
+_SESSION을 사용하여 비임시 테이블을 만들 수 없습니다.
+CREATE TABLE _SESSION.t4 (x INT64);  -- Fails
+멀티 문 쿼리 작업에 대한 정보 수집
+멀티 문 쿼리 작업에는 실행된 멀티 문 쿼리에 대한 정보가 포함됩니다. 작업 데이터로 수행할 수 있는 일반적인 작업에는 멀티 문 쿼리로 실행된 마지막 문을 반환하거나 멀티 문 쿼리로 실행된 모든 문을 반환하는 작업이 포함됩니다.
+마지막으로 실행된 문 반환
+jobs.getQueryResults [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults?hl=ko] 메서드는 멀티 문 쿼리에서 실행할 마지막 문의 쿼리 결과를 반환합니다. 문이 실행되지 않으면 결과가 반환되지 않습니다.
+실행된 모든 문 반환
+멀티 문 쿼리에서 모든 문의 결과를 얻으려면 하위 작업을 열거 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#enumerate_child_jobs_of_a_multi-statement_query]하고 각 하위 작업에서 jobs.getQueryResults [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/getQueryResults?hl=ko]를 호출합니다.
+하위 작업 열거
+멀티 문 쿼리는 멀티 문 쿼리가 쿼리 텍스트로 지정된 다른 쿼리와 비슷하게 BigQuery에서 jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko]를 사용하여 실행됩니다. 멀티 문 쿼리가 실행되면 멀티 문 쿼리의 문마다 하위 작업이라고 하는 추가 작업이 생성됩니다. jobs.list [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/list?hl=ko]를 호출하고 멀티 문 쿼리의 작업 ID를 parentJobId 매개변수로 전달하여 멀티 문 쿼리의 하위 작업을 열거할 수 있습니다.
+멀티 문 쿼리 디버깅
+다음은 멀티 문 쿼리를 디버깅하는 몇 가지 팁을 제시합니다.
+ASSERT [https://cloud.google.com/bigquery/docs/reference/standard-sql/debugging-statements?hl=ko#assert] 문을 사용하여 불리언 조건이 true임을 어설션합니다.
+BEGIN...EXCEPTION...END [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#beginexceptionend]을 사용하여 오류를 포착하고 오류 메시지 및 스택 트레이스를 표시합니다.
+SELECT FORMAT("....")을 사용하여 중간 결과를 표시합니다.
+Google Cloud 콘솔에서 멀티 문 쿼리를 실행하면 멀티 문 쿼리에서 각 문의 출력을 볼 수 있습니다. bq 명령줄 도구의 bq query 명령어는 멀티 문 쿼리를 실행할 때 각 단계의 결과도 표시합니다.
+Google Cloud 콘솔에서 쿼리 편집기 내의 개별 문을 선택하여 실행할 수 있습니다.
+권한
+실행 시 테이블, 모델 또는 기타 리소스에 액세스할 수 있는 권한이 있는지 확인을 거치게 됩니다. 문이 실행되지 않거나 표현식이 평가되지 않는 경우에는 BigQuery가 멀티 문 쿼리를 실행하는 사용자에게 참조되는 리소스에 대한 액세스 권한이 있는지 확인하지 않습니다.
+멀티 문 쿼리 내에서 각 표현식 또는 문에 대한 권한은 개별적으로 검증됩니다. 예를 들면 다음과 같습니다.
+SELECT * FROM dataset_with_access.table1;
+SELECT * FROM dataset_without_access.table2;
+쿼리를 실행하는 사용자가 table1에 대한 액세스 권한을 가지고 있지만 table2에 대한 액세스 권한을 가지고 있지 않으면 첫 번째 쿼리는 성공하고 두 번째 쿼리는 실패합니다. 멀티 문 쿼리 작업 자체도 실패합니다.
+보안 제약
+멀티 문 쿼리에서는 동적 SQL [https://cloud.google.com/bigquery/docs/reference/standard-sql/procedural-language?hl=ko#execute_immediate]을 사용하여 런타임 시 SQL 문을 빌드할 수 있습니다. 이는 편리하지만 오용 가능성이 있습니다. 예를 들어 다음 쿼리를 실행하면 테이블 매개변수가 부적절하게 필터링되고, 액세스가 허용되고, 의도하지 않은 테이블에서 실행될 수 있으므로 잠재적인 SQL 삽입 [https://en.wikipedia.org/wiki/SQL_injection] 보안 위협이 발생합니다.
+-- Risky query vulnerable to SQL injection attack.
+EXECUTE IMMEDIATE CONCAT('SELECT * FROM SensitiveTable WHERE id = ', @id);
+테이블에서 민감한 정보가 노출 또는 유출되거나 DROP TABLE과 같은 명령어를 실행하여 테이블의 데이터를 삭제하는 것을 방지하기 위해 BigQuery의 동적 절차적 문은 다양한 보안 조치를 지원하여 SQL 삽입 공격에 대한 노출을 줄입니다. 여기에는 다음이 포함됩니다.
+EXECUTE IMMEDIATE 문은 쿼리 매개변수와 변수로 확장된 쿼리가 여러 SQL 문을 삽입하는 것을 허용하지 않습니다.
+BEGIN/END, CALL, CASE, IF, LOOP, WHILE, EXECUTE IMMEDIATE 명령어는 동적으로 실행되지 않습니다.
+구성 필드 제한사항
+멀티 문 쿼리에는 다음 작업 구성 쿼리 필드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#JobConfigurationQuery]를 설정할 수 없습니다.
+clustering
+create_disposition
+destination_table
+destination_encryption_configuration
+range_partitioning
+schema_update_options
+time_partitioning
+user_defined_function_resources
+write_disposition
+가격 책정
+멀티 문 쿼리 가격에는 쿼리(주문형 결제 모델 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing] 사용 시) 및 임시 테이블 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#temporary_tables] 활성 스토리지 비용이 포함됩니다. 시간 이동 및 장애 안전 스토리지에 대한 요금은 없습니다. 예약 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko]을 사용하는 경우 쿼리 사용료는 예약 요금에 포함됩니다.
+주문형 쿼리 크기 계산
+주문형 결제를 이용하는 경우 BigQuery는 멀티 문 쿼리를 실행하는 동안 처리된 바이트 수를 기준으로 멀티 문 쿼리에 요금을 부과합니다.
+멀티 문 쿼리가 처리할 수 있는 바이트 수를 추정하려면 테스트 실행 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#dryrun_multi_statement_queries]을 실행하면 됩니다.
+참고: 멀티 문 쿼리로 스캔되는 바이트 수는 일반적으로 실행 전에는 알 수 없습니다. 의도하지 않은 쿼리 비용이 발생하지 않도록 하려면 용량 기반 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#capacity_compute_analysis_pricing]을 사용하는 것이 좋습니다. 또는 BigQuery 샌드박스 [https://cloud.google.com/bigquery/docs/sandbox?hl=ko]를 사용해 제한된 무료 쿼리 실행을 활용할 수도 있습니다.
+이러한 멀티 문 쿼리에는 다음 가격이 적용됩니다.
+DECLARE: DEFAULT 표현식에서 참조한 모든 테이블에서 스캔한 바이트의 합계에 대해 요금이 부과됩니다. 테이블 참조가 없는 DECLARE 문은 비용이 발생하지 않습니다.
+SET: 표현식에서 참조한 모든 테이블에서 스캔한 바이트의 합계에 대해 요금이 부과됩니다. 테이블 참조가 없는 SET 문은 비용이 발생하지 않습니다.
+IF: 조건 표현식에서 참조한 모든 테이블에서 스캔한 바이트의 합계에 대해 요금이 부과됩니다. 테이블 참조가 없는 IF 조건 표현식은 비용이 발생하지 않습니다. 실행되지 않은 IF 블록의 문에 대해서도 비용이 발생하지 않습니다.
+WHILE: 조건 표현식에서 참조한 모든 테이블에서 스캔한 바이트의 합계에 대해 요금이 부과됩니다. 조건 표현식에서 테이블 참조가 없는 WHILE 문은 비용이 발생하지 않습니다. 실행되지 않은 WHILE 블록의 문에 대해서도 비용이 발생하지 않습니다.
+CONTINUE 또는 ITERATE: 관련 비용이 없습니다.
+BREAK 또는 LEAVE: 관련 비용이 없습니다.
+BEGIN 또는 END: 관련 비용이 없습니다.
+멀티 문 쿼리가 실패할 경우 실패 전까지 발생한 모든 문 비용이 적용됩니다. 실패한 문에 대해서는 비용이 발생하지 않습니다.
+예를 들어 다음 샘플 코드에는 각 문에서 발생하는 비용(있는 경우)을 설명하는 주석이 모든 문 앞에 포함되어 있습니다.
+-- No cost, since no tables are referenced.
+DECLARE x DATE DEFAULT CURRENT_DATE();
+-- Incurs the cost of scanning string_col from dataset.table.
+DECLARE y STRING DEFAULT (SELECT MAX(string_col) FROM dataset.table);
+-- Incurs the cost of copying the data from dataset.big_table.  Once the
+-- table is created, you are not charged for storage while the rest of the
+-- multi-statement query runs.
+CREATE TEMP TABLE t AS SELECT * FROM dataset.big_table;
+-- Incurs the cost of scanning column1 from temporary table t.
+SELECT column1 FROM t;
+-- No cost, since y = 'foo' doesn't reference a table.
+IF y = 'foo' THEN
+  -- Incurs the cost of scanning all columns from dataset.other_table, if
+  -- y was equal to 'foo', or otherwise no cost since it is not executed.
+  SELECT * FROM dataset.other_table;
+ELSE
+  -- Incurs the cost of scanning all columns from dataset.different_table, if
+  -- y was not equal to 'foo', or otherwise no cost since it is not executed.
+  UPDATE dataset.different_table
+  SET col = 10
+  WHERE true;
+END IF;
+-- Incurs the cost of scanning date_col from dataset.table for each
+-- iteration of the loop.
+WHILE x < (SELECT MIN(date_col) FROM dataset.table) DO
+  -- No cost, since the expression does not reference any tables.
+  SET x = DATE_ADD(x, INTERVAL 1 DAY);
+  -- No cost, since the expression does not reference any tables.
+  IF true THEN
+    -- LEAVE has no associated cost.
+    LEAVE;
+  END IF;
+  -- Never executed, since the IF branch is always taken, so does not incur
+  -- a cost.
+  SELECT * FROM dataset.big_table;
+END WHILE;
+자세한 내용은 쿼리 크기 계산 [https://cloud.google.com/bigquery/docs/estimate-costs?hl=ko#query_size_calculation]을 참조하세요.
+스토리지 가격 책정
+멀티 문 쿼리로 생성된 임시 테이블 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko#temporary_tables]에 대해 요금이 청구됩니다. 이러한 임시 테이블에서 사용하는 스토리지는 TABLE_STORAGE [https://cloud.google.com/bigquery/docs/information-schema-table-storage?hl=ko] 또는 TABLE_STORAGE_USAGE_TIMELINE [https://cloud.google.com/bigquery/docs/information-schema-table-storage-usage?hl=ko] 뷰를 통해 확인할 수 있습니다. 임시 테이블은 무작위로 생성된 이름이 사용되는 숨겨진 _script% 데이터 세트에 있습니다.
+할당량
+다중 문 쿼리 할당량에 대한 자세한 내용은 할당량 및 제한 [https://cloud.google.com/bigquery/quotas?hl=ko#multi_statement_query_limits]을 참조하세요.
+멀티 문 쿼리 수 보기
+INFORMATION_SCHEMA.JOBS_BY_PROJECT 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 사용하여 활성 멀티 문 쿼리 수를 확인할 수 있습니다. 다음 예시에서는 INFORMATION_SCHEMA.JOBS_BY_PROJECT 뷰를 사용하여 전날의 멀티 문 쿼리 수를 표시합니다.
+SELECT
+  COUNT(*)
+FROM
+  `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE
+  creation_time BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY) AND CURRENT_TIMESTAMP()
+AND job_type = "QUERY"
+AND state = 'RUNNING'
+AND statement_type = 'SCRIPT'
+멀티 문 쿼리의 INFORMATION_SCHEMA.JOBS 쿼리에 대한 자세한 내용은 멀티 문 쿼리 작업 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko#multi-statement_query_jobs]을 참조하세요.
+도움이 되었나요?
+의견 보내기

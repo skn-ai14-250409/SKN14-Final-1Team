@@ -1,0 +1,145 @@
+Source URL: https://cloud.google.com/bigquery/docs/bi-engine-monitor
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+Cloud Monitoring [https://cloud.google.com/bigquery/docs/bi-engine-monitor?hl=ko#cloud_metics]
+BI Engine의 쿼리 통계 [https://cloud.google.com/bigquery/docs/bi-engine-monitor?hl=ko#query_statistics]
+BI Engine 가속 모드 [https://cloud.google.com/bigquery/docs/bi-engine-monitor?hl=ko#modes]
+BigQuery API 작업 통계 보기 [https://cloud.google.com/bigquery/docs/bi-engine-monitor?hl=ko#job_statistics]
+BigQuery 정보 스키마 통계 [https://cloud.google.com/bigquery/docs/bi-engine-monitor?hl=ko#information_schema]
+Looker Studio INFORMATION_SCHEMA 세부정보 보기 [https://cloud.google.com/bigquery/docs/bi-engine-monitor?hl=ko#info-schema]
+Cloud Logging [https://cloud.google.com/bigquery/docs/bi-engine-monitor?hl=ko#logging]
+다음 단계 [https://cloud.google.com/bigquery/docs/bi-engine-monitor?hl=ko#whats_next]
+BI Engine 모니터링
+bookmark_border
+BigQuery BI Engine [https://cloud.google.com/bigquery/docs/bi-engine-intro?hl=ko]은 메모리 캐시와 더 빠른 실행을 사용하여 BI 시나리오를 위한 BigQuery를 가속화합니다. INFORMATION_SCHEMA [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko] 및 Cloud Monitoring 측정항목 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko]을 사용하여 가속 세부정보를 모니터링할 수 있습니다.
+Cloud Monitoring
+Cloud Monitoring을 사용하여 BigQuery BI Engine의 알림을 모니터링하고 구성할 수 있습니다. BI Engine 측정항목의 대시보드를 만드는 방법은 차트 만들기 [https://cloud.google.com/monitoring/charts?hl=ko]를 참고하세요.
+BigQuery BI Engine에는 다음과 같은 측정항목이 제공됩니다.
+리소스 측정항목 세부정보
+BigQuery 프로젝트 예약 총 바이트 하나의 Google Cloud 프로젝트에 할당된 총 용량
+BigQuery 프로젝트 예약 사용된 바이트 하나의 Google Cloud 프로젝트에 사용된 총 용량
+BigQuery 프로젝트 BI Engine 상위 테이블 캐시 바이트 테이블당 캐시 사용량입니다. 이 측정항목은 리전 보고서 사용량당 상위 N개 테이블을 표시합니다.
+BI Engine의 쿼리 통계
+이 섹션에서는 BI Engine 사용을 모니터링, 진단, 문제 해결하는 데 도움이 되는 쿼리 통계를 찾는 방법을 설명합니다.
+BI Engine 가속 모드
+BI Engine 가속을 사용 설정하면 다음 네 가지 모드 중 하나에서 쿼리를 실행할 수 있습니다.
+BI_ENGINE_DISABLED
+BI Engine이 가속을 사용 중지했습니다. biEngineReasons는 좀 더 자세한 이유를 지정합니다. 쿼리는 BigQuery 실행 엔진을 사용하여 실행되었습니다.
+PARTIAL_INPUT
+BI Engine을 사용하여 쿼리 입력의 일부를 가속화했습니다. 쿼리 최적화 및 가속 [https://cloud.google.com/bigquery/docs/bi-engine-query?hl=ko#query_optimization_and_acceleration]에 설명된 대로 쿼리 계획은 일반적으로 여러 입력 단계로 나뉩니다. BI Engine은 일반적으로 대시보드에 사용되는 일반적인 유형의 서브 쿼리 패턴을 지원합니다. 쿼리가 여러 입력 단계로 구성된 경우 그중 일부만 지원되는 사용 사례에 포함되고, BI Engine이 가속 없이 일반 BigQuery 엔진을 사용해서 지원되지 않는 단계를 실행합니다. 이 경우 BI Engine은 PARTIAL 가속 코드를 반환하고 biEngineReasons를 사용하여 다른 서브 쿼리를 가속화하지 않는 이유를 입력합니다.
+ FULL_INPUT
+ 
+BI Engine을 사용하여 쿼리의 모든 입력 스테이지를 가속화했습니다. 캐시된 데이터는 여러 쿼리에서 재사용되며 데이터를 읽은 직후에 실행되는 계산이 가속화됩니다.
+ FULL_QUERY
+ 
+BI Engine을 사용하여 전체 쿼리를 가속화했습니다.
+BigQuery API 작업 통계 보기
+BI Engine에 대한 자세한 통계는 BigQuery API를 통해 확인할 수 있습니다.
+BI Engine 가속 쿼리와 관련된 통계를 가져오려면 다음 bq 명령줄 도구 명령어를 실행합니다.
+bq show --format=prettyjson -j job_id
+프로젝트가 BI Engine 가속에 사용 설정된 경우 출력에 새 필드 biEngineStatistics가 생성됩니다. 다음은 샘플 작업 보고서입니다.
+ "statistics": {
+    "creationTime": "1602175128902",
+    "endTime": "1602175130700",
+    "query": {
+      "biEngineStatistics": {
+        "biEngineMode": "DISABLED",
+        "biEngineReasons": [
+          {
+            "code": "UNSUPPORTED_SQL_TEXT",
+            "message": "Detected unsupported join type"
+          }
+        ]
+      },
+BiEngineStatistics 필드에 대한 자세한 내용은 작업 참조 [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#bienginestatistics]를 확인하세요.
+BigQuery 정보 스키마 통계
+BI Engine 가속 통계는 BigQuery INFORMATION_SCHEMA [https://cloud.google.com/bigquery/docs/information-schema-intro?hl=ko] 뷰에 bi_engine_statistics [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko#schema] 열 INFORMATION_SCHEMA.JOBS_BY_* 뷰의 일부로 포함됩니다. 예를 들어 이 쿼리는 지난 24시간 동안의 모든 현재 프로젝트 작업에 대한 bi_engine_statistics를 반환합니다.
+SELECT
+  creation_time,
+  job_id,
+  bi_engine_statistics
+FROM
+  `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE
+  creation_time >
+     TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)
+  AND job_type = "QUERY"
+INFORMATION_SCHEMA 뷰에서 project-id, region, views의 리전성 [https://cloud.google.com/bigquery/docs/information-schema-views?hl=ko#scope_and_syntax]을 지정하려면 다음 형식을 사용하세요.
+`PROJECT_ID`.`region-REGION_NAME`.INFORMATION_SCHEMA.VIEW
+슬롯 측정항목 로깅: BI Engine의 슬롯 측정항목이 보고되더라도 가속 BI Engine 입력 단계는 슬롯 예약에 포함되지 않습니다. BI Engine 가속 쿼리가 있는 경우 slotMs 및 totalSlotMs 측정항목을 해석하는 방법은 가격 책정 [https://cloud.google.com/bi-engine/pricing?hl=ko#example_of_slotm_metrics] 페이지를 참조하세요.
+Looker Studio INFORMATION_SCHEMA 세부정보 보기
+INFORMATION_SCHEMA.JOBS 보기 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 확인하여 BigQuery에서 사용하는 Looker Studio 보고서와 데이터 소스를 추적할 수 있습니다. BigQuery의 모든 Looker Studio 쿼리는 report_id 및 datasource_id 라벨이 있는 항목을 만듭니다. 이러한 ID는 보고서 또는 데이터 소스 페이지를 열 때 Looker Studio URL 끝에 표시됩니다. 예를 들어 URL이 https://lookerstudio.google.com/navigation/reporting/my-report-id-123인 보고서의 보고서 ID는 "my-report-id-123"입니다.
+다음 예는 보고서 및 데이터 소스를 보는 방법을 보여줍니다.
+각 Looker Studio BigQuery 작업의 보고서 및 데이터 소스 URL 찾기
+-- Standard labels used by Looker Studio.
+DECLARE requestor_key STRING DEFAULT 'requestor';
+DECLARE requestor_value STRING DEFAULT 'looker_studio';
+
+CREATE TEMP FUNCTION GetLabel(labels ANY TYPE, label_key STRING)
+AS (
+  (SELECT l.value FROM UNNEST(labels) l WHERE l.key = label_key)
+);
+
+CREATE TEMP FUNCTION GetDatasourceUrl(labels ANY TYPE)
+AS (
+  CONCAT("https://lookerstudio.google.com/datasources/", GetLabel(labels, 'looker_studio_datasource_id'))
+);
+
+CREATE TEMP FUNCTION GetReportUrl(labels ANY TYPE)
+AS (
+  CONCAT("https://lookerstudio.google.com/reporting/", GetLabel(labels, 'looker_studio_report_id'))
+);
+
+SELECT
+  job_id,
+  GetDatasourceUrl(labels) AS datasource_url,
+  GetReportUrl(labels) AS report_url,
+FROM
+  `region-us`.INFORMATION_SCHEMA.JOBS jobs
+WHERE
+  creation_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+  AND GetLabel(labels, requestor_key) = requestor_value
+LIMIT
+  100;
+보고서 및 데이터 소스를 사용하여 생성된 작업 보기
+-- Specify report and data source id, which can be found at the end of Looker Studio URLs.
+DECLARE user_report_id STRING DEFAULT '*report id here*';
+DECLARE user_datasource_id STRING DEFAULT '*datasource id here*';
+
+-- Looker Studio labels for BigQuery.
+DECLARE requestor_key STRING DEFAULT 'requestor';
+DECLARE requestor_value STRING DEFAULT 'looker_studio';
+DECLARE datasource_key STRING DEFAULT 'looker_studio_datasource_id';
+DECLARE report_key STRING DEFAULT 'looker_studio_report_id';
+
+CREATE TEMP FUNCTION GetLabel(labels ANY TYPE, label_key STRING)
+AS (
+  (SELECT l.value FROM UNNEST(labels) l WHERE l.key = label_key)
+);
+
+SELECT
+  creation_time,
+  job_id,
+FROM
+  `region-us`.INFORMATION_SCHEMA.JOBS jobs
+WHERE
+  creation_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+  AND GetLabel(labels, requestor_key) = requestor_value
+  AND GetLabel(labels, datasource_key) = user_datasource_id
+  AND GetLabel(labels, report_key) = user_report_id
+ORDER BY 1
+LIMIT 100;
+Cloud Logging
+BI Engine 가속은 BigQuery 작업 처리의 일부입니다. 특정 프로젝트의 BigQuery 작업을 검사하려면 페이로드가 protoPayload.serviceName="bigquery.googleapis.com"인 Cloud Logging [https://console.cloud.google.com/logs/query?hl=ko] 페이지를 참고하세요.
+다음 단계
+Cloud Monitoring [https://cloud.google.com/monitoring/docs?hl=ko] 자세히 알아보기
+Monitoring 차트 [https://cloud.google.com/monitoring/charts?hl=ko] 자세히 알아보기
+Monioring 알림 [https://cloud.google.com/monitoring/alerts?hl=ko] 자세히 알아보기
+Cloud Logging [https://cloud.google.com/logging/docs?hl=ko]에 대해 자세히 알아보기
+의견 보내기

@@ -1,0 +1,156 @@
+Source URL: https://cloud.google.com/bigquery/docs/dataframes-sessions-io
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+BigQuery 세션 [https://cloud.google.com/bigquery/docs/dataframes-sessions-io?hl=ko#bigquery-session]
+전역 세션 [https://cloud.google.com/bigquery/docs/dataframes-sessions-io?hl=ko#global-session]
+인메모리 데이터 [https://cloud.google.com/bigquery/docs/dataframes-sessions-io?hl=ko#in-memory-data]
+dry_run 매개변수를 사용한 비용 추정 [https://cloud.google.com/bigquery/docs/dataframes-sessions-io?hl=ko#dry-run]
+파일 읽기 및 쓰기 [https://cloud.google.com/bigquery/docs/dataframes-sessions-io?hl=ko#read-write-files]
+BigQuery 테이블 읽기 및 쓰기 [https://cloud.google.com/bigquery/docs/dataframes-sessions-io?hl=ko#read-write-bq-tables]
+다음 단계 [https://cloud.google.com/bigquery/docs/dataframes-sessions-io?hl=ko#whats_next]
+BigQuery DataFrames 세션 및 I/O 관리
+bookmark_border
+이 문서에서는 BigQuery DataFrame을 사용할 때 세션을 관리하고 입력 및 출력 (I/O) 작업을 실행하는 방법을 설명합니다. 세션을 만들고 사용하는 방법, 인메모리 데이터로 작업하는 방법, 파일 및 BigQuery 테이블에서 읽고 쓰는 방법을 알아봅니다.
+BigQuery 세션
+BigQuery DataFrames는 메타데이터를 관리하기 위해 내부적으로 로컬 세션 객체를 사용합니다. 각 DataFrame 및 Series 객체는 세션에 연결되고, 각 세션은 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에 연결되며, 세션의 각 쿼리는 세션을 만든 위치에서 실행됩니다. 다음 코드 샘플을 사용하여 세션을 수동으로 만들고 데이터를 로드하는 데 사용합니다.
+import bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko]
+import bigframes.pandas as bpd
+
+# Create session object
+context = bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko].BigQueryOptions [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes._config.bigquery_options.BigQueryOptions.html?hl=ko](
+    project=YOUR_PROJECT_ID,
+    location=YOUR_LOCATION,
+)
+session = bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko].Session(context)
+
+# Load a BigQuery table into a dataframe
+df1 = session [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.operations.blob.BlobAccessor.html?hl=ko#bigframes_operations_blob_BlobAccessor_session].read_gbq [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.pandas.html?hl=ko]("bigquery-public-data.ml_datasets.penguins")
+
+# Create a dataframe with local data:
+df2 = bpd.DataFrame({"my_col": [1, 2, 3]}, session=session)
+동일한 설정으로 초기화하더라도 여러 세션 인스턴스의 데이터를 결합할 수는 없습니다. 다음 코드 샘플은 서로 다른 세션 인스턴스의 데이터를 결합하려고 하면 오류가 발생하는 것을 보여줍니다.
+import bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko]
+import bigframes.pandas as bpd
+
+context = bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko].BigQueryOptions [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes._config.bigquery_options.BigQueryOptions.html?hl=ko](location=YOUR_LOCATION, project=YOUR_PROJECT_ID)
+
+session1 = bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko].Session(context)
+session2 = bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko].Session(context)
+
+series1 = bpd.Series([1, 2, 3, 4, 5], session=session1)
+series2 = bpd.Series([1, 2, 3, 4, 5], session=session2)
+
+try:
+    series1 + series2
+except ValueError as e:
+    print(e)  # Error message: Cannot use combine sources from multiple sessions
+전역 세션
+BigQuery DataFrames는 bigframes.pandas.get_global_session() 메서드로 액세스할 수 있는 기본 전역 세션을 제공합니다. Colab에서는 bigframes.pandas.options.bigquery.project 속성을 사용하기 전에 프로젝트 ID를 제공해야 합니다. bigframes.pandas.options.bigquery.location 속성으로 위치를 설정할 수도 있습니다. 이 속성은 기본적으로 US 멀티 리전으로 설정됩니다.
+다음 코드 샘플은 전역 세션의 옵션을 설정하는 방법을 보여줍니다.
+import bigframes.pandas as bpd
+
+# Set project ID for the global session
+bpd.options.bigquery.project = YOUR_PROJECT_ID
+# Update the global default session location
+bpd.options.bigquery.location = YOUR_LOCATION
+전역 세션의 위치 또는 프로젝트를 재설정하려면 bigframes.pandas.close_session() 메서드를 실행하여 현재 세션을 닫습니다.
+많은 BigQuery DataFrames 기본 제공 함수는 기본적으로 전역 세션을 사용합니다. 다음 코드 샘플은 기본 제공 함수가 전역 세션을 사용하는 방법을 보여줍니다.
+# The following two statements are essentially the same
+df = bpd.read_gbq("bigquery-public-data.ml_datasets.penguins")
+df = bpd.get_global_session().read_gbq("bigquery-public-data.ml_datasets.penguins")
+인메모리 데이터
+pandas로 객체를 만드는 것과 마찬가지로 내장 Python 또는 NumPy 데이터 구조를 사용하여 Dataframes 및 Series 객체를 만들 수 있습니다. 다음 코드 샘플을 사용하여 객체를 만듭니다.
+import numpy as np
+
+import bigframes.pandas as bpd
+
+s = bpd.Series([1, 2, 3])
+
+# Create a dataframe with Python dict
+df = bpd.DataFrame(
+    {
+        "col_1": [1, 2, 3],
+        "col_2": [4, 5, 6],
+    }
+)
+
+# Create a series with Numpy
+s = bpd.Series(np.arange(10))
+read_pandas() 메서드 또는 생성자를 사용하여 pandas 객체를 DataFrames 객체로 변환하려면 다음 코드 샘플을 사용하세요.
+import numpy as np
+import pandas as pd
+
+import bigframes.pandas as bpd
+
+pd_df = pd.DataFrame(np.random.randn(4, 2))
+
+# Convert Pandas dataframe to BigQuery DataFrame with read_pandas()
+df_1 = bpd.read_pandas(pd_df)
+# Convert Pandas dataframe to BigQuery DataFrame with the dataframe constructor
+df_2 = bpd.DataFrame(pd_df)
+to_pandas() 메서드를 사용하여 BigQuery DataFrames 데이터를 메모리에 로드하려면 다음 코드 샘플을 사용하세요.
+import bigframes.pandas as bpd
+
+bf_df = bpd.DataFrame({"my_col": [1, 2, 3]})
+# Returns a Pandas Dataframe
+bf_df.to_pandas()
+
+bf_s = bpd.Series([1, 2, 3])
+# Returns a Pandas Series
+bf_s.to_pandas()
+dry_run 매개변수를 사용한 비용 추정
+대량의 데이터를 로드하는 데는 많은 시간과 리소스가 필요할 수 있습니다. 처리되는 데이터의 양을 확인하려면 to_pandas() 호출에서 dry_run=True 매개변수를 사용하세요. 다음 코드 샘플을 사용하여 시험 이전을 실행합니다.
+import bigframes.pandas as bpd
+
+df = bpd.read_gbq("bigquery-public-data.ml_datasets.penguins")
+
+# Returns a Pandas series with dry run stats
+df.to_pandas(dry_run=True)
+파일 읽기 및 쓰기
+호환되는 파일에서 BigQuery DataFrames로 데이터를 읽을 수 있습니다. 이러한 파일은 로컬 머신 또는 Cloud Storage에 있을 수 있습니다. 다음 코드 샘플을 사용하여 CSV 파일에서 데이터를 읽습니다.
+import bigframes.pandas as bpd
+
+# Read a CSV file from GCS
+df = bpd.read_csv("gs://cloud-samples-data/bigquery/us-states/us-states.csv")
+to_csv 메서드를 사용하여 BigQuery DataFrames를 로컬 파일 또는 Cloud Storage 파일에 저장하려면 다음 코드 샘플을 사용하세요.
+import bigframes.pandas as bpd
+
+df = bpd.DataFrame({"my_col": [1, 2, 3]})
+# Write a dataframe to a CSV file in GCS
+df.to_csv(f"gs://{YOUR_BUCKET}/myfile*.csv")
+BigQuery 테이블 읽기 및 쓰기
+BigQuery 테이블 참조와 bigframes.pandas.read_gbq 함수를 사용하여 BigQuery DataFrames를 만들려면 다음 코드 샘플을 사용하세요.
+import bigframes.pandas as bpd
+
+df = bpd.read_gbq("bigquery-public-data.ml_datasets.penguins")
+read_gbq() 함수와 함께 SQL 문자열을 사용하여 BigQuery DataFrames에 데이터를 읽어오려면 다음 코드 샘플을 사용하세요.
+import bigframes.pandas as bpd
+
+sql = """
+SELECT species, island, body_mass_g
+FROM bigquery-public-data.ml_datasets.penguins
+WHERE sex = 'MALE'
+"""
+
+df = bpd.read_gbq(sql)
+참고: read_gbq(), read_gbq_table() 또는 read_gbq_query() 함수를 호출할 때 테이블을 지정하고 함수 호출 전에 bigframes.pandas.options.bigquery.location 속성을 설정하지 않은 경우 BigQuery DataFrames는 bigframes.pandas.options.bigquery.location 속성을 테이블의 위치로 자동 설정합니다. 위치를 수동으로 지정하는 방법에 대한 자세한 내용은 전역 세션 [https://cloud.google.com/bigquery/docs/dataframes-sessions-io?hl=ko#global-session]을 참고하세요.
+DataFrame 객체를 BigQuery 테이블에 저장하려면 DataFrame 객체의 to_gbq() 메서드를 사용합니다. 다음 코드 샘플은 이를 수행하는 방법을 보여줍니다.
+import bigframes.pandas as bpd
+
+df = bpd.DataFrame({"my_col": [1, 2, 3]})
+
+df.to_gbq(f"{YOUR_PROJECT_ID}.{YOUR_DATASET_ID}.{YOUR_TABLE_NAME}")
+다음 단계
+BigQuery DataFrames를 사용하는 방법 [https://cloud.google.com/bigquery/docs/use-bigquery-dataframes?hl=ko]을 알아보세요.
+BigQuery DataFrames에서 데이터 유형을 사용하는 방법 [https://cloud.google.com/bigquery/docs/bigquery-dataframes-datatypes?hl=ko]을 알아보세요.
+BigQuery DataFrames를 사용하여 그래프를 시각화 [https://cloud.google.com/bigquery/docs/dataframes-visualizations?hl=ko]하는 방법 알아보기
+BigQuery DataFrames API 참조 [https://cloud.google.com/python/docs/reference/bigframes/latest/summary_overview?hl=ko] 살펴보기
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,360 @@
+Source URL: https://cloud.google.com/bigquery/docs/time-series-anomaly-detection-tutorial
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필수 권한 [https://cloud.google.com/bigquery/docs/time-series-anomaly-detection-tutorial?hl=ko#required_permissions]
+비용 [https://cloud.google.com/bigquery/docs/time-series-anomaly-detection-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/time-series-anomaly-detection-tutorial?hl=ko#before_you_begin]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/time-series-anomaly-detection-tutorial?hl=ko#create_a_dataset]
+학습 데이터 준비 [https://cloud.google.com/bigquery/docs/time-series-anomaly-detection-tutorial?hl=ko#prepare_the_training_data]
+다변수 시계열 예측 모델로 이상 감지 수행
+bookmark_border
+이 튜토리얼에서는 다음 작업을 처리하는 방법을 보여줍니다.
+ARIMA_PLUS_XREG 시계열 예측 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-multivariate-time-series?hl=ko]을 만듭니다.
+모델에 대해 ML.DETECT_ANOMALIES 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-detect-anomalies?hl=ko]를 실행하여 시계열 데이터에서 이상을 감지합니다.
+이 튜토리얼에서는 여러 미국 도시에서 수집된 일일 PM 2.5, 기온, 풍속 정보가 포함된 공개 epa_historical_air_quality 데이터 세트에서 다음 테이블을 사용합니다.
+epa_historical_air_quality.pm25_nonfrm_daily_summary [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=epa_historical_air_quality&%3Bt=pm25_nonfrm_daily_summary&%3Bpage=table&hl=ko]
+epa_historical_air_quality.wind_daily_summary [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=epa_historical_air_quality&%3Bt=wind_daily_summary&%3Bpage=table&hl=ko]
+epa_historical_air_quality.temperature_daily_summary [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=epa_historical_air_quality&%3Bt=temperature_daily_summary&%3Bpage=table&hl=ko]
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create IAM 권한이 필요합니다.
+모델을 만들려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 권한이 필요합니다.
+bigquery.models.getData
+bigquery.jobs.create
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+비용
+이 문서에서는 비용이 청구될 수 있는 Google Cloud구성요소( )를 사용합니다.
+BigQuery: You incur costs for the data you process in BigQuery.
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+자세한 내용은 BigQuery 가격 [https://cloud.google.com/bigquery/pricing?hl=ko]을 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com&hl=ko]
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/time-series-anomaly-detection-tutorial?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/time-series-anomaly-detection-tutorial?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/time-series-anomaly-detection-tutorial?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/time-series-anomaly-detection-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+학습 데이터 준비
+PM2.5, 온도, 풍속 데이터는 별도의 테이블에 있습니다. 이러한 공개 테이블의 데이터를 결합하여 학습 데이터의 bqml_tutorial.seattle_air_quality_daily 테이블을 만듭니다. bqml_tutorial.seattle_air_quality_daily에는 다음 열이 포함됩니다.
+date: 관측 날짜
+PM2.5: 일일 평균 PM2.5 값
+wind_speed: 일일 평균 풍속
+temperature: 일일 최고 기온
+새 테이블에는 2009년 8월 11일부터 2022년 1월 31일까지의 일일 데이터가 포함됩니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+SQL 편집자 창에서 다음 SQL 문을 실행합니다.
+CREATE TABLE `bqml_tutorial.seattle_air_quality_daily`
+AS
+WITH
+  pm25_daily AS (
+    SELECT
+      avg(arithmetic_mean) AS pm25, date_local AS date
+    FROM
+      `bigquery-public-data.epa_historical_air_quality.pm25_nonfrm_daily_summary`
+    WHERE
+      city_name = 'Seattle'
+      AND parameter_name = 'Acceptable PM2.5 AQI & Speciation Mass'
+    GROUP BY date_local
+  ),
+  wind_speed_daily AS (
+    SELECT
+      avg(arithmetic_mean) AS wind_speed, date_local AS date
+    FROM
+      `bigquery-public-data.epa_historical_air_quality.wind_daily_summary`
+    WHERE
+      city_name = 'Seattle' AND parameter_name = 'Wind Speed - Resultant'
+    GROUP BY date_local
+  ),
+  temperature_daily AS (
+    SELECT
+      avg(first_max_value) AS temperature, date_local AS date
+    FROM
+      `bigquery-public-data.epa_historical_air_quality.temperature_daily_summary`
+    WHERE
+      city_name = 'Seattle' AND parameter_name = 'Outdoor Temperature'
+    GROUP BY date_local
+  )
+SELECT
+  pm25_daily.date AS date, pm25, wind_speed, temperature
+FROM pm25_daily
+JOIN wind_speed_daily USING (date)
+JOIN temperature_daily USING (date)
+모델 만들기
+bqml_tutorial.seattle_air_quality_daily의 데이터를 학습 데이터로 사용하여 다변수 시계열 모델을 만듭니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+SQL 편집자 창에서 다음 SQL 문을 실행합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.arimax_model`
+  OPTIONS (
+    model_type = 'ARIMA_PLUS_XREG',
+    auto_arima=TRUE,
+    time_series_data_col = 'temperature',
+    time_series_timestamp_col = 'date'
+    )
+AS
+SELECT
+  *
+FROM
+  `bqml_tutorial.seattle_air_quality_daily`
+WHERE
+  date < "2023-02-01";
+쿼리가 완료되는 데 몇 초 정도 걸리며 그 이후에는 arimax_model 모델이 탐색기 창의 bqml_tutorial 데이터 세트에 표시됩니다.
+이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+이전 데이터에 이상 감지 수행
+모델을 학습시키는 데 사용한 이전 데이터에서 이상 감지를 실행합니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+SQL 편집자 창에서 다음 SQL 문을 실행합니다.
+SELECT
+  *
+FROM
+  ML.DETECT_ANOMALIES (
+   MODEL `bqml_tutorial.arimax_model`,
+   STRUCT(0.6 AS anomaly_prob_threshold)
+  )
+ORDER BY
+  date ASC;
+결과는 다음과 유사합니다.
++-------------------------+-------------+------------+--------------------+--------------------+---------------------+
+| date                    | temperature | is_anomaly | lower_bound        | upper_bound        | anomaly_probability |
++--------------------------------------------------------------------------------------------------------------------+
+| 2009-08-11 00:00:00 UTC | 70.1        | false      | 67.647370742988727 | 72.552629257011262 | 0                   |
++--------------------------------------------------------------------------------------------------------------------+
+| 2009-08-12 00:00:00 UTC | 73.4        | false      | 71.7035428351283   | 76.608801349150838 | 0.20478819992561115 |
++--------------------------------------------------------------------------------------------------------------------+
+| 2009-08-13 00:00:00 UTC | 64.6        | true       | 67.740408724826068 | 72.6456672388486   | 0.945588334903206   |
++-------------------------+-------------+------------+--------------------+--------------------+---------------------+
+새 데이터에 이상 감지 수행
+생성되는 새 데이터에서 이상 감지를 실행합니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+SQL 편집자 창에서 다음 SQL 문을 실행합니다.
+SELECT
+  *
+FROM
+  ML.DETECT_ANOMALIES (
+   MODEL `bqml_tutorial.arimax_model`,
+   STRUCT(0.6 AS anomaly_prob_threshold),
+   (
+     SELECT
+       *
+     FROM
+       UNNEST(
+         [
+           STRUCT<date TIMESTAMP, pm25 FLOAT64, wind_speed FLOAT64, temperature FLOAT64>
+           ('2023-02-01 00:00:00 UTC', 8.8166665, 1.6525, 44.0),
+           ('2023-02-02 00:00:00 UTC', 11.8354165, 1.558333, 40.5),
+           ('2023-02-03 00:00:00 UTC', 10.1395835, 1.6895835, 46.5),
+           ('2023-02-04 00:00:00 UTC', 11.439583500000001, 2.0854165, 45.0),
+           ('2023-02-05 00:00:00 UTC', 9.7208335, 1.7083335, 46.0),
+           ('2023-02-06 00:00:00 UTC', 13.3020835, 2.23125, 43.5),
+           ('2023-02-07 00:00:00 UTC', 5.7229165, 2.377083, 47.5),
+           ('2023-02-08 00:00:00 UTC', 7.6291665, 2.24375, 44.5),
+           ('2023-02-09 00:00:00 UTC', 8.5208335, 2.2541665, 40.5),
+           ('2023-02-10 00:00:00 UTC', 9.9086955, 7.333335, 39.5)
+         ]
+       )
+     )
+   );
+결과는 다음과 유사합니다.
++-------------------------+-------------+------------+--------------------+--------------------+---------------------+------------+------------+
+| date                    | temperature | is_anomaly | lower_bound        | upper_bound        | anomaly_probability | pm25       | wind_speed |
++----------------------------------------------------------------------------------------------------------------------------------------------+
+| 2023-02-01 00:00:00 UTC | 44.0        | true       | 36.89918003713138  | 41.8044385511539   | 0.88975675709801583 | 8.8166665  | 1.6525     |
++----------------------------------------------------------------------------------------------------------------------------------------------+
+| 2023-02-02 00:00:00 UTC | 40.5        | false      | 34.439946284051572 | 40.672021330796483 | 0.57358239699845348 | 11.8354165 | 1.558333   |
++--------------------------------------------------------------------------------------------------------------------+-------------------------+
+| 2023-02-03 00:00:00 UTC | 46.5        | true       | 33.615139992931191 | 40.501364463964549 | 0.97902867696346974 | 10.1395835 | 1.6895835  |
++-------------------------+-------------+------------+--------------------+--------------------+---------------------+-------------------------+
+삭제
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+도움이 되었나요?
+의견 보내기

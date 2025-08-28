@@ -1,0 +1,394 @@
+Source URL: https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+NNLM, SWIVEL, BERT 모델 [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#the_nnlm_swivel_and_bert_models]
+필수 권한 [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#required_permissions]
+비용 [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#before_you_begin]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#create_a_dataset]
+사전 학습된 TensorFlow 모델을 사용하여 텍스트 임베딩
+bookmark_border
+이 튜토리얼에서는 사전 학습된 TensorFlow 모델을 사용하여 BigQuery에서 NNLM, SWIVEL, BERT 텍스트 임베딩을 생성하는 방법을 보여줍니다. 텍스트 임베딩은 2개의 텍스트가 의미론적으로 유사할 때 해당 임베딩이 임베딩 벡터 공간에서 보다 가까이 배치되는 것과 같은 텍스트의 밀집 벡터 표현입니다.
+NNLM, SWIVEL, BERT 모델
+NNLM, SWIVEL, BERT 모델은 크기, 정확도, 확장성 및 비용이 각기 다릅니다. 다음 표는 사용할 모델을 결정하는 데 도움이 됩니다.
+모델 모델 크기 임베딩 차원 사용 사례 설명
+NNLM [https://tfhub.dev/google/nnlm-en-dim50-with-normalization/2] 150MB 미만 50 짧은 문구, 뉴스, 트윗, 리뷰 신경망 언어 모델
+SWIVEL [https://tfhub.dev/google/tf2-preview/gnews-swivel-20dim/1] 150MB 미만 20 짧은 문구, 뉴스, 트윗, 리뷰 서브행렬 전체 벡터 임베딩 학습자
+BERT [https://tfhub.dev/tensorflow/bert_en_cased_L-12_H-768_A-12/4] 200MB 이하 768 짧은 문구, 뉴스, 트윗, 리뷰, 짧은 단락 Transformer의 양방향 인코더 표현
+이 튜토리얼에서 NNLM 및 SWIVEL 모델은 가져온 TensorFlow 모델 [https://cloud.google.com/bigquery/docs/making-predictions-with-imported-tensorflow-models?hl=ko]이고 BERT 모델은 Vertex AI의 원격 모델 [https://cloud.google.com/bigquery/docs/bigquery-ml-remote-model-tutorial?hl=ko]입니다.
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create Identity and Access Management(IAM) 권한이 필요합니다.
+버킷을 만들려면 storage.buckets.create IAM 권한이 필요합니다.
+모델을 Cloud Storage로 업로드하려면 storage.objects.create 및 storage.objects.get IAM 권한이 필요합니다.
+연결 리소스를 만들려면 다음 IAM 권한이 필요합니다.
+bigquery.connections.create
+bigquery.connections.get
+모델을 BigQuery ML에 로드하려면 다음 IAM 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 IAM 권한이 필요합니다.
+객체 테이블에 대한 bigquery.tables.getData
+모델에 대한 bigquery.models.getData
+bigquery.jobs.create
+비용
+이 문서에서는 비용이 청구될 수 있는 다음과 같은 Google Cloud구성요소를 사용합니다.
+BigQuery: You incur costs for the queries that you run in BigQuery.
+BigQuery ML: You incur costs for the model that you create and the inference that you perform in BigQuery ML.
+Cloud Storage: You incur costs for the objects that you store in Cloud Storage.
+Vertex AI: If you follow the instructions for generating the BERT model, then you incur costs for deploying the model to an endpoint.
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+자세한 내용은 다음 리소스를 참조하세요.
+스토리지 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]
+BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]
+Cloud Storage 가격 책정 [https://cloud.google.com/storage/pricing?hl=ko]
+Vertex AI 가격 책정 [https://cloud.google.com/vertex-ai/pricing?hl=ko]
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, and Vertex AI APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Caiplatform.googleapis.com%2Cbigqueryconnection.googleapis.com&hl=ko]
+참고: BERT 모델에는 Vertex AI API 및 BigQuery Connection API만 필요합니다.
+데이터 세트 만들기
+만든 모델을 저장할 tf_models_tutorial이라는 데이터 세트를 만들려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#sql] ---
+CREATE SCHEMA 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_schema_statement]을 사용합니다.
+
+
+
+
+
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE SCHEMA `PROJECT_ID.tf_models_tutorial`;
+
+
+PROJECT_ID를 프로젝트 ID로 바꿉니다.
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#bq] ---
+Google Cloud 콘솔에서 Cloud Shell을 활성화합니다.
+
+Cloud Shell 활성화 [https://console.cloud.google.com/?cloudshell=true&hl=ko] 
+데이터 세트를 만들려면 bq mk 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset]를 실행합니다.
+
+bq mk --dataset --location=us PROJECT_ID:tf_models_tutorial
+
+PROJECT_ID를 프로젝트 ID로 바꿉니다.
+모델 생성 및 Cloud Storage에 업로드
+사전 학습된 TensorFlow 모델을 사용하여 텍스트 임베딩을 생성하는 방법에 대한 자세한 안내는 Colab 노트북 [https://github.com/GoogleCloudPlatform/bigquery-ml-utils/blob/master/notebooks/bqml-generate-text-embedding-model.ipynb]을 참조하세요. 그렇지 않으면 다음 모델 중 하나를 선택합니다.
+--- 탭: NNLM [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#nnlm] ---
+pip를 사용하여 bigquery-ml-utils 라이브러리 [https://github.com/GoogleCloudPlatform/bigquery-ml-utils#installation]를 설치합니다.
+pip install bigquery-ml-utils
+
+NNLM 모델을 생성합니다. 다음 Python 코드는 TensorFlow 허브에서 NNLM 모델을 로드하고 BigQuery에 사용할 수 있도록 준비합니다.
+from bigquery_ml_utils import model_generator
+
+# Establish an instance of TextEmbeddingModelGenerator.
+text_embedding_model_generator = model_generator.TextEmbeddingModelGenerator()
+
+# Generate an NNLM model.
+text_embedding_model_generator.generate_text_embedding_model('nnlm', OUTPUT_MODEL_PATH)
+
+OUTPUT_MODEL_PATH를 모델을 임시로 저장할 수 있는 로컬 폴더의 경로로 바꿉니다.
+선택사항: 생성된 모델의 서명을 출력합니다.
+import tensorflow as tf
+
+reload_embedding_model = tf.saved_model.load(OUTPUT_MODEL_PATH)
+print(reload_embedding_model.signatures["serving_default"])
+
+생성된 모델을 로컬 폴더에서 Cloud Storage 버킷으로 복사하려면 Google Cloud CLI [https://cloud.google.com/sdk/gcloud/reference/storage?hl=ko]를 사용합니다.
+gcloud storage cp OUTPUT_MODEL_PATH gs://BUCKET_PATH/nnlm_model --recursive
+
+BUCKET_PATH를 모델을 복사할 Cloud Storage 버킷의 이름으로 바꿉니다.
+
+--- 탭: SWIVEL [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#swivel] ---
+pip를 사용하여 bigquery-ml-utils 라이브러리 [https://github.com/GoogleCloudPlatform/bigquery-ml-utils#installation]를 설치합니다.
+pip install bigquery-ml-utils
+
+SWIVEL 모델을 생성합니다. 다음 Python 코드는 TensorFlow 허브에서 SWIVEL 모델을 로드하고 BigQuery에 맞게 준비합니다.
+from bigquery_ml_utils import model_generator
+
+# Establish an instance of TextEmbeddingModelGenerator.
+text_embedding_model_generator = model_generator.TextEmbeddingModelGenerator()
+
+# Generate a SWIVEL model.
+text_embedding_model_generator.generate_text_embedding_model('swivel', OUTPUT_MODEL_PATH)
+
+OUTPUT_MODEL_PATH를 모델을 임시로 저장할 수 있는 로컬 폴더의 경로로 바꿉니다.
+선택사항: 생성된 모델의 서명을 출력합니다.
+import tensorflow as tf
+
+reload_embedding_model = tf.saved_model.load(OUTPUT_MODEL_PATH)
+print(reload_embedding_model.signatures["serving_default"])
+
+생성된 모델을 로컬 폴더에서 Cloud Storage 버킷으로 복사하려면 Google Cloud CLI [https://cloud.google.com/sdk/gcloud/reference/storage?hl=ko]를 사용합니다.
+gcloud storage cp OUTPUT_MODEL_PATH gs://BUCKET_PATH/swivel_model --recursive
+
+BUCKET_PATH를 모델을 복사할 Cloud Storage 버킷의 이름으로 바꿉니다.
+
+--- 탭: BERT [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#bert] ---
+pip를 사용하여 bigquery-ml-utils 라이브러리 [https://github.com/GoogleCloudPlatform/bigquery-ml-utils#installation]를 설치합니다.
+pip install bigquery-ml-utils
+
+BERT 모델을 생성합니다. 다음 Python 코드는 TensorFlow 허브에서 BERT 모델을 로드하고 BigQuery에 사용할 수 있도록 준비합니다.
+from bigquery_ml_utils import model_generator
+
+# Establish an instance of TextEmbeddingModelGenerator.
+text_embedding_model_generator = model_generator.TextEmbeddingModelGenerator()
+
+# Generate a BERT model.
+text_embedding_model_generator.generate_text_embedding_model('bert', OUTPUT_MODEL_PATH)
+
+OUTPUT_MODEL_PATH를 모델을 임시로 저장할 수 있는 로컬 폴더의 경로로 바꿉니다.
+선택사항: 생성된 모델의 서명을 출력합니다.
+import tensorflow as tf
+
+reload_embedding_model = tf.saved_model.load(OUTPUT_MODEL_PATH)
+print(reload_embedding_model.signatures["serving_default"])
+
+생성된 모델을 로컬 폴더에서 Cloud Storage 버킷으로 복사하려면 Google Cloud CLI [https://cloud.google.com/sdk/gcloud/reference/storage?hl=ko]를 사용합니다.
+gcloud storage cp OUTPUT_MODEL_PATH gs://BUCKET_PATH/bert_model --recursive
+
+BUCKET_PATH를 모델을 복사할 Cloud Storage 버킷의 이름으로 바꿉니다.
+BigQuery에 모델 로드
+다음 모델 중 하나를 선택합니다.
+--- 탭: NNLM [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#nnlm] ---
+CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko]을 사용합니다.
+
+
+
+
+
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE OR REPLACE MODEL tf_models_tutorial.nnlm_model
+OPTIONS (
+  model_type = 'TENSORFLOW',
+  model_path = 'gs://BUCKET_NAME/nnlm_model/*');
+
+
+BUCKET_NAME을 이전에 만든 버킷의 이름으로 바꿉니다.
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: SWIVEL [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#swivel] ---
+CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko]을 사용합니다.
+
+
+
+
+
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE OR REPLACE MODEL tf_models_tutorial.swivel_model
+OPTIONS (
+  model_type = 'TENSORFLOW',
+  model_path = 'gs://BUCKET_NAME/swivel_model/*');
+
+
+BUCKET_NAME을 이전에 만든 버킷의 이름으로 바꿉니다.
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: BERT [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#bert] ---
+BERT 모델을 BigQuery에 로드하기 위해 BERT 모델을 Vertex AI로 가져오고, 모델을 Vertex AI 엔드포인트에 배포하고, 연결을 만든 후 BigQuery에서 원격 모델을 만듭니다.
+
+BERT 모델을 Vertex AI로 가져오려면 다음 단계를 수행합니다.
+
+
+Google Cloud 콘솔에서 Vertex AI Model Registry 페이지로 이동합니다.
+
+Model Registry로 이동 [https://console.cloud.google.com/vertex-ai/models?hl=ko] 
+가져오기를 클릭한 후 다음을 수행합니다.
+
+
+이름에 BERT를 입력합니다.
+리전에서 Cloud Storage 버킷의 리전과 일치하는 리전을 선택합니다.
+
+계속을 클릭한 후 다음을 수행합니다.
+
+
+모델 프레임워크 버전에 2.8을 선택합니다.
+모델 아티팩트 위치에 모델 파일을 저장한 Cloud Storage 버킷의 경로를 입력합니다. 예를 들면 gs://BUCKET_PATH/bert_model입니다.
+
+가져오기를 클릭합니다. 가져오기가 완료되면 모델 레지스트리 페이지에 모델이 나타납니다.
+
+
+BERT 모델을 Vertex AI 엔드포인트에 배포하고 BigQuery에 연결하려면 다음 단계를 수행합니다.
+
+
+Google Cloud 콘솔에서 Vertex AI Model Registry 페이지로 이동합니다.
+
+Model Registry로 이동 [https://console.cloud.google.com/vertex-ai/models?hl=ko] 
+모델의 이름을 클릭합니다.
+배포 및 테스트를 클릭합니다.
+엔드포인트에 배포를 클릭합니다.
+엔드포인트 이름에 bert_model_endpoint를 입력합니다.
+계속을 클릭합니다.
+컴퓨팅 리소스를 선택합니다.
+배포를 클릭합니다.
+BigQuery Cloud 리소스 연결을 만들고 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection] 연결의 서비스 계정에 액세스 권한을 부여 [https://cloud.google.com/bigquery/docs/bigquery-ml-remote-model-tutorial?hl=ko#set_up_access]합니다.
+
+
+Vertex AI 엔드포인트를 기반으로 원격 모델을 만들려면 CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create?hl=ko]을 사용합니다.
+
+
+
+
+
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE OR REPLACE MODEL tf_models_tutorial.bert_model
+INPUT(content STRING)
+OUTPUT(embedding ARRAY<FLOAT64>)
+REMOTE WITH CONNECTION `PROJECT_ID.CONNECTION_LOCATION.CONNECTION_ID`
+OPTIONS (
+  ENDPOINT = "https://ENDPOINT_LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/ENDPOINT_LOCATION/endpoints/ENDPOINT_ID");
+
+
+    다음을 바꿉니다.
+
+  PROJECT_ID: 프로젝트 ID입니다.
+  CONNECTION_LOCATION: BigQuery 연결의 위치입니다.
+  CONNECTION_ID: BigQuery 연결의 ID
+  Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections], 이 값은 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+        
+  ENDPOINT_LOCATION: Vertex AI 엔드포인트의 위치입니다. 예를 들면 'us-central1'입니다.
+  ENDPOINT_ID: 모델 엔드포인트의 ID입니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+텍스트 임베딩 생성
+이 섹션에서는 ML.PREDICT() 추론 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-predict?hl=ko]를 사용하여 공개 데이터 세트 bigquery-public-data.imdb.reviews에서 review 열의 텍스트 임베딩을 생성합니다. 이 쿼리는 처리되는 데이터 양을 제한하기 위해 테이블을 500개 행으로 제한합니다.
+--- 탭: NNLM [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#nnlm] ---
+SELECT
+  *
+FROM
+  ML.PREDICT(
+    MODEL `tf_models_tutorial.nnlm_model`,
+    (
+    SELECT
+      review AS content
+    FROM
+      `bigquery-public-data.imdb.reviews`
+    LIMIT
+      500)
+  );
+
+결과는 다음과 비슷합니다.
++-----------------------+----------------------------------------+
+| embedding             | content                                |
++-----------------------+----------------------------------------+
+|  0.08599445223808289  | Isabelle Huppert must be one of the... |
+| -0.04862852394580841  |                                        |
+| -0.017750458791851997 |                                        |
+|  0.8658871650695801   |                                        |
+| ...                   |                                        |
++-----------------------+----------------------------------------+
+
+--- 탭: SWIVEL [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#swivel] ---
+SELECT
+  *
+FROM
+  ML.PREDICT(
+    MODEL `tf_models_tutorial.swivel_model`,
+    (
+    SELECT
+      review AS content
+    FROM
+      `bigquery-public-data.imdb.reviews`
+    LIMIT
+      500)
+  );
+
+결과는 다음과 비슷합니다.
++----------------------+----------------------------------------+
+| embedding            | content                                |
++----------------------+----------------------------------------+
+|  2.5952553749084473  | Isabelle Huppert must be one of the... |
+| -4.015787601470947   |                                        |
+|  3.6275434494018555  |                                        |
+| -6.045154333114624   |                                        |
+| ...                  |                                        |
++----------------------+----------------------------------------+
+
+--- 탭: BERT [https://cloud.google.com/bigquery/docs/generate-embedding-with-tensorflow-models?hl=ko#bert] ---
+SELECT
+  *
+FROM
+  ML.PREDICT(
+    MODEL `tf_models_tutorial.bert_model`,
+    (
+    SELECT
+      review AS content
+    FROM
+      `bigquery-public-data.imdb.reviews`
+    LIMIT
+      500)
+  );
+
+결과는 다음과 비슷합니다.
++--------------+---------------------+----------------------------------------+
+| embedding    | remote_model_status | content                                |
++--------------+---------------------+----------------------------------------+
+| -0.694072425 | null                | Isabelle Huppert must be one of the... |
+|  0.439208865 |                     |                                        |
+|  0.99988997  |                     |                                        |
+| -0.993487895 |                     |                                        |
+| ...          |                     |                                        |
++--------------+---------------------+----------------------------------------+
+삭제
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+도움이 되었나요?
+의견 보내기

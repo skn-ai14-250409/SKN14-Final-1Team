@@ -1,0 +1,693 @@
+Source URL: https://cloud.google.com/bigquery/docs/rag-pipeline-pdf
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#required_roles]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#create_a_dataset]
+검색 증강 생성(RAG) 파이프라인에서 PDF 파싱
+bookmark_border
+이 튜토리얼에서는 파싱된 PDF 콘텐츠를 기반으로 검색 증강 생성(RAG) 파이프라인을 만드는 과정을 안내합니다.
+재무 문서와 같은 PDF 파일은 구조가 복잡하고 텍스트, 숫자, 표가 섞여 있어 RAG 파이프라인에서 사용하기 어려울 수 있습니다. 이 튜토리얼에서는 BigQuery ML 기능을 Document AI의 Layout Parser와 함께 사용하여 PDF 파일에서 추출한 핵심 정보를 기반으로 RAG 파이프라인을 빌드하는 방법을 보여줍니다.
+Colab Enterprise 노트북 [https://github.com/GoogleCloudPlatform/generative-ai/blob/main/gemini/use-cases/retrieval-augmented-generation/rag_with_bigquery.ipynb]을 사용하여 이 튜토리얼을 진행할 수도 있습니다.
+목표
+이 튜토리얼에서는 다음 태스크를 다룹니다.
+Cloud Storage 버킷을 만들고 샘플 PDF 파일 업로드
+BigQuery에서 Cloud Storage 및 Vertex AI에 연결할 수 있도록 Cloud 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko] 만들기
+PDF 파일을 BigQuery에서 사용할 수 있도록 PDF 파일에 대한 객체 테이블 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko] 만들기
+PDF 파일을 파싱하는 데 사용할 수 있는 Document AI 프로세서 만들기 [https://cloud.google.com/document-ai/docs/create-processor?hl=ko#create-processor]
+Document AI API를 사용하여 BigQuery에서 문서 프로세서에 액세스할 수 있는 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model-service?hl=ko] 만들기
+원격 모델을 ML.PROCESS_DOCUMENT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-process-document?hl=ko]와 함께 사용하여 PDF 콘텐츠를 청크로 파싱한 다음 해당 콘텐츠를 BigQuery 테이블에 작성하기
+ML.PROCESS_DOCUMENT 함수에서 반환된 JSON 데이터에서 PDF 콘텐츠를 추출한 다음 해당 콘텐츠를 BigQuery 테이블에 쓰기
+BigQuery에서 Vertex AI text-embedding-004 임베딩 생성 모델을 사용할 수 있는 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko] 만들기
+원격 모델을 ML.GENERATE_EMBEDDING 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-embedding?hl=ko]와 함께 사용하여 파싱된 PDF 콘텐츠에서 임베딩을 생성한 후 해당 임베딩을 BigQuery 테이블에 작성하기. 임베딩은 PDF 콘텐츠의 수치적 표현으로, PDF 콘텐츠에 대한 시맨틱 검색을 실행할 수 있도록 합니다.
+임베딩에 VECTOR_SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko#vector_search]를 사용하여 의미적으로 유사한 PDF 콘텐츠 식별
+BigQuery에서 Gemini 텍스트 생성 모델을 사용할 수 있는 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko] 만들기
+원격 모델을 ML.GENERATE_TEXT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-text?hl=ko]와 함께 사용하여 텍스트를 생성하고, 벡터 검색 결과를 사용하여 프롬프트 입력을 보강하고 결과를 개선하여 검색 증강 생성(RAG) 수행하기
+비용
+이 문서에서는 비용이 청구될 수 있는 Google Cloud구성요소( )를 사용합니다.
+BigQuery: You incur costs for the data that you process in BigQuery.
+Vertex AI: You incur costs for calls to Vertex AI models.
+Document AI: You incur costs for calls to the Document AI API.
+Cloud Storage: You incur costs for object storage in Cloud Storage.
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+자세한 내용은 다음 가격 책정 페이지를 참조하세요.
+BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]
+Vertex AI 가격 책정 [https://cloud.google.com/vertex-ai/pricing?hl=ko#generative_ai_models]
+Document AI 가격 책정 [https://cloud.google.com/document-ai/pricing?hl=ko]
+Cloud Storage 가격 책정 [https://cloud.google.com/storage/pricing?hl=ko]
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, Vertex AI, Document AI, and Cloud Storage APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Caiplatform.googleapis.com%2Cdocumentai.googleapis.com%2Cstorage.googleapis.com&hl=ko]
+필요한 역할
+이 튜토리얼을 실행하려면 다음 Identity and Access Management(IAM) 역할이 필요합니다.
+Cloud Storage 버킷 및 객체 만들기: 스토리지 관리자(roles/storage.storageAdmin)
+문서 프로세서 만들기: Document AI 편집자(roles/documentai.editor)
+BigQuery 데이터 세트, 연결, 모델 만들기 및 사용: BigQuery 관리자(roles/bigquery.admin)
+연결의 서비스 계정에 권한 부여: 프로젝트 IAM 관리자(roles/resourcemanager.projectIamAdmin)
+이러한 사전 정의된 역할에는 이 문서의 작업을 수행하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 확장하세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-permissions?hl=ko]을 사용하여 이 권한을 부여받을 수도 있습니다.
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+연결 만들기
+클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 만들고 연결의 서비스 계정을 가져옵니다. 동일한 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에 연결을 만듭니다.
+기본 연결이 구성되어 있거나 BigQuery 관리자 역할이 있는 경우 이 단계를 건너뛸 수 있습니다.
+원격 모델이 사용할 클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 만들고 연결의 서비스 계정을 가져옵니다. 이전 단계에서 만든 데이터 세트와 동일한 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에 연결을 만듭니다.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 add 데이터 추가를 클릭합니다.
+
+ 
+
+데이터 추가 대화상자가 열립니다.
+필터링 기준 창의 데이터 소스 유형 섹션에서 비즈니스 애플리케이션을 선택합니다.
+
+또는 데이터 소스 검색 필드에 Vertex AI를 입력할 수 있습니다.
+추천 데이터 소스 섹션에서 Vertex AI를 클릭합니다.
+Vertex AI 모델: BigQuery 제휴 솔루션 카드를 클릭합니다.
+연결 유형 목록에서 Vertex AI 원격 모델, 원격 함수, BigLake(Cloud 리소스)를 선택합니다.
+연결 ID 필드에 연결 이름을 입력합니다.
+연결 만들기를 클릭합니다.
+연결로 이동을 클릭합니다.
+연결 정보 창에서 나중의 단계에 사용할 서비스 계정 ID를 복사합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#bq] ---
+명령줄 환경에서 연결을 만듭니다.
+
+bq mk --connection --location=REGION --project_id=PROJECT_ID \
+    --connection_type=CLOUD_RESOURCE CONNECTION_ID
+
+--project_id 매개변수는 기본 프로젝트를 재정의합니다.
+
+다음을 바꿉니다.
+
+
+REGION: 연결 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#supported_locations]
+PROJECT_ID: Google Cloud 프로젝트 ID
+CONNECTION_ID: 연결의 ID
+
+
+연결 리소스를 만들면 BigQuery가 고유한 시스템 서비스 계정을 만들고 이를 연결에 연계합니다.
+
+문제 해결: 다음 연결 오류가 발생하면 Google Cloud SDK를 업데이트 [https://cloud.google.com/sdk/docs/quickstart?hl=ko]하세요.
+
+Flags parsing error: flag --connection_type=CLOUD_RESOURCE: value should be one of...
+
+이후 단계에서 사용할 수 있도록 서비스 계정 ID를 가져와 복사합니다.
+
+bq show --connection PROJECT_ID.REGION.CONNECTION_ID
+
+출력은 다음과 유사합니다.
+
+name                          properties
+1234.REGION.CONNECTION_ID     {"serviceAccountId": "connection-1234-9u56h9@gcp-sa-bigquery-condel.iam.gserviceaccount.com"}
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#terraform] ---
+google_bigquery_connection [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_connection] 리소스를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 US 리전에 my_cloud_resource_connection이라는 Cloud 리소스 연결을 만듭니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# This queries the provider for project information.
+data "google_project" "default" {}
+
+# This creates a cloud resource connection in the US region named my_cloud_resource_connection.
+# Note: The cloud resource nested object has only one output field - serviceAccountId.
+resource "google_bigquery_connection" "default" {
+  connection_id = "my_cloud_resource_connection"
+  project       = data.google_project.default.project_id
+  location      = "US"
+  cloud_resource {}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+서비스 계정에 액세스 권한 부여
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#%EC%BD%98%EC%86%94] ---
+IAM 및 관리자 페이지로 이동합니다.
+
+IAM 및 관리자로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko] 
+person_add 액세스 권한 부여를 클릭합니다.
+
+주 구성원 추가 대화상자가 열립니다.
+새 주 구성원 필드에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 Document AI를 선택한 후 Document AI 뷰어를 선택합니다.
+다른 역할 추가를 클릭합니다.
+역할 선택 필드에서 Cloud Storage를 선택한 후 스토리지 객체 뷰어를 선택합니다.
+다른 역할 추가를 클릭합니다.
+역할 선택 필드에서 Vertex AI를 선택한 후 Vertex AI 사용자를 선택합니다.
+저장을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/rag-pipeline-pdf?hl=ko#gcloud] ---
+gcloud projects add-iam-policy-binding [https://cloud.google.com/sdk/gcloud/reference/projects/add-iam-policy-binding?hl=ko] 명령어를 사용합니다.
+
+gcloud projects add-iam-policy-binding 'PROJECT_NUMBER' --member='serviceAccount:MEMBER' --role='roles/documentai.viewer' --condition=None
+gcloud projects add-iam-policy-binding 'PROJECT_NUMBER' --member='serviceAccount:MEMBER' --role='roles/storage.objectViewer' --condition=None
+gcloud projects add-iam-policy-binding 'PROJECT_NUMBER' --member='serviceAccount:MEMBER' --role='roles/aiplatform.user' --condition=None
+ 
+
+다음을 바꿉니다.
+
+  PROJECT_NUMBER: 프로젝트 번호
+  MEMBER: 이전에 복사한 서비스 계정 ID
+샘플 PDF를 Cloud Storage에 업로드
+샘플 PDF를 Cloud Storage에 업로드하려면 다음 단계를 따르세요.
+https://www.federalreserve.gov/publications/files/scf23.pdf [https://www.federalreserve.gov/publications/files/scf23.pdf]로 이동하여 download 다운로드를 클릭하여 scf23.pdf 샘플 PDF를 다운로드합니다.
+Cloud Storage 버킷 생성 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko]
+scf23.pdf 파일을 버킷에 업로드 [https://cloud.google.com/storage/docs/uploading-objects?hl=ko]합니다.
+객체 테이블 만들기
+Cloud Storage의 PDF 파일을 대상으로 객체 테이블을 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE EXTERNAL TABLE `bqml_tutorial.pdf`
+WITH CONNECTION `
+LOCATION.
+CONNECTION_ID`
+OPTIONS(
+  object_metadata = 'SIMPLE',
+  uris = ['gs://
+BUCKET/scf23.pdf']);
+다음을 바꿉니다.
+LOCATION: 연결 위치
+CONNECTION_ID: BigQuery 연결의 ID
+Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] CONNECTION_ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+BUCKET: scf23.pdf 파일이 포함된 Cloud Storage 버킷입니다. 전체 uri 옵션 값은 ['gs://mybucket/scf23.pdf']와 유사해야 합니다.
+문서 프로세서 만들기
+us 멀티 리전의 레이아웃 파서 프로세서 [https://cloud.google.com/document-ai/docs/layout-parse-chunk?hl=ko]를 기반으로 문서 프로세서를 만듭니다 [https://cloud.google.com/document-ai/docs/create-processor?hl=ko#create-processor].
+문서 프로세서의 원격 모델 만들기
+Document AI 프로세서에 액세스할 원격 모델을 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.parser_model`
+REMOTE WITH CONNECTION `
+LOCATION.
+CONNECTION_ID`
+  OPTIONS(remote_service_type = 'CLOUD_AI_DOCUMENT_V1', document_processor = '
+PROCESSOR_ID');
+다음을 바꿉니다.
+LOCATION: 연결 위치
+CONNECTION_ID: BigQuery 연결의 ID
+Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] CONNECTION_ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+PROCESSOR_ID: 문서 프로세서 ID. 이 값을 찾으려면 프로세서 세부정보를 확인 [https://cloud.google.com/document-ai/docs/create-processor?hl=ko#get-processor]한 다음 기본 정보 섹션의 ID 행을 확인합니다.
+PDF 파일을 청크로 파싱
+ML.PROCESS_DOCUMENT 함수와 함께 문서 프로세서를 사용하여 PDF 파일을 청크로 파싱한 후 해당 콘텐츠를 테이블에 씁니다. ML.PROCESS_DOCUMENT 함수는 PDF 청크를 JSON 형식으로 반환합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+CREATE or REPLACE TABLE bqml_tutorial.chunked_pdf AS (
+  SELECT * FROM ML.PROCESS_DOCUMENT(
+  MODEL bqml_tutorial.parser_model,
+  TABLE bqml_tutorial.pdf,
+  PROCESS_OPTIONS => (JSON '{"layout_config": {"chunking_config": {"chunk_size": 250}}}')
+  )
+);
+PDF 청크 데이터를 별도의 열로 파싱
+ML.PROCESS_DOCUMENT 함수에서 반환된 JSON 데이터에서 PDF 콘텐츠와 메타데이터 정보를 추출한 다음 해당 콘텐츠를 테이블에 작성합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 문을 실행하여 PDF 콘텐츠를 파싱합니다.
+CREATE OR REPLACE TABLE bqml_tutorial.parsed_pdf AS (
+SELECT
+  uri,
+  JSON_EXTRACT_SCALAR(json , '$.chunkId') AS id,
+  JSON_EXTRACT_SCALAR(json , '$.content') AS content,
+  JSON_EXTRACT_SCALAR(json , '$.pageFooters[0].text') AS page_footers_text,
+  JSON_EXTRACT_SCALAR(json , '$.pageSpan.pageStart') AS page_span_start,
+  JSON_EXTRACT_SCALAR(json , '$.pageSpan.pageEnd') AS page_span_end
+FROM bqml_tutorial.chunked_pdf, UNNEST(JSON_EXTRACT_ARRAY(ml_process_document_result.chunkedDocument.chunks, '$')) json
+);
+쿼리 편집기에서 다음 문을 실행하여 파싱된 PDF 콘텐츠의 하위 집합을 확인합니다.
+SELECT *
+FROM `bqml_tutorial.parsed_pdf`
+ORDER BY id
+LIMIT 5;
+출력은 다음과 비슷합니다.
++-----------------------------------+------+------------------------------------------------------------------------------------------------------+-------------------+-----------------+---------------+
+|                uri                |  id  |                                                 content                                              | page_footers_text | page_span_start | page_span_end |
++-----------------------------------+------+------------------------------------------------------------------------------------------------------+-------------------+-----------------+---------------+
+| gs://mybucket/scf23.pdf           | c1   | •BOARD OF OF FEDERAL GOVERN NOR RESERVE SYSTEM RESEARCH & ANALYSIS                                   | NULL              | 1               | 1             |
+| gs://mybucket/scf23.pdf           | c10  | • In 2022, 20 percent of all families, 14 percent of families in the bottom half of the usual ...    | NULL              | 8               | 9             |
+| gs://mybucket/scf23.pdf           | c100 | The SCF asks multiple questions intended to capture whether families are credit constrained, ...     | NULL              | 48              | 48            |
+| gs://mybucket/scf23.pdf           | c101 | Bankruptcy behavior over the past five years is based on a series of retrospective questions ...     | NULL              | 48              | 48            |
+| gs://mybucket/scf23.pdf           | c102 | # Percentiles of the Distributions of Income and Net Worth                                           | NULL              | 48              | 49            |
++-----------------------------------+------+------------------------------------------------------------------------------------------------------+-------------------+-----------------+---------------+
+ 
+임베딩 생성을 위한 원격 모델 만들기
+호스팅된 Vertex AI 텍스트 임베딩 생성 모델을 나타내는 원격 모델을 만들어 보겠습니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.embedding_model`
+  REMOTE WITH CONNECTION `
+LOCATION.
+CONNECTION_ID`
+  OPTIONS (ENDPOINT = 'text-embedding-005');
+다음을 바꿉니다.
+LOCATION: 연결 위치
+CONNECTION_ID: BigQuery 연결의 ID
+Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] CONNECTION_ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+임베딩 생성
+파싱된 PDF 콘텐츠의 임베딩을 생성한 후 테이블에 씁니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE TABLE `bqml_tutorial.embeddings` AS
+SELECT * FROM ML.GENERATE_EMBEDDING(
+  MODEL `bqml_tutorial.embedding_model`,
+  TABLE `bqml_tutorial.parsed_pdf`
+);
+벡터 검색 실행하기
+파싱된 PDF 콘텐츠에 대해 벡터 검색을 실행합니다.
+다음 쿼리는 텍스트 입력을 가져와 ML.GENERATE_EMBEDDING 함수를 사용하여 해당 입력의 임베딩을 만든 다음 VECTOR_SEARCH 함수를 사용하여 입력 임베딩을 가장 유사한 PDF 콘텐츠 임베딩과 일치시킵니다. 결과는 입력과 의미적으로 가장 유사한 상위 10개 PDF 청크입니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 SQL 문을 실행합니다.
+SELECT query.query, base.id AS pdf_chunk_id, base.content, distance
+FROM
+  VECTOR_SEARCH( TABLE `bqml_tutorial.embeddings`,
+    'ml_generate_embedding_result',
+    (
+    SELECT
+      ml_generate_embedding_result,
+      content AS query
+    FROM
+      ML.GENERATE_EMBEDDING( MODEL `bqml_tutorial.embedding_model`,
+        ( SELECT 'Did the typical family net worth increase? If so, by how much?' AS content)
+      )
+    ),
+    top_k => 10,
+    OPTIONS => '{"fraction_lists_to_search": 0.01}')
+ORDER BY distance DESC;
+출력은 다음과 비슷합니다.
++-------------------------------------------------+--------------+------------------------------------------------------------------------------------------------------+---------------------+
+|                query                            | pdf_chunk_id |                                                 content                                              | distance            |
++-------------------------------------------------+--------------+------------------------------------------------------------------------------------------------------+---------------------+
+| Did the typical family net worth increase? ,... | c9           | ## Assets                                                                                            | 0.31113668174119469 |
+|                                                 |              |                                                                                                      |                     |
+|                                                 |              | The homeownership rate increased slightly between 2019 and 2022, to 66.1 percent. For ...            |                     |
++-------------------------------------------------+--------------+------------------------------------------------------------------------------------------------------+---------------------+
+| Did the typical family net worth increase? ,... | c50          | # Box 3. Net Housing Wealth and Housing Affordability                                                | 0.30973592073929113 |
+|                                                 |              |                                                                                                      |                     |
+|                                                 |              | For families that own their primary residence ...                                                    |                     |
++-------------------------------------------------+--------------+------------------------------------------------------------------------------------------------------+---------------------+
+| Did the typical family net worth increase? ,... | c50          | 3 In the 2019 SCF, a small portion of the data collection overlapped with early months of            | 0.29270064592817646 |
+|                                                 |              | the COVID- ...                                                                                       |                     |
++-------------------------------------------------+--------------+------------------------------------------------------------------------------------------------------+---------------------+
+ 
+텍스트 생성을 위한 원격 모델 만들기
+호스팅된 Vertex AI 텍스트 생성 모델을 나타내는 원격 모델을 만들어 보겠습니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.text_model`
+  REMOTE WITH CONNECTION `
+LOCATION.
+CONNECTION_ID`
+  OPTIONS (ENDPOINT = 'gemini-2.0-flash-001');
+다음을 바꿉니다.
+LOCATION: 연결 위치
+CONNECTION_ID: BigQuery 연결의 ID
+Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] CONNECTION_ID는 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+벡터 검색 결과로 보강된 텍스트 생성
+임베딩에 벡터 검색을 실행하여 의미상 유사한 PDF 콘텐츠를 식별한 다음 벡터 검색 결과와 함께 ML.GENERATE_TEXT 함수를 사용하여 프롬프트 입력을 보강하고 텍스트 생성 결과를 개선합니다. 이 경우 쿼리는 PDF 청크의 정보를 사용하여 지난 10년간의 가족 순자산 변화에 관한 질문에 답변합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행합니다.
+SELECT
+  ml_generate_text_llm_result AS generated
+  FROM
+  ML.GENERATE_TEXT( MODEL `bqml_tutorial.text_model`,
+    (
+    SELECT
+    CONCAT( 'Did the typical family net worth change? How does this compare the SCF survey a decade earlier? Be concise and use the following context:',
+    STRING_AGG(FORMAT("context: %s and reference: %s", base.content, base.uri), ',\n')) AS prompt,
+    FROM
+      VECTOR_SEARCH( TABLE
+        `bqml_tutorial.embeddings`,
+        'ml_generate_embedding_result',
+        (
+        SELECT
+          ml_generate_embedding_result,
+          content AS query
+        FROM
+          ML.GENERATE_EMBEDDING( MODEL `bqml_tutorial.embedding_model`,
+            (
+            SELECT
+              'Did the typical family net worth change? How does this compare the SCF survey a decade earlier?' AS content
+            )
+          )
+        ),
+        top_k => 10,
+        OPTIONS => '{"fraction_lists_to_search": 0.01}')
+      ),
+      STRUCT(512 AS max_output_tokens, TRUE AS flatten_json_output)
+  );
+출력은 다음과 비슷합니다.
++-------------------------------------------------------------------------------+
+|               generated                                                       |
++-------------------------------------------------------------------------------+
+| Between the 2019 and 2022 Survey of Consumer Finances (SCF), real median      |
+| family net worth surged 37 percent to $192,900, and real mean net worth       |
+| increased 23 percent to $1,063,700.  This represents the largest three-year   |
+| increase in median net worth in the history of the modern SCF, exceeding the  |
+| next largest by more than double.  In contrast, between 2010 and 2013, real   |
+| median net worth decreased 2 percent, and real mean net worth remained        |
+| unchanged.                                                                    |
++-------------------------------------------------------------------------------+
+ 
+삭제
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,478 @@
+Source URL: https://cloud.google.com/bigquery/docs/managing-partitioned-tables
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+파티션 메타데이터 가져오기 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#get_partition_metadata]
+INFORMATION_SCHEMA 뷰를 사용하여 파티션 메타데이터 가져오기 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#getting_partition_metadata_using_information_schema_views]
+메타테이블을 사용하여 파티션 메타데이터 가져오기 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#getting_partition_metadata_using_meta-tables]
+파티션 만료 시간 설정 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#partition-expiration]
+파티션 만료 시간 업데이트 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#update_the_partition_expiration]
+파티션 필터 요구사항 설정 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#require-filter]
+파티션 필터 요구사항 업데이트 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#update_the_partition_filter_requirement]
+파티션을 나눈 테이블 복사 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#copy_a_partitioned_table]
+파티션을 나눈 테이블 관리
+bookmark_border
+이 문서에서는 BigQuery에서 파티션을 나눈 테이블을 관리하는 방법을 설명합니다.
+참고: 테이블 데이터 관리 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko]의 정보는 파티션을 나눈 테이블에도 적용됩니다.
+파티션 메타데이터 가져오기
+다음과 같은 방법으로 파티션을 나눈 테이블에 대한 정보를 가져올 수 있습니다.
+INFORMATION_SCHEMA.PARTITIONS [https://cloud.google.com/bigquery/docs/information-schema-partitions?hl=ko] 뷰(미리보기 [https://cloud.google.com/products?hl=ko#product-launch-stages])를 사용합니다.
+__PARTITIONS_SUMMARY__ 메타테이블(legacy SQL만 해당)을 사용합니다.
+INFORMATION_SCHEMA 뷰를 사용하여 파티션 메타데이터 가져오기
+INFORMATION_SCHEMA.PARTITIONS 뷰를 쿼리하면 각 파티션당 하나의 행이 쿼리 결과에 포함됩니다. 예를 들어 다음 쿼리는 mydataset라는 데이터 세트에 있는 모든 테이블 파티션을 나열합니다.
+SELECT table_name, partition_id, total_rows
+FROM `mydataset.INFORMATION_SCHEMA.PARTITIONS`
+WHERE partition_id IS NOT NULL
+자세한 내용은 INFORMATION_SCHEMA.PARTITIONS [https://cloud.google.com/bigquery/docs/information-schema-partitions?hl=ko]를 참조하세요.
+메타테이블을 사용하여 파티션 메타데이터 가져오기
+legacy SQL에서는 __PARTITIONS_SUMMARY__ 메타테이블을 쿼리하여 테이블 파티션에 대한 메타데이터를 가져올 수 있습니다. 메타테이블은 메타데이터가 포함된 읽기 전용 테이블입니다.
+다음과 같이 __PARTITIONS_SUMMARY__ 메타테이블을 쿼리합니다.
+#legacySQL
+SELECT
+  
+column
+FROM
+  [
+dataset.table$__PARTITIONS_SUMMARY__]
+참고: GoogleSQL은 파티션 데코레이터 구분자($)를 지원하지 않으므로 GoogleSQL에서 __PARTITIONS_SUMMARY__를 쿼리할 수 없습니다.
+__PARTITIONS_SUMMARY__ 메타테이블에는 다음과 같은 열이 있습니다.
+값 설명
+project_id 프로젝트 이름입니다.
+dataset_id 데이터 세트의 이름입니다.
+table_id 시간으로 파티션을 나눈 테이블의 이름입니다.
+partition_id 파티션의 이름(날짜)입니다.
+creation_time 파티션이 생성된 시간이며 1970년 1월 1일 UTC 이후의 밀리초로 표시됩니다.
+last_modified_time 파티션이 마지막으로 수정된 시간이며 1970년 1월 1일 UTC 이후의 밀리초로 표시됩니다.
+__PARTITIONS_SUMMARY__ 메타테이블을 사용하는 쿼리 작업을 실행하려면 최소한 bigquery.jobs.create 권한 및 bigquery.tables.getData 권한을 부여받아야 합니다.
+BigQuery의 IAM 역할에 대한 자세한 내용은 액세스 제어 [https://cloud.google.com/bigquery/access-control?hl=ko]를 참조하세요.
+파티션 만료 시간 설정
+수집 시간 또는 시간 단위 열로 파티션을 나눈 테이블을 만들 때 파티션 만료 시간을 지정할 수 있습니다. 이 설정은 BigQuery가 각 파티션에 데이터를 보관하는 기간을 지정합니다. 이 설정은 테이블의 모든 파티션에 적용되지만 파티션 시간을 기준으로 각 파티션과 별도로 계산됩니다.
+파티션 만료 시간은 파티션 경계에서 UTC 기준으로 계산됩니다. 예를 들어 일일 파티션 나누기의 경우 파티션 경계는 자정(00:00:00 UTC)입니다. 테이블의 파티션 만료 시간이 6시간이면 각 파티션은 다음 날 06:00:00 UTC에 만료됩니다. 파티션이 만료되면 BigQuery에서 해당 파티션의 데이터를 삭제합니다.
+데이터 세트 수준에서 기본 파티션 만료 시간 [https://cloud.google.com/bigquery/docs/updating-datasets?hl=ko#partition-expiration]을 지정할 수도 있습니다. 테이블에 파티션 만료 시간을 설정하면 이 값이 기본 파티션 만료 시간을 재정의합니다. (테이블 또는 데이터 세트에) 파티션 만료 시간을 지정하지 않으면 파티션이 만료되지 않습니다.
+참고: 정수 범위의 파티션을 나눈 테이블은 파티션 만료 시간을 지원하지 않습니다.
+테이블 만료 시간을 설정하면 이 값이 파티션 만료 시간보다 우선 적용됩니다. 예를 들어 테이블 만료 시간은 5일로 설정되고 파티션 만료 시간은 7일로 설정되어 있으면 테이블과 테이블 내의 모든 파티션이 5일 후에 삭제됩니다.
+테이블을 만든 후 언제든지 테이블의 파티션 만료 시간을 업데이트할 수 있습니다. 새 설정은 생성 시기에 관계없이 해당 테이블의 모든 파티션에 적용됩니다. 기존 파티션이 새 만료 시간보다 오래된 경우 즉시 만료됩니다. 마찬가지로 시간 단위 열로 파티션을 나눈 테이블에 데이터를 복사하거나 삽입하는 경우 테이블에 구성된 파티션 만료 시간보다 오래된 파티션은 즉시 만료됩니다.
+파티션이 만료되면 BigQuery에서 해당 파티션을 삭제합니다. 파티션 데이터는 시간 이동 [https://cloud.google.com/bigquery/docs/time-travel?hl=ko] 및 장애 안전 [https://cloud.google.com/bigquery/docs/time-travel?hl=ko#fail-safe] 정책에 따라 보관되며 결제 모델에 따라 요금이 청구될 수 있습니다. 그때까지는 테이블 할당량 [https://cloud.google.com/bigquery/quotas?hl=ko#partitioned_tables]에 따라 파티션이 계산됩니다. 파티션을 즉시 삭제하려면 파티션을 수동으로 삭제 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#delete_a_partition]하면 됩니다.
+파티션 만료 시간 업데이트
+파티션을 나눈 테이블의 파티션 만료 시간을 업데이트하는 방법:
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서는 파티션 만료 시간을 업데이트할 수 없습니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#sql] ---
+ALTER TABLE SET OPTIONS 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_set_options_statement]을 사용합니다.
+다음 예시에서는 만료 시간을 5일로 업데이트합니다. 테이블의 파티션 만료 시간을 삭제하려면 partition_expiration_days를 NULL로 설정합니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+ALTER TABLE mydataset.mytable
+  SET OPTIONS (
+    -- Sets partition expiration to 5 days
+    partition_expiration_days = 5);
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#bq] ---
+bq update 명령어를 --time_partitioning_expiration 플래그와 함께 실행합니다. 기본 프로젝트가 아닌 다른 프로젝트의 파티션을 나눈 테이블을 업데이트하려면 해당 프로젝트 ID를 project_id:dataset 형식으로 데이터 세트 이름에 추가합니다.
+
+bq update \
+--time_partitioning_expiration integer_in_seconds \
+--time_partitioning_type unit_time \
+project_id:dataset.table
+
+각 항목의 의미는 다음과 같습니다.
+
+
+integer는 테이블 파티션의 기본 수명(단위: 초)입니다. 최솟값은 없습니다. 만료 시간은 파티션의 날짜와 정수 값을 더한 값입니다. 0을 지정하면 파티션 만료 시간이 삭제되고 파티션이 만료되지 않습니다. 만료 시간이 없는 파티션은 수동으로 삭제해야 합니다.
+unit_time은 테이블의 파티션 나누기 세부사항을 기준으로 하는 DAY, HOUR, MONTH 또는 YEAR입니다. 이 값은 테이블을 만들 때 설정한 세부사항과 일치해야 합니다.
+project_id는 프로젝트 ID입니다.
+dataset는 업데이트할 테이블이 포함되어 있는 데이터 세트의 이름입니다.
+table은 업데이트할 테이블의 이름입니다.
+
+
+예시:
+
+mydataset.mytable의 파티션 만료 시간을 5일(432,000초)로 업데이트하려면 다음 명령어를 입력합니다. 여기서 mydataset는 기본 프로젝트에 있습니다.
+bq update --time_partitioning_expiration 432000 mydataset.mytable
+
+mydataset.mytable의 파티션 만료 시간을 5일(432,000초)로 업데이트하려면 다음 명령어를 입력합니다. 여기서 mydataset는 기본 프로젝트가 아닌 myotherproject에 있습니다.
+bq update \
+--time_partitioning_expiration 432000 \
+myotherproject:mydataset.mytable
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#api] ---
+tables.patch [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch?hl=ko] 메서드를 호출하고 timePartitioning.expirationMs 속성을 사용하여 파티션 만료 시간을 밀리초 단위로 업데이트합니다. tables.update 메서드는 전체 테이블 리소스를 바꾸기 때문에 tables.patch 메서드를 사용하는 것이 좋습니다.
+파티션 필터 요구사항 설정
+파티션을 나눈 테이블을 만들 때 테이블의 모든 쿼리에 파티션 나누기 열을 필터링하는 조건자 필터(WHERE 절)가 포함되도록 요구할 수 있습니다. BigQuery에서 이 필터를 사용하여 조건자와 일치하지 않는 파티션을 프루닝할 수 있어 이 설정으로 성능을 개선하고 비용을 절감할 수 있습니다. 이 요구사항은 파티션을 나눈 테이블을 참조하는 뷰 및 구체화된 뷰의 쿼리에도 적용됩니다.
+파티션을 나눈 테이블을 만들 때 파티션 필터 필요 옵션을 추가하는 방법에 대한 자세한 내용은 파티션을 나눈 테이블 만들기 [https://cloud.google.com/bigquery/docs/creating-partitioned-tables?hl=ko]를 참조하세요.
+파티션을 나눈 테이블에 파티션 필터 필요 설정이 있는 경우 해당 테이블의 모든 쿼리에 파티션 나누기 열만 참조하는 조건자가 하나 이상 포함되어야 합니다. 이러한 조건자가 없는 쿼리는 다음 오류를 반환합니다.
+Cannot query over table 'project_id.dataset.table' without a filter that can be used for partition elimination.
+자세한 내용은 파티션을 나눈 테이블 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko]를 참조하세요.
+파티션 필터 요구사항 업데이트
+파티션을 나눈 테이블을 만들 때 파티션 필터 필요 옵션을 사용 설정하지 않았다면 테이블을 업데이트하여 해당 옵션을 추가할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#%EC%BD%98%EC%86%94] ---
+파티션을 나눈 테이블이 생성된 후에는 Google Cloud 콘솔을 사용하여 파티션 필터를 필수로 지정할 수 없습니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#sql] ---
+ALTER TABLE SET OPTIONS 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_set_options_statement]을 사용하여 파티션 필터 요구사항을 업데이트합니다. 다음 예시에서는 요구사항을 true로 업데이트합니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+ALTER TABLE mydataset.mypartitionedtable
+  SET OPTIONS (
+    require_partition_filter = true);
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#bq] ---
+bq 명령줄 도구를 사용하여 파티션 필터를 요구하도록 파티션을 나눈 테이블을 업데이트하려면 bq update 명령어를 입력하고 --require_partition_filter 플래그를 지정합니다.
+
+기본 프로젝트가 아닌 다른 프로젝트의 파티션을 나눈 테이블을 업데이트하려면 해당 프로젝트 ID를 project_id:dataset 형식으로 데이터 세트에 추가합니다.
+
+예를 들면 다음과 같습니다.
+
+기본 프로젝트에 있는 mydataset의 mypartitionedtable을 업데이트하려면 다음을 입력합니다.
+
+bq update --require_partition_filter mydataset.mytable
+
+myotherproject에 있는 mydataset의 mypartitionedtable을 업데이트하려면 다음을 입력합니다.
+
+bq update --require_partition_filter myotherproject:mydataset.mytable
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#api] ---
+tables.patch [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch?hl=ko] 메서드를 호출하고 requirePartitionFilter 속성을 true로 설정하여 파티션 필터를 필수로 지정합니다. tables.update 메서드는 전체 테이블 리소스를 바꾸기 때문에 tables.patch 메서드를 사용하는 것이 좋습니다.
+
+--- 탭: tabpanel-자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.Table [https://cloud.google.com/java/docs/reference/google-cloud-biglake/latest/com.google.cloud.bigquery.biglake.v1.Table.html?hl=ko];
+
+// Sample to update require partition filter on a table.
+public class UpdateTableRequirePartitionFilter {
+
+  public static void runUpdateTableRequirePartitionFilter() {
+    // TODO(developer): Replace these variables before running the sample.
+    String datasetName = "MY_DATASET_NAME";
+    String tableName = "MY_TABLE_NAME";
+    updateTableRequirePartitionFilter(datasetName, tableName);
+  }
+
+  public static void updateTableRequirePartitionFilter(String datasetName, String tableName) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      Table [https://cloud.google.com/java/docs/reference/google-cloud-biglake/latest/com.google.cloud.bigquery.biglake.v1.Table.html?hl=ko] table = bigquery.getTable [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_getTable_com_google_cloud_bigquery_TableId_com_google_cloud_bigquery_BigQuery_TableOption____](datasetName, tableName);
+      table.toBuilder [https://cloud.google.com/java/docs/reference/google-cloud-biglake/latest/com.google.cloud.bigquery.biglake.v1.Table.html?hl=ko#com_google_cloud_bigquery_biglake_v1_Table_toBuilder__]().setRequirePartitionFilter(true).build().update();
+
+      System.out.println("Table require partition filter updated successfully");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] e) {
+      System.out.println("Table require partition filter was not updated \n" + e.toString());
+    }
+  }
+}
+파티션을 나눈 테이블 복사
+파티션을 나눈 테이블을 복사하는 프로세스는 표준 테이블을 복사하는 프로세스와 동일합니다. 자세한 내용은 테이블 복사 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#copy-table]를 참조하세요.
+파티션을 나눈 테이블을 복사할 때는 다음에 유의하세요.
+파티션을 나눈 테이블을 새 대상 테이블에 복사
+모든 파티션 나누기 정보가 테이블과 함께 복사됩니다. 따라서 새 테이블과 이전 테이블의 파티션이 동일하게 됩니다.
+파티션을 나누지 않은 테이블을 기존 파티션을 나눈 테이블에 복사
+이 작업은 수집 시간으로 파티션 나누기에만 사용할 수 있습니다. BigQuery에서 현재 날짜를 나타내는 파티션에 소스 데이터를 복사합니다. 시간 단위 열로 파티션을 나눈 테이블 또는 정수 범위로 파티션을 나눈 테이블에서는 지원되지 않는 작업입니다.
+파티션을 나눈 테이블을 다른 파티션을 나눈 테이블에 복사
+소스 테이블과 대상 테이블의 파티션 사양이 일치해야 합니다.
+파티션을 나눈 테이블을 파티션을 나누지 않은 테이블에 복사
+대상 테이블에서는 파티션이 나눠지지 않습니다.
+여러 개의 파티션을 나눈 테이블 복사
+여러 개의 소스 테이블을 같은 작업의 파티션을 나눈 테이블 하나에 복사할 때는 소스 테이블에 파티션을 나눈 테이블과 파티션을 나누지 않은 테이블이 혼재해서는 안 됩니다.
+모든 소스 테이블이 파티션을 나눈 테이블이라면 모든 소스 테이블의 파티션 사양이 대상 테이블의 파티션 사양과 일치해야 합니다.
+클러스터링 사양 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]이 있는 파티션을 나눈 테이블 복사
+새 테이블에 복사하면 모든 클러스터링 정보가 테이블과 함께 복사됩니다. 새 테이블과 이전 테이블의 클러스터링이 동일하게 됩니다.
+기존 테이블에 복사하는 경우 소스 테이블과 대상 테이블의 클러스터 사양이 일치해야 합니다.
+기존 테이블에 복사할 때 대상 테이블을 추가할지 아니면 덮어쓸지 지정할 수 있습니다.
+개별 파티션 복사
+하나 이상의 파티션에서 다른 테이블로 데이터를 복사할 수 있습니다.
+참고: 필요한 권한은 테이블 복사 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#copy-table] 시와 동일합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서는 파티션을 복사할 수 없습니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#bq] ---
+파티션을 복사하려면 bq cp 명령줄 도구의 $date(copy) 명령어와 bq 같은 파티션 데코레이터($20160201)를 함께 사용합니다.
+
+선택적 플래그를 사용하면 대상 파티션의 쓰기 처리를 제어할 수 있습니다.
+
+
+-a 또는 --append_table은 소스 파티션의 데이터를 대상 데이터세트의 기존 테이블 또는 파티션에 추가합니다.
+-f 또는 --force는 대상 데이터세트의 기존 테이블 또는 파티션을 덮어쓰며 확인 메시지를 표시하지 않습니다.
+-n 또는 --no_clobber는 해당 테이블 또는 파티션이 대상 데이터 세트에 이미 있는 경우 Table '<var>project_id:dataset.table</var> or <var>table$date</var>'
+already exists, skipping. 오류 메시지를 반환합니다. -n을 지정하지 않으면 기본적으로 대상 테이블 또는 파티션을 대체할지 묻는 메시지가 표시됩니다.
+--destination_kms_key는 대상 테이블 또는 파티션을 암호화하는 데 사용되는 고객 관리 Cloud KMS 키입니다.
+
+
+cp 명령어는 --time_partitioning_field 또는 --time_partitioning_type 플래그를 지원하지 않습니다. 수집 시간으로 파티션을 나눈 테이블을 복사 작업을 통해 파티션을 나눈 테이블로 변환할 수는 없습니다.
+
+여기서는 --destination_kms_key를 설명하지 않습니다. 자세한 내용은 Cloud KMS 키로 데이터 보호 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 참조하세요.
+
+소스 데이터 세트 또는 대상 데이터 세트가 기본 프로젝트가 아닌 다른 프로젝트에 있으면 프로젝트 ID를 project_id:dataset 형식으로 데이터 세트 이름에 추가합니다.
+
+(선택사항) --location 플래그를 지정하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/dataset-locations?hl=ko]로 설정합니다.
+
+bq --location=location cp \
+-a -f -n \
+project_id:dataset.source_table$source_partition \
+project_id:dataset.destination_table$destination_partition
+
+각 항목의 의미는 다음과 같습니다.
+
+
+location은 사용자 위치의 이름입니다. --location 플래그는 선택사항입니다. 예를 들어 도쿄 리전에서 BigQuery를 사용하는 경우에는 플래그 값을 asia-northeast1로 설정할 수 있습니다. .bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+project_id는 프로젝트 ID입니다.
+dataset는 소스 또는 대상 데이터세트의 이름입니다.
+source_table은 복사할 테이블입니다.
+source_partition은 소스 파티션의 파티션 데코레이터입니다.
+destination_table은 대상 데이터 세트의 테이블 이름입니다.
+destination_partition은 대상 파티션의 파티션 데코레이터입니다.
+
+
+예시:
+참고: 파티션 데코레이터 구분자($)는 Unix 셸의 특수 변수입니다. 명령줄 도구를 사용할 때는 데코레이터를 이스케이프해야 할 수도 있습니다. 예를 들어 mydataset.table\$20160519, 'mydataset.table$20160519'와 같이 파티션 데코레이터를 이스케이프합니다.
+새 테이블에 파티션 복사
+
+mydataset.mytable의 2018년 1월 30일 파티션을 새 테이블 mydataset.mytable2에 복사하려면 다음 명령어를 입력합니다. 여기서 mydataset는 기본 프로젝트에 있습니다.
+bq cp -a 'mydataset.mytable$20180130' mydataset.mytable2
+
+파티션을 나누지 않은 테이블에 파티션 복사
+
+mydataset.mytable의 2018년 1월 30일 파티션을 mydataset2.mytable2라는 이름의 파티션을 나누지 않은 테이블에 복사하려면 다음 명령어를 입력합니다. -a 단축키를 사용하면 파티션의 데이터가 파티션을 나누지 않은 대상 테이블에 추가됩니다. 여기서 두 데이터 세트는 모두 기본 프로젝트에 있습니다.
+bq cp -a 'mydataset.mytable$20180130' mydataset2.mytable2
+
+mydataset.mytable의 2018년 1월 30일 파티션을 mydataset2.mytable2라는 이름의 파티션을 나누지 않은 테이블에 복사하려면 다음 명령어를 입력합니다. -f 단축키를 사용하면 확인 메시지 없이 파티션을 나누지 않은 대상 테이블을 덮어씁니다.
+bq --location=US cp -f 'mydataset.mytable$20180130' mydataset2.mytable2
+
+다른 파티션을 나눈 테이블에 파티션 복사
+
+mydataset.mytable의 2018년 1월 30일 파티션을 mydataset2.mytable2라는 이름의 다른 파티션을 나눈 테이블에 복사하려면 다음 명령어를 입력합니다. -a 단축키를 사용하면 파티션의 데이터가 대상 테이블에 추가됩니다. 대상 테이블에 파티션 데코레이터가 지정되지 않았기 때문에 소스 파티션 키가 유지되고 대상 테이블의 2018년 1월 30일 파티션에 데이터가 복사됩니다. 대상 테이블에 파티션 데코레이터를 지정하여 데이터를 특정 파티션에 복사할 수도 있습니다. 여기서 mydataset는 기본 프로젝트에 있습니다. mydataset2는 기본 프로젝트가 아닌 myotherproject에 있습니다.
+bq --location=US cp \
+-a \
+'mydataset.mytable$20180130' \
+myotherproject:mydataset2.mytable2
+
+mydataset.mytable의 2018년 1월 30일 파티션을 mydataset2.mytable2라는 이름의 다른 파티션을 나눈 테이블에 있는 2018년 1월 30일 파티션에 복사하려면 다음 명령어를 입력합니다. -f 단축키를 사용하면 대상 테이블의 2018년 1월 30일 파티션을 확인 메시지 없이 덮어쓰는 데 사용됩니다. 파티션 데코레이터를 사용하지 않으면 대상 테이블의 모든 데이터를 덮어쓰게 됩니다. 여기서 mydataset는 기본 프로젝트에 있습니다.
+mydataset2는 기본 프로젝트가 아닌 myotherproject에 있습니다.
+bq cp \
+-f \
+'mydataset.mytable$20180130' \
+'myotherproject:mydataset2.mytable2$20180130'
+
+mydataset.mytable의 2018년 1월 30일 파티션을 mydataset2.mytable2라는 이름의 다른 파티션을 나눈 테이블에 복사하려면 다음 명령어를 입력합니다. 여기서 mydataset는 기본 프로젝트에 있습니다. mydataset2는 기본 프로젝트가 아닌 myotherproject에 있습니다. 대상 테이블에 데이터가 있으면 기본 동작으로 덮어쓸지 여부를 묻는 메시지를 표시합니다.
+bq cp \
+'mydataset.mytable$20180130' \
+myotherproject:mydataset2.mytable2
+참고: 파티션 데코레이터를 사용한 bq cp 명령어는 소스 파티션과 대상 파티션이 동일한 열 기반 파티션에서 작동합니다. bq cp 명령어는 파티션이 동일한 시간 단위 또는 소스 파티션이 포함된 더 큰 시간 단위를 나타내는 수집 시간 기반 파티션에서도 작동합니다. 예를 들어 $20180130가 소스 파티션 데코레이터인 경우 유효한 대상 파티션 데코레이터에는$20180130, $201801, $2018가 포함됩니다. 열 기반 파티션을 완전히 다른 파티션 데코레이터 또는 보다 세분화된 시간 단위 파티션으로 복사하려면 INSERT SELECT 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#insert_statement]을 사용합니다.
+여러 파티션을 복사하려면 쉼표로 구분된 목록으로 지정합니다.
+
+bq cp \
+'mydataset.mytable$20180130,mydataset.mytable$20180131' \
+myotherproject:mydataset.mytable2
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#api] ---
+jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] 메서드를 호출하고 copy 작업을 구성합니다. (선택사항) 작업 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs?hl=ko]의 jobReference 섹션에 있는 location 속성에 사용자 리전을 지정합니다.
+
+작업 구성에 다음 속성을 지정합니다.
+
+
+sourceTables 속성에 소스 데이터세트, 테이블, 파티션을 입력합니다.
+destinationTable 속성에 대상 데이터 세트와 테이블을 입력합니다.
+writeDisposition 속성을 사용하여 데이터를 대상 테이블 또는 파티션에 추가할지 또는 덮어쓸지 지정합니다.
+
+
+여러 파티션을 복사하려면 sourceTables 속성에 (데이터 세트와 테이블 이름을 포함한) 소스 파티션을 입력합니다.
+파티션 삭제
+파티션을 나눈 테이블에서 개별 파티션을 삭제할 수 있습니다. 그러나 특수 __NULL__ 또는 __UNPARTITIONED__ 파티션은 삭제할 수 없습니다.
+한 번에 하나의 파티션만 삭제할 수 있습니다.
+참고: 필요한 권한은 테이블 삭제 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#deleting_tables] 시와 동일합니다.
+두 개의 특수 파티션 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko#date_timestamp_partitioned_tables] 중 하나가 아니라면 파티션 데코레이터를 지정하여 파티션을 삭제할 수 있습니다.
+파티션을 나눈 테이블의 파티션을 삭제하는 방법:
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서는 파티션을 삭제할 수 없습니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#sql] ---
+적격한 DELETE 문 [https://cloud.google.com/bigquery/docs/using-dml-with-partitioned-tables?hl=ko#using_dml_delete_to_delete_partitions]이 파티션의 모든 행을 다루는 경우 BigQuery는 전체 파티션을 삭제합니다. 바이트를 스캔하거나 슬롯을 사용하지 않고도 삭제가 가능합니다. 다음 DELETE 문의 예시에서는 _PARTITIONDATE 유사 열에 있는 필터의 전체 파티션을 다룹니다.
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+DELETE mydataset.mytable
+WHERE _PARTITIONDATE IN ('2076-10-07', '2076-03-06');
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#bq] ---
+bq rm 명령어를 --table 플래그(또는 -t 단축키)와 함께 사용하고 파티션 데코레이터를 지정하여 특정 파티션을 삭제합니다.
+
+bq rm --table project_id:dataset.table$partition
+
+각 항목의 의미는 다음과 같습니다.
+
+
+project_id는 프로젝트 ID입니다. 생략하면 기본 프로젝트가 사용됩니다.
+dataset는 테이블이 포함된 데이터 세트의 이름입니다.
+table은 테이블의 이름입니다.
+partition는 삭제할 파티션의 파티션 데코레이터입니다.
+
+
+파티션 데코레이터는 파티션 나누기 유형에 따라 다음과 같은 형식을 사용합니다.
+
+
+시간별 파티션: yyyymmddhh. 예: $2016030100
+일별 파티션: yyyymmdd. 예: $20160301
+월별 파티션: yyyymm 예: $201603
+연간 파티션: yyyy 예: $2016
+정수 범위 파티션: 파티션 범위가 시작되는 부분입니다. 예: $20
+
+
+bq 명령줄 도구에서 작업을 확인하라는 메시지가 표시됩니다. 확인을 건너뛰려면 --force 플래그(또는 -f 단축키)를 사용합니다.
+참고: 파티션 데코레이터 구분자($)는 Unix 셸의 특수 변수입니다. 명령줄 도구를 사용할 때는 데코레이터를 이스케이프해야 할 수도 있습니다. 예를 들어 mydataset.table\$20160519, 'mydataset.table$20160519'와 같이 파티션 데코레이터를 이스케이프합니다.
+예시:
+
+기본 프로젝트에서 이름이 mydataset.mytable인 일별로 파티션을 나눈 테이블에서 2016년 3월 1일 파티션을 삭제합니다.
+bq rm --table 'mydataset.mytable$20160301'
+
+월별로 파티션을 나눈 테이블에서 2016년 3월 파티션을 삭제합니다.
+bq rm --table 'mydataset.mytable$201603'
+
+이름이 mydataset.mytable이고 정수 범위로 파티션을 나눈 테이블에서 정수 범위를 20부터 삭제합니다.
+bq rm --table 'mydataset.mytable$20'
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/managing-partitioned-tables?hl=ko#api] ---
+tables.delete [https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/delete?hl=ko] 메서드를 호출하고 tableId 파라미터를 사용하여 테이블과 파티션 데코레이터를 지정합니다.
+파티션을 나눈 테이블 보안
+파티션을 나눈 테이블의 액세스 제어는 표준 테이블의 액세스 제어와 동일합니다. 자세한 내용은 테이블 액세스 제어 소개 [https://cloud.google.com/bigquery/docs/table-access-controls-intro?hl=ko]를 참조하세요.
+도움이 되었나요?
+의견 보내기

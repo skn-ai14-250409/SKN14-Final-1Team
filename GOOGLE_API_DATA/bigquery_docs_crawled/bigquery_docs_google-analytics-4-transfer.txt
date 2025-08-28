@@ -1,0 +1,159 @@
+Source URL: https://cloud.google.com/bigquery/docs/google-analytics-4-transfer
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+지원되는 보고서 [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#supported_reports]
+Google 애널리틱스 4 전송에서 데이터 수집 [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#data-ingestion]
+새로고침 기간 [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#refresh]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#before_you_begin]
+기본 요건 [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#prerequisites]
+BigQuery에 Google 애널리틱스 4 데이터 로드
+bookmark_border
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 지원을 받거나 의견을 제출하려면 dts-preview-support@google.com [mailto:dts-preview-support@google.com]으로 문의하세요. 이 기능에 대해 Google 애널리틱스 지원팀에 문의하지 마세요.
+Google 애널리틱스 4용 BigQuery Data Transfer Service 커넥터를 사용하여 Google 애널리틱스 4에서 BigQuery로 데이터를 로드할 수 있습니다. BigQuery Data Transfer Service를 사용하면 Google 애널리틱스 4의 최신 데이터를 BigQuery에 추가하는 반복 전송 작업을 예약할 수 있습니다.
+지원되는 보고서
+Google 애널리틱스 4용 BigQuery Data Transfer Service는 다음과 같은 보고 옵션을 지원합니다.
+보고 옵션 지원
+반복 빈도
+매일, 데이터 전송이 처음 만들어진 시간(기본값)
+시간을 구성할 수 있습니다.
+새로고침 범위 [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#refresh]
+지난 4일 (기본값)
+최대 30일까지 구성 가능
+최대 백필 기간
+제한 없음
+Google 애널리틱스 커넥터에는 최대 백필 기간이 없지만 Google 애널리틱스의 데이터 보관 설정 [https://support.google.com/analytics/answer/7667196?hl=ko]으로 인해 이전 데이터를 백필할 때 오류가 발생할 수 있습니다.
+Google 애널리틱스 4 보고서가 BigQuery 테이블 및 뷰로 변환되는 방식에 대한 자세한 내용은 Google 애널리틱스 4 데이터 변환 [https://cloud.google.com/bigquery/docs/google-analytics-4-transformation?hl=ko]을 참고하세요.
+Google 애널리틱스 4 전송에서 BigQuery Data Transfer Service는 다음 보고서를 BigQuery로 전송합니다.
+Audiences
+Demographic details
+Ecommerce purchases
+Events
+Landing page
+Pages and screens
+Promotions
+Tech details
+Traffic Acquisition
+User Acquisition
+Google 애널리틱스에서 사용할 수 있는 사전 정의된 보고서에 대한 자세한 내용은 사전 정의된 보고서 [https://developers.google.com/analytics/devguides/reporting/data/v1/predefined-reports?hl=ko]를 참고하세요.
+Google 애널리틱스 4 전송에서 데이터 수집
+Google 애널리틱스 4에서 BigQuery로 데이터를 전송할 때는 데이터가 날짜별로 파티션을 나눈 BigQuery 테이블에 로드됩니다. 데이터가 로드되는 테이블 파티션은 데이터 소스의 날짜에 해당합니다. 동일한 날짜에 여러 전송을 예약하면 BigQuery Data Transfer Service가 해당 날짜의 파티션을 최신 데이터로 덮어씁니다. 동일한 일자에 전송이 여러 개 있거나 백필을 실행해도 데이터가 중복되지 않으며 다른 일자의 파티션에 영향을 주지 않습니다.
+새로고침 기간
+새로고침 기간은 데이터 전송이 발생할 때 데이터 전송이 데이터를 검색하는 일 수입니다. 예를 들어 새로고침 기간이 3일이고 일일 전송이 발생하는 경우 BigQuery Data Transfer Service는 소스 테이블에서 지난 3일 동안의 모든 데이터를 검색합니다. 이 예시에서 일일 전송이 발생하면 BigQuery Data Transfer Service는 현재 날짜의 소스 테이블 데이터 사본이 포함된 새 BigQuery 대상 테이블 파티션을 만든 다음 백필 실행을 자동으로 트리거하여 BigQuery 대상 테이블 파티션을 지난 2일 동안의 소스 테이블 데이터로 업데이트합니다. 자동으로 트리거된 백필 실행은 BigQuery Data Transfer Service 커넥터에서 증분 업데이트가 지원되는지 여부에 따라 BigQuery 대상 테이블을 덮어쓰거나 증분 업데이트합니다.
+데이터 전송을 처음 실행하면 데이터 전송에서 새로고침 기간 내에 사용 가능한 모든 소스 데이터를 검색합니다. 예를 들어 새로고침 기간이 3일이고 데이터 전송을 처음 실행하면 BigQuery Data Transfer Service에서 3일 이내에 모든 소스 데이터를 검색합니다.
+새로고침 기간은 TransferConfig.data_refresh_window_days API 필드 [https://cloud.google.com/bigquery/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs?hl=ko#TransferConfig.FIELDS.data_refresh_window_days]에 매핑됩니다.
+새로고침 기간 외의 데이터(예: 이전 데이터)를 검색하거나 전송 중단 또는 불일치 문제를 해결하려면 백필 실행 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko#manually_trigger_a_transfer]을 시작하거나 예약하면 됩니다.
+시작하기 전에
+Google 애널리틱스 4 데이터 전송을 만들기 전에 다음 기본 요건 및 정보를 검토하세요.
+기본 요건
+Google 애널리틱스 4에서 사용자 계정 또는 서비스 계정에는 전송 구성에 사용되는 속성 ID [https://developers.google.com/analytics/devguides/reporting/data/v1/property-id?hl=ko]에 대한 보기 권한이 있어야 합니다.
+BigQuery Data Transfer Service 사용 설정 [https://cloud.google.com/bigquery/docs/enable-transfer-service?hl=ko]에 필요한 모든 작업을 완료했는지 확인합니다.
+Google 애널리틱스 4 데이터를 저장할 BigQuery 데이터 세트를 만듭니다 [https://cloud.google.com/bigquery/docs/datasets?hl=ko].
+Pub/Sub의 전송 실행 알림을 설정하려면 pubsub.topics.setIamPolicy Identity and Access Management(IAM) 권한이 있는지 확인합니다. 이메일 알림만 설정하는 경우에는 Pub/Sub 권한이 필요하지 않습니다. 자세한 내용은 BigQuery Data Transfer Service 실행 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko]을 참조하세요.
+필요한 BigQuery 역할
+전송을 만드는 데 필요한 권한을 얻으려면 관리자에게 BigQuery 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.admin](roles/bigquery.admin) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이 사전 정의된 역할에는 전송을 만드는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+Google 애널리틱스 4 데이터 전송 설정
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터 전송 페이지로 이동합니다.
+
+데이터 전송으로 이동 [https://console.cloud.google.com/bigquery/transfers?hl=ko] 
+add 전송 만들기를 클릭합니다.
+전송 만들기 페이지에서 다음을 수행합니다.
+
+
+소스 유형 섹션의 소스에서 Google 애널리틱스 4를 선택합니다.
+
+데이터 소스 세부정보 섹션에서 다음을 수행합니다.
+
+
+속성 ID 필드에 속성 ID [https://developers.google.com/analytics/devguides/reporting/data/v1/property-id?hl=ko]를 입력합니다.
+선택사항: 테이블 필터 필드에 포함할 테이블 목록을 쉼표로 구분해서 입력합니다(예: Audiences, Events). 특정 테이블을 제외하려면 이 목록 앞에 - 문자를 추가합니다(예: -Audiences, Events). 기본적으로 모든 테이블이 포함됩니다.
+선택사항: 새로고침 기간 필드에 새로고침 기간 [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#refresh]을 일 단위로 입력합니다. 새로고침 기간의 기본값은 4일이며 최대 30일까지 설정할 수 있습니다.
+
+대상 설정 섹션의 대상 데이터 세트 메뉴에서 데이터를 저장하기 위해 만든 데이터 세트를 선택합니다.
+전송 구성 이름 섹션의 표시 이름에 데이터 전송 이름을 입력합니다. 나중에 전송을 수정해야 할 경우를 대비해 전송 이름은 전송을 식별할 수 있는 값이면 됩니다.
+일정 옵션 섹션에서 다음을 수행합니다.
+
+
+지금 시작 또는 설정 시간에 시작을 선택한 후 시작일과 실행 시간을 제공합니다.
+반복 빈도에서 데이터 전송을 실행할 빈도 옵션을 선택합니다. 일을 선택한 경우 UTC로 유효한 시간을 제공합니다.
+
+선택사항: 서비스 계정 메뉴에서 Google Cloud 프로젝트와 연결된 서비스 계정의 서비스 계정 [https://cloud.google.com/iam/docs/service-account-overview?hl=ko]을 선택합니다. 선택한 서비스 계정에는 이 데이터 전송을 실행하는 데 필요한 역할 [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#bq-roles]이 있어야 합니다.
+
+제휴 ID [https://cloud.google.com/iam/docs/workforce-identity-federation?hl=ko]로 로그인한 경우 서비스 계정이 데이터 전송을 만드는 데 필요합니다. Google 계정 [https://cloud.google.com/iam/docs/principals-overview?hl=ko#google-account]으로 로그인한 경우 데이터 전송에 사용되는 서비스 계정은 선택사항입니다. 데이터 전송에서 서비스 계정을 사용하는 방법에 대한 자세한 내용은 서비스 계정 사용 [https://cloud.google.com/bigquery/docs/use-service-accounts?hl=ko]을 참조하세요.
+선택사항: 알림 옵션 섹션에서 다음을 수행합니다.
+
+
+전환을 클릭하여 이메일 알림을 사용 설정합니다. 이 옵션을 사용 설정하면 전송 실행이 실패할 때 전송 관리자에게 이메일 알림이 발송됩니다.
+전환을 클릭하여 Pub/Sub 알림을 사용 설정합니다. Cloud Pub/Sub 주제 선택에서 주제 [https://cloud.google.com/pubsub/docs/overview?hl=ko#types] 이름을 선택하거나 주제 만들기를 클릭합니다. 이 옵션은 전송에 대한 Pub/Sub 실행 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko]을 구성합니다.
+
+선택사항: CMEK [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]를 사용하는 경우 고급 옵션 섹션에서 고객 관리 키를 선택합니다. 선택할 수 있는 CMEK 목록이 표시됩니다. CMEK가 BigQuery Data Transfer Service에서 작동하는 방식에 대한 자세한 내용은 전송에 암호화 키 지정 [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#CMEK]을 참조하세요.
+저장을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#bq] ---
+bq mk 명령어를 입력하고 전송 생성 플래그 --transfer_config를 지정합니다. 다음 플래그는 필수입니다.
+
+
+--data_source
+--target_dataset
+--display_name
+--params
+
+
+  bq mk --transfer_config \
+  --project_id=PROJECT_ID \
+  --target_dataset=DATASET \
+  --display_name=NAME \
+  --params='PARAMETERS' \
+  --data_source=DATA_SOURCE
+
+각 항목의 의미는 다음과 같습니다.
+
+
+PROJECT_ID: 프로젝트 ID입니다. --project_id를 지정하지 않으면 기본 프로젝트가 사용됩니다.
+DATASET. 데이터 전송 구성의 대상 데이터 세트
+NAME: 데이터 전송 구성의 표시 이름. 전송 이름은 나중에 수정해야 할 경우를 대비해 간편하게 전송을 식별할 수 있는 값이면 됩니다.
+PARAMETERS: JSON 형식으로 생성된 데이터 전송 구성의 파라미터입니다(예: --params='{"param":"param_value"}'). Google 애널리틱스 4 전송의 경우 property_id 매개변수가 필요합니다.
+DATA_SOURCE: 데이터 소스 — ga4
+
+
+예를 들어 다음 명령어는 속성 ID 468039345을 사용하여 My Transfer라는 Google 애널리틱스 4 데이터 전송을 만들고 대상 데이터 세트는 mydataset입니다.
+
+기본 프로젝트에 데이터 전송이 생성됩니다.
+
+  bq mk --transfer_config
+  --project_id=your_project
+  --target_dataset=mydataset
+  --display_name=My Transfer
+  --params='{"property_id":"468039345"}'
+  --data_source=ga4
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko#api] ---
+projects.locations.transferConfigs.create [https://cloud.google.com/bigquery/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs/create?hl=ko] 메서드를 사용하고 TransferConfig [https://cloud.google.com/bigquery/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs?hl=ko#TransferConfig] 리소스의 인스턴스를 지정합니다.
+제한사항
+순 사용자 수 및 세션 측정항목의 집계된 합계가 정확하지 않을 수 있으며 Google 애널리틱스의 값과 일치하지 않을 수 있습니다.
+전송을 통한 암호화 키 지정
+고객 관리 암호화 키(CMEK) [https://cloud.google.com/kms/docs/cmek?hl=ko]를 지정하여 전송 실행의 데이터를 암호화할 수 있습니다. CMEK를 사용하여 Google 애널리틱스 4 [https://cloud.google.com/bigquery/docs/google-analytics-4-transfer?hl=ko]에서의 전송을 지원할 수 있습니다.
+전송에 CMEK를 지정하면 BigQuery Data Transfer Service는 CMEK를 수집된 데이터의 모든 중간 디스크 캐시에 적용하여 전체 데이터 전송 워크플로가 CMEK를 준수하도록 합니다.
+원래 CMEK를 사용해 생성되지 않은 전송의 경우 기존 전송을 업데이트하여 CMEK를 추가할 수 없습니다. 예를 들어 원래 기본적으로 암호화된 대상 테이블을 지금 CMEK로 암호화되도록 변경할 수 없습니다. 반대로 CMEK로 암호화된 대상 테이블을 다른 유형의 암호화가 적용되도록 변경할 수도 없습니다.
+전송 구성이 원래 CMEK 암호화를 사용하여 생성된 경우 전송에 대해 CMEK를 업데이트할 수 있습니다. 전송 구성에 대해 CMEK를 업데이트하면 BigQuery Data Transfer Service는 전송의 다음 실행 시 CMEK를 대상 테이블에 전파하는데, 여기서 BigQuery Data Transfer Service는 전송 실행 중 오래된 CMEK를 새 CMEK로 대체합니다. 자세한 내용은 전송 업데이트 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko#update_a_transfer]를 참고하세요.
+프로젝트 기본 키 [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko#project_default_key]를 사용할 수도 있습니다. 전송과 함께 프로젝트 기본 키를 지정하면 BigQuery Data Transfer Service는 프로젝트 기본 키를 새 전송 구성의 기본 키로 사용합니다.
+가격 책정
+Google 애널리틱스 4 이전은 무료입니다.
+데이터가 BigQuery로 전송되면 표준 BigQuery 스토리지 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]와 쿼리 [https://cloud.google.com/bigquery/pricing?hl=ko#queries] 가격 책정이 적용됩니다.
+할당량
+Google 애널리틱스 4 전송에는 Google 애널리틱스 4에서 시행하는 애널리틱스 속성 할당량 [https://developers.google.com/analytics/devguides/reporting/data/v1/quotas?hl=ko#analytics_property_quotas]이 적용됩니다. 속성당 할당량을 늘리려면 Google 애널리틱스 360 [https://marketingplatform.google.com/about/analytics-360/features/?hl=ko]으로 업그레이드하세요.
+도움이 되었나요?
+의견 보내기

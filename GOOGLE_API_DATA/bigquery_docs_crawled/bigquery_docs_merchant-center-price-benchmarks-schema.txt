@@ -1,0 +1,69 @@
+Source URL: https://cloud.google.com/bigquery/docs/merchant-center-price-benchmarks-schema
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+개요 [https://cloud.google.com/bigquery/docs/merchant-center-price-benchmarks-schema?hl=ko#overview]
+스키마 [https://cloud.google.com/bigquery/docs/merchant-center-price-benchmarks-schema?hl=ko#schema]
+예: 제품 가격을 벤치마크와 비교 [https://cloud.google.com/bigquery/docs/merchant-center-price-benchmarks-schema?hl=ko#example_compare_product_prices_to_benchmarks]
+Google 판매자 센터 가격 벤치마크 테이블
+bookmark_border
+개요
+주의: BigQuery는 2025년 9월 1일부터 가격 벤치마크 보고서를 더 이상 지원하지 않습니다. 대신 가격 경쟁력 보고서 [https://cloud.google.com/bigquery/docs/merchant-center-price-competitiveness-schema?hl=ko]를 사용하려면 마이그레이션하는 것이 좋습니다. 새 보고서로 마이그레이션하는 방법은 가격 경쟁력 보고서 마이그레이션 [https://cloud.google.com/bigquery/docs/merchant-center-price-competitiveness-migration?hl=ko]을 참조하세요.
+BigQuery의 가격 벤치마크 데이터를 통해 판매자는 다른 판매자가 동일한 제품의 가격 책정 방식을 이해할 수 있습니다. Google 판매자 센터 보고 데이터가 BigQuery로 전송되면 Products_PriceBenchmarks_ 테이블의 형식은 국가 및 제품별로 일별 가격 벤치마크를 제공합니다.
+개별 판매자 ID를 사용하는 경우에는 데이터가 Products_PriceBenchmarks_MERCHANT_ID 테이블에 기록되고, MCA 계정을 사용하는 경우에는 Products_PriceBenchmarks_AGGREGATOR_ID 테이블에 기록됩니다.
+스키마
+Products_PriceBenchmarks 테이블에는 다음과 같은 스키마가 있습니다.
+열 BigQuery 데이터 유형 설명
+product_id STRING channel:content_language:feed_label:offer_id 형식으로 된 제품의 Content API REST ID입니다. 제품 테이블 스키마 [https://cloud.google.com/bigquery/docs/merchant-center-products-schema?hl=ko]에 정의된 방식과 유사합니다. 이 필드는 기본 키입니다.
+merchant_id INTEGER 판매자 계정 ID
+aggregator_id INTEGER 멀티 클라이언트 계정의 애그리게이터 계정 ID
+country_of_sale STRING 사용자가 Google에서 쿼리를 수행한 국가
+price_benchmark_value FLOAT 쇼핑 광고에서 동일한 제품을 광고하는 모든 판매자를 통틀어 클릭수 가중치를 적용한 특정 제품의 평균 가격입니다. 제품 일치 여부는 GTIN을 기준으로 합니다. 자세한 내용은 고객센터 자료 [https://support.google.com/merchants/answer/9626903?hl=ko]를 참조하세요.
+price_benchmark_currency STRING 벤치마크 값의 통화
+price_benchmark_timestamp DATETIME 벤치마크의 타임스탬프
+예: 제품 가격을 벤치마크와 비교
+다음 SQL 쿼리는 Products 및 Price Benchmarks 데이터를 조인하여 제품 목록 및 관련 벤치마크를 반환합니다.
+WITH products AS
+(
+  SELECT
+    _PARTITIONDATE AS date,
+    *
+  FROM
+    dataset.Products_merchant_id
+  WHERE
+   _PARTITIONDATE >= 'YYYY-MM-DD'
+),
+benchmarks AS
+(
+  SELECT
+    _PARTITIONDATE AS date,
+    *
+  FROM
+    dataset.Products_PriceBenchmarks_merchant_id
+  WHERE
+    _PARTITIONDATE >= 'YYYY-MM-DD'
+)
+SELECT
+  products.date,
+  products.product_id,
+  products.merchant_id,
+  products.aggregator_id,
+  products.price,
+  products.sale_price,
+  benchmarks.price_benchmark_value,
+  benchmarks.price_benchmark_currency,
+  benchmarks.country_of_sale
+FROM
+  products
+INNER JOIN
+  benchmarks
+ON products.product_id = benchmarks.product_id AND
+   products.merchant_id = benchmarks.merchant_id AND
+   products.date = benchmarks.date
+데이터 조인에 대한 참고 사항:
+1. 모든 제품에 벤치마크가 있는 것은 아니므로 INNER JOIN 또는 LEFT JOIN을 적절히 사용하세요.
+2. 각 제품에는 여러 벤치마크가 있을 수 있습니다(국가 당 하나).
+의견 보내기

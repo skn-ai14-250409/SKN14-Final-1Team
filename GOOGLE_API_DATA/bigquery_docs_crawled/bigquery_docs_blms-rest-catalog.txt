@@ -1,0 +1,112 @@
+Source URL: https://cloud.google.com/bigquery/docs/blms-rest-catalog
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/blms-rest-catalog?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/blms-rest-catalog?hl=ko#required_roles]
+제한사항 [https://cloud.google.com/bigquery/docs/blms-rest-catalog?hl=ko#limitations]
+Iceberg REST 카탈로그로 쿼리 엔진 구성 [https://cloud.google.com/bigquery/docs/blms-rest-catalog?hl=ko#configure-catalog]
+네임스페이스 만들기 [https://cloud.google.com/bigquery/docs/blms-rest-catalog?hl=ko#create_a_namespace]
+Iceberg REST 카탈로그와 함께 BigLake metastore 사용
+bookmark_border
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 의견을 제공하거나 지원을 요청하려면 biglake-help@google.com [mailto:biglake-help@google.com]으로 이메일을 보내세요.
+BigLake metastore의 관리형 Apache Iceberg REST 카탈로그는 모든 Iceberg 데이터에 단일 소스를 제공하여 모든 쿼리 엔진 간의 상호 운용성을 지원합니다. 이를 통해 Apache Spark와 같은 쿼리 엔진이 일관된 방식으로 Iceberg 테이블을 검색하고, 메타데이터를 읽고, 관리할 수 있습니다.
+Iceberg REST 카탈로그와 함께 사용하는 Iceberg 테이블을 Apache Iceberg용 BigLake 테이블(프리뷰)이라고 합니다. 오픈소스 엔진에서 만들고 Cloud Storage에 저장하는 Iceberg 테이블입니다. 오픈소스 엔진이나 BigQuery에서 읽을 수 있습니다. 쓰기는 오픈소스 엔진에서만 지원됩니다. 이 문서에서는 이러한 테이블을 BigLake Iceberg 테이블이라고 합니다.
+시작하기 전에
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+프로젝트에 결제가 사용 설정되어 있는지 확인 [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko]하는 방법을 알아보세요.
+Enable the BigLake API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=biglake.googleapis.com&hl=ko]
+선택사항: BigQuery metastore의 작동 방식 [https://cloud.google.com/bigquery/docs/about-blms?hl=ko]과 이를 사용해야 하는 이유를 알아봅니다.
+필요한 역할
+BigLake metastore에서 Iceberg REST 카탈로그를 사용하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트 또는 서비스 계정에 대한 다음 IAM 역할을 부여해 달라고 요청하세요.
+BigLake 관리자 [https://cloud.google.com/iam/docs/roles-permissions/biglake?hl=ko#biglake.admin](roles/biglake.admin)
+스토리지 관리자 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.admin](roles/storage.admin)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+제한사항
+Iceberg REST 카탈로그에는 다음과 같은 제한사항이 적용됩니다.
+멀티 리전 버킷 [https://cloud.google.com/storage/docs/locations?hl=ko#location-mr], 이중 리전 버킷 [https://cloud.google.com/storage/docs/locations?hl=ko#location-dr], 커스텀 리전 배치가 있는 버킷은 지원되지 않습니다.
+Iceberg REST 카탈로그로 쿼리 엔진 구성
+import pyspark
+from pyspark.context import SparkContext
+from pyspark.sql import SparkSession
+
+catalog_name = "
+CATALOG_NAME"
+spark = SparkSession.builder.appName("
+APP_NAME") \
+    .config(f'spark.sql.catalog.{catalog_name}', 'org.apache.iceberg.spark.SparkCatalog') \
+    .config(f'spark.sql.catalog.{catalog_name}.type', 'rest') \
+    .config(f'spark.sql.catalog.{catalog_name}.uri', 'https://biglake.googleapis.com/iceberg/v1beta/restcatalog') \
+    .config(f'spark.sql.catalog.{catalog_name}.warehouse', 'gs://
+STORAGE_URI') \
+    .config(f'spark.sql.catalog.{catalog_name}.header.x-goog-user-project', '
+PROJECT_ID') \
+    .config(f'spark.sql.catalog.{catalog_name}.rest.auth.type', 'org.apache.iceberg.gcp.auth.GoogleAuthManager') \
+    .config(f'spark.sql.catalog.{catalog_name}.io-impl', 'org.apache.iceberg.hadoop.HadoopFileIO') \
+    .config(f'spark.sql.catalog.{catalog_name}.rest-metrics-reporting-enabled', 'false') \
+    .config('spark.sql.extensions', 'org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions') \
+    .getOrCreate()
+다음을 바꿉니다.
+CATALOG_NAME: Iceberg REST 카탈로그의 이름입니다.
+APP_NAME: Spark 세션의 이름입니다.
+STORAGE_URI: BigLake Iceberg 테이블이 포함된 Cloud Storage 버킷의 URI입니다.
+PROJECT_ID: Iceberg REST 카탈로그 사용 요금이 청구되는 프로젝트입니다. Cloud Storage 버킷을 소유한 프로젝트와 다를 수 있습니다. REST API를 사용할 때의 프로젝트 구성에 관한 자세한 내용은 시스템 매개변수 [https://cloud.google.com/apis/docs/system-parameters?hl=ko]를 참조하세요.
+네임스페이스 만들기
+spark.sql("CREATE NAMESPACE IF NOT EXISTS 
+NAMESPACE_NAME;")
+
+spark.sql("USE 
+NAMESPACE_NAME;")
+NAMESPACE_NAME을 네임스페이스 이름으로 바꿉니다.
+테이블 만들기
+spark.sql("CREATE TABLE 
+TABLE_NAME (id int, data string) USING ICEBERG;")
+
+spark.sql("DESCRIBE 
+NAMESPACE_NAME.
+TABLE_NAME").show()
+다음을 바꿉니다.
+NAMESPACE_NAME: 네임스페이스의 이름입니다.
+TABLE_NAME: 테이블의 이름입니다.
+테이블 나열
+spark.sql("SHOW TABLES").show()
+데이터를 테이블에 삽입
+다음 예시에서는 샘플 데이터를 테이블에 삽입합니다.
+spark.sql("INSERT INTO 
+TABLE_NAME VALUES (1, \"first row\"), (2, \"second row\"), (3, \"third row\");")
+테이블 쿼리
+다음 예시에서는 테이블에서 모든 데이터를 선택합니다.
+spark.sql("SELECT * FROM 
+TABLE_NAME;").show()
+다음 예시에서는 BigQuery에서 동일한 테이블을 쿼리합니다.
+SELECT * FROM `
+CLOUD_STORAGE_BUCKET_NAME>
+NAMESPACE_NAME.
+TABLE_NAME`;
+CLOUD_STORAGE_BUCKET_NAME을 Iceberg REST 카탈로그의 Cloud Storage 버킷 이름으로 바꿉니다. 예를 들어 URI가 gs://iceberg_bucket이면 iceberg_bucket을 사용합니다.
+테이블 스키마 변경
+다음 예시에서는 테이블에 열을 추가합니다.
+spark.sql("ALTER TABLE 
+TABLE_NAME ADD COLUMNS ( desc string);")
+spark.sql("DESCRIBE 
+NAMESPACE_NAME.
+TABLE_NAME").show()
+테이블 삭제
+다음 예시에서는 지정된 네임스페이스에서 테이블을 삭제합니다.
+spark.sql("DROP TABLE 
+TABLE_NAME;")
+가격 책정
+자세한 가격 정보는 BigLake 가격 책정 [https://cloud.google.com/biglake?hl=ko#pricing]을 참조하세요.
+다음 단계
+BigLake metastore로 Iceberg 리소스를 관리 [https://cloud.google.com/bigquery/docs/blms-manage-resources?hl=ko]하는 방법에 대해 자세히 알아봅니다.
+추가 BigLake metastore 기능 [https://cloud.google.com/bigquery/docs/blms-features?hl=ko]에 대해 알아봅니다.
+도움이 되었나요?
+의견 보내기

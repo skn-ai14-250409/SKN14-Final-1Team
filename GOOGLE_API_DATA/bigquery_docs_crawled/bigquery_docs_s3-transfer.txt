@@ -1,0 +1,379 @@
+Source URL: https://cloud.google.com/bigquery/docs/s3-transfer
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#before_you_begin]
+제한사항 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#limitations]
+필수 권한 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#required_permissions]
+Amazon S3 데이터 전송 설정 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#set_up_an_amazon_s3_data_transfer]
+프리픽스 일치와 와일드 카드 일치의 영향 비교 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#matching]
+전송 설정 문제 해결 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#troubleshoot_transfer_setup]
+다음 단계 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#whats_next]
+Amazon S3 전송
+bookmark_border
+Amazon S3용 BigQuery Data Transfer Service 커넥터를 사용하면 Amazon S3에서 BigQuery로 반복되는 로드 작업을 자동으로 예약하고 관리할 수 있습니다.
+시작하기 전에
+Amazon S3 데이터 전송을 만들기 전에 다음을 수행합니다.
+BigQuery Data Transfer Service 사용 설정 [https://cloud.google.com/bigquery/docs/enable-transfer-service?hl=ko]에 필요한 모든 작업을 완료했는지 확인합니다.
+데이터를 저장할 BigQuery 데이터세트를 만듭니다 [https://cloud.google.com/bigquery/docs/datasets?hl=ko].
+데이터 전송을 위한 대상 테이블을 만들고 [https://cloud.google.com/bigquery/docs/tables?hl=ko#create_an_empty_table_with_a_schema_definition] 스키마 정의를 지정합니다. 대상 테이블은 테이블 이름 지정 규칙 [https://cloud.google.com/bigquery/docs/tables?hl=ko#table_naming]을 따라야 합니다. 대상 테이블 이름은 매개변수 [https://cloud.google.com/bigquery/docs/s3-transfer-parameters?hl=ko]로도 지정할 수 있습니다.
+Amazon S3 URI, 액세스 키 ID, 보안 비밀 액세스 키를 검색합니다. 액세스 키 관리에 대한 자세한 내용은 AWS 문서 [https://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html]를 참조하세요.
+Pub/Sub의 전송 실행 알림을 설정하려면 pubsub.topics.setIamPolicy 권한이 있어야 합니다. 이메일 알림만 설정한다면 Pub/Sub 권한이 필요하지 않습니다. 자세한 내용은 BigQuery Data Transfer Service 실행 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko]을 참조하세요.
+제한사항
+Amazon S3 데이터 전송에는 다음과 같은 제한사항이 적용됩니다.
+Amazon S3 URI의 버킷 부분을 매개변수화할 수 없습니다.
+쓰기 처리 파라미터가 WRITE_TRUNCATE로 설정된 Amazon S3에서 데이터 전송할 때는 각 실행 중에 일치하는 모든 파일이 Google Cloud 로 전송됩니다. 이로 인해 Amazon S3 아웃바운드 데이터 전송 비용이 추가로 발생할 수 있습니다. 실행 중에 전송되는 파일에 대한 자세한 내용은 프리픽스 일치와 와일드 카드 일치의 영향 비교 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#matching]를 참조하세요.
+AWS GovCloud(us-gov) 리전에서의 데이터 전송은 지원되지 않습니다.
+BigQuery Omni 위치 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#locations]로의 데이터 전송은 지원되지 않습니다.
+Amazon S3 소스 데이터 형식에 따라 추가 제한사항이 있을 수 있습니다. 자세한 내용은 다음을 참조하세요.
+CSV 제한사항 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#limitations]
+JSON 제한사항 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json?hl=ko#limitations]
+중첩 및 반복 데이터에 적용되는 제한사항 [https://cloud.google.com/bigquery/docs/nested-repeated?hl=ko#limitations]
+반복 데이터 전송 사이의 최소 간격은 1시간입니다. 반복 데이터 전송의 기본 간격은 24시간입니다.
+필수 권한
+Amazon S3 데이터 전송을 만들기 전에 다음을 수행합니다.
+데이터 전송을 만드는 사람에게 다음과 같은 BigQuery 필수 권한이 있는지 확인합니다.
+데이터 전송을 만드는 bigquery.transfers.update 권한
+대상 데이터 세트에 대한 bigquery.datasets.get 및 bigquery.datasets.update 권한
+사전 정의된 IAM 역할 bigquery.admin에는 bigquery.transfers.update, bigquery.datasets.update, bigquery.datasets.get 권한이 있습니다. BigQuery Data Transfer Service의 IAM 역할에 대한 자세한 내용은 액세스 제어 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 확인하세요.
+Amazon S3의 문서를 참조하여 데이터 전송을 사용 설정하는 데 필요한 권한을 구성했는지 확인합니다. Amazon S3 소스 데이터에 최소한 AWS 관리 정책 AmazonS3ReadOnlyAccess [https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_manage.html#attach-managed-policy-console]가 적용되어야 합니다.
+Amazon S3 데이터 전송 설정
+Amazon S3 데이터 전송을 만들려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 데이터 전송 페이지로 이동합니다.
+
+데이터 전송으로 이동 [https://console.cloud.google.com/bigquery/transfers?hl=ko] 
+add 전송 만들기를 클릭합니다.
+전송 만들기 페이지에서 다음을 수행합니다.
+
+
+소스 유형 섹션의 소스에서 Amazon S3을 선택합니다.
+
+
+ 
+
+전송 구성 이름 섹션의 표시 이름에 전송 이름(예: My Transfer)을 입력합니다. 전송 이름은 나중에 수정해야 할 경우를 대비해 간편하게 전송을 식별할 수 있는 값이면 됩니다.
+
+
+ 
+
+일정 옵션 섹션에서 다음을 수행합니다.
+
+
+반복 빈도를 선택합니다. 시간, 일, 주 또는 월을 선택하면 빈도도 지정해야 합니다. 커스텀을 선택하여 더 구체적인 반복 빈도를 만들 수도 있습니다.
+주문형을 선택한 경우 수동으로 전송을 트리거 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko#manually_trigger_a_transfer]하면 이 데이터 전송만 실행됩니다.
+해당하는 경우 지금 시작 또는 설정 시간에 시작을 선택하고 시작 날짜와 실행 시간을 입력합니다.
+
+대상 설정 섹션의 대상 데이터 세트에서 데이터를 저장하기 위해 만든 데이터 세트를 선택합니다.
+
+
+ 
+
+데이터 소스 세부정보 섹션에서 다음을 수행합니다.
+
+
+대상 테이블에 BigQuery에 데이터를 저장하기 위해 만든 테이블의 이름을 입력합니다. 대상 테이블 이름은 매개변수 [https://cloud.google.com/bigquery/docs/s3-transfer-parameters?hl=ko]로 지정할 수 있습니다.
+Amazon S3 URI에 s3://mybucket/myfolder/... 형식의 URI를 입력합니다. URI는 매개변수 [https://cloud.google.com/bigquery/docs/s3-transfer-parameters?hl=ko]로도 지정할 수 있습니다.
+액세스 키 ID에 액세스 키 ID를 입력합니다.
+보안 비밀 액세스 키에 보안 비밀 액세스 키를 입력합니다.
+파일 형식에서 데이터 형식을 줄바꿈으로 구분된 JSON, CSV, Avro, Parquet, ORC 중에서 선택합니다.
+쓰기 처리에서 다음 중 하나를 선택합니다.
+
+WRITE_APPEND는 기존 대상 테이블에 새 데이터를 증분식으로 추가합니다. WRITE_APPEND는 쓰기 환경설정의 기본값입니다.
+WRITE_TRUNCATE: 각 데이터 전송 실행 중에 대상 테이블의 데이터를 덮어씁니다.
+
+
+
+BigQuery Data Transfer Service가 WRITE_APPEND 또는 WRITE_TRUNCATE를 사용하여 데이터를 수집하는 방법에 대한 자세한 내용은 Amazon S3 전송을 위한 데이터 수집 [https://cloud.google.com/bigquery/docs/s3-transfer-intro?hl=ko#data-ingestion]을 참조하세요.
+writeDisposition 필드에 대한 자세한 내용은 JobConfigurationLoad [https://cloud.google.com/bigquery/docs/reference/rest/v2/Job?hl=ko#jobconfigurationload]를 참조하세요.
+
+
+ 
+
+전송 옵션 - 모든 형식 섹션에서 다음을 수행합니다.
+
+
+허용되는 오류 개수에 무시할 수 있는 최대 오류 레코드 수를 정수 값으로 입력합니다.
+(선택사항) 십진수 타겟 유형에 소스 십진수 값을 변환할 수 있는 가능한 SQL 데이터 유형의 쉼표로 구분된 목록을 입력합니다. 변환에 적합한 SQL 데이터 유형은 다음 조건에 따라 달라집니다.
+
+변환에 사용되는 데이터 유형은 다음 목록에서 소스 데이터의 정밀도 및 규모를 지원하는 첫 번째 데이터 유형이 됩니다. 순서는 NUMERIC, BIGNUMERIC [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#numeric_types], STRING입니다.
+나열된 데이터 유형이 정밀도 및 규모를 지원하지 않는 경우 지정된 목록에서 가장 넓은 범위를 지원하는 데이터 유형이 선택됩니다. 소스 데이터를 읽을 때 값이 지원되는 범위를 초과하면 오류가 발생합니다.
+데이터 유형 STRING은 모든 정밀도 및 규모 값을 지원합니다.
+이 필드를 비워두면 데이터 유형은 기본적으로 ORC의 경우 'NUMERIC,STRING', 다른 파일 형식의 경우 'NUMERIC'으로 설정됩니다.
+이 필드에 중복된 데이터 유형이 있으면 안 됩니다.
+이 필드에 나열하는 데이터 유형의 순서는 무시됩니다.
+
+
+
+
+ 
+
+파일 형식으로 CSV 또는 JSON을 선택한 경우, JSON, CSV 섹션에서 알 수 없는 값 무시를 선택하면 스키마와 일치하지 않는 값이 포함된 행이 허용됩니다. 알 수 없는 값이 무시됩니다. CSV 파일의 경우, 이 옵션을 선택하면 줄 끝 부분의 추가 값이 무시됩니다.
+
+
+ 
+
+파일 형식으로 CSV를 선택한 경우, CSV 섹션에 데이터 로드와 관련된 추가 CSV 옵션 [https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-csv?hl=ko#csv-options]을 입력합니다.
+
+
+ 
+
+서비스 계정 메뉴에서Google Cloud 프로젝트와 연결된 서비스 계정의 서비스 계정 [https://cloud.google.com/iam/docs/service-account-overview?hl=ko]을 선택합니다. 사용자 인증 정보를 사용하는 대신 서비스 계정을 데이터 전송에 연결할 수 있습니다. 데이터 전송에서 서비스 계정을 사용하는 방법에 대한 자세한 내용은 서비스 계정 사용 [https://cloud.google.com/bigquery/docs/use-service-accounts?hl=ko]을 참조하세요.
+
+
+제휴 ID [https://cloud.google.com/iam/docs/workforce-identity-federation?hl=ko]로 로그인한 경우 서비스 계정이 데이터 전송을 만드는 데 필요합니다. Google 계정 [https://cloud.google.com/iam/docs/principals-overview?hl=ko#google-account]으로 로그인한 경우 데이터 전송에 사용되는 서비스 계정은 선택사항입니다.
+서비스 계정에는 필수 권한 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#required_permissions]이 있어야 합니다.
+
+(선택사항) 알림 옵션 섹션에서 다음을 수행합니다.
+
+
+전환을 클릭하여 이메일 알림을 사용 설정합니다. 이 옵션을 사용 설정하면 데이터 전송 실행이 실패할 때 전송 관리자에게 이메일 알림이 발송됩니다.
+Pub/Sub 주제 선택에서 주제 [https://cloud.google.com/pubsub/docs/overview?hl=ko#types] 이름을 선택하거나 주제 만들기를 클릭하여 주제를 만듭니다. 이 옵션은 데이터 전송에 대한 Pub/Sub 실행 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko]을 구성합니다.
+
+
+저장을 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#bq] ---
+bq mk 명령어를 입력하고 전송 생성 플래그 --transfer_config를 지정합니다.
+
+bq mk \
+--transfer_config \
+--project_id=project_id \
+--data_source=data_source \
+--display_name=name \
+--target_dataset=dataset \
+--service_account_name=service_account \
+--params='parameters'
+
+각 항목의 의미는 다음과 같습니다.
+
+
+project_id: 선택사항. Google Cloud 프로젝트 ID입니다.
+특정 프로젝트를 지정하는 --project_id가 입력되지 않으면 기본 프로젝트가 사용됩니다.
+data_source: 필수. 데이터 소스 — amazon_s3.
+display_name: (필수사항) 데이터 전송 구성의 표시 이름입니다. 전송 이름은 나중에 수정해야 할 경우를 대비해 간편하게 전송을 식별할 수 있는 값이면 됩니다.
+dataset: (필수사항) 데이터 전송 구성의 대상 데이터 세트입니다.
+service_account: 데이터 전송을 인증하는 데 사용되는 서비스 계정 이름입니다. 서비스 계정은 데이터 전송을 만드는 데 사용한 것과 동일한 project_id가 소유해야 하며 모든 필수 권한 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#required_permissions]이 있어야 합니다.
+parameters: (필수사항) JSON 형식으로 생성된 전송 구성의 매개변수입니다. 예를 들면 --params='{"param":"param_value"}'입니다. 다음은 Amazon S3 전송을 위한 매개변수입니다.
+
+
+destination_table_name_template: 필수. 대상 테이블의 이름입니다.
+data_path: 필수. 다음 형식의 Amazon S3 URI입니다.
+
+s3://mybucket/myfolder/...
+
+URI는 매개변수 [https://cloud.google.com/bigquery/docs/s3-transfer-parameters?hl=ko]로도 지정할 수 있습니다.
+access_key_id: 필수. 액세스 키 ID입니다.
+secret_access_key: 필수. 보안 비밀 액세스 키입니다.
+file_format: 선택사항. 전송할 파일 유형(CSV, JSON, AVRO, PARQUET 또는 ORC)을 나타냅니다. 기본값은 CSV입니다.
+write_disposition: (선택사항) WRITE_APPEND는 이전에 성공한 실행 이후 수정된 파일만 전송합니다. WRITE_TRUNCATE는 이전 실행에서 전송된 파일을 포함하여 일치하는 모든 파일을 전송합니다. 기본값은 WRITE_APPEND입니다.
+max_bad_records: (선택사항) 허용되는 불량 레코드 수입니다. 기본값은 0입니다.
+decimal_target_types: (선택사항) 소스 십진수 값을 변환할 수 있는 가능한 SQL 데이터 유형의 쉼표로 구분된 목록입니다. 이 필드가 제공되지 않으면 데이터 유형은 기본적으로 ORC의 경우 'NUMERIC,STRING', 다른 파일 형식의 경우 'NUMERIC'으로 설정됩니다.
+ignore_unknown_values: 선택사항이며 file_format이 JSON 또는 CSV가 아닌 경우 무시됩니다. 데이터에서 알 수 없는 값을 무시할지 여부입니다.
+field_delimiter: 선택사항이며 file_format이 CSV인 경우에만 적용됩니다. 필드를 구분하는 문자입니다. 기본값은 쉼표입니다.
+skip_leading_rows: 선택사항이며 file_format이 CSV인 경우에만 적용됩니다. 가져오지 않으려는 헤더 행 수를 나타냅니다. 기본값은 0입니다.
+allow_quoted_newlines: 선택사항이며 file_format이 CSV인 경우에만 적용됩니다. 따옴표가 있는 필드 안에서 줄바꿈을 허용할지 여부를 나타냅니다.
+allow_jagged_rows: 선택사항이며 file_format이 CSV인 경우에만 적용됩니다. 뒤에 오는 선택적인 열이 누락된 행을 허용할지 여부를 나타냅니다. 누락된 값은 NULL로 채워집니다.
+
+
+주의: 명령줄 도구를 사용하여 알림을 구성할 수 없습니다.
+예를 들어 다음 명령어는 data_path 값 s3://mybucket/myfile/*.csv, 대상 데이터 세트 mydataset, file_format
+CSV를 사용하여 이름이 My Transfer인 Amazon S3 데이터 전송을 만듭니다. 이 예시에는 CSV file_format과 연관된 선택적 매개변수의 기본값이 아닌 값이 포함되어 있습니다.
+
+기본 프로젝트에 데이터 전송이 생성됩니다.
+bq mk --transfer_config \
+--target_dataset=mydataset \
+--display_name='My Transfer' \
+--params='{"data_path":"s3://mybucket/myfile/*.csv",
+"destination_table_name_template":"MyTable",
+"file_format":"CSV",
+"write_disposition":"WRITE_APPEND",
+"max_bad_records":"1",
+"ignore_unknown_values":"true",
+"field_delimiter":"|",
+"skip_leading_rows":"1",
+"allow_quoted_newlines":"true",
+"allow_jagged_rows":"false"}' \
+--data_source=amazon_s3
+
+명령어를 실행한 후 다음과 같은 메시지가 수신됩니다.
+
+[URL omitted] Please copy and paste the above URL into your web browser and
+follow the instructions to retrieve an authentication code.
+
+안내에 따라 인증 코드를 명령줄에 붙여넣습니다.주의: 명령줄 도구를 사용하여 Amazon S3 데이터 전송을 만들면 전송 구성은 일정의 기본값(24시간마다)을 사용하여 설정됩니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#api] ---
+projects.locations.transferConfigs.create [https://cloud.google.com/bigquery-transfer/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs/create?hl=ko] 메서드를 사용하고 TransferConfig [https://cloud.google.com/bigquery-transfer/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs?hl=ko#TransferConfig] 리소스의 인스턴스를 지정합니다.
+
+--- 탭: 자바 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#%EC%9E%90%EB%B0%94] ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.gax.rpc.ApiException;
+import com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest;
+import com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient;
+import com.google.cloud.bigquery.datatransfer.v1.ProjectName;
+import com.google.cloud.bigquery.datatransfer.v1.TransferConfig;
+import com.google.protobuf.Struct;
+import com.google.protobuf.Value;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+// Sample to create amazon s3 transfer config.
+public class CreateAmazonS3Transfer {
+
+  public static void main(String[] args) throws IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    final String projectId = "MY_PROJECT_ID";
+    String datasetId = "MY_DATASET_ID";
+    String tableId = "MY_TABLE_ID";
+    // Amazon S3 Bucket Uri with read role permission
+    String sourceUri = "s3://your-bucket-name/*";
+    String awsAccessKeyId = "MY_AWS_ACCESS_KEY_ID";
+    String awsSecretAccessId = "AWS_SECRET_ACCESS_ID";
+    String sourceFormat = "CSV";
+    String fieldDelimiter = ",";
+    String skipLeadingRows = "1";
+    Map<String, Value> params = new HashMap<>();
+    params.put(
+        "destination_table_name_template", Value.newBuilder().setStringValue(tableId).build());
+    params.put("data_path", Value.newBuilder().setStringValue(sourceUri).build());
+    params.put("access_key_id", Value.newBuilder().setStringValue(awsAccessKeyId).build());
+    params.put("secret_access_key", Value.newBuilder().setStringValue(awsSecretAccessId).build());
+    params.put("source_format", Value.newBuilder().setStringValue(sourceFormat).build());
+    params.put("field_delimiter", Value.newBuilder().setStringValue(fieldDelimiter).build());
+    params.put("skip_leading_rows", Value.newBuilder().setStringValue(skipLeadingRows).build());
+    TransferConfig transferConfig =
+        TransferConfig.newBuilder()
+            .setDestinationDatasetId(datasetId)
+            .setDisplayName("Your Aws S3 Config Name")
+            .setDataSourceId("amazon_s3")
+            .setParams(Struct.newBuilder().putAllFields(params).build())
+            .setSchedule("every 24 hours")
+            .build();
+    createAmazonS3Transfer(projectId, transferConfig);
+  }
+
+  public static void createAmazonS3Transfer(String projectId, TransferConfig transferConfig)
+      throws IOException {
+    try (DataTransferServiceClient client = DataTransferServiceClient.create()) {
+      ProjectName parent = ProjectName.of(projectId);
+      CreateTransferConfigRequest request =
+          CreateTransferConfigRequest.newBuilder()
+              .setParent(parent.toString())
+              .setTransferConfig(transferConfig)
+              .build();
+      TransferConfig config = client.createTransferConfig(request);
+      System.out.println("Amazon s3 transfer created successfully :" + config.getName());
+    } catch (ApiException ex) {
+      System.out.print("Amazon s3 transfer was not created." + ex.toString());
+    }
+  }
+}
+프리픽스 일치와 와일드 카드 일치의 영향 비교
+Amazon S3 API는 프리픽스 일치를 지원하지만 와일드 카드 일치는 지원하지 않습니다. 프리픽스와 일치하는 모든 Amazon S3 파일은 Google Cloud로 전송됩니다. 그러나 전송 구성에서 Amazon S3 URI와 일치하는 항목만 실제로 BigQuery에로드됩니다. 따라서 전송되었지만 BigQuery에 로드되지 않은 파일에 Amazon S3 아웃바운드 데이터 전송 초과 비용이 발생할 수 있습니다.
+다음 데이터 경로를 예시로 들어보겠습니다.
+s3://bucket/folder/*/subfolder/*.csv
+그리고 소스 위치에 다음 파일이 있다고 가정합니다.
+s3://bucket/folder/any/subfolder/file1.csv
+s3://bucket/folder/file2.csv
+그러면 프리픽스가 s3://bucket/folder/인 모든 Amazon S3 파일이 Google Cloud로 전송됩니다. 이 예시에서는 file1.csv와 file2.csv가 모두 전송됩니다.
+하지만 s3://bucket/folder/*/subfolder/*.csv와 일치하는 파일만 실제로 BigQuery에 로드됩니다. 이 예시에서는 file1.csv만 BigQuery에 로드됩니다.
+전송 설정 문제 해결
+데이터 전송을 설정하는 데 문제가 있으면 Amazon S3 전송 문제 [https://cloud.google.com/bigquery/docs/transfer-troubleshooting?hl=ko#amazon_s3_transfer_issues]를 참고하세요.
+다음 단계
+Amazon S3 데이터 전송 소개는 Amazon S3 전송 개요 [https://cloud.google.com/bigquery/docs/s3-transfer-intro?hl=ko]를 참조하세요.
+BigQuery Data Transfer Service 개요는 BigQuery Data Transfer Service 소개 [https://cloud.google.com/bigquery/docs/dts-introduction?hl=ko]를 참조하세요.
+전송 구성 정보 가져오기, 전송 구성 나열, 전송 실행 기록 보기를 포함한 데이터 전송 사용에 대한 정보는 전송 작업 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko]을 참조하세요.
+교차 클라우드 작업으로 데이터를 로드 [https://cloud.google.com/bigquery/docs/load-data-using-cross-cloud-transfer?hl=ko]하는 방법을 알아보세요.
+도움이 되었나요?
+의견 보내기

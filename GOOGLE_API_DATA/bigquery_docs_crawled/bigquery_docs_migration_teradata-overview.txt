@@ -1,0 +1,417 @@
+Source URL: https://cloud.google.com/bigquery/docs/migration/teradata-overview
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+개요 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#overview]
+전송 작업 구성 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#transfer_job_configuration]
+추출 방법 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#extraction_method]
+스키마 식별 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#schema_identification]
+주문형 또는 증분 전송 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#on-demand_or_incremental_transfers]
+위치 고려사항 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#location_considerations]
+가격 책정 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#pricing]
+제한사항 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#limitations]
+Teradata에서 BigQuery로 마이그레이션 - 개요
+bookmark_border
+이 문서에서는 BigQuery Data Transfer Service를 사용하여 Teradata의 스키마와 데이터를 BigQuery [https://cloud.google.com/bigquery/docs?hl=ko]로 마이그레이션할 때 필요한 결정을 이해하는 데 도움이 되는 자세한 정보를 제공합니다. Teradata 마이그레이션 프로세스에 관한 소개는 Teradata에서 BigQuery로의 마이그레이션 소개 [https://cloud.google.com/bigquery/docs/migration/teradata-migration-intro?hl=ko]를 참고하세요.
+스키마 및 데이터 마이그레이션은 일반적으로 데이터 웨어하우스를 다른 플랫폼에서 BigQuery로 이동하는 데 필요한 여러 단계 중 하나입니다. 일반적인 마이그레이션 프로세스에 대한 설명은 개요: BigQuery로 데이터 웨어하우스 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/migration-overview?hl=ko]을 참고하세요.
+또한 일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]을 사용하여 SQL 스크립트를 일괄적으로 마이그레이션하거나 대화형 SQL 변환 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]을 사용하여 임시 쿼리를 변환할 수 있습니다. 두 SQL 변환 서비스에서 Teradata SQL이 완벽하게 지원됩니다.
+개요
+BigQuery Data Transfer Service를 특수한 마이그레이션 에이전트와 함께 사용하여 스키마 및 데이터를 Teradata에서 BigQuery로 복사할 수 있습니다. 마이그레이션 에이전트는 로컬 데이터 웨어하우스에 연결해 BigQuery Data Transfer Service와 통신하여 데이터 웨어하우스의 테이블을 BigQuery로 복사합니다.
+다음 단계에서는 마이그레이션 프로세스의 워크플로를 설명합니다.
+마이그레이션 에이전트를 다운로드하세요.
+BigQuery Data Transfer Service에서 전송을 구성합니다.
+전송 작업을 실행하여 테이블 스키마와 데이터를 데이터 웨어하우스에서 BigQuery로 복사합니다.
+선택사항. Google Cloud 콘솔을 사용하여 전송 작업을 모니터링합니다.
+전송 작업 구성
+필요에 맞게 전송 작업을 구성할 수 있습니다. Teradata에서 BigQuery로 데이터 전송을 설정하기 전에 다음 섹션에 설명된 구성 옵션을 고려하고 사용할 설정을 결정합니다. 선택한 설정에 따라 전송 작업을 시작하기 전에 몇 가지 기본 요건을 완료해야 할 수도 있습니다.
+대부분의 시스템, 특히 큰 테이블이 있는 시스템의 경우 다음 단계를 따라 최고의 성능을 얻을 수 있습니다.
+Teradata 테이블의 파티션을 나눕니다.
+추출 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#extraction_method]에 Teradata Parallel Transporter(TPT) [https://docs.teradata.com/r/Teradata-Parallel-Transporter-User-Guide/February-2022/Introduction-to-Teradata-PT/High-Level-Description]를 사용합니다.
+커스텀 스키마 파일 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#custom_schema_file]을 만들고 대상 BigQuery 클러스터링 및 파티셔닝 열을 구성합니다.
+이렇게 하면 마이그레이션 에이전트는 가장 효율적인 파티션별 추출을 수행할 수 있습니다.
+추출 방법
+BigQuery Data Transfer Service는 Teradata에서 BigQuery로 데이터를 전송하기 위한 두 가지 추출 방법을 지원합니다.
+Teradata Parallel Transporter(TPT) [https://docs.teradata.com/r/Teradata-Parallel-Transporter-User-Guide/February-2022/Introduction-to-Teradata-PT/High-Level-Description] tbuild 유틸리티를 사용합니다. 권장 방법입니다. TPT를 사용하면 일반적으로 데이터 추출이 더 빨라집니다.
+이 모드에서 마이그레이션 에이전트는 파티션별로 분산된 행을 사용하여 추출 배치를 계산합니다. 에이전트는 각 배치에 TPT 추출 스크립트를 내보내고 실행하여 파이프로 구분된 파일 세트를 생성합니다. 그런 다음 전송 작업에서 사용되는 이러한 파일을 Cloud Storage 버킷에 업로드합니다. 파일이 Cloud Storage에 업로드되면 마이그레이션 에이전트가 로컬 파일 시스템에서 파일을 삭제했습니다.
+파티션 나누기 열 없이 TPT 추출을 사용하면 전체 테이블이 추출됩니다. 파티션 나누기 열과 함께 TPT 추출을 사용하면 에이전트는 파티션 세트를 추출합니다.
+이 모드에서 마이그레이션 에이전트는 추출된 파일이 로컬 파일 시스템에서 차지하는 공간을 제한하지 않습니다. 파티션 나누기 열 지정 여부에 따라 로컬 파일 시스템에 가장 큰 파티션 또는 가장 큰 테이블의 크기보다 더 많은 공간이 있는지 확인합니다.
+JDBC 드라이버를 사용하여 FastExport 연결로 추출 추출된 파일에 사용 가능한 로컬 저장공간에 제약조건이 있거나 여하한 이유로 TPT를 사용할 수 없는 경우 이 추출 방법을 사용합니다.
+이 모드에서 마이그레이션 에이전트는 테이블을 로컬 파일 시스템에 AVRO 파일 컬렉션으로 추출합니다. 그런 다음 전송 작업에서 사용되는 이러한 파일을 Cloud Storage 버킷에 업로드합니다. 파일이 Cloud Storage에 업로드되면 마이그레이션 에이전트가 로컬 파일 시스템에서 파일을 삭제합니다.
+이 모드에서는 AVRO 파일이 로컬 파일 시스템에서 사용하는 공간을 제한할 수 있습니다. 이 제한을 초과하면 마이그레이션 에이전트에서 기존 AVRO 파일을 업로드하고 삭제하여 공간이 확보될 때까지 추출이 일시 중지됩니다.
+스키마 식별
+스키마는 여러 가지 방법으로 정의할 수 있습니다. BigQuery Data Transfer Service는 Teradata에서 BigQuery로의 데이터 전송 중에 자동 스키마 감지 및 데이터 유형 매핑 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#data_types]을 제공합니다. 변환 엔진을 사용하여 데이터 유형 매핑을 가져오거나 대신 커스텀 스키마 파일을 지정할 수도 있습니다.
+기본 스키마 감지
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 지원을 받거나 의견을 제출하려면 bq-dts-migration@google.com [mailto:bq-dts-migration@google.com]으로 문의하세요.
+스키마 구성을 지정하지 않으면 BigQuery Data Transfer Service는 Teradata 소스 테이블의 스키마를 자동으로 감지하고 데이터 전송 중에 상응하는 BigQuery 데이터 유형으로 데이터 유형 매핑을 수행합니다. 기본 데이터 유형 매핑에 관한 자세한 내용은 데이터 유형 [https://cloud.google.com/bigquery/docs/migration/teradata-sql?hl=ko#data_types]을 참고하세요.
+스키마에 변환 엔진 출력 사용
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 지원을 받거나 의견을 제출하려면 bq-dts-migration@google.com [mailto:bq-dts-migration@google.com]으로 문의하세요.
+BigQuery Data Transfer Service는 Teradata 테이블을 BigQuery로 마이그레이션하는 동안 스키마 매핑에 BigQuery 변환 엔진의 출력을 사용합니다. 이 옵션을 사용하려면 다음 기본 요건을 충족해야 합니다.
+변환을 위한 메타데이터를 생성합니다. 덤퍼 도구를 실행하여 Teradata 소스 가이드라인에 따라 변환을 위한 메타데이터를 생성합니다. 자세한 내용은 변환 및 평가를 위한 메타데이터 생성 [https://cloud.google.com/bigquery/docs/generate-metadata?hl=ko]을 참조하세요.
+생성된 메타데이터 파일(예: metadata.zip)을 Cloud Storage 버킷에 업로드합니다. 이 버킷은 변환 엔진의 입력 위치 역할을 합니다.
+일괄 변환 작업을 시작하여 대상 BigQuery 테이블의 스키마를 정의하는 BigQuery Data Transfer Service 매핑을 만듭니다. 이 작업을 수행하는 방법은 일괄 변환 만들기 [https://cloud.google.com/bigquery/docs/api-sql-translator?hl=ko#create_a_batch_translation]를 참고하세요. 다음 예시에서는 target_types = "dts_mapping"을 지정하여 BigQuery Data Transfer Service 매핑을 생성합니다.
+curl -d "{
+\"name\": \"teradata_2_bq_translation\",
+ \"displayName\": \"Teradata to BigQuery Translation\",
+ \"tasks\": {
+     string: {
+       \"type\": \"Teradata2BigQuery_Translation\",
+       \"translation_details\": {
+           \"target_base_uri\": \"gs://your_translation_output_bucket/output\",
+           \"source_target_mapping\": {
+             \"source_spec\": {
+                 \"base_uri\": \"gs://your_metadata_bucket/input\"
+             }
+           },
+           \"target_types\": \"metadata\",
+       }
+     }
+ },
+ }" \
+ -H "Content-Type:application/json" \
+ -H "Authorization: Bearer YOUR_ACCESS_TOKEN" -X POST https://bigquerymigration.googleapis.com/v2alpha/projects/your_project_id/locations/your_location/workflows
+Google Cloud 콘솔에서 BigQuery -> SQL 변환으로 이동하여 일괄 변환 작업의 상태를 확인할 수 있습니다. 완료되면 매핑 파일이 target_base_uri 플래그에 지정된 Cloud Storage 위치에 저장됩니다.
+토큰을 생성하려면 gcloud auth print-access-token 명령어 또는 OAuth 2.0 Playground [https://developers.google.com/oauthplayground/?hl=ko](https://www.googleapis.com/auth/cloud-platform 범위 사용)를 사용합니다.
+Teradata 데이터 전송 구성에서 이전 단계의 매핑 파일이 저장된 Cloud Storage 폴더의 경로를 지정합니다. BigQuery Data Transfer Service는 이 매핑을 사용하여 대상 BigQuery 테이블의 스키마를 정의합니다.
+커스텀 스키마 파일
+다음과 같은 경우에는 커스텀 스키마를 지정하는 것이 좋습니다.
+파티션 나누기와 같이 마이그레이션 중에 손실될 수 있는 테이블에 대한 중요한 정보를 캡처해야 하는 경우입니다.
+예를 들어 증분 전송 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#incremental]에는 BigQuery에 로드할 때 후속 전송의 데이터 파티션을 올바르게 나눌 수 있도록 지정된 스키마 파일이 있어야 합니다. 스키마 파일을 없으면 전송이 실행될 때마다 BigQuery Data Transfer Service는 전송 중인 소스 데이터를 사용하여 자동으로 테이블 스키마를 적용하며 파티셔닝, 클러스터링, 기본 키, 변경 추적에 대한 모든 정보가 손실됩니다.
+데이터 전송 중에 열 이름이나 데이터 유형을 변경해야 하는 경우입니다.
+커스텀 스키마 파일은 데이터베이스 객체를 설명하는 JSON 파일입니다. 스키마에는 데이터베이스 집합이 포함되며 각 데이터베이스에는 테이블 집합이, 각 테이블에는 열 집합이 포함됩니다. 각 객체에는 Teradata의 객체 이름을 나타내는 originalName 필드와 BigQuery의 객체의 대상 이름을 나타내는 name 필드가 있습니다.
+열에는 다음과 같은 필드가 있습니다.
+originalType: Teradata의 열 데이터 유형을 나타냅니다.
+type: BigQuery의 열 대상 데이터 유형을 나타냅니다.
+usageType: 시스템에서 열이 사용되는 방식에 관한 정보입니다. 지원되는 사용 유형은 다음과 같습니다.
+DEFAULT: 이 사용 유형을 통해 한 대상 테이블의 여러 열에 주석을 추가할 수 있습니다. 이 usageType은 해당 열이 소스 시스템에서 특별한 용도가 없음을 나타냅니다. 기본값입니다.
+CLUSTERING: 이 사용 유형으로 각 대상 테이블에서 최대 4개의 열에 주석을 추가할 수 있습니다. 클러스터링의 열 순서는 커스텀 스키마에 표시되는 순서에 따라 결정됩니다. 선택한 열이 BigQuery에서 클러스터링하기 위한 제약조건 [https://cloud.google.com/bigquery/docs/creating-clustered-tables?hl=ko#create_an_empty_clustered_table_with_a_schema_definition]을 충족해야 합니다. 동일한 테이블에 PARTITIONING 필드가 지정되면 BigQuery는 이러한 열을 사용하여 클러스터링된 테이블을 만듭니다.
+PARTITIONING: 이 사용 유형으로 각 대상 테이블에서 하나의 열에만 주석을 추가할 수 있습니다. 이 열은 포함된 tables 객체의 파티션을 나눈 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko] 테이블 정의에 사용됩니다. TIMESTAMP 또는 DATE 데이터 유형이 있는 열에만 이 사용 유형을 사용할 수 있습니다.
+COMMIT_TIMESTAMP: 이 사용 유형으로 각 대상 테이블에서 하나의 열에만 주석을 추가할 수 있습니다. 이 usageType을 사용하여 증분 업데이트 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#incremental]의 업데이트 타임스탬프 열을 식별합니다. 이 열은 마지막 전송 실행 이후 생성 또는 업데이트된 행을 추출하는 데 사용됩니다. 이 사용 유형은 TIMESTAMP 또는 DATE 데이터 유형을 포함하는 열에만 사용할 수 있습니다.
+PRIMARY_KEY: 이 사용 유형으로 각 대상 테이블의 열에 주석을 추가할 수 있습니다. 이 사용 유형을 사용하여 하나의 열만 기본 키로 식별하거나 복합 키의 경우 여러 열에 동일한 사용 유형을 사용하여 테이블의 고유 항목을 식별합니다. 이러한 열은 COMMIT_TIMESTAMP와 함께 작동하여 마지막 전송 실행 이후 생성 또는 업데이트된 행을 추출합니다.
+다음 예시와 같이 커스텀 스키마 파일을 수동으로 만들거나 에이전트를 초기화할 때 마이그레이션 에이전트가 생성하도록 할 수 있습니다.
+이 예시에서는 사용자가 다음 테이블 정의를 사용하여 tpch 데이터베이스에서 orders라는 Teradata 테이블을 마이그레이션하고 있습니다.
+  CREATE SET TABLE TPCH.orders ,FALLBACK ,
+      NO BEFORE JOURNAL,
+      NO AFTER JOURNAL,
+      CHECKSUM = DEFAULT,
+      DEFAULT MERGEBLOCKRATIO,
+      MAP = TD_MAP1
+      (
+        O_ORDERKEY INTEGER NOT NULL,
+        O_CUSTKEY INTEGER NOT NULL,
+        O_ORDERSTATUS CHAR(1) CHARACTER SET LATIN CASESPECIFIC NOT NULL,
+        O_TOTALPRICE DECIMAL(15,2) NOT NULL,
+        O_ORDERDATE DATE FORMAT 'yyyy-mm-dd' NOT NULL,
+        O_ORDERPRIORITY CHAR(15) CHARACTER SET LATIN CASESPECIFIC NOT NULL,
+        O_CLERK CHAR(15) CHARACTER SET LATIN CASESPECIFIC NOT NULL,
+        O_SHIPPRIORITY INTEGER NOT NULL,
+        O_COMMENT VARCHAR(79) CHARACTER SET LATIN CASESPECIFIC NOT NULL)
+  UNIQUE PRIMARY INDEX ( O_ORDERKEY );
+BigQuery로 마이그레이션하는 동안 다음과 같이 변경하여 스키마를 구성하려고 합니다.
+O_CUSTKEY 열 이름을 O_CUSTOMERKEY로 바꿉니다.
+O_ORDERDATE를 파티셔닝 열로 식별합니다.
+다음 예시는 이러한 설정을 구성하는 커스텀 스키마입니다.
+{
+  "databases": [
+    {
+      "name": "tpch",
+      "originalName": "e2e_db",
+      "tables": [
+        {
+          "name": "orders",
+          "originalName": "orders",
+          "columns": [
+            {
+              "name": "O_ORDERKEY",
+              "originalName": "O_ORDERKEY",
+              "type": "INT64",
+              "originalType": "integer",
+              "usageType": [
+                "DEFAULT"
+              ],
+              "isRequired": true,
+              "originalColumnLength": 4
+            },
+            {
+              "name": "O_CUSTOMERKEY",
+              "originalName": "O_CUSTKEY",
+              "type": "INT64",
+              "originalType": "integer",
+              "usageType": [
+                "DEFAULT"
+              ],
+              "isRequired": true,
+              "originalColumnLength": 4
+            },
+            {
+              "name": "O_ORDERSTATUS",
+              "originalName": "O_ORDERSTATUS",
+              "type": "STRING",
+              "originalType": "character",
+              "usageType": [
+                "DEFAULT"
+              ],
+              "isRequired": true,
+              "originalColumnLength": 1
+            },
+            {
+              "name": "O_TOTALPRICE",
+              "originalName": "O_TOTALPRICE",
+              "type": "NUMERIC",
+              "originalType": "decimal",
+              "usageType": [
+                "DEFAULT"
+              ],
+              "isRequired": true,
+              "originalColumnLength": 8
+            },
+            {
+              "name": "O_ORDERDATE",
+              "originalName": "O_ORDERDATE",
+              "type": "DATE",
+              "originalType": "date",
+              "usageType": [
+                "PARTITIONING"
+              ],
+              "isRequired": true,
+              "originalColumnLength": 4
+            },
+            {
+              "name": "O_ORDERPRIORITY",
+              "originalName": "O_ORDERPRIORITY",
+              "type": "STRING",
+              "originalType": "character",
+              "usageType": [
+                "DEFAULT"
+              ],
+              "isRequired": true,
+              "originalColumnLength": 15
+            },
+            {
+              "name": "O_CLERK",
+              "originalName": "O_CLERK",
+              "type": "STRING",
+              "originalType": "character",
+              "usageType": [
+                "DEFAULT"
+              ],
+              "isRequired": true,
+              "originalColumnLength": 15
+            },
+            {
+              "name": "O_SHIPPRIORITY",
+              "originalName": "O_SHIPPRIORITY",
+              "type": "INT64",
+              "originalType": "integer",
+              "usageType": [
+                "DEFAULT"
+              ],
+              "isRequired": true,
+              "originalColumnLength": 4
+            },
+            {
+              "name": "O_COMMENT",
+              "originalName": "O_COMMENT",
+              "type": "STRING",
+              "originalType": "varchar",
+              "usageType": [
+                "DEFAULT"
+              ],
+              "isRequired": true,
+              "originalColumnLength": 79
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+주문형 또는 증분 전송
+Teradata 데이터베이스 인스턴스에서 BigQuery로 데이터를 마이그레이션할 때 BigQuery Data Transfer Service는 전체 전송(주문형 전송)과 반복 전송(증분 전송)을 모두 지원합니다. 전송 설정 [https://cloud.google.com/bigquery/docs/migration/teradata?hl=ko#set_up_a_transfer] 시, 일정 옵션에서 전송을 주문형 또는 증분으로 지정합니다.
+주문형 전송: 이 모드를 사용하면 Teradata에서 BigQuery로 스키마 및 데이터의 전체 스냅샷 마이그레이션을 수행할 수 있습니다.
+예약된 전송: 이 모드를 사용하면 전체 스냅샷을 수행하고 새로운 데이터 및 수정된 데이터(증분 데이터)를 Teradata에서 BigQuery로 정기적으로 마이그레이션할 수 있습니다. 증분 전송을 수행하려면 아래 사용 사례 중 하나로 열에 주석을 추가하도록 스키마를 맞춤설정해야 합니다.
+COMMIT_TIMESTAMP 사용 유형으로만 열에 주석 추가: 이 전송에서 Teradata의 새 행 또는 수정된 행이 BigQuery의 데이터에 추가됩니다. BigQuery 테이블의 업데이트된 행에는 이전 값과 새 값이 있는 중복 행이 포함될 수 있습니다.
+COMMIT_TIMESTAMP 및 PRIMARY_KEY 사용 유형으로 열에 주석 추가: 이 전송에서는 새 행이 추가되고 수정된 행이 BigQuery의 해당 행으로 업데이트됩니다. PRIMARY_KEY에 정의된 열은 BigQuery에서 데이터의 고유성을 유지하는 데 사용됩니다.
+스키마에 정의된 PRIMARY_KEY 열은 Teradata 테이블에서 PRIMARY_KEY일 필요가 없습니다. 모든 열이 될 수 있지만 고유한 데이터를 포함해야 합니다.
+증분 전송
+증분 전송에서 첫 번째 전송은 반드시 BigQuery에서 테이블 스냅샷을 만듭니다. 이후의 모든 증분 전송은 아래 설명된 커스텀 스키마 파일에 정의된 주석을 따릅니다.
+각 전송 실행에 대해 타임스탬프가 저장됩니다. 이후 전송 실행마다 에이전트는 이전 전송 실행(T1)의 타임스탬프와 현재 전송 실행이 시작된 타임스탬프(T2)를 수신합니다.
+최초 실행 후 전송의 경우 마이그레이션 에이전트는 다음과 같은 테이블별 로직을 사용하여 데이터를 추출합니다.
+스키마 파일의 테이블 객체에 COMMIT_TIMESTAMP 사용량 유형의 열이 없으면 테이블을 건너뜁니다.
+COMMIT_TIMESTAMP 사용량 유형의 열이 있는 경우 T1과 T2 사이의 타임스탬프가 있는 모든 행이 추출되어 BigQuery의 기존 테이블에 추가됩니다.
+테이블에 사용량 유형이 COMMIT_TIMESTAMP인 열과 PRIMARY_KEY 사용량 유형의 열이 있으면 T1과 T2 사이의 타임스탬프가 있는 모든 행이 추출됩니다. 새 행은 추가되고 수정된 행은 BigQuery의 기존 테이블에서 업데이트됩니다.
+참고: Teradata의 증분 마이그레이션은 삭제된 행을 BigQuery와 동기화하는 것을 지원하지 않습니다.
+다음은 증분 전송을 위한 스키마 파일의 예시입니다.
+COMMIT_TIMESTAMP만 있는 스키마
+{
+  "databases": [
+    {
+      "name": "abc_db",
+      "originalName": "abc_db",
+      "tables": [
+        {
+          "name": "abc_table",
+          "originalName": "abc_table",
+          "columns": [
+            {
+              "name": "Id",
+              "originalName": "Id",
+              "type": "INT64",
+              "originalType": "integer",
+              "originalColumnLength": 4,
+              "usageType": [
+                "DEFAULT"
+              ],
+              "isRequired": true
+            },
+            {
+              "name": "timestamp",
+              "originalName": "timestamp",
+              "type": "TIMESTAMP",
+              "originalType": "timestamp",
+              "originalColumnLength": 26,
+              "usageType": [
+                "COMMIT_TIMESTAMP"
+              ],
+              "isRequired": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+COMMIT_TIMESTAMP 및 열(ID) 1개가 PRIMARY_KEY인 스키마
+{
+  "databases": [
+    {
+      "name": "abc_db",
+      "originalName": "abc_db",
+      "tables": [
+        {
+          "name": "abc_table",
+          "originalName": "abc_table",
+          "columns": [
+            {
+              "name": "Id",
+              "originalName": "Id",
+              "type": "INT64",
+              "originalType": "integer",
+              "originalColumnLength": 4,
+              "usageType": [
+                "PRIMARY_KEY"
+              ],
+              "isRequired": true
+            },
+            {
+              "name": "timestamp",
+              "originalName": "timestamp",
+              "type": "TIMESTAMP",
+              "originalType": "timestamp",
+              "originalColumnLength": 26,
+              "usageType": [
+                "COMMIT_TIMESTAMP"
+              ],
+              "isRequired": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+COMMIT_TIMESTAMP 및 복합 키(ID + 이름)가 PRIMARY_KEY인 스키마
+{
+  "databases": [
+    {
+      "name": "abc_db",
+      "originalName": "abc_db",
+      "tables": [
+        {
+          "name": "abc_table",
+          "originalName": "abc_table",
+          "columns": [
+            {
+              "name": "Id",
+              "originalName": "Id",
+              "type": "INT64",
+              "originalType": "integer",
+              "originalColumnLength": 4,
+              "usageType": [
+                "PRIMARY_KEY"
+              ],
+              "isRequired": true
+            },
+            {
+              "name": "Name",
+              "originalName": "Name",
+              "type": "STRING",
+              "originalType": "character",
+              "originalColumnLength": 30,
+              "usageType": [
+                "PRIMARY_KEY"
+              ],
+              "isRequired": false
+            },
+            {
+              "name": "timestamp",
+              "originalName": "timestamp",
+              "type": "TIMESTAMP",
+              "originalType": "timestamp",
+              "originalColumnLength": 26,
+              "usageType": [
+                "COMMIT_TIMESTAMP"
+              ],
+              "isRequired": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+다음 표에서는 마이그레이션 에이전트가 증분 전송의 데이터 정의 언어(DDL) 및 데이터 조작 언어(DML) 작업을 처리하는 방법을 설명합니다.
+Teradata 작업 유형 Teradata에서 BigQuery로 마이그레이션 지원
+CREATE DDL 테이블의 새로운 전체 스냅샷이 BigQuery에 생성됩니다.
+DROP DDL 지원되지 않음
+ALTER(RENAME) DDL 테이블 이름이 지정된 새로운 전체 스냅샷이 BigQuery에 생성됩니다. 이전 스냅샷은 BigQuery에서 삭제되지 않습니다}. 사용자에게 이름이 변경된 테이블에 대한 알림이 표시되지 않습니다.
+INSERT DML BigQuery 테이블에 새 행이 추가됩니다.
+UPDATE DML COMMIT_TIMESTAMP만 사용되는 경우 INSERT 작업과 비슷하게, BigQuery 테이블에 행이 새로 추가됩니다. COMMIT_TIMESTAMP 및 PRIMARY_KEY이 모두 사용되는 경우 UPDATE 작업과 비슷하게 행이 업데이트됩니다.
+MERGE DML 지원되지 않음 대신 INSERT, UPDATE, DELETE를 참조하세요.
+DELETE DML 지원되지 않음
+위치 고려사항
+Cloud Storage 버킷은 BigQuery에서 대상 데이터 세트의 리전 또는 멀티 리전과 호환되는 리전 또는 멀티 리전에 있어야 합니다.
+BigQuery 데이터 세트가 멀티 리전에 있으면 전송 중인 데이터가 포함된 Cloud Storage 버킷은 동일한 멀티 리전이나 멀티 리전 내에 포함된 위치에 있어야 합니다. 예를 들어 BigQuery 데이터 세트가 EU 멀티 리전에 있으면 Cloud Storage 버킷은 EU 내에 있는 europe-west1 벨기에 리전에 있을 수 있습니다.
+데이터 세트가 단일 리전에 있으면 Cloud Storage 버킷은 같은 리전에 있어야 합니다. 예를 들어 데이터 세트가 asia-northeast1 도쿄 리전에 있으면 Cloud Storage 버킷은 ASIA 멀티 리전에 있을 수 없습니다.
+전송 및 리전에 대한 자세한 내용은 데이터 세트 위치 및 전송 [https://cloud.google.com/bigquery/docs/dts-locations?hl=ko]을 참조하세요.
+가격 책정
+BigQuery를 사용한 데이터 전송은 무료입니다. 하지만 이 서비스를 사용하면 Google 외부에서 비용이 발생할 수 있습니다(예: 플랫폼 아웃바운드 데이터 전송 요금).
+추출, Cloud Storage 버킷에 업로드, BigQuery에 데이터를 로드하는 것은 무료입니다.
+BigQuery에 업로드된 데이터는 Cloud Storage 버킷에서 자동으로 삭제되지 않습니다. 추가 스토리지 비용을 방지하기 위해 Cloud Storage 버킷에서 데이터를 삭제하세요. Cloud Storage 가격 책정 [https://cloud.google.com/storage/pricing?hl=ko]을 참조하세요.
+로드 작업에 대한 표준 BigQuery 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#load_jobs]가 적용됩니다.
+증분 수집 삽입/업데이트(upsert)에 대한 표준 DML BigQuery 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#data-manipulation-language-statements]가 적용됩니다.
+데이터가 BigQuery로 전송된 후에는 BigQuery의 표준 스토리지 [https://cloud.google.com/bigquery/pricing?hl=ko#storage] 및 컴퓨팅 [https://cloud.google.com/bigquery/pricing?hl=ko#analysis_pricing_models] 가격이 적용됩니다.
+자세한 내용은 전송 가격 책정 페이지 [https://cloud.google.com/bigquery-transfer/pricing?hl=ko]를 참조하세요.
+제한사항
+일회성 주문형 전송은 완전히 지원됩니다. 증분 전송의 DDL/DML 작업 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#ddldml_operations_in_incremental_transfers]은 부분적으로 지원됩니다.
+데이터 전송 중에 데이터는 로컬 파일 시스템의 디렉터리로 추출됩니다. 충분한 여유 공간이 있는지 확인하세요.
+FastExport 추출 모드를 사용하는 경우 사용할 최대 저장공간, 그리고 마이그레이션 에이전트가 엄격하게 적용할 한도를 설정할 수 있습니다. Teradata에서 BigQuery로 전송을 설정할 때 [https://cloud.google.com/bigquery/docs/migration/teradata?hl=ko#set_up_a_transfer] 마이그레이션 에이전트의 구성 파일 [https://cloud.google.com/bigquery/docs/migration/teradata?hl=ko#initialize_the_migration_agent]에 max-local-storage 설정을 설정합니다.
+TPT 추출 방법을 사용하는 경우 파일 시스템의 여유 공간이 충분한지 확인합니다. Teradata 인스턴스에 있는 가장 큰 테이블 파티션보다 커야 합니다.
+BigQuery Data Transfer Service는 스키마를 자동으로 변환하고(커스텀 스키마 파일을 제공하지 않은 경우) Teradata 데이터를 BigQuery로 전송합니다. 데이터는 Teradata에서 BigQuery 유형으로 매핑 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#teradata_mapping]됩니다.
+파일은 BigQuery에 로드된 후 Cloud Storage 버킷에서 자동으로 삭제되지 않습니다. 추가 스토리지 비용을 방지하기 위해 BigQuery로 데이터를 로드한 후 Cloud Storage 버킷에서 데이터를 삭제하세요. 가격 책정 [https://cloud.google.com/bigquery/docs/migration/teradata-overview?hl=ko#pricing]을 참조하세요.
+추출 속도는 JDBC 연결에 따라 좌우됩니다.
+Teradata에서 추출된 데이터는 암호화되지 않습니다. 로컬 파일 시스템에서 추출된 파일에 대한 액세스를 제한하기 위한 적절한 조치를 취하고 Cloud Storage 버킷이 제대로 보호되는지 확인합니다.
+기록된 프로시저, 저장된 쿼리, 뷰, 사용자 정의 함수와 같은 다른 데이터베이스 리소스는 전송되지 않으며 이 서비스의 범위에 포함되지 않습니다.
+증분 전송은 하드 삭제를 지원하지 않습니다. 증분 전송은 Teradata에서 삭제된 행을 BigQuery와 동기화하지 않습니다.
+다음 단계
+Teradata를 BigQuery로 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/teradata?hl=ko]의 단계별 안내를 참조하세요.
+Teradata에서 BigQuery로 테스트 마이그레이션 [https://cloud.google.com/bigquery/docs/migration/teradata-tutorial?hl=ko]해보기
+도움이 되었나요?
+의견 보내기

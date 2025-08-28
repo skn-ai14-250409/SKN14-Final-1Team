@@ -1,0 +1,151 @@
+Source URL: https://cloud.google.com/bigquery/docs/reference/auditlogs
+
+BigQuery [https://cloud.google.com/bigquery]
+Documentation [https://cloud.google.com/bigquery/docs]
+참조 [https://cloud.google.com/bigquery/quotas]
+도움이 되었나요?
+Send feedback
+이 페이지의 내용
+Versions [https://cloud.google.com/bigquery/docs/reference/auditlogs#versions]
+Limitation [https://cloud.google.com/bigquery/docs/reference/auditlogs#limitation]
+Message Formats [https://cloud.google.com/bigquery/docs/reference/auditlogs#message_formats]
+AuditData format [https://cloud.google.com/bigquery/docs/reference/auditlogs#auditdata_format]
+BigQueryAuditMetadata format [https://cloud.google.com/bigquery/docs/reference/auditlogs#bigqueryauditmetadata_format]
+BigQuery audit logs overview
+bookmark_border
+Cloud Audit Logs are a collection of logs provided by Google Cloud that provide insight into operational concerns related to your use of Google Cloud services. This page provides details about BigQuery specific log information, and it demonstrates how to use BigQuery to analyze logged activity. For more information, see Introduction to audit logs in BigQuery [https://cloud.google.com/bigquery/docs/introduction-audit-workloads].
+Versions
+The audit log message system relies on structured logs, and the BigQuery service provides several types of messages:
+AuditData: The old version of logs, which reports API invocations.
+BigQueryAuditMetadata [https://cloud.google.com/bigquery/docs/reference/auditlogs#bigqueryauditmetadata_examples]: The new version of logs, which reports resource interactions such as which tables were read from and written to by a given query job and which tables expired due to having an expiration time configured.
+AuditLog: The log format used when reporting requests.
+Limitation
+Log messages have a size limit of 100K bytes. For more information, see Truncated log entry [https://cloud.google.com/bigquery/docs/reference/auditlogs#truncated_log_entry].
+Message Formats
+AuditData format
+The AuditData [https://cloud.google.com/bigquery/docs/reference/auditlogs/rest/Shared.Types/AuditData] messages are communicated within the protoPayload.serviceData submessage within the Cloud Logging LogEntry [https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry] message. AuditData payload returns resource.type set to bigquery_resource, not bigquery_dataset.
+BigQueryAuditMetadata format
+You can find BigQueryAuditMetadata [https://cloud.google.com/bigquery/docs/reference/auditlogs/rest/Shared.Types/BigQueryAuditMetadata] details in the protoPayload.metadata submessage that is in the Cloud Logging LogEntry [https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry] message.
+In the Cloud Logging logs, the protoPayload.serviceData information is not set or used. In BigQueryAuditMetadata messages, there is more information:
+resource.type is set to one of the following values:
+bigquery_dataset for operations to datasets such as google.cloud.bigquery.v2.DatasetService.*
+resource.labels.dataset_id contains the encapsulating dataset.
+bigquery_project for all other called methods, such as jobs
+resource.labels.location contains the location of the job.
+protoPayload.methodName is set to one of the following values:
+google.cloud.bigquery.v2.TableService.InsertTable
+google.cloud.bigquery.v2.TableService.UpdateTable
+google.cloud.bigquery.v2.TableService.PatchTable
+google.cloud.bigquery.v2.TableService.DeleteTable
+google.cloud.bigquery.v2.DatasetService.InsertDataset
+google.cloud.bigquery.v2.DatasetService.UpdateDataset
+google.cloud.bigquery.v2.DatasetService.PatchDataset
+google.cloud.bigquery.v2.DatasetService.DeleteDataset
+google.cloud.bigquery.v2.TableDataService.List
+google.cloud.bigquery.v2.JobService.InsertJob
+google.cloud.bigquery.v2.JobService.Query
+google.cloud.bigquery.v2.JobService.GetQueryResults
+InternalTableExpired
+protoPayload.resourceName now contains the URI for the referenced resource. For example, a table created by using an insert job reports the resource URI of the table. The earlier format reported the API resource (the job identifier).
+protoPayload.authorizationInfo only includes information relevant to the specific event. With earlier AuditData messages, you could merge multiple records when source and destination tables were in the same dataset in a query job.
+AuditLog format
+BigQuery Storage API [https://cloud.google.com/bigquery/docs/reference/storage] uses the AuditLog [https://cloud.google.com/logging/docs/reference/audit/auditlog/rest/Shared.Types/AuditLog] format when reporting requests. Logs contain information such as:
+resource.type is set to:
+bigquery_dataset for CreateReadSession.
+bigquery_table for ReadRows, SplitReadStream and AppendRows.
+protoPayload.methodName is set to one of the following values:
+google.cloud.bigquery.storage.v1.BigQueryRead.CreateReadSession
+google.cloud.bigquery.storage.v1beta1.BigQueryStorage.CreateReadSession
+google.cloud.bigquery.storage.v1beta2.BigQueryRead.CreateReadSession
+google.cloud.bigquery.storage.v1.BigQueryRead.ReadRows
+google.cloud.bigquery.storage.v1.BigQueryRead.SplitReadStream
+google.cloud.bigquery.storage.v1.BigQueryWrite.AppendRows
+Mapping audit entries to log streams
+Audit logs are organized into the following three streams. For more information about the streams, see the Cloud Audit Logs [https://cloud.google.com/logging/docs/audit] documentation.
+Data access
+System event
+Admin activity
+Data access (data_access)
+The data_access stream contains entries about jobs by using the JobInsertion and JobChange events and about table data modifications by using the TableDataChange and TableDataRead events. TableDataChange and TableDataRead events have a resource.type value of bigquery_dataset.
+For example, when a load job appends data to a table, the data_access stream adds a TableDataChange event. A TableDataRead event indicates when a consumer reads a table.
+Note: BigQuery does not emit data access log entries in the following scenarios:
+If a job fails before or during execution, TableDataChange and TableDataRead events are not logged.
+Data appended to a table using the legacy streaming API or the Storage Write API does not generate TableDataChange log entries.
+Recursive dataset deletions, such as removing a dataset and its contents in a single API call, don't yield deletion entries for each resource contained in the dataset. The dataset removal is present in the activity log.
+Partitioned tables don't generate TableDataChange entries for partition expirations.
+Wildcard tables access generates a single TableDataRead entry and doesn't write a separate entry for each queried table.
+System event (system_event)
+You can set an expiration time on tables to remove them at a specified time. The system_event stream reports a TableDeletion event when the table expires and is removed.
+Admin activity (activity)
+The main activity stream reports all remaining activities and events such as table and dataset creation.
+Visibility and access control
+BigQuery audit logs can include information that users might consider sensitive, such as SQL text, schema definitions, and identifiers for resources such as table and datasets. For information about managing access to this information, see the Cloud Logging access control documentation [https://cloud.google.com/logging/docs/access-control].
+If you encounter a Permission denied error when you run a job, then the job configuration [https://cloud.google.com/bigquery/docs/reference/auditlogs/rest/Shared.Types/AuditData#JobConfiguration] is sanitized in the audit log.
+Caller identities and resource names
+Audit logging doesn't redact the caller's identity and IP addresses for any access that succeeds or for any write operation.
+For read-only operations that fail with a "permission denied" error, Audit logging performs the following tests:
+Is the caller in the same organization as the resource being logged?
+Is the caller a service account?
+If the response to any test is true, then Audit logging doesn't redact the caller's identity and IP addresses. If the response to all tests is false, then Audit logging redacts the identity and IP addresses.
+For cross-project access, there are additional rules that apply:
+The billing project must be the project that sends the request, and the data project must be the project whose resources are also accessed during the job. For example, a query job in a billing project reads some table data from the data project.
+The billing project resource ID is redacted from the data project log unless the projects have the same domain associated with them or are in the same organization.
+Identities and caller IP addresses are not redacted from the data project log if either one of the preceding conditions apply or the billing project and the data project are in the same organization and the billing project already includes the identity and caller IP address.
+Cloud Logging exports
+BigQuery automatically sends audit logs to Cloud Logging. Cloud Logging lets users filter and route messages to other services [https://cloud.google.com/logging/docs/routing/overview], including Pub/Sub, Cloud Storage, and BigQuery.
+With long term log retention and log exports to BigQuery, you can do aggregated analysis on logs data. Cloud Logging documents how messages are transformed [https://cloud.google.com/logging/docs/export/bigquery] when exported to BigQuery.
+Filtering exports
+To filter relevant BigQuery Audit messages, you can express filters as part of the export.
+For example, the following advanced filter represents an export that only includes the newer BigQueryAuditMetadata format:
+protoPayload.metadata."@type"="type.googleapis.com/google.cloud.audit.BigQueryAuditMetadata"
+You can express additional filters based on the fields within the log messages. For more information about crafting advanced filters, see the advanced log filter documentation [https://cloud.google.com/logging/docs/view/advanced-filters].
+Defining a BigQuery log sink using gcloud
+The following example command line shows how you can use the Google Cloud CLI to create a logging sink [https://cloud.google.com/sdk/gcloud/reference/logging/sinks/create] in a dataset named auditlog_dataset that only includes BigQueryAuditMetadata messages. The dataset must already exist before you create the logging sink.
+gcloud logging sinks create 
+my-example-sink bigquery.googleapis.com/projects/
+my-project-id/datasets/
+auditlog_dataset \
+    --log-filter='protoPayload.metadata."@type"="type.googleapis.com/google.cloud.audit.BigQueryAuditMetadata"'
+After the sink is created, give the service account created by the previous command access to the dataset [https://cloud.google.com/bigquery/docs/dataset-access-controls#granting_access_to_a_dataset].
+Querying exported logs
+BigQueryAuditMetadata examples
+The following examples show how you can use BigQueryAuditMetadata messages to analyze BigQuery usage. Because of the schema conversion done during the export from Cloud Logging into BigQuery, the message bodies are presented in semi-structured form. The protopayload_auditlog.metadataJson is a STRING field, and it contains the JSON representation of the message. You can leverage JSON functions [https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions] in GoogleSQL to analyze this content.
+Note: Change the FROM clause in each of these examples to the corresponding exported tables in your project.
+Example: Report expired tables
+BigQueryAuditMetadata messages log when a table is deleted because its expiration time was reached. The following sample query shows when these messages occur and includes a URI that references the table resource that was removed.
+  #standardSQL
+  SELECT
+    protopayload_auditlog.resourceName AS resourceName,
+    receiveTimestamp as logTime
+  FROM `
+my-project-id.
+auditlog_dataset.cloudaudit_googleapis_com_system_event_*`
+  WHERE
+    protopayload_auditlog.methodName = 'InternalTableExpired'
+  ORDER BY resourceName
+Example: Most popular datasets
+This query shows coarse, per-dataset statistics about table reads and table modifications. Before you run this example, define a log sink [https://cloud.google.com/bigquery/docs/reference/auditlogs#defining_a_bigquery_log_sink_using_gcloud] with an existing dataset.
+  #standardSQL
+  SELECT
+    REGEXP_EXTRACT(protopayload_auditlog.resourceName, '^projects/[^/]+/datasets/([^/]+)/tables') AS datasetRef,
+    COUNT(DISTINCT REGEXP_EXTRACT(protopayload_auditlog.resourceName, '^projects/[^/]+/datasets/[^/]+/tables/(.*)$')) AS active_tables,
+    COUNTIF(JSON_QUERY(protopayload_auditlog.metadataJson, "$.tableDataRead") IS NOT NULL) AS dataReadEvents,
+    COUNTIF(JSON_QUERY(protopayload_auditlog.metadataJson, "$.tableDataChange") IS NOT NULL) AS dataChangeEvents
+  FROM `
+my-project-id.
+auditlog_dataset.cloudaudit_googleapis_com_data_access_*`
+  WHERE
+    JSON_QUERY(protopayload_auditlog.metadataJson, "$.tableDataRead") IS NOT NULL
+    OR JSON_QUERY(protopayload_auditlog.metadataJson, "$.tableDataChange") IS NOT NULL
+  GROUP BY datasetRef
+  ORDER BY datasetRef
+Troubleshooting
+This section shows you how to resolve issues with BigQuery audit logs.
+Truncated log entry
+The following issue occurs when a log message is larger than the log message size limit [https://cloud.google.com/bigquery/docs/reference/auditlogs#limitation]:
+The protoPayload.metadata submessage in the Cloud Logging LogEntry message is truncated.
+To resolve this issue, consider the following strategies:
+Retrieve the full log message by using the BigQuery API jobs.get [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get] method.
+Reduce the size of the metadata in the log message; for example, by using wildcards on common path prefixes to reduce the size of the sourceUri list.
+도움이 되었나요?
+Send feedback

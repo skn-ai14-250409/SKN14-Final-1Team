@@ -1,0 +1,1397 @@
+Source URL: https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+ARIMA_PLUS 단변량 모델로 여러 시계열 예측
+bookmark_border
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#before-you-begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#required_permissions]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#create_a_dataset]
+이 튜토리얼에서는 ARIMA_PLUS 단변량 시계열 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko]을 사용하여 특정 열의 과거 값을 기반으로 해당 열의 미래 값을 예측하는 방법을 설명합니다.
+이 튜토리얼에서는 여러 시계열을 예측합니다. 예측 값은 하나 이상의 지정된 열에 있는 각 값에 대해 각 시점으로 계산됩니다. 예를 들어, 날씨를 예측하고 도시 데이터를 포함하는 열을 지정하려면, 예측된 데이터에 도시 A의 모든 시점에 대한 예측 값과 도시 B의 모든 시점에 대한 예측 값 등이 포함됩니다.
+이 튜토리얼에서는 공개 bigquery-public-data.new_york.citibike_trips [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=new_york&%3Bt=citibike_trips&%3Bpage=table&hl=ko] 테이블의 데이터를 사용합니다. 이 테이블에는 Citi Bike를 이용한 뉴욕시 여행에 관한 정보가 포함되어 있습니다.
+이 튜토리얼을 읽기 전에 단변량 모델로 단일 시계열 예측 [https://cloud.google.com/bigquery/docs/arima-single-time-series-forecasting-tutorial?hl=ko]을 읽어보는 것이 좋습니다.
+목표
+이 튜토리얼에서는 다음 작업을 완료하는 방법을 안내합니다.
+CREATE MODEL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko]을 사용하여 자전거 여행 수를 예측하는 시계열 모델을 만듭니다.
+ML.ARIMA_EVALUATE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-arima-evaluate?hl=ko]를 사용하여 모델의 자동 회귀 통합 이동 평균(ARIMA) 정보를 평가합니다.
+ML.ARIMA_COEFFICIENTS 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-arima-coefficients?hl=ko]를 사용하여 모델 계수를 검사합니다.
+ML.FORECAST 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-forecast?hl=ko]를 사용하여 모델에서 예측된 자전거 타기 정보를 검색합니다.
+ML.EXPLAIN_FORECAST 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-explain-forecast?hl=ko]를 사용하여 계절성 및 트렌드와 같은 시계열 구성요소를 가져옵니다. 이러한 시계열 구성요소를 검사하여 예측 값을 설명할 수 있습니다.
+비용
+이 튜토리얼에서는 비용이 청구될 수 있는 Google Cloud구성요소를 사용합니다.
+BigQuery
+BigQuery ML
+BigQuery 비용에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지를 참조하세요.
+BigQuery ML 비용에 대한 자세한 내용은 BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]을 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+BigQuery는 새 프로젝트에서 자동으로 사용 설정됩니다. 기존 프로젝트에서 BigQuery를 활성화하려면 다음으로 이동합니다.
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery&hl=ko]
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create IAM 권한이 필요합니다.
+모델을 만들려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+추론을 실행하려면 다음 권한이 필요합니다.
+bigquery.models.getData
+bigquery.jobs.create
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+입력 데이터 시각화
+모델을 만들기 전에 입력 시계열 데이터를 시각화하여 분포를 파악할 수도 있습니다. Looker Studio를 사용하여 이를 수행할 수 있습니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#sql] ---
+다음 쿼리의 SELECT 문은 EXTRACT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract]를 사용하여 starttime 열에서 날짜 정보를 추출합니다. 이 쿼리는 COUNT(*) 절을 사용하여 일간 총 도심 자전거 여행 수를 가져옵니다.
+
+다음 단계에 따라 시계열 데이터를 시각화합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+SELECT
+ EXTRACT(DATE from starttime) AS date,
+ COUNT(*) AS num_trips
+FROM
+`bigquery-public-data.new_york.citibike_trips`
+GROUP BY date;
+쿼리가 완료되면 데이터 탐색 >
+Looker Studio로 탐색을 클릭합니다. Looker Studio가 새 탭에서 열립니다. 새 탭에서 다음 단계를 완료합니다.
+Looker Studio에서 삽입 >
+시계열 차트를 클릭합니다.
+차트 창에서 설정 탭을 선택합니다.
+측정항목 섹션에서 num_trips 필드를 추가하고 기본 레코드 수 측정항목을 삭제합니다.
+결과 차트는 다음과 비슷합니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+import bigframes.pandas as bpd
+
+df = bpd.read_gbq("bigquery-public-data.new_york.citibike_trips")
+
+features = bpd.DataFrame(
+    {
+        "num_trips": df.starttime,
+        "date": df["starttime"].dt.date,
+    }
+)
+date = df["starttime"].dt.date
+df.groupby([date])
+num_trips = features.groupby(["date"]).count()
+
+# Results from running "print(num_trips)"
+
+#                num_trips
+# date
+# 2013-07-01      16650
+# 2013-07-02      22745
+# 2013-07-03      21864
+# 2013-07-04      22326
+# 2013-07-05      21842
+# 2013-07-06      20467
+# 2013-07-07      20477
+# 2013-07-08      21615
+# 2013-07-09      26641
+# 2013-07-10      25732
+# 2013-07-11      24417
+# 2013-07-12      19006
+# 2013-07-13      26119
+# 2013-07-14      29287
+# 2013-07-15      28069
+# 2013-07-16      29842
+# 2013-07-17      30550
+# 2013-07-18      28869
+# 2013-07-19      26591
+# 2013-07-20      25278
+# 2013-07-21      30297
+# 2013-07-22      25979
+# 2013-07-23      32376
+# 2013-07-24      35271
+# 2013-07-25      31084
+
+num_trips.plot.line(
+    # Rotate the x labels so they are more visible.
+    rot=45,
+)
+시계열 모델 만들기
+각 Citi Bike 스테이션의 자전거 주행 수를 예측하려면 입력 데이터에 포함된 각 Citi Bike 스테이션에 대해 하나씩 여러 시계열 모델이 필요합니다. 이를 위해 여러 모델을 만들 수 있지만, 특히 시계열 수가 많을 때 이렇게 하면 번거롭고 시간도 많이 소요될 수 있습니다. 대신 단일 쿼리를 사용하여 시계열 모델 집합을 만들고 적합시켜 여러 시계열을 한 번에 예측할 수 있습니다.
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#sql] ---
+다음 쿼리에서 OPTIONS(model_type='ARIMA_PLUS', time_series_timestamp_col='date', ...) 절은 ARIMA [https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average] 기반 시계열 모델을 만들고 있음을 나타냅니다. CREATE MODEL 문의 time_series_id_col 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#time_series_id_col]을 사용하여 예측을 가져올 입력 데이터의 열을 하나 이상 지정합니다. 이 경우 start_station_name 열로 표시된 Citi Bike 스테이션입니다. WHERE 절을 사용하여 시작 스테이션을 이름에 Central Park가 포함된 스테이션으로 제한합니다. CREATE MODEL 문의 auto_arima_max_order 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#auto_arima_max_order]은 auto.ARIMA 알고리즘에서 초매개변수 조정을 위한 검색 공간을 제어합니다. CREATE MODEL 문의 decompose_time_series 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#decompose_time_series]은 기본적으로 TRUE로 설정되므로 다음 단계에서 모델을 평가할 때 시계열 데이터에 관한 정보가 반환됩니다.
+
+모델을 만들려면 다음 단계를 따르세요.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+CREATE OR REPLACE MODEL `bqml_tutorial.nyc_citibike_arima_model_group`
+OPTIONS
+(model_type = 'ARIMA_PLUS',
+ time_series_timestamp_col = 'date',
+ time_series_data_col = 'num_trips',
+ time_series_id_col = 'start_station_name',
+ auto_arima_max_order = 5
+) AS
+SELECT
+ start_station_name,
+ EXTRACT(DATE from starttime) AS date,
+ COUNT(*) AS num_trips
+FROM
+`bigquery-public-data.new_york.citibike_trips`
+WHERE start_station_name LIKE '%Central Park%'
+GROUP BY start_station_name, date;
+
+쿼리가 완료되는 데 약 24초가 걸리며 그 이후에는 nyc_citibike_arima_model_group 모델이 탐색기 창에 표시됩니다.
+이 쿼리에서는 CREATE MODEL 문을 사용하므로 쿼리 결과가 표시되지 않습니다.
+
+
+이 쿼리는 입력 데이터의 12개 Citi Bike 시작 스테이션 각각에 대해 하나씩 12개의 시계열 모델을 만듭니다. 약 24초에 해당하는 시간 비용은 병렬 처리로 인해 단일 시계열 모델을 만들 때와 비교해도 1.4배에 불과합니다. 그러나 WHERE ... LIKE ... 절을 삭제하면 예측해야 할 시계열이 600개 이상이 되고, 슬롯 용량 제한으로 인해 완전히 병렬로 예측되지도 않습니다. 이 경우 쿼리를 완료하는 데 약 15분이 소요됩니다. 모델 품질을 약간 떨어뜨려서 쿼리 런타임을 줄이려면 auto_arima_max_order 값을 줄이면 됩니다.
+이렇게 하면 auto.ARIMA 알고리즘에서 초매개변수 미세 조정의 검색 공간이 줄어듭니다. 자세한 내용은 Large-scale time series forecasting best practices [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#large-scale-time-series-forecasting-best-practices]을 참조하세요.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#bigquery-dataframes] ---
+다음 스니펫에서는 ARIMA [https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average] 기반 시계열 모델을 만듭니다.
+
+   이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from bigframes.ml import forecasting
+import bigframes.pandas as bpd
+
+model = forecasting.ARIMAPlus(
+    # To reduce the query runtime with the compromise of a potential slight
+    # drop in model quality, you could decrease the value of the
+    # auto_arima_max_order. This shrinks the search space of hyperparameter
+    # tuning in the auto.ARIMA algorithm.
+    auto_arima_max_order=5,
+)
+
+df = bpd.read_gbq("bigquery-public-data.new_york.citibike_trips")
+
+# This query creates twelve time series models, one for each of the twelve
+# Citi Bike start stations in the input data. If you remove this row
+# filter, there would be 600+ time series to forecast.
+df = df[df["start_station_name"].str.contains("Central Park")]
+
+features = bpd.DataFrame(
+    {
+        "start_station_name": df["start_station_name"],
+        "num_trips": df["starttime"],
+        "date": df["starttime"].dt.date,
+    }
+)
+num_trips = features.groupby(
+    ["start_station_name", "date"],
+    as_index=False,
+).count()
+
+X = num_trips["date"].to_frame()
+y = num_trips["num_trips"].to_frame()
+
+model.fit(
+    X,
+    y,
+    # The input data that you want to get forecasts for,
+    # in this case the Citi Bike station, as represented by the
+    # start_station_name column.
+    id_col=num_trips["start_station_name"].to_frame(),
+)
+
+# The model.fit() call above created a temporary model.
+# Use the to_gbq() method to write to a permanent location.
+model.to_gbq(
+    your_model_id,  # For example: "bqml_tutorial.nyc_citibike_arima_model",
+    replace=True,
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+이렇게 하면 입력 데이터의 12개 Citi Bike 시작 스테이션 각각에 대해 하나씩 12개의 시계열 모델을 만듭니다. 약 24초에 해당하는 시간 비용은 병렬 처리로 인해 단일 시계열 모델을 만들 때와 비교해도 1.4배에 불과합니다.
+모델 평가
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#sql] ---
+ML.ARIMA_EVALUATE 함수를 사용하여 시계열 모델을 평가합니다. ML.ARIMA_EVALUATE 함수는 자동 하이퍼파라미터 튜닝 과정에서 모델에 대해 생성된 평가 측정항목을 보여줍니다.
+
+모델을 평가하려면 다음 단계를 따르세요.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+SELECT
+*
+FROM
+ML.ARIMA_EVALUATE(MODEL `bqml_tutorial.nyc_citibike_arima_model_group`);
+
+다음과 같은 결과가 표시됩니다.
+
+ 
+
+auto.ARIMA가 시계열마다 후보 ARIMA 모델 십여 개를 평가하지만 ML.ARIMA_EVALUATE는 기본적으로 출력 테이블을 줄이기 위해 최적 모델의 정보만 출력합니다. 모든 후보 모델을 보려면 ML.ARIMA_EVALUATE 함수의 show_all_candidate_model 인수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-arima-evaluate?hl=ko#arguments]를 TRUE로 설정하면 됩니다.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # Evaluate the time series models by using the summary() function. The summary()
+# function shows you the evaluation metrics of all the candidate models evaluated
+# during the process of automatic hyperparameter tuning.
+summary = model.summary()
+print(summary.peek())
+
+# Expected output:
+#    start_station_name                  non_seasonal_p  non_seasonal_d   non_seasonal_q  has_drift  log_likelihood           AIC     variance ...
+# 1         Central Park West & W 72 St               0               1                5      False    -1966.449243   3944.898487  1215.689281 ...
+# 8            Central Park W & W 96 St               0               0                5      False     -274.459923    562.919847   655.776577 ...
+# 9        Central Park West & W 102 St               0               0                0      False     -226.639918    457.279835    258.83582 ...
+# 11        Central Park West & W 76 St               1               1                2      False    -1700.456924   3408.913848   383.254161 ...
+# 4   Grand Army Plaza & Central Park S               0               1                5      False    -5507.553498  11027.106996   624.138741 ...
+start_station_name 열은 시계열이 생성된 입력 데이터 열을 식별합니다. 모델을 만들 때 time_series_id_col 옵션으로 지정한 열입니다.
+non_seasonal_p, non_seasonal_d, non_seasonal_q, has_drift 출력 열은 학습 파이프라인에서 ARIMA 모델을 정의합니다. log_likelihood, AIC, variance 출력 열은 ARIMA 모델 피팅 프로세스와 관련이 있습니다.피팅 프로세스에서는 auto.ARIMA 알고리즘을 사용하여 각 시계열당 하나씩 최적의 ARIMA 모델을 결정합니다.
+auto.ARIMA 알고리즘은 KPSS 테스트 [https://en.wikipedia.org/wiki/KPSS_test]를 사용하여 non_seasonal_d의 최적값을 결정합니다. 이 경우 최적값은 1입니다. non_seasonal_d가 1이면 auto.ARIMA 알고리즘이 42개의 서로 다른 후보 ARIMA 모델을 병렬로 학습시킵니다. 이 예시에서는 42개 후보 모델이 모두 유효하므로 출력에서 후보 ARIMA 모델마다 하나씩 42개의 행이 포함됩니다. 일부 모델이 유효하지 않은 경우 출력에서 제외됩니다. 이러한 후보 모델은 AIC에 따라 오름차순으로 반환됩니다. 첫 번째 행의 모델은 AIC가 가장 낮으며 최적 모델로 간주됩니다. 이 최적 모델은 최종 모델로 저장되며, 다음 단계에 표시된 것처럼 데이터를 예측하고, 모델을 평가하고, 모델의 계수를 검사할 때 사용됩니다.
+seasonal_periods 열에는 시계열 데이터에서 식별된 계절성 패턴에 관한 정보가 포함됩니다. 각 시계열은 서로 다른 계절성 패턴을 포함할 수 있습니다. 예를 들어 그림에서 연간 패턴을 갖는 시계열 하나와 그렇지 않은 시계열들을 확인할 수 있습니다.
+has_holiday_effect, has_spikes_and_dips, has_step_changes 열은 decompose_time_series=TRUE인 경우에만 채워집니다. 이러한 열은 입력 시계열 데이터에 관한 정보도 반영하며 ARIMA 모델링과 관련이 없습니다. 또한 해당 열은 모든 출력 행에서 동일한 값을 갖습니다.
+모델 계수 검사
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#sql] ---
+ML.ARIMA_COEFFICIENTS 함수를 사용하여 시계열 모델의 계수를 검사합니다.
+
+모델의 계수를 가져오려면 다음 단계를 따르세요.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+SELECT
+*
+FROM
+ML.ARIMA_COEFFICIENTS(MODEL `bqml_tutorial.nyc_citibike_arima_model_group`);
+
+이 쿼리는 완료되는 데 1초도 걸리지 않습니다. 결과는 다음과 비슷하게 표시됩니다.
+
+ 
+
+출력 열에 관한 자세한 내용은 ML.ARIMA_COEFFICIENTS 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-arima-coefficients?hl=ko]를 참조하세요.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#bigquery-dataframes] ---
+coef_ 함수를 사용하여 시계열 모델의 계수를 검사합니다.
+
+   이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  coef = model.coef_
+print(coef.peek())
+
+# Expected output:
+#    start_station_name                                              ar_coefficients                                   ma_coefficients intercept_or_drift
+# 5    Central Park West & W 68 St                                                [] [-0.41014089  0.21979212 -0.59854213 -0.251438...                0.0
+# 6         Central Park S & 6 Ave                                                [] [-0.71488957 -0.36835772  0.61008532  0.183290...                0.0
+# 0    Central Park West & W 85 St                                                [] [-0.39270166 -0.74494638  0.76432596  0.489146...                0.0
+# 3    W 82 St & Central Park West                         [-0.50219511 -0.64820817]             [-0.20665325  0.67683137 -0.68108631]                0.0
+# 11  W 106 St & Central Park West [-0.70442887 -0.66885553 -0.25030325 -0.34160669]                                                []                0.0
+start_station_name 열은 시계열이 생성된 입력 데이터 열을 식별합니다. 모델을 만들 때 time_series_id_col 옵션에서 지정한 열입니다.
+ar_coefficients 출력 열에는 ARIMA 모델의 자동 회귀(AR) 부분의 모델 계수가 표시됩니다. 마찬가지로 ma_coefficients 출력 열에는 ARIMA 모델의 이동 평균(MA) 부분의 모델 계수가 표시됩니다. 두 열 모두 길이가 각각 non_seasonal_p 및 non_seasonal_q에 해당하는 배열 값이 포함되어 있습니다. intercept_or_drift 값은 ARIMA 모델의 상수 항입니다.
+모델을 사용하여 데이터 예측
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#sql] ---
+ML.FORECAST 함수를 사용하여 미래 시계열 값을 예측합니다.
+
+다음 GoogleSQL 쿼리에서 STRUCT(3 AS horizon, 0.9 AS confidence_level) 절은 쿼리가 3개의 미래 시점을 예측하고 90% 신뢰 수준의 예측 구간을 생성함을 나타냅니다.
+
+다음 단계에 따라 모델로 데이터를 예측합니다.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+SELECT
+*
+FROM
+ML.FORECAST(MODEL `bqml_tutorial.nyc_citibike_arima_model_group`,
+ STRUCT(3 AS horizon, 0.9 AS confidence_level))
+실행을 클릭합니다.
+
+이 쿼리는 완료되는 데 1초도 걸리지 않습니다. 다음과 같은 결과가 표시됩니다.
+
+ 
+
+
+출력 열에 관한 자세한 내용은 ML.FORECAST 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-forecast?hl=ko]를 참조하세요.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#bigquery-dataframes] ---
+predict 함수를 사용하여 미래 시계열 값을 예측합니다.
+
+   이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  prediction = model.predict(horizon=3, confidence_level=0.9)
+
+print(prediction.peek())
+# Expected output:
+#            forecast_timestamp                             start_station_name  forecast_value  standard_error  confidence_level ...
+# 4   2016-10-01 00:00:00+00:00                         Central Park S & 6 Ave      302.377201       32.572948               0.9 ...
+# 14  2016-10-02 00:00:00+00:00  Central Park North & Adam Clayton Powell Blvd      263.917567       45.284082               0.9 ...
+# 1   2016-09-25 00:00:00+00:00                    Central Park West & W 85 St      189.574706       39.874856               0.9 ...
+# 20  2016-10-02 00:00:00+00:00                    Central Park West & W 72 St      175.474862       40.940794               0.9 ...
+# 12  2016-10-01 00:00:00+00:00                   W 106 St & Central Park West        63.88163       18.088868               0.9 ...
+첫 번째 열인 start_station_name은 각 시계열 모델이 접합된 시계열을 주석 처리합니다. 각 start_station_name에는 horizon 값에 지정된 대로 예측 결과가 3개 행 있습니다.
+각 start_station_name의 출력 행은 forecast_timestamp 열 값을 기준으로 시간순으로 정렬됩니다. 시계열 예측에서 prediction_interval_lower_bound 및 prediction_interval_upper_bound 열 값으로 표시되며 예측 구간은 forecast_value 열 값만큼 중요합니다. forecast_value 값은 예측 구간의 중간 포인트입니다. 예측 구간은 standard_error 및 confidence_level 열 값에 따라 달라집니다.
+예측 결과 설명
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#sql] ---
+ML.EXPLAIN_FORECAST 함수를 사용하여 예측 데이터 외에 설명 가능성 측정항목을 가져올 수 있습니다. ML.EXPLAIN_FORECAST 함수는 미래 시계열 값을 예측하고 시계열의 모든 개별 구성요소도 반환합니다. 예측 데이터만 반환하려면 모델을 사용하여 데이터 예측 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#use_the_model_to_forecast_data]에 표시된 대로 ML.FORECAST 함수를 대신 사용하세요.
+
+ML.EXPLAIN_FORECAST 함수에 사용된 STRUCT(3 AS horizon, 0.9 AS confidence_level) 절은 쿼리가 미래 시점 3개를 예측하고 90% 신뢰도로 예측 구간을 생성함을 나타냅니다.
+
+모델의 결과를 설명하려면 다음 단계를 따르세요.
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에 다음 쿼리를 붙여넣고 실행을 클릭합니다.
+
+SELECT
+*
+FROM
+ML.EXPLAIN_FORECAST(MODEL `bqml_tutorial.nyc_citibike_arima_model_group`,
+ STRUCT(3 AS horizon, 0.9 AS confidence_level));
+
+이 쿼리는 완료되는 데 1초도 걸리지 않습니다. 다음과 같은 결과가 표시됩니다.
+
+ 
+ 
+ 
+
+반환된 처음 수천 개의 행은 모두 과거 데이터입니다. 예측 데이터를 확인하려면 결과를 스크롤해야 합니다.
+
+출력 행은 먼저 start_station_name별로 정렬된 다음 time_series_timestamp 열 값을 기준으로 시간순으로 정렬됩니다. 시계열 예측에서 prediction_interval_lower_bound 및 prediction_interval_upper_bound 열 값으로 표시되며 예측 구간은 forecast_value 열 값만큼 중요합니다. forecast_value 값은 예측 구간의 중간 포인트입니다. 예측 구간은 standard_error 및 confidence_level 열 값에 따라 달라집니다.
+
+출력 열에 관한 자세한 내용은 ML.EXPLAIN_FORECAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-explain-forecast?hl=ko]를 참조하세요.
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#bigquery-dataframes] ---
+predict_explain 함수를 사용하여 예측 데이터 외에 설명 가능성 측정항목을 가져올 수 있습니다. predict_explain 함수는 미래 시계열 값을 예측하고 시계열의 모든 개별 구성요소도 반환합니다. 예측 데이터만 반환하려면 모델을 사용하여 데이터 예측 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko#use_the_model_to_forecast_data]에 표시된 대로 predict 함수를 대신 사용하세요.
+
+predict_explain 함수에 사용된 horizon=3, confidence_level=0.9 절은 쿼리가 미래 시점 3개를 예측하고 90% 신뢰도로 예측 구간을 생성함을 나타냅니다.
+
+   이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  explain = model.predict_explain(horizon=3, confidence_level=0.9)
+
+print(explain.peek(5))
+# Expected output:
+#   time_series_timestamp	        start_station_name	            time_series_type	    time_series_data	    time_series_adjusted_data	    standard_error	    confidence_level	    prediction_interval_lower_bound	    prediction_interval_upper_bound	    trend	    seasonal_period_yearly	    seasonal_period_quarterly	    seasonal_period_monthly	    seasonal_period_weekly	    seasonal_period_daily	    holiday_effect	    spikes_and_dips	    step_changes	    residual
+# 0	2013-07-01 00:00:00+00:00	Central Park S & 6 Ave	                history	                  69.0	                   154.168527	              32.572948	             <NA>	                        <NA>	                            <NA>	                 0.0	          35.477484	                       <NA>	                        <NA>	                  -28.402102	                 <NA>	                <NA>	               0.0	         -85.168527	        147.093145
+# 1	2013-07-01 00:00:00+00:00	Grand Army Plaza & Central Park S	    history	                  79.0	                      79.0	                  24.982769	             <NA>	                        <NA>	                            <NA>	                 0.0	          43.46428	                       <NA>	                        <NA>	                  -30.01599	                     <NA>	                <NA>	               0.0	            0.0	             65.55171
+# 2	2013-07-02 00:00:00+00:00	Central Park S & 6 Ave	                history	                  180.0	                   204.045651	              32.572948	             <NA>	                        <NA>	                            <NA>	              147.093045	      72.498327	                       <NA>	                        <NA>	                  -15.545721	                 <NA>	                <NA>	               0.0	         -85.168527	         61.122876
+# 3	2013-07-02 00:00:00+00:00	Grand Army Plaza & Central Park S	    history	                  129.0	                    99.556269	              24.982769	             <NA>	                        <NA>	                            <NA>	               65.551665	      45.836432	                       <NA>	                        <NA>	                  -11.831828	                 <NA>	                <NA>	               0.0	            0.0	             29.443731
+# 4	2013-07-03 00:00:00+00:00	Central Park S & 6 Ave	                history	                  115.0	                   205.968236	              32.572948	             <NA>	                        <NA>	                            <NA>	               191.32754	      59.220766	                       <NA>	                        <NA>	                  -44.580071	                 <NA>	                <NA>	               0.0	         -85.168527	        -5.799709
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+출력 행은 먼저 time_series_timestamp별로 정렬된 다음 start_station_name 열 값을 기준으로 시간순으로 정렬됩니다. 시계열 예측에서 prediction_interval_lower_bound 및 prediction_interval_upper_bound 열 값으로 표시되며 예측 구간은 forecast_value 열 값만큼 중요합니다. forecast_value 값은 예측 구간의 중간 포인트입니다. 예측 구간은 standard_error 및 confidence_level 열 값에 따라 달라집니다.
+삭제
+이 튜토리얼에서 사용된 리소스 비용이 Google Cloud 계정에 청구되지 않도록 하려면 리소스가 포함된 프로젝트를 삭제하거나 프로젝트를 유지하고 개별 리소스를 삭제하세요.
+만든 프로젝트를 삭제할 수 있습니다.
+또는 프로젝트를 유지하고 데이터 세트를 삭제할 수 있습니다.
+데이터 세트 삭제
+프로젝트를 삭제하면 프로젝트의 데이터 세트와 테이블이 모두 삭제됩니다. 프로젝트를 다시 사용하려면 이 튜토리얼에서 만든 데이터 세트를 삭제할 수 있습니다.
+필요한 경우Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+앞서 만든 bqml_tutorial 데이터 세트를 탐색에서 선택합니다.
+데이터 세트 삭제를 클릭하여 데이터 세트, 테이블, 모든 데이터를 삭제합니다.
+데이터 세트 삭제 대화상자에서 데이터 세트 이름(bqml_tutorial)을 입력하고 삭제를 클릭하여 삭제 명령어를 확인합니다.
+프로젝트 삭제
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+일변량 모델로 단일 시계열을 예측 [https://cloud.google.com/bigquery/docs/arima-single-time-series-forecasting-tutorial?hl=ko]하는 방법 알아보기
+다변량 모델로 단일 시계열을 예측 [https://cloud.google.com/bigquery/docs/arima-plus-xreg-single-time-series-forecasting-tutorial?hl=ko]하는 방법 알아보기
+여러 행의 여러 시계열을 예측할 때 단변량 모델을 확장 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko]하는 방법 알아보기
+단변량 모델로 여러 시계열을 계층적으로 예측 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-hierarchical-time-series?hl=ko]하는 방법 알아보기
+BigQuery의 AI 및 ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]에서 BigQuery ML 개요 참조하기
+도움이 되었나요?
+의견 보내기

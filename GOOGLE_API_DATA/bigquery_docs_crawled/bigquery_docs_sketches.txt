@@ -1,0 +1,72 @@
+Source URL: https://cloud.google.com/bigquery/docs/sketches
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+스케치
+bookmark_border
+이 페이지의 내용
+스케치 병합을 통한 재집계 [https://cloud.google.com/bigquery/docs/sketches?hl=ko#re-aggregation_with_sketch_merging]
+삭제 없는 카디널리티 추정 [https://cloud.google.com/bigquery/docs/sketches?hl=ko#estimate_cardinality_without_deletions]
+HLL++ 스케치 [https://cloud.google.com/bigquery/docs/sketches?hl=ko#sketches_hll]
+스케치 통합 [https://cloud.google.com/bigquery/docs/sketches?hl=ko#sketch_integration]
+근사치 집계 함수 [https://cloud.google.com/bigquery/docs/sketches?hl=ko#approx_functions]
+BigQuery용 GoogleSQL은 데이터 스케치를 지원합니다. 데이터 스케치는 데이터 집계를 간결하게 요약한 것입니다. 이는 집계 결과를 추출하거나, 데이터 집계를 계속하거나, 다른 스케치와 병합하여 재집계를 수행하는 데 필요한 모든 정보를 캡처합니다.
+스케치를 사용하여 측정항목을 계산하는 것은 정확한 값을 계산하는 것보다 비용이 훨씬 저렴합니다. 계산이 너무 느리거나 임시 스토리지가 너무 많이 필요한 경우 스케치를 사용하여 쿼리 시간과 리소스를 절약하세요.
+또한 스케치가 없는 카디널리티 [https://en.wikipedia.org/wiki/Cardinality](예: 고유 사용자 수) 또는 분위수 [https://en.wikipedia.org/wiki/Quantile](예: 방문 시간 중앙값) 계산의 경우에는 이미 집계된 데이터를 더 이상 결합할 수 없으므로 일반적으로 원시 데이터를 이용한 작업을 통해서만 수행할 수 있습니다.
+다음 데이터가 포함된 테이블을 살펴보세요.
+제품 사용자 수 방문 시간 중앙값
+제품 A 5억 개 10분
+제품 B 2,000만 개 2분
+이 테이블에서 두 제품을 모두 사용한 사용자 수를 알 수 없으므로 두 제품의 총 사용자 수를 계산할 수 없습니다.
+해결책은 스케치를 테이블에 대신 저장하는 것입니다. 각 스케치는 특정 입력 속성(예: 카디널리티)을 대략적이고 간소하게 표현한 것으로서 저장, 병합(또는 재집계)하고 근접한 결과를 쿼리할 수 있습니다. 이전 예시에서는 제품마다 스케치를 만들고 병합(재집계)하여 제품 A와 제품 B의 고유 사용자 수를 추정할 수 있습니다. 마찬가지로 병합 및 쿼리 가능한 분위수 스케치를 사용하여 방문 시간 중앙값을 추정할 수도 있습니다.
+스케치는 원본 데이터의 손실(lossy) 압축이기 때문에 오류 경계 또는 신뢰 구간(CI)으로 표현되는 통계 오류가 발생합니다. 대부분의 애플리케이션에는 이러한 불확실성이 작습니다. 예를 들어 일반적인 카디널리티 계산 스케치는 모든 사례의 95% 에서 약 1%의 상대적 오류를 갖습니다. 스케치는 빠른 계산, 저렴한 비용, 적은 저장용량을 위해 정확성 또는 정밀도를 어느 정도 포기합니다.
+요약하면 스케치에는 다음과 같은 기본 속성이 있습니다.
+특정 측정항목의 근사치 집계를 나타냅니다.
+간결합니다.
+메모리 내 저선형 데이터 구조의 직렬화된 형식입니다.
+일반적으로 크기가 고정되며 입력보다 점근적으로 더 작습니다.
+정밀도 수준에 따라 확인 가능한 통계 오류가 발생할 수 있습니다.
+다른 스케치와 병합하여 기본 데이터 세트의 합집합을 요약합니다.
+스케치 병합을 통한 재집계
+스케치에서는 효율적인 재집계를 위해 데이터를 저장하고 병합할 수 있습니다. 그 결과 스케치가 데이터 세트의 구체화된 뷰에 특히 유용합니다. 스케치를 병합하면 각 스트림에 생성된 부분 스케치를 기반으로 여러 데이터 스트림을 요약할 수 있습니다.
+예를 들어 매일 예상되는 고유 사용자 수의 스케치를 만드는 경우 일일 스케치를 병합하여 지난 7일간의 고유 사용자 수를 가져올 수 있습니다. 병합된 일일 스케치를 다시 집계하면 데이터 세트의 전체 입력 읽기를 방지하는 데 도움이 됩니다.
+스케치 재집계는 온라인 분석 처리(OLAP)에도 유용합니다. 스케치를 병합하여 OLAP 큐브 [https://en.wikipedia.org/wiki/OLAP_cube]의 롤업을 만들 수 있습니다. 여기에서 스케치가 큐브의 특정 차원 하나 이상을 따라 데이터를 요약합니다. OLAP 롤업은 참 고유 수 집계로는 불가능합니다.
+삭제 없는 카디널리티 추정
+카디널리티 [https://en.wikipedia.org/wiki/Cardinality] 예측이 필요하고 스케치에서 항목 삭제 기능이 필요하지 않으면 HLL++ 스케치 [https://cloud.google.com/bigquery/docs/sketches?hl=ko#sketches_hll]를 사용합니다.
+예를 들어 특정 월에 제품을 적극적으로 사용한 순 사용자 수(MAU 또는 28DAU 측정항목)를 가져오려면 HLL++ 스케치를 사용합니다.
+HLL++ 스케치
+HyperLogLog++(HLL++)는 카디널리티 추정을 위한 스케치 알고리즘입니다. HLL++는 HyperLogLog 실무 [https://research.google.com/pubs/archive/40671.pdf?hl=ko] 자료를 기반으로 하며, 여기서 ++는 HyperLogLog 알고리즘에 적용된 증강을 나타냅니다.
+카디널리티 [https://en.wikipedia.org/wiki/Cardinality]는 스케치 입력의 고유 요소 수입니다. 예를 들어 HLL++ 스케치를 사용하여 애플리케이션을 연 순 사용자 수를 가져올 수 있습니다.
+HLL++는 매우 작거나 큰 카디널리티를 추정합니다. HLL++에는 64비트 해시 함수, 작은 카디널리티 추정치의 메모리 요구사항 완화를 위한 희소 표현, 작은 카디널리티 추정치에 대한 경험적 편향 수정이 포함됩니다.
+정밀도
+HLL++ 스케치는 커스텀 정밀도를 지원합니다. 다음 표는 지원되는 정밀도 값, 최대 스토리지 크기, 일반적 정밀도 수준의 신뢰 구간(CI)을 보여 줍니다.
+정밀도 최대 스토리지 크기 65% CI 95% CI 99% CI
+10 1KiB + 28B ±3.25% ±6.50% ±9.75%
+11 2KiB + 28B ±2.30% ±4.60% ±6.89%
+12 4KiB + 28B ±1.63% ±3.25% ±4.88%
+13 8KiB + 28B ±1.15% ±2.30% ±3.45%
+14 16KiB + 30B ±0.81% ±1.63% ±2.44%
+15(기본값) 32KiB + 30B ±0.57% ±1.15% ±1.72%
+16 64KiB + 30B ±0.41% ±0.81% ±1.22%
+17 128KiB + 30B ±0.29% ±0.57% ±0.86%
+18 256KiB + 30B ±0.20% ±0.41% ±0.61%
+19 512KiB + 30B ±0.14% ±0.29% ±0.43%
+20 1,024KiB + 30B ±0.10% ±0.20% ±0.30%
+21 2,048KiB + 32B ±0.07% ±0.14% ±0.22%
+22 4,096KiB + 32B ±0.05% ±0.10% ±0.15%
+23 8,192KiB + 32B ±0.04% ±0.07% ±0.11%
+24 16,384KiB + 32B ±0.03% ±0.05% ±0.08%
+HLL++ 스케치를 HLL_COUNT.INIT [https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions?hl=ko#hll_countinit] 함수로 초기화할 때 스케치의 정밀도를 정의할 수 있습니다.
+삭제
+HLL++ 스케치에서 값을 삭제할 수 없습니다.
+추가 세부정보
+HLL++ 스케치와 함께 사용할 수 있는 함수 목록은 HLL++ 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions?hl=ko]를 참조하세요.
+스케치 통합
+HLL++ 스케치를 다른 시스템과 통합할 수 있습니다. 예를 들어 Dataflow [https://cloud.google.com/dataflow?hl=ko], Apache Spark [https://spark.apache.org/], ZetaSketch [https://github.com/google/zetasketch]와 같은 외부 애플리케이션에서 스케치를 빌드한 후 GoogleSQL에서 사용하거나 그 반대로도 할 수 있습니다.
+GoogleSQL 외에도 Java [https://github.com/google/zetasketch/blob/master/java/com/google/zetasketch/HyperLogLogPlusPlus.java]에서 HLL++ 스케치를 사용할 수 있습니다.
+근사치 집계 함수
+특정 스케치 기반의 근사치 함수 대신 GoogleSQL은 사전 정의된 근사치 집계 함수를 제공합니다. 이러한 근사치 집계 함수는 고유 개수, 분위수, 최상위 개수와 같은 일반적인 추정을 위한 스케치를 지원하지만 커스텀 정밀도를 허용하지 않습니다. 또한 다른 유형의 스케치와 같이 재집계를 위한 스케치를 노출하고 저장하지 않습니다. 근사치 집계 함수는 자세한 구성 없이 빠른 스케치 기반 쿼리 실행을 위해 설계되었습니다.
+스케치 기반 근사치에 사용할 수 있는 근사치 집계 함수 목록은 근사치 집계 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/approximate_aggregate_functions?hl=ko]를 참조하세요.
+의견 보내기

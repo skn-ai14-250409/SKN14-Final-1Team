@@ -1,0 +1,72 @@
+Source URL: https://cloud.google.com/bigquery/docs/merchant-center-query-your-data
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+Google 판매자 센터 샘플 쿼리 [https://cloud.google.com/bigquery/docs/merchant-center-query-your-data?hl=ko#google_merchant_center_sample_queries]
+제품 및 제품 문제 통계 [https://cloud.google.com/bigquery/docs/merchant-center-query-your-data?hl=ko#products_and_product_issues_statistics]
+쇼핑 광고에 승인되지 않은 제품 [https://cloud.google.com/bigquery/docs/merchant-center-query-your-data?hl=ko#products_disapproved_for_shopping_ads]
+승인되지 않은 문제가 있는 제품 [https://cloud.google.com/bigquery/docs/merchant-center-query-your-data?hl=ko#products_with_disapproved_issues]
+Google 판매자 센터 전송 데이터 쿼리
+bookmark_border
+프리뷰
+이 제품에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+BigQuery로 전송되는 데이터는 내부 데이터화 시간별로 파티션을 나눈 테이블에 기록됩니다. 자세한 내용은 파티션을 나눈 테이블 소개 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]를 참조하세요.
+Google 판매자 센터 테이블을 쿼리할 때는 _PARTITIONTIME 또는 _PARTITIONDATE 유사 열을 쿼리에 사용해야 합니다. 자세한 내용은 파티션을 나눈 테이블 쿼리 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko]를 참조하세요.
+Products_ 테이블에는 중첩 및 반복 필드가 포함됩니다. 중첩 및 반복 데이터 처리에 대한 자세한 내용은 GoogleSQL 문서에서 반복 필드 처리의 차이점 [https://cloud.google.com/bigquery/docs/reference/standard-sql/migrating-from-legacy-sql?hl=ko#differences_in_repeated_field_handling]을 참조하세요.
+Google 판매자 센터 샘플 쿼리
+다음과 같은 Google 판매자 센터 샘플 쿼리를 사용하여 전송된 데이터를 분석할 수 있습니다. Looker Studio [https://www.google.com/analytics/data-studio/?hl=ko]와 같은 시각화 도구에서 쿼리를 사용할 수도 있습니다.
+다음 각 쿼리에서 dataset를 해당 데이터 세트 이름으로 바꿉니다. merchant_id를 판매자 ID로 바꿉니다. MCA를 사용 중인 경우에는 merchant_id를 MCA ID로 바꿉니다.
+제품 및 제품 문제 통계
+다음 SQL 샘플 쿼리는 제품 수, 문제가 있는 제품, 일별 문제를 제공합니다.
+SELECT
+  _PARTITIONDATE AS date,
+  COUNT(*) AS num_products,
+  COUNTIF(ARRAY_LENGTH(issues) > 0) AS num_products_with_issues,
+  SUM(ARRAY_LENGTH(issues)) AS num_issues
+FROM
+  dataset.Products_merchant_id
+WHERE
+  _PARTITIONDATE >= 'YYYY-MM-DD'
+GROUP BY
+  date
+ORDER BY
+  date DESC
+쇼핑 광고에 승인되지 않은 제품
+다음 SQL 샘플 쿼리는 쇼핑 광고에 표시하도록 승인되지 않은 제품 수를 국가별로 구분하여 제공합니다. 제외된 [https://support.google.com/merchants/answer/6324486?hl=ko] 대상 또는 제품 관련 문제로 인해 비승인이 발생할 수 있습니다.
+SELECT
+  _PARTITIONDATE AS date,
+  disapproved_country,
+  COUNT(*) AS num_products
+FROM
+  dataset.Products_merchant_id,
+  UNNEST(destinations) AS destination,
+  UNNEST(disapproved_countries) AS disapproved_country
+WHERE
+  _PARTITIONDATE >= 'YYYY-MM-DD'
+GROUP BY
+  date, disapproved_country
+ORDER BY
+  date DESC
+승인되지 않은 문제가 있는 제품
+다음 SQL 샘플 쿼리는 비승인 문제가 있는 제품 수를 국가별로 구분하여 가져옵니다.
+SELECT
+  _PARTITIONDATE AS date,
+  applicable_country,
+  COUNT(DISTINCT CONCAT(CAST(merchant_id AS STRING), ':', product_id))
+      AS num_distinct_products
+FROM
+  dataset.Products_merchant_id,
+  UNNEST(issues) AS issue,
+  UNNEST(issue.applicable_countries) as applicable_country
+WHERE
+  _PARTITIONDATE >= 'YYYY-MM-DD' AND
+  issue.servability = 'disapproved'
+GROUP BY
+  date, applicable_country
+ORDER BY
+  date DESC
+참고: 이 쿼리는 merchant_id 및 product_id를 사용하여 고유 키를 구성합니다. 이는 MCA 계정이 있는 경우에만 필요합니다. MCA 계정을 사용하면 여러 하위 계정에서 product_id 충돌이 발생할 가능성이 있습니다.
+의견 보내기

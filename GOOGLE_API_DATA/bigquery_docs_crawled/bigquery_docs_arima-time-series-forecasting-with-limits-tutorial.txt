@@ -1,0 +1,306 @@
+Source URL: https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-limits-tutorial
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필수 권한 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-limits-tutorial?hl=ko#required_permissions]
+목표 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-limits-tutorial?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-limits-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-limits-tutorial?hl=ko#before_you_begin]
+데이터 세트 생성 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-limits-tutorial?hl=ko#create_a_dataset]
+시계열 모델의 예측 값 한도
+bookmark_border
+이 튜토리얼에서는 한도를 사용하여 시계열 모델에서 반환하는 예측 결과의 범위를 좁히는 방법을 설명합니다. 이 튜토리얼에서는 동일한 데이터를 사용하여 두 개의 시계열 모델을 만듭니다. 하나는 한도를 사용하는 모델과 다른 하나는 한도를 사용하지 않는 모델입니다. 이를 통해 모델에서 반환된 결과를 비교하고 한도를 지정할 때의 차이점을 이해할 수 있습니다.
+이 튜토리얼에서는 new_york.citibike_trips [https://console.cloud.google.com/bigquery?p=bigquery-public-data&%3Bd=new_york&%3Bt=citibike_trips&%3Bpage=table&hl=ko] 데이터를 사용하여 모델을 학습시킵니다. 이 데이터 세트에는 Citi Bike를 이용한 뉴욕시 여행에 관한 정보가 포함되어 있습니다.
+튜토리얼을 진행하기 전에 단일 시계열 예측을 잘 알고 있어야 합니다. 이 주제에 대한 소개는 Google 애널리틱스 데이터에서 단일 시계열 예측 [https://cloud.google.com/bigquery/docs/arima-single-time-series-forecasting-tutorial?hl=ko] 튜토리얼을 완료하세요.
+필수 권한
+데이터 세트를 만들려면 bigquery.datasets.create IAM 권한이 필요합니다.
+연결 리소스를 만들려면 다음 권한이 필요합니다.
+bigquery.connections.create
+bigquery.connections.get
+모델을 만들려면 다음 권한이 필요합니다.
+bigquery.jobs.create
+bigquery.models.create
+bigquery.models.getData
+bigquery.models.updateData
+bigquery.connections.delegate
+추론을 실행하려면 다음 권한이 필요합니다.
+bigquery.models.getData
+bigquery.jobs.create
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+목표
+이 튜토리얼에서는 다음을 사용합니다.
+CREATE MODEL [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko] 문: 시계열 모델을 만듭니다.
+ML.FORECAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-forecast?hl=ko] 함수: 일별 총 방문수를 예측합니다.
+비용
+이 튜토리얼에서는 다음을 포함하여 Google Cloud의 청구 가능한 구성요소가 사용됩니다.
+BigQuery
+BigQuery ML
+BigQuery 비용에 대한 자세한 내용은 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지를 참조하세요.
+BigQuery ML 비용에 대한 자세한 내용은 BigQuery ML 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#bqml]을 참조하세요.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery API.
+Enable the API [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com&hl=ko]
+데이터 세트 생성
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+공개 데이터 세트는 US 멀티 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#multi-regions]에 저장됩니다. 편의상 같은 위치에 데이터 세트를 저장합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+예측하려는 시계열 시각화
+모델을 만들기 전에 입력 시계열의 모양을 확인하는 것이 좋습니다.
+다음 쿼리에서 FROM bigquery-public-data.new_york.citibike_trips 절은 new_york 데이터 세트에서 citibike_trips 테이블을 쿼리 중임을 나타냅니다.
+SELECT 문에서 쿼리는 EXTRACT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions?hl=ko#extract]를 사용하여 starttime 열에서 날짜 정보를 추출합니다. 이 쿼리는 COUNT(*) 절을 사용하여 일간 총 도심 자전거 여행 수를 가져옵니다.
+#standardSQL
+SELECT
+   EXTRACT(DATE from starttime) AS date,
+   COUNT(*) AS num_trips
+FROM
+  `bigquery-public-data`.new_york.citibike_trips
+GROUP BY date
+쿼리를 실행하려면 다음 단계를 따르세요.
+Google Cloud 콘솔에서 새 쿼리 작성 버튼을 클릭합니다.
+쿼리 편집기에 다음과 같은 GoogleSQL 쿼리를 입력합니다.
+#standardSQL
+SELECT
+   EXTRACT(DATE from starttime) AS date,
+   COUNT(*) AS num_trips
+FROM
+  `bigquery-public-data`.new_york.citibike_trips
+GROUP BY date
+실행을 클릭합니다. 다음과 유사한 쿼리 결과가 표시됩니다.
+Google Cloud 콘솔을 사용하여 시계열 데이터를 차트로 표시합니다. 쿼리 결과 창에서 차트 탭을 클릭합니다. 차트 구성 창에서 차트 유형으로 막대를 선택합니다.
+시계열 모델 만들기
+NYC 도심 자전거 여행 데이터를 사용해서 시계열 모델을 만듭니다.
+다음 GoogleSQL 쿼리는 일간 총 자전거 여행 수를 예측하는 모델을 만듭니다. CREATE MODEL [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko] 문은 bqml_tutorial.nyc_citibike_arima_model이라는 모델을 만들고 학습시킵니다.
+#standardSQL
+CREATE OR REPLACE MODEL bqml_tutorial.nyc_citibike_arima_model
+  OPTIONS (
+    model_type = 'ARIMA_PLUS',
+    time_series_timestamp_col = 'date',
+    time_series_data_col = 'num_trips',
+    time_series_id_col = 'start_station_id')
+AS
+SELECT
+  EXTRACT(DATE FROM starttime) AS date,
+  COUNT(*) AS num_trips,
+  start_station_id
+FROM
+  `bigquery-public-data`.new_york.citibike_trips
+WHERE starttime > '2014-07-11' AND starttime < '2015-02-11'
+GROUP BY date, start_station_id;
+OPTIONS(model_type='ARIMA_PLUS', time_series_timestamp_col='date', ...) 절은 ARIMA [https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average] 기반 시계열 모델을 만들고 있음을 나타냅니다. 기본적으로 auto_arima=TRUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#auto_arima]이므로 auto.ARIMA 알고리즘이 ARIMA_PLUS 모델에서 초매개변수를 자동으로 조정합니다. 이 알고리즘은 후보 모델 십여 개를 접합하고 Akaike 정보 기준(AIC) [https://en.wikipedia.org/wiki/Akaike_information_criterion]가 가장 낮은 최적 후보를 선택합니다. 또한 기본값이 data_frequency='AUTO_FREQUENCY'이므로 학습 프로세스가 입력 시계열의 데이터 빈도를 자동으로 추론합니다. CREATE MODEL 문은 기본적으로 decompose_time_series=TRUE [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#decompose_time_series]를 사용하므로 시계열의 기록과 예측 부분이 모두 모델에 저장됩니다. time_series_id_col = 'start_station_id' 매개변수를 설정하면 모델이 start_station_id를 기반으로 단일 쿼리를 사용하여 여러 시계열을 접합하고 예측합니다. 이 정보를 사용하여 계절성 기간과 같은 개별 시계열 구성요소를 가져와 시계열이 예측되는 방식을 더 자세히 이해할 수 있습니다.
+CREATE MODEL 쿼리를 실행하여 모델을 만들고 학습시킵니다.
+Google Cloud 콘솔에서 새 쿼리 작성 버튼을 클릭합니다.
+쿼리 편집기에 다음과 같은 GoogleSQL 쿼리를 입력합니다.
+#standardSQL
+CREATE OR REPLACE MODEL bqml_tutorial.nyc_citibike_arima_model
+OPTIONS (
+  model_type = 'ARIMA_PLUS',
+  time_series_timestamp_col = 'date',
+  time_series_data_col = 'num_trips',
+  time_series_id_col = 'start_station_id')
+AS
+SELECT
+EXTRACT(DATE FROM starttime) AS date,
+COUNT(*) AS num_trips,
+start_station_id
+FROM
+`bigquery-public-data`.new_york.citibike_trips
+WHERE starttime > '2014-07-11' AND starttime < '2015-02-11'
+GROUP BY date, start_station_id;
+실행을 클릭합니다.
+이 쿼리는 완료하는 데 약 80초가 소요되며 이후에는 모델(nyc_citibike_arima_model)이 탐색기 창에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+참고: 미국 공휴일이 시계열에 영향을 주는지 여부가 궁금할 수 있습니다. 이를 위해서는 쿼리의 OPTIONS 목록에 holiday_region='US' [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#holiday_region]를 추가하면 됩니다. 이렇게 하면 시계열에 미국 공휴일 패턴이 있는 경우 해당 미국 공휴일 시점을 더 정확하게 모델링할 수 있습니다.
+시계열 예측 및 결과 시각화
+시계열이 예측되는 방식을 설명하려면 ML.FORECAST [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-forecast?hl=ko] 함수를 사용하여 계절성 및 트렌드와 같은 하위 시계열 구성요소를 시각화합니다.
+이를 위해 다음 단계를 따르세요.
+Google Cloud 콘솔에서 새 쿼리 작성 버튼을 클릭합니다.
+쿼리 편집기에 다음과 같은 GoogleSQL 쿼리를 입력합니다.
+#standardSQL
+SELECT
+forecast_timestamp AS forecast_timestamp,
+start_station_id AS start_station_id,
+history_value AS history_value,
+forecast_value AS forecast_value
+FROM
+(
+  (
+     SELECT
+     DATE(forecast_timestamp) AS forecast_timestamp,
+     NULL AS history_value,
+     forecast_value AS forecast_value,
+     start_station_id AS start_station_id,
+     FROM
+     ML.FORECAST(
+        MODEL bqml_tutorial.`nyc_citibike_arima_model`,
+        STRUCT(
+           365 AS horizon,
+           0.9 AS confidence_level))
+  )
+  UNION ALL
+  (
+     SELECT
+     DATE(date_name) AS forecast_timestamp,
+     num_trips AS history_value,
+     NULL AS forecast_value,
+     start_station_id AS start_station_id,
+     FROM
+     (
+        SELECT
+           EXTRACT(DATE FROM starttime) AS date_name,
+           COUNT(*) AS num_trips,
+           start_station_id AS start_station_id
+        FROM
+           `bigquery-public-data`.new_york.citibike_trips
+        WHERE
+           starttime > '2014-07-11'
+           AND starttime < '2015-02-11'
+        GROUP BY
+           date_name, start_station_id
+     )
+  )
+)
+WHERE start_station_id = 79
+ORDER BY
+forecast_timestamp, start_station_id
+실행을 클릭합니다. 다음과 유사한 쿼리 결과가 표시됩니다.
+Google Cloud 콘솔을 사용하여 시계열 데이터를 차트로 표시합니다. 쿼리 결과 창에서 차트 탭을 클릭합니다.
+이 차트는 일간 총 도심 자전거 여행 수에 대한 예측 값을 표시하며 start_station_id=79가 음수이므로 유용하지 않습니다. 대신 모델을 한도와 함께 사용하면 예측 데이터가 향상됩니다.
+한도가 있는 시계열 모델 만들기
+NYC 도심 자전거 여행 데이터를 사용하여 한도가 있는 시계열 모델을 만듭니다.
+다음 GoogleSQL 쿼리는 일간 총 자전거 여행 수를 예측하는 모델을 만듭니다. CREATE MODEL [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko] 문은 bqml_tutorial.nyc_citibike_arima_model_with_limits이라는 모델을 만들고 학습시킵니다. 이 모델과 이전에 만든 모델 [https://cloud.google.com/bigquery/docs/arima-time-series-forecasting-with-limits-tutorial?hl=ko#forecast_the_time_series_and_visualize_the_results]의 주요 차이점은 forecast_limit_lower_bound=0 옵션이 추가된다는 점입니다. 이 옵션을 사용하면 모델이 time_series_data_col 인수로 지정된 열의 값(이 경우 num_trips)을 기반으로 0보다 큰 값만 예측합니다.
+#standardSQL
+CREATE OR REPLACE MODEL bqml_tutorial.nyc_citibike_arima_model
+   OPTIONS (
+      model_type = 'ARIMA_PLUS',
+      time_series_timestamp_col = 'date',
+      time_series_data_col = 'num_trips',
+      time_series_id_col = 'start_station_id',
+      forecast_limit_lower_bound = 0)
+   AS
+   SELECT
+   EXTRACT(DATE FROM starttime) AS date,
+   COUNT(*) AS num_trips,
+   start_station_id
+   FROM
+   `bigquery-public-data`.new_york.citibike_trips
+   WHERE starttime > '2014-07-11' AND starttime < '2015-02-11'
+   GROUP BY date, start_station_id;
+CREATE MODEL 쿼리를 실행하여 모델을 만들고 학습시킵니다.
+Google Cloud 콘솔에서 새 쿼리 작성 버튼을 클릭합니다.
+쿼리 편집기에 다음과 같은 GoogleSQL 쿼리를 입력합니다.
+#standardSQL
+CREATE OR REPLACE MODEL bqml_tutorial.nyc_citibike_arima_model
+OPTIONS (
+  model_type = 'ARIMA_PLUS',
+  time_series_timestamp_col = 'date',
+  time_series_data_col = 'num_trips',
+  time_series_id_col = 'start_station_id',
+  forecast_limit_lower_bound = 0)
+AS
+SELECT
+EXTRACT(DATE FROM starttime) AS date,
+COUNT(*) AS num_trips,
+start_station_id
+FROM
+`bigquery-public-data`.new_york.citibike_trips
+WHERE starttime > '2014-07-11' AND starttime < '2015-02-11'
+GROUP BY date, start_station_id;
+실행을 클릭합니다.
+이 쿼리는 완료하는 데 약 100초가 소요되며 이후에는 모델(nyc_citibike_arima_model_with_limits)이 탐색기 창에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+참고: 미국 공휴일이 시계열에 영향을 주는지 여부가 궁금할 수 있습니다. 이를 위해서는 쿼리의 OPTIONS 목록에 holiday_region='US' [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-time-series?hl=ko#holiday_region]를 추가하면 됩니다. 이렇게 하면 시계열에 미국 공휴일 패턴이 있는 경우 해당 미국 공휴일 시점을 더 정확하게 모델링할 수 있습니다.
+한도가 있는 모델을 사용하여 시계열 예측
+Google Cloud 콘솔에서 새 쿼리 작성 버튼을 클릭합니다.
+쿼리 편집기에 다음과 같은 GoogleSQL 쿼리를 입력합니다.
+#standardSQL
+SELECT
+forecast_timestamp AS forecast_timestamp,
+start_station_id AS start_station_id,
+history_value AS history_value,
+forecast_value AS forecast_value
+FROM
+(
+  (
+     SELECT
+     DATE(forecast_timestamp) AS forecast_timestamp,
+     NULL AS history_value,
+     forecast_value AS forecast_value,
+     start_station_id AS start_station_id,
+     FROM
+     ML.FORECAST(
+        MODEL bqml_tutorial.`nyc_citibike_arima_model`,
+        STRUCT(
+           365 AS horizon,
+           0.9 AS confidence_level))
+  )
+  UNION ALL
+  (
+     SELECT
+     DATE(date_name) AS forecast_timestamp,
+     num_trips AS history_value,
+     NULL AS forecast_value,
+     start_station_id AS start_station_id,
+     FROM
+     (
+        SELECT
+           EXTRACT(DATE FROM starttime) AS date_name,
+           COUNT(*) AS num_trips,
+           start_station_id AS start_station_id
+        FROM
+           `bigquery-public-data`.new_york.citibike_trips
+        WHERE
+           starttime > '2014-07-11'
+           AND starttime < '2015-02-11'
+        GROUP BY
+           date_name, start_station_id
+     )
+  )
+)
+WHERE start_station_id = 79
+ORDER BY
+forecast_timestamp, start_station_id
+ORDER BY
+forecast_timestamp,start_station_id
+실행을 클릭합니다.
+Google Cloud 콘솔을 사용하여 시계열 데이터를 차트로 표시합니다. 쿼리 결과 창에서 차트 탭을 클릭합니다.
+ARIMA PLUS 모델에서 일간 총 도심 자전거 여행 수를 감지하며 start_station_id=79가 감소하고 있습니다. 향후 예측 값은 이 추세를 따르고 더 먼 미래로 갈수록 상대적으로 더 작은 예측 수치를 제공합니다. 이 차트는 총 도심 자전거 여행 수의 예측 값을 표시하며 start_station_id=79가 양수이므로 더 유용합니다. 한도가 있는 모델은 일간 총 도심 자전거 여행 수를 감지하며 start_station_id=79가 감소하고 있지만 여전히 의미 있는 예측 값을 제공합니다.
+이 튜토리얼에 나와 있는 것처럼 forecast_limit_lower_bound 및 forecast_limit_upper_bound 옵션을 사용하면 주가나 향후 판매 수치를 예측할 때와 같이 여기에 표시된 것과 유사한 시나리오에서 더 의미 있는 예측 값을 얻는 데 도움이 될 수 있습니다.
+데이터 세트 삭제
+프로젝트를 삭제하면 프로젝트의 데이터 세트와 테이블이 모두 삭제됩니다. 프로젝트를 다시 사용하려면 이 튜토리얼에서 만든 데이터 세트를 삭제할 수 있습니다.
+필요한 경우 Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+앞서 만든 bqml_tutorial 데이터 세트를 탐색에서 선택합니다.
+창의 오른쪽에 있는 데이터 세트 삭제를 클릭합니다. 데이터 세트, 테이블, 모든 데이터가 삭제됩니다.
+데이터 세트 삭제 대화상자에서 데이터 세트 이름(bqml_tutorial)을 입력하고 삭제를 클릭하여 삭제 명령어를 확인합니다.
+프로젝트 삭제
+프로젝트를 삭제하는 방법은 다음과 같습니다.
+주의: 프로젝트를 삭제하면 다음과 같은 효과가 발생합니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+다음 단계
+NYC 도심 자전거 여행 데이터의 단일 쿼리를 사용하여 여러 시계열을 예측 [https://cloud.google.com/bigquery/docs/arima-multiple-time-series-forecasting-tutorial?hl=ko]하는 방법을 알아보세요.
+ARIMA_PLUS를 가속화하여 몇 시간 내에 시계열 100만 개 예측을 사용 설정 [https://cloud.google.com/bigquery/docs/arima-speed-up-tutorial?hl=ko]하는 방법을 알아보세요.
+머신러닝 단기집중과정 [https://developers.google.com/machine-learning/crash-course/?hl=ko]을 참조하여 머신러닝을 알아보세요.
+BigQuery ML 개요는 BigQuery ML 소개 [https://cloud.google.com/bigquery/docs/bqml-introduction?hl=ko]를 참조하세요.
+Google Cloud 콘솔에 대한 자세한 내용은 Google Cloud 콘솔 사용 [https://cloud.google.com/bigquery/bigquery-web-ui?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

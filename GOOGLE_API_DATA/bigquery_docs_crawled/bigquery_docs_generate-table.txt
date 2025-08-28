@@ -1,0 +1,424 @@
+Source URL: https://cloud.google.com/bigquery/docs/generate-table
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필요한 역할 [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#required_roles]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#before_you_begin]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#create_a_dataset]
+연결 만들기 [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#create_a_connection]
+서비스 계정에 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#give_the_service_account_access]
+BigQuery ML 원격 모델 만들기 [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#create-remote-model]
+정형 데이터 생성 [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#generate_structured_data]
+예시 [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#examples]
+AI.GENERATE_TABLE 함수를 사용하여 정형 데이터 생성
+bookmark_border
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대한 의견을 제공하거나 지원을 요청하려면 bqml-feedback@google.com [mailto:bqml-feedback@google.com]으로 문의하세요.
+이 문서에서는 Gemini 모델을 사용하여 정형 데이터를 생성한 다음 SQL 스키마를 사용하여 모델의 응답 형식을 지정하는 방법을 보여줍니다.
+이를 위해 다음 작업을 완료합니다.
+정식 버전 [https://cloud.google.com/vertex-ai/generative-ai/docs/models?hl=ko#generally_available_models] 또는 프리뷰 [https://cloud.google.com/vertex-ai/generative-ai/docs/models?hl=ko#preview_models] Gemini 모델을 통해 BigQuery ML 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko] 만들기
+AI.GENERATE_TABLE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-table?hl=ko]와 함께 모델을 사용하여 표준 테이블 [https://cloud.google.com/bigquery/docs/tables-intro?hl=ko#standard_tables]의 데이터를 기반으로 정형 데이터 생성
+필요한 역할
+원격 모델을 만들고 AI.GENERATE_TABLE 함수를 사용하려면 다음 Identity and Access Management(IAM) 역할이 필요합니다.
+BigQuery 데이터 세트, 테이블, 모델을 만들고 사용하기: 프로젝트에 대한 BigQuery 데이터 편집자(roles/bigquery.dataEditor)
+BigQuery 연결을 만들고, 위임하고, 사용하기: 프로젝트에 대한 BigQuery 연결 관리자(roles/bigquery.connectionsAdmin)
+구성된 기본 연결 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko]이 없는 경우 CREATE MODEL 문을 실행하는 과정에서 연결을 만들고 설정할 수 있습니다. 이렇게 하려면 프로젝트에 BigQuery 관리자(roles/bigquery.admin)가 있어야 합니다. 자세한 내용은 기본 연결 구성 [https://cloud.google.com/bigquery/docs/default-connections?hl=ko#configure_the_default_connection]을 참조하세요.
+연결의 서비스 계정에 권한 부여: Vertex AI 엔드포인트가 포함된 프로젝트에 대한 프로젝트 IAM 관리자(roles/resourcemanager.projectIamAdmin). 이는 모델 이름을 엔드포인트로 지정하여 만드는 원격 모델의 현재 프로젝트입니다. 이는 엔드포인트로 URL을 지정하여 만드는 원격 모델의 URL에서 식별되는 프로젝트입니다.
+BigQuery 작업 만들기: 프로젝트에 대한 BigQuery 작업 사용자(roles/bigquery.jobUser)
+이러한 사전 정의된 역할에는 이 문서의 작업을 수행하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 확장하세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko]을 사용하여 이 권한을 부여받을 수도 있습니다.
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, and Vertex AI APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Caiplatform.googleapis.com&hl=ko]
+데이터 세트 만들기
+리소스를 포함할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 데이터 세트 이름을 입력합니다.
+위치 유형에서 데이터 세트의 위치를 선택합니다.
+데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다.
+
+bq --location=LOCATION mk -d DATASET_ID
+
+다음을 바꿉니다.
+
+
+LOCATION: 데이터 세트의 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko].
+DATASET_ID: 사용자가 만들려는 데이터 세트 ID
+
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+연결 만들기
+기본 연결이 구성되어 있거나 BigQuery 관리자 역할이 있는 경우 이 단계를 건너뛸 수 있습니다.
+원격 모델이 사용할 클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 만들고 연결의 서비스 계정을 가져옵니다. 이전 단계에서 만든 데이터 세트와 동일한 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에 연결을 만듭니다.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 add 데이터 추가를 클릭합니다.
+
+ 
+
+데이터 추가 대화상자가 열립니다.
+필터링 기준 창의 데이터 소스 유형 섹션에서 비즈니스 애플리케이션을 선택합니다.
+
+또는 데이터 소스 검색 필드에 Vertex AI를 입력할 수 있습니다.
+추천 데이터 소스 섹션에서 Vertex AI를 클릭합니다.
+Vertex AI 모델: BigQuery 제휴 솔루션 카드를 클릭합니다.
+연결 유형 목록에서 Vertex AI 원격 모델, 원격 함수, BigLake(Cloud 리소스)를 선택합니다.
+연결 ID 필드에 연결 이름을 입력합니다.
+연결 만들기를 클릭합니다.
+연결로 이동을 클릭합니다.
+연결 정보 창에서 나중의 단계에 사용할 서비스 계정 ID를 복사합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#bq] ---
+명령줄 환경에서 연결을 만듭니다.
+
+bq mk --connection --location=REGION --project_id=PROJECT_ID \
+    --connection_type=CLOUD_RESOURCE CONNECTION_ID
+
+--project_id 매개변수는 기본 프로젝트를 재정의합니다.
+
+다음을 바꿉니다.
+
+
+REGION: 연결 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko#supported_locations]
+PROJECT_ID: Google Cloud 프로젝트 ID
+CONNECTION_ID: 연결의 ID
+
+
+연결 리소스를 만들면 BigQuery가 고유한 시스템 서비스 계정을 만들고 이를 연결에 연계합니다.
+
+문제 해결: 다음 연결 오류가 발생하면 Google Cloud SDK를 업데이트 [https://cloud.google.com/sdk/docs/quickstart?hl=ko]하세요.
+
+Flags parsing error: flag --connection_type=CLOUD_RESOURCE: value should be one of...
+
+이후 단계에서 사용할 수 있도록 서비스 계정 ID를 가져와 복사합니다.
+
+bq show --connection PROJECT_ID.REGION.CONNECTION_ID
+
+출력은 다음과 유사합니다.
+
+name                          properties
+1234.REGION.CONNECTION_ID     {"serviceAccountId": "connection-1234-9u56h9@gcp-sa-bigquery-condel.iam.gserviceaccount.com"}
+
+--- 탭: Terraform [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#terraform] ---
+google_bigquery_connection [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_connection] 리소스를 사용합니다.
+참고: Terraform을 사용해서 BigQuery 객체를 만들려면 Cloud Resource Manager API [https://cloud.google.com/resource-manager/reference/rest?hl=ko]를 사용 설정해야 합니다.
+BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다. 자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+
+다음 예시에서는 US 리전에 my_cloud_resource_connection이라는 Cloud 리소스 연결을 만듭니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+# This queries the provider for project information.
+data "google_project" "default" {}
+
+# This creates a cloud resource connection in the US region named my_cloud_resource_connection.
+# Note: The cloud resource nested object has only one output field - serviceAccountId.
+resource "google_bigquery_connection" "default" {
+  connection_id = "my_cloud_resource_connection"
+  project       = data.google_project.default.project_id
+  location      = "US"
+  cloud_resource {}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+프로젝트에 Terraform 구성을 적용하려면 Google Cloud 다음 섹션의 단계를 완료하세요.
+Cloud Shell 준비
+
+  Cloud Shell [https://shell.cloud.google.com/?hl=ko]을 실행합니다.
+  
+    Terraform 구성을 적용할 기본 Google Cloud 프로젝트를 설정합니다.
+    이 명령어는 프로젝트당 한 번만 실행하면 되며 어떤 디렉터리에서도 실행할 수 있습니다.
+    export GOOGLE_CLOUD_PROJECT=PROJECT_ID
+    Terraform 구성 파일에서 명시적 값을 설정하면 환경 변수가 재정의됩니다.
+  
+
+디렉터리 준비
+각 Terraform 구성 파일에는 자체 디렉터리(루트 모듈이라고도 함)가 있어야 합니다.
+
+  
+    Cloud Shell [https://shell.cloud.google.com/?hl=ko]에서 디렉터리를 만들고 해당 디렉터리 내에 새 파일을 만드세요. 파일 이름에는 .tf 확장자가 있어야 합니다(예: main.tf). 이 튜토리얼에서는 파일을 main.tf라고 합니다.
+    mkdir DIRECTORY && cd DIRECTORY && touch main.tf
+  
+  
+    튜토리얼을 따라 하는 경우 각 섹션이나 단계에서 샘플 코드를 복사할 수 있습니다.
+    샘플 코드를 새로 만든 main.tf에 복사합니다.
+    필요한 경우 GitHub에서 코드를 복사합니다. 이는 Terraform 스니펫이 엔드 투 엔드 솔루션의 일부인 경우에 권장됩니다.
+    
+  
+  환경에 적용할 샘플 파라미터를 검토하고 수정합니다.
+  변경사항을 저장합니다.
+  
+    Terraform을 초기화합니다. 이 작업은 디렉터리당 한 번만 수행하면 됩니다.
+    terraform init
+    원하는 경우 최신 Google 공급업체 버전을 사용하려면 -upgrade 옵션을 포함합니다.
+    
+    terraform init -upgrade
+  
+
+변경사항 적용
+
+  
+    구성을 검토하고 Terraform에서 만들거나 업데이트할 리소스가 예상과 일치하는지 확인합니다.
+    terraform plan
+    필요에 따라 구성을 수정합니다.
+  
+  
+    다음 명령어를 실행하고 프롬프트에 yes를 입력하여 Terraform 구성을 적용합니다.
+    terraform apply
+    Terraform에 '적용 완료' 메시지가 표시될 때까지 기다립니다.
+  
+  결과를 보려면 Google Cloud 프로젝트 [https://console.cloud.google.com/?hl=ko]를 엽니다. Google Cloud 콘솔에서 UI의 리소스로 이동하여 Terraform이 리소스를 만들었거나 업데이트했는지 확인합니다.
+  
+
+참고: Terraform 샘플은 일반적으로 필요한 API가 Google Cloud 프로젝트에서 사용 설정되었다고 가정합니다.
+서비스 계정에 액세스 권한 부여
+연결의 서비스 계정에 Vertex AI 사용자 역할을 부여합니다.
+원격 모델을 만들 때 엔드포인트를 URL(예: endpoint = 'https://us-central1-aiplatform.googleapis.com/v1/projects/myproject/locations/us-central1/publishers/google/models/gemini-2.5-flash')로 지정할 계획이라면 URL에 지정한 동일한 프로젝트에서 이 역할을 부여합니다.
+원격 모델을 만들 때 모델 이름을 사용(예: endpoint = 'gemini-2.5-flash')하여 엔드포인트를 지정할 계획이라면 원격 모델을 만들려는 동일한 프로젝트에서 이 역할을 부여합니다.
+다른 프로젝트에서 역할을 부여하면 bqcx-1234567890-wxyz@gcp-sa-bigquery-condel.iam.gserviceaccount.com does not have the permission to access resource 오류가 발생합니다.
+역할을 부여하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#%EC%BD%98%EC%86%94] ---
+IAM 및 관리자 페이지로 이동합니다.
+
+IAM 및 관리자로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko] 
+person_add 추가를 클릭합니다.
+
+주 구성원 추가 대화상자가 열립니다.
+새 주 구성원 필드에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 Vertex AI를 선택한 후 Vertex AI 사용자를 선택합니다.
+저장을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/generate-table?hl=ko#gcloud] ---
+gcloud projects add-iam-policy-binding 명령어 [https://cloud.google.com/sdk/gcloud/reference/projects/add-iam-policy-binding?hl=ko]를 사용합니다.
+
+gcloud projects add-iam-policy-binding 'PROJECT_NUMBER' --member='serviceAccount:MEMBER' --role='roles/aiplatform.user' --condition=None
+
+
+다음을 바꿉니다.
+
+  PROJECT_NUMBER: 프로젝트 번호
+  MEMBER: 이전에 복사한 서비스 계정 ID
+BigQuery ML 원격 모델 만들기
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+SQL 편집기를 사용하여 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko]을 만듭니다.
+CREATE OR REPLACE MODEL
+`
+PROJECT_ID.
+DATASET_ID.
+MODEL_NAME`
+REMOTE WITH CONNECTION {DEFAULT | `
+PROJECT_ID.
+REGION.
+CONNECTION_ID`}
+OPTIONS (ENDPOINT = '
+ENDPOINT');
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트 ID입니다.
+DATASET_ID: 모델을 포함할 데이터 세트의 ID입니다. 이 데이터 세트는 사용 중인 연결과 동일한 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에 있어야 합니다.
+MODEL_NAME: 모델의 이름
+REGION: 연결에 사용되는 리전
+CONNECTION_ID: BigQuery 연결의 ID
+Google Cloud 콘솔에서 연결 세부정보를 볼 때 [https://cloud.google.com/bigquery/docs/working-with-connections?hl=ko#view-connections] 이 값은 연결 ID에 표시되는 정규화된 연결 ID의 마지막 섹션에 있는 값입니다(예: projects/myproject/locations/connection_location/connections/myconnection).
+ENDPOINT: 사용할 Gemini 모델의 이름입니다. 자세한 내용은 ENDPOINT [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko#endpoint] 페이지를 참조하세요.
+정형 데이터 생성
+원격 모델에서 AI.GENERATE_TABLE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-table?hl=ko]를 사용하고 테이블 열의 프롬프트 데이터를 사용하여 정형 데이터를 생성합니다.
+SELECT *
+FROM AI.GENERATE_TABLE(
+  MODEL `
+PROJECT_ID.
+DATASET_ID.
+MODEL_NAME`,
+  [TABLE `
+PROJECT_ID.
+DATASET_ID.
+TABLE_NAME` / (
+PROMPT_QUERY)],
+  STRUCT(
+TOKENS AS max_output_tokens, 
+TEMPERATURE AS temperature,
+  
+TOP_P AS top_p, 
+STOP_SEQUENCES AS stop_sequences,
+  
+SAFETY_SETTINGS AS safety_settings,
+  
+OUTPUT_SCHEMA AS output_schema)
+);
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트 ID
+DATASET_ID: 모델이 포함된 데이터 세트의 ID
+MODEL_NAME: 모델의 이름
+TABLE_NAME: 프롬프트가 포함된 테이블의 이름. 이 테이블에는 이름이 prompt인 열이 있어야 합니다. 또는 별칭을 사용하여 다른 이름의 열을 사용할 수 있습니다.
+PROMPT_QUERY: 프롬프트 데이터를 생성하는 GoogleSQL 쿼리. 프롬프트 값 자체는 열에서 가져올 수 있으며, 임의의 수의 문자열 및 열 이름 하위 필드가 포함된 구조체 값으로 지정할 수도 있습니다. 예를 들면 SELECT ('Analyze the sentiment in ', feedback_column, 'using the following categories: positive, negative, neutral') AS prompt입니다.
+TOKENS: 응답에서 생성될 수 있는 토큰의 최대 개수를 설정하는 INT64 값입니다. 이 값은 [1,8192] 범위 내에 있어야 합니다. 짧은 응답이 필요하면 낮은 값을 지정하고 긴 응답을 위해서는 높은 값을 지정합니다. 기본값은 128입니다.
+TEMPERATURE: 토큰 선택에서 무작위성 수준을 제어하는 [0.0,2.0] 범위의 FLOAT64 값. 기본값은 1.0입니다.
+temperature 값이 낮을수록 자유롭거나 창의적인 답변과 거리가 먼 확정적인 응답이 필요한 프롬프트에 적합하고, temperature 값이 높을수록 보다 다양하거나 창의적인 결과로 이어질 수 있습니다. temperature 값이 0이면 확정적입니다. 즉, 확률이 가장 높은 응답이 항상 선택됩니다.
+TOP_P: [0.0,1.0] 범위의 FLOAT64 값은 토큰이 선택될 확률을 결정하는 데 도움이 됩니다. 임의성이 낮은 응답에 낮은 값을 지정하고 임의성이 높은 응답에 높은 값을 지정합니다. 기본값은 0.95입니다.
+STOP_SEQUENCES: 지정한 문자열이 모델의 응답에 포함된 경우 이 문자열을 제거하는 ARRAY<STRING> 값. 문자열은 대문자 사용(영문)을 비롯해 정확히 일치합니다. 기본값은 빈 배열입니다.
+SAFETY_SETTINGS: 응답을 필터링하도록 콘텐츠 안전 기준을 구성하는 ARRAY<STRUCT<STRING AS category, STRING AS threshold>> 값입니다. 구조체의 첫 번째 요소는 피해 카테고리를 지정하고 구조체의 두 번째 요소는 해당하는 차단 기준을 지정합니다. 모델은 이러한 설정을 위반하는 콘텐츠를 필터링합니다. 각 카테고리는 한 번만 지정할 수 있습니다. 예를 들어 STRUCT('HARM_CATEGORY_DANGEROUS_CONTENT' AS category, 'BLOCK_MEDIUM_AND_ABOVE' AS threshold) 및 STRUCT('HARM_CATEGORY_DANGEROUS_CONTENT' AS category, 'BLOCK_ONLY_HIGH' AS threshold)를 모두 지정할 수 없습니다. 지정된 카테고리에 안전 설정이 없는 경우 BLOCK_MEDIUM_AND_ABOVE 안전 설정이 사용됩니다.
+지원되는 카테고리는 다음과 같습니다.
+HARM_CATEGORY_HATE_SPEECH
+HARM_CATEGORY_DANGEROUS_CONTENT
+HARM_CATEGORY_HARASSMENT
+HARM_CATEGORY_SEXUALLY_EXPLICIT
+지원되는 기준은 다음과 같습니다.
+BLOCK_NONE(제한됨 [https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-filters?hl=ko#how_to_configure_content_filters])
+BLOCK_LOW_AND_ABOVE
+BLOCK_MEDIUM_AND_ABOVE(기본값)
+BLOCK_ONLY_HIGH
+HARM_BLOCK_THRESHOLD_UNSPECIFIED
+자세한 내용은 유해 카테고리 [https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-filters?hl=ko#harm_categories] 및 콘텐츠 필터 구성 방법 [https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-filters?hl=ko#how_to_configure_content_filters]을 참조하세요.
+OUTPUT_SCHEMA: 모델의 응답 형식을 지정하는 STRING 값입니다. output_schema 값은 CREATE TABLE 문 [https://cloud.google.com/bigquery/docs/tables?hl=ko#create_an_empty_table_with_a_schema_definition]에 사용된 것과 유사한 SQL 스키마 정의여야 합니다. 지원되는 데이터 유형은 다음과 같습니다.
+INT64
+FLOAT64
+BOOL
+STRING
+ARRAY
+STRUCT
+Gemini 1.5 모델의 경우 반환 값이 어림수가 아닐 것이 확실한 경우에만 FLOAT64 데이터 유형을 지정하세요. 이러한 모델은 때때로 어림수에 대해 FLOAT64 값 대신 INT64 값을 반환할 수 있습니다(예: 2.0 대신 2). 이로 인해 쿼리에서 파싱 오류가 발생할 수 있습니다.
+output_schema 인수를 사용하여 테이블의 프롬프트에 기반한 정형 데이터를 생성할 때는 적절한 스키마를 지정하기 위해 프롬프트 데이터를 이해하는 것이 중요합니다.
+예를 들어 다음 필드가 있는 테이블에서 영화 리뷰 콘텐츠를 분석한다고 가정해 보겠습니다.
+movie_id
+review
+프롬프트
+다음과 유사한 쿼리를 실행하여 프롬프트 텍스트를 만들 수 있습니다.
+UPDATE mydataset.movie_review
+SET prompt = CONCAT('Extract the key words and key sentiment from the text below: ', review)
+WHERE review IS NOT NULL;
+"keywords ARRAY<STRING>, sentiment STRING" AS output_schema와 유사한 output_schema 값을 지정할 수도 있습니다.
+예시
+다음 예에서는 테이블에서 프롬프트 데이터를 가져와 모델의 응답 형식을 지정하는 SQL 스키마를 제공하는 요청을 보여줍니다.
+SELECT
+*
+FROM
+AI.GENERATE_TABLE( MODEL `mydataset.gemini_model`,
+  TABLE `mydataset.mytable`,
+  STRUCT("keywords ARRAY<STRING>, sentiment STRING" AS output_schema));
+다음 예에서는 쿼리에서 프롬프트 데이터를 가져와 모델의 응답 형식을 지정하는 SQL 스키마를 제공하는 요청을 보여줍니다.
+SELECT *
+FROM
+  AI.GENERATE_TABLE(
+    MODEL `mydataset.gemini_model`,
+    (
+      SELECT
+        'John Smith is a 20-year old single man living at 1234 NW 45th St, Kirkland WA, 98033. He has two phone numbers 123-123-1234, and 234-234-2345. He is 200.5 pounds.'
+          AS prompt
+    ),
+    STRUCT("address STRUCT<street_address STRING, city STRING, state STRING, zip_code STRING>, age INT64, is_married BOOL, name STRING, phone_number ARRAY<STRING>, weight_in_pounds FLOAT64"
+        AS output_schema, 8192 AS max_output_tokens));
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,282 @@
+Source URL: https://cloud.google.com/bigquery/docs/text-analysis-search
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+텍스트 분석기 [https://cloud.google.com/bigquery/docs/text-analysis-search?hl=ko#text_analyzers]
+NO_OP_ANALYZER [https://cloud.google.com/bigquery/docs/text-analysis-search?hl=ko#no_op_analyzer]
+LOG_ANALYZER [https://cloud.google.com/bigquery/docs/text-analysis-search?hl=ko#log_analyzer]
+PATTERN_ANALYZER [https://cloud.google.com/bigquery/docs/text-analysis-search?hl=ko#pattern_analyzer]
+예시 [https://cloud.google.com/bigquery/docs/text-analysis-search?hl=ko#examples]
+NFKC ICU 정규화 및 검색 제외 단어가 포함된 LOG_ANALYZER [https://cloud.google.com/bigquery/docs/text-analysis-search?hl=ko#log_analyzer_with_nfkc_icu_normalization_and_stop_words]
+검색 제외 단어가 있는 IPv4 검색의 PATTERN_ANALYZER [https://cloud.google.com/bigquery/docs/text-analysis-search?hl=ko#pattern_analyzer_for_ipv4_search_with_stop_words]
+다음 단계 [https://cloud.google.com/bigquery/docs/text-analysis-search?hl=ko#whats_next]
+텍스트 분석기 사용
+bookmark_border
+CREATE SEARCH INDEX DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_search_index_statement], SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko], TEXT_ANALYZE 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/text-analysis-functions?hl=ko#text_analyze]가 고급 텍스트 분석기 구성 옵션을 지원합니다. BigQuery의 텍스트 분석기와 텍스트 옵션을 이해하면 검색 환경을 세분화할 수 있습니다.
+이 문서에서는 BigQuery에서 사용할 수 있는 다양한 텍스트 분석기와 구성 옵션을 간략하게 설명하고 BigQuery의 검색 [https://cloud.google.com/bigquery/docs/search?hl=ko]에서 텍스트 분석기를 사용하는 방법의 예시를 살펴봅니다. 텍스트 분석기 구문에 대한 자세한 내용은 텍스트 분석 [https://cloud.google.com/bigquery/docs/reference/standard-sql/text-analysis?hl=ko]을 참조하세요.
+텍스트 분석기
+BigQuery는 다음과 같은 텍스트 분석기를 지원합니다.
+NO_OP_ANALYZER
+LOG_ANALYZER
+PATTERN_ANALYZER
+NO_OP_ANALYZER
+정확하게 일치해야 하는 데이터가 사전 처리된 경우 NO_OP_ANALYZER를 사용합니다. 텍스트에 적용된 토큰화 또는 정규화가 없습니다. 이 분석기는 토큰화 또는 정규화를 수행하지 않으므로 구성을 허용하지 않습니다. NO_OP_ANALYZER에 대한 자세한 내용은 NO_OP_ANALYZER [https://cloud.google.com/bigquery/docs/reference/standard-sql/text-analysis?hl=ko#no_op_analyzer]를 참조하세요.
+LOG_ANALYZER
+LOG_ANALYZER는 데이터를 다음과 같은 방식으로 수정합니다.
+텍스트는 소문자로 지정됩니다.
+127보다 큰 ASCII 값은 그대로 유지됩니다.
+다음 구분 기호에 의해 텍스트가 토큰이라는 개별 용어로 분할됩니다.
+[ ] < > ( ) { } | ! ; , ' " * & ? + / : = @ . - $ % \ _ \n \r \s \t %21 %26
+%2526 %3B %3b %7C %7c %20 %2B %2b %3D %3d %2520 %5D %5d %5B %5b %3A %3a %0A
+%0a %2C %2c %28 %29
+기본 구분 기호를 사용하지 않으려면 텍스트 분석기 옵션으로 사용할 구분 기호를 지정하면 됩니다. LOG_ANALYZER를 사용하면 특정 구분 기호 및 토큰 필터를 구성하여 검색 결과를 더 세밀하게 제어할 수 있습니다. LOG_ANALYZER를 사용할 때 제공되는 특정 구성 옵션에 대한 자세한 내용은 delimiters 분석기 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/text-analysis?hl=ko#log_analyzer_options] 및 token_filters 분석기 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/text-analysis?hl=ko#token_filters_option]을 참조하세요.
+PATTERN_ANALYZER
+PATTERN_ANALYZER 텍스트 분석기는 정규 표현식을 사용하여 텍스트에서 토큰을 추출합니다. PATTERN_ANALYZER에 사용되는 정규 표현식 엔진 및 구문은 RE2 [https://github.com/google/re2/]입니다. PATTERN_ANALYZER는 다음 순서로 패턴을 토큰화합니다.
+문자열의 패턴(왼쪽부터)과 일치하는 첫 번째 하위 문자열을 찾습니다. 출력에 포함할 토큰입니다.
+1단계에서 찾은 하위 문자열이 끝날 때까지 모든 항목을 입력 문자열에서 삭제합니다.
+문자열이 빌 때까지 이 프로세스를 반복합니다.
+다음 표에서는 PATTERN_ANALYZER 토큰 추출의 예시를 보여줍니다.
+패턴 입력 텍스트 출력 토큰
+ab ababab
+ab
+ab abacad
+ab
+[a-z]{2} abacad
+ab
+ac
+ad
+aaa aaaaa
+aaa
+[a-z]/ a/b/c/d/e
+a/
+b/
+c/
+d/
+/[^/]+/ aa/bb/cc
+/bb/
+[0-9]+ abc
+(?:/?)[a-z] /abc
+/abc
+(?:/)[a-z] /abc
+/abc
+(?:[0-9]abc){3}(?:[a-z]000){2} 7abc7abc7abcx000y000
+7abc7abc7abcx000y000
+".+" "cats" 및 "dogs"
+"cats" 및 "dogs"
+
+
+탐욕적 수량자 + [https://stackoverflow.com/questions/2301285/what-do-lazy-and-greedy-mean-in-the-context-of-regular-expressions]를 사용하면 텍스트에서 가능한 가장 긴 문자열과 일치하도록 만들기 때문에 ''cats'' 및 ''dogs''가 텍스트에서 토큰으로 추출됩니다.
+".+?" "cats" 및 "dogs"
+"cats"
+"dogs"
+
+
+게으른 수량자 +? [https://stackoverflow.com/questions/2301285/what-do-lazy-and-greedy-mean-in-the-context-of-regular-expressions]를 사용하면 정규 표현식이 텍스트에서 가능한 가장 짧은 문자열과 일치하도록 만들기 때문에 ''cats'' 및 ''dogs''가 텍스트에서 2개의 개별 토큰으로 추출됩니다.
+PATTERN_ANALYZER 텍스트 분석기를 사용하면 SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko]와 함께 사용할 때 텍스트에서 추출된 토큰을 보다 세부적으로 제어할 수 있습니다. 다음 표에서는 서로 다른 패턴 및 결과로 인한 다른 SEARCH 결과를 보여줍니다.
+패턴 쿼리 텍스트 텍스트의 토큰 검색(텍스트, 쿼리) 설명
+abc abcdef abcghi
+abcghi
+TRUE ['abcghi']의 'abc'
+cd[a-z] abcdef abcghi
+abcghi
+FALSE ['abcghi']의 'cde'
+[a-z]/ a/b/ a/b/c/d/
+a/
+b/
+c/
+d/
+TRUE ['a/', 'b/', 'c/', 'd/']의 'a/' AND ['a/', 'b/', 'c/', 'd/']의 'b/'
+/[^/]+/ aa/bb/ aa/bb/cc/
+/bb/
+TRUE ['/bb/']의 '/bb/'
+/[^/]+/ bb aa/bb/cc/
+/bb/
+오류 검색어에 일치 항목이 없음
+[0-9]+ abc abc123 오류 검색어에 일치 항목이 없음
+[0-9]+ `abc` abc123 오류 검색어에 일치 항목이 없음
+
+특수문자가 아닌 백틱으로 일치하는 백틱입니다.
+[a-z][a-z0-9]*@google\.com 내 이메일: test@google.com test@google.com
+test@google.com
+TRUE 'test@google.com'의 'test@google.com'
+abc abc\ abc abc
+abc
+TRUE ['abc']의 'abc'
+
+'abc abc'는 공백이 이스케이프 처리되어 검색어 파서가 파싱한 후의 단일 서브 쿼리입니다.
+(?i)(?:Abc)(정규화 없음) aBcd Abc
+Abc
+FALSE ['Abc']의 'aBc'
+(?i)(?:Abc)
+
+정규화:
+lower_case = true aBcd Abc
+abc
+TRUE ['abc']의 'abc'
+(?:/?)abc bc/abc /abc/abc/
+/abc
+TRUE ['/abc']의 '/abc'
+(?:/?)abc abc d/abc
+/abc
+FALSE ['/abc']의 'abc'
+".+" "cats" "cats" 및 "dogs"
+"cats" 및 "dogs"
+FALSE ['cats' 및 'dogs']의 'cats'
+
+탐욕적 수량자 + [https://stackoverflow.com/questions/2301285/what-do-lazy-and-greedy-mean-in-the-context-of-regular-expressions]를 사용하면 정규 표현식이 텍스트에서 가능한 가장 긴 문자열과 일치하도록 만들기 때문에 ''cats'' 및 ''dogs''가 텍스트에서 토큰으로 추출됩니다.
+".+?" "cats" "cats" 및 "dogs"
+"cats"
+"dogs"
+TRUE ['cats', 'dogs']의 'cats'
+
+게으른 수량자 +? [https://stackoverflow.com/questions/2301285/what-do-lazy-and-greedy-mean-in-the-context-of-regular-expressions]를 사용하면 정규 표현식이 텍스트에서 가능한 가장 짧은 문자열과 일치하도록 만들기 때문에 ''cats'' 및 ''dogs''가 텍스트에서 2개의 개별 토큰으로 추출됩니다.
+예시
+다음 예시에서는 맞춤설정 옵션으로 텍스트 분석을 사용하여 검색 색인을 만들고 토큰을 추출하고 검색 결과를 반환하는 방법을 보여줍니다.
+NFKC ICU 정규화 및 검색 제외 단어가 포함된 LOG_ANALYZER
+다음 예시에서는 NFKC ICU [https://en.wikipedia.org/wiki/Unicode_equivalence] 정규화 및 검색 제외 단어를 사용하여 LOG_ANALYZER 옵션을 구성합니다. 이 예시에서는 데이터가 이미 채워져 있는 다음 데이터 테이블을 가정합니다.
+CREATE TABLE dataset.data_table(
+  text_data STRING
+);
+NFKC ICU 정규화 및 검색 제외 단어 목록을 사용하여 검색 색인을 만들려면 CREATE SEARCH INDEX DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_search_index_statement]의 analyzer_options 옵션에서 JSON 형식의 문자열을 만듭니다. LOG_ANALYZER로 검색 색인을 만들 때 사용할 수 있는 옵션의 전체 목록은 LOG_ANALYZER [https://cloud.google.com/bigquery/docs/reference/standard-sql/text-analysis?hl=ko#log_analyzer]를 참조하세요. 이 예시에서 검색 제외 단어는 "the", "of", "and", "for"입니다.
+CREATE OR REPLACE SEARCH INDEX `my_index` ON `dataset.data_table`(ALL COLUMNS) OPTIONS(
+  analyzer='PATTERN_ANALYZER',
+  analyzer_options= '''{
+    "token_filters": [
+      {
+        "normalizer": {
+          "mode": "ICU_NORMALIZE",
+          "icu_normalize_mode": "NFKC",
+          "icu_case_folding": true
+        }
+      },
+      { "stop_words": ["the", "of", "and", "for"] }
+    ]
+  }''');
+위 예시를 바탕으로 한 다음 표에서는 text_data의 다양한 값에 대한 토큰 추출을 설명합니다. 이 문서에서는 두 개의 물음표(??)를 구분하기 위해 이중 물음표 문자(??)를 기울임꼴로 표시했습니다.
+데이터 텍스트 색인용 토큰 설명
+The Quick Brown Fox ["quick", "brown", "fox"] LOG_ANALYZER 토큰화는 ['The', 'Quick', 'Brown', 'Fox'] 토큰을 생성합니다.
+
+다음으로 icu_case_folding = true 소문자를 사용한 ICU 정규화가 ['the', 'fast', 'brown', 'fox'] 토큰을 생성합니다.
+
+마지막으로 검색 제외 단어 필터가 목록에서 'the'를 삭제합니다.
+The Ⓠuick Ⓑrown Ⓕox ["quick", "brown", "fox"] LOG_ANALYZER 토큰화가 ["The", "Ⓠuick", "Ⓑrown", "Ⓕox"] 토큰을 생성합니다.
+
+다음으로 icu_case_folding = true 소문자를 사용한 NFKC ICU 정규화가 ["the", "quick", "brown", "fox"] 토큰을 생성합니다.
+
+마지막으로 검색 제외 단어 필터가 목록에서 'the'를 삭제합니다.
+Ⓠuick⁇Ⓕox ["quick??fox"] LOG_ANALYZER 토큰화가 ["The", "Ⓠuick⁇Ⓕox"] 토큰을 생성합니다.
+
+다음으로 icu_case_folding = true 소문자를 사용한 NFKC ICU 정규화가 ["quick??fox"] 토큰을 생성합니다. 이중 물음표 유니코드는 2개의 물음표 ASCII 문자로 정규화되었습니다.
+
+마지막으로 필터 목록에 있는 토큰이 없으므로 검색 제외 필터에서 아무 작업도 수행되지 않습니다.
+이제 검색 색인이 생성되었으므로 SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko]를 사용하여 검색 색인에 지정된 동일한 분석기 구성을 사용하여 테이블을 검색할 수 있습니다. SEARCH 함수의 분석기 구성이 검색 색인의 분석기 구성과 일치하지 않으면 검색 색인이 사용되지 않습니다. 다음 쿼리를 사용합니다.
+SELECT
+  SEARCH(
+  analyzer => 'LOG_ANALYZER',
+  analyzer_options => '''{
+    "token_filters": [
+      {
+        "normalizer": {
+          "mode": "ICU_NORMALIZE",
+          "icu_normalize_mode": "NFKC",
+          "icu_case_folding": true
+        }
+      },
+      {
+        "stop_words": ["the", "of", "and", "for"]
+      }
+    ]
+  }''')
+다음을 바꿉니다.
+search_query: 검색할 텍스트입니다.
+다음 표에서는 서로 다른 검색 텍스트 및 여러 search_query 값을 기준으로 다양한 결과를 보여줍니다.
+text_data search_query 결과 설명
+The Quick Brown Fox "Ⓠuick" TRUE 텍스트에서 추출된 토큰의 최종 목록은 ["quick", "brown", "fox"]입니다.
+텍스트 쿼리에서 추출된 토큰의 최종 목록은 ["quick"]입니다.
+
+목록 쿼리 토큰은 텍스트 토큰에서 모두 찾을 수 있습니다.
+The Ⓠuick Ⓑrown Ⓕox "quick" TRUE 텍스트에서 추출된 토큰의 최종 목록은 ["quick", "brown", "fox"]입니다.
+텍스트 쿼리에서 추출된 토큰의 최종 목록은 ["quick"]입니다.
+
+목록 쿼리 토큰은 텍스트 토큰에서 모두 찾을 수 있습니다.
+Ⓠuick⁇Ⓕox "quick" FALSE 텍스트에서 추출된 토큰의 최종 목록은 ["quick??fox"]입니다.
+
+텍스트 쿼리에서 추출된 토큰의 최종 목록은 ["quick"]입니다.
+
+"quick"은 텍스트의 토큰 목록에 없습니다.
+Ⓠuick⁇Ⓕox "quick⁇fox" TRUE 텍스트에서 추출된 토큰의 최종 목록은 ["quick??fox"]입니다.
+
+텍스트 쿼리에서 추출된 토큰의 최종 목록은 ["quick??fox"]입니다.
+
+"quick??fox"는 텍스트의 토큰 목록에 있습니다.
+Ⓠuick⁇Ⓕox "`quick⁇fox`" FALSE LOG_ANALYZER에서 백틱은 정확한 텍스트 일치를 요구합니다.
+검색 제외 단어가 있는 IPv4 검색의 PATTERN_ANALYZER
+다음 예시에서는 특정 검색 제외 단어를 필터링하면서 특정 패턴을 검색하도록 PATTERN_ANALYZER 텍스트 분석기를 구성합니다. 이 예시에서 패턴은 IPv4 주소와 일치하고 localhost 값(127.0.0.1)을 무시합니다.
+이 예시에서는 다음 테이블이 다음과 같은 데이터로 채워졌다고 가정합니다.
+CREATE TABLE dataset.data_table(
+  text_data STRING
+);
+검색 색인 pattern 옵션과 검색 제외 단어 목록을 만들려면 CREATE SEARCH INDEX DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_search_index_statement]의 analyzer_options 옵션에 JSON 형식 문자열을 만듭니다. PATTERN_ANALYZER로 검색 색인을 만들 때 사용할 수 있는 옵션의 전체 목록은 PATTERN_ANALYZER [https://cloud.google.com/bigquery/docs/reference/standard-sql/text-analysis?hl=ko#pattern_analyzer]를 참조하세요. 이 예시에서 검색 제외 단어는 localhost 주소 127.0.0.1입니다.
+CREATE SEARCH INDEX my_index
+ON dataset.data_table(text_data)
+OPTIONS (analyzer = 'PATTERN_ANALYZER', analyzer_options = '''{
+  "patterns": [
+    "(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.]){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
+  ],
+  "token_filters": [
+    {
+      "stop_words": [
+        "127.0.0.1"
+      ]
+    }
+  ]
+}'''
+);
+analyzer_options와 함께 정규 표현식을 사용할 때는 \d 또는 \b와 같이 \ 기호를 포함하는 정규 표현식을 올바르게 이스케이프 처리하기 위해 세 개의 선행 \ 기호를 포함합니다.
+다음 표에서는 text_data의 다양한 값에 대한 토큰화 옵션을 설명합니다.
+데이터 텍스트 색인용 토큰 설명
+abc192.168.1.1def 172.217.20.142 ["192.168.1.1", "172.217.20.142"] IPv4 패턴은 주소와 텍스트 사이에 공백이 없더라도 IPv4 주소를 캡처합니다.
+104.24.12.10abc 127.0.0.1 ["104.24.12.10"] "127.0.0.1"은 검색 제외 단어 목록에 있으므로 필터링됩니다.
+이제 검색 색인이 생성되었으므로 SEARCH 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/search_functions?hl=ko]를 사용하여 analyzer_options에 지정된 토큰화에 따라 테이블을 검색할 수 있습니다. 다음 쿼리를 사용합니다.
+SELECT
+  SEARCH(dataset.data_table.text_data
+  "
+search_data",
+  analyzer => 'PATTERN_ANALYZER',
+  analyzer_options => '''{
+    "patterns": [
+      "(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.]){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
+      ],
+    "token_filters": [
+      {
+        "stop_words": [
+          "127.0.0.1"
+        ]
+      }
+    ]
+  }'''
+);
+다음을 바꿉니다.
+search_query: 검색할 텍스트입니다.
+다음 표에서는 서로 다른 검색 텍스트 및 여러 search_query 값을 기준으로 다양한 결과를 보여줍니다.
+text_data search_query 결과 설명
+128.0.0.2 "127.0.0.1" 오류 쿼리에 검색 토큰이 없습니다.
+
+쿼리는 "127.0.0.1" 토큰을 필터링하는 텍스트 분석기를 거칩니다.
+abc192.168.1.1def 172.217.20.142 "192.168.1.1abc" TRUE 쿼리에서 추출된 토큰 목록은 ["192.168.1.1"]입니다.
+
+텍스트에서 추출된 토큰 목록은 ["192.168.1.1", "172.217.20.142"]입니다.
+abc192.168.1.1def 172.217.20.142 "`192.168.1.1`" TRUE 쿼리에서 추출된 토큰 목록은 ["192.168.1.1"]입니다.
+
+텍스트에서 추출된 토큰 목록은 ["192.168.1.1", "172.217.20.142"]입니다.
+
+백틱은 PATTERN_ANALYZER의 정규 문자로 처리됩니다.
+다음 단계
+검색 색인 사용 사례, 가격 책정, 필수 권한, 제한사항에 대한 개요는 BigQuery의 검색 소개 [https://cloud.google.com/bigquery/docs/search-intro?hl=ko]를 참조하세요.
+색인이 생성된 열을 효율적으로 검색하는 방법에 대한 자세한 내용은 색인을 사용한 검색 [https://cloud.google.com/bigquery/docs/search?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

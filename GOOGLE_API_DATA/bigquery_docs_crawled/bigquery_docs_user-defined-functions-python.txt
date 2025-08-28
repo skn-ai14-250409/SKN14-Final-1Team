@@ -1,0 +1,509 @@
+Source URL: https://cloud.google.com/bigquery/docs/user-defined-functions-python
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#python-udf-limitation]
+필요한 IAM 역할 [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#iam-roles]
+UDF 소유자 [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#udf_owners]
+UDF 사용자 [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#udf_users]
+영구 Python UDF 만들기 [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#create-python-udf]
+Python의 사용자 정의 함수
+bookmark_border
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 프리뷰 중에 지원을 받으려면 bq-python-udf-feedback@google.com [mailto:bq-python-udf-feedback@google.com]으로 이메일을 보내세요.
+Python 사용자 정의 함수(UDF)를 사용하면 Python에서 스칼라 함수를 구현하고 SQL 쿼리에서 사용할 수 있습니다. Python UDF는 SQL 및 JavaScript UDF [https://cloud.google.com/bigquery/docs/reference/standard-sql/user-defined-functions?hl=ko]와 유사하지만 추가 기능이 있습니다. Python UDF를 사용하면 Python 패키지 색인 (PyPI) [https://pypi.org/]에서 서드 파티 라이브러리를 설치하고 Cloud 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 사용하여 외부 서비스에 액세스할 수 있습니다.
+Python UDF는 BigQuery 관리 리소스에서 빌드되고 실행됩니다.
+제한사항
+python-3.11만 지원되는 런타임입니다.
+임시 Python UDF를 만들 수 없습니다.
+구체화된 뷰에는 Python UDF를 사용할 수 없습니다.
+Python UDF의 반환 값은 항상 확정되지 않은 것으로 간주되므로 Python UDF를 호출하는 쿼리 결과는 캐시되지 않습니다.
+Python UDF는 INFORMATION_SCHEMA [https://cloud.google.com/bigquery/docs/information-schema-intro?hl=ko] 뷰에서 완전히 지원되지 않습니다.
+Routine API [https://cloud.google.com/bigquery/docs/reference/rest/v2/routines?hl=ko]를 사용하여 Python UDF를 만들거나 업데이트할 수 없습니다.
+VPC 서비스 제어 [https://cloud.google.com/vpc-service-controls/docs/overview?hl=ko]는 지원되지 않습니다.
+고객 관리 암호화 키(CMEK) [https://cloud.google.com/kms/docs/cmek?hl=ko]는 지원되지 않습니다.
+JSON, RANGE, INTERVAL, GEOGRAPHY 데이터 유형은 지원되지 않습니다.
+Python UDF를 실행하는 컨테이너는 vCPU 2개 및 8Gi [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#configure-container-limits]까지만 구성할 수 있습니다.
+필요한 IAM 역할
+필요한 IAM 역할은 Python UDF 소유자인지 Python UDF 사용자인지에 따라 다릅니다. Python UDF 소유자는 일반적으로 UDF를 만들거나 업데이트합니다. Python UDF 사용자는 다른 사용자가 만든 UDF를 호출합니다.
+Cloud 리소스 연결을 참조하는 Python UDF를 만들거나 실행하는 경우 추가 역할도 필요합니다.
+UDF 소유자
+Python UDF를 만들거나 업데이트하는 경우 적절한 리소스에 다음 사전 정의된 IAM 역할을 부여해야 합니다.
+역할 필수 권한 리소스
+BigQuery 데이터 편집자 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.dataEditor](roles/bigquery.dataEditor)
+bigquery.routines.create: CREATE FUNCTION 문을 사용하여 Python UDF를 만듭니다.
+bigquery.routines.update: CREATE FUNCTION 문을 사용하여 Python UDF를 업데이트합니다.
+Python UDF가 생성되거나 업데이트되는 데이터 세트입니다.
+BigQuery 작업 사용자 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.jobUser](roles/bigquery.jobUser)
+bigquery.jobs.create: CREATE FUNCTION 문 쿼리 작업을 실행합니다.
+CREATE FUNCTION 문을 실행하는 프로젝트입니다.
+BigQuery 연결 관리자 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.connectionAdmin](roles/bigquery.connectionAdmin)
+bigquery.connections.create: 새 Cloud 리소스 연결을 만드는 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection] 데만 필요합니다.
+bigquery.connections.delegate: CREATE FUNCTION 문에서 연결을 사용합니다.
+외부 리소스에 액세스 권한을 부여할 연결입니다. 이 연결은 UDF가 WITH CONNECTION [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#use-online-service] 절을 사용하여 외부 서비스에 액세스하는 경우에만 필요합니다.
+UDF 사용자
+Python UDF를 호출하는 경우 적절한 리소스에 다음 사전 정의된 IAM 역할을 부여해야 합니다.
+역할 필수 권한 리소스
+BigQuery 사용자 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.user](roles/bigquery.user) bigquery.jobs.create: UDF를 참조하는 쿼리 작업을 실행합니다. Python UDF를 호출하는 쿼리 작업을 실행하는 프로젝트입니다.
+BigQuery 데이터 뷰어 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.dataViewer](roles/bigquery.dataViewer) bigquery.routines.get: 다른 사용자가 만든 UDF를 실행합니다. Python UDF가 저장된 데이터 세트입니다.
+BigQuery 연결 사용자 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery.connectionUser](roles/bigquery.connectionUser) bigquery.connections.use: Cloud 리소스 연결을 참조하는 Python UDF를 실행합니다. Python UDF에서 참조하는 Cloud 리소스 연결입니다. 이 연결은 UDF가 연결을 참조하는 경우에만 필요합니다.
+BigQuery의 역할에 대한 자세한 내용은 사전 정의된 IAM 역할 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery]을 참조하세요.
+영구 Python UDF 만들기
+Python UDF를 만들 때는 다음 규칙을 따르세요.
+Python UDF 본문은 Python 코드를 나타내는 따옴표 붙은 문자열 리터럴이어야 합니다. 따옴표 붙은 문자열 리터럴에 대해 자세히 알아보려면 따옴표 붙은 리터럴의 형식 [https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical?hl=ko#quoted_literals]을 참조하세요.
+Python UDF의 본문에는 Python UDF 옵션 목록의 entry_point 인수에서 사용되는 Python 함수가 포함되어야 합니다.
+runtime_version 옵션에 Python 런타임 버전을 지정해야 합니다. 지원되는 유일한 Python 런타임 버전은 python-3.11입니다. 사용 가능한 옵션의 전체 목록은 CREATE FUNCTION 문의 함수 옵션 목록 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#function_option_list]을 참조하세요.
+영구 Python UDF를 만들려면 TEMP 또는 TEMPORARY 키워드 없이 CREATE FUNCTION 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_function_statement]을 사용합니다. 영구 Python UDF를 삭제하려면 DROP FUNCTION [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#drop_function_statement] 문을 사용합니다.
+CREATE FUNCTION 문을 사용하여 Python UDF를 만들면 BigQuery는 기본 이미지를 기반으로 하는 컨테이너 이미지를 만들거나 업데이트합니다. 컨테이너는 코드와 지정된 패키지 종속 항목을 사용하여 기본 이미지에 빌드됩니다. 컨테이너를 만드는 것은 장기 실행 프로세스입니다. CREATE FUNCTION 문을 실행한 후 첫 번째 쿼리는 이미지가 완료될 때까지 자동으로 기다릴 수 있습니다. 외부 종속 항목이 없으면 일반적으로 1분 이내에 컨테이너 이미지가 생성됩니다.
+예
+영구 Python UDF를 만드는 예시를 보려면 다음 옵션 중 하나를 선택하세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#%EC%BD%98%EC%86%94] ---
+다음 예시에서는 multiplyInputs라는 영구 Python UDF를 만들고 SELECT 문 내에서 UDF를 호출합니다.
+
+
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 CREATE FUNCTION 문을 입력합니다.
+
+CREATE FUNCTION `PROJECT_ID.DATASET_ID`.multiplyInputs(x FLOAT64, y FLOAT64)
+RETURNS FLOAT64
+LANGUAGE python
+OPTIONS(runtime_version="python-3.11", entry_point="multiply")
+AS r'''
+
+def multiply(x, y):
+  return x * y
+
+''';
+
+-- Call the Python UDF.
+WITH numbers AS
+  (SELECT 1 AS x, 5 as y
+  UNION ALL
+  SELECT 2 AS x, 10 as y
+  UNION ALL
+  SELECT 3 as x, 15 as y)
+SELECT x, y,
+`PROJECT_ID.DATASET_ID`.multiplyInputs(x, y) AS product
+FROM numbers;
+
+PROJECT_ID을 바꿉니다.DATASET_ID를 프로젝트 ID와 데이터 세트 ID로 바꿉니다.
+play_circle_filled 실행을 클릭합니다.
+
+이 예시는 다음 출력을 생성합니다.
++-----+-----+--------------+
+| x   | y   | product      |
++-----+-----+--------------+
+| 1   | 5   |  5.0         |
+| 2   | 10  | 20.0         |
+| 3   | 15  | 45.0         |
++-----+-----+--------------+
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#bigquery-dataframes] ---
+다음 예시에서는 BigQuery DataFrames를 사용하여 커스텀 함수를 Python UDF로 변환합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+  import bigframes.pandas as bpd
+
+# Set BigQuery DataFrames options
+bpd.options.bigquery.project = your_gcp_project_id
+bpd.options.bigquery.location = "US"
+
+# BigQuery DataFrames gives you the ability to turn your custom functions
+# into a BigQuery Python UDF. One can find more details about the usage and
+# the requirements via `help` command.
+help(bpd.udf)
+
+# Read a table and inspect the column of interest.
+df = bpd.read_gbq("bigquery-public-data.ml_datasets.penguins")
+df["body_mass_g"].peek(10)
+
+# Define a custom function, and specify the intent to turn it into a
+# BigQuery Python UDF. Let's try a `pandas`-like use case in which we want
+# to apply a user defined function to every value in a `Series`, more
+# specifically bucketize the `body_mass_g` value of the penguins, which is a
+# real number, into a category, which is a string.
+@bpd.udf(
+    dataset=your_bq_dataset_id,
+    name=your_bq_routine_id,
+)
+def get_bucket(num: float) -> str:
+    if not num:
+        return "NA"
+    boundary = 4000
+    return "at_or_above_4000" if num >= boundary else "below_4000"
+
+# Then we can apply the udf on the `Series` of interest via
+# `apply` API and store the result in a new column in the DataFrame.
+df = df.assign(body_mass_bucket=df["body_mass_g"].apply(get_bucket))
+
+# This will add a new column `body_mass_bucket` in the DataFrame. You can
+# preview the original value and the bucketized value side by side.
+df[["body_mass_g", "body_mass_bucket"]].peek(10)
+
+# The above operation was possible by doing all the computation on the
+# cloud through an underlying BigQuery Python UDF that was created to
+# support the user's operations in the Python code.
+
+# The BigQuery Python UDF created to support the BigQuery DataFrames
+# udf can be located via a property `bigframes_bigquery_function`
+# set in the udf object.
+print(f"Created BQ Python UDF: {get_bucket.bigframes_bigquery_function}")
+
+# If you have already defined a custom function in BigQuery, either via the
+# BigQuery Google Cloud Console or with the `udf` decorator,
+# or otherwise, you may use it with BigQuery DataFrames with the
+# `read_gbq_function` method. More details are available via the `help`
+# command.
+help(bpd.read_gbq_function)
+
+existing_get_bucket_bq_udf = get_bucket.bigframes_bigquery_function
+
+# Here is an example of using `read_gbq_function` to load an existing
+# BigQuery Python UDF.
+df = bpd.read_gbq("bigquery-public-data.ml_datasets.penguins")
+get_bucket_function = bpd.read_gbq_function(existing_get_bucket_bq_udf)
+
+df = df.assign(body_mass_bucket=df["body_mass_g"].apply(get_bucket_function))
+df.peek(10)
+
+# Let's continue trying other potential use cases of udf. Let's say we
+# consider the `species`, `island` and `sex` of the penguins sensitive
+# information and want to redact that by replacing with their hash code
+# instead. Let's define another scalar custom function and decorate it
+# as a udf. The custom function in this example has external package
+# dependency, which can be specified via `packages` parameter.
+@bpd.udf(
+    dataset=your_bq_dataset_id,
+    name=your_bq_routine_id,
+    packages=["cryptography"],
+)
+def get_hash(input: str) -> str:
+    from cryptography.fernet import Fernet
+
+    # handle missing value
+    if input is None:
+        input = ""
+
+    key = Fernet.generate_key()
+    f = Fernet(key)
+    return f.encrypt(input.encode()).decode()
+
+# We can use this udf in another `pandas`-like API `map` that
+# can be applied on a DataFrame
+df_redacted = df[["species", "island", "sex"]].map(get_hash)
+df_redacted.peek(10)
+
+# If the BigQuery routine is no longer needed, we can clean it up
+# to free up any cloud quota
+session = bpd.get_global_session()
+session.bqclient.delete_routine(f"{your_bq_dataset_id}.{your_bq_routine_id}")
+벡터화된 Python UDF 만들기
+벡터화를 사용하여 단일 행 대신 행 배치를 처리하도록 Python UDF를 구현할 수 있습니다. 벡터화는 쿼리 성능을 개선할 수 있습니다.
+일괄 처리 동작을 제어하려면 CREATE OR REPLACE FUNCTION 옵션 목록 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#function_option_list]에서 max_batching_rows 옵션을 사용하여 각 배치의 최대 행 수를 지정합니다. max_batching_rows를 지정하면 BigQuery에서 배치에 포함할 행 수를 max_batching_rows 한도까지 결정합니다. max_batching_rows를 지정하지 않으면 일괄처리할 행 수가 자동으로 결정됩니다.
+벡터화된 Python UDF에는 주석을 달아야 하는 단일 pandas.DataFrame [https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html] 인수가 있습니다. pandas.DataFrame 인수에는 CREATE FUNCTION 문에 정의된 Python UDF 파라미터와 동일한 수의 열이 있습니다. pandas.DataFrame 인수에서 열 이름은 UDF의 파라미터와 이름이 같습니다.
+함수는 pandas.Series [https://pandas.pydata.org/docs/reference/api/pandas.Series.html#pandas.Series] 또는 입력과 행 수가 동일한 단일 열 pandas.DataFrame을 반환해야 합니다.
+다음 예시에서는 x 및 y라는 두 파라미터가 있는 벡터화된 Python UDF multiplyInputs를 만듭니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 CREATE FUNCTION 문을 입력합니다.
+CREATE FUNCTION `
+PROJECT_ID.
+DATASET_ID`.multiplyVectorized(x FLOAT64, y FLOAT64)
+RETURNS FLOAT64
+LANGUAGE python
+OPTIONS(runtime_version="python-3.11", entry_point="vectorized_multiply")
+AS r'''
+import pandas as pd
+
+def vectorized_multiply(df: pd.DataFrame):
+  return df['x'] * df['y']
+
+''';
+PROJECT_ID을 바꿉니다.DATASET_ID를 프로젝트 ID와 데이터 세트 ID로 바꿉니다.
+UDF 호출은 이전 예시와 동일합니다.
+play_circle_filled 실행을 클릭합니다.
+지원되는 Python UDF 데이터 유형
+다음 표에서는 BigQuery 데이터 유형, Python 데이터 유형, Pandas 데이터 유형 간의 매핑을 정의합니다.
+BigQuery 데이터 유형 표준 UDF에서 사용되는 Python 기본 제공 데이터 유형 벡터화된 UDF에서 사용되는 Pandas 데이터 유형 벡터화된 UDF에서 ARRAY 및 STRUCT에 사용되는 PyArrow 데이터 유형
+BOOL bool BooleanDtype DataType(bool)
+INT64 int Int64Dtype DataType(int64)
+FLOAT64 float FloatDtype DataType(double)
+STRING str StringDtype DataType(string)
+BYTES bytes binary[pyarrow] DataType(binary)
+TIMESTAMP
+함수 파라미터: datetime.datetime(UTC 시간대가 설정됨)
+함수 반환 값: datetime.datetime(임의의 시간대가 설정됨)
+함수 파라미터: timestamp[us, tz=UTC][pyarrow]
+함수 반환 값: timestamp[us, tz=*][pyarrow]\(any timezone\)
+TimestampType(timestamp[us]), 시간대 포함
+DATE datetime.date date32[pyarrow] DataType(date32[day])
+TIME datetime.time time64[pyarrow] Time64Type(time64[us])
+DATETIME datetime.datetime(시간대 없음) timestamp[us][pyarrow] TimestampType(timestamp[us]), 시간대 없음
+ARRAY list list<...>[pyarrow](요소 데이터 유형이 pandas.ArrowDtype [https://pandas.pydata.org/docs/reference/api/pandas.ArrowDtype.html]인 경우) ListType
+STRUCT dict struct<...>[pyarrow](필드 데이터 유형이 pandas.ArrowDtype [https://pandas.pydata.org/docs/reference/api/pandas.ArrowDtype.html]인 경우) StructType
+지원되는 런타임 버전
+BigQuery Python UDF는 python-3.11 런타임을 지원합니다. 이 Python 버전에는 사전 설치된 패키지가 몇 개 더 포함되어 있습니다. 시스템 라이브러리의 경우 런타임 기본 이미지를 확인합니다.
+런타임 버전 Python 버전 포함 런타임 기본 이미지
+python-3.11 Python 3.11 numpy 1.26.3
+pyarrow 14.0.2
+pandas 2.1.4
+python-dateutil 2.8.2
+google-22-full/python311 [http://us-central1-docker.pkg.dev/serverless-runtimes/google-22-full/runtimes/python311]
+서드 파티 패키지 사용
+CREATE FUNCTION 옵션 목록 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#function_option_list]을 사용하여 Python 표준 라이브러리 [https://docs.python.org/3/library/index.html] 및 사전 설치된 패키지에서 제공하는 모듈 이외의 모듈을 사용할 수 있습니다. Python 패키지 색인(PyPI) [https://pypi.org/]에서 패키지를 설치하거나 Cloud Storage에서 Python 파일을 가져올 수 있습니다.
+Python 패키지 색인에서 패키지 설치
+패키지를 설치할 때 패키지 이름을 제공해야 하며, Python 패키지 버전 지정자 [https://packaging.python.org/en/latest/specifications/version-specifiers]를 사용하여 패키지 버전을 선택적으로 제공할 수 있습니다. 패키지가 런타임에 있는 경우 CREATE FUNCTION 옵션 목록에 특정 버전이 지정되지 않는 한 해당 패키지가 사용됩니다. 패키지 버전을 지정하지 않고 패키지가 런타임에 없으면 사용 가능한 최신 버전이 사용됩니다. 휠 바이너리 형식 [https://peps.python.org/pep-0427]이 있는 패키지만 지원됩니다.
+다음 예시에서는 CREATE OR REPLACE FUNCTION 옵션 목록을 사용하여 scipy 패키지를 설치하는 Python UDF를 만드는 방법을 보여줍니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 CREATE FUNCTION 문을 입력합니다.
+CREATE FUNCTION `
+PROJECT_ID.
+DATASET_ID`.area(radius FLOAT64)
+RETURNS FLOAT64 LANGUAGE python
+OPTIONS (entry_point='area_handler', runtime_version='python-3.11', packages=['scipy==1.15.3'])
+AS r"""
+import scipy
+
+def area_handler(radius):
+  return scipy.constants.pi*radius*radius
+""";
+
+SELECT `
+PROJECT_ID.
+DATASET_ID`.area(4.5);
+PROJECT_ID을 바꿉니다.DATASET_ID를 프로젝트 ID와 데이터 세트 ID로 바꿉니다.
+play_circle_filled 실행을 클릭합니다.
+추가 Python 파일을 라이브러리로 가져오기
+Cloud Storage에서 Python 파일을 가져와 함수 옵션 목록 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#function_option_list]을 사용하여 Python UDF를 확장할 수 있습니다.
+참고: UDF를 만드는 사용자에게는 Cloud Storage 버킷에 대한 storage.objects.get [https://cloud.google.com/storage/docs/access-control/iam-permissions?hl=ko#objects] 권한이 필요합니다.
+UDF의 Python 코드에서 import 문과 Cloud Storage 객체 경로를 사용하여 Cloud Storage의 Python 파일을 모듈로 가져올 수 있습니다. 예를 들어 gs://BUCKET_NAME/path/to/lib1.py를 가져오는 경우 가져오기 문은 import path.to.lib1이 됩니다.
+Python 파일 이름은 Python 식별자여야 합니다. 객체 이름(/ 뒤)의 각 folder 이름은 유효한 Python 식별자여야 합니다. ASCII 범위(U+0001..U+007F) 내에서 다음 문자를 식별자에 사용할 수 있습니다.
+대문자 및 소문자 A~Z
+밑줄
+0~9의 숫자. 단, 숫자는 식별자의 첫 번째 문자로 사용할 수 없습니다.
+다음 예시에서는 my_bucket이라는 Cloud Storage 버킷에서 lib1.py 클라이언트 라이브러리 패키지를 가져오는 Python UDF를 만드는 방법을 보여줍니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 CREATE FUNCTION 문을 입력합니다.
+CREATE FUNCTION `
+PROJECT_ID.
+DATASET_ID`.myFunc(a FLOAT64, b STRING)
+RETURNS STRING LANGUAGE python
+OPTIONS (
+entry_point='compute', runtime_version='python-3.11',
+library=['gs://my_bucket/path/to/lib1.py'])
+AS r"""
+import path.to.lib1 as lib1
+
+def compute(a, b):
+  # doInterestingStuff is a function defined in
+  # gs://my_bucket/path/to/lib1.py
+  return lib1.doInterestingStuff(a, b);
+
+""";
+PROJECT_ID을 바꿉니다.DATASET_ID를 프로젝트 ID와 데이터 세트 ID로 바꿉니다.
+play_circle_filled 실행을 클릭합니다.
+Python UDF의 컨테이너 한도 구성
+CREATE FUNCTION 옵션 목록 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#function_option_list]을 사용하여 Python UDF를 실행하는 컨테이너의 CPU 및 메모리 한도를 지정할 수 있습니다.
+기본적으로 각 컨테이너 인스턴스에 할당된 메모리는 512MiB이고 할당된 CPU는 0.33vCPU입니다.
+다음 예시에서는 CREATE FUNCTION 옵션 목록을 사용하여 컨테이너 한도를 지정하여 Python UDF를 만듭니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 CREATE FUNCTION 문을 입력합니다.
+CREATE FUNCTION `
+PROJECT_ID.
+DATASET_ID`.resizeImage(image BYTES)
+RETURNS BYTES LANGUAGE python
+OPTIONS (entry_point='resize_image', runtime_version='python-3.11',
+packages=['Pillow==11.2.1'], container_memory='2Gi', container_cpu=1)
+AS r"""
+import io
+from PIL import Image
+
+def resize_image(image_bytes):
+  img = Image.open(io.BytesIO(image_bytes))
+
+  resized_img = img.resize((256, 256), Image.Resampling.LANCZOS)
+  output_stream = io.BytesIO()
+  resized_img.convert('RGB').save(output_stream, format='JPEG')
+  return output_stream.getvalue()
+""";
+PROJECT_ID을 바꿉니다.DATASET_ID를 프로젝트 ID와 데이터 세트 ID로 바꿉니다.
+play_circle_filled 실행을 클릭합니다.
+지원되는 CPU 값
+Python UDF는 0.33과 1.0 사이의 분수 CPU 값과 1, 2의 정수 CPU 값을 지원합니다. 분수 입력 값은 컨테이너에 적용되기 전에 소수점 둘째 자리로 반올림됩니다.
+지원되는 메모리 값
+Python UDF 컨테이너는 <integer_number><unit> 형식의 메모리 값을 지원합니다. 단위는 Mi, M, Gi, G 중 하나여야 합니다. 구성할 수 있는 최소 메모리 양은 256메비바이트(256Mi)입니다. 구성할 수 있는 최대 메모리 양은 8기비바이트(8Gi)입니다.
+선택한 메모리 값을 기반으로 최소 CPU 양도 지정해야 합니다. 다음 표에는 각 메모리 값의 최소 CPU 값이 나와 있습니다.
+메모리 최소 CPU
+512 MiB or less 0.33
+More than 512 MiB 0.5
+More than 1 GiB 1
+More than 4 GiB 2
+Python 코드에서 Google Cloud 또는 온라인 서비스 호출
+Python UDF는 Cloud 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko] 서비스 계정을 사용하여 Google Cloud 서비스 또는 외부 서비스에 액세스합니다. 연결의 서비스 계정에 서비스 액세스 권한이 부여되어야 합니다. 필요한 권한은 액세스하는 서비스와 Python 코드에서 호출하는 API에 따라 다릅니다.
+Cloud 리소스 연결을 사용하지 않고 Python UDF를 만들면 네트워크 액세스를 차단하는 환경에서 함수가 실행됩니다. UDF가 온라인 서비스에 액세스하는 경우 Cloud 리소스 연결을 사용하여 UDF를 만들어야 합니다. 그렇지 않으면 내부 연결 시간 제한에 도달할 때까지 UDF가 네트워크에 액세스할 수 없습니다.
+다음 예시에서는 Python UDF에서 Cloud Translation 서비스에 액세스하는 방법을 보여줍니다. 이 예시에는 두 개의 프로젝트가 있습니다. UDF와 Cloud 리소스 연결을 만드는 프로젝트(my_query_project)와 Cloud Translation을 실행하는 프로젝트(my_translate_project)입니다.
+클라우드 리소스 연결 만들기
+먼저 my_query_project에서 Cloud 리소스 연결을 만듭니다. 클라우드 리소스 연결을 만들려면 클라우드 리소스 연결 만들기 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection] 페이지의 단계를 따르세요.
+연결을 만든 후 연결을 열고 연결 정보 창에서 서비스 계정 ID를 복사합니다. 연결의 권한을 구성할 때 이 ID가 필요합니다. 연결 리소스를 만들면 BigQuery가 고유한 시스템 서비스 계정을 만들고 이를 연결에 연계합니다.
+연결의 서비스 계정에 대한 액세스 권한 부여하기
+Cloud 리소스 연결 서비스 계정에 프로젝트 액세스 권한을 부여하려면 my_query_project에서 서비스 계정에 서비스 사용량 소비자 역할 [https://cloud.google.com/service-usage/docs/access-control?hl=ko#serviceusage.serviceUsageConsumer](roles/serviceusage.serviceUsageConsumer)을 부여하고 my_translate_project에서 Cloud Translation API 사용자 역할 [https://cloud.google.com/translate/docs/access-control?hl=ko#cloudtranslate.user](roles/cloudtranslate.user)을 부여합니다.
+IAM 페이지로 이동합니다.
+IAM으로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko]
+my_query_project가 선택되었는지 확인합니다.
+person_add 액세스 권한 부여를 클릭합니다.
+새 주 구성원 필드에 이전에 복사한 클라우드 리소스 연결의 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 서비스 사용량을 선택한 후 서비스 사용량 소비자를 선택합니다.
+저장을 클릭합니다.
+프로젝트 선택기에서 my_translate_project를 선택합니다.
+IAM 페이지로 이동합니다.
+IAM으로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko]
+person_add 액세스 권한 부여를 클릭합니다.
+새 주 구성원 필드에 이전에 복사한 클라우드 리소스 연결의 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 Cloud Translation을 선택한 후 Cloud Translation API 사용자를 선택합니다.
+저장을 클릭합니다.
+Cloud Translation 서비스를 호출하는 Python UDF 만들기
+my_query_project에서 Cloud 리소스 연결을 사용하여 Cloud Translation 서비스를 호출하는 Python UDF를 만듭니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에 다음 CREATE FUNCTION 문을 입력합니다.
+CREATE FUNCTION `
+PROJECT_ID.
+DATASET_ID`.translate_to_es(x STRING)
+RETURNS STRING LANGUAGE python
+WITH CONNECTION `
+PROJECT_ID.
+REGION.
+CONNECTION_ID`
+OPTIONS (entry_point='do_translate', runtime_version='python-3.11', packages=['google-cloud-translate>=3.11', 'google-api-core'])
+AS r"""
+
+from google.api_core.retry import Retry
+from google.cloud import translate
+
+project = "my_translate_project"
+translate_client = translate.TranslationServiceClient()
+
+def do_translate(x : str) -> str:
+
+    response = translate_client.translate_text(
+        request={
+            "parent": f"projects/{project}/locations/us-central1",
+            "contents": [x],
+            "target_language_code": "es",
+            "mime_type": "text/plain",
+        },
+        retry=Retry(),
+    )
+    return response.translations[0].translated_text
+
+""";
+
+-- Call the UDF.
+WITH text_table AS
+  (SELECT "Hello" AS text
+  UNION ALL
+  SELECT "Good morning" AS text
+  UNION ALL
+  SELECT "Goodbye" AS text)
+SELECT text,
+`
+PROJECT_ID.
+DATASET_ID`.translate_to_es(text) AS translated_text
+FROM text_table;
+다음을 바꿉니다.
+PROJECT_ID.DATASET_ID: 프로젝트 ID 및 데이터 세트 ID
+REGION.CONNECTION_ID: 연결의 리전 및 연결 ID
+play_circle_filled 실행을 클릭합니다.
+다음과 유사하게 출력됩니다.
++--------------------------+-------------------------------+
+| text                     | translated_text               |
++--------------------------+-------------------------------+
+| Hello                    | Hola                          |
+| Good morning             | Buen dia                      |
+| Goodbye                  | Adios                         |
++--------------------------+-------------------------------+
+지원되는 위치
+Python UDF는 모든 BigQuery 멀티 리전 및 리전 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]에서 지원됩니다.
+가격 책정
+Python UDF는 추가 비용 없이 제공됩니다.
+결제가 사용 설정되면 다음이 적용됩니다.
+Python UDF 요금은 BigQuery 서비스 SKU [https://cloud.google.com/skus?amp%3Bfilter=bigquery&%3Bcurrency=USD&hl=ko]를 사용하여 청구됩니다.
+요금은 Python UDF가 호출될 때 소비되는 컴퓨팅 및 메모리 양에 비례합니다.
+Python UDF 고객에게는 UDF 컨테이너 이미지를 빌드하거나 재빌드하는 비용도 청구됩니다. 이 요금은 고객 코드와 종속 항목으로 이미지를 빌드하는 데 사용된 리소스에 비례합니다.
+Python UDF로 인해 외부 또는 인터넷 네트워크 이그레스가 발생하는 경우 Cloud 네트워킹에서 프리미엄 등급 [https://cloud.google.com/network-tiers/pricing?hl=ko] 인터넷 이그레스 요금도 표시됩니다.
+도움이 되었나요?
+의견 보내기

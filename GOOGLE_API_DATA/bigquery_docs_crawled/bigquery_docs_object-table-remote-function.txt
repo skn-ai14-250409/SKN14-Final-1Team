@@ -1,0 +1,92 @@
+Source URL: https://cloud.google.com/bigquery/docs/object-table-remote-function
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+개요 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko#overview]
+필수 권한 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko#required_permissions]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko#before_you_begin]
+원격 함수 만들기 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko#create_a_remote_function]
+예 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko#example]
+원격 함수 호출 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko#call_a_remote_function]
+다음 단계 [https://cloud.google.com/bigquery/docs/object-table-remote-function?hl=ko#whats_next]
+원격 함수를 사용하여 객체 테이블 분석
+bookmark_border
+이 문서에서는 원격 함수 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko]를 사용하여 객체 테이블 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko]에서 구조화되지 않은 데이터를 분석하는 방법을 설명합니다.
+개요
+원격 함수를 사용하여 객체 테이블로 표현된 구조화되지 않은 데이터를 분석할 수 있습니다. 원격 함수를 사용하면 Cloud Run Functions 또는 Cloud Run에서 실행되는 함수를 호출하여 다음과 같은 리소스에 액세스할 수 있습니다.
+Cloud Vision API, Document AI 등 Google의 선행 학습된 AI 모델
+Apache Tika [https://tika.apache.org/]와 같은 오픈소스 라이브러리
+자체 커스텀 모델
+원격 함수를 사용하여 객체 테이블 데이터를 분석하려면 원격 함수를 호출할 때 객체 테이블의 객체에 대한 서명된 URL [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko#signed_urls]을 생성하고 전달해야 합니다. 이처럼 서명된 URL은 원격 함수에 객체에 대한 액세스 권한을 부여하는 URL입니다.
+필수 권한
+원격 함수에서 사용하는 연결 리소스를 만들려면 다음 권한이 필요합니다.
+bigquery.connections.create
+bigquery.connections.get
+bigquery.connections.list
+bigquery.connections.update
+bigquery.connections.use
+bigquery.connections.delete
+원격 함수를 만들려면 Cloud Functions 개발자 [https://cloud.google.com/functions/docs/reference/iam/roles?hl=ko#cloudfunctions.developer] 또는 Cloud Run 개발자 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#run.developer] 역할과 연결된 권한이 필요합니다.
+원격 함수를 호출하려면 원격 함수 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#grant_permission_on_function]에 설명된 권한이 필요합니다.
+원격 함수로 객체 테이블을 분석하려면 객체 테이블에 대한 bigquery.tables.getData 권한이 필요합니다.
+시작하기 전에
+Sign in to your Google Cloud account. If you're new to Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in real-world scenarios. New customers also get $300 in free credits to run, test, and deploy workloads.
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection API, Cloud Run functions APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Ccloudfunctions.googleapis.com&hl=ko]
+BigQuery 관리자가 연결을 만들고 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#create-cloud-resource-connection] Cloud Storage에 대한 액세스를 설정 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko#access-storage]했는지 확인합니다.
+원격 함수 만들기
+원격 함수 만들기에 대한 일반 안내는 원격 함수 작업 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko]을 참조하세요.
+객체 테이블 데이터를 분석하는 원격 함수를 만들 때는 객체 테이블의 객체에 대해 생성된 서명된 URLS [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko#signed_urls]를 전달해야 합니다. STRING 데이터 유형과 함께 입력 매개변수를 사용하면 됩니다. 서명된 URL은 HTTP POST 요청의 calls 필드 [https://cloud.google.com/bigquery/docs/remote-functions?hl=ko#input_format]에서 입력 데이터로 원격 함수에 제공됩니다. 요청 예시는 다음과 같습니다.
+{
+  // Other fields omitted.
+  "calls": [
+    ["https://storage.googleapis.com/mybucket/1.pdf?X-Goog-SignedHeaders=abcd"],
+    ["https://storage.googleapis.com/mybucket/2.pdf?X-Goog-SignedHeaders=wxyz"]
+  ]
+}
+서명된 URL에 대해 HTTP GET 요청을 하는 메서드를 사용하여 원격 함수의 객체를 읽을 수 있습니다. 서명된 URL의 쿼리 문자열에 인증 정보가 포함되어 있으므로 원격 함수가 객체에 액세스할 수 있습니다.
+Cloud Run Functions 시간 초과를 방지 [https://cloud.google.com/functions/docs/concepts/exec?hl=ko#timeout]하고 처리 동시 로드를 늘리기 위해 원격 함수의 CREATE FUNCTION 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_function_statement]을 지정할 때 max_batching_rows 옵션을 1로 설정하는 것이 좋습니다.
+예
+다음 Cloud Run Functions Python 코드 예시는 스토리지 객체를 읽고 콘텐츠 길이를 BigQuery에 반환합니다.
+import functions_framework
+import json
+import urllib.request
+
+@functions_framework.http
+def object_length(request):
+  calls = request.get_json()['calls']
+  replies = []
+  for call in calls:
+    object_content = urllib.request.urlopen(call[0]).read()
+    replies.append(len(object_content))
+  return json.dumps({'replies': replies})
+배포된 함수에는 https://us-central1-myproject.cloudfunctions.net/object_length와 비슷한 엔드포인트가 있습니다.
+다음 예시에서는 이 Cloud Run Functions 함수를 기반으로 BigQuery 원격 함수를 만드는 방법을 보여줍니다.
+CREATE FUNCTION mydataset.object_length(signed_url STRING) RETURNS INT64
+REMOTE WITH CONNECTION `us.myconnection`
+OPTIONS(
+  endpoint = "https://us-central1-myproject.cloudfunctions.net/object_length",
+  max_batching_rows = 1
+);
+단계별 안내는 튜토리얼: 원격 함수를 사용하여 객체 테이블 분석 [https://cloud.google.com/bigquery/docs/remote-function-tutorial?hl=ko]을 참조하세요.
+원격 함수 호출
+객체 테이블 데이터에서 원격 함수를 호출하려면 쿼리의 select_list [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#select_list]에서 원격 함수를 참조한 다음 FROM 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#from_clause]에서 EXTERNAL_OBJECT_TRANSFORM 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/table-functions-built-in?hl=ko#external_object_transform]를 호출하여 객체에 대해 서명된 URL을생성합니다.
+참고: AI API [https://cloud.google.com/products/ai?hl=ko] 중 하나를 사용할 때는 타겟팅하는 API의 관련 할당량을 알고 있어야 합니다. 필요한 경우 할당량을 유지할 수 있도록 LIMIT 절을 사용하여 반환되는 결과를 제한합니다.
+다음 예시에서는 일반적인 문의 문법을 보여줍니다.
+SELECT uri, function_name(signed_url) AS function_output
+FROM EXTERNAL_OBJECT_TRANSFORM(TABLE my_dataset.object_table, ["SIGNED_URL"])
+LIMIT 10000;
+다음 예시에서는 원격 함수를 사용하여 객체 테이블 콘텐츠의 하위 집합만 처리하는 방법을 보여줍니다.
+SELECT uri, function_name(signed_url) AS function_output
+FROM EXTERNAL_OBJECT_TRANSFORM(TABLE my_dataset.object_table, ["SIGNED_URL"])
+WHERE content_type = "application/pdf";
+다음 단계
+이미지 객체 테이블에서 추론 실행 [https://cloud.google.com/bigquery/docs/object-table-inference?hl=ko] 방법 알아보기
+의견 보내기

@@ -1,0 +1,121 @@
+Source URL: https://cloud.google.com/bigquery/docs/vpc-sc
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/vpc-sc?hl=ko#before_you_begin]
+VPC 서비스 제어 경계 만들기 [https://cloud.google.com/bigquery/docs/vpc-sc?hl=ko#create-perimeter]
+경계 테스트 [https://cloud.google.com/bigquery/docs/vpc-sc?hl=ko#test-perimeter]
+사용 사례 [https://cloud.google.com/bigquery/docs/vpc-sc?hl=ko#use-cases]
+다른 프로젝트의 Cloud Storage 버킷에서 외부 테이블 데이터 쿼리 [https://cloud.google.com/bigquery/docs/vpc-sc?hl=ko#query-external-table]
+BigQuery Omni에서 데이터 가져오기 및 내보내기 [https://cloud.google.com/bigquery/docs/vpc-sc?hl=ko#import-from-omni]
+다음 단계 [https://cloud.google.com/bigquery/docs/vpc-sc?hl=ko#whats_next]
+BigQuery용 VPC 서비스 제어
+bookmark_border
+이 페이지에서는 VPC 서비스 제어로 경계를 만들어 BigQuery 리소스 주변의 보안을 강화하는 방법을 설명합니다. 이러한 경계는 BigQuery에 대한 액세스와 BigQuery에서의 액세스를 제한하며 Identity and Access Management(IAM) 제어와는 무관합니다. 이는 다음과 같은 사용 사례에 유용합니다.
+인그레스 및 이그레스 규칙에서 특별히 허용되는 경우를 제외하고 리소스에 대한 액세스를 제한하여 데이터 유출 방지
+서드 파티 소스 또는 Cloud Storage와 같은 Google Cloud 서비스에서 BigQuery로 데이터를 안전하게 로드
+BigQuery에서 Cloud Storage 또는 기타 대상으로 데이터 내보내기 제어
+자세한 내용은 VPC 서비스 제어 개요 [https://cloud.google.com/vpc-service-controls/docs/overview?hl=ko]를 참조하세요.
+시작하기 전에
+서비스 경계를 구성하는 데 필요한 권한을 얻으려면 VPC 서비스 제어의 IAM으로 액세스 제어 [https://cloud.google.com/vpc-service-controls/docs/access-control?hl=ko]를 참조하세요.
+조직의 액세스 정책이 있어야 합니다. 자세한 내용은 액세스 정책 만들기 [https://cloud.google.com/access-context-manager/docs/create-access-policy?hl=ko]를 참조하세요.
+VPC 서비스 제어 경계 만들기
+다음 예시에서는 BigQuery 프로젝트에 액세스할 수 있는 외부 IP 주소 범위를 제한하는 VPC 서비스 제어 경계를 만드는 방법을 보여줍니다.
+지정된 범위의 IP 주소(예: 회사 네트워크 내의 IP 주소)에만 액세스를 허용하는 액세스 수준을 만듭니다. 이를 만들려면 gcloud access-context-manager levels create [https://cloud.google.com/sdk/gcloud/reference/access-context-manager/levels/create?hl=ko] 명령어를 사용합니다.
+echo """
+- ipSubnetworks:
+  - 162.222.181.0/24
+  - 2001:db8::/48
+""" > level.yaml
+
+gcloud access-context-manager levels create ACCESS_LEVEL_NAME \
+    --title="TITLE" --basic-level-spec=level.yaml
+다음을 바꿉니다.
+ACCESS_LEVEL_NAME: 액세스 수준 ID
+TITLE: 인간이 읽을 수 있는 서비스 경계 제목
+액세스 수준 만들기에 대한 자세한 내용은 구현 예시 [https://cloud.google.com/access-context-manager/docs/create-basic-access-level?hl=ko#example_implementations]를 참조하세요.
+경계를 만들거나 업데이트하여 BigQuery 리소스를 보호합니다. 다음 예시에서는 프로젝트를 보호합니다. 다른 프로젝트의 Cloud Storage 버킷에서 데이터 전송 보호와 같은 다른 사용 사례는 사용 사례 [https://cloud.google.com/bigquery/docs/vpc-sc?hl=ko#use-cases]를 참조하세요.
+경계 만들기 [https://cloud.google.com/bigquery/docs/vpc-sc?hl=ko#%EA%B2%BD%EA%B3%84-%EB%A7%8C%EB%93%A4%EA%B8%B0]
+경계 업데이트 [https://cloud.google.com/bigquery/docs/vpc-sc?hl=ko#%EA%B2%BD%EA%B3%84-%EC%97%85%EB%8D%B0%EC%9D%B4%ED%8A%B8]
+BigQuery 프로젝트가 보호되도록 새 경계를 만들려면 gcloud access-context-manager perimeters create [https://cloud.google.com/sdk/gcloud/reference/access-context-manager/perimeters/create?hl=ko] 명령어를 사용합니다.
+echo """
+- ingressFrom:
+    identityType: ANY_IDENTITY
+    sources:
+    - accessLevel: accessPolicies/POLICY_NAME/accessLevels/ACCESS_LEVEL_NAME
+  ingressTo:
+    operations:
+    - methodSelectors:
+      - method: '*'
+      serviceName: bigquery.googleapis.com
+    resources:
+    - '*'
+
+""" > ingress.yaml
+
+gcloud access-context-manager perimeters create BIGQUERY_PERIMETER --title="TITLE" \
+    --resources=BIGQUERY_PROJECT_NUMBER \
+    --restricted-services=bigquery.googleapis.com \
+    --ingress-policies=ingress.yaml
+    --policy=POLICY_NAME
+다음을 바꿉니다.
+POLICY_NAME: 액세스 정책 ID
+ACCESS_LEVEL_NAME: 액세스 수준 ID
+PERIMETER: 경계 ID
+TITLE: 인간이 읽을 수 있는 서비스 경계의 짧은 제목
+BIGQUERY_PROJECT_NUMBER: BigQuery 프로젝트 ID
+POLICY_NAME: 액세스 정책 ID
+경계 테스트
+VPC 서비스 제어 경계를 적용하기 전에 테스트합니다. 자세한 내용은 서비스 경계의 테스트 실행 모드 [https://cloud.google.com/vpc-service-controls/docs/dry-run-mode?hl=ko] 및 테스트 실행 모드를 사용하여 인그레스 또는 이그레스 정책 테스트 [https://cloud.google.com/vpc-service-controls/docs/ingress-egress-rules?hl=ko#using-dryrun-ingress-egress-rules]를 참조하세요.
+사용 사례
+다음 사용 사례 예시에서는 VPC 서비스 제어를 사용하여 BigQuery에서 송수신되는 데이터를 보호하는 방법을 보여줍니다.
+다른 프로젝트의 Cloud Storage 버킷에서 외부 테이블 데이터 쿼리
+다음 예시에서는 BigQuery 프로젝트와 Cloud Storage 프로젝트가 경계로 구분된 경우 이러한 프로젝트 간의 통신을 선택적으로 허용하는 방법을 보여줍니다.
+Cloud Storage 프로젝트 주변 경계에 대한 이그레스 규칙을 업데이트하여 BigQuery 프로젝트에서 Cloud Storage 프로젝트에 액세스하도록 허용합니다.
+echo """ - egressFrom: identityType: ANY_IDENTITY egressTo: operations: - methodSelectors: - method: '*' serviceName: storage.googleapis.com resources: - projects/BIGQUERY_PROJECT_NUMBER """ > egress.yaml gcloud access-context-manager perimeters update CLOUD_STORAGE_PERIMETER --policy=POLICY_NAME --set-egress-policies=egress.yaml
+다음을 바꿉니다.
+BIGQUERY_PROJECT_NUMBER: BigQuery 프로젝트 ID
+CLOUD_STORAGE_PERIMETER: Cloud Storage 리소스를 보호하는 경계의 ID
+POLICY_NAME: 액세스 정책 ID
+BigQuery 프로젝트 주변 경계에 대한 이그레스 규칙을 업데이트하여 Cloud Storage 프로젝트에서 BigQuery 프로젝트에 액세스하도록 허용합니다.
+echo """ - egressFrom: identityType: ANY_IDENTITY egressTo: operations: - methodSelectors: - method: '*' serviceName: storage.googleapis.com resources: - projects/CLOUD_STORAGE_PROJECT_NUMBER """ > egress1.yaml gcloud access-context-manager perimeters update BIGQUERY_PERIMETER --policy=POLICY_NAME --set-egress-policies=egress1.yaml
+다음을 바꿉니다.
+CLOUD_STORAGE_PROJECT_NUMBER: Cloud Storage 프로젝트 ID
+PERIMETER: 경계 ID
+POLICY_NAME: 액세스 정책 ID
+선택사항: BigQuery 프로젝트를 보호하는 경계에 storage.googleapis.com이 제한된 서비스로 포함된 경우 인그레스 규칙을 업데이트해야 합니다.
+echo """
+- ingressFrom:
+    identityType: ANY_IDENTITY
+    sources:
+    - accessLevel: accessPolicies/POLICY_NAME/accessLevels/ACCESS_LEVEL_NAME
+  ingressTo:
+    operations:
+    - methodSelectors:
+      - method: '*'
+      serviceName: bigquery.googleapis.com
+    - methodSelectors:
+      - method: '*'
+      serviceName: storage.googleapis.com
+    resources:
+    - '*'
+
+""" > ingress.yaml
+
+gcloud access-context-manager perimeters create BIGQUERY_PERIMETER --title="TITLE" \
+    --resources=BIGQUERY_PROJECT_NUMBER \
+    --restricted-services=bigquery.googleapis.com \
+    --ingress-policies=ingress.yaml
+    --policy=POLICY_NAME
+BigQuery Omni에서 데이터 가져오기 및 내보내기
+VPC 서비스 제어 경계를 추가 방어 계층으로 사용하여 BigQuery Omni와 외부 클라우드 서비스 간의 액세스를 제한할 수 있습니다. 자세한 내용과 예시는 Azure Blob Storage BigLake 테이블을 만들 때 VPC 서비스 제어 [https://cloud.google.com/bigquery/docs/omni-azure-create-external-table?hl=ko#vpc-service] 구성을 참조하세요.
+다음 단계
+Analytics Hub의 VPC 서비스 제어 [https://cloud.google.com/bigquery/docs/analytics-hub-vpc-sc-rules?hl=ko] 자세히 알아보기
+외부 클라우드 서비스로 BigQuery Omni 액세스를 제한 [https://cloud.google.com/bigquery/docs/omni-azure-create-external-table?hl=ko#vpc-service]하는 방법 알아보기
+VPC 서비스 제어를 통한 위험 및 완화 [https://cloud.google.com/security/vpc-service-controls?hl=ko] 이해하기
+BigQuery의 VPC 서비스 제어 지원 및 제한사항 [https://cloud.google.com/vpc-service-controls/docs/supported-products?hl=ko#table_bigquery] 자세히 알아보기
+BigQuery 및 VPC 서비스 제어의 일반적인 문제 해결 [https://cloud.google.com/vpc-service-controls/docs/troubleshooting?hl=ko#debugging]
+의견 보내기

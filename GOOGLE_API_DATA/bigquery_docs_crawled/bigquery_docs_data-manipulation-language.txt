@@ -1,0 +1,160 @@
+Source URL: https://cloud.google.com/bigquery/docs/data-manipulation-language
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+제한사항 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#dml-limitations]
+DML 문 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#dml_statements]
+INSERT 문 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#insert_statement]
+DELETE 문 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#delete_statement]
+TRUNCATE 문 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#truncate_statement]
+UPDATE 문 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#update_statement]
+MERGE 문 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#merge_statement]
+동시 작업 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko#concurrent_jobs]
+DML(Data Manipulation Language)으로 데이터 변환
+bookmark_border
+BigQuery DML을 사용하면 BigQuery 테이블에서 데이터를 업데이트, 삽입, 삭제할 수 있습니다.
+다음 조건에 따라 SELECT 문을 실행할 때와 같은 방식으로 DML 문을 실행할 수 있습니다.
+GoogleSQL을 사용해야 합니다. GoogleSQL을 사용 설정하려면 SQL 언어 전환 [https://cloud.google.com/bigquery/sql-reference/enabling-standard-sql?hl=ko]을 참조하세요.
+쿼리의 대상 테이블을 지정할 수 없습니다.
+DML 문이 처리한 바이트 수를 계산하는 방법에 관한 자세한 내용은 주문형 쿼리 크기 계산 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#on-demand-query-size-calculation]을 참조하세요.
+제한사항
+각 DML 문은 암시적 트랜잭션을 시작합니다. 즉, 각 DML 문이 성공적으로 종료될 때마다 문에서 발생한 변경사항이 자동으로 커밋됩니다.
+tabledata.insertall 스트리밍 메서드를 사용하여 최근에 작성한 행은 UPDATE, DELETE, MERGE 또는 TRUNCATE 문 같은 DML(Data Manipulation Language)을 사용하여 수정할 수 없습니다. 최근 쓰기 작업이란 최근 30분 내에 발생한 작업입니다. 테이블에 있는 다른 모든 행은 UPDATE, DELETE, MERGE 또는 TRUNCATE 문을 통해 수정 가능한 상태로 유지됩니다. 스트리밍된 데이터를 복사 작업에 사용할 수 있게 될 때까지 최대 90분이 소요될 수 있습니다.
+또는 최근에 Storage Write API를 사용하여 작성한 행은 UPDATE, DELETE 또는 MERGE 문을 사용하여 수정할 수 있습니다. 자세한 내용은 최근 스트리밍된 데이터에 DML 사용 [https://cloud.google.com/bigquery/docs/write-api?hl=ko#use_data_manipulation_language_dml_with_recently_streamed_data]을 참조하세요.
+when_clause, search_condition, merge_update_clause, merge_insert_clause 내의 상관 서브 쿼리는 MERGE 문에 지원되지 않습니다.
+DML 문 [https://cloud.google.com/bigquery/docs/data-manipulation-language?hl=ko]을 포함하는 쿼리는 와일드 카드 테이블 [https://cloud.google.com/bigquery/docs/querying-wildcard-tables?hl=ko]을 쿼리 대상으로 사용할 수 없습니다. 예를 들어 와일드 카드 테이블은 UPDATE 쿼리의 FROM 절에서 사용할 수 있지만 와일드 카드 테이블을 UPDATE 작업의 대상으로 사용할 수는 없습니다.
+DML 문
+다음 섹션에서는 다양한 유형의 DML 문과 이를 사용하는 방법에 대해 설명합니다.
+INSERT 문
+기존 테이블에 새 행을 추가하려면 INSERT 문을 사용합니다. 다음 예에서는 명시적으로 지정된 값으로 dataset.Inventory 테이블에 새 행을 삽입합니다.
+INSERT dataset.Inventory (product, quantity)
+VALUES('whole milk', 10),
+      ('almond milk', 20),
+      ('coffee beans', 30),
+      ('sugar', 0),
+      ('matcha', 20),
+      ('oat milk', 30),
+      ('chai', 5)
+
+/+-------------------+----------+
+ |      product      | quantity |
+ +-------------------+----------+
+ | almond milk       |       20 |
+ | chai              |        5 |
+ | coffee beans      |       30 |
+ | matcha            |       20 |
+ | oat milk          |       30 |
+ | sugar             |        0 |
+ | whole milk        |       10 |
+ +-------------------+----------+/
+INSERT 문에 관한 자세한 내용은 INSERT 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#insert_statement]을 참조하세요.
+DELETE 문
+테이블에서 행을 삭제하려면 DELETE 문을 사용합니다. 다음 예에서는 quantity 값이 0인 dataset.Inventory 테이블의 모든 행을 삭제합니다.
+DELETE dataset.Inventory
+WHERE quantity = 0
+
+/+-------------------+----------+
+ |      product      | quantity |
+ +-------------------+----------+
+ | almond milk       |       20 |
+ | chai              |        5 |
+ | coffee beans      |       30 |
+ | matcha            |       20 |
+ | oat milk          |       30 |
+ | whole milk        |       10 |
+ +-------------------+----------+/
+테이블의 모든 행을 삭제하려면 대신 TRUNCATE TABLE 문을 사용하세요. DELETE 문에 관한 자세한 내용은 DELETE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#delete_statement]을 참고하세요.
+TRUNCATE 문
+TRUNCATE 문을 사용하여 테이블에서 모든 행을 삭제하지만 테이블 스키마, 설명, 라벨을 포함한 테이블 메타데이터는 그대로 둡니다. 다음 예시에서는 dataset.Inventory 테이블에서 모든 행을 삭제합니다.
+TRUNCATE dataset.Inventory
+테이블의 특정 행을 삭제하려면 다음을 수행합니다. 대신 DELETE 문을 사용하세요. TRUNCATE 문에 관한 자세한 내용은 TRUNCATE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#truncate_table_statement]을 참조하세요.
+UPDATE 문
+테이블의 기존 행을 업데이트하려면 UPDATE 문을 사용합니다. UPDATE 문에는 조건을 지정하는 WHERE 키워드도 포함되어야 합니다. 다음 예에서는 milk 문자열이 포함된 제품에 대해 행 quantity 값을 10씩 줄입니다.
+UPDATE dataset.Inventory
+SET quantity = quantity - 10,
+WHERE product LIKE '%milk%'
+
+/+-------------------+----------+
+ |      product      | quantity |
+ +-------------------+----------+
+ | almond milk       |       10 |
+ | chai              |        5 |
+ | coffee beans      |       30 |
+ | matcha            |       20 |
+ | oat milk          |       20 |
+ | whole milk        |        0 |
+ +-------------------+----------+/
+UPDATE 문에는 조인된 테이블을 포함하도록 FROM 절도 포함될 수 있습니다. UPDATE 문에 관한 자세한 내용은 UPDATE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#update_statement]을 참조하세요.
+MERGE 문
+MERGE 문은 INSERT, UPDATE, DELETE 작업을 단일 문으로 결합하여 원자적으로 작업을 수행하여 한 테이블에서 다른 테이블로 데이터를 병합합니다. MERGE 문에 관한 자세한 내용과 예시는 MERGE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#merge_statement]을 참고하세요.
+동시 작업
+BigQuery는 테이블의 행을 추가, 수정 또는 삭제하는 DML 문의 동시 실행을 관리합니다.
+참고: DML 문에는 최대 테이블 쓰기 속도 [https://cloud.google.com/bigquery/quotas?hl=ko#standard_tables]와 같은 비율 제한이 적용됩니다. 테이블에 대해 작업을 한 번에 많은 수로 제출하면 비율 제한에 도달할 수 있습니다. 이러한 비율은 실행 가능한 DML 문의 총 수를 제한하지 않습니다. 비율 제한을 초과 [https://cloud.google.com/bigquery/docs/troubleshoot-quotas?hl=ko#overview]했다는 오류 메시지가 표시되면 재시도 사이에 지수 백오프를 사용하여 작업을 재시도하세요.
+INSERT DML 동시 실행
+INSERT 문 첫 1500개가 제출된 후 24시간 동안 즉시 실행됩니다. 이 한도에 도달하면 테이블에 쓰는 INSERT 문의 동시 실행이 10개로 제한됩니다. 추가 INSERT 문이 PENDING 큐에 추가됩니다. 특정 시점에 테이블에 대해 INSERT 문을 최대 100개까지 큐에 추가할 수 있습니다. INSERT 문이 완료되면 다음 INSERT 문이 큐에서 삭제되고 실행됩니다.
+DML INSERT 문을 더 자주 실행해야 하는 경우 Storage Write API [https://cloud.google.com/bigquery/docs/write-api?hl=ko]를 사용하여 데이터를 테이블로 스트리밍하는 것이 좋습니다.
+UPDATE, DELETE, MERGE DML 동시 실행
+UPDATE, DELETE, MERGE DML 문을 변형 DML 문이라고 합니다. 다른 변형 DML 작업을 실행 중이거나 대기 중인 경우 테이블에 있는 변형 DML 문을 한 개 이상 제출하는 경우 BigQuery는 최대 2개까지 동시 실행하며 최대 20개까지 PENDING 상태로 큐에 추가될 수 있습니다. 이전에 실행 중인 작업이 완료되면 다음 대기 중 작업이 큐에서 제거되고 실행됩니다. 큐에 추가된 변형 DML 문은 최대 길이가 20인 테이블별 큐를 공유합니다. 각 테이블의 최대 큐 길이를 초과한 추가 문은 실패하고 오류 메시지 Resources exceeded during query execution: Too many DML statements outstanding against table PROJECT_ID:TABLE, limit is 20.이 표시됩니다.
+6시간 넘게 큐에 추가된 대화형 우선순위 DML 작업이 실패하고 다음 오류 메시지가 표시됩니다.
+DML statement has been queued for too long
+DML 문 충돌
+테이블에서 동시에 실행되는 DML 문을 변형하면 DML 문이 동일한 파티션을 변형하려고 할 때 DML 문이 충돌합니다. 문이 동일한 파티션을 수정하지 않는 한 성공합니다. BigQuery는 실패한 문을 최대 3회까지 재실행을 시도합니다.
+테이블에 행을 삽입하는 INSERT DML 문은 동시에 실행되는 다른 DML 문과 충돌하지 않습니다.
+MERGE DML 문이 행만 삽입하고 기존 행을 삭제하거나 업데이트하지 않는 한, 이 문은 동시에 실행되는 다른 DML 문과 충돌하지 않습니다. 여기에는 UPDATE 또는 DELETE 절이 있는 MERGE 문을 포함될 수 있습니다(쿼리가 실행될 때 해당 절이 호출되지 않는 한).
+세분화된 DML
+Preview
+This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1]. You can process personal data for this feature as outlined in the Cloud Data Processing Addendum [https://cloud.google.com/terms/data-processing-addendum?hl=ko], subject to the obligations and restrictions described in the agreement under which you access Google Cloud. Pre-GA features are available "as is" and might have limited support. For more information, see the launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+참고: 이 기능에 대해 의견을 제공하거나 지원을 요청하려면 bq-fine-grained-dml-feedback@google.com [mailto:bq-fine-grained-dml-feedback@google.com]으로 이메일을 보내세요.
+세분화된 DML은 UPDATE, DELETE, MERGE 문(변형 DML 문이라고도 함)의 실행을 최적화하도록 설계된 성능 향상 기능입니다. 세분화된 DML을 사용 설정하지 않으면 파일 그룹 수준에서 변형이 실행되므로 비효율적인 데이터 재작성이 발생할 수 있습니다. 세분화된 DML은 재작성해야 하는 데이터의 양을 줄이고 전체 슬롯 소비를 줄이는 것을 목표로 하는 보다 세분화된 접근 방식을 도입합니다.
+세분화된 DML 프리뷰에 프로젝트를 등록하는 데 관심이 있는 경우 BigQuery 세분화된 DML 등록 양식 [https://docs.google.com/forms/d/e/1FAIpQLScAkcLKc1CazMA6RhwZ9ri7MrdJ3iUzirVU10Y5BRKo5NFnAA/viewform?hl=ko]을 작성하세요. 프로젝트는 워크로드 평가를 기반으로 선택적으로 등록됩니다.
+세분화된 DML 사용 설정
+세분화된 DML을 사용 설정하려면 CREATE TABLE 또는 ALTER TABLE DDL 문을 실행할 때 enable_fine_grained_mutations 테이블 옵션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#table_option_list]을 TRUE로 설정합니다.
+세분화된 DML로 새 테이블을 만들려면 CREATE TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]을 사용하세요.
+CREATE TABLE mydataset.mytable (
+  product STRING,
+  inventory INT64)
+OPTIONS(enable_fine_grained_mutations = TRUE);
+세분화된 DML로 기존 테이블을 변경하려면 ALTER TABLE 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_set_options_statement]을 사용합니다.
+ALTER TABLE mydataset.mytable
+SET OPTIONS(enable_fine_grained_mutations = TRUE);
+enable_fine_grained_mutations 옵션을 TRUE로 설정하면 변형 DML 문은 세분화된 DML 기능이 사용 설정된 상태로 실행되며 기존 DML 문 구문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko]을 사용합니다.
+테이블에서 세분화된 DML을 사용 중지하려면 ALTER TABLE DDL 문을 사용하여 enable_fine_grained_mutations을 FALSE로 설정합니다.
+가격 책정
+테이블에 세분화된 DML을 사용 설정하면 세분화된 DML 작업과 연결된 추가 변형 메타데이터를 저장하기 위한 추가 BigQuery 스토리지 비용 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]이 발생할 수 있습니다. 실제 비용은 수정되는 데이터의 양에 따라 다르지만 대부분의 경우 테이블 자체의 크기에 비해 무시할 수 있을 것으로 예상됩니다.
+예약 [https://cloud.google.com/bigquery/docs/reservations-intro?hl=ko#reservations]을 사용하도록 구성된 프로젝트는 슬롯을 사용하여 테이블 또는 변형 메타데이터의 백그라운드 처리를 비롯한 세분화된 DML 문을 처리합니다.
+삭제된 데이터 고려사항
+세분화된 DML 작업은 삭제된 데이터를 오프라인 방식으로 처리합니다.
+BACKGROUND 할당 [https://cloud.google.com/bigquery/docs/reservations-assignments?hl=ko] 프로세스 없이 세분화된 DML 작업을 실행하는 프로젝트는 주문형 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#on_demand_pricing]을 사용하여 데이터를 삭제합니다. 이 경우 삭제된 데이터 처리는 내부 BigQuery 리소스를 사용하여 정기적으로 실행됩니다.
+BACKGROUND 할당 프로세스로 세분화된 DML 작업을 수행하는 프로젝트는 슬롯을 사용하여 데이터를 삭제하며 구성된 예약의 리소스 가용성에 영향을 받습니다. 구성된 예약 내에 사용 가능한 리소스가 충분하지 않으면 삭제된 데이터를 처리하는 데 예상보다 오래 걸릴 수 있습니다.
+제한사항
+세분화된 DML로 사용 설정된 테이블에는 다음과 같은 제한사항이 적용됩니다.
+세분화된 DML이 사용 설정된 테이블에서 콘텐츠를 읽는 데 tabledata.list 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list?hl=ko]를 사용할 수 없습니다. 대신 Storage Read API [https://cloud.google.com/bigquery/docs/reference/storage?hl=ko]를 사용하여 API를 통해 테이블 레코드를 읽습니다.
+세분화된 DML이 사용 설정된 테이블은 복사 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#copy-table]할 수 없습니다.
+세분화된 DML이 사용 설정된 테이블의 테이블 스냅샷 [https://cloud.google.com/bigquery/docs/table-snapshots-intro?hl=ko] 또는 테이블 클론 [https://cloud.google.com/bigquery/docs/table-clones-intro?hl=ko]을 만들 수 없습니다.
+복제된 데이터 세트 [https://cloud.google.com/bigquery/docs/data-replication?hl=ko]의 테이블에서 세분화된 DML을 사용 설정할 수 없으며, 세분화된 DML이 사용 설정된 테이블이 포함된 데이터 세트를 복제할 수 없습니다.
+멀티 문 트랜잭션 [https://cloud.google.com/bigquery/docs/transactions?hl=ko]에서 실행되는 DML 문은 세분화된 DML로 최적화되지 않습니다.
+권장사항
+최상의 성능을 위해 다음 패턴을 사용하는 것이 좋습니다.
+개별 행 업데이트 또는 삽입을 다수로 제출하지 마십시오. 대신 가능한 경우 DML 작업을 함께 그룹화합니다. 자세한 내용은 단일 행을 업데이트 또는 삽입하는 DML 문 [https://cloud.google.com/bigquery/docs/best-practices-performance-patterns?hl=ko#dml_statements_that_update_or_insert_single_rows]을 참조하세요.
+업데이트 또는 삭제 작업이 일반적으로 이전 데이터에서 또는 특정 날짜 범위 내에서 수행되는 경우 테이블의 파티션 나누기 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]를 고려하세요. 파티션 나누기는 변경사항이 테이블 내의 특정 파티션으로 제한되도록 보장합니다.
+각 파티션의 데이터 양이 적고 각 업데이트가 파티션의 상당 부분을 수정하는 경우 파티션 나누기를 피하세요.
+하나 이상의 열이 좁은 값 범위 내에 있는 행을 자주 업데이트하는 경우 클러스터링된 테이블 [https://cloud.google.com/bigquery/docs/clustered-tables?hl=ko]을 사용하는 것이 좋습니다. 클러스터링은 변경사항을 특정 블록 세트로 제한하여 읽고 써야 하는 데이터 양을 줄입니다. 다음은 열 값의 범위를 필터링하는 UPDATE 문의 예시입니다.
+UPDATE mydataset.mytable
+SET string_col = 'some string'
+WHERE id BETWEEN 54 AND 75;
+다음은 소량의 열 값 목록을 필터링하는 유사한 예시입니다.
+UPDATE mydataset.mytable
+SET string_col = 'some string'
+WHERE id IN (54, 57, 60);
+이러한 경우에는 id 열의 클러스터링을 고려하세요.
+OLTP 기능이 필요한 경우 BigQuery에서 Cloud SQL에 있는 데이터를 쿼리할 수 있는 Cloud SQL 통합 쿼리 [https://cloud.google.com/bigquery/docs/cloud-sql-federated-queries?hl=ko]를 사용하는 것이 좋습니다.
+쿼리 성능을 최적화할 수 있는 권장사항은 쿼리 성능 최적화 소개 [https://cloud.google.com/bigquery/docs/best-practices-performance-overview?hl=ko]를 참조하세요.
+다음 단계
+DML 구문 정보와 샘플은 DML 구문 [https://cloud.google.com/bigquery/sql-reference/dml-syntax?hl=ko]을 참조하세요.
+예약된 쿼리에서 DML 문을 사용하는 방법은 쿼리 예약 [https://cloud.google.com/bigquery/docs/scheduling-queries?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

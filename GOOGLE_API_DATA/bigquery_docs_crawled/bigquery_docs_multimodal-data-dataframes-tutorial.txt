@@ -1,0 +1,238 @@
+Source URL: https://cloud.google.com/bigquery/docs/multimodal-data-dataframes-tutorial
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+목표 [https://cloud.google.com/bigquery/docs/multimodal-data-dataframes-tutorial?hl=ko#objectives]
+비용 [https://cloud.google.com/bigquery/docs/multimodal-data-dataframes-tutorial?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/multimodal-data-dataframes-tutorial?hl=ko#before_you_begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/multimodal-data-dataframes-tutorial?hl=ko#required_roles]
+설정 [https://cloud.google.com/bigquery/docs/multimodal-data-dataframes-tutorial?hl=ko#set_up]
+BigQuery DataFrames를 사용하여 Python에서 멀티모달 데이터 분석
+bookmark_border
+프리뷰
+이 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 기능에 대해 의견을 제공하거나 지원을 요청하려면 bq-objectref-feedback@google.com [mailto:bq-objectref-feedback@google.com]으로 이메일을 보내세요.
+이 튜토리얼에서는 BigQuery DataFrames [https://cloud.google.com/bigquery/docs/bigquery-dataframes-introduction?hl=ko] 클래스와 메서드를 사용하여 Python 노트북에서 멀티모달 데이터를 분석 [https://cloud.google.com/bigquery/docs/analyze-multimodal-data?hl=ko]하는 방법을 보여줍니다.
+이 튜토리얼에서는 공개 Cymbal 애완동물 상점 데이터 세트의 제품 카탈로그를 사용합니다.
+이 튜토리얼에서 다루는 작업이 이미 채워진 노트북을 업로드하려면 BigFrames 멀티모달 DataFrame [https://console.cloud.google.com/bigquery/import?url=https%3A%2F%2Fgithub.com%2Fgoogleapis%2Fpython-bigquery-dataframes%2Fblob%2Fmain%2Fnotebooks%2Fexperimental%2Fmultimodal_dataframe.ipynb&hl=ko]을 참고하세요.
+목표
+멀티모달 DataFrame을 만듭니다.
+DataFrame에서 구조화된 데이터와 구조화되지 않은 데이터를 결합합니다.
+이미지 변환
+이미지 데이터를 기반으로 텍스트와 임베딩을 생성합니다.
+추가 분석을 위해 PDF를 청크합니다.
+비용
+이 문서에서는 비용이 청구될 수 있는 Google Cloud구성요소( )를 사용합니다.
+BigQuery: you incur costs for the data that you process in BigQuery.
+BigQuery Python UDFs: you incur costs for using BigQuery DataFrames image transformation and chunk PDF methods.
+Cloud Storage: you incur costs for the objects stored in Cloud Storage.
+Vertex AI: you incur costs for calls to Vertex AI models.
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+자세한 내용은 다음 가격 책정 페이지를 참고하세요.
+BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]
+BigQuery Python UDF 가격 책정 [https://cloud.google.com/bigquery/docs/user-defined-functions-python?hl=ko#pricing]
+Cloud Storage 가격 책정 [https://cloud.google.com/storage/pricing?hl=ko]
+Vertex AI 가격 책정 [https://cloud.google.com/vertex-ai/generative-ai/pricing?hl=ko]
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, Cloud Storage, and Vertex AI APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Cstorage.googleapis.com%2Caiplatform.googleapis.com&hl=ko]
+필요한 역할
+이 튜토리얼을 완료하는 데 필요한 권한을 얻으려면 관리자에게 다음의 IAM 역할을 부여해 달라고 요청하세요.
+연결 만들기: BigQuery 연결 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.connectionAdmin](roles/bigquery.connectionAdmin)
+연결의 서비스 계정에 권한 부여: 프로젝트 IAM 관리자 [https://cloud.google.com/iam/docs/roles-permissions/resourcemanager?hl=ko#resourcemanager.projectIamAdmin](roles/resourcemanager.projectIamAdmin)
+Cloud Storage 버킷 만들기: 스토리지 관리자 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.admin](roles/storage.admin)
+BigQuery 작업 실행: BigQuery 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.user](roles/bigquery.user)
+Python UDF를 만들고 호출하기: BigQuery 데이터 편집자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataEditor](roles/bigquery.dataEditor)
+Cloud Storage 객체를 읽고 수정할 수 있는 URL 만들기: BigQuery ObjectRef 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.objectRefAdmin](roles/bigquery.objectRefAdmin)
+노트북 사용:
+BigQuery 읽기 세션 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.readSessionUser](roles/bigquery.readSessionUser)
+노트북 런타임 사용자 [https://cloud.google.com/iam/docs/roles-permissions/aiplatform?hl=ko#aiplatform.notebookRuntimeUser](roles/aiplatform.notebookRuntimeUser)
+노트북 런타임 사용자 [https://cloud.google.com/iam/docs/roles-permissions/aiplatform?hl=ko#aiplatform.notebookRuntimeUser](roles/aiplatform.notebookRuntimeUser)
+코드 생성자 [https://cloud.google.com/iam/docs/roles-permissions/dataform?hl=ko#dataform.codeCreator](roles/dataform.codeCreator)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+설정
+이 섹션에서는 이 튜토리얼에서 사용되는 Cloud Storage 버킷, 연결, 노트북을 만듭니다.
+버킷 만들기
+변환된 객체를 저장할 Cloud Storage 버킷을 만듭니다.
+Google Cloud 콘솔에서 버킷 페이지로 이동합니다.
+버킷으로 이동 [https://console.cloud.google.com/storage/browser?hl=ko]
+add_box만들기를 클릭합니다.
+버킷 만들기 페이지의 시작하기 섹션에서 버킷 이름 요구사항 [https://cloud.google.com/storage/docs/buckets?hl=ko#naming]을 충족하는 전역적으로 고유한 이름을 입력합니다.
+만들기를 클릭합니다.
+연결 만들기
+클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 만들고 연결의 서비스 계정을 가져옵니다. BigQuery는 연결을 사용하여 Cloud Storage의 객체에 액세스합니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색기 창에서 add 데이터 추가를 클릭합니다.
+데이터 추가 대화상자가 열립니다.
+필터링 기준 창의 데이터 소스 유형 섹션에서 비즈니스 애플리케이션을 선택합니다.
+또는 데이터 소스 검색 필드에 Vertex AI을 입력할 수 있습니다.
+추천 데이터 소스 섹션에서 Vertex AI를 클릭합니다.
+Vertex AI 모델: BigQuery 제휴 솔루션 카드를 클릭합니다.
+연결 유형 목록에서 Vertex AI 원격 모델, 원격 함수, BigLake(Cloud 리소스)를 선택합니다.
+연결 ID 필드에 bigframes-default-connection을 입력합니다.
+연결 만들기를 클릭합니다.
+연결로 이동을 클릭합니다.
+연결 정보 창에서 나중의 단계에 사용할 서비스 계정 ID를 복사합니다.
+연결의 서비스 계정에 권한 부여
+Cloud Storage 및 Vertex AI에 액세스하는 데 필요한 역할을 연결의 서비스 계정에 부여합니다. 시작하기 전에 [https://cloud.google.com/bigquery/docs/multimodal-data-dataframes-tutorial?hl=ko#before_you_begin] 섹션에서 만들었거나 선택한 것과 동일한 프로젝트에서 이러한 역할을 부여해야 합니다.
+역할을 부여하려면 다음 단계를 따르세요.
+IAM 및 관리자 페이지로 이동합니다.
+IAM 및 관리자로 이동 [https://console.cloud.google.com/project/_/iam-admin?hl=ko]
+person_add 액세스 권한 부여를 클릭합니다.
+새 주 구성원 필드에 앞에서 복사한 서비스 계정 ID를 입력합니다.
+역할 선택 필드에서 Cloud Storage를 선택한 후 스토리지 객체 사용자를 선택합니다.
+다른 역할 추가를 클릭합니다.
+역할 선택 필드에서 Vertex AI를 선택한 후 Vertex AI 사용자를 선택합니다.
+저장을 클릭합니다.
+노트북 만들기
+Python 코드를 실행할 수 있는 노트북을 만듭니다.
+BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+편집기 창의 탭 표시줄에서 add_box SQL 쿼리 옆에 있는 arrow_drop_down 드롭다운 화살표를 클릭한 다음 노트북을 클릭합니다.
+템플릿으로 시작 창에서 닫기를 클릭합니다.
+연결> 런타임에 연결을 클릭합니다.
+기존 런타임이 있는 경우 기본 설정을 수락하고 연결을 클릭합니다. 기존 런타임이 없으면 새 런타임 만들기를 선택한 다음 연결을 클릭합니다.
+런타임이 설정되는 데 몇 분 정도 걸릴 수 있습니다.
+멀티모달 DataFrame 만들기
+Session 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.session.Session?hl=ko]의 from_glob_path 메서드 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.session.Session?hl=ko#bigframes_session_Session_from_glob_path]를 사용하여 정형 데이터와 비정형 데이터를 통합하는 멀티모달 DataFrame을 만듭니다.
+노트북에서 코드 셀을 만들고 다음 코드를 복사하여 붙여넣습니다.
+import bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko]
+
+# Flags to control preview image/video preview size
+bigframes [https://cloud.google.com/python/docs/reference/bigframes/latest/?hl=ko].options.display [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.operations.blob.BlobAccessor.html?hl=ko#bigframes_operations_blob_BlobAccessor_display].blob_display_width = 300
+
+import bigframes.pandas as bpd
+
+# Create blob columns from wildcard path.
+df_image = bpd.from_glob_path [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.pandas.html?hl=ko](
+    "gs://cloud-samples-data/bigquery/tutorials/cymbal-pets/images/*", name="image"
+)
+# Other ways are: from string uri column
+# df = bpd.DataFrame({"uri": ["gs://<my_bucket>/<my_file_0>", "gs://<my_bucket>/<my_file_1>"]})
+# df["blob_col"] = df["uri"].str.to_blob()
+
+# From an existing object table
+# df = bpd.read_gbq_object_table("<my_object_table>", name="blob_col")
+
+# Take only the 5 images to deal with. Preview the content of the Mutimodal DataFrame
+df_image = df_image.head(5)
+df_image
+play_circle_filled 실행을 클릭합니다.
+df_image에 대한 최종 호출은 DataFrame에 추가된 이미지를 반환합니다. 또는 .display 메서드를 호출할 수 있습니다.
+DataFrame에서 구조화된 데이터와 구조화되지 않은 데이터를 결합
+멀티모달 DataFrame에서 텍스트와 이미지 데이터를 결합합니다.
+노트북에서 코드 셀을 만들고 다음 코드를 복사하여 붙여넣습니다.
+# Combine unstructured data with structured data
+df_image["author"] = ["alice", "bob", "bob", "alice", "bob"]  # type: ignore
+df_image["content_type"] = df_image["image"].blob.content_type()
+df_image["size"] = df_image["image"].blob.size()
+df_image["updated"] = df_image["image"].blob.updated()
+df_image
+실행 play_circle_filled을 클릭합니다.
+코드는 DataFrame 데이터를 반환합니다.
+노트북에서 코드 셀을 만들고 다음 코드를 복사하여 붙여넣습니다.
+# Filter images and display, you can also display audio and video types. Use width/height parameters to constrain window sizes.
+df_image[df_image["author"] == "alice"]["image"].blob.display()
+실행 play_circle_filled을 클릭합니다.
+이 코드는 author 열 값이 alice인 DataFrame의 이미지를 반환합니다.
+이미지 변환 실행
+Series.BlobAccessor 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.operations.blob.BlobAccessor?hl=ko]의 다음 메서드를 사용하여 이미지 데이터를 변환합니다.
+image_blur [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.operations.blob.BlobAccessor?hl=ko#bigframes_operations_blob_BlobAccessor_image_blur]
+image_normalize [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.operations.blob.BlobAccessor?hl=ko#bigframes_operations_blob_BlobAccessor_image_normalize]
+image_resize [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.operations.blob.BlobAccessor?hl=ko#bigframes_operations_blob_BlobAccessor_image_resize]
+변환된 이미지가 Cloud Storage에 기록됩니다.
+이미지 변환:
+노트북에서 코드 셀을 만들고 다음 코드를 복사하여 붙여넣습니다.
+df_image["blurred"] = df_image["image"].blob.image_blur(
+    (20, 20), dst=f"{dst_bucket}/image_blur_transformed/", engine="opencv"
+)
+df_image["resized"] = df_image["image"].blob.image_resize(
+    (300, 200), dst=f"{dst_bucket}/image_resize_transformed/", engine="opencv"
+)
+df_image["normalized"] = df_image["image"].blob.image_normalize(
+    alpha=50.0,
+    beta=150.0,
+    norm_type="minmax",
+    dst=f"{dst_bucket}/image_normalize_transformed/",
+    engine="opencv",
+)
+
+# You can also chain functions together
+df_image["blur_resized"] = df_image["blurred"].blob.image_resize(
+    (300, 200), dst=f"{dst_bucket}/image_blur_resize_transformed/", engine="opencv"
+)
+df_image
+{dst_bucket}에 대한 모든 참조를 생성한 버킷 [https://cloud.google.com/bigquery/docs/multimodal-data-dataframes-tutorial?hl=ko#create_a_bucket]을 참조하도록 gs://mybucket 형식으로 업데이트합니다.
+실행 play_circle_filled을 클릭합니다.
+이 코드는 원본 이미지와 모든 변환을 반환합니다.
+텍스트 생성
+GeminiTextGenerator 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.llm.GeminiTextGenerator?hl=ko]의 predict 메서드 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.llm.GeminiTextGenerator?hl=ko#bigframes_ml_llm_GeminiTextGenerator_predict]를 사용하여 멀티모달 데이터에서 텍스트를 생성합니다.
+노트북에서 코드 셀을 만들고 다음 코드를 복사하여 붙여넣습니다.
+from bigframes.ml import llm
+
+gemini = llm.GeminiTextGenerator(model_name="gemini-2.0-flash-001")
+
+# Deal with first 2 images as example
+df_image = df_image.head(2)
+
+# Ask the same question on the images
+df_image = df_image.head(2)
+answer = gemini.predict(df_image, prompt=["what item is it?", df_image["image"]])
+answer[["ml_generate_text_llm_result", "image"]]
+실행 play_circle_filled을 클릭합니다.
+이 코드는 df_image의 처음 두 이미지와 두 이미지 모두에 대한 질문 what item is it?에 대한 대답으로 생성된 텍스트를 반환합니다.
+노트북에서 코드 셀을 만들고 다음 코드를 복사하여 붙여넣습니다.
+# Ask different questions
+df_image["question"] = [  # type: ignore
+    "what item is it?",
+    "what color is the picture?",
+]
+answer_alt = gemini.predict(
+    df_image, prompt=[df_image["question"], df_image["image"]]
+)
+answer_alt[["ml_generate_text_llm_result", "image"]]
+실행 play_circle_filled을 클릭합니다.
+이 코드는 df_image의 처음 두 이미지를 반환하며, 첫 번째 이미지의 경우 질문 what item is it?에 대한 응답으로 생성된 텍스트가, 두 번째 이미지의 경우 질문 what color is the picture?에 대한 응답으로 생성된 텍스트가 함께 반환됩니다.
+임베딩 생성
+MultimodalEmbeddingGenerator 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.llm.MultimodalEmbeddingGenerator?hl=ko]의 predict 메서드 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.ml.llm.MultimodalEmbeddingGenerator?hl=ko#bigframes_ml_llm_MultimodalEmbeddingGenerator_predict]를 사용하여 멀티모달 데이터의 임베딩을 생성합니다.
+노트북에서 코드 셀을 만들고 다음 코드를 복사하여 붙여넣습니다.
+# Generate embeddings on images
+embed_model = llm.MultimodalEmbeddingGenerator()
+embeddings = embed_model.predict(df_image["image"])
+embeddings
+실행 play_circle_filled을 클릭합니다.
+이 코드는 임베딩 모델 호출로 생성된 임베딩을 반환합니다.
+PDF 청크
+Series.BlobAccessor 클래스 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.operations.blob.BlobAccessor?hl=ko]의 pdf_chunk 메서드 [https://cloud.google.com/python/docs/reference/bigframes/latest/bigframes.operations.blob.BlobAccessor?hl=ko#bigframes_operations_blob_BlobAccessor_pdf_chunk]를 사용하여 PDF 객체를 청크로 나눕니다.
+노트북에서 코드 셀을 만들고 다음 코드를 복사하여 붙여넣습니다.
+# PDF chunking
+df_pdf = bpd.from_glob_path(
+    "gs://cloud-samples-data/bigquery/tutorials/cymbal-pets/documents/*", name="pdf"
+)
+df_pdf["chunked"] = df_pdf["pdf"].blob.pdf_chunk(engine="pypdf")
+chunked = df_pdf["chunked"].explode()
+chunked
+실행 play_circle_filled을 클릭합니다.
+코드는 청크로 분할된 PDF 데이터를 반환합니다.
+삭제
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+도움이 되었나요?
+의견 보내기

@@ -1,0 +1,2006 @@
+Source URL: https://cloud.google.com/bigquery/docs/managing-datasets
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필요한 역할
+데이터 세트 복사
+제한사항
+데이터 세트 복사
+데이터 세트 복사 작업 보기
+데이터 세트 관리
+bookmark_border
+이 문서에서는 데이터 세트 복사, 다른 위치에 데이터 세트 다시 만들기, 데이터 세트 보호, BigQuery의 삭제된 데이터 세트에서 테이블 복원을 수행하는 방법을 설명합니다. 삭제된 데이터 세트를 복원(또는 삭제 취소)하는 방법은 삭제된 데이터 세트 복원 [https://cloud.google.com/bigquery/docs/restore-deleted-datasets?hl=ko]을 참조하세요.
+BigQuery 관리자는 분석가가 사용하는 테이블 [https://cloud.google.com/bigquery/docs/tables?hl=ko] 및 뷰 [https://cloud.google.com/bigquery/docs/views?hl=ko]에 대한 액세스를 구성 및 제어할 수 있습니다. 데이터 세트에 대한 자세한 내용은 데이터 세트 소개 [https://cloud.google.com/bigquery/docs/datasets-intro?hl=ko]를 참조하세요.
+기존 데이터 세트 이름을 변경하거나 생성 후 데이터 세트를 재배치할 수 없습니다. 데이터 세트 이름을 꼭 변경해야 할 경우에는 데이터 세트를 복사 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#copy-datasets]하고 대상 데이터 세트 이름을 변경할 수 있습니다. 데이터 세트를 재배치하려면 다음 방법 중 하나를 따르면 됩니다.
+다른 위치에 데이터 세트를 다시 만듭니다 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#recreate-dataset].
+데이터 세트를 복사합니다 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#copy-datasets].
+필요한 역할
+이 섹션에서는 데이터 세트 관리에 필요한 역할과 권한에 대해 설명합니다. 소스 또는 대상 데이터 세트가 복사를 위해 사용하려는 항목과 동일한 프로젝트에 있으면 해당 데이터 세트에 대해 추가 권한 또는 역할이 필요하지 않습니다.
+데이터 세트를 관리하는 데 필요한 권한을 얻으려면 관리자에게 다음 IAM 역할을 부여해 달라고 요청하세요.
+데이터 세트 복사(베타 [https://cloud.google.com/products?hl=ko#product-launch-stages]):
+대상 프로젝트에 대한 BigQuery 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.admin](roles/bigquery.admin)
+소스 데이터 세트에 대한 BigQuery 데이터 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataViewer](roles/bigquery.dataViewer)
+대상 데이터 세트에 대한 BigQuery 데이터 편집자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataEditor](roles/bigquery.dataEditor)
+데이터 세트 삭제: 프로젝트에 대한 BigQuery 데이터 소유자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataOwner](roles/bigquery.dataOwner)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이러한 사전 정의된 역할에는 데이터 세트를 관리하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+데이터 세트 복사
+베타
+이 제품에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+BigQuery로 데이터를 추출, 이동 또는 다시 로드할 필요 없이 파티션을 나눈 데이터를 포함하여 리전 내에서 또는 리전 간에 데이터 세트를 복사할 수 있습니다. BigQuery는 백엔드에서 BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/dts-introduction?hl=ko]를 사용하여 데이터 세트를 복사합니다. 데이터를 전송할 때 위치를 고려하려면 데이터 위치 및 전송 [https://cloud.google.com/bigquery/docs/dts-locations?hl=ko]을 참조하세요.
+각 데이터 세트 사본 구성에서 전송 실행은 한 번에 하나만 활성화할 수 있습니다. 추가 전송 실행이 큐에 추가됩니다. Google Cloud 콘솔을 사용하는 경우 반복 복사를 예약하고 BigQuery Data Transfer Service를 사용하여 이메일이나 Pub/Sub 알림을 구성할 수 있습니다.
+제한사항
+데이터 세트를 복사할 때는 다음 제한사항이 적용됩니다.
+소스 데이터 세트에서 다음 리소스를 복사할 수 없습니다.
+뷰
+루틴(UDF 포함)
+외부 테이블
+복사 작업이 여러 리전에 걸쳐 있는 경우 변경 데이터 캡처(CDC) 테이블 [https://cloud.google.com/bigquery/docs/change-data-capture?hl=ko]입니다. 같은 리전 내에서 CDC 테이블 복사가 지원됩니다.
+대상 데이터 세트가 CMEK로 암호화되지 않았고 제공된 CMEK가 없는 경우 고객 관리 암호화 키(CMEK) [https://cloud.google.com/bigquery/docs/customer-managed-encryption?hl=ko]로 암호화된 테이블에는 리전 간 테이블 복사 작업이 지원되지 않습니다. 리전 간에 기본 암호화를 사용하는 테이블 복사도 지원됩니다.
+CMEK로 암호화된 테이블을 포함하여 동일한 리전 내에서 모든 암호화된 테이블을 복사할 수 있습니다.
+다음 리소스를 복사 작업 대상 데이터 세트로 사용할 수 없습니다.
+쓰기 최적화 스토리지
+복사 작업이 여러 리전에 걸쳐 있고 소스 테이블이 CMEK로 암호화되지 않은 경우 CMEK로 암호화된 데이터 세트.
+하지만 CMEK로 암호화된 테이블은 동일한 리전 내에서 복사할 때 대상 테이블로 허용됩니다.
+복사 작업 간 최소 빈도는 12시간입니다.
+데이터를 대상 데이터 세트의 파티션을 나눈 테이블이나 파티션을 나누지 않은 테이블에 추가할 수 없습니다. 소스 테이블에 변경사항이 없으면 테이블이 건너뜁니다. 소스 테이블이 업데이트되면 대상 테이블이 완전히 잘리고 대체됩니다.
+테이블이 소스 데이터 세트와 대상 데이터 세트에 있고 마지막 성공적인 복사 후에도 소스 테이블이 변경되지 않으면 해당 테이블은 건너뜁니다. 대상 테이블 덮어쓰기 체크박스가 선택된 경우에도 소스 테이블을 건너뜁니다.
+대상 데이터 세트의 테이블을 자르는 경우 데이터 세트 복사 작업은 복사 작업을 시작하기 전에 대상 데이터 세트의 리소스에 대한 변경사항을 감지하지 않습니다. 데이터 세트 복사 작업은 테이블 및 스키마를 포함하여 대상 데이터 세트의 모든 데이터를 덮어씁니다.
+복사 작업이 시작된 후에는 대상 테이블에 소스 테이블 변경사항이 반영되지 않을 수 있습니다.
+BigQuery Omni 리전 [https://cloud.google.com/bigquery/docs/omni-introduction?hl=ko#locations]에서는 데이터 세트 복사가 지원되지 않습니다.
+데이터 세트를 다른 VPC 서비스 제어 서비스 경계 [https://cloud.google.com/vpc-service-controls/docs/service-perimeters?hl=ko]의 프로젝트에 복사하려면 다음 이그레스 규칙을 설정해야 합니다.
+대상 프로젝트의 VPC 서비스 제어 서비스 경계 구성에서 IAM 주 구성원은 다음 메서드를 포함해야 합니다.
+bigquery.datasets.get
+bigquery.tables.list
+bigquery.tables.get,
+bigquery.tables.getData
+소스 프로젝트의 VPC 서비스 제어 서비스 경계 구성에서 사용 중인 IAM 주 구성원의 메서드는 All Methods로 설정되어 있어야 합니다.
+소유하지 않은 데이터 세트 사본 전송 구성을 업데이트하려고 하면 다음과 같은 오류 메시지가 표시되면서 업데이트가 실패할 수 있습니다.
+Cannot modify restricted parameters without taking ownership of the transfer configuration.
+데이터 세트 사본 소유자는 데이터 세트 사본과 연결된 사용자이거나 데이터 세트 사본과 연결된 서비스 계정에 액세스할 수 있는 사용자입니다. 데이터 세트 사본의 구성 세부정보 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko#get_transfer_details]에서 연결된 사용자를 확인할 수 있습니다. 소유권을 갖도록 데이터 세트 사본을 업데이트하는 방법은 사용자 인증 정보 업데이트 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko#update_credentials]를 참조하세요. 사용자에게 서비스 계정에 대한 액세스 권한을 부여하려면 서비스 계정 사용자 역할 [https://cloud.google.com/iam/docs/service-account-permissions?hl=ko#user-role]이 있어야 합니다.
+데이터 세트 사본 소유자 제한 파라미터는 다음과 같습니다.
+소스 프로젝트
+소스 데이터세트
+대상 데이터세트
+대상 테이블 덮어쓰기 설정
+모든 리전 간 테이블 복사 제한사항 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#limitations]이 적용됩니다.
+데이터 세트 복사
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 ---
+대상 데이터 세트에 대해 BigQuery Data Transfer Service를 사용 설정 [https://cloud.google.com/bigquery/docs/enable-transfer-service?hl=ko]합니다.
+
+BigQuery Data Transfer Service API를 사용 설정 [https://console.cloud.google.com/apis/library/bigquerydatatransfer.googleapis.com?hl=ko] 
+필수 역할 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#required-roles]이 있는지 확인합니다.
+
+Pub/Sub에 대해 전송 실행 알림을 설정하려면(이 단계의 후반부에 있는 옵션 2) pubsub.topics.setIamPolicy 권한이 있어야 합니다.
+
+이메일 알림만 설정할 경우에는 Pub/Sub 권한이 필요하지 않습니다. 자세한 내용은 BigQuery Data Transfer Service 실행 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko]을 참조하세요.
+소스 데이터 세트와 같은 리전 또는 다른 리전에 BigQuery 데이터 세트를 만듭니다 [https://cloud.google.com/bigquery/docs/datasets?hl=ko].
+
+
+옵션 1: BigQuery 복사 기능 사용
+
+일회성 전송을 만들려면 BigQuery 복사 기능을 사용합니다.
+
+
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 패널에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+데이터 세트 정보 섹션에서 content_copy 복사를 클릭한 후 다음을 수행합니다.
+
+
+데이터 세트 필드에서 새 데이터 세트를 만들거나 목록에서 기존 데이터 세트 ID를 선택합니다.
+
+프로젝트 내의 데이터 세트 이름은 고유해야 합니다. 프로젝트와 데이터 세트는 서로 다른 리전에 있을 수 있지만 모든 리전에서 리전 간 데이터 세트 복사가 지원되지는 않습니다.
+
+위치 필드에서 소스 데이터 세트의 위치가 표시됩니다.
+선택사항: 대상 테이블의 데이터와 스키마를 모두 소스 테이블로 덮어쓰려면 대상 테이블 덮어쓰기 체크박스를 선택합니다. 소스 및 대상 테이블 모두 동일한 파티션 나누기 스키마를 포함해야 합니다.
+데이터 세트를 복사하려면 복사를 클릭합니다.
+
+
+
+옵션 2: BigQuery Data Transfer Service 사용
+
+반복 복사를 예약하고 이메일이나 Pub/Sub 알림을 구성하려면 대상 프로젝트의 Google Cloud 콘솔에서 BigQuery Data Transfer Service를 사용합니다.
+
+
+데이터 전송 페이지로 이동합니다.
+
+데이터 전송으로 이동 [https://console.cloud.google.com/bigquery/transfers?hl=ko] 
+전송 만들기를 클릭합니다.
+소스 목록에서 데이터 세트 복사를 선택합니다.
+표시 이름 필드에 전송 실행 이름을 입력합니다.
+일정 옵션 섹션에서 다음을 수행합니다.
+
+
+반복 빈도에서 전송을 실행할 빈도 옵션을 선택합니다.
+
+커스텀을 선택하면 커스텀 빈도(예: every day 00:00)를 입력합니다. 자세한 내용은 일정 형식 지정 [https://cloud.google.com/appengine/docs/flexible/python/scheduling-jobs-with-cron-yaml?hl=ko#formatting_the_schedule]을 참조하세요.
+참고: 복사 작업 간 최소 빈도는 12시간입니다.
+시작일 및 실행 시간에 전송을 시작할 날짜 및 시간을 입력합니다. 지금 시작을 선택하면 이 옵션은 중지됩니다.
+
+대상 설정 섹션에서 전송 데이터를 저장할 대상 데이터 세트를 선택합니다. 새 데이터 세트 만들기를 클릭하여 새 데이터 세트를 만든 후 이 전송에 선택할 수도 있습니다.
+데이터 소스 세부정보 섹션에서 다음 정보를 입력합니다.
+
+
+소스 데이터 세트에 대해 복사하려는 데이터 세트 ID를 입력합니다.
+소스 프로젝트에 대해 소스 데이터 세트의 프로젝트 ID를 입력합니다.
+
+대상 테이블의 데이터와 스키마를 모두 소스 테이블로 덮어쓰려면 대상 테이블 덮어쓰기 체크박스를 선택합니다. 소스 및 대상 테이블 모두 동일한 파티션 나누기 스키마를 포함해야 합니다.
+서비스 계정 메뉴에서Google Cloud 프로젝트와 연결된 서비스 계정에서 서비스 계정 [https://cloud.google.com/iam/docs/service-account-overview?hl=ko]을 선택합니다. 사용자 인증 정보를 사용하는 대신 서비스 계정을 전송에 연결할 수 있습니다. 데이터 전송에서 서비스 계정을 사용하는 방법에 대한 자세한 내용은 서비스 계정 사용 [https://cloud.google.com/bigquery/docs/use-service-accounts?hl=ko]을 참조하세요.
+
+
+제휴 ID [https://cloud.google.com/iam/docs/workforce-identity-federation?hl=ko]로 로그인한 경우 서비스 계정이 전송을 만드는 데 필요합니다. Google 계정 [https://cloud.google.com/iam/docs/principals-overview?hl=ko#google-account]으로 로그인한 경우 전송에 사용되는 서비스 계정은 선택사항입니다.
+서비스 계정에 필수 역할 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#required-roles]이 있어야 합니다.
+
+선택사항: 알림 옵션 섹션에서 다음을 수행합니다.
+
+
+이메일 알림을 사용 설정하려면 전환을 클릭합니다. 이 옵션을 사용 설정하면 전송 실행이 실패할 때 전송 구성의 소유자에게 이메일 알림이 발송됩니다.
+Pub/Sub 알림을 사용 설정하려면 전환을 클릭한 후 목록에서 주제 [https://cloud.google.com/pubsub/docs/overview?hl=ko#types] 이름을 선택하거나 주제 만들기를 클릭합니다. 이 옵션은 전송에 대한 Pub/Sub 실행 알림 [https://cloud.google.com/bigquery/docs/transfer-run-notifications?hl=ko]을 구성합니다.
+
+저장을 클릭합니다.
+
+--- 탭: bq ---
+대상 데이터 세트에 대해 BigQuery Data Transfer Service를 사용 설정 [https://cloud.google.com/bigquery/docs/enable-transfer-service?hl=ko]합니다.
+필수 역할 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#required-roles]이 있는지 확인합니다.
+BigQuery 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]를 만들려면 데이터 세트 만들기 플래그 --dataset 및 location 플래그와 함께 bq mk 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_mk]를 사용합니다.
+
+bq mk \
+  --dataset \
+  --location=LOCATION \
+  PROJECT:DATASET
+
+다음을 바꿉니다.
+
+
+LOCATION: 데이터 세트를 복사하려는 위치
+PROJECT: 대상 데이터 세트의 프로젝트 ID
+DATASET: 대상 데이터 세트의 이름
+
+데이터 세트를 복사하려면 전송 만들기 플래그 --transfer_config [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-transfer-config] 및 --data_source 플래그와 함께 bq mk 명령어를 사용합니다.
+--data_source 플래그를 cross_region_copy로 설정해야 합니다. --data_source 플래그의 유효한 값의 전체 목록은 bq 명령줄 도구 참조의 transfer-config 플래그 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-transfer-config]를 참조하세요.
+
+bq mk \
+  --transfer_config \
+  --project_id=PROJECT \
+  --data_source=cross_region_copy \
+  --target_dataset=DATASET \
+  --display_name=NAME \
+ --service_account_name=SERCICE_ACCOUNT \
+  --params='PARAMETERS'
+
+다음을 바꿉니다.
+
+
+NAME: 복사 작업 또는 전송 구성의 표시 이름입니다.
+SERVICE_ACCOUNT: 전송을 인증하는 데 사용되는 서비스 계정 이름입니다. 전송을 만드는 데 사용한 것과 동일한 project_id에서 서비스 계정을 소유해야 하며 이 계정에 모든 필수 권한 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#required-roles]이 있어야 합니다.
+PARAMETERS: JSON 형식으로 생성된 전송 구성의 매개변수입니다.
+
+데이터 세트 복사 구성의 매개변수에는 다음이 포함됩니다.
+
+
+source_dataset_id: 복사하려는 소스 데이터 세트의 ID
+source_project_id: 소스 데이터 세트가 포함된 프로젝트의 ID
+overwrite_destination_table: 이전 사본의 테이블을 자르고 모든 데이터를 새로고침할 수 있는 선택적 플래그
+
+
+소스 및 대상 테이블 모두 동일한 파티션 나누기 스키마를 포함해야 합니다.
+
+
+다음 예시에서는 시스템 환경을 기반으로 매개변수 형식을 보여줍니다.
+
+
+Linux: 작은따옴표를 사용해서 JSON 문자열을 묶습니다. 예를 들면 다음과 같습니다.
+
+'{"source_dataset_id":"mydataset","source_project_id":"mysourceproject","overwrite_destination_table":"true"}'
+
+Windows 명령줄: 큰따옴표를 사용해서 JSON 문자열을 묶고 문자열의 큰따옴표를 백슬래시로 이스케이프합니다. 예를 들면 다음과 같습니다.
+
+"{\"source_dataset_id\":\"mydataset\",\"source_project_id\":\"mysourceproject\",\"overwrite_destination_table\":\"true\"}"
+
+PowerShell: 작은따옴표를 사용해서 JSON 문자열을 묶고 문자열의 큰따옴표를 백슬래시로 이스케이프합니다. 예를 들면 다음과 같습니다.
+
+'{\"source_dataset_id\":\"mydataset\",\"source_project_id\":\"mysourceproject\",\"overwrite_destination_table\":\"true\"}'
+
+
+
+예를 들어 다음 명령어는 대상 데이터 세트 이름이 mydataset이고 프로젝트 ID가 myproject인 My Transfer라는 데이터 세트 복사 구성을 만듭니다.
+
+bq mk \
+  --transfer_config \
+  --project_id=myproject \
+  --data_source=cross_region_copy \
+  --target_dataset=mydataset \
+  --display_name='My Transfer' \
+  --params='{
+      "source_dataset_id":"123_demo_eu",
+      "source_project_id":"mysourceproject",
+      "overwrite_destination_table":"true"
+      }'
+
+--- 탭: API ---
+대상 데이터 세트에 대해 BigQuery Data Transfer Service를 사용 설정 [https://cloud.google.com/bigquery/docs/enable-transfer-service?hl=ko]합니다.
+필수 역할 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#required-roles]이 있는지 확인합니다.
+BigQuery 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]를 만들려면 정의된 데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]를 사용하여 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+데이터 세트를 복사하려면 projects.locations.transferConfigs.create [https://cloud.google.com/bigquery-transfer/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs/create?hl=ko] 메서드를 사용하여 TransferConfig [https://cloud.google.com/bigquery-transfer/docs/reference/datatransfer/rest/v1/projects.locations.transferConfigs?hl=ko#TransferConfig] 리소스의 인스턴스를 제공합니다.
+
+--- 탭: 자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.gax.rpc.ApiException [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.rpc.ApiException.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko];
+import com.google.cloud.bigquery.datatransfer.v1.TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko];
+import com.google.protobuf.Struct [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.html?hl=ko];
+import com.google.protobuf.Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko];
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+// Sample to copy dataset from another gcp project
+public class CopyDataset {
+
+  public static void main(String[] args) throws IOException {
+    // TODO(developer): Replace these variables before running the sample.
+    final String destinationProjectId = "MY_DESTINATION_PROJECT_ID";
+    final String destinationDatasetId = "MY_DESTINATION_DATASET_ID";
+    final String sourceProjectId = "MY_SOURCE_PROJECT_ID";
+    final String sourceDatasetId = "MY_SOURCE_DATASET_ID";
+    Map<String, Value> params = new HashMap<>();
+    params.put("source_project_id", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(sourceProjectId).build());
+    params.put("source_dataset_id", Value [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Value.html?hl=ko].newBuilder().setStringValue(sourceDatasetId).build());
+    TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] transferConfig =
+        TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko].newBuilder()
+            .setDestinationDatasetId(destinationDatasetId)
+            .setDisplayName("Your Dataset Copy Name")
+            .setDataSourceId("cross_region_copy")
+            .setParams(Struct [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.html?hl=ko].newBuilder().putAllFields [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.Struct.Builder.html?hl=ko#com_google_protobuf_Struct_Builder_putAllFields_java_util_Map_java_lang_String_com_google_protobuf_Value__](params).build())
+            .setSchedule("every 24 hours")
+            .build();
+    copyDataset(destinationProjectId, transferConfig);
+  }
+
+  public static void copyDataset(String projectId, TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] transferConfig)
+      throws IOException {
+    try (DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko] dataTransferServiceClient = DataTransferServiceClient [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.DataTransferServiceClient.html?hl=ko].create()) {
+      ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko] parent = ProjectName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko].of(projectId);
+      CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko] request =
+          CreateTransferConfigRequest [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.CreateTransferConfigRequest.html?hl=ko].newBuilder()
+              .setParent(parent.toString [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.ProjectName.html?hl=ko#com_google_cloud_bigquery_datatransfer_v1_ProjectName_toString__]())
+              .setTransferConfig(transferConfig)
+              .build();
+      TransferConfig [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko] config = dataTransferServiceClient.createTransferConfig(request);
+      System.out.println("Copy dataset created successfully :" + config.getName [https://cloud.google.com/java/docs/reference/google-cloud-bigquerydatatransfer/latest/com.google.cloud.bigquery.datatransfer.v1.TransferConfig.html?hl=ko#com_google_cloud_bigquery_datatransfer_v1_TransferConfig_getName__]());
+    } catch (ApiException [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.rpc.ApiException.html?hl=ko] ex) {
+      System.out.print("Copy dataset was not created." + ex.toString());
+    }
+  }
+}
+
+--- 탭: Python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+
+
+
+
+pip install google-cloud-bigquery-datatransfer를 사용하여 BigQuery Data Transfer API용 Python 클라이언트 [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest?hl=ko]를 설치합니다. 그런 다음 전송 구성을 만들어 데이터 세트를 복사합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery_datatransfer
+
+transfer_client = bigquery_datatransfer.DataTransferServiceClient [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest/google.cloud.bigquery_datatransfer_v1.services.data_transfer_service.DataTransferServiceClient.html?hl=ko]()
+
+destination_project_id = "my-destination-project"
+destination_dataset_id = "my_destination_dataset"
+source_project_id = "my-source-project"
+source_dataset_id = "my_source_dataset"
+transfer_config = bigquery_datatransfer.TransferConfig [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest/google.cloud.bigquery_datatransfer_v1.types.TransferConfig.html?hl=ko](
+    destination_dataset_id=destination_dataset_id,
+    display_name="Your Dataset Copy Name",
+    data_source_id="cross_region_copy",
+    params={
+        "source_project_id": source_project_id,
+        "source_dataset_id": source_dataset_id,
+    },
+    schedule="every 24 hours",
+)
+transfer_config = transfer_client.create_transfer_config [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest/google.cloud.bigquery_datatransfer_v1.services.data_transfer_service.DataTransferServiceClient.html?hl=ko#google_cloud_bigquery_datatransfer_v1_services_data_transfer_service_DataTransferServiceClient_create_transfer_config](
+    parent=transfer_client.common_project_path [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest/google.cloud.bigquery_datatransfer_v1.services.data_transfer_service.DataTransferServiceClient.html?hl=ko#google_cloud_bigquery_datatransfer_v1_services_data_transfer_service_DataTransferServiceClient_common_project_path](destination_project_id),
+    transfer_config=transfer_config,
+)
+print(f"Created transfer config: {transfer_config.name}")
+추가 스토리지 비용을 방지하기 위해서는 이전 데이터 세트를 삭제 [https://cloud.google.com/bigquery/docs/managing-datasets?hl=ko#delete-datasets]하는 것이 좋습니다.
+데이터 세트 복사 작업 보기
+Google Cloud 콘솔에서 데이터 세트 복사 작업의 상태와 세부정보를 보려면 다음을 수행합니다.
+Google Cloud 콘솔에서 데이터 전송 페이지로 이동합니다.
+데이터 전송으로 이동 [https://console.cloud.google.com/bigquery/transfers?hl=ko]
+전송 세부정보를 보려는 전송을 선택한 후 다음을 수행합니다.
+전송 세부정보 페이지에서 전송 실행을 선택합니다.
+새로고침하려면 refresh 새로고침을 클릭합니다.
+다른 위치에 데이터 세트 다시 만들기
+한 위치에서 다른 위치로 데이터 세트를 수동으로 이동하려면 다음 단계를 수행합니다.
+BigQuery 테이블에서 Cloud Storage 버킷으로 데이터를 내보냅니다 [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko].
+BigQuery에서 데이터를 내보내는 경우에는 요금이 청구되지 않지만 Cloud Storage에 내보낸 데이터를 저장 [https://cloud.google.com/storage/pricing?hl=ko#storage-pricing]하는 경우에는 요금이 청구됩니다. BigQuery 내보내기를 사용하는 경우 내보내기 작업 [https://cloud.google.com/bigquery/quotas?hl=ko#export_jobs]의 제한사항이 적용됩니다.
+내보낸 Cloud Storage 버킷에서 대상 위치에 만든 새 버킷으로 데이터를 복사하거나 옮깁니다. 예를 들어 데이터를 US 멀티 리전에서 asia-northeast1 도쿄 리전으로 이동하는 경우 데이터를 도쿄에서 만든 버킷으로 전송합니다. Cloud Storage 객체 전송에 대한 자세한 내용은 Cloud Storage 문서에서 객체 복사, 이름 바꾸기, 이동 [https://cloud.google.com/storage/docs/copying-renaming-moving-objects?hl=ko]을 참조하세요.
+리전 간에 데이터를 전송하면 Cloud Storage에서 네트워크 이그레스 요금 [https://cloud.google.com/storage/pricing?hl=ko#network-pricing]이 청구됩니다.
+새 위치에 새 BigQuery 데이터 세트를 만들고 Cloud Storage 버킷에서 새 데이터 세트로 데이터를 로드합니다.
+BigQuery로 데이터를 로드하는 경우에는 요금이 청구되지 않지만 데이터 또는 버킷을 삭제하기 전에 데이터를 Cloud Storage에 저장하면 요금이 청구됩니다. 데이터를 로드한 후 BigQuery에 데이터를 저장하는 경우에도 요금이 청구됩니다. BigQuery에 데이터 로드에는 로드 작업 [https://cloud.google.com/bigquery/quotas?hl=ko#load_jobs] 한도가 적용됩니다.
+Cloud Composer [https://cloud.google.com/blog/products/data-analytics/how-to-transfer-bigquery-tables-between-locations-with-cloud-composer?hl=ko]를 사용하여 대규모 데이터 세트를 프로그래매틱 방식으로 이동하고 복사할 수도 있습니다.
+Cloud Storage를 사용하여 대규모 데이터세트를 저장 및 이동하는 방법에 대한 자세한 내용은 빅데이터에 Cloud Storage 사용 [https://cloud.google.com/storage/docs/working-with-big-data?hl=ko]을 참조하세요.
+데이터 세트 보호
+BigQuery에서 데이터 세트에 대한 액세스를 제어하려면 데이터 세트에 대한 액세스 제어 [https://cloud.google.com/bigquery/docs/control-access-to-resources-iam?hl=ko]를 참조하세요. 데이터 암호화에 대한 자세한 내용은 저장 데이터 암호화 [https://cloud.google.com/bigquery/docs/encryption-at-rest?hl=ko]를 참조하세요.
+데이터 세트 삭제
+Google Cloud 콘솔을 사용하여 데이터 세트를 삭제하면 해당 데이터를 포함하여 데이터 세트의 테이블과 뷰가 삭제됩니다. bq 명령줄 도구를 사용하여 데이터 세트를 삭제할 때는 -r 플래그를 사용하여 테이블과 뷰를 삭제해야 합니다.
+데이터 세트를 삭제하려면 다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트를 확장하고 데이터 세트를 선택합니다.
+more_vert 작업 옵션을 펼치고 삭제를 클릭합니다.
+데이터 세트 삭제 대화상자에서 필드에 delete를 입력한 후 삭제를 클릭합니다.
+
+참고: Google Cloud 콘솔을 사용하여 데이터 세트를 삭제하면 테이블이 자동으로 삭제됩니다.
+
+--- 탭: SQL ---
+데이터 세트를 삭제하려면 DROP SCHEMA DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#drop_schema_statement]을 사용합니다.
+
+다음 예시에서는 mydataset라는 데이터 세트를 삭제합니다.
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+DROP SCHEMA IF EXISTS mydataset;
+
+
+기본적으로 빈 데이터 세트만 삭제합니다.
+데이터 세트와 모든 콘텐츠를 삭제하려면 CASCADE 키워드를 사용합니다.
+
+DROP SCHEMA IF EXISTS mydataset CASCADE;
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq ---
+선택사항인 --dataset 또는 -d 플래그와 함께 bq rm 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_rm]를 사용합니다.
+데이터 세트에 테이블이 포함된 경우 -r 플래그를 사용하여 데이터 세트의 모든 테이블을 삭제해야 합니다. -r 플래그를 사용하는 경우 --dataset 또는 -d 플래그를 생략할 수 있습니다.
+
+명령어를 실행하면 시스템에 확인 메시지가 표시됩니다. -f 플래그를 사용하면 확인 메시지를 건너뛸 수 있습니다.
+
+기본 프로젝트가 아닌 다른 프로젝트의 테이블을 삭제하려면 프로젝트 ID를 PROJECT_ID:DATASET 형식으로 데이터 세트 이름에 추가합니다.
+
+bq rm -r -f -d PROJECT_ID:DATASET
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 프로젝트 ID입니다.
+DATASET: 삭제할 데이터 세트의 이름입니다.
+
+
+예:
+
+다음 명령어를 입력하여 이름이 mydataset인 데이터 세트와 그 안의 모든 테이블을 기본 프로젝트에서 삭제합니다. 이 명령어는 -d 플래그를 사용합니다.
+
+bq rm -r -d mydataset
+
+
+메시지가 표시되면 y를 입력하고 Enter 키를 누릅니다.
+
+다음 명령어를 입력하여 myotherproject에서 mydataset 및 이에 포함된 모든 테이블을 삭제합니다. 이 명령어는 선택적인 -d 플래그를 사용하지 않습니다.
+-f 플래그는 확인을 건너뛰기 위해 사용됩니다.
+
+bq rm -r -f myotherproject:mydataset
+
+
+bq ls 명령어를 사용하여 데이터 세트가 삭제되었는지 확인할 수 있습니다.
+
+--- 탭: API ---
+datasets.delete [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete?hl=ko] 메서드를 호출하여 데이터 세트를 삭제하고 deleteContents 파라미터를 true로 설정하여 데이터 세트의 테이블을 삭제합니다.
+
+--- 탭: C# ---
+다음 코드 샘플은 빈 데이터 세트를 삭제합니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 C# 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery C# API 참고 문서 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+
+
+
+
+pip install google-cloud-bigquery-datatransfer를 사용하여 BigQuery Data Transfer API용 Python 클라이언트 [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest?hl=ko]를 설치합니다. 그런 다음 전송 구성을 만들어 데이터 세트를 복사합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+using Google.Cloud.BigQuery.V2 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.html?hl=ko];
+using System;
+
+public class BigQueryDeleteDataset
+{
+    public void DeleteDataset(
+        string projectId = "your-project-id",
+        string datasetId = "your_empty_dataset"
+    )
+    {
+        BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko] client = BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_Create_System_String_Google_Apis_Auth_OAuth2_GoogleCredential_](projectId);
+        // Delete a dataset that does not contain any tables
+        client.DeleteDataset [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_DeleteDataset_Google_Apis_Bigquery_v2_Data_DatasetReference_Google_Cloud_BigQuery_V2_DeleteDatasetOptions_](datasetId: datasetId);
+        Console.WriteLine($"Dataset {datasetId} deleted.");
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+다음 코드 샘플은 데이터 세트와 모든 콘텐츠를 삭제합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Copyright(c) 2018 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not
+// use this file except in compliance with the License. You may obtain a copy of
+// the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations under
+// the License.
+//
+
+using Google.Cloud.BigQuery.V2 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.html?hl=ko];
+using System;
+
+public class BigQueryDeleteDatasetAndContents
+{
+    public void DeleteDatasetAndContents(
+        string projectId = "your-project-id",
+        string datasetId = "your_dataset_with_tables"
+    )
+    {
+        BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko] client = BigQueryClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_Create_System_String_Google_Apis_Auth_OAuth2_GoogleCredential_](projectId);
+        // Use the DeleteDatasetOptions to delete a dataset and its contents
+        client.DeleteDataset [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.BigQueryClient.html?hl=ko#Google_Cloud_BigQuery_V2_BigQueryClient_DeleteDataset_Google_Apis_Bigquery_v2_Data_DatasetReference_Google_Cloud_BigQuery_V2_DeleteDatasetOptions_](
+            datasetId: datasetId,
+            options: new DeleteDatasetOptions [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.BigQuery.V2/latest/Google.Cloud.BigQuery.V2.DeleteDatasetOptions.html?hl=ko]() { DeleteContents = true }
+        );
+        Console.WriteLine($"Dataset {datasetId} and contents deleted.");
+    }
+}
+
+--- 탭: Go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+
+
+
+
+pip install google-cloud-bigquery-datatransfer를 사용하여 BigQuery Data Transfer API용 Python 클라이언트 [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest?hl=ko]를 설치합니다. 그런 다음 전송 구성을 만들어 데이터 세트를 복사합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// deleteDataset demonstrates the deletion of an empty dataset.
+func deleteDataset(projectID, datasetID string) error {
+	// projectID := "my-project-id"
+	// datasetID := "mydataset"
+	ctx := context.Background()
+
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	// To recursively delete a dataset and contents, use DeleteWithContents.
+	if err := client.Dataset(datasetID).Delete(ctx); err != nil {
+		return fmt.Errorf("Delete: %v", err)
+	}
+	return nil
+}
+
+--- 탭: 자바 ---
+다음 코드 샘플은 빈 데이터 세트를 삭제합니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+
+
+
+
+pip install google-cloud-bigquery-datatransfer를 사용하여 BigQuery Data Transfer API용 Python 클라이언트 [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest?hl=ko]를 설치합니다. 그런 다음 전송 구성을 만들어 데이터 세트를 복사합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko].DatasetDeleteOption [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.DatasetDeleteOption.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.DatasetId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.DatasetId.html?hl=ko];
+
+public class DeleteDataset {
+
+  public static void runDeleteDataset() {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String datasetName = "MY_DATASET_NAME";
+    deleteDataset(projectId, datasetName);
+  }
+
+  public static void deleteDataset(String projectId, String datasetName) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      DatasetId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.DatasetId.html?hl=ko] datasetId = DatasetId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.DatasetId.html?hl=ko].of(projectId, datasetName);
+      boolean success = bigquery.delete [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_delete_com_google_cloud_bigquery_DatasetId_com_google_cloud_bigquery_BigQuery_DatasetDeleteOption____](datasetId, DatasetDeleteOption.delete [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_delete_com_google_cloud_bigquery_DatasetId_com_google_cloud_bigquery_BigQuery_DatasetDeleteOption____]Contents());
+      if (success) {
+        System.out.println("Dataset deleted successfully");
+      } else {
+        System.out.println("Dataset was not found");
+      }
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] e) {
+      System.out.println("Dataset was not deleted. \n" + e.toString());
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+다음 코드 샘플은 데이터 세트와 모든 콘텐츠를 삭제합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  /*
+ * Copyright 2020 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.example.bigquery;
+
+import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.DatasetId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.DatasetId.html?hl=ko];
+
+// Sample to delete dataset with contents.
+public class DeleteDatasetAndContents {
+
+  public static void main(String[] args) {
+    // TODO(developer): Replace these variables before running the sample.
+    String projectId = "MY_PROJECT_ID";
+    String datasetName = "MY_DATASET_NAME";
+    deleteDatasetAndContents(projectId, datasetName);
+  }
+
+  public static void deleteDatasetAndContents(String projectId, String datasetName) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      DatasetId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.DatasetId.html?hl=ko] datasetId = DatasetId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.DatasetId.html?hl=ko].of(projectId, datasetName);
+      // Use the force parameter to delete a dataset and its contents
+      boolean success = bigquery.delete [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_delete_com_google_cloud_bigquery_DatasetId_com_google_cloud_bigquery_BigQuery_DatasetDeleteOption____](datasetId, BigQuery.DatasetDeleteOption.delete [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_delete_com_google_cloud_bigquery_DatasetId_com_google_cloud_bigquery_BigQuery_DatasetDeleteOption____]Contents());
+      if (success) {
+        System.out.println("Dataset deleted with contents successfully");
+      } else {
+        System.out.println("Dataset was not found");
+      }
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] e) {
+      System.out.println("Dataset was not deleted with contents. \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: Node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+
+
+
+
+pip install google-cloud-bigquery-datatransfer를 사용하여 BigQuery Data Transfer API용 Python 클라이언트 [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest?hl=ko]를 설치합니다. 그런 다음 전송 구성을 만들어 데이터 세트를 복사합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function deleteDataset() {
+  // Deletes a dataset named "my_dataset".
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const datasetId = 'my_dataset';
+
+  // Create a reference to the existing dataset
+  const dataset = bigquery.dataset(datasetId);
+
+  // Delete the dataset and its contents
+  await dataset.delete({force: true});
+  console.log(`Dataset ${dataset.id} deleted.`);
+}
+
+--- 탭: PHP ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 PHP 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery PHP API 참고 문서 [https://cloud.google.com/php/docs/reference/cloud-bigquery/latest/BigQueryClient?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+
+
+
+
+pip install google-cloud-bigquery-datatransfer를 사용하여 BigQuery Data Transfer API용 Python 클라이언트 [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest?hl=ko]를 설치합니다. 그런 다음 전송 구성을 만들어 데이터 세트를 복사합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  use Google\Cloud\BigQuery\BigQueryClient;
+
+/** Uncomment and populate these variables in your code */
+// $projectId = 'The Google project ID';
+// $datasetId = 'The BigQuery dataset ID';
+
+$bigQuery = new BigQueryClient([
+    'projectId' => $projectId,
+]);
+$dataset = $bigQuery->dataset($datasetId);
+$table = $dataset->delete();
+printf('Deleted dataset %s' . PHP_EOL, $datasetId);
+
+--- 탭: tabpanel-python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+
+
+
+
+pip install google-cloud-bigquery-datatransfer를 사용하여 BigQuery Data Transfer API용 Python 클라이언트 [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest?hl=ko]를 설치합니다. 그런 다음 전송 구성을 만들어 데이터 세트를 복사합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# TODO(developer): Set model_id to the ID of the model to fetch.
+# dataset_id = 'your-project.your_dataset'
+
+# Use the delete_contents parameter to delete a dataset and its contents.
+# Use the not_found_ok parameter to not receive an error if the dataset has already been deleted.
+client.delete_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_delete_dataset](
+    dataset_id, delete_contents=True, not_found_ok=True
+)  # Make an API request.
+
+print("Deleted dataset '{}'.".format(dataset_id))
+
+--- 탭: tabpanel-ruby ---
+다음 코드 샘플은 빈 데이터 세트를 삭제합니다.
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+  
+
+
+
+  
+  
+    
+    
+      
+        
+          이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Ruby 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Ruby API 참고 문서 [https://googleapis.dev/ruby/google-cloud-bigquery/latest/Google/Cloud/Bigquery.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+
+
+
+
+pip install google-cloud-bigquery-datatransfer를 사용하여 BigQuery Data Transfer API용 Python 클라이언트 [https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest?hl=ko]를 설치합니다. 그런 다음 전송 구성을 만들어 데이터 세트를 복사합니다.
+
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  require "google/cloud/bigquery"
+
+def delete_dataset dataset_id = "my_empty_dataset"
+  bigquery = Google::Cloud::Bigquery [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery-analytics_hub/latest/Google-Cloud-Bigquery.html?hl=ko].new [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery/latest/Google-Cloud-Bigquery.html?hl=ko]
+
+  # Delete a dataset that does not contain any tables
+  dataset = bigquery.dataset dataset_id
+  dataset.delete
+  puts "Dataset #{dataset_id} deleted."
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+다음 코드 샘플은 데이터 세트와 모든 콘텐츠를 삭제합니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  # Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+require "google/cloud/bigquery"
+
+def delete_dataset_and_contents dataset_id = "my_dataset_with_tables"
+  bigquery = Google::Cloud::Bigquery [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery-analytics_hub/latest/Google-Cloud-Bigquery.html?hl=ko].new [https://cloud.google.com/ruby/docs/reference/google-cloud-bigquery/latest/Google-Cloud-Bigquery.html?hl=ko]
+
+  # Use the force parameter to delete a dataset and its contents
+  dataset = bigquery.dataset dataset_id
+  dataset.delete force: true
+  puts "Dataset #{dataset_id} and contents deleted."
+end
+삭제된 데이터 세트에서 여러 테이블 복원
+데이터 세트의 시간 이동 기간 [https://cloud.google.com/bigquery/docs/time-travel?hl=ko] 내에 있는 삭제된 데이터 세트에서 테이블을 복원할 수 있습니다. 전체 데이터 세트를 복원하려면 삭제된 데이터 세트 복원 [https://cloud.google.com/bigquery/docs/restore-deleted-datasets?hl=ko]을 참조하세요.
+원본과 동일한 이름 및 위치를 사용해 데이터 세트를 만듭니다.
+에포크 이후의 밀리초 형식을 사용하여(예: 1418864998000)원본 데이터 세트가 삭제되기 전의 타임스탬프를 선택합니다.
+1418864998000 시점의 originaldataset.table1 테이블을 새 데이터 세트에 복사합니다.
+bq cp originaldataset.table1@1418864998000 mydataset.mytable
+삭제된 데이터 세트에 있던 비어 있지 않은 테이블의 이름을 찾으려면 시간 이동 기간 내에서 데이터 세트의 INFORMATION_SCHEMA.TABLE_STORAGE 뷰 [https://cloud.google.com/bigquery/docs/information-schema-table-storage?hl=ko]를 쿼리합니다.
+삭제된 데이터 세트 복원
+삭제된 데이터 세트를 복원(또는 삭제 취소)하는 방법을 알아보려면 삭제된 데이터 세트 복원 [https://cloud.google.com/bigquery/docs/restore-deleted-datasets?hl=ko]을 참조하세요.
+할당량
+복사 할당량에 대한 자세한 내용은 복사 작업 [https://cloud.google.com/bigquery/quotas?hl=ko#copy_jobs]을 참조하세요. 복사 작업의 사용량은 INFORMATION_SCHEMA에서 확인할 수 있습니다. INFORMATION_SCHEMA.JOBS 뷰를 쿼리하는 방법을 알아보려면 JOBS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko]를 참조하세요.
+가격 책정
+데이터 세트 복사 가격 정보는 데이터 복제 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko#data_replication]을 참고하세요.
+BigQuery는 리전 간 복사로 압축된 데이터를 전송하므로 청구되는 데이터가 실제 데이터 세트 크기보다 작을 수 있습니다. 자세한 내용은 BigQuery 가격 [https://cloud.google.com/bigquery/pricing?hl=ko]을 참조하세요.
+다음 단계
+데이터 세트 생성 [https://cloud.google.com/bigquery/docs/datasets?hl=ko] 방법 알아보기
+데이터 세트 업데이트 [https://cloud.google.com/bigquery/docs/updating-datasets?hl=ko] 방법 알아보기
+도움이 되었나요?
+의견 보내기

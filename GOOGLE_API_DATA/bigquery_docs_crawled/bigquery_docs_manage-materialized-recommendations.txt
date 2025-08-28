@@ -1,0 +1,333 @@
+Source URL: https://cloud.google.com/bigquery/docs/manage-materialized-recommendations
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+소개 [https://cloud.google.com/bigquery/docs/manage-materialized-recommendations?hl=ko#introduction]
+추천자 작동 방식 [https://cloud.google.com/bigquery/docs/manage-materialized-recommendations?hl=ko#how_the_recommender_works]
+제한사항 [https://cloud.google.com/bigquery/docs/manage-materialized-recommendations?hl=ko#limitations]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/manage-materialized-recommendations?hl=ko#before_you_begin]
+필수 권한 [https://cloud.google.com/bigquery/docs/manage-materialized-recommendations?hl=ko#required_permissions]
+구체화된 뷰 추천 보기 [https://cloud.google.com/bigquery/docs/manage-materialized-recommendations?hl=ko#view_materialized_view_recommendations]
+INFORMATION_SCHEMA로 추천 보기 [https://cloud.google.com/bigquery/docs/manage-materialized-recommendations?hl=ko#view_recommendations_with_information_schema]
+구체화된 뷰 추천 적용 [https://cloud.google.com/bigquery/docs/manage-materialized-recommendations?hl=ko#apply_materialized_view_recommendations]
+구체화된 뷰 권장사항 관리
+bookmark_border
+프리뷰
+이 제품 또는 기능에는 서비스별 약관 [https://cloud.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다. GA 이전 제품 및 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다. 자세한 내용은 출시 단계 설명 [https://cloud.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+참고: 이 프리뷰 기능에 대한 액세스를 요청하려면 구체화된 뷰 추천 가입 양식 [https://forms.gle/M3V75cWZZsHmDBCr6]을 작성하세요. 요청이 승인된 후 구체화된 뷰 추천을 볼 수 있을 때까지 최대 일주일이 걸릴 수 있습니다. 이 미리보기 출시와 관련된 의견을 제공하거나 궁금한 점이 있으면 bq-mv-help@google.com [mailto:bq-mv-help@google.com]으로 문의하세요.
+이 문서에서는 구체화된 뷰 추천자의 작동 방식을 설명하고 구체화된 뷰 추천을 보고 적용하는 방법을 보여줍니다.
+소개
+BigQuery 구체화된 뷰 추천자를 사용하면 워크로드 성능을 개선하고 워크로드 실행 비용을 절약할 수 있습니다. 이 추천은 지난 30일 동안의 이전 쿼리 실행 특성을 기반으로 합니다.
+구체화된 뷰 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko]는 성능 및 효율성 향상을 위해 쿼리 결과를 주기적으로 캐시하는 미리 계산된 뷰입니다. 구체화된 뷰는 스마트 미세 조정 [https://cloud.google.com/bigquery/docs/materialized-views-use?hl=ko#smart_tuning]을 사용하여 소스 테이블에 대한 쿼리를 투명하게 재작성하여 기존 구체화된 뷰를 사용하여 성능과 효율성을 개선합니다.
+추천자 작동 방식
+추천자는 BigQuery에서 쿼리 작업을 실행하는 각 프로젝트에 대해 권장사항을 매일 생성합니다. 추천은 지난 30일 동안의 워크로드 실행 분석을 기반으로 합니다. 구체화된 뷰 추천자는 반복적인 쿼리 패턴을 찾고 반복 서브 쿼리를 증분 구체화된 뷰로 이동할 수 있을 때 절약할 수 있는 비용을 계산합니다. 추천자는 쿼리 시간의 절약과 구체화된 뷰의 계정 유지보수 비용을 고려합니다. 이러한 조합된 요소가 상당히 긍정적인 결과를 보이는 경우 추천자는 권장사항을 제공합니다.
+다음 쿼리 예시를 살펴보겠습니다.
+WITH revenue   AS
+(SELECT l_suppkey as supplier_no,
+        sum(l_extendedprice * (1 - l_discount)) as total_revenue
+  FROM lineitem
+  WHERE
+    l_shipdate >= date '1996-01-01'
+    AND l_shipdate < date_add(date '1996-01-01', interval 3 MONTH)
+  GROUP BY l_suppkey)
+SELECT s_suppkey,
+      s_name,
+      s_address,
+      s_phone,
+      total_revenue
+FROM
+supplier,
+revenue
+WHERE s_suppkey = supplier_no
+AND total_revenue =
+  (SELECT max(total_revenue)
+    FROM revenue)
+ORDER BY s_suppkey
+이 쿼리 예시에서는 주요 공급업체에 대한 정보를 보여줍니다. 쿼리에는 모든 공급업체당 총 수익(l_suppkey)을 나타내는 revenue라는 공통 테이블 표현식(CTE)이 포함되어 있습니다. revenue는 공급업체의 total_revenue가 모든 공급업체 간에 max(total_revenue)와 일치한다는 조건에 따라 공급업체 테이블과 조인됩니다. 따라서 이 쿼리는 최대 총수익을 가진 공급업체에 대한 정보(l_suppkey, s_name, s_address, s_phone, total_revenue)를 계산합니다.
+전체 쿼리 자체가 너무 복잡하여 증분 구체화된 뷰에 포함할 수 없습니다. 하지만 supplier CTE는 단일 테이블에 대한 집계이며, 증분 구체화된 뷰에서 지원되는 쿼리 패턴입니다. supplier CTE는 쿼리에서 계산 비용이 가장 많이 드는 부분이기도 합니다. 따라서 예시 쿼리가 끊임없이 변경되는 소스 테이블에 대해 반복적으로 실행된 경우 구체화된 뷰 추천자에서 supplier CTE를 구체화된 뷰에 배치하도록 제안할 수 있습니다. 위 샘플 쿼리에 대한 구체화된 뷰 추천은 다음과 유사할 수 있습니다.
+CREATE MATERIALIZED VIEW mv AS
+SELECT l_suppkey as supplier_no,
+         sum(l_extendedprice * (1 - l_discount)) as total_revenue
+  FROM lineitem
+  WHERE
+    l_shipdate >= date '1996-01-01'
+    AND l_shipdate < date_add(date '1996-01-01', interval 3 MONTH)
+  GROUP BY l_suppkey
+Recommender API는 쿼리 실행 정보도 통계 형식으로 반환합니다. 통계 [https://cloud.google.com/recommender/docs/insights/using-insights?hl=ko]는 프로젝트 워크로드를 이해하는 데 도움이 되는 발견 항목으로, 구체화된 뷰 추천으로 워크로드 비용을 개선하는 방법에 대한 추가 컨텍스트를 제공합니다.
+제한사항
+구체화된 뷰 추천자는 데이터 처리를 선택 해제 [https://cloud.google.com/recommender/docs/opt-out?hl=ko]하는 표준 프로세스를 지원하지 않습니다. 구체화된 뷰 추천을 받지 않으려면 구체화된 뷰 추천 가입 양식 [https://forms.gle/M3V75cWZZsHmDBCr6]에 있는 안내를 따르세요.
+구체화된 뷰 추천은 BigQuery로 내보낼 수 없습니다 [https://cloud.google.com/recommender/docs/bq-export/export-recommendations-to-bq?hl=ko].
+시작하기 전에
+구체화된 뷰 추천을 보거나 적용하려면 먼저 Recommender API를 사용 설정 [https://cloud.google.com/recommender/docs/enabling?hl=ko]해야 합니다.
+필수 권한
+구체화된 뷰 권장사항에 액세스하는 데 필요한 권한을 얻으려면 관리자에게 BigQuery 구체화된 뷰 추천자 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/recommender?hl=ko#recommender.bigqueryMaterializedViewViewer](roles/recommender.bigqueryMaterializedViewViewer) IAM 역할을 부여해 달라고 요청하세요. 역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이 사전 정의된 역할에는 구체화된 뷰 권장사항에 액세스하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+BigQuery에서 IAM 역할 및 권한에 대한 자세한 내용은 IAM 소개 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]를 참조하세요.
+구체화된 뷰 추천 보기
+이 섹션에서는 Google Cloud 콘솔, Google Cloud CLI, Recommender API를 사용하여 구체화된 뷰 권장사항 및 통계를 보는 방법을 설명합니다.
+다음 옵션 중 하나를 선택합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/manage-materialized-recommendations?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색 메뉴에서 추천을 클릭합니다.
+BigQuery 추천 창이 열립니다. BigQuery 워크로드 비용 최적화에서 세부정보 보기를 클릭합니다.
+
+ 
+현재 프로젝트에 생성된 모든 권장사항이 표시된 권장사항 목록이 나타납니다. 특정 구체화된 뷰 추천 또는 테이블 통계에 대한 자세한 내용을 보려면 세부정보를 클릭합니다.
+
+
+또는 탐색 메뉴에서 추천을 클릭하여 프로젝트 또는 조직에 사용할 수 있는 모든 추천을 볼 수 있습니다.
+
+--- 탭: gcloud [https://cloud.google.com/bigquery/docs/manage-materialized-recommendations?hl=ko#gcloud] ---
+특정 프로젝트에 대한 구체화된 뷰 추천을 보려면 gcloud recommender recommendations list 명령어 [https://cloud.google.com/sdk/gcloud/reference/recommender/recommendations/list?hl=ko]를 사용합니다.
+
+gcloud recommender recommendations list \
+    --project=PROJECT_NAME \
+    --location=REGION_NAME \
+    --recommender=google.bigquery.materializedview.Recommender \
+    --format=FORMAT_TYPE \
+
+
+다음을 바꿉니다.
+
+
+PROJECT_NAME: 쿼리 작업을 실행하는 프로젝트의 이름
+REGION_NAME: 쿼리 작업이 실행되는 리전
+FORMAT_TYPE: 지원되는 gcloud CLI 출력 형식 [https://cloud.google.com/sdk/gcloud/reference?hl=ko#--format](예: JSON)
+
+
+다음 표에서는 `recommendations` 응답의 중요한 필드를 설명합니다.
+
+
+    
+    
+        속성
+        하위유형 관련성
+        설명
+    
+    
+    
+    
+        recommenderSubtype
+        CREATE_MATERIALIZED_VIEW
+        권장사항 유형
+    
+    
+        content.overview.sql
+        CREATE_MATERIALIZED_VIEW
+        구체화된 뷰를 만드는 추천 DDL 문
+    
+    
+        content.overview.slotMsSavedMonthly
+        CREATE_MATERIALIZED_VIEW
+        추천 뷰로 매월 절약되는 예상 슬롯(밀리초)
+    
+    
+        content.overview.bytesSavedMonthly
+        CREATE_MATERIALIZED_VIEW
+        추천 뷰로 매월 절약되는 예상 스캔 바이트
+    
+    
+      content.overview.baseTables
+      CREATE_MATERIALIZED_VIEW
+      나중에 사용하기 위해 예약되어 있습니다.
+  
+    
+
+
+
+     recommendations 응답의 다른 필드에 대한 자세한 내용은 REST 리소스: projects.locations.recommenders.recommendation [https://cloud.google.com/recommender/docs/reference/rest/v1/projects.locations.recommenders.recommendations?hl=ko#resource:-recommendation]을 참조하세요.
+    
+     Recommender API 사용 방법에 대한 자세한 내용은 API 사용 - 권장사항 [https://cloud.google.com/recommender/docs/using-api?hl=ko]을 참조하세요.
+    
+
+
+gcloud CLI를 사용하여 구체화된 뷰 추천을 표시한 통계를 보려면 gcloud recommender insights list 명령어 [https://cloud.google.com/sdk/gcloud/reference/recommender/insights/list?hl=ko]를 사용합니다.
+
+gcloud recommender insights list \
+    --project=PROJECT_NAME \
+    --location=REGION_NAME \
+    --insight-type=google.bigquery.materializedview.Insight \
+    --format=FORMAT_TYPE \
+
+
+다음을 바꿉니다.
+
+
+PROJECT_NAME: 쿼리 작업을 실행하는 프로젝트의 이름
+REGION_NAME: 쿼리 작업이 실행되는 리전
+FORMAT_TYPE: 지원되는 gcloud CLI 출력 형식 [https://cloud.google.com/sdk/gcloud/reference?hl=ko#--format](예: JSON)
+
+
+다음 표에서는 통계 API 응답의 중요한 필드를 설명합니다.
+
+
+    
+    
+        속성
+        하위유형 관련성
+        설명
+    
+    
+    
+    
+        content.queryCount
+        CREATE_MATERIALIZED_VIEW
+        구체화된 뷰를 사용하여 최적화할 수 있는 반복 패턴이 있는 관찰 기간의 쿼리 수입니다.
+    
+    
+
+
+
+     통계 응답의 다른 필드에 대한 자세한 내용은 REST 리소스: projects.locations.insightTypes.insights [https://cloud.google.com/recommender/docs/reference/rest/v1/projects.locations.insightTypes.insights?hl=ko#resource:-insight]을 참조하세요.
+    
+     통계 사용에 대한 자세한 내용은 API 사용 - 통계 [https://cloud.google.com/recommender/docs/insights/using-api?hl=ko]를 참조하세요.
+
+--- 탭: REST API [https://cloud.google.com/bigquery/docs/manage-materialized-recommendations?hl=ko#rest-api] ---
+특정 프로젝트에 대한 구체화된 뷰 추천을 보려면 REST API를 사용합니다. 각 명령어에 gcloud CLI를 사용하여 가져올 수 있는 인증 토큰을 제공해야 합니다. 인증 토큰을 가져오는 방법에 대한 자세한 내용은 ID 토큰을 가져오는 방법 [https://cloud.google.com/docs/authentication/get-id-token?hl=ko]을 참조하세요.
+
+curl list 요청을 사용하여 특정 프로젝트에 대한 모든 권장사항을 볼 수 있습니다.
+
+$ curl
+-H "Authorization: Bearer $(gcloud auth print-access-token)"
+-H "x-goog-user-project: PROJECT_NAME" https://recommender.googleapis.com/v1/projects/PROJECT_NAME/locations/LOCATION/recommenders/google.bigquery.materializedview.Recommender/recommendations
+
+
+다음을 바꿉니다.
+
+
+PROJECT_NAME: BigQuery 테이블이 포함된 프로젝트의 이름
+LOCATION: 프로젝트가 있는 위치
+
+
+다음 표에서는 `recommendations` 응답의 중요한 필드를 설명합니다.
+
+
+    
+    
+        속성
+        하위유형 관련성
+        설명
+    
+    
+    
+    
+        recommenderSubtype
+        CREATE_MATERIALIZED_VIEW
+        권장사항 유형
+    
+    
+        content.overview.sql
+        CREATE_MATERIALIZED_VIEW
+        구체화된 뷰를 만드는 추천 DDL 문
+    
+    
+        content.overview.slotMsSavedMonthly
+        CREATE_MATERIALIZED_VIEW
+        추천 뷰로 매월 절약되는 예상 슬롯(밀리초)
+    
+    
+        content.overview.bytesSavedMonthly
+        CREATE_MATERIALIZED_VIEW
+        추천 뷰로 매월 절약되는 예상 스캔 바이트
+    
+    
+      content.overview.baseTables
+      CREATE_MATERIALIZED_VIEW
+      나중에 사용하기 위해 예약되어 있습니다.
+  
+    
+
+
+
+     recommendations 응답의 다른 필드에 대한 자세한 내용은 REST 리소스: projects.locations.recommenders.recommendation [https://cloud.google.com/recommender/docs/reference/rest/v1/projects.locations.recommenders.recommendations?hl=ko#resource:-recommendation]을 참조하세요.
+    
+     Recommender API 사용 방법에 대한 자세한 내용은 API 사용 - 권장사항 [https://cloud.google.com/recommender/docs/using-api?hl=ko]을 참조하세요.
+    
+
+
+REST API를 사용하여 구체화된 뷰 추천을 표시한 통계를 보려면 다음 명령어를 실행합니다.
+
+$ curl
+-H "Authorization: Bearer $(gcloud auth print-access-token)"
+-H "x-goog-user-project: PROJECT_NAME" https://recommender.googleapis.com/v1/projects/PROJECT_NAME/locations/LOCATION/insightTypes/google.bigquery.materializedview.Insight/insights
+
+
+다음을 바꿉니다.
+
+
+PROJECT_NAME: BigQuery 테이블이 포함된 프로젝트의 이름
+LOCATION: 프로젝트가 있는 위치
+
+
+다음 표에서는 통계 API 응답의 중요한 필드를 설명합니다.
+
+
+    
+    
+        속성
+        하위유형 관련성
+        설명
+    
+    
+    
+    
+        content.queryCount
+        CREATE_MATERIALIZED_VIEW
+        구체화된 뷰를 사용하여 최적화할 수 있는 반복 패턴이 있는 관찰 기간의 쿼리 수입니다.
+    
+    
+
+
+
+     통계 응답의 다른 필드에 대한 자세한 내용은 REST 리소스: projects.locations.insightTypes.insights [https://cloud.google.com/recommender/docs/reference/rest/v1/projects.locations.insightTypes.insights?hl=ko#resource:-insight]을 참조하세요.
+    
+     통계 사용에 대한 자세한 내용은 API 사용 - 통계 [https://cloud.google.com/recommender/docs/insights/using-api?hl=ko]를 참조하세요.
+INFORMATION_SCHEMA로 추천 보기
+INFORMATION_SCHEMA 뷰를 사용하여 추천 및 통계를 볼 수도 있습니다. 예를 들어 INFORMATION_SCHEMA.RECOMMENDATIONS 뷰를 사용하면 다음 예시와 같이 슬롯 절감액을 기준으로 상위 3개 추천을 확인할 수 있습니다.
++---------------------------------------------------+--------------------------------------------------------------------------------------------------+
+|                    recommender                    |   target_resources      | est_gb_saved_monthly | slot_hours_saved_monthly |  last_updated_time
++---------------------------------------------------+--------------------------------------------------------------------------------------------------+
+| google.bigquery.materializedview.Recommender      | ["project_resource"]    | 140805.38289248943   |        9613.139166666666 |  2024-07-01 13:00:00
+| google.bigquery.table.PartitionClusterRecommender | ["table_resource_1"]    | 4393.7416711859405   |        56.61476777777777 |  2024-07-01 13:00:00
+| google.bigquery.table.PartitionClusterRecommender | ["table_resource_2"]    |   3934.07264107652   |       10.499466666666667 |  2024-07-01 13:00:00
++---------------------------------------------------+--------------------------------------------------------------------------------------------------+
+자세한 내용은 다음 리소스를 참조하세요.
+INFORMATION_SCHEMA.RECOMMENDATIONS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-recommendations?hl=ko]
+INFORMATION_SCHEMA.RECOMMENDATIONS_BY_ORGANIZATION 뷰 [https://cloud.google.com/bigquery/docs/information-schema-recommendations-by-org?hl=ko]
+INFORMATION_SCHEMA.INSIGHTS 뷰 [https://cloud.google.com/bigquery/docs/information-schema-insights?hl=ko]
+구체화된 뷰 추천 적용
+Google Cloud 콘솔에서 추천 CREATE MATERIALIZED VIEW 유형 DDL 문을 실행하여 구체화된 뷰를 만드는 권장사항을 적용할 수 있습니다.
+참고: 추천 CREATE MATERIALIZED VIEW DDL 문을 실행하려면 다음 모든 위치에 필요한 권한 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#required_permissions]이 있어야 합니다.
+쿼리 프로젝트
+소스 테이블이 포함된 데이터 세트
+구체화된 뷰가 포함된 데이터 세트
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+탐색 메뉴에서 추천을 클릭합니다.
+BigQuery 추천 창이 열립니다. BigQuery 워크로드 비용 최적화에서 세부정보 보기를 클릭합니다.
+선택한 범위에 따라 현재 프로젝트 또는 조직에 대해 생성된 모든 권장사항이 표시된 권장사항 목록이 나타납니다. 구체화된 뷰 권장사항을 찾고 세부정보를 클릭합니다.
+BigQuery Studio에서 보기를 클릭합니다. CREATE MATERIALIZED VIEW DDL 문이 포함된 SQL 편집기가 열립니다.
+제공된 CREATE MATERIALIZED VIEW 문에 있는 MATERIALIZED_VIEW 자리표시자를 고유한 구체화된 뷰 이름으로 수정합니다.
+CREATE MATERIALIZED VIEW DDL 문을 실행하여 권장되는 구체화된 뷰를 만듭니다.
+권장사항 문제 해결
+문제: 특정 테이블에 대한 추천이 표시되지 않습니다.
+다음과 같은 경우 구체화된 뷰 권장사항이 표시되지 않을 수 있습니다.
+프로젝트에서 실행한 쿼리 작업 간에 반복되는 쿼리 패턴이 없습니다.
+반복되는 쿼리 패턴은 증분 구체화된 뷰의 제한사항 [https://cloud.google.com/bigquery/docs/materialized-views-create?hl=ko#supported-mvs]을 충족하지 않으며 스마트 미세 조정에 적합한 구체화된 뷰에 배치할 수 없습니다.
+잠재적인 구체화된 뷰는 유지보수 비용이 높습니다. 예를 들어 소스 테이블은 DML(Data Manipulation Language) 작업에 의해 수정되는 경우가 많으므로 구체화된 뷰가 전체 새로고침되어 추가 비용이 발생합니다.
+공통적인 반복 패턴이 있는 쿼리의 수가 충분하지 않습니다.
+월별 예상 절감액이 너무 적습니다(슬롯 1개 미만).
+프로젝트에서 실행하는 쿼리 작업은 이미 구체화된 뷰를 사용합니다.
+가격 책정
+권장사항을 확인할 때 워크로드 성능에 미치는 비용 또는 부정적인 영향은 없습니다.
+구체화된 뷰를 만들어 추천을 적용하면 스토리지, 유지보수, 쿼리 비용이 발생할 수 있습니다. 자세한 내용은 구체화된 뷰 가격 책정 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko#materialized_views_pricing]을 참고하세요.
+도움이 되었나요?
+의견 보내기

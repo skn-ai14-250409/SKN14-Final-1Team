@@ -1,0 +1,205 @@
+Source URL: https://cloud.google.com/bigquery/docs/using-row-level-security-with-features
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+TRUE 필터 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko#the_true_filter]
+TRUE 필터 예시 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko#true_filter_example]
+TRUE 필터와 함께 작동하는 기능 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko#features_that_work_with_the_true_filter]
+JSON 열이 있는 BigQuery 테이블 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko#bigquery_table_with_json_columns]
+BigQuery BI Engine 및 Looker Studio [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko#bi-engine]
+다른 BigQuery 기능과 함께 행 수준 보안 사용
+bookmark_border
+이 문서에서는 다른 BigQuery 기능과 함께 행 수준 액세스 보안을 사용하는 방법을 설명합니다.
+이 문서를 읽기 전에 BigQuery 행 수준 보안 소개 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko] 및 행 수준 보안 작업 [https://cloud.google.com/bigquery/docs/managing-row-level-security?hl=ko]을 읽어 행 수준 보안을 숙지합니다.
+참고: 외부 ID 공급업체 [https://cloud.google.com/iam/docs/workforce-identity-federation?hl=ko]에서 사용자의 액세스 권한을 관리할 때는 user:kiran@example.com, group:support@example.com, domain:example.com과 같은 Google 계정 주 구성원 식별자의 인스턴스를 적절한 직원 ID 제휴 주 구성원 식별자 [https://cloud.google.com/iam/docs/principal-identifiers?hl=ko]로 바꿉니다.
+TRUE 필터
+행 수준 액세스 정책은 쿼리를 실행할 때 사용자에게 표시되는 결과 데이터를 필터링할 수 있습니다. DML과 같은 비쿼리 작업을 실행하려면 테이블의 모든 행에 대한 전체 액세스 권한이 필요합니다. 필터 표현식이 TRUE로 설정된 행 액세스 정책을 통해 전체 액세스 권한이 부여됩니다. 이 행 수준 액세스 정책을 TRUE 필터라고 합니다.
+모든 사용자는 서비스 계정을 포함하여 TRUE 필터 액세스 권한을 부여받을 수 있습니다.
+비쿼리 작업 예시는 다음과 같습니다.
+기타 BigQuery API(예: BigQuery Storage Read API [https://cloud.google.com/bigquery/docs/reference/storage?hl=ko])
+bq head [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_head] 명령어와 같은 일부 bq 명령줄 도구 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko] 명령어
+테이블 복사 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko#features_that_work_with_the_true_filter]
+TRUE 필터 예시
+CREATE ROW ACCESS POLICY all_access ON project.dataset.table1
+GRANT TO ("group:all-rows-access@example.com")
+FILTER USING (TRUE);
+TRUE 필터와 함께 작동하는 기능
+행 액세스 정책으로 보호된 테이블에서 DML [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko] 작업을 사용하는 경우 전체 테이블에 대한 액세스를 의미하는 TRUE 필터를 사용해야 합니다. 테이블 스키마를 변경하지 않는 작업은 테이블의 행 액세스 정책을 유지합니다.
+예를 들어 ALTER TABLE RENAME TO [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_rename_to_statement] 문은 원래 테이블에서 새 테이블로 행 액세스 정책을 복사합니다. 또 다른 예로 TRUNCATE TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/dml-syntax?hl=ko#truncate_table_statement] 문은 테이블에서 모든 행을 삭제하지만 테이블 스키마와 행 액세스 정책은 유지합니다.
+복사 작업
+행 수준 액세스 정책이 하나 이상 있는 테이블을 복사 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#copy-table]하려면 먼저 소스 테이블에 TRUE 필터 액세스 권한을 부여해야 합니다. 소스 테이블의 모든 행 수준 액세스 정책도 새 대상 테이블에 복사됩니다. 행 수준 액세스 정책이 없는 소스 테이블을 행 수준 액세스 정책이 있는 대상 테이블에 복사하면 --append_table 플래그를 사용하거나 "writeDisposition": "WRITE_APPEND"가 설정되어 있지 않는 한, 행 수준 액세스 정책이 대상 테이블에서 삭제됩니다.
+리전 간 복사가 허용되며 모든 정책이 복사됩니다. 쿼리에서 하위 쿼리 정책에 잘못된 테이블 참조가 포함된 경우 복사가 완료된 후 후속 쿼리가 손상될 수 있습니다.
+테이블의 행 수준 액세스 정책에는 고유한 이름이 있어야 합니다. 복사 중에 행 수준 액세스 정책 이름이 충돌하면 잘못된 입력 오류가 발생합니다.
+주의: 테이블을 복사한 후 복사된 행 수준 또는 열 수준 액세스 정책은 원본 테이블의 보안과 별개입니다. 대상 테이블의 보안은 원본 테이블의 보안과 동기화되지 않습니다.
+행 수준 액세스 정책으로 테이블을 복사하기 위해 필요한 권한
+행 수준 액세스 정책이 하나 이상 있는 테이블을 복사하려면 테이블 및 파티션을 복사하는 역할 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#roles_to_copy_tables_and_partitions] 외에도 다음 권한이 있어야 합니다.
+권한 리소스
+bigquery.rowAccessPolicies.list 소스 테이블
+bigquery.rowAccessPolicies.getIamPolicy 소스 테이블
+TRUE 필터 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko#the_true_filter] 소스 테이블
+bigquery.rowAccessPolicies.create 대상 테이블
+bigquery.rowAccessPolicies.setIamPolicy 대상 테이블
+BigQuery API의 Tabledata.list
+행 수준 액세스 정책이 있는 테이블에서 BigQuery API의 tabledata.list 메서드를 사용하려면 TRUE 필터 액세스 권한이 필요합니다.
+DML
+행 수준 액세스 정책이 있는 테이블을 업데이트하는 DML 문을 실행하려면 테이블에 대한 TRUE 필터 액세스 권한이 필요합니다.
+특히 MERGE 문은 다음과 같이 행 수준 액세스 정책과 상호작용합니다.
+대상 테이블에 행 수준 액세스 정책이 있으면 대상 테이블에 대한 TRUE 필터 액세스 권한이 필요합니다.
+소스 테이블에 행 수준 액세스 정책이 포함되면 MERGE 문이 사용자에게 표시되는 행에서만 작동합니다.
+테이블 스냅샷
+테이블 스냅샷 [https://cloud.google.com/bigquery/docs/table-snapshots-intro?hl=ko]은 행 수준 보안을 지원합니다. 행 수준 액세스 정책이 있는 테이블을 복사하는 데 필요한 권한 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko#required_permissions_to_copy_a_table_with_a_row-level_access_policy]에 설명된 것처럼 사용자는 기본 테이블(소스 테이블) 및 테이블 스냅샷(대상 테이블)에 대한 권한이 있어야 합니다.
+JSON 열이 있는 BigQuery 테이블
+행 수준 액세스 정책은 JSON 열 [https://cloud.google.com/bigquery/docs/json-data?hl=ko]에 적용할 수 없습니다. 행 수준 보안의 제한사항에 대해 자세히 알아보려면 제한사항 [https://cloud.google.com/bigquery/docs/row-level-security-intro?hl=ko#limitations]을 참조하세요.
+BigQuery BI Engine 및 Looker Studio
+BigQuery BI Engine [https://cloud.google.com/bigquery/docs/bi-engine-intro?hl=ko]은 행 수준 액세스 정책이 하나 이상 있는 테이블에서 실행되는 쿼리를 가속화하지 않습니다. 이러한 쿼리는 BigQuery에서 표준 쿼리로 실행됩니다.
+Looker Studio 대시보드의 데이터는 기본 소스 테이블의 행 수준 액세스 정책에 따라 필터링됩니다.
+열 수준 보안
+열 수준 액세스 제어 [https://cloud.google.com/bigquery/docs/column-level-security-intro?hl=ko] 및 동적 데이터 마스킹 [https://cloud.google.com/bigquery/docs/column-data-masking-intro?hl=ko]을 모두 포함하는 행 수준 보안과 열 수준 보안은 완전하게 호환됩니다.
+주요 사항은 다음과 같습니다.
+특정 열의 데이터에 대한 액세스 권한이 없는 경우에도 해당 열의 데이터를 필터링하도록 행 수준 액세스 정책을 적용할 수 있습니다.
+서브 쿼리 행 수준 액세스 정책으로 이러한 열에 액세스하려고 하면 액세스가 거부되었음을 나타내는 오류가 발생합니다. 이러한 열은 시스템 참조 열로 간주되지 않습니다.
+비 서브 쿼리 행 수준 액세스 정책으로 이러한 열에 액세스하려고 하면 열 수준 보안을 우회합니다.
+열 수준 보안으로 인해 제한되고 쿼리의 SELECT 문 또는 서브 쿼리 행 수준 액세스 정책에서 열의 이름이 지정된 경우 오류가 발생합니다.
+열 수준 보안은 또한 SELECT * 쿼리 문으로 적용됩니다. SELECT *는 제한된 열을 명시적으로 지정하는 쿼리와 동일하게 취급됩니다.
+행 수준 보안과 열 수준 보안의 상호작용 예시
+이 예시에서는 테이블을 보호한 후 쿼리하는 과정을 안내합니다.
+데이터
+열 3개가 있는 my_table이라는 테이블이 포함된 my_dataset라는 데이터 세트의 데이터 소유자 역할을 수행한다고 가정해 보겠습니다. 테이블에는 다음 테이블에 표시된 데이터가 포함됩니다.
+이 예시에서 한 사용자는 Alice이고 이메일 주소는 alice@example.com입니다. 두 번째 사용자는 Alice의 동료인 Bob입니다.
+rank 과일 색상
+1 사과 빨간색
+2 주황색 주황색
+3 라임색 녹색
+4 레몬 노란색
+보안
+Alice는 rank 열에서 번호가 짝수가 아닌 홀수인 행만 볼 수 있게 하려고 합니다. Bob은 짝수이든 홀수이든 어떠한 행도 볼 수 없어야 합니다. fruit 열의 데이터는 어떠한 사용자도 볼 수 없어야 합니다.
+Alice가 짝수 행을 볼 수 없도록 제한하려면 rank 열에 표시되는 데이터를 기준으로 하는 필터 표현식이 있는 행 수준 액세스 정책을 만듭니다. Bob은 짝수 또는 홀수 행을 볼 수 없도록 수혜자 목록에 포함하지 않습니다.
+CREATE ROW ACCESS POLICY only_odd ON my_dataset.my_table GRANT
+TO ('user:alice@example.com') FILTER USING (MOD(rank, 2) = 1);
+모든 사용자가 fruit 열의 데이터를 볼 수 없도록 제한하려면 모든 사용자가 어떠한 데이터에도 액세스할 수 없도록 하는 열 수준 보안 정책 태그를 만듭니다.
+마지막으로 color 열에 대한 액세스를 다음 두 가지 방법으로 제한합니다. 즉, 열에 모든 사용자의 모든 액세스를 금지하는 열 수준 보안 정책 태그를 적용합니다. 또한 color 열의 행 데이터 중 일부를 필터링하는 행 수준 액세스 정책의 영향을 받습니다.
+이 두 번째 행 수준 액세스 정책은 color 열이 green 값인 행만 표시합니다.
+CREATE ROW ACCESS POLICY only_green ON my_dataset.my_table
+GRANT TO ('user:alice@example.com') FILTER USING (color="green");
+Bob의 쿼리
+Alice의 동료인 Bob이 my_dataset.my_table의 데이터를 쿼리하려고 하면 Bob은 테이블의 모든 행 수준 액세스 정책에서 수혜자 목록에 속하지 않았으므로 어떤 행도 볼 수 없습니다.
+쿼리 my_dataset.my_table 설명
+rank
+
+(일부 데이터는 행 액세스 정책 only_odd의 영향을 받음) fruit
+
+(모든 데이터는 CLS 정책 태그로 보호됨) color
+
+(모든 데이터는 CLS 정책 태그로 보호되며 또한 일부 데이터는 행 액세스 정책 only_green의 영향을 받음)
+SELECT rank FROM my_dataset.my_table
+(0) 행 반환 Bob은 행 수준 액세스 정책의 수혜자 목록에 속하지 않으므로 이 쿼리는 성공하지만 행 데이터는 반환되지 않습니다.
+
+결과가 행 액세스 정책에 따라 필터링되었을 수 있다는 메시지가 Bob에게 표시됩니다.
+Alice의 쿼리
+Alice가 쿼리를 실행하여 my_dataset.my_table의 데이터에 액세스할 때의 결과는 다음 테이블과 같이 실행한 쿼리와 보안에 따라 달라집니다.
+쿼리 my_dataset.my_table 설명
+rank
+
+(일부 데이터는 행 액세스 정책 only_odd의 영향을 받음) fruit
+
+(모든 데이터는 CLS 정책 태그로 보호됨) color
+
+(모든 데이터는 CLS 정책 태그로 보호되며 또한 일부 데이터는 행 액세스 정책 only_green의 영향을 받음)
+SELECT rank FROM my_dataset.my_table
+
+(1) 행이 반환됩니다. Alice는 only_odd 및 only_green 행 수준 액세스 정책의 수혜자 목록에 있습니다. 따라서 Alice에게는 홀수 순위와 녹색 색상만 표시됩니다. 따라서 Alice에게는 다음 행이 표시됩니다.
+
+rank: 3, color: green.
+
+열 수준 보안 정책에 의해 제한되어 있으므로 과일 열이 Alice에게 표시되지 않습니다.
+
+결과가 행 액세스 정책에 따라 필터링되었을 수 있다는 메시지가 Alice에게 표시됩니다.
+SELECT fruit FROM my_dataset.my_table
+
+access denied
+fruit 열의 이름이 쿼리에서 명시적으로 지정되었습니다.
+
+열 수준 보안이 적용됩니다.
+
+액세스가 거부됩니다.
+SELECT color FROM my_dataset.my_table
+
+(1) 행이 반환됩니다. Alice는 only_odd 및 only_green 행 수준 액세스 정책의 수혜자 목록에 있습니다. 따라서 Alice에게는 홀수 순위와 녹색 색상만 표시됩니다. 따라서 Alice에게는 다음 행이 표시됩니다.
+
+rank: 3, color: green.
+
+열 수준 보안 정책에 의해 제한되어 있으므로 과일 열이 Alice에게 표시되지 않습니다.
+
+결과가 행 액세스 정책에 따라 필터링되었을 수 있다는 메시지가 Alice에게 표시됩니다.
+SELECT rank, fruit FROM my_dataset.my_table
+
+access denied
+fruit 열의 이름이 쿼리에서 명시적으로 지정되었습니다.
+
+rank 열의 데이터에 대한 행 수준 액세스 정책이 적용되기 전에 열 수준 보안이 적용됩니다.
+
+액세스가 거부됩니다.
+SELECT rank, color FROM my_dataset.my_table
+
+(1) 행이 반환됩니다. Alice는 only_odd 및 only_green 행 수준 액세스 정책의 수혜자 목록에 있습니다. 따라서 Alice에게는 홀수 순위와 녹색 색상만 표시됩니다. 따라서 Alice에게는 다음 행이 표시됩니다.
+
+rank: 3, color: green.
+
+열 수준 보안 정책에 의해 제한되어 있으므로 과일 열이 Alice에게 표시되지 않습니다.
+
+결과가 행 액세스 정책에 따라 필터링되었을 수 있다는 메시지가 Alice에게 표시됩니다.
+SELECT fruit, color FROM my_dataset.my_table
+
+access denied
+fruit 열의 이름이 쿼리에서 명시적으로 지정되었습니다.
+
+color 열의 데이터에 대한 행 수준 액세스 정책이 적용되기 전에 fruit 열의 열 수준 보안이 적용됩니다.
+
+액세스가 거부됩니다.
+SELECT * FROM my_dataset.my_table
+
+(1) 행이 반환됩니다. Alice는 only_odd 및 only_green 행 수준 액세스 정책의 수혜자 목록에 있습니다. 따라서 Alice에게는 홀수 순위와 녹색 색상만 표시됩니다. 따라서 Alice에게는 다음 행이 표시됩니다.
+
+rank: 3, color: green.
+
+열 수준 보안 정책에 의해 제한되어 있으므로 과일 열이 Alice에게 표시되지 않습니다.
+
+결과가 행 액세스 정책에 따라 필터링되었을 수 있다는 메시지가 Alice에게 표시됩니다.
+TRUE 필터 액세스
+마지막으로 TRUE 필터 액세스 섹션 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko#the_true_filter]의 설명대로 Alice 또는 Bob에게 TRUE 필터 액세스 권한이 있으면 테이블의 모든 행이 표시되며 이러한 행을 비쿼리 작업으로 사용할 수 있습니다. 그러나 테이블에 열 수준 보안이 있더라도 여전히 적용되고 결과에 영향을 미칠 수 있습니다.
+실행 그래프
+행 수준 액세스 정책이 있는 작업에는 쿼리 실행 그래프 [https://cloud.google.com/bigquery/docs/query-insights?hl=ko]를 사용할 수 없습니다.
+추출 작업
+테이블에 행 수준 액세스 정책이 포함된 경우 추출 작업을 실행할 때 볼 수 있는 데이터만 Cloud Storage로 내보냅니다.
+Legacy SQL
+행 수준 액세스 정책은 Legacy SQL과 호환되지 않습니다. 행 수준 액세스 정책이 있는 테이블 쿼리에는 GoogleSQL [https://cloud.google.com/bigquery/docs/reference/standard-sql/migrating-from-legacy-sql?hl=ko]이 사용되어야 합니다. Legacy SQL 쿼리는 거부됩니다.
+파티션을 나눈 테이블 및 클러스터링된 테이블
+행 수준 보안은 파티션을 나눈 테이블 [https://cloud.google.com/bigquery/docs/partitioned-tables?hl=ko]의 기능인 쿼리 프루닝 [https://cloud.google.com/bigquery/docs/querying-partitioned-tables?hl=ko]에 참여하지 않습니다.
+행 수준 보안은 파티션을 나눈 테이블과 클러스터형 테이블과 호환되지만 행 데이터를 필터링하는 행 수준 액세스 정책은 파티션 프루닝 중에 적용되지 않습니다. 파티션 열에서 작동하는 WHERE 절을 지정하여 행 수준 보안을 사용하는 테이블에는 파티션 프루닝을 사용할 수 있습니다. 마찬가지로, 행 수준 액세스 정책 자체가 클러스터링된 테이블에 대한 쿼리의 성능을 개선하지 않지만 사용자가 적용하는 다른 필터링을 방해하지는 않습니다.
+쿼리 가지치기는 정책에 필터를 사용하여 행 수준 액세스 정책을 실행하는 동안 수행됩니다.
+테이블 이름 바꾸기
+행 액세스 정책이 하나 이상 있는 테이블의 이름을 바꾸는 데 TRUE 필터 액세스 권한이 필요하지 않습니다. DDL 문으로 테이블 이름을 바꿀 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#alter_table_rename_to_statement] 수 있습니다.
+대신 또한 테이블을 복사하고 대상 테이블에 다른 이름을 지정할 수 있습니다. 소스 테이블에 행 수준 액세스 정책이 있는 경우 자세한 내용을 보려면 이 페이지의 테이블 복사 작업 [https://cloud.google.com/bigquery/docs/using-row-level-security-with-features?hl=ko#features_that_work_with_the_true_filter]을 참조하세요.
+스트리밍 업데이트
+변경 데이터 캡처 [https://cloud.google.com/bigquery/docs/change-data-capture?hl=ko]로 스트리밍 테이블 UPDATE 또는 DELETE 작업을 실행하려면 TRUE 필터 액세스 권한이 있어야 합니다.
+시간 이동
+테이블 관리자만 행 수준 액세스 정책이 있거나 이전에 있었던 테이블의 이전 데이터에 액세스할 수 있습니다. 다른 사용자가 행 수준 액세스 권한이 있거나 이전에 있었던 테이블에서 시간 이동 데코레이터를 사용하면 access denied 오류가 발생합니다. 자세한 내용은 시간 이동 및 행 수준 액세스 [https://cloud.google.com/bigquery/docs/time-travel?hl=ko#time_travel_and_row-level_access]를 참조하세요.
+논리적 뷰, 구체화된 뷰, 승인된 뷰
+이 섹션에서는 다양한 유형의 BigQuery 뷰와 행 수준 보안과의 상호작용 방식을 설명합니다.
+논리적 뷰 또는 구체화된 뷰
+논리적 뷰 또는 구체화된 뷰는 테이블에 대한 쿼리에서 빌드됩니다. 쿼리 결과는 일반적으로 테이블 데이터의 하위 집합입니다.
+두 유형의 뷰에 표시되는 데이터는 기본 소스 테이블의 행 수준 액세스 정책에 따라 필터링됩니다. 그러나 행 수준 액세스 정책에서는 뷰 또는 구체화된 뷰를 참조할 수 없습니다.
+구체화된 뷰 성능
+또한 행 수준 액세스 정책이 있는 기본 테이블에서 구체화된 뷰 [https://cloud.google.com/bigquery/docs/materialized-views-intro?hl=ko]가 파생되는 경우의 쿼리 성능은 소스 테이블을 직접 쿼리할 때와 동일합니다. 즉, 소스 테이블에 행 수준 보안이 있으면 소스 테이블을 쿼리할 때에 비해 구체화된 뷰를 쿼리할 때 일반적으로 나타나는 성능상의 이점이 없습니다.
+승인된 뷰
+논리적 뷰 또는 구체화된 뷰를 승인할 수도 있습니다. 즉, 특정 사용자 또는 그룹(주 구성원)과 뷰를 공유할 수 있습니다. 그러면 주 구성원은 뷰를 쿼리할 수 있지만 기본 테이블에는 액세스할 수 없습니다. 자세한 내용은 승인된 뷰 [https://cloud.google.com/bigquery/docs/authorized-views?hl=ko]를 참조하세요.
+와일드 카드 쿼리
+행 수준 액세스 정책이 있는 테이블에 대한 와일드 카드 쿼리 [https://cloud.google.com/bigquery/docs/querying-wildcard-tables?hl=ko]는 INVALID_INPUT 오류와 함께 실패합니다.
+다음 단계
+행 수준 액세스 정책에 대한 권장사항은 BigQuery의 행 수준 보안 권장사항 [https://cloud.google.com/bigquery/docs/best-practices-row-level-security?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

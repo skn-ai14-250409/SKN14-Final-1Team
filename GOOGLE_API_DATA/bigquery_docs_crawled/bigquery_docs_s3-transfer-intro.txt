@@ -1,0 +1,128 @@
+Source URL: https://cloud.google.com/bigquery/docs/s3-transfer-intro
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+의견 보내기
+이 페이지의 내용
+지원되는 파일 형식
+지원되는 압축 유형
+Amazon S3 기본 요건
+Amazon S3 URI
+Amazon S3 전송 런타임 매개변수화
+Amazon S3 전송 소개
+bookmark_border
+Amazon S3용 BigQuery Data Transfer Service를 사용하면 Amazon S3에서 BigQuery로 로드하는 반복 작업을 자동으로 예약하고 관리할 수 있습니다.
+지원되는 파일 형식
+BigQuery Data Transfer Service는 Amazon S3에서 다음 형식 중 하나로 데이터 로드를 지원합니다.
+쉼표로 구분된 값(CSV)
+JSON(줄바꿈으로 구분)
+Avro
+Parquet
+ORC
+지원되는 압축 유형
+Amazon S3용 BigQuery Data Transfer Service는 압축 데이터 로드를 지원합니다. BigQuery Data Transfer Service에서 지원되는 압축 유형은 BigQuery 로드 작업에서 지원되는 압축 유형과 동일합니다. 자세한 내용은 압축 데이터 및 압축되지 않은 데이터 로드 [https://cloud.google.com/bigquery/docs/batch-loading-data?hl=ko#loading_compressed_and_uncompressed_data]를 참조하세요.
+Amazon S3 기본 요건
+Amazon S3 데이터 소스에서 데이터를 로드하려면 다음과 같은 기본 요건이 필요합니다.
+소스 데이터의 Amazon S3 URI를 제공해야 합니다.
+액세스 키 ID가 있어야 합니다.
+보안 비밀 액세스 키가 있어야 합니다.
+Amazon S3 소스 데이터에 최소한 AWS 관리 정책 AmazonS3ReadOnlyAccess [https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_manage.html]를 설정합니다.
+Amazon S3 URI
+Amazon S3 URI를 제공할 때 경로는 s3://bucket/folder1/folder2/... 형식이어야 합니다. 최상위 수준 버킷 이름만 필요합니다. 폴더 이름은 선택사항입니다. 버킷 이름만 포함된 URI를 지정하면 버킷의 모든 파일이 전송되어 BigQuery로 로드됩니다.
+Amazon S3 전송 런타임 매개변수화
+Amazon S3 URI와 대상 테이블이 모두 매개변수화 [https://cloud.google.com/bigquery/docs/s3-transfer-parameters?hl=ko]될 수 있으므로 날짜별로 구성된 Amazon S3 버킷에서 데이터를 로드할 수 있습니다. URI의 버킷 부분은 매개 변수화할 수 없습니다. Amazon S3 전송에 사용되는 매개변수는 Cloud Storage 전송에 사용되는 매개변수와 동일합니다.
+자세한 내용은 전송에 런타임 매개변수 [https://cloud.google.com/bigquery/docs/s3-transfer-parameters?hl=ko]를 참조하세요.
+Amazon S3 전송을 위한 데이터 수집
+Amazon S3 전송을 설정 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko#set_up_an_amazon_s3_data_transfer]할 때 전송 구성에서 쓰기 환경설정을 선택하여 데이터가 BigQuery에 로드되는 방법을 지정할 수 있습니다.
+사용 가능한 쓰기 환경설정에는 증분 전송 [https://cloud.google.com/bigquery/docs/s3-transfer-intro?hl=ko#incremental_transfers] 및 잘린 전송 [https://cloud.google.com/bigquery/docs/s3-transfer-intro?hl=ko#truncated_transfers] 두 가지 유형이 있습니다.
+증분 전송
+증분 전송이라고도 하는 APPEND 또는 WRITE_APPEND 쓰기 환경설정이 있는 전송 구성에서는 이전의 BigQuery 대상 테이블로의 성공적인 전송 이후의 새 데이터를 점진적으로 추가합니다. 전송 구성이 APPEND 쓰기 환경설정으로 실행되면 BigQuery Data Transfer Service는 이전에 성공한 전송 실행 이후 수정된 파일을 필터링합니다. 파일이 수정되는 시간을 확인하기 위해 BigQuery Data Transfer Service는 파일 메타데이터에서 "마지막 수정 시간" 속성을 찾습니다. 예를 들어 BigQuery Data Transfer Service는 Cloud Storage 파일에서 updated 타임스탬프 속성 [https://cloud.google.com/storage/docs/metadata?hl=ko#modification-time]을 찾습니다. BigQuery Data Transfer Service가 마지막으로 성공한 전송 타임스탬프 이후에 발생한 '마지막 수정 시간'이 있는 파일을 찾으면 BigQuery Data Transfer Service는 증분 전송으로 해당 파일을 전송합니다.
+증분 전송 작동 방식을 이해하려면 다음 Cloud Storage 전송 예시를 참조하세요. 사용자가 2023-07-01T00:00Z에 file_1이라는 파일을 Cloud Storage 버킷에 만듭니다. file_1의 updated 타임스탬프 [https://cloud.google.com/storage/docs/metadata?hl=ko#modification-time]는 파일이 생성된 시간입니다. 그런 다음 사용자는 Cloud Storage 버킷에서 2023-07-01T03:00Z부터 시작하여 03:00Z에 매일 한 번 실행되도록 예약된 증분 전송을 만듭니다.
+2023-07-01T03:00Z에 첫 번째 전송 실행이 시작됩니다. 이 구성에 대한 전송 실행이 이번이 처음이기 때문에 BigQuery Data Transfer Service가 소스 URI와 일치하는 모든 파일을 대상 BigQuery 테이블에 로드하려고 시도합니다. 전송 실행이 성공하고 BigQuery Data Transfer Service가 대상 BigQuery 테이블에 file_1을 성공적으로 로드합니다.
+다음 전송 실행인 2023-07-02T03:00Z에는 updated 타임스탬프 속성이 마지막으로 성공한 전송 실행(2023-07-01T03:00Z)보다 큰 파일을 감지하지 않습니다. 전송 실행은 추가 데이터를 대상 BigQuery 테이블에 로드하지 않고도 성공합니다.
+위 예시에서는 BigQuery Data Transfer Service가 소스 파일의 updated 타임스탬프 속성을 확인하여 소스 파일에 변경사항이 있는지 확인하고 감지한 변경사항이 있으면 이를 전송하는 방법을 보여줍니다.
+동일한 예시를 따라 사용자가 2023-07-03T00:00Z 시간에 Cloud Storage 버킷에 file_2라는 다른 파일을 만든다고 가정해 보겠습니다. file_2의 updated 타임스탬프 [https://cloud.google.com/storage/docs/metadata?hl=ko#modification-time]는 파일이 생성된 시간입니다.
+다음 전송 실행인 2023-07-03T03:00Z에는 file_2가 마지막으로 성공한 전송 실행(2023-07-01T03:00Z)보다 큰 updated 타임스탬프를 감지합니다. 전송 실행이 시작될 때 일시적인 오류로 인해 실패한다고 가정해 보세요. 이 시나리오에서는 file_2가 대상 BigQuery 테이블에 로드되지 않습니다. 마지막으로 성공한 전송 실행 타임스탬프는 2023-07-01T03:00Z로 유지됩니다.
+다음 전송 실행인 2023-07-04T03:00Z에는 file_2가 마지막으로 성공한 전송 실행(2023-07-01T03:00Z)보다 큰 updated 타임스탬프를 감지합니다. 이번에는 전송 실행이 문제 없이 완료되므로 file_2가 대상 BigQuery 테이블에 성공적으로 로드됩니다.
+다음 전송 실행인 2023-07-05T03:00Z에는 updated 타임스탬프가 마지막으로 성공한 전송 실행(2023-07-04T03:00Z)보다 큰 파일을 감지하지 않습니다. 전송 실행은 추가 데이터를 대상 BigQuery 테이블에 로드하지 않고도 성공합니다.
+앞의 예시는 전송이 실패할 때 BigQuery 대상 테이블에 파일이 전송되지 않는 것을 보여줍니다. 모든 파일 변경사항은 다음에 전송 실행이 성공할 때 전송됩니다. 전송이 실패한 후 다음 전송이 성공해도 중복 데이터가 발생하지는 않습니다. 전송이 실패한 경우 정기적으로 예약된 시간 이외의 전송을 수동으로 트리거 [https://cloud.google.com/bigquery/docs/working-with-transfers?hl=ko#manually_trigger_a_transfer]하도록 선택할 수도 있습니다.
+경고: BigQuery Data Transfer Service는 증분 전송 예시에서 볼 수 있듯이 각 소스 파일의 '마지막 수정 시간' 속성을 사용하여 전송할 파일을 결정합니다. 이러한 속성을 수정하면 전송 시 특정 파일을 건너뛰거나 동일한 파일을 여러 번 로드할 수 있습니다. 이 속성은 BigQuery Data Transfer Service에서 지원되는 각 스토리지 시스템에서 이름이 서로 다를 수 있습니다. 예를 들어 Cloud Storage 객체는 이 속성을 updated [https://cloud.google.com/storage/docs/metadata?hl=ko#modification-time]라고 합니다.
+잘린 전송
+잘린 전송이라고도 하는 MIRROR 또는 WRITE_TRUNCATE 쓰기 환경설정이 있는 전송 구성은 각 전송 중에 BigQuery 대상 테이블의 데이터를 소스 URI와 일치하는 모든 파일의 데이터로 덮어씁니다. MIRROR는 대상 테이블의 새 데이터 복사본을 덮어씁니다. 대상 테이블에 파티션 데코레이터가 사용될 경우 전송 실행 시 지정된 파티션의 데이터만 덮어씁니다. 파티션 데코레이터가 있는 대상 테이블은 my_table${run_date} 형식입니다(예: my_table$20230809).
+하루에 동일한 증분 또는 잘린 전송을 반복해도 중복 데이터가 발생하지 않습니다. 그러나 동일한 BigQuery 대상 테이블에 영향을 미치는 여러 전송 구성을 실행하는 경우 BigQuery Data Transfer Service에서 중복 데이터가 발생할 수 있습니다.
+Amazon S3 URI의 와일드 카드 지원
+소스 데이터가 기본 이름을 공유하는 여러 파일로 분리되는 경우, 데이터를 로드할 때 URI에 와일드 카드를 사용할 수 있습니다. 와일드 카드는 별표(&ast;) 하나로 구성되며, 버킷 이름을 제외하고 Amazon S3 URI의 어느 곳에나 사용할 수 있습니다.
+Amazon S3 URI에는 두 개 이상의 와일드 카드를 사용할 수 있지만, Amazon S3 URI에 와일드 카드를 하나만 지정하면 어느 정도 최적화가 가능합니다.
+전송 실행당 최대 파일 수에는 상한 [https://cloud.google.com/bigquery/docs/s3-transfer-intro?hl=ko#quotas_and_limits]이 있습니다.
+와일드 카드는 디렉터리 경계를 포괄합니다. 예를 들어 Amazon S3 URI s3://my-bucket/*.csv는 파일 s3://my-bucket/my-folder/my-subfolder/my-file.csv과 일치합니다.
+Amazon S3 URI 예시
+예시 1
+단일 파일을 Amazon S3에서 BigQuery로 로드하려면 파일의 Amazon S3 URI를 지정합니다.
+s3://my-bucket/my-folder/my-file.csv
+예시 2
+Amazon S3 버킷의 모든 파일을 BigQuery로 로드하려면 버킷 이름만 지정하고 와일드 카드는 사용하거나 사용하지 않아도 됩니다.
+s3://my-bucket/
+또는
+s3://my-bucket/*
+와일드 카드는 버킷 이름에 사용할 수 없으므로 s3://my-bucket*는 허용되는 Amazon S3 URI가 아닙니다.
+예시 3
+공통 프리픽스를 공유하는 Amazon S3의 모든 파일을 로드하려면 공통 프리픽스 다음에 와일드 카드를 지정합니다.
+s3://my-bucket/my-folder/*
+최상위 Amazon S3 버킷의 모든 파일을 로드할 때와 달리, 로드할 파일의 Amazon S3 URI 끝에 와일드 카드를 지정해야 합니다.
+예 4
+유사한 경로를 가진 Amazon S3의 모든 파일을 로드하려면 공통 프리픽스와 와일드 카드를 차례로 지정합니다.
+s3://my-bucket/my-folder/*.csv
+예시 5
+와일드 카드는 디렉터리를 포괄하므로 my-folder 및 my-folder의 하위 폴더에 있는 모든 csv 파일이 BigQuery에 로드됩니다.
+소스 파일이 logs 폴더에 있는 경우:
+s3://my-bucket/logs/logs.csv
+s3://my-bucket/logs/system/logs.csv
+s3://my-bucket/logs/some-application/system_logs.log
+s3://my-bucket/logs/logs_2019_12_12.csv
+이를 식별하려면 다음을 사용합니다.
+s3://my-bucket/logs/*
+예시 6
+이러한 소스 파일을 가지고 있지만 파일 이름이 logs.csv인 파일만 전송하려는 경우:
+s3://my-bucket/logs.csv
+s3://my-bucket/metadata.csv
+s3://my-bucket/system/logs.csv
+s3://my-bucket/system/users.csv
+s3://my-bucket/some-application/logs.csv
+s3://my-bucket/some-application/output.csv
+이름에 logs.csv가 있는 파일을 식별하려면 다음을 사용합니다.
+s3://my-bucket/*logs.csv
+예시 7
+여러 개의 와일드 카드를 사용하면 하한값 [https://cloud.google.com/bigquery/docs/s3-transfer-intro?hl=ko#quotas_and_limits]을 포기하는 대신 전송할 파일을 더 세밀하게 제어할 수 있습니다. 여러 개의 와일드 카드를 사용하면 각 와일드 카드가 하위 디렉터리 내의 경로 끝에만 일치합니다. 예를 들어 Amazon S3의 소스 파일이 다음과 같은 경우:
+s3://my-bucket/my-folder1/my-file1.csv
+s3://my-bucket/my-other-folder2/my-file2.csv
+s3://my-bucket/my-folder1/my-subfolder/my-file3.csv
+s3://my-bucket/my-other-folder2/my-subfolder/my-file4.csv
+my-file1.csv와 my-file2.csv만 전송하려면 Amazon S3 URI의 값으로 다음을 사용합니다.
+s3://my-bucket/*/*.csv
+이 경우에는 와일드 카드에서 디렉터리를 포괄하지 않으므로 이 URI는 전송을 my-folder1 및 my-other-folder2에 있는 CSV 파일로만 제한합니다. 하위 폴더는 전송에 포함되지 않습니다.
+AWS 액세스 키
+액세스 키 ID와 보안 비밀 액세스 키를 사용하여 사용자 대신 Amazon S3 데이터에 액세스할 수 있습니다. 가장 좋은 방법은 BigQuery Data Transfer Service에 대한 최소한의 액세스 권한만 부여하도록 Amazon S3 전송을 위한 고유한 액세스 키 ID와 보안 비밀 액세스 키를 만드는 것입니다. 액세스 키 관리에 대한 자세한 내용은 AWS 일반 참고 문서 [https://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html]를 참조하세요.
+일관성 관련 고려사항
+Amazon S3에서 데이터를 전송할 때, 특히 아주 최근에 파일을 버킷에 추가한 경우 일부 데이터가 BigQuery로 전송되지 않을 수 있습니다. 파일을 버킷에 추가한 후 약 5분이 경과해야 BigQuery Data Transfer Service에서 사용할 수 있습니다.
+중요: 파일을 버킷에 추가한 후 최소 5분 후에 Amazon S3 전송이 수행되도록 예약하면 데이터 누락 가능성을 줄일 수 있습니다.
+아웃바운드 데이터 전송 비용 권장사항
+대상 테이블이 제대로 구성되지 않으면 Amazon S3에서 전송이 실패할 수 있습니다. 부적절한 구성이 발생할 수 있는 이유는 다음과 같습니다.
+대상 테이블이 존재하지 않음
+테이블 스키마가 정의되지 않음
+테이블 스키마가 전송되는 데이터와 호환되지 않음
+Amazon S3 아웃바운드 데이터 전송 비용을 방지하려면 먼저 작지만 대표적인 파일 하위 집합을 사용하여 전송을 테스트해야 합니다. 작다는 것은 테스트할 데이터 크기가 작고 파일 수가 적어야 함을 의미합니다.
+가격 책정
+BigQuery Data Transfer Service 가격 책정에 대한 자세한 내용은 가격 책정 [https://cloud.google.com/bigquery-transfer/pricing?hl=ko] 페이지를 참조하세요.
+이 서비스를 사용하면 Google 외부에서 비용이 발생할 수 있습니다. 자세한 내용은 Amazon S3 가격 책정 페이지 [https://aws.amazon.com/s3/pricing/]를 참조하세요.
+할당량 및 한도
+BigQuery Data Transfer Service는 로드 작업을 사용하여 Amazon S3 데이터를 BigQuery에 로드합니다. 로드 작업에 대한 모든 BigQuery 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko#load_jobs]는 다음과 같은 추가 고려 사항과 함께 반복되는 Amazon S3 전송에 적용됩니다.
+값 한도
+로드 작업 전송 실행당 최대 크기 15TB
+Amazon S3 URI에 0개 또는 1개의 와일드 카드가 포함된 경우 전송 실행당 최대 파일 수 10,000,000개 파일
+Amazon S3 URI에 두 개 이상의 와일드 카드가 포함된 경우 전송 실행당 최대 파일 수 10,000개 파일
+다음 단계
+Amazon S3 전송 설정 [https://cloud.google.com/bigquery/docs/s3-transfer?hl=ko] 알아보기
+S3 전송에 런타임 매개변수 [https://cloud.google.com/bigquery/docs/s3-transfer-parameters?hl=ko] 알아보기
+BigQuery Data Transfer Service [https://cloud.google.com/bigquery/docs/dts-introduction?hl=ko] 자세히 알아보기
+의견 보내기

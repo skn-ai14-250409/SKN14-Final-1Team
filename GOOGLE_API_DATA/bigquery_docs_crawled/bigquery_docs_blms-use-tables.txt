@@ -1,0 +1,176 @@
+Source URL: https://cloud.google.com/bigquery/docs/blms-use-tables
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/blms-use-tables?hl=ko#before-you-begin]
+필요한 역할 [https://cloud.google.com/bigquery/docs/blms-use-tables?hl=ko#required-roles]
+테이블에 연결 [https://cloud.google.com/bigquery/docs/blms-use-tables?hl=ko#connect_to_a_table]
+다음 단계 [https://cloud.google.com/bigquery/docs/blms-use-tables?hl=ko#what's-next]
+BigQuery의 테이블에서 BigLake metastore 사용
+bookmark_border
+이 문서에서는 BigQuery 테이블과 Spark에서 BigLake metastore를 사용하는 방법을 설명합니다.
+BigLake metastore를 사용하면 BigQuery에서 표준 (기본 제공) 테이블 [https://cloud.google.com/bigquery/docs/tables?hl=ko], BigQuery의 Apache Iceberg용 BigLake 테이블 [https://cloud.google.com/bigquery/docs/iceberg-tables?hl=ko], Apache Iceberg 외부 테이블 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko]을 만들고 사용할 수 있습니다.
+시작하기 전에
+Google Cloud 프로젝트에 결제를 사용 설정합니다. 프로젝트에 결제가 사용 설정되어 있는지 확인 [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko]하는 방법을 알아보세요.
+BigQuery 및 Dataproc API를 사용 설정합니다.
+API 사용 설정 [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cdataproc.googleapis.com&hl=ko]
+선택사항: BigLake Metastore의 작동 방식 [https://cloud.google.com/bigquery/docs/about-blms?hl=ko]과 이를 사용해야 하는 이유를 알아봅니다.
+필요한 역할
+BigLake Metastore를 메타데이터 저장소로 사용하여 Spark 및 Dataproc를 사용하는 데 필요한 권한을 얻으려면 관리자에게 다음 IAM 역할을 부여해 달라고 요청하세요.
+Spark에서 BigLake metastore 테이블을 만듭니다.
+프로젝트의 Dataproc Serverless 서비스 계정에 대한 Dataproc 작업자 [https://cloud.google.com/iam/docs/roles-permissions/dataproc?hl=ko#dataproc.worker] (roles/dataproc.worker)
+프로젝트의 Dataproc Serverless 서비스 계정에 대한 BigQuery 데이터 편집자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataEditor] (roles/bigquery.dataEditor)
+프로젝트의 Dataproc Serverless 서비스 계정에 대한 스토리지 객체 관리자 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.objectAdmin] (roles/storage.objectAdmin)
+BigQuery에서 BigLake metastore 테이블을 쿼리합니다.
+프로젝트에 대한 BigQuery 데이터 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.dataViewer] (roles/bigquery.dataViewer)
+프로젝트에 대한 BigQuery 사용자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.user] (roles/bigquery.user)
+프로젝트의 스토리지 객체 뷰어 [https://cloud.google.com/iam/docs/roles-permissions/storage?hl=ko#storage.objectViewer] (roles/storage.objectViewer)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+테이블에 연결
+Google Cloud 콘솔에서 데이터 세트 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]를 만듭니다.
+CREATE SCHEMA `
+PROJECT_ID`.
+DATASET_NAME;
+다음을 바꿉니다.
+PROJECT_ID: 데이터 세트를 만들 Google Cloud 프로젝트의 ID
+DATASET_NAME: 데이터 세트의 이름
+클라우드 리소스 연결 [https://cloud.google.com/bigquery/docs/create-cloud-resource-connection?hl=ko]을 만듭니다.
+표준 BigQuery 테이블을 만듭니다.
+CREATE TABLE `
+PROJECT_ID`.
+DATASET_NAME.
+TABLE_NAME (name STRING,id INT64);
+다음을 바꿉니다.
+TABLE_NAME: 테이블의 이름
+표준 BigQuery 테이블에 데이터를 삽입합니다.
+INSERT INTO `
+PROJECT_ID`.
+DATASET_NAME.
+TABLE_NAME VALUES ('test_name1', 123),('test_name2', 456),('test_name3', 789);
+BigQuery에서 Apache Iceberg용 BigLake 테이블 [https://cloud.google.com/bigquery/docs/iceberg-tables?hl=ko#iceberg-table-workflows]을 만듭니다.
+예를 들어 테이블을 만들려면 다음 CREATE 문을 실행합니다.
+CREATE TABLE `
+PROJECT_ID`.
+DATASET_NAME.
+ICEBERG_TABLE_NAME(
+name STRING,id INT64
+)
+WITH CONNECTION `
+CONNECTION_NAME`
+OPTIONS (
+file_format = 'PARQUET',
+table_format = 'ICEBERG',
+storage_uri = '
+STORAGE_URI');
+다음을 바꿉니다.
+ICEBERG_TABLE_NAME: BigQuery의 Apache Iceberg용 BigLake 테이블 이름입니다. 예를 들면 iceberg_managed_table입니다.
+CONNECTION_NAME: 이전 단계에서 만든 연결의 이름 (예: myproject.us.myconnection)
+STORAGE_URI: 정규화된 Cloud Storage URI 예를 들면 gs://mybucket/table입니다.
+BigQuery의 Apache Iceberg용 BigLake 테이블에 데이터를 삽입합니다.
+INSERT INTO `
+PROJECT_ID`.
+DATASET_NAME.
+ICEBERG_TABLE_NAME VALUES ('test_name1', 123),('test_name2', 456),('test_name3', 789);
+Apache Iceberg 외부 테이블 [https://cloud.google.com/bigquery/docs/iceberg-external-tables?hl=ko]을 만듭니다.
+예를 들어 Iceberg 외부 테이블을 만들려면 다음 CREATE 문을 실행합니다.
+CREATE OR REPLACE EXTERNAL TABLE  `
+PROJECT_ID`.
+DATASET_NAME.
+READONLY_ICEBERG_TABLE_NAME
+WITH CONNECTION `
+CONNECTION_NAME`
+OPTIONS (
+  format = 'ICEBERG',
+  uris =
+    ['
+BUCKET_PATH'],
+  require_partition_filter = FALSE);
+다음을 바꿉니다.
+READONLY_ICEBERG_TABLE_NAME: 읽기 전용 테이블의 이름
+BUCKET_PATH: 외부 테이블의 데이터가 포함된 Cloud Storage 버킷 경로(['gs://bucket_name/[folder_name/]file_name'] 형식)
+PySpark에서 표준 테이블, BigQuery의 Apache Iceberg용 BigLake 테이블, Apache Iceberg 외부 테이블을 쿼리합니다.
+from pyspark.sql import SparkSession
+
+# Create a spark session
+spark = SparkSession.builder \
+.appName("BigLake Metastore Iceberg") \
+.config("spark.sql.catalog.
+CATALOG_NAME", "org.apache.iceberg.spark.SparkCatalog") \
+.config("spark.sql.catalog.
+CATALOG_NAME.catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog") \
+.config("spark.sql.catalog.
+CATALOG_NAME.gcp_project", "
+PROJECT_ID") \
+.config("spark.sql.catalog.
+CATALOG_NAME.gcp_location", "
+LOCATION") \
+.config("spark.sql.catalog.
+CATALOG_NAME.warehouse", "
+WAREHOUSE_DIRECTORY") \
+.getOrCreate()
+spark.conf.set("viewsEnabled","true")
+
+# Use the blms_catalog
+spark.sql("USE `
+CATALOG_NAME`;")
+spark.sql("USE NAMESPACE 
+DATASET_NAME;")
+
+# Configure spark for temp results
+spark.sql("CREATE namespace if not exists 
+MATERIALIZATION_NAMESPACE");
+spark.conf.set("materializationDataset","
+MATERIALIZATION_NAMESPACE")
+
+# List the tables in the dataset
+df = spark.sql("SHOW TABLES;")
+df.show();
+
+# Query the tables
+sql = """SELECT * FROM 
+DATASET_NAME.
+TABLE_NAME"""
+df = spark.read.format("bigquery").load(sql)
+df.show()
+
+sql = """SELECT * FROM 
+DATASET_NAME.
+ICEBERG_TABLE_NAME"""
+df = spark.read.format("bigquery").load(sql)
+df.show()
+
+sql = """SELECT * FROM 
+DATASET_NAME.
+READONLY_ICEBERG_TABLE_NAME"""
+df = spark.read.format("bigquery").load(sql)
+df.show()
+다음을 바꿉니다.
+WAREHOUSE_DIRECTORY: BigQuery의 BigLake Iceberg 테이블 및 Iceberg 외부 테이블에 연결된 Cloud Storage 폴더의 URI입니다.
+CATALOG_NAME: 사용 중인 카탈로그의 이름
+MATERIALIZATION_NAMESPACE: 임시 결과를 저장하기 위한 네임스페이스
+서버리스 Spark를 사용하여 PySpark 스크립트를 실행합니다.
+gcloud dataproc batches submit pyspark 
+SCRIPT_PATH \
+  --version=2.2 \
+  --project=
+PROJECT_ID \
+  --region=
+REGION \
+  --deps-bucket=
+YOUR_BUCKET \
+다음을 바꿉니다.
+SCRIPT_PATH: 일괄 작업에서 사용하는 스크립트의 경로
+PROJECT_ID: 일괄 작업을 실행할 Google Cloud 프로젝트의 ID입니다.
+REGION: 워크로드가 실행되는 리전
+YOUR_BUCKET: 워크로드 종속 항목을 업로드할 Cloud Storage 버킷의 위치. 버킷의 gs:// URI 프리픽스는 필요하지 않습니다. 버킷 경로 또는 버킷 이름을 지정할 수 있습니다(예: mybucketname1).
+다음 단계
+선택적 BigLake Metastore 기능 [https://cloud.google.com/bigquery/docs/blms-features?hl=ko] 설정하기
+도움이 되었나요?
+의견 보내기

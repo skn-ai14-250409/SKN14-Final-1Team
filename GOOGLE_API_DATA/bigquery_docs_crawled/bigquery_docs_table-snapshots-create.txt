@@ -1,0 +1,332 @@
+Source URL: https://cloud.google.com/bigquery/docs/table-snapshots-create
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+권한 및 역할 [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#permissions_and_roles]
+권한 [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#permissions]
+역할 [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#roles]
+제한사항 [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#limitations]
+테이블 스냅샷 만들기 [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#create_a_table_snapshot]
+만료 시간이 있는 테이블 스냅샷 만들기 [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#create_a_table_snapshot_with_an_expiration]
+시간 이동을 사용하여 테이블 스냅샷 만들기 [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#create_a_table_snapshot_using_time_travel]
+테이블 액세스 제어 [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#table_access_control]
+테이블 스냅샷 만들기
+bookmark_border
+이 문서에서는Google Cloud 콘솔, CREATE SNAPSHOT TABLE [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_snapshot_table_statement] SQL 문, bq cp --snapshot [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_cp] 명령어 또는 jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] API를 사용하여 테이블의 스냅샷을 만드는 방법을 설명합니다. 이 문서는 BigQuery 테이블 스냅샷 [https://cloud.google.com/bigquery/docs/table-snapshots-intro?hl=ko]에 익숙한 사용자를 대상으로 합니다.
+권한 및 역할
+이 섹션에서는 테이블 스냅샷을 만들기 위해 필요한 Identity and Access Management(IAM) 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bq-permissions]과 이러한 권한을 부여하는 사전 정의된 IAM 역할 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery]에 대해 설명합니다.
+권한
+테이블 스냅샷을 만들려면 다음 권한이 필요합니다.
+권한 리소스 참고
+다음 모든 항목:
+
+bigquery.tables.get
+bigquery.tables.getData
+bigquery.tables.createSnapshot
+bigquery.datasets.get
+bigquery.jobs.create 스냅샷을 작성하려는 테이블입니다. 스냅샷이 만료되면 나중에 해당 스냅샷이 삭제되므로 만료 시간이 있는 스냅샷을 만들려면 bigquery.tables.deleteSnapshot 권한이 있어야 합니다.
+bigquery.tables.create
+bigquery.tables.updateData 테이블 스냅샷이 포함된 데이터 세트입니다.
+역할
+필요한 권한을 제공하는 사전 정의된 BigQuery 역할은 다음과 같습니다.
+역할 리소스 참고
+다음 중 1개 이상:
+
+bigquery.dataViewer
+bigquery.dataEditor
+bigquery.dataOwner
+
+그리고 다음 중 1개 이상:
+
+bigquery.jobUser
+bigquery.studioUser
+bigquery.user
+bigquery.studioAdmin
+bigquery.admin 스냅샷을 작성하려는 테이블입니다. 만료 시간이 있는 스냅샷을 만드는 데는 bigquery.dataOwner, bigquery.admin, bigquery.studioAdmin만 사용할 수 있습니다.
+다음 중 1개 이상:
+
+bigquery.dataEditor
+bigquery.dataOwner
+bigquery.studioAdmin
+bigquery.admin 새 테이블 스냅샷이 포함된 데이터 세트입니다.
+제한사항
+테이블 스냅샷 제한사항에 대한 자세한 내용은 테이블 스냅샷 제한사항 [https://cloud.google.com/bigquery/docs/table-snapshots-intro?hl=ko#limitations]을 참조하세요.
+또한 테이블 스냅샷 만들기에는 모든 테이블 복사 작업 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#limitations_on_copying_tables]에 적용되는 다음 제한사항이 적용됩니다.
+테이블 스냅샷을 만들 때 해당 이름은 테이블을 만들 때와 동일한 이름 지정 규칙 [https://cloud.google.com/bigquery/docs/tables?hl=ko#table_naming]을 따라야 합니다.
+테이블 스냅샷 만들기에는 복사 작업에 대한 BigQuery 제한 [https://cloud.google.com/bigquery/quotas?hl=ko#copy_jobs]이 적용됩니다.
+테이블 스냅샷 데이터 세트는 스냅샷을 만드는 테이블을 포함하는 데이터 세트와 동일한 리전 [https://cloud.google.com/bigquery/docs/locations?hl=ko], 동일한 조직 [https://cloud.google.com/resource-manager/docs/creating-managing-organization?hl=ko]에 있어야 합니다. 예를 들어 유럽에 있는 데이터 세트에 포함된 테이블을 미국에 있는 데이터 세트의 테이블 스냅샷으로 만들 수 없습니다. 대신 테이블의 복사본을 만들어야 합니다.
+BigQuery가 테이블 스냅샷을 만드는 데 걸리는 시간은 기본 스토리지가 동적으로 관리되기 때문에 실행마다 크게 다를 수 있습니다.
+BigQuery CLI를 사용하여 테이블 스냅샷을 만들면 스냅샷에 대상 데이터 세트의 기본 암호화 키가 포함됩니다. SQL을 사용하여 테이블 스냅샷을 만들면 스냅샷에 소스 테이블과 동일한 암호화 키가 포함됩니다.
+테이블 스냅샷 만들기
+권장사항은 기본 테이블과 다른 데이터 세트에 테이블 스냅샷을 만드는 것입니다. 이렇게 하면 기본 테이블의 데이터 세트가 실수로 삭제되더라도 테이블 스냅샷으로부터 기본 테이블을 복원할 수 있습니다.
+테이블 스냅샷을 만들 때 스냅샷을 작성하려는 테이블을 지정하고 테이블 스냅샷에 대해 고유한 이름을 지정합니다. 선택적으로 스냅샷의 시간 [https://cloud.google.com/bigquery/docs/time-travel?hl=ko] 및 테이블 스냅샷의 만료 시간 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#updating_a_tables_expiration_time]을 지정할 수 있습니다.
+만료 시간이 있는 테이블 스냅샷 만들기
+다음 옵션 중 하나를 사용하여 24시간 후 만료되는 테이블의 스냅샷을 만들 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 스냅샷을 생성할 테이블의 프로젝트 및 데이터 세트 노드를 확장합니다.
+스냅샷을 만들려는 테이블의 이름을 클릭합니다.
+표시된 테이블 창에서 스냅샷을 클릭합니다.
+
+
+표시되는 테이블 스냅샷 만들기 창에서 새 테이블 스냅샷에 대해 프로젝트, 데이터 세트, 테이블 정보를 입력합니다.
+만료 시간 필드에 지금부터 24시간 내의 날짜 및 시간을 입력합니다.
+저장을 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#sql] ---
+CREATE SNAPSHOT TABLE DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_snapshot_table_statement]을 사용합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE SNAPSHOT TABLE SNAPSHOT_PROJECT_ID.SNAPSHOT_DATASET_NAME.SNAPSHOT_NAME
+CLONE TABLE_PROJECT_ID.TABLE_DATASET_NAME.TABLE_NAME
+  OPTIONS (
+    expiration_timestamp = TIMESTAMP 'TIMESTAMP_VALUE');
+
+
+다음을 바꿉니다.
+
+  SNAPSHOT_PROJECT_ID: 스냅샷을 만들 프로젝트의 프로젝트 ID입니다.
+  SNAPSHOT_DATASET_NAME: 스냅샷을 만들 데이터 세트의 이름입니다.
+  SNAPSHOT_NAME: 만들려는 스냅샷의 이름입니다.
+  TABLE_PROJECT_ID: 스냅샷을 만들 테이블이 포함된 프로젝트의 프로젝트 ID입니다.
+  TABLE_DATASET_NAME: 스냅샷을 만들 테이블이 포함된 데이터 세트의 이름입니다.
+  TABLE_NAME: 스냅샷을 만들 테이블의 이름입니다.
+  TIMESTAMP_VALUE: 24시간 후의 날짜 및 시간을 나타내는 타임스탬프 값 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type]입니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+참고: 스냅샷은 소스 테이블의 암호화 키를 상속합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#bq] ---
+Cloud Shell에 다음 명령어를 입력합니다.
+
+Cloud Shell로 이동 [https://console.cloud.google.com/bigquery?cloudshell=true&hl=ko]
+
+bq cp [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_cp] \
+--snapshot \
+--no_clobber \
+--expiration=86400 \
+TABLE_PROJECT_ID:TABLE_DATASET_NAME.TABLE_NAME \
+SNAPSHOT_PROJECT_ID:SNAPSHOT_DATASET_NAME.SNAPSHOT_NAME
+
+다음을 바꿉니다.
+
+  TABLE_PROJECT_ID: 스냅샷을 만들 테이블이 포함된 프로젝트의 프로젝트 ID입니다.
+  TABLE_DATASET_NAME: 스냅샷을 만들 테이블이 포함된 데이터 세트의 이름입니다.
+  TABLE_NAME: 스냅샷을 만들 테이블의 이름입니다.
+  SNAPSHOT_PROJECT_ID: 스냅샷을 만들 프로젝트의 프로젝트 ID입니다.
+  SNAPSHOT_DATASET_NAME: 스냅샷을 만들 데이터 세트의 이름입니다.
+  SNAPSHOT_NAME: 만들려는 스냅샷의 이름입니다.
+
+
+--no_clobber 플래그는 필수사항입니다.
+참고: 스냅샷은 대상 데이터 세트의 기본 암호화 키를 상속합니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#api] ---
+다음 매개변수를 사용하여 jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] 메서드를 호출합니다.
+
+
+
+
+매개변수
+값
+
+
+
+
+projectId
+이 작업에 대한 요금을 청구할 프로젝트의 프로젝트 ID
+
+
+요청 본문
+{
+  "configuration": {
+    "copy": {
+      "sourceTables": [
+        {
+          "projectId": "TABLE_PROJECT_ID",
+          "datasetId": "TABLE_DATASET_NAME",
+          "tableId": "TABLE_NAME"
+        }
+      ],
+      "destinationTable": {
+        "projectId": "SNAPSHOT_PROJECT_ID",
+        "datasetId": "SNAPSHOT_DATASET_NAME",
+        "tableId": "SNAPSHOT_NAME"
+      },
+      "operationType": "SNAPSHOT",
+      "writeDisposition": "WRITE_EMPTY",
+      "destinationExpirationTime":"TIMESTAMP_VALUE"
+    }
+  }
+}
+
+
+
+
+다음을 바꿉니다.
+
+  TABLE_PROJECT_ID: 스냅샷을 만들 테이블이 포함된 프로젝트의 프로젝트 ID입니다.
+  TABLE_DATASET_NAME: 스냅샷을 만들 테이블이 포함된 데이터 세트의 이름입니다.
+  TABLE_NAME: 스냅샷을 만들 테이블의 이름입니다.
+  SNAPSHOT_PROJECT_ID: 스냅샷을 만들 프로젝트의 프로젝트 ID입니다.
+  SNAPSHOT_DATASET_NAME: 스냅샷을 만들 데이터 세트의 이름입니다.
+  SNAPSHOT_NAME: 만들려는 스냅샷의 이름입니다.
+  TIMESTAMP_VALUE: 24시간 후의 날짜 및 시간을 나타내는 타임스탬프 값 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types?hl=ko#timestamp_type]입니다.
+테이블과 마찬가지로 만료 시간이 지정되지 않으면 테이블 스냅샷은 테이블 스냅샷이 포함된 데이터 세트의 기본 테이블 만료 시간 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#updating_a_tables_expiration_time] 이후에 만료됩니다.
+참고: 스냅샷 만료는 나중에 스냅샷을 삭제하는 것과 마찬가지이므로 만료 시간이 있는 스냅샷을 생성하려면 bigquery.tables.deleteSnapshot 권한이 필요합니다.
+시간 이동을 사용하여 테이블 스냅샷 만들기
+다음 옵션 중 하나를 사용하여 한 시간 전의 테이블에 대한 테이블 스냅샷을 만들 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 스냅샷을 생성할 테이블의 프로젝트 및 데이터 세트 노드를 확장합니다.
+스냅샷을 만들려는 테이블의 이름을 클릭합니다.
+표시된 테이블 창에서 스냅샷을 클릭합니다.
+
+
+표시되는 테이블 스냅샷 만들기 창에서 새 테이블 스냅샷에 대해 프로젝트, 데이터 세트, 테이블 정보를 입력합니다.
+스냅샷 시간 필드에 1시간 전의 날짜 및 시간을 입력합니다.
+저장을 클릭합니다.
+
+--- 탭: SQL [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#sql] ---
+FOR SYSTEM_TIME AS OF 절 [https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax?hl=ko#for_system_time_as_of]과 함께 CREATE SNAPSHOT TABLE DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_snapshot_table_statement]을 사용합니다.
+
+
+
+
+
+
+ Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+쿼리 편집기에서 다음 문을 입력합니다.
+
+CREATE SNAPSHOT TABLE SNAPSHOT_PROJECT_ID.SNAPSHOT_DATASET_NAME.SNAPSHOT_NAME
+CLONE TABLE_PROJECT_ID.TABLE_DATASET_NAME.TABLE_NAME
+FOR SYSTEM_TIME AS OF
+  TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR);
+
+
+다음을 바꿉니다.
+
+  SNAPSHOT_PROJECT_ID: 스냅샷을 만들 프로젝트의 프로젝트 ID입니다.
+  SNAPSHOT_DATASET_NAME: 스냅샷을 만들 데이터 세트의 이름입니다.
+  SNAPSHOT_NAME: 만들려는 스냅샷의 이름입니다.
+  TABLE_PROJECT_ID: 스냅샷을 만들 테이블이 포함된 프로젝트의 프로젝트 ID입니다.
+  TABLE_DATASET_NAME: 스냅샷을 만들 테이블이 포함된 데이터 세트의 이름입니다.
+  TABLE_NAME: 스냅샷을 만들 테이블의 이름입니다.
+
+
+play_circle 실행을 클릭합니다.
+
+
+
+
+쿼리를 실행하는 방법에 대한 자세한 내용은 대화형 쿼리 실행 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko#queries]을 참조하세요.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#bq] ---
+Cloud Shell에 다음 명령어를 입력합니다.
+
+Cloud Shell로 이동 [https://console.cloud.google.com/bigquery?cloudshell=true&hl=ko]
+
+bq cp [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_cp] \
+--no_clobber \
+--snapshot \
+TABLE_PROJECT_ID:TABLE_DATASET_NAME.TABLE_NAME@-3600000 \
+SNAPSHOT_PROJECT_ID:SNAPSHOT_DATASET_NAME.SNAPSHOT_NAME
+
+다음을 바꿉니다.
+
+  TABLE_PROJECT_ID: 스냅샷을 만들 테이블이 포함된 프로젝트의 프로젝트 ID입니다.
+  TABLE_DATASET_NAME: 스냅샷을 만들 테이블이 포함된 데이터 세트의 이름입니다.
+  TABLE_NAME: 스냅샷을 만들 테이블의 이름입니다.
+  SNAPSHOT_PROJECT_ID: 스냅샷을 만들 프로젝트의 프로젝트 ID입니다.
+  SNAPSHOT_DATASET_NAME: 스냅샷을 만들 데이터 세트의 이름입니다.
+  SNAPSHOT_NAME: 만들려는 스냅샷의 이름입니다.
+
+
+--no_clobber 플래그는 필수사항입니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/table-snapshots-create?hl=ko#api] ---
+다음 매개변수를 사용하여 jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko] 메서드를 호출합니다.
+
+
+
+
+매개변수
+값
+
+
+
+
+projectId
+이 작업에 대한 요금을 청구할 프로젝트의 프로젝트 ID
+
+
+요청 본문
+{
+  "configuration": {
+    "copy": {
+      "sourceTables": [
+        {
+          "projectId": "TABLE_PROJECT_ID",
+          "datasetId": "TABLE_DATASET_NAME",
+          "tableId": "TABLE_NAME@-360000"
+        }
+      ],
+      "destinationTable": {
+        "projectId": "SNAPSHOT_PROJECT_ID",
+        "datasetId": "SNAPSHOT_DATASET_NAME",
+        "tableId": "SNAPSHOT_NAME"
+      },
+      "operationType": "SNAPSHOT",
+      "writeDisposition": "WRITE_EMPTY"
+    }
+  }
+}
+
+
+
+
+다음을 바꿉니다.
+
+  TABLE_PROJECT_ID: 스냅샷을 만들 테이블이 포함된 프로젝트의 프로젝트 ID입니다.
+  TABLE_DATASET_NAME: 스냅샷을 만들 테이블이 포함된 데이터 세트의 이름입니다.
+  TABLE_NAME: 스냅샷을 만들 테이블의 이름입니다.
+  SNAPSHOT_PROJECT_ID: 스냅샷을 만들 프로젝트의 프로젝트 ID입니다.
+  SNAPSHOT_DATASET_NAME: 스냅샷을 만들 데이터 세트의 이름입니다.
+  SNAPSHOT_NAME: 만들려는 스냅샷의 이름입니다.
+테이블의 이전 버전을 지정하는 방법에 대한 자세한 내용은 시간 이동을 사용한 이전 데이터 액세스 [https://cloud.google.com/bigquery/docs/time-travel?hl=ko]를 참조하세요.
+테이블 액세스 제어
+BigQuery에서 테이블에 대한 액세스를 제어하려면 IAM으로 리소스에 대한 액세스 제어 [https://cloud.google.com/bigquery/docs/control-access-to-resources-iam?hl=ko]를 참고하세요.
+테이블 스냅샷을 만들 때 테이블 스냅샷에 대한 테이블 수준 액세스 [https://cloud.google.com/bigquery/docs/table-access-controls-intro?hl=ko]가 다음과 같이 설정됩니다.
+테이블 스냅샷이 기존 테이블을 덮어쓰면 기존 테이블의 테이블 수준 액세스는 유지됩니다. 태그 [https://cloud.google.com/bigquery/docs/tags?hl=ko]는 기본 테이블에서 복사되지 않습니다.
+테이블 스냅샷이 새 리소스인 경우 테이블 스냅샷이 생성된 데이터 세트의 액세스 정책에 따라 테이블 스냅샷의 테이블 수준 액세스가 결정됩니다. 또한 태그 [https://cloud.google.com/bigquery/docs/tags?hl=ko]가 기본 테이블에서 테이블 스냅샷으로 복사됩니다.
+다음 단계
+테이블 스냅샷의 설명, 만료일, 액세스 정책 업데이트 [https://cloud.google.com/bigquery/docs/table-snapshots-update?hl=ko]
+테이블 스냅샷 복원 [https://cloud.google.com/bigquery/docs/table-snapshots-restore?hl=ko]
+예약된 쿼리를 실행하는 서비스 계정을 사용하여 테이블의 월간 스냅샷 만들기 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko]
+도움이 되었나요?
+의견 보내기

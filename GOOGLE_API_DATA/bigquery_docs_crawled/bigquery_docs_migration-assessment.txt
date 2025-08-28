@@ -1,0 +1,4517 @@
+Source URL: https://cloud.google.com/bigquery/docs/migration-assessment
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+시작하기 전에 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#before_you_begin]
+데이터 웨어하우스에서 메타데이터 및 로그 쿼리 추출 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#extract-metadata-logs]
+Cloud Storage에 메타데이터 및 쿼리 로그 업로드 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#upload]
+BigQuery 마이그레이션 평가 실행 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#run-migration-assessment]
+필수 권한 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#required_permissions]
+마이그레이션 평가
+bookmark_border
+BigQuery 마이그레이션 평가를 사용하면 기존 데이터 웨어하우스를 BigQuery로 마이그레이션하는 작업을 계획하고 검토할 수 있습니다. BigQuery 마이그레이션 평가를 실행하여 보고서를 생성하여 BigQuery에 데이터를 저장하는 비용을 평가하고, 비용 절감을 위해 BigQuery가 기존 워크로드를 최적화하는 방법을 확인하며, BigQuery로의 데이터 웨어하우스 마이그레이션을 완료하는 데 필요한 시간과 노력을 설명하는 마이그레이션 계획을 준비할 수 있습니다.
+이 문서에서는 BigQuery 마이그레이션 평가를 사용하는 방법과 평가 결과를 검토하는 다양한 방법을 설명합니다. 이 문서는 Google Cloud 콘솔 [https://cloud.google.com/bigquery/docs/bigquery-web-ui?hl=ko] 및 일괄 SQL 변환기 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]에 익숙한 사용자를 대상으로 합니다.
+시작하기 전에
+BigQuery 마이그레이션 평가를 준비하고 실행하려면 다음 단계를 따르세요.
+Cloud Storage 버킷을 만듭니다. [https://cloud.google.com/storage/docs/creating-buckets?hl=ko]
+참고: Cloud Storage 버킷 데이터에 공개적으로 액세스하지 못하게 하려면 --pap 플래그를 사용 [https://cloud.google.com/sdk/gcloud/reference/storage/buckets/create?hl=ko#FLAGS]합니다.
+dwh-migration-dumper 도구를 사용하여 데이터 웨어하우스에서 메타데이터 및 쿼리 로그를 추출 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#extract-metadata-logs]합니다.
+Cloud Storage 버킷에 메타데이터 및 쿼리 로그를 업로드 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#upload]합니다.
+마이그레이션 평가 실행 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#run-migration-assessment]
+Looker Studio 보고서를 검토합니다 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#review_the_data_studio_report].
+선택사항: 평가 결과를 쿼리 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#query_assessment_output]하여 자세하거나 구체적인 평가 정보를 찾습니다.
+데이터 웨어하우스에서 메타데이터 및 로그 쿼리 추출
+권장사항이 포함된 평가를 준비하려면 메타데이터와 쿼리 로그가 모두 필요합니다.
+평가를 실행하는 데 필요한 메타데이터 및 쿼리 로그를 추출하려면 데이터 웨어하우스를 선택합니다.
+--- 탭: Teradata [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#teradata] ---
+요구사항
+
+
+소스 Teradata 데이터 웨어하우스에 연결된 머신(Teradata 15 이상이 지원됨)
+데이터를 저장할 Cloud Storage 버킷이 있는 Google Cloud 계정
+결과를 저장할 빈 BigQuery 데이터 세트
+결과를 볼 수 있는 데이터 세트 읽기 권한
+권장: 추출 도구를 사용하여 시스템 테이블에 액세스할 때 소스 데이터베이스에 대한 관리자 수준의 액세스 권한
+
+
+요구사항: 로깅 사용 설정
+
+dwh-migration-dumper 도구는 세 가지 유형의 로그(쿼리 로그, 유틸리티 로그, 리소스 사용량 로그)를 추출합니다. 더 자세한 통계를 보려면 다음 유형의 로그에 로깅을 사용 설정해야 합니다.
+
+
+쿼리 로그: dbc.QryLogV 뷰 및 dbc.DBQLSqlTbl 테이블에서 추출됩니다. WITH SQL 옵션을 지정 [https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/Database-Administration/Tracking-Query-Behavior-with-Database-Query-Logging-Operational-DBAs/SQL-Statements-to-Control-Logging/WITH-Logging-Options]하여 로깅을 사용 설정합니다.
+유틸리티 로그: dbc.DBQLUtilityTbl 테이블에서 추출됩니다. WITH UTILITYINFO 옵션을 지정 [https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/Database-Administration/Tracking-Query-Behavior-with-Database-Query-Logging-Operational-DBAs/SQL-Statements-to-Control-Logging/WITH-Logging-Options]하여 로깅을 사용 설정합니다.
+리소스 사용량 로그: dbc.ResUsageScpu 및 dbc.ResUsageSpma 테이블에서 추출됩니다. 이 두 테이블에 RSS 로깅을 사용 설정 [https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/Resource-Usage-Macros-and-Tables/Resource-Usage-and-Procedures/Enabling-RSS-Logging]합니다.
+
+
+dwh-migration-dumper 도구 실행
+
+dwh-migration-dumper도구 [https://github.com/google/dwh-migration-tools/releases/latest]를 다운로드합니다.
+
+SHA256SUMS.txt 파일 [https://github.com/google/dwh-migration-tools/releases/latest/download/SHA256SUMS.txt]을 다운로드하고 다음 명령어를 실행하여 ZIP이 올바른지 확인합니다.
+
+Bash [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#bash]Windows PowerShell [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#windows-powershell]
+          더보기
+          
+          
+        sha256sum --check SHA256SUMS.txt
+(Get-FileHash RELEASE_ZIP_FILENAME).Hash -eq ((Get-Content SHA256SUMS.txt) -Split " ")[0]
+
+RELEASE_ZIP_FILENAME를 dwh-migration-dumper 명령줄 추출 도구 출시의 다운로드된 ZIP 파일 이름으로 바꿉니다(예: dwh-migration-tools-v1.0.52.zip).
+
+True 결과는 체크섬 확인에 성공했음을 나타냅니다.
+
+False 결과는 인증 오류를 나타냅니다. 체크섬 및 ZIP 파일이 동일한 출시 버전에서 다운로드되어 동일한 디렉터리에 있는지 확인합니다.
+
+추출 도구를 설정하고 사용하는 방법에 관한 자세한 내용은 변환 및 평가를 위한 메타데이터 생성 [https://cloud.google.com/bigquery/docs/generate-metadata?hl=ko]을 참조하세요.
+
+추출 도구를 사용하여 Teradata 데이터 웨어하우스에서 로그와 메타데이터를 2개의 ZIP 파일로 추출합니다.
+소스 데이터 웨어하우스에 대해 액세스 권한이 있는 머신에서 다음 명령어를 실행하여 파일을 생성합니다.
+
+메타데이터 ZIP 파일을 생성합니다.
+
+dwh-migration-dumper \
+  --connector teradata \
+  --database DATABASES \
+  --driver path/terajdbc4.jar \
+  --host HOST \
+  --assessment \
+  --user USER \
+  --password PASSWORD
+
+쿼리 로그가 포함된 ZIP 파일을 생성합니다.
+
+dwh-migration-dumper \
+  --connector teradata-logs \
+  --driver path/terajdbc4.jar \
+  --host HOST \
+  --assessment \
+  --user USER \
+  --password PASSWORD
+
+다음을 바꿉니다.
+
+
+DATABASES: 추출할 데이터베이스 이름을 쉼표로 구분한 목록입니다. 지정하지 않으면 모든 데이터베이스에서 추출됩니다.
+PATH: 이 연결에 사용할 드라이버 JAR 파일의 절대 또는 상대 경로입니다.
+VERSION: 드라이버의 버전입니다.
+HOST: 호스트 주소입니다.
+USER: 데이터베이스 연결에 사용할 사용자 이름입니다.
+PASSWORD: 데이터베이스 연결에 사용할 비밀번호입니다.비워두면 사용자에게 비밀번호를 입력하라는 메시지가 표시됩니다.
+
+
+--database 플래그는 teradata 커넥터에만 사용할 수 있습니다. 이 플래그를 사용하면 하나 이상의 데이터베이스의 메타데이터를 추출할 수 있습니다. teradata-logs 커넥터를 사용하여 쿼리 로그를 추출하는 경우 --database 플래그를 사용할 수 없습니다. 쿼리 로그는 항상 모든 데이터베이스에 대해 추출됩니다.
+
+기본적으로 쿼리 로그는 뷰 dbc.QryLogV 및 테이블 dbc.DBQLSqlTbl에서 추출됩니다. 대체 위치에서 쿼리 로그를 추출해야 하는 경우 -Dteradata-logs.query-logs-table 및 -Dteradata-logs.sql-logs-table 플래그를 사용하여 테이블 또는 뷰 이름을 지정하면 됩니다.
+팁: -Dteradata-logs.query-logs-table 및 -Dteradata-logs.sql-logs-table 플래그로 지정된 테이블 조인 성능을 높이기 위해서는 JOIN 조건으로 DATE 유형의 추가 열을 포함할 수 있습니다. 이 열은 두 테이블에 모두 정의되어야 하며 파티션을 나눈 기본 색인의 일부여야 합니다. 이 열을 포함하려면 -Dteradata-logs.log-date-column 플래그를 사용하세요.
+기본적으로 유틸리티 로그는 dbc.DBQLUtilityTbl 테이블에서 추출됩니다. 대체 위치에서 유틸리티 로그를 추출해야 하는 경우 -Dteradata-logs.utility-logs-table 플래그를 사용하여 테이블 이름을 지정하면 됩니다.
+
+기본적으로 리소스 사용량 로그는 dbc.ResUsageScpu 및 dbc.ResUsageSpma 테이블에서 추출됩니다. 대체 위치에서 리소스 사용량 로그를 추출해야 할 경우 -Dteradata-logs.res-usage-scpu-table 및 -Dteradata-logs.res-usage-spma-table 플래그를 사용해서 테이블 이름을 지정할 수 있습니다.
+
+예를 들면 다음과 같습니다.
+
+Bash [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#bash]Windows PowerShell [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#windows-powershell]
+          더보기
+          
+          
+        dwh-migration-dumper \
+  --connector teradata-logs \
+  --driver path/terajdbc4.jar \
+  --host HOST \
+  --assessment \
+  --user USER \
+  --password PASSWORD \
+  -Dteradata-logs.query-logs-table=pdcrdata.QryLogV_hst \
+  -Dteradata-logs.sql-logs-table=pdcrdata.DBQLSqlTbl_hst \
+  -Dteradata-logs.log-date-column=LogDate \
+  -Dteradata-logs.utility-logs-table=pdcrdata.DBQLUtilityTbl_hst \
+  -Dteradata-logs.res-usage-scpu-table=pdcrdata.ResUsageScpu_hst \
+  -Dteradata-logs.res-usage-spma-table=pdcrdata.ResUsageSpma_hst
+dwh-migration-dumper `
+  --connector teradata-logs `
+  --driver path\terajdbc4.jar `
+  --host HOST `
+  --assessment `
+  --user USER `
+  --password PASSWORD `
+  "-Dteradata-logs.query-logs-table=pdcrdata.QryLogV_hst" `
+  "-Dteradata-logs.sql-logs-table=pdcrdata.DBQLSqlTbl_hst" `
+  "-Dteradata-logs.log-date-column=LogDate" `
+  "-Dteradata-logs.utility-logs-table=pdcrdata.DBQLUtilityTbl_hst" `
+  "-Dteradata-logs.res-usage-scpu-table=pdcrdata.ResUsageScpu_hst" `
+  "-Dteradata-logs.res-usage-spma-table=pdcrdata.ResUsageSpma_hst"
+
+기본적으로 dwh-migration-dumper 도구는 최근 7일 동안의 쿼리 로그를 추출합니다.
+보다 자세한 통계를 보려면 최소 2주 이상의 쿼리 로그를 제공하는 것이 좋습니다. --query-log-start 및 --query-log-end 플래그를 사용하여 맞춤 기간을 지정할 수 있습니다. 예를 들면 다음과 같습니다.
+
+dwh-migration-dumper \
+  --connector teradata-logs \
+  --driver path/terajdbc4.jar \
+  --host HOST \
+  --assessment \
+  --user USER \
+  --password PASSWORD \
+  --query-log-start "2023-01-01 00:00:00" \
+  --query-log-end "2023-01-15 00:00:00"
+
+또한 서로 다른 기간의 쿼리 로그가 포함된 ZIP 파일을 여러 개 생성하고 평가용으로 모두 제공할 수 있습니다.
+
+--- 탭: Amazon Redshift [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#amazon-redshift] ---
+요구사항
+
+
+소스 Amazon Redshift 데이터 웨어하우스에 연결된 머신
+데이터를 저장할 Cloud Storage 버킷이 있는 Google Cloud 계정
+결과를 저장할 빈 BigQuery 데이터 세트
+결과를 볼 수 있는 데이터 세트 읽기 권한
+권장: 추출 도구를 사용하여 시스템 테이블에 액세스하는 경우 데이터베이스에 대한 수퍼유저 액세스 권한
+
+
+dwh-migration-dumper 도구 실행
+
+dwh-migration-dumper 명령줄 추출 도구 [https://github.com/google/dwh-migration-tools/releases/latest]를 다운로드합니다.
+
+SHA256SUMS.txt 파일 [https://github.com/google/dwh-migration-tools/releases/latest/download/SHA256SUMS.txt]을 다운로드하고 다음 명령어를 실행하여 ZIP이 올바른지 확인합니다.
+
+Bash [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#bash]Windows PowerShell [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#windows-powershell]
+          더보기
+          
+          
+        sha256sum --check SHA256SUMS.txt
+(Get-FileHash RELEASE_ZIP_FILENAME).Hash -eq ((Get-Content SHA256SUMS.txt) -Split " ")[0]
+
+RELEASE_ZIP_FILENAME를 dwh-migration-dumper 명령줄 추출 도구 출시의 다운로드된 ZIP 파일 이름으로 바꿉니다(예: dwh-migration-tools-v1.0.52.zip).
+
+True 결과는 체크섬 확인에 성공했음을 나타냅니다.
+
+False 결과는 인증 오류를 나타냅니다. 체크섬 및 ZIP 파일이 동일한 출시 버전에서 다운로드되어 동일한 디렉터리에 있는지 확인합니다.
+
+dwh-migration-dumper 도구 사용 방법에 관한 자세한 내용은 메타데이터 생성 [https://cloud.google.com/bigquery/docs/generate-metadata?hl=ko] 페이지를 참조하세요.
+
+dwh-migration-dumper 도구를 사용하여 Amazon Redshift 데이터 웨어하우스에서 로그 및 메타데이터를 2개의 ZIP 파일로 추출합니다.
+소스 데이터 웨어하우스에 대해 액세스 권한이 있는 머신에서 다음 명령어를 실행하여 파일을 생성합니다.
+
+메타데이터 ZIP 파일을 생성합니다.
+
+dwh-migration-dumper \
+  --connector redshift \
+  --database DATABASE \
+  --driver PATH/redshift-jdbc42-VERSION.jar \
+  --host host.region.redshift.amazonaws.com \
+  --assessment \
+  --user USER \
+  --iam-profile IAM_PROFILE_NAME
+
+쿼리 로그가 포함된 ZIP 파일을 생성합니다.
+
+dwh-migration-dumper \
+  --connector redshift-raw-logs \
+  --database DATABASE \
+  --driver PATH/redshift-jdbc42-VERSION.jar \
+  --host host.region.redshift.amazonaws.com \
+  --assessment \
+  --user USER \
+  --iam-profile IAM_PROFILE_NAME
+
+다음을 바꿉니다.
+
+
+DATABASE: 연결할 데이터베이스의 이름입니다.
+PATH: 이 연결에 사용할 드라이버 JAR 파일의 절대 또는 상대 경로입니다.
+VERSION: 드라이버의 버전입니다.
+USER: 데이터베이스 연결에 사용할 사용자 이름입니다.
+IAM_PROFILE_NAME: Amazon Redshift IAM 프로필 이름 [https://docs.aws.amazon.com/redshift/latest/mgmt/connecting-with-authentication-profiles.html]입니다.
+Amazon Redshift 인증 및 AWS API 액세스에 필요합니다. Amazon Redshift 클러스터에 대한 설명을 가져오려면 AWS API를 사용합니다.
+
+
+기본적으로 Amazon Redshift는 3~5일 동안의 쿼리 로그를 저장합니다.
+
+기본적으로 dwh-migration-dumper 도구는 최근 7일 동안의 쿼리 로그를 추출합니다.
+
+보다 자세한 통계를 보려면 최소 2주 이상의 쿼리 로그를 제공하는 것이 좋습니다. 최상의 결과를 얻으려면 추출 도구를 2주 동안 몇 번 정도 실행해야 할 수도 있습니다. --query-log-start 및 --query-log-end 플래그를 사용하여 컴스텀 범위를 지정할 수 있습니다.
+예를 들면 다음과 같습니다.
+
+dwh-migration-dumper \
+  --connector redshift-raw-logs \
+  --database DATABASE \
+  --driver PATH/redshift-jdbc42-VERSION.jar \
+  --host host.region.redshift.amazonaws.com \
+  --assessment \
+  --user USER \
+  --iam-profile IAM_PROFILE_NAME \
+  --query-log-start "2023-01-01 00:00:00" \
+  --query-log-end "2023-01-02 00:00:00"
+
+또한 서로 다른 기간의 쿼리 로그가 포함된 ZIP 파일을 여러 개 생성하고 평가용으로 모두 제공할 수 있습니다.
+참고: 이전 버전의 dwh-migration-dumper 도구는 --iam-profile보다 --password 옵션을 선호했습니다. 이 옵션은 계속 작동하지만 지원 중단되었으며 보고서에 일부 공백이 발생할 수 있습니다.
+
+--- 탭: Apache Hive [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#apache-hive] ---
+Preview
+      
+        
+    
+    
+
+    
+      
+      
+        This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section
+        of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1].
+        
+        Pre-GA features are available "as is" and might have limited support.
+      
+      For more information, see the
+      launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+  
+  
+  
+
+
+
+요구사항
+
+
+소스 Apache Hive 데이터 웨어하우스에 연결된 머신(BigQuery 마이그레이션 평가는 Hive on Tez 및 맵리듀스를 지원하며, 버전 2.2~3.1(포함) Apache Hive를 지원합니다.)
+데이터를 저장할 Cloud Storage 버킷이 있는 Google Cloud 계정
+결과를 저장할 빈 BigQuery 데이터 세트
+결과를 볼 수 있는 데이터 세트 읽기 권한
+쿼리 로그 추출을 구성하기 위해 소스 Apache Hive 데이터 웨어하우스에 대한 액세스 권한
+최신 테이블, 파티션, 열 통계
+
+
+BigQuery 마이그레이션 평가는 테이블, 파티션, 열 통계를 사용하여 Apache Hive 데이터 웨어하우스에 대한 이해도를 높이고 완벽한 인사이트를 제공합니다. 소스 Apache Hive 데이터 웨어하우스에서 hive.stats.autogather 구성 설정이 false으로 설정된 경우 dwh-migration-dumper 도구를 실행하기 전에 이를 사용 설정하거나 통계를 수동으로 업데이트하는 것이 좋습니다.
+
+dwh-migration-dumper 도구 실행
+
+dwh-migration-dumper 명령줄 추출 도구 [https://github.com/google/dwh-migration-tools/releases/latest]를 다운로드합니다.
+
+SHA256SUMS.txt 파일 [https://github.com/google/dwh-migration-tools/releases/latest/download/SHA256SUMS.txt]을 다운로드하고 다음 명령어를 실행하여 ZIP이 올바른지 확인합니다.
+
+Bash [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#bash]Windows PowerShell [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#windows-powershell]
+          더보기
+          
+          
+        sha256sum --check SHA256SUMS.txt
+(Get-FileHash RELEASE_ZIP_FILENAME).Hash -eq ((Get-Content SHA256SUMS.txt) -Split " ")[0]
+
+RELEASE_ZIP_FILENAME를 dwh-migration-dumper 명령줄 추출 도구 출시의 다운로드된 ZIP 파일 이름으로 바꿉니다(예: dwh-migration-tools-v1.0.52.zip).
+
+True 결과는 체크섬 확인에 성공했음을 나타냅니다.
+
+False 결과는 인증 오류를 나타냅니다. 체크섬 및 ZIP 파일이 동일한 출시 버전에서 다운로드되어 동일한 디렉터리에 있는지 확인합니다.
+
+dwh-migration-dumper 도구 사용 방법에 대한 자세한 내용은 변환 및 평가를 위한 메타데이터 생성 [https://cloud.google.com/bigquery/docs/generate-metadata?hl=ko]을 참조하세요.
+
+dwh-migration-dumper 도구를 사용하여 Hive 데이터 웨어하우스에서 메타데이터를 ZIP 파일로 생성합니다.
+
+인증 없음
+
+메타데이터 ZIP 파일을 생성하려면 소스 데이터 웨어하우스에 액세스 권한이 있는 머신에서 다음 명령어를 실행합니다.
+
+dwh-migration-dumper \
+  --connector hiveql \
+  --database DATABASES \
+  --host hive.cluster.host \
+  --port 9083 \
+  --assessment
+
+Kerberos 인증 사용
+
+메타스토어에 인증하려면 Hive 메타스토어에 대해 액세스 권한이 있는 사용자로 로그인하고 Kerberos 티켓을 생성합니다. 그런 후 다음 명령어로 메타데이터 ZIP 파일을 생성합니다.
+
+JAVA_OPTS="-Djavax.security.auth.useSubjectCredsOnly=false" \
+  dwh-migration-dumper \
+  --connector hiveql \
+  --database DATABASES \
+  --host hive.cluster.host \
+  --port 9083 \
+  --hive-kerberos-url PRINCIPAL/HOST \
+  -Dhiveql.rpc.protection=hadoop.rpc.protection \
+  --assessment
+
+다음을 바꿉니다.
+
+
+DATABASES: 추출할 데이터베이스 이름을 쉼표로 구분한 목록입니다. 지정하지 않으면 모든 데이터베이스에서 추출됩니다.
+PRINCIPAL: 티켓이 발급된 kerberos 주 구성원입니다.
+HOST: 티켓이 발급된 kerberos 호스트 이름입니다.
+hadoop.rpc.protection: Simple Authentication and Security Layer(SASL) 구성 수준의 보호 품질(QOP)로, /etc/hadoop/conf/core-site.xml 파일 내부의 hadoop.rpc.protection 매개변수 값과 동일하며 다음 값 중 하나를 사용합니다.
+
+authentication
+integrity
+privacy
+
+
+
+hadoop-migration-assessment 로깅 후크를 사용하여 쿼리 로그 추출
+
+쿼리 로그를 추출하려면 다음 단계를 따르세요.
+
+
+hadoop-migration-assessment 로깅 후크를 업로드합니다 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#upload-hadoop-hive-hook].
+로깅 후크 속성을 구성 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#configure-properties]합니다.
+로깅 후크 확인 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#verify-hive-hook]
+
+
+hadoop-migration-assessment 로깅 후크를 업로드합니다.
+
+
+Hive 로깅 후크 JAR 파일이 포함된 hadoop-migration-assessment 쿼리 로그 추출 로깅 후크 [https://github.com/google/hadoop-migration-assessment-tools/releases/latest]를 다운로드합니다.
+JAR 파일의 압축을 풉니다.
+
+규정 준수 요구사항을 충족하는지 확인하기 위해 도구를 감사해야 하는 경우에는 hadoop-migration-assessment 로깅 후크 GitHub 저장소 [https://github.com/google/hadoop-migration-assessment-tools]의 소스 코드를 검토하고 자체 바이너리를 컴파일합니다.
+쿼리 로깅을 사용 설정하려는 모든 클러스터의 보조 라이브러리 폴더에 JAR 파일을 복사합니다. 공급업체에 따라 클러스터 설정에서 보조 라이브러리 폴더를 찾아 Hive 클러스터의 보조 라이브러리 폴더로 JAR 파일을 이동해야 합니다.
+hadoop-migration-assessment 로깅 후크의 구성 속성을 설정합니다.
+Hadoop 공급업체에 따라 UI 콘솔에서 클러스터 설정을 수정해야 할 수 있습니다. /etc/hive/conf/hive-site.xml 파일을 수정하거나 구성 관리자로 구성을 적용합니다.
+
+
+속성 구성
+
+다음 구성 키에 대해 다른 값이 이미 있는 경우 쉼표(,)를 사용하여 설정을 추가합니다. hadoop-migration-assessment 로깅 후크를 설정하려면 다음 구성 설정이 필요합니다.
+
+
+hive.exec.failure.hooks: com.google.cloud.bigquery.dwhassessment.hooks.MigrationAssessmentLoggingHook
+hive.exec.post.hooks: com.google.cloud.bigquery.dwhassessment.hooks.MigrationAssessmentLoggingHook
+hive.exec.pre.hooks: com.google.cloud.bigquery.dwhassessment.hooks.MigrationAssessmentLoggingHook
+hive.aux.jars.path: 로깅 후크 JAR 파일의 경로(예: file:///HiveMigrationAssessmentQueryLogsHooks_deploy.jar)를 포함합니다.
+dwhassessment.hook.base-directory: 쿼리 로그 출력 폴더의 경로입니다. 예를 들면 hdfs://tmp/logs/입니다.
+다음과 같은 선택적 구성을 설정할 수도 있습니다.
+
+
+dwhassessment.hook.queue.capacity: 쿼리 이벤트 로깅 스레드의 큐 용량입니다. 기본값은 64입니다.
+dwhassessment.hook.rollover-interval: 파일 롤오버를 실행해야 하는 빈도입니다. 예를 들면 600s입니다.
+기본값은 3,600초(1시간)입니다.
+dwhassessment.hook.rollover-eligibility-check-interval: 백그라운드에서 파일 롤오버 적합성 검사가 트리거되는 빈도입니다. 예를 들면 600s입니다. 기본값은 600초(10분)입니다.
+
+
+중요: 구성 변경사항을 적용하려면 Hive 서비스를 다시 시작해야 합니다.
+로깅 후크 확인
+
+hive-server2 프로세스를 다시 시작한 후 테스트 쿼리를 실행하고 디버그 로그를 분석합니다. 다음과 같은 메시지가 표시됩니다.
+
+Logger successfully started, waiting for query events. Log directory is '[dwhassessment.hook.base-directory value]'; rollover interval is '60' minutes;
+rollover eligibility check is '10' minutes
+
+
+로깅 후크는 구성된 폴더에 날짜별로 파티션을 나눈 하위 폴더를 만듭니다. 쿼리 이벤트가 있는 Avro 파일은 dwhassessment.hook.rollover-interval 간격 또는 hive-server2 프로세스 종료 후 해당 폴더에 표시됩니다. 디버그 로그에서 유사한 메시지를 찾아서 롤오버 작업의 상태를 확인할 수 있습니다.
+
+Updated rollover time for logger ID 'my_logger_id' to '2023-12-25T10:15:30'
+
+
+Performed rollover check for logger ID 'my_logger_id'. Expected rollover time
+is '2023-12-25T10:15:30'
+
+
+지정된 간격으로 또는 날이 바뀌면 롤오버가 발생합니다. 날이 바뀌면 로깅 후크는 해당 날짜에 대해서도 하위 폴더를 새로 만듭니다.
+
+보다 자세한 통계를 보려면 최소 2주 이상의 쿼리 로그를 제공하는 것이 좋습니다.
+
+또한 서로 다른 Hive 클러스터의 쿼리 로그가 포함된 여러 개의 폴더를 생성한 후 한 번에 평가하도록 모두 제공할 수 있습니다.
+
+--- 탭: Snowflake [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#snowflake] ---
+Preview
+      
+        
+    
+    
+
+    
+      
+      
+        This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section
+        of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1].
+        
+        Pre-GA features are available "as is" and might have limited support.
+      
+      For more information, see the
+      launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+  
+  
+  
+
+
+
+요구사항
+
+Snowflake에서 메타데이터 및 쿼리 로그를 추출하려면 다음 요구사항을 충족해야 합니다.
+
+
+Snowflake 인스턴스에 연결할 수 있는 머신
+데이터를 저장할 Cloud Storage 버킷이 있는 Google Cloud 계정
+결과를 저장할 빈 BigQuery 데이터 세트.
+또는 Google Cloud 콘솔 UI를 사용하여 평가 작업을 만들 때 BigQuery 데이터 세트를 만들 수 있습니다.
+Snowflake 인스턴스의 ACCOUNTADMIN 역할에 대한 액세스 권한. 또는 계정 관리자가 데이터베이스 Snowflake에 대한 IMPORTED PRIVILEGES 권한을 가진 역할을 부여 [https://docs.snowflake.com/en/sql-reference/account-usage#enabling-snowflake-database-usage-for-other-roles]해야 합니다.
+
+
+dwh-migration-dumper 도구 실행
+
+dwh-migration-dumper 명령줄 추출 도구 [https://github.com/google/dwh-migration-tools/releases/latest]를 다운로드합니다.
+
+SHA256SUMS.txt 파일 [https://github.com/google/dwh-migration-tools/releases/latest/download/SHA256SUMS.txt]을 다운로드하고 다음 명령어를 실행하여 ZIP이 올바른지 확인합니다.
+
+Bash [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#bash]Windows PowerShell [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#windows-powershell]
+          더보기
+          
+          
+        sha256sum --check SHA256SUMS.txt
+(Get-FileHash RELEASE_ZIP_FILENAME).Hash -eq ((Get-Content SHA256SUMS.txt) -Split " ")[0]
+
+RELEASE_ZIP_FILENAME를 dwh-migration-dumper 명령줄 추출 도구 출시의 다운로드된 ZIP 파일 이름으로 바꿉니다(예: dwh-migration-tools-v1.0.52.zip).
+
+True 결과는 체크섬 확인에 성공했음을 나타냅니다.
+
+False 결과는 인증 오류를 나타냅니다. 체크섬 및 ZIP 파일이 동일한 출시 버전에서 다운로드되어 동일한 디렉터리에 있는지 확인합니다.
+
+dwh-migration-dumper 도구 사용 방법에 관한 자세한 내용은 메타데이터 생성 [https://cloud.google.com/bigquery/docs/generate-metadata?hl=ko] 페이지를 참조하세요.
+
+dwh-migration-dumper 도구를 사용하여 Snowflake 데이터 웨어하우스에서 로그 및 메타데이터를 2개의 ZIP 파일로 추출합니다. 소스 데이터 웨어하우스에 대해 액세스 권한이 있는 머신에서 다음 명령어를 실행하여 파일을 생성합니다.
+
+메타데이터 ZIP 파일을 생성합니다.
+
+dwh-migration-dumper \
+  --connector snowflake \
+  --host HOST_NAME \
+  --database SNOWFLAKE \
+  --user USER_NAME \
+  --role ROLE_NAME \
+  --warehouse WAREHOUSE \
+  --assessment \
+  --password PASSWORD
+
+쿼리 로그가 포함된 ZIP 파일을 생성합니다.
+
+dwh-migration-dumper \
+  --connector snowflake-logs \
+  --host HOST_NAME \
+  --database SNOWFLAKE \
+  --user USER_NAME \
+  --role ROLE_NAME \
+  --warehouse WAREHOUSE \
+  --query-log-start STARTING_DATE \
+  --query-log-end ENDING_DATE \
+  --assessment \
+  --password PASSWORD
+
+다음을 바꿉니다.
+
+
+HOST_NAME: Snowflake 인스턴스의 호스트 이름입니다.
+USER_NAME: 데이터베이스 연결에 사용할 사용자 이름입니다. 사용자에게 요구사항 섹션 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#requirements-snowflake]에 설명된 액세스 권한이 있어야 합니다.
+ROLE_NAME: (선택사항) dwh-migration-dumper 도구를 실행할 때의 사용자 역할입니다(예: ACCOUNTADMIN).
+WAREHOUSE: 덤프 작업을 실행하는 데 사용되는 웨어하우스입니다. 가상 웨어하우스가 여러 개인 경우 이 쿼리를 실행할 웨어하우스를 지정할 수 있습니다. 요구사항 섹션 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#requirements-snowflake]에 설명된 액세스 권한으로 이 쿼리를 실행하면 이 계정의 모든 창고 아티팩트가 추출됩니다.
+STARTING_DATE: (선택사항) YYYY-MM-DD 형식으로 작성된 쿼리 로그의 기간 시작일을 나타내는 데 사용됩니다.
+ENDING_DATE: (선택사항) YYYY-MM-DD 형식으로 작성된 쿼리 로그의 기간 종료일을 나타내는 데 사용됩니다.
+
+
+또한 겹치지 않는 기간의 쿼리 로그가 포함된 ZIP 파일을 여러 개 생성하고 평가용으로 모두 제공할 수 있습니다.
+
+--- 탭: tabpanel-oracle ---
+Preview
+      
+        
+    
+    
+
+    
+      
+      
+        This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section
+        of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1].
+        
+        Pre-GA features are available "as is" and might have limited support.
+      
+      For more information, see the
+      launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+  
+  
+  
+
+
+
+이 기능에 대한 의견이나 지원을 요청하려면 bq-edw-migration-support@google.com [mailto:bq-edw-migration-support@google.com]으로 이메일을 보내세요.
+
+요구사항
+
+Oracle에서 메타데이터 및 쿼리 로그를 추출하려면 다음 요구사항을 충족해야 합니다.
+
+
+Oracle 인스턴스에 연결할 수 있는 머신
+Java 8 이상
+데이터를 저장할 Cloud Storage 버킷이 있는 Google Cloud 계정
+결과를 저장할 빈 BigQuery 데이터 세트.
+또는 Google Cloud 콘솔 UI를 사용하여 평가 작업을 만들 때 BigQuery 데이터 세트를 만들 수 있습니다.
+SYSDBA 권한이 있는 Oracle 일반 사용자
+
+
+dwh-migration-dumper 도구 실행
+
+dwh-migration-dumper 명령줄 추출 도구 [https://github.com/google/dwh-migration-tools/releases/latest]를 다운로드합니다.
+
+SHA256SUMS.txt 파일 [https://github.com/google/dwh-migration-tools/releases/latest/download/SHA256SUMS.txt]을 다운로드하고 다음 명령어를 실행하여 ZIP이 올바른지 확인합니다.
+
+sha256sum --check SHA256SUMS.txt
+
+dwh-migration-dumper 도구 사용 방법에 관한 자세한 내용은 메타데이터 생성 [https://cloud.google.com/bigquery/docs/generate-metadata?hl=ko] 페이지를 참조하세요.
+
+dwh-migration-dumper 도구를 사용하여 메타데이터 및 성능 통계를 ZIP 파일로 추출합니다. 기본적으로 통계는 Oracle 조정 및 진단 팩이 필요한 Oracle AWR에서 추출됩니다. 이 데이터를 사용할 수 없는 경우 dwh-migration-dumper는 대신 STATSPACK을 사용합니다.
+
+멀티테넌트 데이터베이스의 경우 dwh-migration-dumper 도구를 루트 컨테이너에서 실행해야 합니다. 플러그인 가능한 데이터베이스 중 하나에서 실행하면 다른 플러그인 가능한 데이터베이스에 대한 성능 통계 및 메타데이터가 누락됩니다.
+
+메타데이터 ZIP 파일을 생성합니다.
+
+dwh-migration-dumper \
+  --connector oracle-stats \
+  --host HOST_NAME \
+  --port PORT \
+  --oracle-service SERVICE_NAME \
+  --assessment \
+  --driver JDBC_DRIVER_PATH \
+  --user USER_NAME \
+  --password
+
+다음을 바꿉니다.
+
+
+HOST_NAME: Oracle 인스턴스의 호스트 이름입니다.
+PORT: 연결 포트 번호입니다. 기본값은 1521입니다.
+SERVICE_NAME: 연결에 사용할 Oracle 서비스 이름입니다.
+JDBC_DRIVER_PATH: 드라이버 JAR 파일의 절대 또는 상대 경로입니다. 이 파일은 Oracle JDBC 드라이버 다운로드 [https://www.oracle.com/pl/database/technologies/appdev/jdbc-downloads.html] 페이지에서 다운로드할 수 있습니다. 데이터베이스 버전과 호환되는 드라이버 버전을 선택해야 합니다.
+USER_NAME: Oracle 인스턴스에 연결하는 데 사용된 사용자의 이름입니다. 사용자에게 요구사항 섹션 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#requirements-oracle]에 설명된 액세스 권한이 있어야 합니다.
+
+--- 탭: Bash [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#bash] ---
+sha256sum --check SHA256SUMS.txt
+
+--- 탭: Windows PowerShell [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#windows-powershell] ---
+(Get-FileHash RELEASE_ZIP_FILENAME).Hash -eq ((Get-Content SHA256SUMS.txt) -Split " ")[0]
+
+RELEASE_ZIP_FILENAME를 dwh-migration-dumper 명령줄 추출 도구 출시의 다운로드된 ZIP 파일 이름으로 바꿉니다(예: dwh-migration-tools-v1.0.52.zip).
+
+True 결과는 체크섬 확인에 성공했음을 나타냅니다.
+
+False 결과는 인증 오류를 나타냅니다. 체크섬 및 ZIP 파일이 동일한 출시 버전에서 다운로드되어 동일한 디렉터리에 있는지 확인합니다.
+
+--- 탭: Bash [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#bash] ---
+sha256sum --check SHA256SUMS.txt
+
+--- 탭: Windows PowerShell [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#windows-powershell] ---
+(Get-FileHash RELEASE_ZIP_FILENAME).Hash -eq ((Get-Content SHA256SUMS.txt) -Split " ")[0]
+
+RELEASE_ZIP_FILENAME를 dwh-migration-dumper 명령줄 추출 도구 출시의 다운로드된 ZIP 파일 이름으로 바꿉니다(예: dwh-migration-tools-v1.0.52.zip).
+
+True 결과는 체크섬 확인에 성공했음을 나타냅니다.
+
+False 결과는 인증 오류를 나타냅니다. 체크섬 및 ZIP 파일이 동일한 출시 버전에서 다운로드되어 동일한 디렉터리에 있는지 확인합니다.
+
+--- 탭: tabpanel-bash ---
+sha256sum --check SHA256SUMS.txt
+
+--- 탭: tabpanel-windows-powershell ---
+(Get-FileHash RELEASE_ZIP_FILENAME).Hash -eq ((Get-Content SHA256SUMS.txt) -Split " ")[0]
+
+RELEASE_ZIP_FILENAME를 dwh-migration-dumper 명령줄 추출 도구 출시의 다운로드된 ZIP 파일 이름으로 바꿉니다(예: dwh-migration-tools-v1.0.52.zip).
+
+True 결과는 체크섬 확인에 성공했음을 나타냅니다.
+
+False 결과는 인증 오류를 나타냅니다. 체크섬 및 ZIP 파일이 동일한 출시 버전에서 다운로드되어 동일한 디렉터리에 있는지 확인합니다.
+
+--- 탭: tabpanel-bash ---
+sha256sum --check SHA256SUMS.txt
+
+--- 탭: tabpanel-windows-powershell ---
+(Get-FileHash RELEASE_ZIP_FILENAME).Hash -eq ((Get-Content SHA256SUMS.txt) -Split " ")[0]
+
+RELEASE_ZIP_FILENAME를 dwh-migration-dumper 명령줄 추출 도구 출시의 다운로드된 ZIP 파일 이름으로 바꿉니다(예: dwh-migration-tools-v1.0.52.zip).
+
+True 결과는 체크섬 확인에 성공했음을 나타냅니다.
+
+False 결과는 인증 오류를 나타냅니다. 체크섬 및 ZIP 파일이 동일한 출시 버전에서 다운로드되어 동일한 디렉터리에 있는지 확인합니다.
+
+--- 탭: tabpanel-bash ---
+sha256sum --check SHA256SUMS.txt
+
+--- 탭: tabpanel-windows-powershell ---
+(Get-FileHash RELEASE_ZIP_FILENAME).Hash -eq ((Get-Content SHA256SUMS.txt) -Split " ")[0]
+
+RELEASE_ZIP_FILENAME를 dwh-migration-dumper 명령줄 추출 도구 출시의 다운로드된 ZIP 파일 이름으로 바꿉니다(예: dwh-migration-tools-v1.0.52.zip).
+
+True 결과는 체크섬 확인에 성공했음을 나타냅니다.
+
+False 결과는 인증 오류를 나타냅니다. 체크섬 및 ZIP 파일이 동일한 출시 버전에서 다운로드되어 동일한 디렉터리에 있는지 확인합니다.
+Cloud Storage에 메타데이터 및 쿼리 로그 업로드
+데이터 웨어하우스에서 메타데이터와 쿼리 로그를 추출한 후 파일을 Cloud Storage 버킷에 업로드하여 이전 평가를 진행할 수 있습니다.
+--- 탭: Teradata [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#teradata] ---
+메타데이터와 쿼리 로그가 포함된 하나 이상의 ZIP 파일을 Cloud Storage 버킷에 업로드합니다. 버킷 생성 및 Cloud Storage에 파일 업로드에 대한 자세한 내용은 버킷 만들기 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko] 및 파일 시스템에서 객체 업로드 [https://cloud.google.com/storage/docs/uploading-objects?hl=ko]를 참조하세요.
+메타데이터 ZIP 파일 내 모든 파일의 압축되지 않은 총 크기는 50GB로 제한됩니다.
+
+쿼리 로그가 포함된 모든 ZIP 파일의 항목은 다음과 같이 나뉩니다.
+
+
+query_history_ 프리픽스가 있는 쿼리 기록 파일
+utility_logs_, dbc.ResUsageScpu_, dbc.ResUsageSpma_ 프리픽스가 있는 시계열 파일
+
+
+압축되지 않은 모든 쿼리 기록 파일의 총 크기 한도는 5TB입니다.
+압축되지 않은 모든 시계열 파일의 총 크기 한도는 1TB입니다.
+
+쿼리 로그가 다른 데이터베이스에 보관처리되는 경우 이 섹션의 앞부분에 있는 -Dteradata-logs.query-logs-table 및 -Dteradata-logs.sql-logs-table 플래그에 대한 설명을 참조하세요. 이 섹션에서는 쿼리 로그의 대체 위치를 제공하는 방법을 설명합니다.
+
+--- 탭: Amazon Redshift [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#amazon-redshift] ---
+메타데이터와 쿼리 로그가 포함된 하나 이상의 ZIP 파일을 Cloud Storage 버킷에 업로드합니다. 버킷 생성 및 Cloud Storage에 파일 업로드에 대한 자세한 내용은 버킷 만들기 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko] 및 파일 시스템에서 객체 업로드 [https://cloud.google.com/storage/docs/uploading-objects?hl=ko]를 참조하세요.
+메타데이터 ZIP 파일 내 모든 파일의 압축되지 않은 총 크기는 50GB로 제한됩니다.
+
+쿼리 로그가 포함된 모든 ZIP 파일의 항목은 다음과 같이 나뉩니다.
+
+
+querytext_ 및 ddltext_ 프리픽스가 있는 쿼리 기록 파일
+query_queue_info_, wlm_query_, querymetrics_ 프리픽스가 있는 시계열 파일
+
+
+압축되지 않은 모든 쿼리 기록 파일의 총 크기 한도는 5TB입니다.
+압축되지 않은 모든 시계열 파일의 총 크기 한도는 1TB입니다.
+
+--- 탭: Apache Hive [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#apache-hive] ---
+Preview
+      
+        
+    
+    
+
+    
+      
+      
+        This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section
+        of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1].
+        
+        Pre-GA features are available "as is" and might have limited support.
+      
+      For more information, see the
+      launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+  
+  
+  
+
+
+
+하나 이상의 Hive 클러스터에서 쿼리 로그가 포함된 메타데이터와 폴더를 Cloud Storage 버킷에 업로드합니다. 버킷 생성 및 Cloud Storage에 파일 업로드에 대한 자세한 내용은 버킷 만들기 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko] 및 파일 시스템에서 객체 업로드 [https://cloud.google.com/storage/docs/uploading-objects?hl=ko]를 참조하세요.
+
+메타데이터 ZIP 파일 내 모든 파일의 압축되지 않은 총 크기는 50GB로 제한됩니다.
+
+Cloud Storage 커넥터 [https://cloud.google.com/dataproc/docs/concepts/connectors/cloud-storage?hl=ko#non-clusters]를 사용하여 쿼리 로그를 Cloud Storage 폴더에 직접 복사할 수 있습니다.
+쿼리 로그가 저장된 하위 폴더가 포함된 폴더는 메타데이터 ZIP 파일이 업로드되는 동일한 Cloud Storage 폴더에 업로드되어야 합니다.
+
+쿼리 로그 폴더에는 dwhassessment_ 프리픽스가 있는 쿼리 기록 파일이 있습니다. 압축되지 않은 모든 쿼리 기록 파일의 총 크기 한도는 5TB입니다.
+
+--- 탭: Snowflake [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#snowflake] ---
+Preview
+      
+        
+    
+    
+
+    
+      
+      
+        This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section
+        of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1].
+        
+        Pre-GA features are available "as is" and might have limited support.
+      
+      For more information, see the
+      launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+  
+  
+  
+
+
+
+쿼리 로그 및 사용량 기록이 포함된 메타데이터와 ZIP 파일을 Cloud Storage 버킷에 업로드합니다. 이러한 파일을 Cloud Storage에 업로드할 때는 다음 요구사항을 충족해야 합니다.
+
+
+메타데이터 ZIP 파일 내에 있는 모든 파일의 압축되지 않은 총 크기는 50GB 미만이어야 합니다.
+메타데이터 ZIP 파일과 쿼리 로그가 포함된 ZIP 파일을 Cloud Storage 폴더에 업로드해야 합니다. 겹치지 않는 쿼리 로그가 포함된 ZIP 파일이 여러 개인 경우 모두 업로드할 수 있습니다.
+모든 파일을 동일한 Cloud Storage 폴더에 업로드해야 합니다.
+모든 메타데이터 및 쿼리 로그 ZIP 파일을 dwh-migration-dumper 도구에서 출력한 그대로 업로드해야 합니다. 파일의 압축을 풀거나, 결합하거나, 다른 방식으로 수정하지 마세요.
+압축되지 않은 모든 쿼리 기록 파일의 총 크기는 5TB 미만이어야 합니다.
+
+
+버킷 생성 및 Cloud Storage에 파일 업로드에 대한 자세한 내용은 버킷 만들기 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko] 및 파일 시스템에서 객체 업로드 [https://cloud.google.com/storage/docs/uploading-objects?hl=ko]를 참조하세요.
+
+--- 탭: tabpanel-oracle ---
+Preview
+      
+        
+    
+    
+
+    
+      
+      
+        This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section
+        of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1].
+        
+        Pre-GA features are available "as is" and might have limited support.
+      
+      For more information, see the
+      launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+  
+  
+  
+
+
+
+이 기능에 대한 의견이나 지원을 요청하려면 bq-edw-migration-support@google.com [mailto:bq-edw-migration-support@google.com]으로 이메일을 보내세요.
+
+메타데이터 및 성능 통계가 포함된 ZIP 파일을 Cloud Storage 버킷에 업로드합니다. 기본적으로 ZIP 파일의 파일 이름은 dwh-migration-oracle-stats.zip이지만 --output 플래그에서 지정하여 맞춤설정할 수 있습니다. ZIP 파일 내 모든 파일의 압축되지 않은 총 크기는 50GB로 제한됩니다.
+
+버킷 생성 및 Cloud Storage에 파일 업로드에 대한 자세한 내용은 버킷 만들기 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko] 및 파일 시스템에서 객체 업로드 [https://cloud.google.com/storage/docs/uploading-objects?hl=ko]를 참조하세요.
+BigQuery 마이그레이션 평가 실행
+다음 단계에 따라 BigQuery 마이그레이션 평가를 실행합니다. 이 단계에서는 이전 섹션에 설명된 대로 메타데이터 파일을 Cloud Storage 버킷에 업로드했다고 가정합니다.
+필수 권한
+BigQuery 마이그레이션 서비스를 사용 설정하려면 다음 Identity and Access Management(IAM) 권한이 필요합니다.
+resourcemanager.projects.get
+resourcemanager.projects.update
+serviceusage.services.enable
+serviceusage.services.get
+BigQuery Migration Service를 액세스하고 사용하려면 프로젝트에 대해 다음 권한이 필요합니다.
+bigquerymigration.workflows.create
+bigquerymigration.workflows.get
+bigquerymigration.workflows.list
+bigquerymigration.workflows.delete
+bigquerymigration.subtasks.get
+bigquerymigration.subtasks.list
+참고: Google Cloud CLI를 사용해서 bigquerymigration.* 프리픽스로 권한 및 역할만 설정할 수 있습니다. Google Cloud CLI 설정 및 사용 방법은 gcloud CLI 도구 개요 [https://cloud.google.com/sdk/gcloud?hl=ko]를 참조하세요.
+BigQuery Migration Service를 실행하려면 다음과 같은 추가 권한이 필요합니다.
+입력 및 출력 파일에 대해 Cloud Storage 버킷에 액세스하기 위한 권한입니다.
+소스 Cloud Storage 버킷에서 storage.objects.get
+소스 Cloud Storage 버킷에서 storage.objects.list
+대상 Cloud Storage 버킷에서 storage.objects.create
+대상 Cloud Storage 버킷에서 storage.objects.delete
+대상 Cloud Storage 버킷에서 storage.objects.update
+storage.buckets.get
+storage.buckets.list
+BigQuery Migration Service가 결과를 기록하는 BigQuery 데이터 세트를 읽고 업데이트하기 위한 권한이 필요합니다.
+bigquery.datasets.update
+bigquery.datasets.get
+bigquery.datasets.create
+bigquery.datasets.delete
+bigquery.jobs.create
+bigquery.jobs.delete
+bigquery.jobs.list
+bigquery.jobs.update
+bigquery.tables.create
+bigquery.tables.get
+bigquery.tables.getData
+bigquery.tables.list
+bigquery.tables.updateData
+Looker Studio 보고서를 사용자와 공유하려면 다음 역할을 부여해야 합니다.
+roles/bigquery.dataViewer
+roles/bigquery.jobUser
+명령어에서 자체 프로젝트 및 사용자를 사용하도록 이 문서를 맞춤설정하려면
+PROJECT,
+USER_EMAIL 변수를 수정합니다.
+BigQuery 마이그레이션 평가를 사용하는 데 필요한 권한으로 커스텀 역할을 만듭니다.
+gcloud iam roles create BQMSrole \
+  --project=PROJECT \
+  --title=BQMSrole \
+  --permissions=bigquerymigration.subtasks.get,bigquerymigration.subtasks.list,bigquerymigration.workflows.create,bigquerymigration.workflows.get,bigquerymigration.workflows.list,bigquerymigration.workflows.delete,resourcemanager.projects.update,resourcemanager.projects.get,serviceusage.services.enable,serviceusage.services.get,storage.objects.get,storage.objects.list,storage.objects.create,storage.objects.delete,storage.objects.update,bigquery.datasets.get,bigquery.datasets.update,bigquery.datasets.create,bigquery.datasets.delete,bigquery.tables.get,bigquery.tables.create,bigquery.tables.updateData,bigquery.tables.getData,bigquery.tables.list,bigquery.jobs.create,bigquery.jobs.update,bigquery.jobs.list,bigquery.jobs.delete,storage.buckets.list,storage.buckets.get
+사용자에게 BQMSrole 커스텀 역할을 부여합니다.
+gcloud projects add-iam-policy-binding \
+  PROJECT \
+  --member=user:USER_EMAIL \
+  --role=projects/PROJECT/roles/BQMSrole
+보고서를 공유하려는 사용자에게 필요한 역할을 부여합니다.
+gcloud projects add-iam-policy-binding \
+  PROJECT \
+  --member=user:USER_EMAIL \
+  --role=roles/bigquery.dataViewer
+
+gcloud projects add-iam-policy-binding \
+  PROJECT \
+  --member=user:USER_EMAIL \
+  --role=roles/bigquery.jobUser
+지원되는 위치
+BigQuery 마이그레이션 평가 기능은 다음 두 가지 유형의 위치에서 지원됩니다.
+리전은 특정한 지리적 장소(예: 런던)입니다.
+멀티 리전은 두 개 이상의 지역을 포함하는 넓은 지리적 지역(예: 미국)입니다. 멀티 리전 위치는 단일 리전보다 더 큰 할당량을 제공할 수 있습니다.
+리전과 영역에 대한 상세 설명은 위치 및 리전 [https://cloud.google.com/docs/geography-and-regions?hl=ko]을 참조하세요.
+리전
+다음 표에는 BigQuery 마이그레이션 평가를 사용할 수 있는 미주 내 리전이 나와 있습니다.
+리전 설명 리전 이름 세부정보
+오하이오 주 콜럼부스 us-east5
+댈러스 us-south1 낮은 CO2 [https://cloud.google.com/sustainability/region-carbon?hl=ko#region-picker]
+아이오와 us-central1 낮은 CO2 [https://cloud.google.com/sustainability/region-carbon?hl=ko#region-picker]
+사우스캐롤라이나 us-east1
+북버지니아 us-east4
+오리건 us-west1 낮은 CO2 [https://cloud.google.com/sustainability/region-carbon?hl=ko#region-picker]
+로스앤젤레스 us-west2
+솔트레이크시티 us-west3
+다음 표에는 BigQuery 마이그레이션 평가를 사용할 수 있는 아시아 태평양의 리전이 나와 있습니다.
+리전 설명 리전 이름 세부정보
+싱가포르 asia-southeast1
+도쿄 asia-northeast1
+다음 표에서는 BigQuery 마이그레이션 평가가 제공되는 유럽의 리전 목록을 보여줍니다.
+리전 설명 리전 이름 세부정보
+벨기에 europe-west1 낮은 CO2 [https://cloud.google.com/sustainability/region-carbon?hl=ko#region-picker]
+핀란드 europe-north1 낮은 CO2 [https://cloud.google.com/sustainability/region-carbon?hl=ko#region-picker]
+프랑크푸르트 europe-west3 낮은 CO2 [https://cloud.google.com/sustainability/region-carbon?hl=ko#region-picker]
+런던 europe-west2 낮은 CO2 [https://cloud.google.com/sustainability/region-carbon?hl=ko#region-picker]
+마드리드 europe-southwest1 낮은 CO2 [https://cloud.google.com/sustainability/region-carbon?hl=ko#region-picker]
+네덜란드 europe-west4 낮은 CO2 [https://cloud.google.com/sustainability/region-carbon?hl=ko#region-picker]
+파리 europe-west9 낮은 CO2 [https://cloud.google.com/sustainability/region-carbon?hl=ko#region-picker]
+토리노 europe-west12
+바르샤바 europe-central2
+취리히 europe-west6 낮은 CO2 [https://cloud.google.com/sustainability/region-carbon?hl=ko#region-picker]
+참고:API 작업 [https://cloud.google.com/bigquery/docs/reference/migration/rest?hl=ko]은 asia-southeast1(싱가포르), europe-west2(런던) 리전과 US, EU 멀티 리전에서만 지원됩니다. 다른 모든 위치는 콘솔에서만 사용할 수 있습니다.
+멀티 리전
+다음 표에는 BigQuery 마이그레이션 평가를 사용할 수 있는 멀티 리전이 나와 있습니다.
+멀티 리전 설명 멀티 리전 이름
+유럽 연합 회원국 [https://europa.eu/european-union/about-eu/countries_en]의 데이터 센터 EU
+미국의 데이터 센터 US
+시작하기 전에
+평가를 실행하려면 먼저 BigQuery Migration API를 사용 설정하고 평가 결과를 저장할 BigQuery 데이터 세트를 만들어야 합니다.
+BigQuery Migration API 사용 설정
+다음과 같이 BigQuery Migration API를 사용 설정합니다.
+Google Cloud 콘솔에서 BigQuery Migration API 페이지로 이동합니다.
+BigQuery Migration API로 이동 [https://console.cloud.google.com/apis/api/bigquerymigration.googleapis.com/overview?hl=ko]
+사용 설정을 클릭합니다.
+평가 결과의 데이터 세트 만들기
+BigQuery 마이그레이션 평가는 평가 결과를 BigQuery의 테이블에 기록합니다. 시작하기 전에 이러한 테이블을 저장할 데이터 세트를 만드세요 [https://cloud.google.com/bigquery/docs/datasets?hl=ko]. Looker Studio 보고서를 공유할 때는 공유 대상 사용자에게도 이 데이터 세트 읽기 권한을 부여해야 합니다. 자세한 내용은 사용자에게 보고서 제공하기 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#share_the_data_studio_report]를 참조하세요.
+참고: 데이터 세트는 소스 데이터베이스에서 추출된 메타데이터 및 로그 파일이 포함된 Cloud Storage 버킷과 동일한 리전에 있어야 합니다.
+마이그레이션 평가 실행
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색 메뉴에서 평가를 클릭합니다.
+평가 시작을 클릭합니다.
+평가 구성 대화상자를 작성합니다.
+
+
+표시 이름에 문자, 숫자 또는 밑줄을 포함할 수 있는 이름을 입력합니다. 이 이름은 표시 전용이며 고유하지 않아도 됩니다.
+데이터 위치 목록에서 평가 작업의 위치를 선택합니다. 평가 작업은 추출된 파일 입력 Cloud Storage 버킷 및 출력 BigQuery 데이터 세트와 동일한 위치에 있어야 합니다.
+
+그러나 이 위치가 US 또는 EU 멀티 리전인 경우 Cloud Storage 버킷 위치와 BigQuery 데이터 세트 위치는 이 멀티 리전 내의 모든 리전에 있을 수 있습니다.
+Cloud Storage 버킷과 BigQuery 데이터 세트는 동일한 멀티 리전 내의 서로 다른 위치에 있을 수 있습니다.
+예를 들어 US 멀티 리전을 선택하면 Cloud Storage 버킷은 us-central1 리전에 있을 수 있고 BigQuery 데이터 세트는 us-east1 리전에 있을 수 있습니다.
+평가 데이터 소스에서 데이터 웨어하우스를 선택합니다.
+입력 파일 경로에 추출된 파일이 포함된 Cloud Storage 버킷의 경로를 입력합니다.
+평가 결과를 저장하는 방법을 선택하려면 다음 옵션 중 하나를 따르세요.
+
+
+BigQuery 데이터 세트를 자동으로 만들려면 새 BigQuery 데이터 세트 자동 생성 체크박스를 선택한 상태로 둡니다. 데이터 세트의 이름은 자동으로 생성됩니다.
+새 BigQuery 데이터 세트 자동 생성 체크박스를 선택 해제하고 projectId.datasetId 형식을 사용하여 기존의 빈 BigQuery 데이터 세트를 선택하거나 새 데이터 세트 이름을 만듭니다. 이 옵션에서 BigQuery 데이터 세트 이름을 선택할 수 있습니다.
+
+
+
+옵션 1 - 자동 BigQuery 데이터 세트 생성(기본값)
+ 
+
+옵션 2 - 수동 BigQuery 데이터 세트 생성:
+ 
+만들기를 클릭합니다. 평가 작업 목록에서 작업 상태를 확인할 수 있습니다.
+
+평가가 실행되는 동안 상태 아이콘의 도움말에서 진행 상황과 예상 완료 시간을 확인할 수 있습니다.
+
+ 
+평가가 실행되는 동안 평가 작업 목록에서 보고서 보기 링크를 클릭하여 Looker Studio에서 일부 데이터가 포함된 평가 보고서를 볼 수 있습니다. 평가가 실행되는 동안 보고서 보기 링크가 표시되는 데 다소 시간이 걸릴 수 있습니다. 보고서가 새 탭으로 열립니다.
+
+보고서는 처리되는 대로 새 데이터로 업데이트됩니다. 보고서가 있는 탭을 새로고침하거나 보고서 보기를 다시 클릭하여 업데이트된 보고서를 확인합니다.
+평가가 완료되면 보고서 보기를 클릭하여 Looker Studio에서 전체 평가 보고서를 확인합니다. 보고서가 새 탭으로 열립니다.
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#api] ---
+정의된 워크플로 [https://cloud.google.com/bigquery/docs/reference/migration/rest/v2alpha/projects.locations.workflows?hl=ko]를 사용해서 create [https://cloud.google.com/bigquery/docs/reference/migration/rest/v2alpha/projects.locations.workflows/create?hl=ko] 메서드를 호출합니다.
+
+그런 다음 start [https://cloud.google.com/bigquery/docs/reference/migration/rest/v2alpha/projects.locations.workflows/start?hl=ko] 메서드를 호출하여 변환 워크플로를 시작합니다.
+평가에서 앞서 만든 BigQuery 데이터 세트에 테이블을 만듭니다. 여기에서 기존 데이터 웨어하우스에 사용되는 테이블 및 쿼리에 대한 정보를 쿼리할 수 있습니다. 변환의 출력 파일에 대한 자세한 내용은 일괄 SQL 변환기 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko#explore_the_translation_output]를 참조하세요.
+공유 가능한 집계된 평가 결과
+Preview
+This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1]. Pre-GA features are available "as is" and might have limited support. For more information, see the launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+Amazon Redshift, Teradata, Snowflake 평가의 경우 이전에 생성된 BigQuery 데이터 세트 외에 워크플로에서 동일한 이름과 _shareableRedactedAggregate 접미사가 있는 또 다른 경량 데이터 세트를 만듭니다. 이 데이터 세트에는 출력 데이터 세트에서 파생된 고도로 집계된 데이터가 포함되며 개인 식별 정보(PII)는 포함되지 않습니다.
+데이터 세트를 찾아 검사하고 다른 사용자와 안전하게 공유하려면 이전 평가 출력 테이블 쿼리 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#query_assessment_output]를 참조하세요.
+이 기능은 기본적으로 사용 설정되어 있지만 공개 API [https://cloud.google.com/bigquery/docs/reference/migration/rest/v2alpha/projects.locations.workflows/create?hl=ko]를 사용하여 선택 해제할 수 있습니다.
+평가 세부정보
+평가 세부정보 페이지를 보려면 평가 작업 목록에서 표시 이름을 클릭합니다.
+평가 세부정보 페이지에는 평가 작업에 관한 자세한 정보를 확인할 수 있는 구성 탭과 평가 처리 중에 발생한 오류를 검토할 수 있는 오류 탭이 있습니다.
+구성 탭에서 평가의 속성을 확인합니다.
+오류 탭에서 평가 처리 중에 발생한 오류를 확인합니다.
+Looker Studio 보고서 검토 및 공유
+평가 태스크가 완료된 후 결과의 Looker Studio 보고서를 만들고 공유할 수 있습니다.
+보고서 검토
+개별 평가 태스크 옆에 나열된 보고서 만들기 링크를 클릭합니다. Looker Studio가 새 탭에 미리보기 모드로 열립니다. 미리보기 모드를 사용하면 보고서를 공유하기 전 보고서 콘텐츠를 검토할 수 있습니다.
+보고서는 다음 스크린샷과 비슷하게 표시됩니다.
+보고서에 포함된 뷰를 보려면 데이터 웨어하우스를 선택합니다.
+--- 탭: Teradata [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#teradata] ---
+보고서는 3부로 구성된 설명이며 요약 페이지가 머리말로 표시됩니다. 해당 페이지에는 다음 섹션이 포함되어 있습니다.
+
+
+기존 시스템. 이 섹션은 데이터베이스 수, 스키마 수, 테이블 수, 총 크기(TB)를 포함하여 기존 Teradata 시스템 및 사용량의 스냅샷입니다. 또한 크기별로 스키마를 나열하거나 잠재적인 준최적 리소스 사용률(쓰기가 없거나 읽기가 적은 테이블)을 가리킵니다.
+BigQuery 안정적인 상태 변환(추천).
+이 섹션에서는 마이그레이션 후 BigQuery의 시스템을 보여줍니다. 여기에는 BigQuery에서 워크로드를 최적화하고 낭비를 방지하기 위한 추천이 포함되어 있습니다.
+마이그레이션 계획. 이 섹션에서는 마이그레이션 작업 자체에 대한 정보를 제공합니다(예: 기존 시스템에서 BigQuery 안정적인 상태로 가져오기). 이 섹션에는 자동으로 변환된 쿼리 수와 각 테이블을 BigQuery로 이동하는 데 예상되는 시간이 포함됩니다.
+
+
+각 섹션의 세부정보에는 다음이 포함됩니다.
+
+기존 시스템
+
+
+Compute 및 쿼리
+
+CPU 사용률:
+
+시간별 평균 CPU 사용률의 히트맵(전반적인 시스템 리소스 사용률 뷰)
+CPU 사용률에 대한 시간별 및 일별 쿼리
+CPU 사용률에 대한 유형별(읽기/쓰기) 쿼리
+CPU 사용률이 높은 애플리케이션
+시간별 평균 쿼리 성능과 시간별 평균 애플리케이션 성능을 포함한 시간별 CPU 사용률 오버레이
+
+유형 및 쿼리 기간별 쿼리 히스토그램
+애플리케이션 세부정보 뷰(앱, 사용자, 고유 쿼리, 보고 및 ETL 분석 비교)
+
+스토리지 개요
+
+볼륨, 뷰, 액세스 비율 기준의 데이터베이스
+사용자의 액세스 비율, 쿼리, 쓰기, 임시 테이블 생성이 포함된 테이블
+
+애플리케이션: 액세스 비율 및 IP 주소
+
+
+BigQuery 안정적인 상태 변환(추천)
+
+
+구체화된 뷰로 변환된 조인 색인
+메타데이터 및 사용량 기준의 클러스터링 및 파티션 나누기 후보
+BigQuery BI Engine의 후보로 식별된 지연 시간이 짧은 쿼리
+열 설명 기능을 사용하여 기본값을 저장하는 기본값으로 구성된 열
+Teradata의 고유 색인(테이블에 고유하지 않은 키가 있는 행을 방지)이 스테이징 테이블과 MERGE 문을 사용하여 고유한 레코드만 대상 테이블에 삽입한 후 중복 삭제
+나머지 쿼리 및 있는 그대로 변환된 스키마
+
+
+마이그레이션 계획
+
+
+자동으로 변환된 쿼리에 대한 세부정보 뷰
+
+사용자, 애플리케이션, 영향을 받은 테이블, 쿼리된 테이블, 쿼리 유형별로 필터링할 수 있는 쿼리의 총 수
+사용자가 쿼리 유형별로 변환 원칙을 볼 수 있도록 비슷한 패턴이 그룹화되고 함께 표시된 쿼리의 버킷
+
+사람의 개입이 필요한 쿼리
+
+BigQuery 어휘 구조 위반이 있는 쿼리
+사용자 정의 함수 및 프로시저
+BigQuery 예약 키워드
+
+쓰기 및 읽기를 기준으로 테이블 예약(이동을 목적으로 그룹화)
+BigQuery Data Transfer Service로 데이터 마이그레이션: 테이블별 예상 마이그레이션 시간
+
+
+기존 시스템 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+시스템 개요
+시스템 개요 뷰에는 지정된 기간 동안 기존 시스템에 있는 주요 구성요소의 대략적인 볼륨 측정항목이 제공됩니다. 평가되는 타임라인은 BigQuery 마이그레이션 평가로 분석된 로그에 따라 달라집니다.
+이 뷰에서는 마이그레이션 계획에 사용할 수 있는 소스 데이터 웨어하우스 사용률 통계를 빠르게 확인할 수 있습니다.
+테이블 볼륨
+테이블 볼륨 뷰에는 BigQuery 마이그레이션 평가로 찾을 수 있는 가장 큰 테이블 및 데이터베이스에 대한 통계가 제공됩니다. 큰 테이블은 소스 데이터 웨어하우스 시스템에서 추출하는 데 시간이 오래 걸릴 수 있기 때문에 이 뷰는 마이그레이션 계획을 세우고 순서를 지정하는 데 유용할 수 있습니다.
+테이블 사용량
+테이블 사용량 뷰에는 소스 데이터 웨어하우스 시스템 내에서 많이 사용되는 테이블에 대한 통계가 제공됩니다. 많이 사용되는 테이블을 통해 마이그레이션 프로세스 중 종속 항목이 많고 추가적인 계획이 필요할 수 있는 테이블을 식별할 수 있습니다.
+애플리케이션
+애플리케이션 사용량 뷰 및 애플리케이션 패턴 뷰에는 로그 처리 중에 발견된 애플리케이션에 대한 통계가 제공됩니다. 이러한 뷰를 통해 사용자는 시간 경과에 따른 특정 애플리케이션의 사용량과 리소스 사용량에 미치는 영향을 이해할 수 있습니다. 마이그레이션 중에는 데이터 웨어하우스의 종속 항목을 효과적으로 파악하고 종속된 여러 애플리케이션을 함께 이동할 때의 영향을 분석하기 위해 데이터 수집 및 소비를 시각화하는 것이 중요합니다. IP 주소 테이블은 JDBC 연결을 통해 데이터 웨어하우스를 사용하는 애플리케이션을 정확하게 파악하는 데 유용할 수 있습니다.
+쿼리
+쿼리 뷰는 실행된 SQL 문의 유형 및 사용 통계 정보를 세부적으로 보여줍니다. 쿼리 유형 및 시간에 대한 히스토그램을 사용해서 시스템 사용률이 낮은 기간과 데이터를 전송하기에 최적의 시간을 확인할 수 있습니다. 또한 이 뷰를 사용해서 자주 실행되는 쿼리와 이러한 실행 작업을 호출하는 사용자를 식별할 수 있습니다.
+데이터베이스
+데이터베이스 뷰에는 소스 데이터 웨어하우스 시스템에 정의된 크기, 테이블, 뷰, 절차에 대한 측정항목이 제공됩니다. 이 뷰에서는 마이그레이션해야 하는 객체 볼륨에 대한 통계를 확인할 수 있습니다.
+데이터베이스 결합
+데이터베이스 결합 뷰에는 단일 쿼리에서 함께 액세스되는 데이터베이스와 테이블에 대한 대략적인 보기가 제공됩니다. 이 뷰에는 자주 참조되는 테이블 및 데이터베이스와 마이그레이션 계획에 사용할 수 있는 항목이 표시됩니다.
+
+
+BigQuery 안정적인 상태 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+사용량이 없는 테이블
+사용량이 없는 테이블 뷰에는 분석된 로그 기간 중에 BigQuery 마이그레이션 평가에서 사용량 정보를 찾을 수 없는 테이블이 표시됩니다.
+사용량의 부족은 마이그레이션 중에 이 테이블을 BigQuery로 전송할 필요가 없거나 BigQuery에 데이터를 저장하는 비용을 낮출 수 있음을 나타낼 수 있습니다. 3개월이나 6개월마다 한 번씩 사용되는 테이블처럼 로그 기간 이외에 사용량이 있을 수 있으므로 사용되지 않은 테이블의 목록을 검증해야 합니다.
+쓰기가 없는 테이블
+쓰기가 없는 테이블 뷰에는 분석된 로그 기간 중에 BigQuery 마이그레이션 평가에서 업데이트를 찾을 수 없는 테이블이 표시됩니다. 쓰기의 부족은 BigQuery에서 스토리지 비용을 절감할 수 있는 지점을 나타낼 수 있습니다.
+지연 시간이 짧은 쿼리
+지연 시간이 짧은 쿼리 뷰에는 분석된 로그 데이터를 기반으로 한 쿼리 런타임 분포가 표시됩니다. 쿼리 기간 분포 차트에 런타임 1초 미만의 쿼리가 많이 표시되는 경우 BI 및 기타 지연 시간이 짧은 워크로드를 가속화하도록 BigQuery BI Engine을 사용 설정하는 것이 좋습니다.
+구체화된 뷰
+구체화된 뷰에는 BigQuery에서 성능 향상을 위한 추가적인 최적화 추천이 제공됩니다.
+클러스터링 및 파티셔닝
+파티셔닝 및 클러스터링 뷰에는 파티셔닝, 클러스터링 또는 둘 다를 활용할 수 있는 테이블이 표시됩니다.
+메타데이터 추천은 소스 데이터 웨어하우스 스키마(예: 소스 테이블의 파티션 나누기 및 기본 키)를 분석하고 유사한 최적화 특성을 달성하는 데 가장 가까운 BigQuery를 찾는 방식으로 이루어집니다.
+워크로드 추천은 소스 쿼리 로그 분석을 통해 이루어집니다.
+권장사항은 워크로드, 특히 분석된 쿼리 로그에서 WHERE 또는 JOIN 절을 분석하여 결정됩니다.
+클러스터링 권장사항
+파티셔닝 뷰에는 파티션 나누기 제약조건 정의에 따라 포함된 파티션이 10,000개를 초과할 수 있는 테이블이 표시됩니다. 이러한 테이블은 세분화된 테이블 파티션을 사용 설정하는 BigQuery 클러스터링을 수행하는 데 적합한 경우가 많습니다.
+고유한 제약조건
+고유한 제약조건 뷰에는 소스 데이터 웨어하우스 내에 정의된 SET 테이블 및 고유 색인이 모두 표시됩니다. BigQuery에서는 스테이징 테이블 및 MERGE 문을 사용하여 고유한 레코드만 대상 테이블에 삽입하는 것이 좋습니다. 이 뷰의 콘텐츠를 사용하면 마이그레이션 중에 ETL을 조정해야 할 테이블을 결정하는 데 도움이 됩니다.
+기본값/확인 제약조건
+이 뷰에는 확인 제약조건을 사용해서 기본 열 값을 설정하는 테이블이 표시됩니다. BigQuery의 경우 기본 열 값 지정 [https://cloud.google.com/bigquery/docs/default-values?hl=ko]을 참조하세요.
+
+
+보고서의 마이그레이션 경로 섹션에는 다음 뷰가 포함됩니다.
+
+
+SQL 변환
+SQL 변환 뷰에는 BigQuery 마이그레이션 평가에서 자동으로 변환해 수동 개입이 필요 없는 쿼리의 수와 세부정보가 나열됩니다. 자동화된 SQL 변환에서는 일반적으로 메타데이터가 제공될 때 높은 변환율을 달성합니다. 이 뷰는 대화형이며 일반적인 쿼리 및 쿼리 전환 방법을 분석할 수 있습니다.
+오프라인 작업
+오프라인 작업 뷰에서는 특정 UDF와 테이블 또는 열에 대한 잠재적인 어휘 구조와 구문 위반을 포함하여 수동 개입이 필요한 영역을 캡처합니다.
+BigQuery 예약 키워드BigQuery 예약 키워드 뷰에는 GoogleSQL 언어에서 특별한 의미를 가지며 백틱(`) 문자로 묶지 않는 한 식별자로 사용될 수 없는 키워드의 사용이 감지되면 표시됩니다.테이블 업데이트 일정
+테이블 업데이트 일정 뷰에는 이동 방법과 시기를 계획하는 데 도움이 되도록 테이블을 업데이트하는 방법, 시기, 빈도가 표시됩니다.
+BigQuery로 데이터 마이그레이션
+BigQuery로의 데이터 마이그레이션 뷰에는 BigQuery Data Transfer Service를 사용하여 데이터를 마이그레이션하는 데 소요될 예상 시간과 마이그레이션 경로가 설명되어 있습니다.
+자세한 내용은 Teradata용 BigQuery Data Transfer Service 가이드 [https://cloud.google.com/bigquery/docs/migration/teradata?hl=ko]를 참조하세요.
+
+
+부록 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+대소문자 구분
+대소문자 구분 뷰에는 소스 데이터 웨어하우스에서 대소문자 구분 비교를 수행하도록 구성된 테이블이 표시됩니다.
+기본적으로 BigQuery의 문자열 비교는 대소문자를 구분합니다. 자세한 내용은 콜레이션 [https://cloud.google.com/bigquery/docs/reference/standard-sql/collation-concepts?hl=ko]을 참조하세요.
+
+--- 탭: Amazon Redshift [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#amazon-redshift] ---
+마이그레이션 하이라이트
+마이그레이션 하이라이트 뷰에는 보고서의 3가지 섹션에 대한 핵심 요약이 제공됩니다.
+
+
+
+기존 시스템 패널에는 데이터베이스 수, 스키마, 테이블, 기존 Redshift 시스템의 총 크기에 대한 정보가 제공됩니다. 또한 크기 및 잠재적인 준최적 리소스 사용률별로 스키마를 나열합니다. 이 정보를 사용해서 테이블 삭제, 파티션 나누기, 클러스터화를 수행하여 데이터를 최적화할 수 있습니다.
+BigQuery 안정적인 상태 패널에는 BigQuery Migration Service를 사용하여 자동으로 변환할 수 있는 쿼리 수를 포함하여 BigQuery에서 마이그레이션 후 데이터가 어떻게 표시될지에 대한 정보가 제공됩니다.
+또한 이 섹션에서는 테이블, 프로비저닝, 공간에 대한 최적화 추천과 함께 연간 데이터 수집 속도를 기준으로 BigQuery에 데이터를 저장하는 비용도 알려줍니다.
+마이그레이션 경로 패널에는 마이그레이션 작업 자체에 대한 정보가 제공됩니다. 각 테이블에는 마이그레이션 예상 시간, 테이블의 행 수, 크기가 표시됩니다.
+
+
+기존 시스템 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+유형 및 일정별 쿼리
+유형 및 일정별 쿼리 뷰에서는 쿼리를 ETL/쓰기 및 보고/집계로 분류합니다. 시간 경과에 따른 쿼리 조합을 확인하면 기존 사용 패턴을 이해하고 비용 및 성능에 영향을 줄 수 있는 급증 및 잠재적인 초과 프로비저닝을 식별하는 데 도움이 됩니다.
+쿼리 큐 추가
+쿼리 큐 추가 뷰에는 쿼리 볼륨, 조합, 리소스 부족과 같은 큐 추가로 인한 성능 영향을 포함하여 시스템 부하에 대한 추가 세부정보가 제공됩니다.
+쿼리 및 WLM 확장
+쿼리 및 WLM 확장 뷰에서는 동시 실행 확장을 추가 비용 및 구성 복잡성으로 식별합니다. Redshift 시스템이 지정된 규칙을 기준으로 쿼리를 라우팅하는 방법과 큐, 동시 실행 확장, 제거된 쿼리로 인한 성능 영향을 보여줍니다.
+큐 추가 및 대기
+큐 추가 및 대기 뷰에서는 시간 경과에 따른 쿼리의 큐 및 대기 시간을 자세히 살펴봅니다.
+WLM 클래스 및 성능
+WLM 클래스 및 성능 뷰에는 규칙을 BigQuery에 매핑하는 선택적 방법이 제공됩니다. 하지만 BigQuery에서 자동으로 쿼리를 라우팅하도록 허용하는 것이 좋습니다.
+쿼리 및 테이블 볼륨 통계
+쿼리 및 테이블 볼륨 통계 뷰에는 크기, 빈도, 상위 사용자별로 쿼리가 나열됩니다. 이렇게 하면 시스템의 부하 소스를 분류하고 워크로드 마이그레이션 방법을 계획하는 데 도움이 됩니다.
+데이터베이스 및 스키마
+데이터베이스 및 스키마 뷰에는 소스 데이터 웨어하우스 시스템에 정의된 크기, 테이블, 뷰, 절차에 대한 측정항목이 제공됩니다. 이 뷰에서는 마이그레이션해야 하는 객체의 볼륨에 대한 통계를 확인할 수 있습니다.
+테이블 볼륨
+테이블 볼륨 뷰에는 가장 큰 테이블과 데이터베이스에 대한 통계가 제공되고 액세스 방법이 표시됩니다. 큰 테이블은 소스 데이터 웨어하우스 시스템에서 추출하는 데 시간이 오래 걸릴 수 있기 때문에 이 뷰는 마이그레이션 계획을 세우고 순서를 지정하는 데 유용합니다.
+테이블 사용량
+테이블 사용량 뷰에는 소스 데이터 웨어하우스 시스템 내에서 많이 사용되는 테이블에 대한 통계가 제공됩니다. 사용량이 많은 테이블을 활용하면 마이그레이션 프로세스 중에 종속 항목이 많고 추가 계획이 필요할 수 있는 테이블을 이해할 수 있습니다.
+가져오기 도구 및 내보내기 도구
+가져오기 도구 및 내보내기 도구 뷰에는 데이터 가져오기(COPY 쿼리 사용) 및 데이터 내보내기(UNLOAD 쿼리 사용)에 관여하는 데이터 및 사용자에 관한 정보가 제공됩니다. 이 뷰는 처리 및 내보내기와 관련된 스테이징 영역 및 프로세스를 식별하는 데 도움이 됩니다.
+클러스터 사용률
+클러스터 사용률 뷰에는 사용 가능한 모든 클러스터에 관한 일반 정보가 제공되고 각 클러스터의 CPU 사용률이 표시됩니다. 이 뷰를 사용하면 시스템 용량 예약을 파악하는 데 도움이 됩니다.
+
+
+BigQuery 안정적인 상태 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+클러스터링 및 파티셔닝
+파티셔닝 및 클러스터링 뷰에는 파티셔닝, 클러스터링 또는 둘 다를 활용할 수 있는 테이블이 표시됩니다.
+
+메타데이터 추천은 소스 데이터 웨어하우스 스키마(예: 소스 테이블의 정렬 키 및 Dist 키)를 분석하고 유사한 최적화 특성을 달성하는 데 가장 가까운 BigQuery를 찾는 방식으로 이루어집니다.
+
+워크로드 추천은 소스 쿼리 로그 분석을 통해 이루어집니다. 권장사항은 워크로드, 특히 분석된 쿼리 로그에서 WHERE 또는 JOIN 절을 분석하여 결정됩니다.
+
+페이지 하단에는 모든 최적화가 적용된 번역된 create table 문이 제공됩니다. 모든 번역된 DDL 문을 데이터 세트에서 추출할 수도 있습니다. 번역된 DDL 문은 SchemaConversion 테이블의 CreateTableDDL 열에 저장됩니다.
+
+소규모 테이블에는 클러스터링 및 파티션 나누기의 이점이 없으므로 보고서의 권장사항은 1GB를 초과하는 테이블에 대해서만 제공됩니다. 하지만 1GB 미만의 테이블을 포함한 모든 테이블의 DDL은 SchemaConversion 테이블에서 사용할 수 있습니다.
+사용량이 없는 테이블
+사용량이 없는 테이블 뷰에는 분석된 로그 기간 중에 BigQuery 마이그레이션 평가에서 사용량 정보를 찾을 수 없는 테이블이 표시됩니다. 사용량이 부족하면 마이그레이션 중에 이 테이블을 BigQuery로 전송할 필요가 없거나 BigQuery에 데이터를 저장하는 비용을 낮출 수 있음을 나타낼 수 있습니다(장기 스토리지 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]로 청구됨).
+3개월이나 6개월마다 한 번씩 사용되는 테이블처럼 로그 기간 이외에 사용량이 있을 수 있으므로 사용되지 않은 테이블의 목록을 검증하는 것이 좋습니다.
+쓰기가 없는 테이블
+쓰기가 없는 테이블 뷰에는 분석된 로그 기간 중에 BigQuery 마이그레이션 평가에서 업데이트를 식별하지 못한 테이블이 표시됩니다. 쓰기의 부족은 BigQuery에서 스토리지 비용을 절감할 수 있는 지점(장기 스토리지 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]로 청구됨)을 나타낼 수 있습니다.
+BI Engine 및 구체화된 뷰
+BI Engine 및 구체화된 뷰는 BigQuery에서 성능을 향상시키는 추가 최적화 추천을 제공합니다.
+
+
+마이그레이션 경로 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+SQL 변환
+SQL 변환 뷰에는 BigQuery 마이그레이션 평가에서 자동으로 변환해 수동 개입이 필요 없는 쿼리의 수와 세부정보가 나열됩니다. 자동화된 SQL 변환에서는 일반적으로 메타데이터가 제공될 때 높은 변환율을 달성합니다.
+SQL 변환 오프라인 작업SQL 변환 오프라인 작업 뷰에서는 특정 UDF 및 변환 모호성이 있는 쿼리를 포함하여 수동 개입이 필요한 영역을 캡처합니다.테이블 변경 추가 지원
+Alter Table Append 지원 뷰에는 직접적인 BigQuery 대응 항목이 없는 일반적인 Redshift SQL 구성에 관한 세부정보가 표시됩니다.
+복사 명령어 지원
+복사 명령어 지원 뷰에는 직접적인 BigQuery 대응 항목이 없는 일반적인 Redshift SQL 구성에 관한 세부정보가 표시됩니다.
+SQL 경고
+SQL 경고 뷰에서는 성공적으로 변환되었지만 검토가 필요한 영역을 캡처합니다.
+어휘 구조 및 문법 위반
+어휘 구조 및 문법 위반 뷰에는 BigQuery 구문을 위반하는 열, 테이블, 함수, 프로시저의 이름이 표시됩니다.
+BigQuery 예약 키워드BigQuery 예약 키워드 뷰에는 GoogleSQL 언어에서 특별한 의미를 가지며 백틱(`) 문자로 묶지 않는 한 식별자로 사용될 수 없는 키워드의 사용이 감지되면 표시됩니다.스키마 결합
+스키마 결합 뷰에는 단일 쿼리에서 함께 액세스되는 데이터베이스, 스키마, 테이블에 대한 대략적인 보기가 제공됩니다. 이 뷰에는 자주 참조되는 테이블, 스키마, 데이터베이스와 마이그레이션 계획에 사용할 수 있는 항목이 표시됩니다.
+테이블 업데이트 일정
+테이블 업데이트 일정 뷰에는 이동 방법과 시기를 계획하는 데 도움이 되도록 테이블을 업데이트하는 방법, 시기, 빈도가 표시됩니다.
+테이블 확장
+테이블 확장 뷰는 열이 가장 많은 테이블을 나열합니다.
+BigQuery로 데이터 마이그레이션
+BigQuery로의 데이터 마이그레이션 뷰에는 BigQuery Migration Service Data Transfer Service를 사용하여 데이터를 마이그레이션하는 데 소요될 예상 시간과 마이그레이션 경로가 설명되어 있습니다. 자세한 내용은 Redshift용 BigQuery Data Transfer Service 가이드 [https://cloud.google.com/bigquery/docs/migration/redshift?hl=ko]를 참조하세요.
+평가 핵심 요약
+평가 핵심 요약에는 보고서의 완전성, 진행 중인 평가의 진행 상황, 처리된 파일 및 오류의 상태가 포함됩니다.
+
+보고서의 완전성은 평가 보고서에 의미 있는 통계를 표시하는 데 권장되는 성공적으로 처리된 데이터의 비율을 나타냅니다. 보고서의 특정 섹션에 대한 데이터가 누락된 경우 이 정보는 평가 모듈 표의 보고서의 완전성 지표에 표시됩니다.
+
+진행률 측정항목은 지금까지 처리된 데이터의 비율과 모든 데이터를 처리하는 데 걸리는 예상 시간을 나타냅니다. 처리가 완료되면 진행률 측정항목이 표시되지 않습니다.
+
+--- 탭: Apache Hive [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#apache-hive] ---
+3부로 나뉘어져 설명된 보고서는 다음 섹션이 포함된 요약 하이라이트 페이지로 시작됩니다.
+
+
+기존 시스템 - Hive. 이 섹션은 데이터베이스 수, 테이블 수, 총 크기(GB), 처리된 쿼리 로그 수를 포함하여 기존 Hive 시스템 및 사용량의 스냅샷으로 구성됩니다. 이 섹션에서는 또한 크기별로 데이터베이스를 나열하고 잠재적인 준최적 리소스 사용률(쓰기가 없거나 읽기가 많지 않은 테이블) 및 프로비저닝을 암시합니다.
+이 섹션의 세부정보에는 다음이 포함됩니다.
+
+
+Compute 및 쿼리
+
+CPU 사용률:
+
+CPU 사용률에 대한 시간별 및 일별 쿼리
+유형별 쿼리(읽기/쓰기)
+대기열 및 애플리케이션
+시간별 평균 쿼리 성능과 시간별 평균 애플리케이션 성능을 포함한 시간별 CPU 사용률 오버레이
+
+유형 및 쿼리 기간별 쿼리 히스토그램
+큐 추가 및 대기 페이지
+큐 세부정보 뷰(큐, 사용자, 고유 쿼리, 보고 및 ETL 분석 비교, 측정항목별)
+
+스토리지 개요
+
+볼륨, 뷰, 액세스 비율 기준의 데이터베이스
+사용자의 액세스 비율, 쿼리, 쓰기, 임시 테이블 생성이 포함된 테이블
+
+큐 및 애플리케이션: 액세스 비율 및 클라이언트 IP 주소
+
+BigQuery 안정적인 상태
+이 섹션에서는 마이그레이션 후 BigQuery의 시스템을 보여줍니다. 여기에는 BigQuery에서 워크로드를 최적화하고 낭비를 방지하기 위한 추천이 포함되어 있습니다.
+이 섹션의 세부정보에는 다음이 포함됩니다.
+
+
+구체화된 뷰의 후보로 식별된 테이블
+메타데이터 및 사용량 기준의 클러스터링 및 파티션 나누기 후보
+BigQuery BI Engine의 후보로 식별된 지연 시간이 짧은 쿼리
+읽기 또는 쓰기 사용량이 없는 테이블
+데이터 편향을 포함하여 파티션을 나눈 테이블
+
+마이그레이션 계획. 이 섹션에서는 마이그레이션 프로세스 자체에 대한 정보를 제공합니다. 예를 들면 기존 시스템에서 BigQuery 안정 상태로 전환입니다. 이 섹션에는 각 테이블의 식별된 스토리지 대상, 이전에 중요한 것으로 식별된 테이블, 자동으로 변환된 쿼리 수가 포함됩니다.
+이 섹션의 세부정보에는 다음이 포함됩니다.
+
+
+자동으로 변환된 쿼리에 대한 세부정보 뷰
+
+사용자, 애플리케이션, 영향을 받은 테이블, 쿼리된 테이블, 쿼리 유형별로 필터링할 수 있는 쿼리의 총 수
+비슷한 패턴이 그룹으로 분류된 쿼리 버킷, 사용자가 쿼리 유형에 따른 변환 철학을 확인할 수 있음
+
+사람의 개입이 필요한 쿼리
+
+BigQuery 어휘 구조 위반이 있는 쿼리
+사용자 정의 함수 및 프로시저
+BigQuery 예약 키워드
+
+검토가 필요한 쿼리
+쓰기 및 읽기를 기준으로 테이블 예약(이동을 목적으로 그룹화)
+외부 및 관리형 테이블에 대해 식별된 스토리지 대상
+
+
+
+기존 시스템 - Hive 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+시스템 개요
+이 뷰에는 지정된 기간 동안 기존 시스템에 있는 주요 구성요소의 대략적인 볼륨 측정항목이 제공됩니다. 평가되는 타임라인은 BigQuery 마이그레이션 평가로 분석된 로그에 따라 달라집니다.
+이 뷰에서는 마이그레이션 계획에 사용할 수 있는 소스 데이터 웨어하우스 사용률 통계를 빠르게 확인할 수 있습니다.
+테이블 볼륨
+이 뷰에는 BigQuery 마이그레이션 평가를 통해 확인된 가장 큰 테이블과 데이터베이스에 대한 통계가 제공됩니다. 큰 테이블은 소스 데이터 웨어하우스 시스템에서 추출하는 데 시간이 오래 걸릴 수 있기 때문에 이 뷰는 마이그레이션 계획을 세우고 순서를 지정하는 데 유용할 수 있습니다.
+테이블 사용량
+이 뷰에는 소스 데이터 웨어하우스 시스템 내에서 많이 사용되는 테이블에 대한 통계가 제공됩니다. 많이 사용되는 테이블을 통해 마이그레이션 프로세스 중 종속 항목이 많고 추가적인 계획이 필요할 수 있는 테이블을 식별할 수 있습니다.
+큐 사용률
+이 뷰에는 로그 처리 중에 확인된 YARN 큐 사용량에 대한 통계가 제공됩니다. 이러한 뷰를 사용하면 시간 경과에 따라 특정 큐 및 애플리케이션의 사용량과 리소스 사용량에 미치는 영향을 이해할 수 있습니다. 이러한 뷰는 마이그레이션 워크로드를 식별하고 우선순위를 정하는 데에도 도움이 됩니다. 마이그레이션 중에는 데이터 웨어하우스의 종속 항목을 효과적으로 파악하고 종속된 여러 애플리케이션을 함께 이동할 때의 영향을 분석하기 위해 데이터 수집 및 소비를 시각화하는 것이 중요합니다. IP 주소 테이블은 JDBC 연결을 통해 데이터 웨어하우스를 사용하는 애플리케이션을 정확하게 파악하는 데 유용할 수 있습니다.
+큐 측정항목
+이 뷰는 로그 처리 중에 확인된 YARN 큐의 여러 측정항목을 세부적으로 보여줍니다. 이 뷰를 사용하면 특정 큐의 사용 패턴과 마이그레이션에 미치는 영향을 이해할 수 있습니다.
+또한 이 뷰를 사용하여 쿼리에서 액세스된 테이블과 쿼리가 실행된 큐 간의 연관성을 식별할 수 있습니다.
+큐 추가 및 대기
+이 뷰에는 소스 데이터 웨어하우스의 쿼리 큐 대기 시간에 대한 통계가 제공됩니다. 큐 대기 시간이란 과소 프로비저닝으로 인한 성능 저하를 나타내며 추가 프로비저닝 시 하드웨어 및 유지보수 비용이 증가합니다.
+쿼리
+이 뷰는 실행된 SQL 문의 유형 및 사용 통계 정보를 세부적으로 보여줍니다. 쿼리 유형 및 시간에 대한 히스토그램을 사용해서 시스템 사용률이 낮은 기간과 데이터를 전송하기에 최적의 시간을 확인할 수 있습니다. 또한 이 뷰를 사용하여 가장 많이 사용된 Hive 실행 엔진과 자주 실행되는 쿼리를 사용자 세부정보와 함께 확인할 수 있습니다.
+데이터베이스
+이 뷰에는 소스 데이터 웨어하우스 시스템에 정의된 크기, 테이블, 뷰, 프로시져 측정항목이 제공됩니다. 이 뷰에서는 마이그레이션해야 하는 객체 볼륨에 대한 통계를 확인할 수 있습니다.
+데이터베이스 및 테이블 결합
+이 뷰에는 단일 쿼리에서 함께 액세스되는 데이터베이스와 테이블에 대한 대략적인 보기가 제공됩니다. 이 뷰에는 자주 참조되는 테이블 및 데이터베이스와 마이그레이션 계획에 사용할 수 있는 항목이 표시됩니다.
+
+
+BigQuery 안정적인 상태 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+사용량이 없는 테이블
+사용량이 없는 테이블 뷰에는 분석된 로그 기간 중에 BigQuery 마이그레이션 평가에서 사용량 정보를 찾을 수 없는 테이블이 표시됩니다.
+사용량의 부족은 마이그레이션 중에 이 테이블을 BigQuery로 전송할 필요가 없거나 BigQuery에 데이터를 저장하는 비용을 낮출 수 있음을 나타낼 수 있습니다. 3개월이나 6개월마다 한 번씩 사용되는 테이블처럼 로그 기간 이외에 사용량이 있을 수 있으므로 사용되지 않은 테이블의 목록을 검증해야 합니다.
+쓰기가 없는 테이블
+쓰기가 없는 테이블 뷰에는 분석된 로그 기간 중에 BigQuery 마이그레이션 평가에서 업데이트를 찾을 수 없는 테이블이 표시됩니다. 쓰기의 부족은 BigQuery에서 스토리지 비용을 절감할 수 있는 지점을 나타낼 수 있습니다.
+클러스터링 및 파티셔닝 권장사항
+이 뷰에는 파티셔닝, 클러스터링 또는 둘 다를 활용할 수 있는 테이블이 표시됩니다.
+메타데이터 추천은 소스 데이터 웨어하우스 스키마(예: 소스 테이블의 파티션 나누기 및 기본 키)를 분석하고 유사한 최적화 특성을 달성하는 데 가장 가까운 BigQuery를 찾는 방식으로 이루어집니다.
+워크로드 추천은 소스 쿼리 로그 분석을 통해 이루어집니다.
+권장사항은 워크로드, 특히 분석된 쿼리 로그에서 WHERE 또는 JOIN 절을 분석하여 결정됩니다.
+클러스터로 변환된 파티션
+이 뷰에는 파티셔닝 제약조건 정의에 따라 포함된 파티션이 10,000개를 초과하는 테이블이 표시됩니다. 이러한 테이블은 세분화된 테이블 파티션을 사용 설정하는 BigQuery 클러스터링을 수행하는 데 적합한 경우가 많습니다.
+편향된 파티션
+편향된 파티션 뷰에는 메타데이터 분석을 기반으로 하고 하나 이상의 파티션에 데이터 편향이 있는 테이블이 표시됩니다. 이러한 테이블은 편향된 파티션에 대한 쿼리가 제대로 수행되지 않을 수 있으므로 스키마를 변경하기에 적합합니다.
+BI Engine 및 구체화된 뷰
+지연 시간이 짧은 쿼리와 구체화된 뷰에는 분석된 로그 데이터를 기반으로 한 쿼리 런타임 분포와 BigQuery에서 성능 향상을 위한 추가 최적화 추천이 표시됩니다. 쿼리 기간 분포 차트에 런타임 1초 미만의 쿼리가 많이 표시되는 경우 BI 및 기타 지연 시간이 짧은 워크로드를 가속화하도록 BI Engine을 사용 설정하는 것이 좋습니다.
+
+
+보고서의 마이그레이션 계획 섹션에는 다음 뷰가 포함됩니다.
+
+
+SQL 변환
+SQL 변환 뷰에는 BigQuery 마이그레이션 평가에서 자동으로 변환해 수동 개입이 필요 없는 쿼리의 수와 세부정보가 나열됩니다. 자동화된 SQL 변환에서는 일반적으로 메타데이터가 제공될 때 높은 변환율을 달성합니다. 이 뷰는 대화형이며 일반적인 쿼리 및 쿼리 전환 방법을 분석할 수 있습니다.
+SQL 변환 오프라인 작업
+오프라인 작업 뷰에서는 특정 UDF와 테이블 또는 열에 대한 잠재적인 어휘 구조와 구문 위반을 포함하여 수동 개입이 필요한 영역을 캡처합니다.
+SQL 경고
+SQL 경고 뷰에서는 성공적으로 변환되었지만 검토가 필요한 영역을 캡처합니다.
+BigQuery 예약 키워드
+BigQuery 예약 키워드 뷰에는 GoogleSQL 언어에서 특별한 의미를 갖는 키워드의 사용이 감지되면 표시됩니다.
+이러한 키워드는 백틱(`) 문자로 묶인 키워드만 식별자로 사용할 수 있습니다.
+테이블 업데이트 일정
+테이블 업데이트 일정 뷰에는 이동 방법과 시기를 계획하는 데 도움이 되도록 테이블을 업데이트하는 방법, 시기, 빈도가 표시됩니다.
+BigLake 외부 테이블
+BigLake 외부 테이블 뷰는 BigQuery 대신 BigLake로 마이그레이션할 대상으로 식별된 테이블에 대해 간략하게 보여줍니다.
+
+
+보고서의 부록 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+상세한 SQL 변환 오프라인 작업 분석
+상세한 오프라인 작업 분석 뷰에는 직접 개입이 필요한 SQL 영역에 대한 추가 통계가 제공됩니다.
+상세한 SQL 경고 분석
+상세한 경고 분석 뷰에는 성공적으로 변환되었지만 검토가 필요한 SQL 영역에 대한 추가 통계가 제공됩니다.
+
+--- 탭: Snowflake [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#snowflake] ---
+Preview
+      
+        
+    
+    
+
+    
+      
+      
+        This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section
+        of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1].
+        
+        Pre-GA features are available "as is" and might have limited support.
+      
+      For more information, see the
+      launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+  
+  
+  
+
+
+
+보고서는 개별적으로 또는 함께 사용할 수 있는 여러 섹션으로 구성됩니다. 다음 다이어그램은 마이그레이션 요구사항을 평가하는 데 도움이 되도록 이러한 섹션을 세 가지 일반적인 사용자 목표로 구성합니다.
+
+ 
+
+마이그레이션 하이라이트 뷰
+
+마이그레이션 하이라이트 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+Snowflake와 BigQuery 가격 책정 모델 비교
+다양한 등급/버전의 가격 목록입니다. 또한 BigQuery 자동 확장이 Snowflake 자동 확장보다 비용을 더 절감하는 데 도움이 되는 방식을 보여주는 그림도 포함되어 있습니다.
+총 소유 비용
+BigQuery 버전, 약정, 기준 슬롯 약정, 활성 스토리지의 비율, 로드되거나 변경된 데이터의 비율을 사용자가 정의할 수 있는 대화형 테이블입니다. 커스텀 케이스의 비용을 더 정확하게 추정하는 데 도움이 됩니다.
+자동 변환 하이라이트
+사용자 또는 데이터베이스별로 그룹화된 오름차순 또는 내림차순으로 정렬되어 집계된 변환 비율입니다. 또한 자동 변환에 실패한 가장 일반적인 오류 메시지도 포함됩니다.
+
+
+기존 시스템 뷰
+
+기존 시스템 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+시스템 개요
+시스템 개요 뷰에는 지정된 기간 동안 기존 시스템에 있는 주요 구성요소의 대략적인 볼륨 측정항목이 제공됩니다. 평가되는 타임라인은 BigQuery 마이그레이션 평가로 분석된 로그에 따라 달라집니다. 이 뷰에서는 마이그레이션 계획에 사용할 수 있는 소스 데이터 웨어하우스 사용률 통계를 빠르게 확인할 수 있습니다.
+가상 웨어하우스 개요
+웨어하우스별 Snowflake 비용 및 해당 기간의 노드 기반 재조정을 보여줍니다.
+테이블 볼륨
+테이블 볼륨 뷰에는 BigQuery 마이그레이션 평가로 찾을 수 있는 가장 큰 테이블 및 데이터베이스에 대한 통계가 제공됩니다. 큰 테이블은 소스 데이터 웨어하우스 시스템에서 추출하는 데 시간이 오래 걸릴 수 있기 때문에 이 뷰는 마이그레이션 계획을 세우고 순서를 지정하는 데 유용할 수 있습니다.
+테이블 사용량
+테이블 사용량 뷰에는 소스 데이터 웨어하우스 시스템 내에서 많이 사용되는 테이블에 대한 통계가 제공됩니다. 많이 사용되는 테이블을 통해 마이그레이션 프로세스 중 종속 항목이 많고 추가적인 계획이 필요할 수 있는 테이블을 식별할 수 있습니다.
+쿼리
+쿼리 뷰는 실행된 SQL 문의 유형 및 사용 통계 정보를 세부적으로 보여줍니다. 쿼리 유형 및 시간에 대한 히스토그램을 사용해서 시스템 사용률이 낮은 기간과 데이터를 전송하기에 최적의 시간을 확인할 수 있습니다. 또한 이 뷰를 사용해서 자주 실행되는 쿼리와 이러한 실행 작업을 호출하는 사용자를 식별할 수 있습니다.
+데이터베이스
+데이터베이스 뷰에는 소스 데이터 웨어하우스 시스템에 정의된 크기, 테이블, 뷰, 절차에 대한 측정항목이 제공됩니다. 이 뷰에서는 마이그레이션해야 하는 객체 볼륨에 대한 통계를 확인할 수 있습니다.
+
+
+BigQuery 안정적인 상태 뷰
+
+BigQuery 안정적인 상태 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+사용량이 없는 테이블
+사용량이 없는 테이블 뷰에는 분석된 로그 기간 중에 BigQuery 마이그레이션 평가에서 사용량 정보를 찾을 수 없는 테이블이 표시됩니다. 이는 마이그레이션 중에 BigQuery로 전송할 필요가 없는 테이블 또는 BigQuery에 데이터를 저장하는 비용이 더 낮을 수 있음을 나타냅니다. 분기 또는 반기에 한 번만 사용되는 테이블처럼 분석된 로그 기간 이외에 사용량이 있을 수 있으므로 사용하지 않은 테이블의 목록을 검증해야 합니다.
+쓰기가 없는 테이블
+쓰기가 없는 테이블 뷰에는 분석된 로그 기간 중에 BigQuery 마이그레이션 평가에서 업데이트를 찾을 수 없는 테이블이 표시됩니다. 이는 BigQuery에 데이터를 저장하는 비용이 절감될 수 있음을 나타냅니다.
+
+
+마이그레이션 계획 뷰
+
+보고서의 마이그레이션 계획 섹션에는 다음 뷰가 포함됩니다.
+
+
+SQL 변환
+SQL 변환 뷰에는 BigQuery 마이그레이션 평가에서 자동으로 변환해 수동 개입이 필요 없는 쿼리의 수와 세부정보가 나열됩니다. 자동화된 SQL 변환에서는 일반적으로 메타데이터가 제공될 때 높은 변환율을 달성합니다. 이 뷰는 대화형이며 일반적인 쿼리 및 쿼리 전환 방법을 분석할 수 있습니다.
+SQL 변환 오프라인 작업
+오프라인 작업 뷰에서는 특정 UDF와 테이블 또는 열에 대한 잠재적인 어휘 구조와 구문 위반을 포함하여 수동 개입이 필요한 영역을 캡처합니다.
+검토할 SQL 경고
+검토할 경고 뷰는 대부분 변환되었지만 사람의 검사가 필요한 영역을 캡처합니다.
+BigQuery 예약 키워드BigQuery 예약 키워드 뷰에는 GoogleSQL 언어에서 특별한 의미를 가지며 백틱(`) 문자로 묶지 않는 한 식별자로 사용될 수 없는 키워드의 사용이 감지되면 표시됩니다.데이터베이스 및 테이블 결합
+데이터베이스 결합 뷰에는 단일 쿼리에서 함께 액세스되는 데이터베이스와 테이블에 대한 대략적인 보기가 제공됩니다. 이 뷰에는 자주 참조되는 테이블 및 데이터베이스와 마이그레이션 계획에 사용할 수 있는 항목이 표시됩니다.
+테이블 업데이트 일정
+테이블 업데이트 일정 뷰에는 이동 방법과 시기를 계획하는 데 도움이 되도록 테이블을 업데이트하는 방법, 시기, 빈도가 표시됩니다.
+
+
+개념 증명 뷰
+
+PoC(개념 증명) 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+안정적인 상태의 BigQuery 절감 효과를 보여주는 PoC
+가장 자주 실행되는 쿼리, 가장 많은 데이터를 읽는 쿼리, 가장 느린 쿼리, 앞서 언급된 쿼리의 영향을 받는 테이블을 포함합니다.
+BigQuery 마이그레이션 계획을 보여주는 PoC
+BigQuery에서 가장 복잡한 쿼리를 변환하는 방법과 이러한 쿼리가 영향을 미치는 테이블을 보여줍니다.
+
+--- 탭: tabpanel-oracle ---
+Preview
+      
+        
+    
+    
+
+    
+      
+      
+        This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section
+        of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1].
+        
+        Pre-GA features are available "as is" and might have limited support.
+      
+      For more information, see the
+      launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+  
+  
+  
+
+
+
+이 기능에 대한 의견이나 지원을 요청하려면 bq-edw-migration-support@google.com [mailto:bq-edw-migration-support@google.com]으로 이메일을 보내세요.
+
+마이그레이션 하이라이트
+
+마이그레이션 하이라이트 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+기존 시스템: 데이터베이스 수, 스키마 수, 테이블 수, 총 크기(GB)를 포함하여 기존 Oracle 시스템 및 사용량의 스냅샷입니다. 또한 BigQuery가 적절한 마이그레이션 타겟인지 결정하는 데 도움이 되도록 각 데이터베이스의 워크로드 분류 요약이 제공됩니다.
+호환성: 마이그레이션 작업 자체에 대한 정보가 제공됩니다.
+분석된 각 데이터베이스에는 마이그레이션 예상 시간과 Google 제공 도구로 자동으로 마이그레이션할 수 있는 데이터베이스 객체 수가 표시됩니다.
+BigQuery 안정적인 상태: 연간 데이터 수집 속도 및 컴퓨팅 비용 추정을 기준으로 BigQuery에 데이터를 저장하는 비용을 포함하여 BigQuery에서 마이그레이션 후 데이터가 어떻게 표시될지에 대한 정보가 포함됩니다.
+또한 사용률이 저조한 테이블에 대한 통계를 확인할 수 있습니다.
+
+
+기존 시스템
+
+기존 시스템 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+워크로드 특성: 분석된 성능 측정항목을 기준으로 각 데이터베이스의 워크로드 유형을 설명합니다. 각 데이터베이스는 OLAP, Mixed, OLTP로 분류됩니다. 이 정보는 BigQuery로 마이그레이션할 수 있는 데이터베이스를 결정하는 데 도움이 될 수 있습니다.
+데이터베이스 및 스키마: 각 데이터베이스, 스키마, 테이블의 총 스토리지 크기(GB)를 세부적으로 보여줍니다. 또한 이 뷰를 사용하여 구체화된 뷰와 외부 테이블을 식별할 수 있습니다.
+데이터베이스 기능 및 링크: 마이그레이션 후 사용할 수 있는 BigQuery 기능 또는 서비스와 함께 데이터베이스에 사용되는 Oracle 기능의 목록이 표시됩니다. 또한 데이터베이스 링크를 탐색하여 데이터베이스 간의 연결을 더 잘 이해할 수 있습니다.
+데이터베이스 연결: 사용자가 시작했거나 애플리케이션에서 시작된 데이터베이스 세션에 대한 통계가 제공됩니다. 이 데이터를 분석하면 마이그레이션 중에 추가 작업이 필요할 수 있는 외부 애플리케이션을 식별하는 데 도움이 됩니다.
+쿼리 유형: 실행된 SQL 문의 유형 및 사용 통계 정보를 세부적으로 보여줍니다. 쿼리 실행 또는 쿼리 CPU 시간의 시간별 히스토그램을 사용해서 시스템 사용률이 낮은 기간과 데이터를 전송하기에 최적의 시간을 확인할 수 있습니다.
+PL/SQL 소스 코드: 함수나 프로시저와 같은 PL/SQL 객체와 각 데이터베이스 및 스키마의 크기에 대한 통계가 제공됩니다. 또한 시간별 실행 히스토그램을 사용하여 PL/SQL 실행이 가장 많은 시간대를 식별할 수 있습니다.
+시스템 사용률: 과거 시스템 사용률에 관한 일반 정보가 제공됩니다. 이 뷰에는 시간별 CPU 사용량과 일별 스토리지 소비가 표시됩니다. 이 뷰를 사용하면 시스템 용량 예약을 파악하는 데 도움이 됩니다.
+
+
+BigQuery 안정적인 상태
+
+BigQuery 안정적인 상태 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+Exadata와 BigQuery 가격 비교: BigQuery로 마이그레이션한 후의 이점과 잠재적인 비용 절감 효과를 파악하는 데 도움이 되도록 Exadata와 BigQuery 가격 책정 모델을 일반적으로 비교한 내용이 제공됩니다.
+BigQuery 데이터베이스 읽기/쓰기: 데이터베이스의 실제 디스크 작업에 대한 통계가 제공됩니다.
+이 데이터를 분석하면 Oracle에서 BigQuery로 데이터 마이그레이션을 수행하기에 가장 적합한 시간을 찾는 데 도움이 됩니다.
+BigQuery 컴퓨팅 비용: BigQuery의 컴퓨팅 비용을 추정할 수 있습니다. 계산기에는 BigQuery 버전, 리전, 약정 기간, 기준 등 4개의 수동 입력이 있습니다. 기본적으로 계산기에는 수동으로 재정의할 수 있는 비용 효율적인 최적의 기준 약정이 제공됩니다. 연간 자동 확장 슬롯 시간 값은 약정 기간 이외에 사용된 슬롯 시간을 나타냅니다. 이 값은 시스템 사용률을 사용하여 계산됩니다. 기준, 자동 확장, 사용률 간의 관계에 관한 시각적 설명이 페이지 끝에 제공됩니다. 각 추정에는 가능한 수와 추정 범위가 표시됩니다.
+총소유비용(TCO): BigQuery의 컴퓨팅 및 스토리지 비용인 연간 계약 금액(ACV)을 추정할 수 있습니다. 계산기를 사용하면 스토리지 비용도 계산할 수 있습니다. 또한 계산기를 사용하면 분석 기간 동안의 테이블 수정사항에 따라 활성 스토리지와 장기 스토리지에 따라 달라지는 스토리지 비용을 계산할 수 있습니다. 스토리지 가격에 대한 자세한 내용은 스토리지 가격 [https://cloud.google.com/bigquery/pricing?hl=ko#storage]을 참조하세요.
+사용률이 저조한 테이블: 분석 기간의 사용량 측정항목을 기준으로 사용되지 않은 테이블과 읽기 전용 테이블에 대한 정보가 제공됩니다. 사용량이 부족하면 마이그레이션 중에 이 테이블을 BigQuery로 전송할 필요가 없거나 BigQuery에 데이터를 저장하는 비용을 낮출 수 있음을 나타낼 수 있습니다(장기 스토리지로 청구됨). 분석 기간 이외에 사용량이 있는 경우 사용되지 않은 테이블의 목록을 검증하는 것이 좋습니다.
+
+
+마이그레이션 힌트
+
+마이그레이션 힌트 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+데이터베이스 객체 호환성: Google 제공 도구로 자동으로 마이그레이션할 수 있는 객체 수 또는 수동 작업이 필요한 객체 수를 포함하여 BigQuery와의 데이터베이스 객체 호환성에 대한 개요가 제공됩니다.
+이 정보는 각 데이터베이스, 스키마, 데이터베이스 객체 유형에 대해 표시됩니다.
+데이터베이스 객체 마이그레이션 작업: 각 데이터베이스, 스키마, 데이터베이스 객체 유형의 예상 마이그레이션 작업 시간이 표시됩니다. 또한 마이그레이션 작업을 기준으로 소형, 중형, 대형 객체의 비율을 보여줍니다.
+데이터베이스 스키마 마이그레이션 작업: 감지된 모든 데이터베이스 객체 유형의 목록, 해당 수, BigQuery와의 호환성, 예상 마이그레이션 작업 시간이 제공됩니다.
+데이터베이스 스키마 마이그레이션 작업 세부정보: 각 객체의 정보를 포함하여 데이터베이스 스키마 마이그레이션 작업에 대한 심층적인 통계가 제공됩니다.
+
+
+개념 증명 뷰
+
+개념 증명 뷰 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+개념 증명 마이그레이션: 초기 마이그레이션에 적합한 후보로 마이그레이션 작업이 가장 적은 데이터베이스의 추천 목록이 표시됩니다. 또한 개념 증명을 통해 시간 및 비용 절감 효과와 BigQuery의 가치를 입증하는 데 도움이 되는 상위 쿼리를 확인할 수 있습니다.
+
+
+부록
+
+부록 섹션에는 다음 뷰가 포함되어 있습니다.
+
+
+평가 핵심 요약: 처리된 파일 및 오류의 목록과 보고서의 완전성을 포함하여 평가 핵심 세부정보가 제공됩니다. 이 페이지를 사용하여 보고서에서 누락된 데이터를 조사하고 전반적인 보고서의 완전성을 더 잘 이해할 수 있습니다.
+보고서 공유
+Looker Studio 보고서는 마이그레이션 평가를 위한 프런트엔드 대시보드입니다. 여기에는 기본 데이터 세트 액세스 권한이 사용됩니다. 보고서를 공유하려면 Looker Studio 보고서 및 평가 결과가 포함된 BigQuery 데이터 세트 모두에 대한 액세스 권한이 받는 사람에게 있어야 합니다.
+Google Cloud 콘솔에서 보고서를 열면 보고서가 미리보기 모드에서 표시됩니다. 보고서를 만들고 다른 사용자와 공유하려면 다음 단계를 수행합니다.
+수정 및 공유를 클릭합니다. Looker Studio에서 새로 만든 Looker Studio 커넥터를 새 보고서에 연결하라는 메시지가 표시됩니다.
+보고서에 추가를 클릭합니다. 보고서에 액세스하는 데 사용할 수 있는 개별 보고서 ID가 보고서에 지정됩니다.
+Looker Studio 보고서를 다른 사용자와 공유하려면 뷰어 및 편집자와 보고서 공유 [https://support.google.com/looker-studio/answer/7459147?hl=ko]에 설명된 단계를 따르세요.
+평가 태스크를 실행하는 데 사용된 BigQuery 데이터 세트 보기 권한을 사용자에게 부여합니다. 자세한 내용은 데이터 세트에 액세스 권한 부여 [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#required_permissions]를 참조하세요.
+마이그레이션 평가 출력 테이블 쿼리
+Looker Studio 보고서는 평가 결과를 확인하는 데 가장 편리한 방법이지만 BigQuery 데이터 세트에서 기본 데이터를 확인하고 쿼리 [https://cloud.google.com/bigquery/docs/bigquery-web-ui?hl=ko#open-ui]할 수도 있습니다.
+쿼리 예시
+다음 예시에서는 총 고유 쿼리 수, 변환에 실패한 쿼리 수, 변환에 실패한 고유 쿼리 비율을 가져옵니다.
+  SELECT
+    QueryCount.v AS QueryCount,
+    ErrorCount.v as ErrorCount,
+    (ErrorCount.v * 100) / QueryCount.v AS FailurePercentage
+  FROM
+  (
+    SELECT
+     COUNT(*) AS v
+    FROM
+      `your_project.your_dataset.TranslationErrors`
+    WHERE Type = "ERROR"
+  ) AS ErrorCount,
+  (
+    SELECT
+      COUNT(DISTINCT(QueryHash)) AS v
+    FROM
+      `your_project.your_dataset.Queries`
+  ) AS QueryCount;
+다른 프로젝트의 사용자와 데이터 세트 공유
+데이터 세트를 검사한 후 프로젝트에 속하지 않은 사용자와 공유하려면 Analytics Hub의 게시자 워크플로 [https://cloud.google.com/bigquery/docs/analytics-hub-introduction?hl=ko#publisher_workflow]를 활용하면 됩니다.
+참고: Analytics Hub에서 데이터 교환 [https://cloud.google.com/bigquery/docs/analytics-hub-manage-exchanges?hl=ko] 또는 등록정보를 관리하는 데 추가 비용이 들지 않습니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+데이터 세트를 클릭하여 세부정보를 확인합니다.
+person_add 공유 > 등록정보로 게시를 클릭합니다.
+대화상자가 열리면 메시지에 따라 등록정보를 만듭니다.
+이미 데이터 교환이 있는 경우 5단계를 건너뜁니다.
+데이터 교환을 만들고 권한을 설정합니다 [https://cloud.google.com/bigquery/docs/analytics-hub-manage-exchanges?hl=ko#create-exchange]. 사용자가 이 교환에서 내 등록정보를 볼 수 있도록 하려면 사용자를 구독자 목록에 추가합니다.
+등록정보 세부정보를 입력합니다.
+표시 이름은 이 등록정보의 이름이며 필수 입력란입니다. 다른 입력란은 선택사항입니다.
+게시를 클릭합니다.
+비공개 등록정보가 생성됩니다.
+등록정보에서 작업의 more_vert 추가 작업을 선택합니다.
+공유 링크 복사를 클릭합니다.
+교환 또는 등록정보에 대한 구독 액세스 권한이 있는 사용자와 링크를 공유할 수 있습니다.
+평가 테이블 스키마
+BigQuery 마이그레이션 평가로 BigQuery에 기록되는 테이블과 스키마를 보려면 데이터 웨어하우스를 선택합니다.
+--- 탭: Teradata [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#teradata] ---
+AllRIChildren
+
+이 테이블은 테이블 하위 요소의 참조 무결성 [https://docs.teradata.com/r/m%7EO%7EfVLqvU%7EMIZ5ZcaXIhg/EJ7TMoDXMHoWLZWkBI5E3w] 정보를 보여줍니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      IndexId
+      INTEGER
+      참조 색인 번호입니다.
+    
+    
+      IndexName
+      STRING
+      색인의 이름입니다.
+    
+    
+      ChildDB
+      STRING
+      소문자로 변환된 참조 데이터베이스의 이름입니다.
+    
+    
+      ChildDBOriginal
+      STRING
+      대소문자가 유지된 참조 데이터베이스의 이름입니다.
+    
+    
+      ChildTable
+      STRING
+      소문자로 변환된 참조 테이블의 이름입니다.
+    
+    
+      ChildTableOriginal
+      STRING
+      대소문자가 유지된 참조 테이블의 이름입니다.
+    
+    
+      ChildKeyColumn
+      STRING
+      소문자로 변환된 참조 키의 열 이름입니다.
+    
+    
+      ChildKeyColumnOriginal
+      STRING
+      대소문자가 유지된 참조 키의 열 이름입니다.
+    
+    
+      ParentDB
+      STRING
+      소문자로 변환된 참조 데이터베이스의 이름입니다.
+    
+    
+      ParentDBOriginal
+      STRING
+      대소문자가 유지된 참조 데이터베이스의 이름입니다.
+    
+    
+      ParentTable
+      STRING
+      소문자로 변환된 참조 테이블의 이름입니다.
+    
+    
+      ParentTableOriginal
+      STRING
+      대소문자가 유지된 참조 테이블의 이름입니다.
+    
+    
+      ParentKeyColumn
+      STRING
+      소문자로 변환된 참조 키의 열 이름입니다.
+    
+    
+      ParentKeyColumnOriginal
+      STRING
+      대소문자가 유지된 참조 키의 열 이름입니다.
+    
+  
+
+
+AllRIParents
+
+이 테이블은 테이블 상위 요소의 참조 무결성 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      IndexId
+      INTEGER
+      참조 색인 번호입니다.
+    
+    
+      IndexName
+      STRING
+      색인의 이름입니다.
+    
+    
+      ChildDB
+      STRING
+      소문자로 변환된 참조 데이터베이스의 이름입니다.
+    
+    
+      ChildDBOriginal
+      STRING
+      대소문자가 유지된 참조 데이터베이스의 이름입니다.
+    
+    
+      ChildTable
+      STRING
+      소문자로 변환된 참조 테이블의 이름입니다.
+    
+    
+      ChildTableOriginal
+      STRING
+      대소문자가 유지된 참조 테이블의 이름입니다.
+    
+    
+      ChildKeyColumn
+      STRING
+      소문자로 변환된 참조 키의 열 이름입니다.
+    
+    
+      ChildKeyColumnOriginal
+      STRING
+      대소문자가 유지된 참조 키의 열 이름입니다.
+    
+    
+      ParentDB
+      STRING
+      소문자로 변환된 참조 데이터베이스의 이름입니다.
+    
+    
+      ParentDBOriginal
+      STRING
+      대소문자가 유지된 참조 데이터베이스의 이름입니다.
+    
+    
+      ParentTable
+      STRING
+      소문자로 변환된 참조 테이블의 이름입니다.
+    
+    
+      ParentTableOriginal
+      STRING
+      대소문자가 유지된 참조 테이블의 이름입니다.
+    
+    
+      ParentKeyColumn
+      STRING
+      소문자로 변환된 참조 키의 열 이름입니다.
+    
+    
+      ParentKeyColumnOriginal
+      STRING
+      대소문자가 유지된 참조 키의 열 이름입니다.
+    
+  
+
+
+Columns
+
+이 테이블은 열에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      소문자로 변환된 스키마의 이름입니다.
+    
+    
+      DatabaseNameOriginal
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      TableName
+      STRING
+      소문자로 변환된 테이블의 이름입니다.
+    
+    
+      TableNameOriginal
+      STRING
+      대소문자가 유지된 테이블의 이름입니다.
+    
+    
+      ColumnName
+      STRING
+      소문자로 변환된 열의 이름입니다.
+    
+    
+      ColumnNameOriginal
+      STRING
+      대소문자가 유지된 열의 이름입니다.
+    
+    
+      ColumnType
+      STRING
+      열의 BigQuery 유형입니다(예: STRING).
+    
+    
+      OriginalColumnType
+      STRING
+      열의 원래 유형입니다(예: VARCHAR).
+    
+    
+      ColumnLength
+      INTEGER
+      열의 최대 바이트 수입니다(예: VARCHAR(30)의 경우 30).
+    
+    
+      DefaultValue
+      STRING
+      기본값입니다(있는 경우).
+    
+    
+      Nullable
+      BOOLEAN
+      이 열이 null을 허용하는지 여부입니다.
+    
+  
+
+
+DiskSpace
+
+이 테이블은 각 데이터베이스의 diskspace 사용량에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      소문자로 변환된 스키마의 이름입니다.
+    
+    
+      DatabaseNameOriginal
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      MaxPerm
+      INTEGER
+      영구 공간에 할당된 최대 바이트 수입니다.
+    
+    
+      MaxSpool
+      INTEGER
+      스풀링 공간에 할당된 최대 바이트 수입니다.
+    
+    
+      MaxTemp
+      INTEGER
+      임시 공간에 할당된 최대 바이트 수입니다.
+    
+    
+      CurrentPerm
+      INTEGER
+      현재 영구 공간에 할당된 바이트 수입니다.
+    
+    
+      CurrentSpool
+      INTEGER
+      현재 스풀링 공간에 할당된 바이트 수입니다.
+    
+    
+      CurrentTemp
+      INTEGER
+      현재 임시 공간에 할당된 바이트 수입니다.
+    
+    
+      PeakPerm
+      INTEGER
+      영구 공간에 대해 마지막 재설정 이후 사용된 최대 바이트 수입니다.
+    
+    
+      PeakSpool
+      INTEGER
+      스풀링 공간에 대해 마지막 재설정 이후 사용된 최대 바이트 수입니다.
+    
+    
+      PeakPersistentSpool
+      INTEGER
+      영구 공간에 대해 마지막 재설정 이후 사용된 최대 바이트 수입니다.
+    
+    
+      PeakTemp
+      INTEGER
+      임시 공간에 대해 마지막 재설정 이후 사용된 최대 바이트 수입니다.
+    
+    
+      MaxProfileSpool
+      INTEGER
+      사용자의 스풀링 공간 한도입니다.
+    
+    
+      MaxProfileTemp
+      INTEGER
+      사용자의 임시 공간 한도입니다.
+    
+    
+      AllocatedPerm
+      INTEGER
+      영구 공간의 현재 할당입니다.
+    
+    
+      AllocatedSpool
+      INTEGER
+      스풀링 공간의 현재 할당입니다.
+    
+    
+      AllocatedTemp
+      INTEGER
+      임시 공간의 현재 할당입니다.
+    
+  
+
+
+Functions
+
+이 테이블은 함수에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      소문자로 변환된 스키마의 이름입니다.
+    
+    
+      DatabaseNameOriginal
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      FunctionName
+      STRING
+      함수 이름입니다.
+    
+    
+      LanguageName
+      STRING
+      언어 이름입니다.
+    
+  
+
+
+Indices
+
+이 테이블은 색인에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      소문자로 변환된 스키마의 이름입니다.
+    
+    
+      DatabaseNameOriginal
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      TableName
+      STRING
+      소문자로 변환된 테이블의 이름입니다.
+    
+    
+      TableNameOriginal
+      STRING
+      대소문자가 유지된 테이블의 이름입니다.
+    
+    
+      IndexName
+      STRING
+      색인의 이름입니다.
+    
+    
+      ColumnName
+      STRING
+      소문자로 변환된 열의 이름입니다.
+    
+    
+      ColumnNameOriginal
+      STRING
+      대소문자가 유지된 열의 이름입니다.
+    
+    
+      OrdinalPosition
+      INTEGER
+      열의 위치입니다.
+    
+    
+      UniqueFlag
+      BOOLEAN
+      색인에서 고유성을 적용하는지 여부를 나타냅니다.
+    
+  
+
+
+Queries
+
+이 테이블은 추출된 쿼리에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      QueryText
+      STRING
+      쿼리 텍스트입니다.
+    
+  
+
+
+QueryLogs
+
+이 테이블은 추출된 쿼리에 대한 일부 실행 통계를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryText
+      STRING
+      쿼리 텍스트입니다.
+    
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      QueryId
+      STRING
+      쿼리 ID입니다.
+    
+    
+      QueryType
+      STRING
+      쿼리 유형(쿼리 또는 DDL)입니다.
+    
+    
+      UserId
+      BYTES
+      쿼리를 실행한 사용자의 ID입니다.
+    
+    
+      UserName
+      STRING
+      쿼리를 실행한 사용자의 이름입니다.
+    
+    
+      StartTime
+      TIMESTAMP
+      쿼리가 제출된 시점의 타임스탬프입니다.
+    
+    
+      Duration
+      STRING
+      쿼리 기간(밀리초)입니다.
+    
+    
+      AppId
+      STRING
+      쿼리를 실행한 애플리케이션의 ID입니다.
+    
+    
+      ProxyUser
+      STRING
+      중간 계층을 통해 사용되는 경우 프록시 사용자입니다.
+    
+    
+      ProxyRole
+      STRING
+      중간 계층을 통해 사용되는 경우 프록시 역할입니다.
+    
+  
+
+
+QueryTypeStatistics
+
+이 테이블은 쿼리 유형에 대한 통계를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      QueryType
+      STRING
+      쿼리 유형입니다.
+    
+    
+      UpdatedTable
+      STRING
+      쿼리로 업데이트된 테이블입니다(있는 경우).
+    
+    
+      QueriedTables
+      ARRAY<STRING>
+      쿼리된 테이블 목록입니다.
+    
+  
+
+
+ResUsageScpu
+
+이 표는 CPU 리소스 사용량에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      EventTime
+      TIMESTAMP
+      이벤트 시간입니다.
+    
+    
+      NodeId
+      INTEGER
+      노드 ID
+    
+    
+      CabinetId
+      INTEGER
+      노드의 물리적 캐비닛 번호입니다.
+    
+    
+      ModuleId
+      INTEGER
+      노드의 물리적 모듈 번호입니다.
+    
+    
+      NodeType
+      STRING
+      노드 유형입니다.
+    
+    
+      CpuId
+      INTEGER
+      이 노드 내 CPU의 ID입니다.
+    
+    
+      MeasurementPeriod
+      INTEGER
+      측정 기간(100분의 1초 단위)입니다.
+    
+    
+      SummaryFlag
+      STRING
+      S - 요약 행, N - 요약이 아닌 행
+    
+    
+      CpuFrequency
+      FLOAT
+      CPU 주파수(MHz)입니다.
+    
+    
+      CpuIdle
+      FLOAT
+      CPU가 유휴 상태인 시간(100분의 1초)입니다.
+    
+    
+      CpuIoWait
+      FLOAT
+      CPU가 I/O를 기다리는 시간(100분의 1초)입니다.
+    
+    
+      CpuUServ
+      FLOAT
+      CPU가 사용자 코드를 실행하는 시간(100분의 1초)입니다.
+    
+    
+      CpuUExec
+      FLOAT
+      CPU가 서비스 코드를 실행하는 시간(100분의 1초)입니다.
+    
+  
+
+
+Roles
+
+이 테이블은 역할에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      RoleName
+      STRING
+      역할의 이름입니다.
+    
+    
+      Grantor
+      STRING
+      역할을 부여한 데이터베이스 이름입니다.
+    
+    
+      Grantee
+      STRING
+      역할을 부여받은 사용자입니다.
+    
+    
+      WhenGranted
+      TIMESTAMP
+      역할이 부여된 시간입니다.
+    
+    
+      WithAdmin
+      BOOLEAN
+      부여된 역할에 대해 설정된 관리자 옵션입니다.
+    
+  
+
+
+SchemaConversion
+
+이 테이블은 클러스터링 및 파티셔닝과 관련된 스키마 변환에 대한 정보를 제공합니다.
+
+
+  
+    
+      열 이름
+      열 유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      추천이 생성된 소스 데이터베이스의 이름입니다.
+        데이터베이스는 BigQuery의 데이터 세트에 매핑됩니다.
+    
+    
+      TableName
+      STRING
+      추천이 생성된 테이블의 이름입니다.
+    
+    
+      PartitioningColumnName
+      STRING
+      BigQuery에서 추천되는 파티션 나누기 열의 이름입니다.
+    
+    
+      ClusteringColumnNames
+      ARRAY
+      BigQuery에서 추천되는 클러스터링 열의 이름입니다.
+    
+    
+      CreateTableDDL
+      STRING
+      BigQuery에서 테이블을 만드는 데 사용되는 CREATE TABLE statement [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]입니다.
+    
+  
+
+
+TableInfo
+
+이 테이블은 테이블에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      소문자로 변환된 스키마의 이름입니다.
+    
+    
+      DatabaseNameOriginal
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      TableName
+      STRING
+      소문자로 변환된 테이블의 이름입니다.
+    
+    
+      TableNameOriginal
+      STRING
+      대소문자가 유지된 테이블의 이름입니다.
+    
+    
+      LastAccessTimestamp
+      TIMESTAMP
+      테이블에 마지막으로 액세스한 시간입니다.
+    
+    
+      LastAlterTimestamp
+      TIMESTAMP
+      테이블을 마지막으로 변경한 시간입니다.
+    
+    
+      TableKind
+      STRING
+      테이블 유형입니다.
+    
+  
+
+
+TableRelations
+
+이 테이블은 테이블에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      관계를 설정한 쿼리의 해시입니다.
+    
+    
+      DatabaseName1
+      STRING
+      첫 번째 데이터베이스의 이름입니다.
+    
+    
+      TableName1
+      STRING
+      첫 번째 테이블의 이름입니다.
+    
+    
+      DatabaseName2
+      STRING
+      두 번째 데이터베이스의 이름입니다.
+    
+    
+      TableName2
+      STRING
+      두 번째 테이블의 이름입니다.
+    
+    
+      Relation
+      STRING
+      두 테이블 간의 관계 유형입니다.
+    
+  
+
+
+TableSizes
+
+이 테이블은 테이블 크기에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      소문자로 변환된 스키마의 이름입니다.
+    
+    
+      DatabaseNameOriginal
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      TableName
+      STRING
+      소문자로 변환된 테이블의 이름입니다.
+    
+    
+      TableNameOriginal
+      STRING
+      대소문자가 유지된 테이블의 이름입니다.
+    
+    
+      TableSizeInBytes
+      INTEGER
+      테이블 크기(바이트)입니다.
+    
+  
+
+
+Users
+
+이 테이블은 사용자에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      UserName
+      STRING
+      사용자의 이름입니다.
+    
+    
+      CreatorName
+      STRING
+      이 사용자를 만든 항목의 이름입니다.
+    
+    
+      CreateTimestamp
+      TIMESTAMP
+      이 사용자가 생성된 시점의 타임스탬프입니다.
+    
+    
+      LastAccessTimestamp
+      TIMESTAMP
+      이 사용자가 데이터베이스에 마지막으로 액세스한 시점의 타임스탬프입니다.
+
+--- 탭: Amazon Redshift [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#amazon-redshift] ---
+참고: BigQuery 테이블에 표시되지만 여기에 나열되지 않은 열은 실험용으로 간주해야 하며 이는 언제든지 변경될 수 있습니다.
+Columns
+
+Columns 테이블은 우선순위에 따라 SVV_COLUMNS [https://docs.aws.amazon.com/redshift/latest/dg/r_SVV_COLUMNS.html],INFORMATION_SCHEMA.COLUMNS [https://www.postgresql.org/docs/current/infoschema-columns.html] 또는 PG_TABLE_DEF [https://docs.aws.amazon.com/redshift/latest/dg/r_PG_TABLE_DEF.html] 테이블 중 하나에서 가져옵니다. 도구는 우선순위가 가장 높은 테이블에서 먼저 데이터를 로드하려고 시도합니다. 이 작업이 실패하면 우선순위가 두 번째로 높은 테이블에서 데이터를 로드하려고 시도합니다. 스키마 및 사용에 대한 자세한 내용은 Amazon Redshift 또는 PostgreSQL 문서를 참조하세요.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      데이터베이스의 이름입니다.
+    
+    
+      SchemaName
+      STRING
+      스키마의 이름입니다.
+    
+    
+      TableName
+      STRING
+      테이블의 이름입니다.
+    
+    
+      ColumnName
+      STRING
+      열의 이름입니다.
+    
+    
+      DefaultValue
+      STRING
+      사용 가능한 경우 기본값입니다.
+    
+    
+      Nullable
+      BOOLEAN
+      열에 null 값이 있을 수 있는지 여부입니다.
+    
+    
+      ColumnType
+      STRING
+      열의 유형입니다(예: VARCHAR).
+    
+    
+      ColumnLength
+      INTEGER
+      열의 크기입니다(예: VARCHAR(30)의 경우 30).
+    
+  
+
+
+CreateAndDropStatistic
+
+이 테이블은 테이블 생성 및 삭제에 관한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      DefaultDatabase
+      STRING
+      기본 데이터베이스입니다.
+    
+    
+      EntityType
+      STRING
+      항목의 유형입니다(예: TABLE).
+    
+    
+      EntityName
+      STRING
+      항목 이름입니다.
+    
+    
+      Operation
+      STRING
+      CREATE 또는 DROP 작업입니다.
+    
+  
+
+
+Databases
+
+이 테이블은 Amazon Redshift의 PG_DATABASE_INFO [https://docs.aws.amazon.com/redshift/latest/dg/r_PG_DATABASE_INFO.html] 테이블에서 직접 가져옵니다. PG 테이블의 원본 필드 이름이 설명에 포함되어 있습니다. 스키마 및 사용량에 대한 자세한 내용은 Amazon Redshift 및 PostgreSQL 문서를 참조하세요.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      데이터베이스의 이름입니다. 소스 이름: datname
+    
+    
+      Owner
+      STRING
+      데이터베이스의 소유자입니다. 예를 들어 데이터베이스를 만든 사용자입니다. 소스 이름: datdba
+    
+  
+
+
+ExternalColumns
+
+이 테이블에는 Amazon Redshift의 SVV_EXTERNAL_COLUMNS [https://docs.aws.amazon.com/redshift/latest/dg/r_SVV_EXTERNAL_COLUMNS.html] 테이블에 있는 정보가 직접 포함됩니다. 스키마 및 사용량에 대한 자세한 내용은 Amazon Redshift 문서를 참조하세요.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      SchemaName
+      STRING
+      외부 스키마 이름입니다.
+    
+    
+      TableName
+      STRING
+      외부 테이블 이름입니다.
+    
+    
+      ColumnName
+      STRING
+      외부 열 이름입니다.
+    
+    
+      ColumnType
+      STRING
+      열 유형입니다.
+    
+    
+      Nullable
+      BOOLEAN
+      열에 null 값이 있을 수 있는지 여부입니다.
+    
+  
+
+
+ExternalDatabases
+
+이 테이블에는 Amazon Redshift의 SVV_EXTERNAL_DATABASES [https://docs.aws.amazon.com/redshift/latest/dg/r_SVV_EXTERNAL_DATABASES.html] 테이블에 있는 정보가 직접 포함됩니다. 스키마 및 사용량에 대한 자세한 내용은 Amazon Redshift 문서를 참조하세요.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      외부 데이터베이스 이름입니다.
+    
+    
+      Location
+      STRING
+      데이터베이스 위치입니다.
+    
+  
+
+
+ExternalPartitions
+
+이 테이블에는 Amazon Redshift의 SVV_EXTERNAL_PARTITIONS [https://docs.aws.amazon.com/redshift/latest/dg/r_SVV_EXTERNAL_PARTITIONS.html] 테이블에 있는 정보가 직접 포함됩니다. 스키마 및 사용량에 대한 자세한 내용은 Amazon Redshift 문서를 참조하세요.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      SchemaName
+      STRING
+      외부 스키마 이름입니다.
+    
+    
+      TableName
+      STRING
+      외부 테이블 이름입니다.
+    
+    
+      Location
+      STRING
+      파티션 위치입니다. 열 크기는 128자(영문 기준)로 제한됩니다. 값이 더 길면 잘립니다.
+    
+  
+
+
+ExternalSchemas
+
+이 테이블에는 Amazon Redshift의 SVV_EXTERNAL_SCHEMAS [https://docs.aws.amazon.com/redshift/latest/dg/r_SVV_EXTERNAL_SCHEMAS.html] 테이블에 있는 정보가 직접 포함됩니다. 스키마 및 사용량에 대한 자세한 내용은 Amazon Redshift 문서를 참조하세요.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      SchemaName
+      STRING
+      외부 스키마 이름입니다.
+    
+    
+    
+      DatabaseName
+      STRING
+      외부 데이터베이스 이름입니다.
+    
+  
+
+
+ExternalTables
+
+이 테이블에는 Amazon Redshift의 SVV_EXTERNAL_TABLES [https://docs.aws.amazon.com/redshift/latest/dg/r_SVV_EXTERNAL_TABLES.html] 테이블에 있는 정보가 직접 포함됩니다. 스키마 및 사용량에 대한 자세한 내용은 Amazon Redshift 문서를 참조하세요.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      SchemaName
+      STRING
+      외부 스키마 이름입니다.
+    
+    
+      TableName
+      STRING
+      외부 테이블 이름입니다.
+    
+  
+
+
+Functions
+
+이 테이블에는 Amazon Redshift의 PG_PROC [https://www.postgresql.org/docs/current/catalog-pg-proc.html] 테이블에 있는 정보가 직접 포함됩니다. 스키마 및 사용량에 대한 자세한 내용은 Amazon Redshift 및 PostgreSQL 문서를 참조하세요.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      SchemaName
+      STRING
+      스키마의 이름입니다.
+    
+    
+      FunctionName
+      STRING
+      함수 이름입니다.
+    
+    
+      LanguageName
+      STRING
+      이 함수의 구현 언어 또는 호출 인터페이스입니다.
+    
+  
+
+
+Queries
+
+이 테이블은 QueryLogs 테이블의 정보를 사용하여 생성됩니다. QueryLogs 테이블과 달리, Queries 테이블의 모든 행에는 QueryText 열에 저장된 쿼리 문 한 개만 포함됩니다.  이 테이블은 Statistics 테이블 및 변환 출력을 생성하기 위한 소스 데이터를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryText
+      STRING
+      쿼리 텍스트입니다.
+    
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+  
+
+
+QueryLogs
+
+이 표는 쿼리 실행에 관한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryText
+      STRING
+      쿼리 텍스트입니다.
+    
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      QueryID
+      STRING
+      쿼리 ID입니다.
+    
+    
+      UserID
+      STRING
+      사용자의 ID입니다.
+    
+    
+      StartTime
+      TIMESTAMP
+      시작 시간입니다.
+    
+    
+      Duration
+      INTEGER
+      밀리초 단위의 기간입니다.
+    
+  
+
+
+QueryTypeStatistics
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      DefaultDatabase
+      STRING
+      기본 데이터베이스입니다.
+    
+    
+      QueryType
+      STRING
+      쿼리 유형입니다.
+    
+    
+      UpdatedTable
+      STRING
+      업데이트된 테이블입니다.
+    
+    
+      QueriedTables
+      ARRAY<STRING>
+      쿼리된 테이블입니다.
+    
+  
+
+
+TableInfo
+
+이 테이블에는 Amazon Redshift의 SVV_TABLE_INFO 테이블 [https://docs.aws.amazon.com/redshift/latest/dg/r_SVV_TABLE_INFO.html]에서 추출된 정보가 포함됩니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      데이터베이스의 이름입니다.
+    
+    
+      SchemaName
+      STRING
+      스키마의 이름입니다.
+    
+    
+      TableId
+      INTEGER
+      테이블 ID입니다.
+    
+    
+      TableName
+      STRING
+      테이블의 이름입니다.
+    
+    
+      SortKey1
+      STRING
+      정렬 키의 첫 번째 열입니다.
+    
+    
+      SortKeyNum
+      INTEGER
+      정렬 키로 정의된 열 수입니다.
+    
+    
+      MaxVarchar
+      INTEGER
+      VARCHAR 데이터 유형을 사용하는 가장 큰 열의 크기입니다.
+    
+    
+      Size
+      INTEGER
+      1MB 데이터 블록 단위의 테이블 크기입니다.
+    
+    
+      TblRows
+      INTEGER
+      테이블의 총 행 수입니다.
+    
+  
+
+
+TableRelations
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      관계를 설정한 쿼리의 해시입니다(예: JOIN 쿼리).
+    
+    
+      DefaultDatabase
+      STRING
+      기본 데이터베이스입니다.
+    
+    
+      TableName1
+      STRING
+      관계의 첫 번째 테이블입니다.
+    
+    
+      TableName2
+      STRING
+      관계의 두 번째 테이블입니다.
+    
+    
+      Relation
+      STRING
+      관계의 종류입니다. COMMA_JOIN, CROSS_JOIN, FULL_OUTER_JOIN, INNER_JOIN, LEFT_OUTER_JOIN, RIGHT_OUTER_JOIN, CREATED_FROM 또는 INSERT_INTO 값 중 하나를 사용합니다.
+    
+    
+      Count
+      INTEGER
+      이 관계가 관찰된 빈도입니다.
+    
+  
+
+
+TableSizes
+
+이 테이블은 테이블 크기에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      데이터베이스의 이름입니다.
+    
+    
+      SchemaName
+      STRING
+      스키마의 이름입니다.
+    
+    
+      TableName
+      STRING
+      테이블의 이름입니다.
+    
+    
+      TableSizeInBytes
+      INTEGER
+      테이블 크기(바이트)입니다.
+    
+  
+
+
+Tables
+
+이 테이블에는 Amazon Redshift의 SVV_TABLES 테이블 [https://docs.aws.amazon.com/redshift/latest/dg/r_SVV_TABLES.html]에서 추출된 정보가 포함됩니다. 스키마 및 사용량에 대한 자세한 내용은 Amazon Redshift 문서를 참조하세요.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      데이터베이스의 이름입니다.
+    
+    
+      SchemaName
+      STRING
+      스키마의 이름입니다.
+    
+    
+      TableName
+      STRING
+      테이블의 이름입니다.
+    
+    
+      TableType
+      STRING
+      테이블 유형입니다.
+    
+  
+
+
+TranslatedQueries
+
+이 표는 쿼리 변환을 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      TranslatedQueryText
+      STRING
+      소스 언어를 GoogleSQL로 변환한 결과입니다.
+    
+  
+
+
+TranslationErrors
+
+이 표는 쿼리 변환 오류에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      Severity
+      STRING
+      오류의 심각도입니다(예: ERROR).
+    
+    
+      Category
+      STRING
+      오류의 카테고리입니다(예: AttributeNotFound).
+    
+    
+      Message
+      STRING
+      오류에 대한 세부정보가 포함된 메시지입니다.
+    
+    
+      LocationOffset
+      INTEGER
+      오류 위치의 문자 위치입니다.
+    
+    
+      LocationLine
+      INTEGER
+      오류의 행 번호입니다.
+    
+    
+      LocationColumn
+      INTEGER
+      오류의 열 번호입니다.
+    
+    
+      LocationLength
+      INTEGER
+      오류 위치의 문자 길이입니다.
+    
+  
+
+
+UserTableRelations
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      UserID
+      STRING
+      사용자 ID입니다.
+    
+    
+      TableName
+      STRING
+      테이블의 이름입니다.
+    
+    
+      Relation
+      STRING
+      관계입니다.
+    
+    
+      Count
+      INTEGER
+      개수입니다.
+    
+  
+
+
+Users
+
+이 테이블에는 Amazon Redshift의 PG_USER [https://www.postgresql.org/docs/8.0/view-pg-user.html] 테이블에서 추출된 정보가 포함됩니다. 스키마 및 사용량에 대한 자세한 내용은 PostgreSQL 문서를 참조하세요.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      UserName
+      STRING
+      사용자의 이름입니다.
+    
+    
+      UserId
+      STRING
+      사용자 ID입니다.
+
+--- 탭: Apache Hive [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#apache-hive] ---
+Columns
+
+이 테이블은 열에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      TableName
+      STRING
+      대소문자가 유지된 테이블의 이름입니다.
+    
+    
+      ColumnName
+      STRING
+      대소문자가 유지된 열의 이름입니다.
+    
+    
+      ColumnType
+      STRING
+      열의 BigQuery 유형입니다(예: STRING).
+    
+    
+      OriginalColumnType
+      STRING
+      열의 원래 유형입니다(예: VARCHAR).
+    
+  
+
+
+CreateAndDropStatistic
+
+이 테이블은 테이블 생성 및 삭제에 관한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      DefaultDatabase
+      STRING
+      기본 데이터베이스입니다.
+    
+    
+      EntityType
+      STRING
+      항목의 유형입니다(예: TABLE).
+    
+    
+      EntityName
+      STRING
+      항목 이름입니다.
+    
+    
+      Operation
+      STRING
+      테이블에서 수행된 작업(CREATE 또는 DROP)
+    
+  
+
+
+Databases
+
+이 테이블은 데이터베이스에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      Owner
+      STRING
+      데이터베이스의 소유자입니다. 예를 들어 데이터베이스를 만든 사용자입니다.
+    
+    
+      Location
+      STRING
+      파일 시스템에서 데이터베이스의 위치입니다.
+    
+  
+
+
+Functions
+
+이 테이블은 함수에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      FunctionName
+      STRING
+      함수 이름입니다.
+    
+    
+      LanguageName
+      STRING
+      언어 이름입니다.
+    
+     
+      ClassName
+      STRING
+      함수의 클래스 이름입니다.
+    
+  
+
+
+ObjectReferences
+
+이 테이블은 쿼리에서 참조되는 객체에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      DefaultDatabase
+      STRING
+      기본 데이터베이스입니다.
+    
+    
+      Clause
+      STRING
+      객체가 표시되는 절입니다. 예를 들면 SELECT입니다.
+    
+    
+      ObjectName
+      STRING
+      객체 이름입니다.
+    
+    
+      Type
+      STRING
+      객체의 유형입니다.
+    
+    
+      Subtype
+      STRING
+      객체의 하위유형입니다.
+    
+  
+
+
+ParititionKeys
+
+이 테이블은 파티션 키에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      TableName
+      STRING
+      대소문자가 유지된 테이블의 이름입니다.
+    
+    
+      ColumnName
+      STRING
+      대소문자가 유지된 열의 이름입니다.
+    
+    
+      ColumnType
+      STRING
+      열의 BigQuery 유형입니다(예: STRING).
+    
+  
+
+
+Parititions
+
+이 테이블은 테이블 파티션에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      TableName
+      STRING
+      대소문자가 유지된 테이블의 이름입니다.
+    
+    
+      PartitionName
+      STRING
+      파티션의 이름입니다.
+    
+    
+      CreateTimestamp
+      TIMESTAMP
+      이 파티션이 생성된 시점의 타임스탬프입니다.
+    
+    
+      LastAccessTimestamp
+      TIMESTAMP
+      이 파티션에 마지막으로 액세스한 시점의 타임스탬프입니다.
+    
+    
+      LastDdlTimestamp
+      TIMESTAMP
+      이 파티션이 마지막으로 변경된 시점의 타임스탬프입니다.
+    
+    
+      TotalSize
+      INTEGER
+      압축된 파티션 크기(바이트)입니다.
+    
+  
+
+
+Queries
+
+이 테이블은 QueryLogs 테이블의 정보를 사용하여 생성됩니다. QueryLogs 테이블과 달리, Queries 테이블의 모든 행에는 QueryText 열에 저장된 쿼리 문 한 개만 포함됩니다. 이 테이블은 Statistics 테이블 및 변환 출력을 생성하기 위한 소스 데이터를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      QueryText
+      STRING
+      쿼리 텍스트입니다.
+    
+  
+
+
+QueryLogs
+
+이 테이블은 추출된 쿼리에 대한 일부 실행 통계를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryText
+      STRING
+      쿼리 텍스트입니다.
+    
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      QueryId
+      STRING
+      쿼리 ID입니다.
+    
+    
+      QueryType
+      STRING
+      쿼리 유형입니다(Query 또는 DDL).
+    
+    
+      UserName
+      STRING
+      쿼리를 실행한 사용자의 이름입니다.
+    
+    
+      StartTime
+      TIMESTAMP
+      쿼리가 제출된 시점의 타임스탬프입니다.
+    
+    
+      Duration
+      STRING
+      쿼리 기간(밀리초)입니다.
+    
+  
+
+
+QueryTypeStatistics
+
+이 테이블은 쿼리 유형에 대한 통계를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      QueryType
+      STRING
+      쿼리 유형입니다.
+    
+    
+      UpdatedTable
+      STRING
+      쿼리로 업데이트된 테이블입니다(있는 경우).
+    
+    
+      QueriedTables
+      ARRAY<STRING>
+      쿼리된 테이블 목록입니다.
+    
+  
+
+
+QueryTypes
+
+이 테이블은 쿼리 유형에 대한 통계를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      Category
+      STRING
+      쿼리의 카테고리입니다.
+    
+    
+      Type
+      STRING
+      쿼리 유형입니다.
+    
+    
+      Subtype
+      STRING
+      쿼리의 하위유형입니다.
+    
+  
+
+
+SchemaConversion
+
+이 테이블은 클러스터링 및 파티셔닝과 관련된 스키마 변환에 대한 정보를 제공합니다.
+
+
+  
+    
+      열 이름
+      열 유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      추천이 생성된 소스 데이터베이스의 이름입니다.
+        데이터베이스는 BigQuery의 데이터 세트에 매핑됩니다.
+    
+    
+      TableName
+      STRING
+      추천이 생성된 테이블의 이름입니다.
+    
+    
+      PartitioningColumnName
+      STRING
+      BigQuery에서 추천되는 파티션 나누기 열의 이름입니다.
+    
+    
+      ClusteringColumnNames
+      ARRAY
+      BigQuery에서 추천되는 클러스터링 열의 이름입니다.
+    
+    
+      CreateTableDDL
+      STRING
+      BigQuery에서 테이블을 만드는 데 사용되는 CREATE TABLE statement [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_table_statement]입니다.
+    
+  
+
+
+TableRelations
+
+이 테이블은 테이블에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      관계를 설정한 쿼리의 해시입니다.
+    
+    
+      DatabaseName1
+      STRING
+      첫 번째 데이터베이스의 이름입니다.
+    
+    
+      TableName1
+      STRING
+      첫 번째 테이블의 이름입니다.
+    
+    
+      DatabaseName2
+      STRING
+      두 번째 데이터베이스의 이름입니다.
+    
+    
+      TableName2
+      STRING
+      두 번째 테이블의 이름입니다.
+    
+    
+      Relation
+      STRING
+      두 테이블 간의 관계 유형입니다.
+    
+  
+
+
+TableSizes
+
+이 테이블은 테이블 크기에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      TableName
+      STRING
+      대소문자가 유지된 테이블의 이름입니다.
+    
+    
+      TotalSize
+      INTEGER
+      테이블 크기(바이트)입니다.
+    
+  
+
+
+Tables
+
+이 테이블은 테이블에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      대소문자가 유지된 데이터베이스의 이름입니다.
+    
+    
+      TableName
+      STRING
+      대소문자가 유지된 테이블의 이름입니다.
+    
+    
+      Type
+      STRING
+      테이블 유형입니다.
+    
+  
+
+
+TranslatedQueries
+
+이 표는 쿼리 변환을 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      TranslatedQueryText
+      STRING
+      소스 언어를 GoogleSQL로 변환한 결과입니다.
+    
+  
+
+
+TranslationErrors
+
+이 표는 쿼리 변환 오류에 대한 정보를 제공합니다.
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+    
+    
+      Severity
+      STRING
+      오류의 심각도입니다(예: ERROR).
+    
+    
+      Category
+      STRING
+      오류의 카테고리입니다(예: AttributeNotFound).
+    
+    
+      Message
+      STRING
+      오류에 대한 세부정보가 포함된 메시지입니다.
+    
+    
+      LocationOffset
+      INTEGER
+      오류 위치의 문자 위치입니다.
+    
+    
+      LocationLine
+      INTEGER
+      오류의 행 번호입니다.
+    
+    
+      LocationColumn
+      INTEGER
+      오류의 열 번호입니다.
+    
+    
+      LocationLength
+      INTEGER
+      오류 위치의 문자 길이입니다.
+    
+  
+
+
+UserTableRelations
+
+
+  
+    
+      열
+      유형
+      설명
+    
+  
+  
+    
+      UserID
+      STRING
+      사용자 ID입니다.
+    
+    
+      TableName
+      STRING
+      테이블의 이름입니다.
+    
+    
+      Relation
+      STRING
+      관계입니다.
+    
+    
+      Count
+      INTEGER
+      개수입니다.
+
+--- 탭: Snowflake [https://cloud.google.com/bigquery/docs/migration-assessment?hl=ko#snowflake] ---
+Preview
+      
+        
+    
+    
+
+    
+      
+      
+        This feature is subject to the "Pre-GA Offerings Terms" in the General Service Terms section
+        of the Service Specific Terms [https://cloud.google.com/terms/service-terms?hl=ko#1].
+        
+        Pre-GA features are available "as is" and might have limited support.
+      
+      For more information, see the
+      launch stage descriptions [https://cloud.google.com/products?hl=ko#product-launch-stages].
+  
+  
+  
+
+
+
+Warehouses
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      WarehouseName
+      STRING
+      웨어하우스의 이름입니다.
+      항상
+    
+    
+      State
+      STRING
+      웨어하우스의 상태입니다. 가능한 값: STARTED, SUSPENDED, RESIZING.
+      항상
+    
+    
+      Type
+      STRING
+      웨어하우스 유형입니다. 가능한 값: STANDARD, SNOWPARK-OPTIMIZED.
+      항상
+    
+    
+      Size
+      STRING
+      웨어하우스 크기입니다. 가능한 값: X-Small, Small, Medium, Large, X-Large, 2X-Large ... 6X-Large.
+      항상
+    
+  
+
+
+Databases
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      DatabaseNameOriginal
+      STRING
+      대소문자가 유지된 데이터베이스 이름입니다.
+      항상
+    
+    
+      DatabaseName
+      STRING
+      소문자로 변환된 스키마의 이름입니다.
+      항상
+    
+  
+
+
+Schemata
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      DatabaseNameOriginal
+      STRING
+      스키마가 속한 데이터베이스의 이름으로, 대소문자가 유지됩니다.
+      항상
+    
+    
+      DatabaseName
+      STRING
+      스키마가 속한 데이터베이스의 이름으로, 소문자로 변환됩니다.
+      항상
+    
+    
+      SchemaNameOriginal
+      STRING
+      대소문자가 유지된 스키마의 이름입니다.
+      항상
+    
+    
+      SchemaName
+      STRING
+      스키마의 이름으로, 소문자로 변환됩니다.
+      항상
+    
+  
+
+
+Tables
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      DatabaseNameOriginal
+      STRING
+      테이블이 속한 데이터베이스의 이름으로, 대소문자가 유지됩니다.
+      항상
+    
+    
+      DatabaseName
+      STRING
+      테이블이 속한 데이터베이스의 이름으로, 소문자로 변환됩니다.
+      항상
+    
+    
+      SchemaNameOriginal
+      STRING
+      테이블이 속한 스키마의 이름으로, 대소문자가 유지됩니다.
+      항상
+    
+    
+      SchemaName
+      STRING
+      테이블이 속한 스키마의 이름으로, 소문자로 변환됩니다.
+      항상
+    
+    
+      TableNameOriginal
+      STRING
+      대소문자가 유지된 테이블의 이름입니다.
+      항상
+    
+    
+      TableName
+      STRING
+      소문자로 변환된 테이블의 이름입니다.
+      항상
+    
+    
+      TableType
+      STRING
+      테이블 유형입니다(뷰 / 구체화된 뷰 / 기본 테이블).
+      항상
+    
+    
+      RowCount
+      BIGNUMERIC
+      테이블의 행 수입니다.
+      항상
+    
+  
+
+
+Columns
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      DatabaseName
+      STRING
+      소문자로 변환된 스키마의 이름입니다.
+      항상
+    
+    
+      DatabaseNameOriginal
+      STRING
+      대소문자가 유지된 데이터베이스 이름입니다.
+      항상
+    
+    
+      SchemaName
+      STRING
+      스키마의 이름으로, 소문자로 변환됩니다.
+      항상
+    
+    
+      SchemaNameOriginal
+      STRING
+      대소문자가 유지된 스키마의 이름입니다.
+      항상
+    
+    
+      TableName
+      STRING
+      소문자로 변환된 테이블의 이름입니다.
+      항상
+    
+    
+      TableNameOriginal
+      STRING
+      대소문자가 유지된 테이블의 이름입니다.
+      항상
+    
+    
+      ColumnName
+      STRING
+      소문자로 변환된 열의 이름입니다.
+      항상
+    
+    
+      ColumnNameOriginal
+      STRING
+      대소문자가 유지된 열의 이름입니다.
+      항상
+    
+    
+      ColumnType
+      STRING
+      열 유형입니다.
+      항상
+    
+  
+
+
+CreateAndDropStatistics
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+      항상
+    
+    
+      DefaultDatabase
+      STRING
+      기본 데이터베이스입니다.
+      항상
+    
+    
+      EntityType
+      STRING
+      항목의 유형입니다(예: TABLE).
+      항상
+    
+    
+      EntityName
+      STRING
+      항목 이름입니다.
+      항상
+    
+    
+      Operation
+      STRING
+      작업(CREATE 또는 DROP)입니다.
+      항상
+    
+  
+
+
+Queries
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      QueryText
+      STRING
+      쿼리 텍스트입니다.
+      항상
+    
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+      항상
+    
+  
+
+
+QueryLogs
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      QueryText
+      STRING
+      쿼리 텍스트입니다.
+      항상
+    
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+      항상
+    
+    
+      QueryID
+      STRING
+      쿼리 ID입니다.
+      항상
+    
+    
+      UserID
+      STRING
+      사용자의 ID입니다.
+      항상
+    
+    
+      StartTime
+      TIMESTAMP
+      시작 시간입니다.
+      항상
+    
+    
+      Duration
+      INTEGER
+      밀리초 단위의 기간입니다.
+      항상
+    
+  
+
+
+QueryTypeStatistics
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+      항상
+    
+    
+      DefaultDatabase
+      STRING
+      기본 데이터베이스입니다.
+      항상
+    
+    
+      QueryType
+      STRING
+      쿼리 유형입니다.
+      항상
+    
+    
+      UpdatedTable
+      STRING
+      업데이트된 테이블입니다.
+      항상
+    
+    
+      QueriedTables
+      REPEATED STRING
+      쿼리된 테이블입니다.
+      항상
+    
+  
+
+
+TableRelations
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      QueryHash
+      STRING
+      관계를 설정한 쿼리의 해시입니다(예: JOIN 쿼리).
+      항상
+    
+    
+      DefaultDatabase
+      STRING
+      기본 데이터베이스입니다.
+      항상
+    
+    
+      TableName1
+      STRING
+      관계의 첫 번째 테이블입니다.
+      항상
+    
+    
+      TableName2
+      STRING
+      관계의 두 번째 테이블입니다.
+      항상
+    
+    
+      Relation
+      STRING
+      관계의 종류입니다.
+      항상
+    
+    
+      Count
+      INTEGER
+      이 관계가 관찰된 빈도입니다.
+      항상
+    
+  
+
+
+TranslatedQueries
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+      항상
+    
+    
+      TranslatedQueryText
+      STRING
+      소스 언어를 BigQuery SQL로 변환한 결과입니다.
+      항상
+    
+  
+
+
+TranslationErrors
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      QueryHash
+      STRING
+      쿼리의 해시입니다.
+      항상
+    
+    
+      Severity
+      STRING
+      오류의 심각도입니다(예: ERROR).
+      항상
+    
+    
+      Category
+      STRING
+      오류의 카테고리입니다(예: AttributeNotFound).
+      항상
+    
+    
+      Message
+      STRING
+      오류에 대한 세부정보가 포함된 메시지입니다.
+      항상
+    
+    
+      LocationOffset
+      INTEGER
+      오류 위치의 문자 위치입니다.
+      항상
+    
+    
+      LocationLine
+      INTEGER
+      오류의 행 번호입니다.
+      항상
+    
+    
+      LocationColumn
+      INTEGER
+      오류의 열 번호입니다.
+      항상
+    
+    
+      LocationLength
+      INTEGER
+      오류 위치의 문자 길이입니다.
+      항상
+    
+  
+
+
+UserTableRelations
+
+
+  
+    
+      열
+      유형
+      설명
+      접속 상태
+    
+  
+  
+    
+      UserID
+      STRING
+      사용자 ID
+      항상
+    
+    
+      TableName
+      STRING
+      테이블의 이름입니다.
+      항상
+    
+    
+      Relation
+      STRING
+      관계입니다.
+      항상
+    
+    
+      Count
+      INTEGER
+      개수입니다.
+      항상
+문제 해결
+이 섹션에서는 데이터 웨어하우스를 BigQuery로 마이그레이션하기 위한 몇 가지 일반적인 문제와 문제 해결 기법을 설명합니다.
+dwh-migration-dumper 도구 오류
+메타데이터 또는 쿼리 로그 추출 중에 발생한 dwh-migration-dumper 도구 터미널 출력의 오류 및 경고를 해결하려면 메타데이터 생성 문제 해결 [https://cloud.google.com/bigquery/docs/generate-metadata?hl=ko#troubleshooting]을 참조하세요.
+Hive 마이그레이션 오류
+이 섹션에서는 Hive 데이터 웨어하우스에서 BigQuery로 마이그레이션하려고 할 때 발생할 수 있는 일반적인 문제를 설명합니다.
+로깅 후크는 hive-server2 로그에 디버그 로그 메시지를 기록합니다. 문제가 발생하면 MigrationAssessmentLoggingHook 문자열이 포함된 로깅 후크 디버그 로그를 검토합니다.
+ClassNotFoundException 오류 처리
+이 오류는 로깅 후크 JAR 파일을 잘못 배치하여 발생할 수 있습니다. JAR 파일을 Hive 클러스터의 보조(auxlib) 폴더에 추가했는지 확인하세요. 또는 hive.aux.jars.path 속성에서 JAR 파일의 전체 경로를 지정할 수 있습니다(예: file:///HiveMigrationAssessmentQueryLogsHooks_deploy.jar).
+구성된 폴더에 하위 폴더가 표시되지 않음
+이 문제는 로깅 후크 초기화 중 잘못된 구성이나 문제로 인해 발생할 수 있습니다.
+hive-server2 디버그 로그에서 다음 로깅 후크 메시지를 검색합니다.
+Unable to initialize logger, logging disabled
+Log dir configuration key 'dwhassessment.hook.base-directory' is not set,
+logging disabled.
+Error while trying to set permission
+문제 세부정보를 검토하고 문제를 해결하기 위해 수정해야 하는 사항이 있는지 확인하세요.
+폴더에 파일이 표시되지 않음
+이 문제는 이벤트 처리 중 또는 파일에 쓰는 중에 발생한 문제로 인해 발생할 수 있습니다.
+hive-server2 디버그 로그에서 다음 로깅 후크 메시지를 검색합니다.
+Failed to close writer for file
+Got exception while processing event
+Error writing record for query
+문제 세부정보를 검토하고 문제를 해결하기 위해 수정해야 하는 사항이 있는지 확인하세요.
+일부 쿼리 이벤트가 누락됨
+이 문제는 로깅 후크 스레드 큐 오버플로로 인해 발생할 수 있습니다.
+hive-server2 디버그 로그에서 다음 로깅 후크 메시지를 검색합니다.
+Writer queue is full. Ignoring event
+이러한 메시지가 있으면 dwhassessment.hook.queue.capacity 파라미터를 늘리는 것이 좋습니다.
+다음 단계
+dwh-migration-dumper 도구에 대한 자세한 내용은 dwh-migration-tools [https://github.com/google/dwh-migration-tools]를 참조하세요.
+데이터 웨어하우스 마이그레이션의 다음 단계에 대해 자세히 알아볼 수도 있습니다.
+마이그레이션 개요 [https://cloud.google.com/bigquery/docs/migration/migration-overview?hl=ko]
+스키마 및 데이터 전송 개요 [https://cloud.google.com/bigquery/docs/migration/schema-data-overview?hl=ko]
+데이터 파이프라인 [https://cloud.google.com/bigquery/docs/migration/pipelines?hl=ko]
+일괄 SQL 변환 [https://cloud.google.com/bigquery/docs/batch-sql-translator?hl=ko]
+대화형 SQL 변환 [https://cloud.google.com/bigquery/docs/interactive-sql-translator?hl=ko]
+데이터 보안 및 거버넌스 [https://cloud.google.com/bigquery/docs/data-governance?hl=ko]
+데이터 검증 도구 [https://github.com/GoogleCloudPlatform/professional-services-data-validator#data-validation-tool]
+도움이 되었나요?
+의견 보내기

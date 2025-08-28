@@ -1,0 +1,318 @@
+Source URL: https://cloud.google.com/bigquery/docs/image-analysis
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+필요한 역할 [https://cloud.google.com/bigquery/docs/image-analysis?hl=ko#required_roles]
+비용 [https://cloud.google.com/bigquery/docs/image-analysis?hl=ko#costs]
+시작하기 전에 [https://cloud.google.com/bigquery/docs/image-analysis?hl=ko#before_you_begin]
+데이터 세트 만들기 [https://cloud.google.com/bigquery/docs/image-analysis?hl=ko#create_a_dataset]
+객체 테이블 만들기 [https://cloud.google.com/bigquery/docs/image-analysis?hl=ko#create_the_object_table]
+Gemini 모델로 이미지 분석
+bookmark_border
+이 튜토리얼에서는 gemini-2.5-flash 모델 [https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models?hl=ko#gemini-models]을 기반으로 하는 BigQuery ML 원격 모델 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-create-remote-model?hl=ko]을 만드는 방법과 ML.GENERATE_TEXT 함수 [https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-generate-text?hl=ko]가 있는 모델을 사용하여 영화 포스터 이미지 세트를 분석하는 방법을 보여줍니다.
+이 튜토리얼에서는 다음 태스크를 다룹니다.
+Cloud Storage 버킷의 이미지 데이터에 대해 BigQuery 객체 테이블 [https://cloud.google.com/bigquery/docs/object-table-introduction?hl=ko] 생성하기
+Vertex AI gemini-2.5-flash 모델을 타겟팅하는 BigQuery ML 원격 모델 만들기
+원격 모델을 ML.GENERATE_TEXT 함수와 함께 사용하여 영화 포스터 세트와 연결된 영화 식별하기
+영화 포스터 데이터는 퍼블릭 Cloud Storage 버킷 gs://cloud-samples-data/vertex-ai/dataset-management/datasets/classic-movie-posters에서 제공됩니다.
+필요한 역할
+이 튜토리얼을 실행하려면 다음 Identity and Access Management(IAM) 역할이 필요합니다.
+BigQuery 데이터 세트, 연결, 모델을 만들고 사용하기: BigQuery 관리자(roles/bigquery.admin)
+연결의 서비스 계정에 권한 부여: 프로젝트 IAM 관리자(roles/resourcemanager.projectIamAdmin)
+이러한 사전 정의된 역할에는 이 문서의 작업을 수행하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 확장하세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko]을 사용하여 이 권한을 부여받을 수도 있습니다.
+비용
+이 문서에서는 비용이 청구될 수 있는 Google Cloud구성요소( )를 사용합니다.
+BigQuery ML: You incur costs for the data that you process in BigQuery.
+Vertex AI: You incur costs for calls to the Vertex AI model that is represented by the BigQuery remote model.
+프로젝트 사용량을 기준으로 예상 비용을 산출하려면 가격 계산기 [https://cloud.google.com/products/calculator?hl=ko]를 사용합니다.
+Google Cloud 신규 사용자는 무료 체험판 [https://cloud.google.com/free?hl=ko]을 사용할 수 있습니다.
+BigQuery 가격 책정에 대한 자세한 내용은 BigQuery 문서의 BigQuery 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]을 참조하세요.
+Vertex AI 생성형 AI 가격 책정에 대한 자세한 내용은 Vertex AI 가격 책정 [https://cloud.google.com/vertex-ai/generative-ai/pricing?hl=ko] 페이지를 참고하세요.
+시작하기 전에
+In the Google Cloud console, on the project selector page, select or create a Google Cloud project.
+Note: If you don't plan to keep the resources that you create in this procedure, create a project instead of selecting an existing project. After you finish these steps, you can delete the project, removing all resources associated with the project.
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+Enable the BigQuery, BigQuery Connection, and Vertex AI APIs.
+Enable the APIs [https://console.cloud.google.com/flows/enableapi?apiid=bigquery.googleapis.com%2Cbigqueryconnection.googleapis.com%2Caiplatform.googleapis.com&hl=ko]
+데이터 세트 만들기
+ML 모델을 저장할 BigQuery 데이터 세트를 만듭니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/image-analysis?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery 페이지로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 프로젝트 이름을 클릭합니다.
+more_vert 작업 보기 > 데이터 세트 만들기를 클릭합니다.
+
+
+데이터 세트 만들기 페이지에서 다음을 수행합니다.
+
+
+데이터 세트 ID에 bqml_tutorial를 입력합니다.
+위치 유형에 대해 멀티 리전을 선택한 다음 US(미국 내 여러 리전)를 선택합니다.
+나머지 기본 설정은 그대로 두고 데이터 세트 만들기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/image-analysis?hl=ko#bq] ---
+새 데이터 세트를 만들려면 --location 플래그와 함께 bq mk [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 명령어를 실행합니다. 사용할 수 있는 전체 파라미터 목록은 bq mk --dataset 명령어 [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#mk-dataset] 참조를 확인하세요.
+
+
+데이터 위치가 US로 설정되고 설명이 BigQuery ML tutorial dataset인 bqml_tutorial 데이터 세트를 만듭니다.
+
+bq --location=US mk -d \
+ --description "BigQuery ML tutorial dataset." \
+ bqml_tutorial
+
+--dataset 플래그를 사용하는 대신 이 명령어는 -d 단축키를 사용합니다.
+-d와 --dataset를 생략하면 이 명령어는 기본적으로 데이터 세트를 만듭니다.
+데이터 세트가 생성되었는지 확인합니다.
+
+bq ls
+
+--- 탭: API [https://cloud.google.com/bigquery/docs/image-analysis?hl=ko#api] ---
+데이터 세트 리소스 [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets?hl=ko]가 정의된 datasets.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert?hl=ko] 메서드를 호출합니다.
+
+{
+  "datasetReference": {
+     "datasetId": "bqml_tutorial"
+  }
+}
+
+--- 탭: BigQuery DataFrames [https://cloud.google.com/bigquery/docs/image-analysis?hl=ko#bigquery-dataframes] ---
+이 샘플을 사용해 보기 전에 BigQuery DataFrames를 사용하여 BigQuery 빠른 시작 [https://cloud.google.com/bigquery/docs/dataframes-quickstart?hl=ko]의 BigQuery DataFrames 설정 안내를 따르세요.
+    자세한 내용은 BigQuery DataFrames 참고 문서 [https://cloud.google.com/python/docs/reference/bigframes/latest?hl=ko]를 확인하세요.
+  BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+    자세한 내용은 로컬 개발 환경의 ADC 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+   
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+  
+  
+  
+    
+  
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import google.cloud.bigquery
+
+bqclient = google.cloud.bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+bqclient.create_dataset [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_create_dataset]("bqml_tutorial", exists_ok=True)
+객체 테이블 만들기
+퍼블릭 Cloud Storage 버킷 [https://console.cloud.google.com/storage/browser/cloud-samples-data/vertex-ai/dataset-management/datasets/classic-movie-posters;tab=objects?amp%3BforceOnObjectsSortingFiltering=false&hl=ko]의 영화 포스터 이미지로 객체 테이블을 만듭니다. 객체 테이블을 사용하면 Cloud Storage에서 이미지를 이동하지 않고도 분석할 수 있습니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행하여 객체 테이블을 만듭니다.
+CREATE OR REPLACE EXTERNAL TABLE `bqml_tutorial.movie_posters`
+  WITH CONNECTION DEFAULT
+  OPTIONS (
+    object_metadata = 'SIMPLE',
+    uris =
+      ['gs://cloud-samples-data/vertex-ai/dataset-management/datasets/classic-movie-posters/*']);
+원격 모델 만들기
+Vertex AI gemini-2.5-flash 모델을 나타내는 원격 모델을 만듭니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행하여 원격 모델을 만듭니다.
+CREATE OR REPLACE MODEL `bqml_tutorial.gemini-vision`
+  REMOTE WITH CONNECTION DEFAULT
+  OPTIONS (ENDPOINT = 'gemini-2.5-flash');
+쿼리가 완료되는 데 몇 초 정도 걸리며 그 이후에는 gemini-vision 모델이 탐색기 창의 bqml_tutorial 데이터 세트에 표시됩니다. 이 쿼리에서는 CREATE MODEL 문을 사용하여 모델을 만들므로 쿼리 결과가 없습니다.
+영화 포스터 분석
+원격 모델을 사용하여 영화 포스터를 분석하고 각 포스터가 나타내는 영화를 확인한 다음 이 데이터를 테이블에 작성합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행하여 영화 포스터 이미지를 분석합니다.
+CREATE OR REPLACE TABLE
+  `bqml_tutorial.movie_posters_results` AS (
+  SELECT
+    uri,
+    ml_generate_text_llm_result
+  FROM
+    ML.GENERATE_TEXT( MODEL `bqml_tutorial.gemini-vision`,
+      TABLE `bqml_tutorial.movie_posters`,
+      STRUCT( 0.2 AS temperature,
+        'For the movie represented by this poster, what is the movie title and year of release? Answer in JSON format with two keys: title, year. title should be string, year should be integer.' AS PROMPT,
+        TRUE AS FLATTEN_JSON_OUTPUT)));
+    
+쿼리 편집기에서 다음 문을 실행하여 테이블 데이터를 확인합니다.
+SELECT * FROM `bqml_tutorial.movie_posters_results`;
+출력은 다음과 비슷합니다.
++--------------------------------------------+----------------------------------+
+| uri                                        | ml_generate_text_llm_result      |
++--------------------------------------------+----------------------------------+
+| gs://cloud-samples-data/vertex-ai/dataset- | json                          |
+| management/datasets/classic-movie-         | {                                |
+| posters/little_annie_rooney.jpg            |  "title": "Little Annie Rooney", |
+|                                            |  "year": 1912                    |
+|                                            | }                                |
+|                                            |                              |
++--------------------------------------------+----------------------------------+
+| gs://cloud-samples-data/vertex-ai/dataset- | json                          |
+| management/datasets/classic-movie-         | {                                |
+| posters/mighty_like_a_mouse.jpg            |  "title": "Mighty Like a Moose", |
+|                                            |  "year": 1926                    |
+|                                            | }                                |
+|                                            |                              |
++--------------------------------------------+----------------------------------+
+| gs://cloud-samples-data/vertex-ai/dataset- | json                          |
+| management/datasets/classic-movie-         | {                                |
+| posters/brown_of_harvard.jpeg              |  "title": "Brown of Harvard",    |
+|                                            |  "year": 1926                    |
+|                                            | }                                |
+|                                            |                              |
++--------------------------------------------+----------------------------------+
+모델 출력 형식 지정
+모델에서 반환된 영화 분석 데이터의 형식을 지정하여 영화 제목과 연도 데이터를 더 쉽게 읽을 수 있도록 합니다.
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+쿼리 편집기에서 다음 쿼리를 실행하여 데이터 형식을 지정합니다.
+CREATE OR REPLACE TABLE
+  `bqml_tutorial.movie_posters_results_formatted` AS (
+  SELECT
+    uri,
+    JSON_QUERY(RTRIM(LTRIM(results.ml_generate_text_llm_result, " ```json"), "```"), "$.title") AS title,
+    JSON_QUERY(RTRIM(LTRIM(results.ml_generate_text_llm_result, " ```json"), "```"), "$.year") AS year
+  FROM
+    `bqml_tutorial.movie_posters_results` results );
+쿼리 편집기에서 다음 문을 실행하여 테이블 데이터를 확인합니다.
+SELECT * FROM `bqml_tutorial.movie_posters_results_formatted`;
+출력은 다음과 비슷합니다.
++--------------------------------------------+----------------------------+------+
+| uri                                        | title                      | year |
++--------------------------------------------+----------------------------+------+
+| gs://cloud-samples-data/vertex-ai/dataset- | "Barque sortant du port"   | 1895 |
+| management/datasets/classic-movie-         |                            |      |
+| posters/barque_sortant_du_port.jpeg        |                            |      |
++--------------------------------------------+----------------------------+------+
+| gs://cloud-samples-data/vertex-ai/dataset- | "The Great Train Robbery"  | 1903 |
+| management/datasets/classic-movie-         |                            |      |
+| posters/the_great_train_robbery.jpg        |                            |      |
++--------------------------------------------+----------------------------+------+
+| gs://cloud-samples-data/vertex-ai/dataset- | "Little Annie Rooney"      | 1912 |
+| management/datasets/classic-movie-         |                            |      |
+| posters/little_annie_rooney.jpg            |                            |      |
++--------------------------------------------+----------------------------+------+
+삭제
+주의: 프로젝트 삭제가 미치는 영향은 다음과 같습니다.
+프로젝트의 모든 항목이 삭제됩니다. 이 문서의 태스크에 기존 프로젝트를 사용한 경우 프로젝트를 삭제하면 프로젝트에서 수행한 다른 작업도 삭제됩니다.
+커스텀 프로젝트 ID가 손실됩니다. 이 프로젝트를 만들 때 앞으로 사용할 커스텀 프로젝트 ID를 만들었을 수 있습니다. appspot.com URL과 같이 프로젝트 ID를 사용하는 URL을 보존하려면 전체 프로젝트를 삭제하는 대신 프로젝트 내에서 선택한 리소스만 삭제합니다.
+여러 아키텍처, 튜토리얼, 빠른 시작을 살펴보려는 경우 프로젝트를 재사용하면 프로젝트 할당량 한도 초과를 방지할 수 있습니다.
+In the Google Cloud console, go to the Manage resources page.
+Go to Manage resources [https://console.cloud.google.com/iam-admin/projects?hl=ko]
+In the project list, select the project that you want to delete, and then click Delete.
+In the dialog, type the project ID, and then click Shut down to delete the project.
+도움이 되었나요?
+의견 보내기

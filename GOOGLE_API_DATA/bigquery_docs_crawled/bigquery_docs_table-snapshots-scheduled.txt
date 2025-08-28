@@ -1,0 +1,250 @@
+Source URL: https://cloud.google.com/bigquery/docs/table-snapshots-scheduled
+
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+권한 및 역할 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#permissions_and_roles]
+권한 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#permissions]
+역할 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#roles]
+snapshot-bot 서비스 계정 만들기 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#create_the_snapshot-bot_service_account]
+서비스 계정에 권한을 부여합니다. [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#grant_permissions_to_the_service_account]
+예약된 쿼리가 있는 테이블 스냅샷 만들기
+bookmark_border
+이 문서에서는 예약된 DDL 쿼리 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko]를 실행하는 서비스 계정 [https://cloud.google.com/bigquery/docs/scheduling-queries?hl=ko#using_a_service_account]을 사용하여 테이블의 월별 스냅샷을 만드는 방법을 설명합니다. 이 문서에서는 다음 예시를 보여줍니다.
+PROJECT 프로젝트에서 snapshot-bot이라는 서비스 계정을 만듭니다.
+snapshot-bot 서비스 계정에 TABLE 테이블의 테이블 스냅샷 [https://cloud.google.com/bigquery/docs/table-snapshots-intro?hl=ko]을 작성하는 데 필요한 권한을 부여합니다. 이 테이블은 DATASET 데이터 세트에 있으며 테이블 스냅샷을 BACKUP 데이터 세트에 저장합니다.
+TABLE 테이블의 월별 스냅샷을 작성하는 쿼리를 작성하고 이를 BACKUP 데이터 세트에 배치합니다. 기존 테이블 스냅샷을 덮어쓸 수 없기 때문에 테이블 스냅샷은 고유한 이름을 가져야 합니다. 이를 위해 이 쿼리는 테이블 스냅샷 이름에 현재 날짜를 추가합니다. 예를 들면 TABLE_20220521입니다. 테이블 스냅샷은 40일 후 만료됩니다.
+매월 1일 쿼리를 실행하도록 snapshot-bot 서비스 계정을 예약합니다.
+참고: 텍스트 및 예시에서 자체 프로젝트, 데이터 세트 또는 테이블 이름을 사용하도록 이 문서를 맞춤설정하려면 변수
+PROJECT,
+DATASET,
+BACKUP,
+TABLE을 수정하세요.
+이 문서는 BigQuery [https://cloud.google.com/bigquery/docs?hl=ko] 및 BigQuery 테이블 스냅샷 [https://cloud.google.com/bigquery/docs/table-snapshots-intro?hl=ko]에 익숙한 사용자를 대상으로 합니다.
+권한 및 역할
+이 섹션에서는 서비스 계정을 만들고 쿼리를 예약하기 위해 필요한 Identity and Access Management(IAM) 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bq-permissions]과 이러한 권한을 부여하는 사전 정의된 IAM 역할 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery]에 대해 설명합니다.
+권한
+서비스 계정을 작업하려면 다음 권한이 필요합니다.
+권한 리소스 리소스 유형
+iam.serviceAccounts.* PROJECT 프로젝트
+쿼리를 예약하려면 다음 권한이 필요합니다.
+권한 리소스 리소스 유형
+bigquery.jobs.create PROJECT 프로젝트
+역할
+서비스 계정 작업을 위해 필요한 권한을 제공하는 사전 정의된 역할은 다음과 같습니다.
+역할 리소스 리소스 유형
+다음 중 하나인 경우:
+
+roles/iam.serviceAccountAdmin
+roles/editor
+roles/owner PROJECT 프로젝트
+쿼리 예약을 위해 필요한 권한을 제공하는 사전 정의된 BigQuery 역할은 다음과 같습니다.
+역할 리소스 리소스 유형
+다음 중 하나인 경우:
+
+roles/bigquery.user
+roles/bigquery.jobuser
+roles/bigquery.admin` PROJECT 프로젝트
+snapshot-bot 서비스 계정 만들기
+다음 단계에 따라 snapshot-bot 서비스 계정 [https://cloud.google.com/iam/docs/service-accounts?hl=ko]을 만들고 여기에 PROJECT 프로젝트에서 쿼리를 실행하는 데 필요한 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bq-permissions]을 부여합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 서비스 계정 페이지로 이동합니다.
+
+서비스 계정으로 이동 [https://console.cloud.google.com/iam-admin/serviceaccounts?hl=ko] 
+PROJECT 프로젝트를 선택합니다.
+snapshot-bot 서비스 계정을 만듭니다.
+
+
+서비스 계정 만들기를 클릭합니다.
+서비스 계정 이름 필드에 snapshot-bot을 입력합니다.
+만들고 계속하기를 클릭합니다.
+
+서비스 계정에 BigQuery 작업을 실행하기 위해 필요한 권한을 부여합니다.
+
+
+이 서비스 계정에 프로젝트에 대한 액세스 권한 부여 섹션에서 BigQuery 사용자 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery] 역할을 선택합니다.
+완료를 클릭합니다.
+
+
+
+BigQuery는 snapshot-bot@PROJECT.iam.gserviceaccount.com 이메일 주소로 서비스 계정을 만듭니다.
+BigQuery에서 지정한 권한으로 서비스 계정이 생성되었는지 확인하기 위해 다음 단계를 수행합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#%EC%BD%98%EC%86%94] ---
+BigQuery에서 서비스 계정이 생성되었는지 확인합니다.
+
+
+ Google Cloud 콘솔에서 서비스 계정 페이지로 이동합니다.
+
+서비스 계정으로 이동 [https://console.cloud.google.com/iam-admin/serviceaccounts?hl=ko] 
+PROJECT 프로젝트를 선택합니다.
+snapshot-bot@PROJECT.iam.gserviceaccount.com를 클릭합니다.
+서비스 계정 상태 메시지에서 서비스 계정이 활성 상태로 표시되는지 확인합니다.
+
+
+BigQuery에서 서비스 계정에 쿼리 실행에 필요한 권한이 부여되었는지 확인합니다.
+
+
+ Google Cloud 콘솔에서 리소스 관리 페이지로 이동합니다.
+
+리소스 관리로 이동 [https://console.cloud.google.com/cloud-resource-manager?hl=ko] 
+PROJECT를 클릭합니다.
+정보 패널 표시를 클릭합니다.
+권한 탭에서 BigQuery 사용자 노드를 확장합니다.
+snapshot-bot 서비스 계정이 나열되었는지 확인합니다.
+서비스 계정에 권한을 부여합니다.
+이 섹션에서는 BACKUP 데이터 세트에서 DATASET.TABLE 테이블의 테이블 스냅샷을 만드는 데 필요한 권한을 snapshot-bot 서비스 계정에 부여하는 방법을 설명합니다.
+기본 테이블의 스냅샷 만들기 권한
+snapshot-bot 서비스 계정에 DATASET.TABLE 테이블의 스냅샷을 생성하는 데 필요한 권한을 부여하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지를 엽니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 PROJECT 프로젝트 노드를 확장합니다.
+DATASET 데이터 세트 노드를 확장합니다.
+TABLE 테이블을 선택합니다.
+공유를 클릭합니다. 공유 창이 열립니다.
+주 구성원 추가를 클릭합니다. 액세스 권한 부여 창이 열립니다.
+새 주 구성원에 서비스 계정의 이메일 주소(snapshot-bot@PROJECT.iam.gserviceaccount.com)를 입력합니다.
+역할 선택 드롭다운에서 BigQuery 데이터 편집자 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery] 역할을 선택합니다.
+저장을 클릭합니다.
+공유 창에서 BigQuery 데이터 편집자 노드를 확장하고 snapshot-bot@PROJECT.iam.gserviceaccount.com 서비스 계정이 나열되었는지 확인합니다.
+닫기를 클릭합니다.
+
+--- 탭: bq [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#bq] ---
+Google Cloud 콘솔에서 Cloud Shell을 활성화합니다.
+
+Cloud Shell 활성화 [https://console.cloud.google.com/bigquery?cloudshell=true&hl=ko] 
+다음 bq add-iam-policy-binding [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_add-iam-policy-binding] 명령어를 입력합니다.
+
+bq add-iam-policy-binding \
+--member=serviceAccount:snapshot-bot@PROJECT.iam.gserviceaccount.com \
+--role=roles/bigquery.dataEditor DATASET.TABLE
+
+
+BigQuery가 새 정책 binding이 추가되었는지 확인합니다.
+대상 데이터 세트에 테이블 만들기 권한
+다음과 같이 snapshot-bot 서비스 계정에 BACKUP 데이터 세트에서 테이블 스냅샷을 만들기 위해 필요한 권한을 부여합니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+탐색기 창에서 PROJECT 프로젝트 노드를 확장합니다.
+BACKUP 데이터 세트 노드의 메뉴를 클릭하고 열기를 선택합니다.
+데이터 세트 공유를 클릭합니다. 데이터 세트 권한 창이 열립니다.
+구성원 추가 필드에 서비스 계정의 이메일 주소(snapshot-bot@PROJECT.iam.gserviceaccount.com)를 입력합니다.
+역할 선택 드롭다운에서 BigQuery 데이터 소유자 [https://cloud.google.com/bigquery/docs/access-control?hl=ko#bigquery] 역할을 선택합니다.
+추가를 클릭합니다.
+데이터 세트 권한 창에서 snapshot-bot@PROJECT.iam.gserviceaccount.com 서비스 계정이 BigQuery 데이터 소유자 노드에 나열되었는지 확인합니다.
+완료를 클릭합니다.
+이제 snapshot-bot 서비스 계정에 다음 리소스에 대한 다음 IAM 역할이 포함됩니다.
+역할 리소스 리소스 유형 목적
+BigQuery 데이터 편집자 PROJECT:DATASET.TABLE 테이블 TABLE 테이블의 스냅샷을 생성합니다.
+BigQuery 데이터 소유자 PROJECT:BACKUP 데이터 세트 BACKUP 데이터 세트에서 테이블 스냅샷을 만들고 삭제합니다.
+BigQuery 사용자 PROJECT 프로젝트 테이블 스냅샷을 만드는 예약된 쿼리를 실행합니다.
+이러한 역할은 snapshot-bot 서비스 계정이 DATASET.TABLE 테이블의 테이블 스냅샷을 만들고 테이블 스냅샷을 BACKUP 데이터 세트에 배치하는 쿼리를 실행하기 위해 필요한 권한을 제공합니다.
+멀티 문 쿼리 작성
+이 섹션에서는 CREATE SNAPSHOT TABLE DDL 문 [https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language?hl=ko#create_snapshot_table_statement]을 사용하여 DATASET.TABLE 테이블의 테이블 스냅샷 [https://cloud.google.com/bigquery/docs/table-snapshots-intro?hl=ko]을 만드는 멀티 문 쿼리 [https://cloud.google.com/bigquery/docs/multi-statement-queries?hl=ko]를 작성하는 방법을 설명합니다. 스냅샷은 BACKUP 데이터 세트에 저장되고 하루 후에 만료됩니다.
+-- Declare variables
+DECLARE snapshot_name STRING;
+DECLARE expiration TIMESTAMP;
+DECLARE query STRING;
+
+-- Set variables
+SET expiration = DATE_ADD(current_timestamp(), INTERVAL 1 DAY);
+SET snapshot_name = CONCAT(
+                      "BACKUP.TABLE_",
+                      FORMAT_DATETIME('%Y%m%d', current_date()));
+
+-- Construct the query to create the snapshot
+SET query = CONCAT(
+              "CREATE SNAPSHOT TABLE ",
+              snapshot_name,
+              " CLONE mydataset.mytable OPTIONS(expiration_timestamp = TIMESTAMP '",
+              expiration,
+              "');");
+
+-- Run the query
+EXECUTE IMMEDIATE query;
+월별 쿼리 예약
+다음과 같이 매월 1일 오전 5시에 쿼리가 실행되도록 예약 [https://cloud.google.com/bigquery/docs/scheduling-queries?hl=ko]합니다.
+--- 탭: bq [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#bq] ---
+Google Cloud 콘솔에서 Cloud Shell을 활성화합니다.
+
+Cloud Shell 활성화 [https://console.cloud.google.com/bigquery?cloudshell=true&hl=ko] 
+다음 bq query [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_query] 명령어를 입력합니다.
+
+bq query --use_legacy_sql=false --display_name="Monthly snapshots of the TABLE table" \
+--location="us" --schedule="1 of month 05:00" \
+--project_id=PROJECT \
+'DECLARE snapshot_name STRING;
+DECLARE expiration TIMESTAMP;
+DECLARE query STRING;
+SET expiration = DATE_ADD(@run_time, INTERVAL 40 DAY);
+SET snapshot_name = CONCAT("BACKUP.TABLE_",
+  FORMAT_DATETIME("%Y%m%d", @run_date));
+SET query = CONCAT("CREATE SNAPSHOT TABLE ", snapshot_name,
+  " CLONE PROJECT.DATASET.TABLE OPTIONS(expiration_timestamp=TIMESTAMP \"",
+  expiration, "\");");
+EXECUTE IMMEDIATE query;'
+BigQuery가 쿼리를 예약합니다.
+bq 명령줄 도구 명령어의 멀티 문 쿼리는 다음과 같이 Google Cloud 콘솔에서 실행한 쿼리와 다릅니다.
+bq 명령줄 도구 쿼리는 current_date() 대신 @run_date를 사용합니다. 예약된 쿼리에서 @run_date 파라미터에는 현재 날짜가 포함됩니다. 하지만 대화형 쿼리에서 @run_date 매개변수는 지원되지 않습니다. 대화형 쿼리를 예약하기 전 @run_date 대신 current_date()를 사용하여 대화형 쿼리를 테스트할 수 있습니다.
+bq 명령줄 도구 쿼리는 비슷한 이유로 current_timestamp() 대신 @run_time을 사용합니다. @run_time 파라미터는 대화형 쿼리에서 지원되지 않지만, @run_time 대신 current_timestamp()를 사용하여 대화형 쿼리를 테스트할 수 있습니다.
+bq 명령줄 도구 쿼리에서는 작은따옴표가 쿼리를 묶는 데 사용되므로 작은따옴표 ' 대신 슬래시와 큰따옴표 \"를 사용합니다.
+예약된 쿼리를 실행하도록 서비스 계정 구성
+쿼리가 현재 사용자 인증 정보를 사용하여 실행되도록 예약되어 있습니다. 다음과 같이 snapshot-bot 서비스 계정 사용자 인증 정보로 실행되도록 예약된 쿼리를 업데이트합니다.
+bq ls [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_ls] 명령어를 실행하여 예약된 쿼리 작업의 ID를 가져옵니다.
+bq ls --transfer_config=true --transfer_location=us
+결과는 다음과 유사합니다.
+name displayName dataSourceId state
+projects/12345/locations/us/transferConfigs/12345 Monthly snapshots of the TABLE table scheduled_query RUNNING
+name 필드의 식별자를 사용하여 다음 bq update [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_update] 명령어를 실행합니다.
+bq update --transfer_config --update_credentials \
+--service_account_name=snapshot-bot@PROJECT.iam.gserviceaccount.com \
+projects/12345/locations/us/transferConfigs/12345
+Cloud Shell에서 예약된 쿼리가 성공적으로 업데이트되었는지 확인합니다.
+학습 내용 확인
+이 섹션에서는 쿼리가 올바르게 예약되었는지 확인하고, 쿼리가 실행될 때 오류가 있었는지 확인하고, 월별 스냅샷이 생성되는지 확인하는 방법을 설명합니다.
+예약된 쿼리 보기
+BigQuery에서 월별 테이블 스냅샷 쿼리가 예약되었는지 확인하려면 다음 단계를 수행하세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 예약된 쿼리 페이지로 이동합니다.
+
+예약된 쿼리로 이동 [https://console.cloud.google.com/bigquery/scheduled-queries?hl=ko] 
+TABLE 테이블의 월별 스냅샷을 클릭합니다.
+구성을 클릭합니다.
+쿼리 문자열에 쿼리가 포함되었고 쿼리가 매월 1일 실행되도록 예약되었는지 확인합니다.
+예약된 쿼리의 실행 기록 보기
+예약된 쿼리가 실행된 후 다음과 같이 성공적으로 실행되었는지 확인할 수 있습니다.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 예약된 쿼리 페이지로 이동합니다.
+
+예약된 쿼리로 이동 [https://console.cloud.google.com/bigquery/scheduled-queries?hl=ko] 
+TABLE 테이블의 월별 스냅샷 쿼리 설명을 클릭합니다.
+실행 기록을 클릭합니다.
+
+
+쿼리가 실행된 날짜 및 시간과 실행이 성공했는지 여부, 그리고 실패한 경우에는 발생한 오류를 확인할 수 있습니다. 특정 실행에 대한 세부정보를 보려면 실행 기록 테이블에서 해당 행을 클릭합니다. 실행 세부정보 창에 추가 세부정보가 표시됩니다.
+테이블 스냅샷 보기
+테이블 스냅샷이 생성되는지 확인하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 [https://cloud.google.com/bigquery/docs/table-snapshots-scheduled?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery/scheduled-queries?hl=ko] 
+탐색기 창에서 BACKUP 데이터 세트를 열고 TABLE_YYYYMMDD 스냅샷이 생성되었는지 확인합니다. 여기서 YYYYMMDD는 각 월의 1일입니다.
+
+예를 들면 다음과 같습니다.
+
+
+TABLE_20220601
+TABLE_20220701
+TABLE_20220801
+다음 단계
+테이블 스냅샷에 대한 자세한 내용은 테이블 스냅샷 작업 [https://cloud.google.com/bigquery/docs/table-snapshots-intro?hl=ko]을 참조하세요.
+쿼리 예약에 대한 자세한 내용은 쿼리 예약 [https://cloud.google.com/bigquery/docs/scheduling-queries?hl=ko]을 참조하세요.
+Google Cloud 서비스 계정에 대한 자세한 내용은 서비스 계정 [https://cloud.google.com/iam/docs/service-accounts?hl=ko]을 참조하세요.
+도움이 되었나요?
+의견 보내기

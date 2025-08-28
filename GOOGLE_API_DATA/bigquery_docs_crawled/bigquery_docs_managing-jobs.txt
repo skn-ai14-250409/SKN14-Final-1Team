@@ -1,0 +1,1858 @@
+Source URL: https://cloud.google.com/bigquery/docs/managing-jobs
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+Switch to English
+BigQuery [https://cloud.google.com/bigquery?hl=ko]
+Documentation [https://cloud.google.com/bigquery/docs?hl=ko]
+가이드 [https://cloud.google.com/bigquery/docs/introduction?hl=ko]
+도움이 되었나요?
+의견 보내기
+이 페이지의 내용
+BigQuery 작업 정보
+할당량
+가격 책정
+시작하기 전에
+필요한 역할
+채용정보 관리
+bookmark_border
+이 문서에서는 작업 세부정보 보기 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#view-job], 작업 나열 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#list_jobs_in_a_project], 작업 취소 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#cancel_jobs], 작업 반복 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#repeat_jobs], 작업 메타데이터 삭제 [https://cloud.google.com/bigquery/docs/managing-jobs?hl=ko#delete_job_metadata] 등 BigQuery에서 작업을 관리하는 방법을 설명합니다.
+BigQuery 작업 정보
+로드 [https://cloud.google.com/bigquery/docs/loading-data?hl=ko], 내보내기 [https://cloud.google.com/bigquery/exporting-data-from-bigquery?hl=ko], 쿼리 [https://cloud.google.com/bigquery/docs/running-queries?hl=ko] 또는 데이터 복사 [https://cloud.google.com/bigquery/docs/managing-tables?hl=ko#copy-table]를 수행할 때마다 BigQuery는 태스크 진행 상황을 추적하는 작업을 자동으로 생성, 예약, 실행합니다.
+작업을 완료하는 데 시간이 오래 걸릴 수 있으므로, 작업은 비동기식으로 실행되고 상태가 폴링될 수 있습니다. 리소스를 나열하거나 메타데이터를 가져오는 것처럼 더 짧은 동작은 작업으로 관리되지 않습니다.
+작업이 제출되면 다음 상태 중 하나가 될 수 있습니다.
+PENDING: 작업이 예약되어 실행을 기다리는 중입니다.
+RUNNING: 작업이 진행 중입니다.
+DONE: 작업이 완료되었습니다. 오류 없이 작업이 완료되면 BigQuery가 이 상태를 SUCCESS로 보고합니다. 오류와 함께 작업이 완료되면 BigQuery가 이 상태를 FAILURE로 보고합니다.
+할당량
+작업 할당량에 대한 자세한 내용은 할당량 및 한도 [https://cloud.google.com/bigquery/quotas?hl=ko] 페이지의 작업 유형 관련 문서를 참고하세요.
+로드 작업 [https://cloud.google.com/bigquery/quotas?hl=ko#load_jobs]
+복사 작업 [https://cloud.google.com/bigquery/quotas?hl=ko#copy_jobs]
+내보내기(추출) 작업 [https://cloud.google.com/bigquery/quotas?hl=ko#export_jobs]
+쿼리 작업 [https://cloud.google.com/bigquery/quotas?hl=ko#query_jobs]
+가격 책정
+모든 작업은 사용자가 지정하는 특정 프로젝트와 연결됩니다. 작업으로 인해 발생하는 모든 사용 요금은 프로젝트에 연결된 결제 계정으로 청구됩니다. 프로젝트에 대한 액세스 권한을 공유하는 경우, 프로젝트에서 실행되는 작업에 대한 요금이 결제 계정으로 청구됩니다.
+예를 들어 쿼리 작업을 실행할 때 작업을 실행하는 프로젝트에 비용이 청구됩니다. 따라서 <project_id>:<region>.<job_id> 형식을 사용해서 쿼리 작업의 작업 ID를 볼 때 project_id는 쿼리로 청구되는 프로젝트의 ID입니다.
+자세한 내용은 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko]을 참조하세요.
+시작하기 전에
+사용자에게 이 문서의 각 작업을 수행하는 데 필요한 권한을 부여하는 Identity and Access Management(IAM) 역할을 부여합니다.
+필요한 역할
+작업을 실행하고 관리하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트에 대한 다음 IAM 역할을 부여해 달라고 요청하세요.
+작업 실행 또는 반복, 작업 나열, 작업 세부정보 보기, 작업 취소: BigQuery 작업 사용자 (roles/bigquery.jobUser) 또는 BigQuery 사용자 (roles/bigquery.user)
+프로젝트의 모든 작업을 나열합니다. BigQuery 관리자 (roles/bigquery.admin) 또는 BigQuery 리소스 관리자 (roles/bigquery.resourceAdmin)
+프로젝트의 모든 작업 세부정보를 보고, 프로젝트의 작업을 취소하고, 작업 메타데이터를 삭제합니다. BigQuery 관리자 [https://cloud.google.com/iam/docs/roles-permissions/bigquery?hl=ko#bigquery.admin] (roles/bigquery.admin)
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+이러한 사전 정의된 역할에는 작업을 실행하고 관리하는 데 필요한 권한이 포함되어 있습니다. 필요한 정확한 권한을 보려면 필수 권한 섹션을 펼치세요.
+필수 권한
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 사용하여 이 권한을 부여받을 수도 있습니다.
+BigQuery의 IAM 역할과 권한에 대한 자세한 내용은 사전 정의된 역할 및 권한 [https://cloud.google.com/bigquery/docs/access-control?hl=ko]을 참조하세요.
+작업 세부정보 보기
+Google Cloud 콘솔, bq 명령줄 도구, API 또는 클라이언트 라이브러리를 사용하여 작업 세부정보를 볼 수 있습니다. 세부정보에는 작업 유형, 작업 상태, 작업을 만든 사용자와 같은 데이터 및 메타데이터가 포함됩니다.
+작업 세부정보를 보려면 다음 단계를 따르세요.
+--- 탭: 콘솔 ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+작업 기록 창을 펼칩니다.
+확인하려는 작업 기록 유형을 선택합니다.
+
+
+최근 작업의 정보를 표시하려면 개인 기록을 클릭합니다.
+프로젝트의 최근 작업 정보를 표시하려면 프로젝트 기록을 클릭합니다.
+
+작업 세부정보를 보려면 작업을 클릭합니다.
+참고: 작업 기간은 종료 시간에서 시작 시간(생성 시간 아님)을 뺀 값으로 계산됩니다.
+
+--- 탭: bq ---
+bq show [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_show] 명령어를 --job=true 플래그 및 작업 ID와 함께 실행합니다.
+
+작업 ID를 제공할 때 정규화된 ID 또는 간단한 형식을 사용할 수 있습니다. 예를 들어 Google Cloud 콘솔에 나열되는 작업 ID는 정규화되었으며, 다음 프로젝트 및 위치를 포함합니다.
+
+my-project-1234:US.bquijob_123x456_123y123z123c
+
+명령줄 도구의 작업 ID는 프로젝트 ID와 위치가 포함되지 않은 간단한 형식을 통해 나열됩니다.
+
+bquijob_123x456_123y123z123c
+
+작업 위치를 지정하려면 --location 플래그를 제공하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]로 설정합니다. 정규화된 작업 ID를 사용하는 경우 이 플래그는 선택사항입니다. --location 플래그를 포함하고 정규화된 작업 ID를 사용하는 경우 --location 플래그는 무시됩니다.
+
+다음 명령어는 작업에 대한 정보를 요청합니다.
+
+bq --location=LOCATION show --job=true JOB_ID
+
+다음을 바꿉니다.
+
+
+LOCATION: 작업이 실행되는 위치의 이름입니다. 예를 들어 도쿄 리전에서 BigQuery를 사용하는 경우 플래그 값을 asia-northeast1로 설정합니다. 
+.bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+위치가 작업 ID의 일부로 지정되지 않았거나 --location 플래그를 사용하여 지정되지 않은 경우 기본 위치가 사용됩니다.
+JOB_ID: 작업의 ID입니다.
+
+
+예시
+
+다음 명령어는 myproject에서 실행 중인 US.bquijob_123x456_123y123z123c 작업에 대한 요약 정보를 가져옵니다.
+bq show --job=true myproject:US.bquijob_123x456_123y123z123c
+
+출력은 다음과 비슷합니다.
+
+ Job Type    State      Start Time      Duration      User Email       Bytes Processed   Bytes Billed   Billing Tier   Labels
+ ---------- --------- ----------------- ---------- ------------------- ----------------- -------------- -------------- --------
+ extract    SUCCESS   06 Jul 11:32:10   0:01:41    user@example.com
+
+
+전체 작업 세부정보를 보려면 다음을 입력하세요.
+bq show --format=prettyjson --job=true myproject:US.bquijob_123x456_789y123z456c
+
+출력은 다음과 비슷합니다.
+
+{
+  "configuration": {
+    "extract": {
+      "compression": "NONE",
+      "destinationUri": "[URI removed]",
+      "destinationUris": [
+        "[URI removed]"
+      ],
+      "sourceTable": {
+        "datasetId": "github_repos",
+        "projectId": "bigquery-public-data",
+        "tableId": "commits"
+      }
+    }
+  },
+  "etag": "\"[etag removed]\"",
+  "id": "myproject:bquijob_123x456_789y123z456c",
+  "jobReference": {
+    "jobId": "bquijob_123x456_789y123z456c",
+    "projectId": "[Project ID removed]"
+  },
+  "kind": "bigquery#job",
+  "selfLink": "https://bigquery.googleapis.com/bigquery/v2/projects/federated-testing/jobs/bquijob_123x456_789y123z456c",
+  "statistics": {
+    "creationTime": "1499365894527",
+    "endTime": "1499365894702",
+    "startTime": "1499365894702"
+  },
+  "status": {
+    "errorResult": {
+      "debugInfo": "[Information removed for readability]",
+      "message": "Operation cannot be performed on a nested schema. Field: author",
+      "reason": "invalid"
+    },
+    "errors": [
+      {
+        "message": "Operation cannot be performed on a nested schema. Field: author",
+        "reason": "invalid"
+      }
+    ],
+    "state": "DONE"
+  },
+  "user_email": "user@example.com"
+}
+
+--- 탭: API ---
+jobs.get [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get?hl=ko]을 호출하고 jobId 및 projectId 매개변수를 제공합니다. (선택사항) location 매개변수를 제공하고 값을 작업이 실행되는 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]로 설정합니다. 위치를 포함하는 정규화된 작업 ID(예: my-project-1234:US.bquijob_123x456_123y123z123c)를 사용하는 경우 이 매개변수는 선택사항입니다.
+
+--- 탭: Go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// getJobInfo demonstrates retrieval of a job, which can be used to monitor
+// completion or print metadata about the job.
+func getJobInfo(w io.Writer, projectID, jobID string) error {
+	// projectID := "my-project-id"
+	// jobID := "my-job-id"
+	ctx := context.Background()
+
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	job, err := client.JobFromID [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Client_JobFromID](ctx, jobID)
+	if err != nil {
+		return err
+	}
+
+	status := job.LastStatus [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Job_LastStatus]()
+	state := "Unknown"
+	switch status.State [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_State] {
+	case bigquery.Pending [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StateUnspecified_Pending_Running_Done]:
+		state = "Pending"
+	case bigquery.Running [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StateUnspecified_Pending_Running_Done]:
+		state = "Running"
+	case bigquery.Done [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StateUnspecified_Pending_Running_Done]:
+		state = "Done"
+	}
+	fmt.Fprintf(w, "Job %s was created %v and is in state %s\n",
+		jobID, status.Statistics [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Statistics].CreationTime, state)
+	return nil
+}
+
+--- 탭: 자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko];
+
+// Sample to get a job
+public class GetJob {
+
+  public static void runGetJob() {
+    // TODO(developer): Replace these variables before running the sample.
+    String jobName = "MY_JOB_NAME";
+    getJob(jobName);
+  }
+
+  public static void getJob(String jobName) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko] jobId = JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko].of(jobName);
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] job = bigquery.getJob [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_getJob_com_google_cloud_bigquery_JobId_com_google_cloud_bigquery_BigQuery_JobOption____](jobId);
+      System.out.println("Job retrieved successfully");
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] e) {
+      System.out.println("Job not retrieved. \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: Node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function getJob() {
+  // Get job properties.
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const jobId = "existing-job-id";
+
+  // Create a job reference
+  const job = bigquery.job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko](jobId);
+
+  // Retrieve job
+  const [jobResult] = await job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].get();
+
+  console.log(jobResult.metadata.jobReference);
+}
+
+--- 탭: Python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+
+def get_job(
+    client: bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko],
+    location: str = "us",
+    job_id: str = "abcd-efgh-ijkl-mnop",
+) -> None:
+    job = client.get_job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_job](job_id, location=location)
+
+    # All job classes have "location" and "job_id" string properties.
+    # Use these properties for job operations such as "cancel_job" and
+    # "delete_job".
+    print(f"{job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].location}:{job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].job_id}")
+    print(f"Type: {job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].job_type}")
+    print(f"State: {job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].state}")
+    print(f"Created: {job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].created.isoformat()}")
+작업 문제 해결에 더 많은 정보가 필요한 경우 INFORMATION_SCHEMA.JOBS* 뷰 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko] 및 로그 [https://cloud.google.com/bigquery/docs/monitoring?hl=ko#logs]를 참조하세요.
+작업 표시
+BigQuery는 모든 위치에서 프로젝트의 모든 작업에 대해 6개월의 작업 기록을 저장합니다. 작업 기록에는 상태가 RUNNING인 작업과 DONE인 작업이 포함됩니다 (상태가 SUCCESS 또는 FAILURE로 표시됨).
+프로젝트의 작업을 나열하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+작업 기록 창을 펼칩니다.
+프로젝트의 모든 작업을 나열하려면 프로젝트 기록을 클릭합니다. 프로젝트 소유자가 아니라면 프로젝트의 모든 작업을 볼 수 있는 권한이 없을 수도 있습니다. 최근 작업이 먼저 나열됩니다.
+작업을 나열하려면 개인 기록을 클릭합니다.
+
+--- 탭: bq ---
+다음 플래그 중 하나를 사용해 bq ls [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_ls] 명령어를 실행합니다.
+
+
+--jobs=true 또는 -j: 작업을 나열할 리소스 유형으로 식별합니다.
+--all=true 또는 -a: 모든 사용자의 작업을 나열합니다. 모든 작업의 전체(수정되지 않은) 세부정보를 보려면 bigquery.jobs.listAll 권한이 있어야 합니다.
+--min_creation_time: 제공된 타임스탬프 값 이후의 작업을 나열합니다. 이 값은 밀리초 단위의 Unix epoch [https://wikipedia.org/wiki/Unix_time] 타임스탬프로 표시됩니다.
+--max_creation_time: 제공된 타임스탬프 값 이전의 작업을 나열합니다. 이 값은 밀리초 단위의 Unix epoch [https://wikipedia.org/wiki/Unix_time] 타임스탬프로 표시됩니다.
+--max_results 또는 -n은 결과를 제한합니다. 기본값은 결과 50개입니다.
+
+
+bq ls --jobs=true --all=true \
+    --min_creation_time=MIN_TIME \
+    --max_creation_time=MAX_TIME \
+    --max_results=MAX_RESULTS \
+    PROJECT_ID
+
+다음을 바꿉니다.
+
+
+MIN_TIME: 밀리초 단위의 Unix epoch [https://wikipedia.org/wiki/Unix_time] 타임스탬프를 나타내는 정수입니다.
+MAX_TIME: 밀리초 단위의 Unix epoch [https://wikipedia.org/wiki/Unix_time] 타임스탬프를 나타내는 정수입니다.
+MAX_RESULTS: 반환된 작업 수를 나타내는 정수
+PROJECT_ID: 나열하려는 작업이 포함된 프로젝트의 ID. 기본 프로젝트를 설정 [https://cloud.google.com/sdk/gcloud/reference/config/set?hl=ko]하면 PROJECT_ID 매개변수를 제공할 필요가 없습니다.
+
+
+예시
+
+다음 명령어는 현재 사용자의 모든 작업을 나열합니다. 이 명령어를 실행하려면 bigquery.jobs.list 권한이 필요합니다.
+bq ls --jobs=true myproject
+
+다음 명령어는 모든 사용자의 모든 작업을 나열합니다. 이 명령어를 실행하려면 bigquery.jobs.listAll 권한이 필요합니다.
+bq ls --jobs=true --all=true myproject
+
+다음 명령어는 myproject의 최근 작업 10개를 나열합니다.
+bq ls --jobs=true --all=true --max_results=10 myproject
+
+다음 명령어는 2032년 3월 3일 오전 4:04:00 이전에 제출된 모든 작업을 나열합니다. 이 타임스탬프(밀리초)는 정수 값 1961899440000과 동일합니다.
+bq ls --jobs=true --max_creation_time=1961899440000
+
+--- 탭: API ---
+jobs.list 메서드 [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/list?hl=ko]를 호출하고 projectId 매개변수를 제공합니다. 모든 사용자의 작업을 나열하려면 allUsers 매개변수를 true로 설정합니다. allUsers를 true로 설정하려면 bigquery.jobs.listAll 권한이 필요합니다. jobs.list 메서드는 하위 작업을 반환하지 않습니다. 하위 작업을 나열하려면 INFORMATION_SCHEMA.JOBS 보기 [https://cloud.google.com/bigquery/docs/information-schema-jobs?hl=ko#child_jobs]를 사용합니다.
+
+--- 탭: Go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+	"io"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/iterator"
+)
+
+// listJobs demonstrates iterating through the BigQuery jobs collection.
+func listJobs(w io.Writer, projectID string) error {
+	// projectID := "my-project-id"
+	// jobID := "my-job-id"
+	ctx := context.Background()
+
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	it := client.Jobs [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Client_Jobs](ctx)
+	// List up to 10 jobs to demonstrate iteration.
+	for i := 0; i < 10; i++ {
+		j, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		state := "Unknown"
+		switch j.LastStatus [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Job_LastStatus]().State [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_State] {
+		case bigquery.Pending [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StateUnspecified_Pending_Running_Done]:
+			state = "Pending"
+		case bigquery.Running [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StateUnspecified_Pending_Running_Done]:
+			state = "Running"
+		case bigquery.Done [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_StateUnspecified_Pending_Running_Done]:
+			state = "Done"
+		}
+		fmt.Fprintf(w, "Job %s in state %s\n", j.ID [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Job_ID](), state)
+	}
+	return nil
+}
+
+--- 탭: 자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.api.gax.paging.Page [https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.paging.Page.html?hl=ko];
+import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+
+// Sample to get list of jobs
+public class ListJobs {
+
+  public static void runListJobs() {
+    listJobs();
+  }
+
+  public static void listJobs() {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      Page<Job> jobs = bigquery.listJobs [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_listJobs_com_google_cloud_bigquery_BigQuery_JobListOption____](BigQuery.JobListOption.pageSize(10));
+      if (jobs == null) {
+        System.out.println("Dataset does not contain any jobs.");
+        return;
+      }
+      jobs.getValues().forEach(job -> System.out.printf("Success! Job ID: %s", job.getJobId()));
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] e) {
+      System.out.println("Jobs not listed in dataset due to error: \n" + e.toString());
+    }
+  }
+}
+
+--- 탭: Node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function listJobs() {
+  // Lists all jobs in current GCP project.
+
+  // List the 10 most recent jobs in reverse chronological order.
+  //  Omit the max_results parameter to list jobs from the past 6 months.
+  const options = {maxResults: 10};
+  const [jobs] = await bigquery.getJobs [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko](options);
+
+  console.log('Jobs:');
+  jobs.forEach(job => console.log(job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].id));
+}
+
+--- 탭: Python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  
+from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+import datetime
+
+# Construct a BigQuery client object.
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+# List the 10 most recent jobs in reverse chronological order.
+# Omit the max_results parameter to list jobs from the past 6 months.
+print("Last 10 jobs:")
+for job in client.list_jobs [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_list_jobs](max_results=10):  # API request(s)
+    print("{}".format(job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].job_id))
+
+# The following are examples of additional optional parameters:
+
+# Use min_creation_time and/or max_creation_time to specify a time window.
+print("Jobs from the last ten minutes:")
+ten_mins_ago = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+for job in client.list_jobs [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_list_jobs](min_creation_time=ten_mins_ago):
+    print("{}".format(job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].job_id))
+
+# Use all_users to include jobs run by all users in the project.
+print("Last 10 jobs run by all users:")
+for job in client.list_jobs [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_list_jobs](max_results=10, all_users=True):
+    print("{} run by user: {}".format(job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].job_id, job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].user_email))
+
+# Use state_filter to filter by job state.
+print("Last 10 jobs done:")
+for job in client.list_jobs [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_list_jobs](max_results=10, state_filter="DONE"):
+    print("{}".format(job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].job_id))
+작업 취소
+RUNNING 또는 PENDING 작업을 취소할 수 있습니다. 일반적으로 작업 취소를 완료하는 데 1분 미만이 소요됩니다.
+직업을 취소할 수 있어도 성공은 보장되지 않습니다. 취소 요청이 제출될 때 작업이 이미 완료되었거나, 작업을 취소할 수 없는 단계가 되었을 수 있습니다.
+참고: 작업이 취소된 단계에 따라 작업을 취소한 후에도 비용이 청구될 수 있습니다. 자세한 내용은 가격 책정 [https://cloud.google.com/bigquery/pricing?hl=ko] 페이지를 참조하세요.
+작업을 취소하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 ---
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko]
+새 쿼리 작성을 클릭하고 쿼리를 입력합니다.
+쿼리를 실행하려면 실행을 클릭합니다.
+작업을 취소하려면 취소를 클릭합니다.
+
+--- 탭: SQL ---
+BQ.JOBS.CANCEL 시스템 프로시져를 사용합니다.
+
+
+  CALL BQ.JOBS.CANCEL('JOB_ID');
+
+JOB_ID를 취소할 작업의 ID로 바꿉니다.
+
+다른 프로젝트에 있지만 취소하려는 작업과 동일한 리전에 있는 경우 프로젝트 ID도 포함해야 합니다.
+
+
+  CALL BQ.JOBS.CANCEL('PROJECT_ID.JOB_ID');
+
+다음을 바꿉니다.
+
+
+PROJECT_ID: 취소할 작업이 포함된 프로젝트의 ID
+JOB_ID: 취소할 작업의 ID
+
+
+프로시져가 즉시 반환되고 잠시 후 BigQuery가 작업을 취소합니다.  작업이 이미 성공했거나 실패한 경우 프로시져가 영향을 주지 않습니다.
+
+--- 탭: bq ---
+JOB_ID 인수로 bq cancel [https://cloud.google.com/bigquery/docs/reference/bq-cli-reference?hl=ko#bq_cancel] 명령어를 실행합니다. --nosync=true 플래그를 사용하면 취소를 요청하고 결과를 즉시 반환할 수 있습니다. 기본적으로 취소 요청은 완료될 때까지 대기합니다.
+
+JOB_ID 인수를 제공할 때 정규화된 ID 또는 간단한 형식을 사용할 수 있습니다. 예를 들어 Google Cloud 콘솔에 나열되는 작업 ID는 정규화되었으며, 다음 프로젝트 및 위치를 포함합니다.
+
+my-project-1234:US.bquijob_123x456_123y123z123c
+
+bq 명령줄 도구의 작업 ID는 프로젝트 ID와 위치가 포함되지 않은 간단한 형식을 통해 나열됩니다.
+
+bquijob_123x456_123y123z123c
+
+작업 위치를 지정하려면 --location 플래그를 제공하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]로 설정합니다. 정규화된 작업 ID를 사용하는 경우 이 플래그는 선택사항입니다. --location 플래그를 포함하고 정규화된 작업 ID를 사용하는 경우 --location 플래그는 무시됩니다.
+
+다음 명령어는 작업 취소를 요청하고 완료를 기다립니다. 정규화된 작업 ID가 제공되면 --location 플래그는 무시됩니다.
+
+bq --location=LOCATION cancel JOB_ID
+
+다음 명령어는 작업 취소를 요청하고 즉시 결과를 반환합니다. 정규화된 작업 ID가 제공되면 --location 플래그는 무시됩니다.
+
+bq --location=LOCATION --nosync cancel JOB_ID
+
+다음을 바꿉니다.
+
+
+LOCATION(선택사항): 작업이 실행되는 위치의 이름입니다. 예를 들어 도쿄 리전에서 BigQuery를 사용하는 경우 플래그 값을 asia-northeast1로 설정합니다. 
+.bigqueryrc 파일 [https://cloud.google.com/bigquery/docs/bq-command-line-tool?hl=ko#setting_default_values_for_command-line_flags]을 사용하여 위치 기본값을 설정할 수 있습니다.
+JOB_ID: 취소할 작업의 ID입니다.
+ Google Cloud 콘솔에서 작업 ID를 복사하면 프로젝트 ID와 위치가 작업 ID에 포함됩니다. 예를 들면 my-project-1234:US.bquijob_123x456_123y123z123c입니다.
+
+
+예시
+
+다음 명령어는 my-project-1234 프로젝트의 US 멀티 리전 위치에서 실행 중인 my-project-1234:US.bquijob_123x456_123y123z123c 작업을 취소하고 완료를 기다립니다. 정규화된 작업 ID가 사용되므로 위치 플래그가 제공되지 않습니다.
+bq cancel my-project-1234:US.bquijob_123x456_123y123z123c
+
+다음 명령어는 my-project-1234 프로젝트의 US 멀티 리전 위치에서 실행 중인 bquijob_123x456_123y123z123c 작업을 취소하고 완료를 기다립니다. 약식 작업 ID가 사용되므로 --location 플래그가 제공됩니다.
+bq --location=US cancel bquijob_123x456_123y123z123c
+
+다음 명령어는 my-project-1234 프로젝트의 US 멀티 리전 위치에서 실행 중인 bquijob_123x456_123y123z123c 작업을 취소하고 즉시 반환합니다.
+정규화된 작업 ID가 사용되므로 --location 플래그가 제공되지 않습니다.
+bq --nosync cancel my-project-1234:US.bquijob_123x456_123y123z123c
+
+--- 탭: API ---
+jobs.cancel [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/cancel?hl=ko]을 호출하고 jobId 및 projectId 매개변수를 제공합니다. location 매개변수를 제공하고 값을 작업이 실행되는 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]로 설정합니다.
+
+--- 탭: Go ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Go 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Go API 참고 문서 [https://godoc.org/cloud.google.com/go/bigquery]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import (
+	"context"
+	"fmt"
+
+	"cloud.google.com/go/bigquery"
+)
+
+// cancelJob demonstrates how a job cancellation request can be issued for a specific
+// BigQuery job.
+func cancelJob(projectID, jobID string) error {
+	// projectID := "my-project-id"
+	// jobID := "my-job-id"
+	ctx := context.Background()
+
+	client, err := bigquery.NewClient(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("bigquery.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	job, err := client.JobFromID [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Client_JobFromID](ctx, jobID)
+	if err != nil {
+		return nil
+	}
+	return job.Cancel [https://cloud.google.com/go/docs/reference/cloud.google.com/go/bigquery/latest/index.html?hl=ko#cloud_google_com_go_bigquery_Job_Cancel](ctx)
+}
+
+--- 탭: 자바 ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Java 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Java API 참고 문서 [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/overview?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  import com.google.cloud.bigquery.BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko];
+import com.google.cloud.bigquery.BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko];
+import com.google.cloud.bigquery.Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko];
+import com.google.cloud.bigquery.JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko];
+import com.google.cloud.bigquery.JobInfo [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobInfo.html?hl=ko];
+import com.google.cloud.bigquery.QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko];
+import java.util.UUID;
+
+// Sample to cancel a job
+public class CancelJob {
+
+  public static void runCancelJob() {
+    // TODO(developer): Replace these variables before running the sample.
+    String query = "SELECT country_name from `bigquery-public-data.utility_us.country_code_iso`";
+    cancelJob(query);
+  }
+
+  public static void cancelJob(String query) {
+    try {
+      // Initialize client that will be used to send requests. This client only needs to be created
+      // once, and can be reused for multiple requests.
+      BigQuery [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko] bigquery = BigQueryOptions [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryOptions.html?hl=ko].getDefaultInstance().getService();
+
+      // Specify a job configuration to set optional job resource properties.
+      QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko] queryConfig = QueryJobConfiguration [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.QueryJobConfiguration.html?hl=ko].newBuilder(query).build();
+
+      // The location and job name are optional,
+      // if both are not specified then client will auto-create.
+      String jobName = "jobId_" + UUID.randomUUID().toString();
+      JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko] jobId = JobId [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.html?hl=ko].newBuilder().setLocation("us").setJob [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.JobId.Builder.html?hl=ko#com_google_cloud_bigquery_JobId_Builder_setJob_java_lang_String_](jobName).build();
+
+      // Create a job with job ID
+      bigquery.create [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_create_com_google_cloud_bigquery_DatasetInfo_com_google_cloud_bigquery_BigQuery_DatasetOption____](JobInfo.of(jobId, queryConfig));
+
+      // Get a job that was just created
+      Job [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko] job = bigquery.getJob [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQuery.html?hl=ko#com_google_cloud_bigquery_BigQuery_getJob_com_google_cloud_bigquery_JobId_com_google_cloud_bigquery_BigQuery_JobOption____](jobId);
+      if (job.cancel [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.Job.html?hl=ko#com_google_cloud_bigquery_Job_cancel__]()) {
+        System.out.println("Job canceled successfully");
+      } else {
+        System.out.println("Job was not canceled");
+      }
+    } catch (BigQueryException [https://cloud.google.com/java/docs/reference/google-cloud-bigquery/latest/com.google.cloud.bigquery.BigQueryException.html?hl=ko] e) {
+      System.out.println("Job was not canceled.\n" + e.toString());
+    }
+  }
+}
+
+--- 탭: Node.js ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Node.js 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Node.js API 참고 문서 [https://googleapis.dev/nodejs/bigquery/latest/index.html]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  // Import the Google Cloud client library
+const {BigQuery} = require('@google-cloud/bigquery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/overview.html?hl=ko]');
+const bigquery = new BigQuery [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko]();
+
+async function cancelJob() {
+  // Attempts to cancel a job.
+
+  /**
+   * TODO(developer): Uncomment the following lines before running the sample.
+   */
+  // const jobId = "existing-job-id";
+
+  // Create a job reference
+  const job = bigquery.job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko](jobId);
+
+  // Attempt to cancel job
+  const [apiResult] = await job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].cancel [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/job.html?hl=ko]();
+
+  console.log(apiResult.job [https://cloud.google.com/nodejs/docs/reference/bigquery/latest/bigquery/bigquery.html?hl=ko].status);
+}
+
+--- 탭: Python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+
+def cancel_job(
+    client: bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko],
+    location: str = "us",
+    job_id: str = "abcd-efgh-ijkl-mnop",
+) -> None:
+    job = client.cancel_job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_cancel_job](job_id, location=location)
+    print(f"{job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].location}:{job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.html?hl=ko].job_id} cancelled")
+작업 메타데이터 삭제
+bq 명령줄 도구 및 Python 클라이언트 라이브러리를 사용해서 특정 작업에 대해 메타데이터를 삭제할 수 있습니다. BigQuery는 이전 6개월 동안 실행된 작업 기록을 보존합니다. 이 메서드를 사용하여 쿼리 문에 포함될 수 있는 민감한 정보를 삭제할 수 있습니다. 작업 메타데이터는 작업이 완료된 후에만 삭제될 수 있습니다. 해당 작업으로 하위 작업이 생성된 경우에는 하위 작업도 삭제됩니다. 하위 작업 삭제는 허용되지 않습니다. 상위 작업 또는 최상위 작업만 삭제할 수 있습니다.
+작업 메타데이터를 삭제하려면 다음 단계를 따르세요.
+--- 탭: bq ---
+bq rm 명령어를 -j 플래그 및 작업 ID와 함께 실행합니다.
+
+작업 ID를 제공할 때 정규화된 ID 또는 간단한 형식을 사용할 수 있습니다. 예를 들어 Google Cloud 콘솔에 나열되는 작업 ID는 정규화되었으며, 다음 프로젝트 및 위치를 포함합니다.
+
+my-project-1234:US.bquijob_123x456_123y123z123c
+
+bq 명령줄 도구의 작업 ID는 프로젝트 ID와 위치가 포함되지 않은 간단한 형식을 통해 나열됩니다.
+
+bquijob_123x456_123y123z123c
+
+작업 위치를 지정하려면 --location 플래그를 제공하고 값을 사용자 위치 [https://cloud.google.com/bigquery/docs/locations?hl=ko]로 설정합니다. 정규화된 작업 ID를 사용하는 경우 이 플래그는 선택사항입니다. --location 플래그를 포함하고 정규화된 작업 ID를 사용하는 경우 --location 플래그는 무시됩니다.
+
+다음 명령어는 작업을 삭제합니다.
+
+bq --location=location \
+    --project_id=project_id \
+    rm -j job_id
+
+--- 탭: Python ---
+이 샘플을 사용해 보기 전에 BigQuery 빠른 시작: 클라이언트 라이브러리 사용 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries?hl=ko]의 Python 설정 안내를 따르세요.
+        
+      
+      
+  자세한 내용은 BigQuery Python API 참고 문서 [https://cloud.google.com/python/docs/reference/bigquery/latest?hl=ko]를 확인하세요.
+  
+    
+    
+      BigQuery에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+      자세한 내용은 클라이언트 라이브러리의 인증 설정 [https://cloud.google.com/bigquery/docs/authentication?hl=ko#client-libs]을 참조하세요.
+      
+    
+      
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+    
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+  
+
+
+  from google.api_core import exceptions
+from google.cloud import bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko]
+
+# TODO(developer): Set the job ID to the ID of the job whose metadata you
+#                  wish to delete.
+job_id = "abcd-efgh-ijkl-mnop"
+
+# TODO(developer): Set the location to the region or multi-region
+#                  containing the job.
+location = "us-east1"
+
+client = bigquery [https://cloud.google.com/python/docs/reference/bigquery/latest/?hl=ko].Client [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko]()
+
+client.delete_job_metadata [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_delete_job_metadata](job_id, location=location)
+
+try:
+    client.get_job [https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client.html?hl=ko#google_cloud_bigquery_client_Client_get_job](job_id, location=location)
+except exceptions.NotFound:
+    print(f"Job metadata for job {location}:{job_id} was deleted.")
+작업 반복
+동일한 작업 ID를 사용하는 작업 반복은 불가능합니다. 대신 동일한 구성으로 새 작업을 만듭니다.Google Cloud 콘솔 또는 bq 명령줄 도구에서 새 작업을 제출하면 새 작업 ID가 할당됩니다. API 또는 클라이언트 라이브러리를 사용하여 작업을 제출하려면 새 작업 ID를 생성해야 합니다.
+작업을 반복하려면 다음 단계를 따르세요.
+--- 탭: 콘솔 ---
+쿼리 작업을 반복하려면 다음 단계를 따르세요.
+
+
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+작업 기록 창을 펼칩니다.
+모든 작업을 나열하려면 개인 기록을 클릭합니다. 프로젝트의 모든 작업을 나열하려면 프로젝트 기록을 클릭합니다.
+쿼리 작업을 클릭하여 작업 세부정보를 엽니다.
+쿼리를 반복하려면 새 쿼리로 열기를 클릭합니다.
+실행을 클릭합니다.
+
+
+로드 작업을 반복하려면 다음을 수행합니다.
+
+
+BigQuery 페이지로 이동합니다.
+
+BigQuery로 이동 [https://console.cloud.google.com/bigquery?hl=ko] 
+작업 기록 창을 펼칩니다.
+모든 작업을 나열하려면 개인 기록을 클릭합니다. 프로젝트의 모든 작업을 나열하려면 프로젝트 기록을 클릭합니다.
+로드 작업을 클릭하여 작업 세부정보를 엽니다.
+작업을 반복하려면 로드 작업 반복을 클릭합니다.
+
+참고: Google Cloud 콘솔을 사용하여 내보내기 작업 또는 복사 작업을 반복할 수 없습니다.
+
+--- 탭: bq ---
+명령어를 다시 실행하면 BigQuery에서 자동으로 작업을 새로운 작업 ID로 생성합니다.
+
+--- 탭: API ---
+작업을 반복하는 단일 호출 메서드는 없습니다. 특정 작업을 반복하는 방법은 다음과 같습니다.
+
+
+jobs.get [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/get?hl=ko]을 호출하여 반복할 작업의 리소스를 가져옵니다.
+id, status, statistics 필드를 삭제합니다.
+jobId 필드를 클라이언트 코드에 의해 생성된 새로운 값으로 변경합니다. 필요한 경우 다른 필드를 변경합니다.
+수정된 리소스와 새로운 작업 ID를 사용하여 jobs.insert [https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/insert?hl=ko]를 호출하고 새로운 작업을 시작합니다.
+다음 단계
+프로그래매틱 방식으로 작업 실행 [https://cloud.google.com/bigquery/docs/running-jobs?hl=ko] 방법 알아보기
+도움이 되었나요?
+의견 보내기
