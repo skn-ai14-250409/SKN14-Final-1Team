@@ -21,22 +21,22 @@ class GoogleAPIDocumentProcessor:
         self.vectorstore: Optional[Chroma] = None
         self.embedding_model: Optional[HuggingFaceEmbeddings] = None
 
-    def _get_tag_from_path(self, file_path: Path) -> str:
-        try:
-            relative_path = file_path.relative_to(self.api_data_dir)
-            if len(relative_path.parts) > 1:
-                folder_name = relative_path.parts[0]
-                return folder_name.split('_')[0]
-        except ValueError:
-            pass
-        return None
+    def get_api_tag_from_path(self,path: str) -> str:
+       folder = os.path.basename(os.path.dirname(path))
+       if folder.endswith("_docs_crawled"):
+         return folder.replace("_docs_crawled", "")
+       return folder
 
     def _extract_source_url(self, content: str) -> str:
-        pattern = r'SourceURL:\s*(https?://[^\s\n]+)'
-        match = re.search(pattern, content)
-        if match:
-            return match.group(1)
-        return ""
+        # "Source URL:" 또는 "SourceURL:" 모두 허용, 대소문자/공백 유연 처리
+        pattern = r'(?i)Source\s*URL\s*:\s*(https?://\S+)'
+        m = re.search(pattern, content)
+        if m:
+            return m.group(1).strip()
+        # 혹시 첫 줄에만 있을 수도 있으니 헤더 2KB만 한번 더 탐색(옵션)
+        head = content[:2048]
+        m2 = re.search(pattern, head)
+        return m2.group(1).strip() if m2 else ""
 
     def load_api_documents(self) -> List[Document]:
         documents = []
@@ -54,7 +54,7 @@ class GoogleAPIDocumentProcessor:
                     content = f.read()
 
                 source_url = self._extract_source_url(content)
-                tag = self._get_tag_from_path(file_path)
+                tag = self.get_api_tag_from_path(file_path)
 
                 if tag is None:
                     continue
@@ -94,7 +94,7 @@ class GoogleAPIDocumentProcessor:
         print("🔧 임베딩 모델 초기화 중... (BAAI/bge-m3)")
         self.embedding_model = HuggingFaceEmbeddings(
             model_name="BAAI/bge-m3",
-            model_kwargs={'device': 'cuda' if torch.cuda.is_available() else 'cpu'},
+            model_kwargs={'device': 'cuda'},
             encode_kwargs={'normalize_embeddings': True}
         )
 
