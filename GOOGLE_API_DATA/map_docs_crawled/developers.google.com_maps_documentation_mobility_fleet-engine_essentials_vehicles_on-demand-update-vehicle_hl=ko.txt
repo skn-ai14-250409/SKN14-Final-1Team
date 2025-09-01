@@ -1,0 +1,64 @@
+Source URL: https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles/on-demand-update-vehicle?hl=ko
+Title: 차량 위치 업데이트
+
+차량 위치 업데이트
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+참고: 차량 요청을 구성하기 전에 소개의 차량 요청 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles?hl=ko#vehicle_requests]에 있는 요구사항을 읽어보세요.
+Fleet Engine의 최적 성능을 위해 차량 위치 업데이트 스트림을 제공하세요. 다음 방법 중 하나를 사용하여 이러한 업데이트를 제공하세요.
+
+Driver SDK 사용: 가장 간단한 옵션입니다. Android [https://developers.google.com/maps/documentation/mobility/driver-sdk/on-demand/android/minimum-requirements?hl=ko] 또는 iOS [https://maps/documentation/mobility/driver-sdk/on-demand/ios/minimum-requirements]용 Driver SDK 문서를 참고하세요.
+맞춤 코드 사용: 위치가 백엔드를 통해 중계되거나 Android 또는 iOS 이외의 기기를 사용하는 경우에 유용합니다. 이 가이드에서는 이 접근 방식을 다룹니다.
+
+Driver SDK를 사용하여 차량 위치를 업데이트하지 않는 경우 차량 위치를 사용하여 Fleet Engine을 직접 호출할 수 있습니다. 활성 차량의 경우 Fleet Engine은 최소 1분마다 한 번, 최대 5초마다 한 번 위치 업데이트를 예상합니다. 이러한 업데이트에는 Fleet Engine Driver SDK 사용자 권한만 필요합니다.
+
+차량 위치 업데이트 예시
+
+자바static final String PROJECT_ID = "project-id";
+static final String VEHICLE_ID = "vid-8241890";
+
+VehicleServiceBlockingStub vehicleService = VehicleService.newBlockingStub(channel);
+
+String vehicleName = "providers/" + PROJECT_ID + "/vehicles/" + VEHICLE_ID;
+Vehicle updatedVehicle = Vehicle.newBuilder()
+.setLastLocation(VehicleLocation.newBuilder()
+.setSupplementalLocation(LatLng.newBuilder()
+.setLatitude(37.3382)
+.setLongitude(121.8863))
+.setSupplementalLocationTime(now())
+.setSupplementalLocationSensor(LocationSensor.CUSTOMER_SUPPLIED_LOCATION)
+.setSupplementalLocationAccuracy(DoubleValue.of(15.0)))  // Optional
+.build();
+
+UpdateVehicleRequest updateVehicleRequest = UpdateVehicleRequest.newBuilder()
+.setName(vehicleName)
+.setVehicle(updatedVehicle)
+.setUpdateMask(FieldMask.newBuilder()
+.addPaths("last_location"))
+.build();
+
+try {
+Vehicle updatedVehicle =
+vehicleService.updateVehicle(updateVehicleRequest);
+Status s = e.getStatus();
+switch (s.getCode()) {
+case NOT_FOUND:
+case PERMISSION_DENIED:
+break;
+RESTcurl -X PUT \
+"https://fleetengine.googleapis.com/v1/providers/project-id/vehicles/vid-8241890?updateMask=last_location" \
+-H "Authorization: Bearer $JWT" \
+-H "Content-Type: application/json" \
+--data-binary @- << EOM
+"supplementalLocation": {"latitude": 12.1, "longitude": 14.5},
+"supplementalLocationTime": "$(date -u --iso-8601=seconds)",
+"supplementalLocationSensor": "CUSTOMER_SUPPLIED_LOCATION",
+"supplementalLocationAccuracy": 15
+providers.vehicles.update [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/providers.vehicles/update?hl=ko] 참조를 확인하세요.
+
+다음 단계
+
+차량 이용하기 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles/on-demand-get-vehicle?hl=ko]

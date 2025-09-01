@@ -1,0 +1,171 @@
+Source URL: https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/trip-intro?hl=ko
+Title: 주문형 경로
+
+주문형 경로
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 문서에서는 Fleet Engine의 주문형 이동 서비스에 대해 설명합니다. 이 가이드에서는 Fleet Engine이란 무엇인가요? [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials?hl=ko]를 읽고 필요한 특정 Fleet Engine 서비스 기능을 알고 있다고 가정합니다.
+
+이 문서를 읽을 때는 다음 사항에 유의하세요.
+
+이동과 해당 이동을 완료한 운전자 간의 실제 연결을 모델링하는 방법으로 이동을 차량에 할당합니다. 차량 소개 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles-intro?hl=ko]를 읽고 Fleet Engine에서 차량이 작동하는 방식을 자세히 알아보세요.
+이 문서에서는 주문형 이동에만 적용되는 일부 차량 요소에 대해서도 설명합니다.
+주문형 이동을 위한 Fleet Engine은 두 가지 리소스(Trip 및 Vehicle)를 사용합니다. Fleet Engine은 gRPC 서비스와 REST 인터페이스를 모두 제공합니다.
+
+TripService: gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#tripservice] 및 REST [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/providers.trips?hl=ko]
+VehicleService: gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#maps.fleetengine.v1.VehicleService] 및 REST [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/providers.trips?hl=ko]
+이 설명서에서는 편의상 gRPC 예시를 사용합니다.
+
+주문형 이동이란 무엇인가요?
+
+Fleet Engine에서 이동은 다양한 이동 목표를 달성할 수 있는 주문형 여정을 나타냅니다. 예를 들면 다음과 같습니다.
+
+사람: 1명 이상의 사람을 픽업 위치에서 하차 위치로 운송합니다.
+음식 및 상품: 지정된 비즈니스 위치에서 음식 주문 1건 이상을 수령하고 해당 위치에서 수령인 1명 이상에게 주문 제품을 배달합니다.
+
+이동 요소
+
+다음 그림은 운전의 기본 요소인 할당된 차량 ID, 운전 상태, 운전 경로의 중간 지점을 보여줍니다. 경유지 유형은 이동의 단계(픽업, 중간, 하차)에 따라 다릅니다. 모든 이동에서 중간 목적지 또는 경유지는 선택사항입니다. 이미지 예시에서 차량이 픽업 위치에 도착했습니다.
+
+이동에 대한 데이터 모델
+
+백엔드에서 차량에 경로를 할당할 때는 차량에 예약된 다른 경로에 대해서도 알아야 합니다. 따라서 다음 다이어그램에서는 연결된 Vehicle 리소스의 다이어그램과 함께 Trip 리소스의 데이터 모델을 보여줍니다. 두 다이어그램을 검토하여 두 리소스 간의 관계를 살펴볼 수 있습니다. 단, 다음 사항에 유의하세요.
+
+운행은 ID별로 차량에 할당됩니다.
+경로-차량 연결은 다대일입니다. 즉, 특정 이동은 차량에 대해 예약된 유일한 이동일 수도 있고 차량의 여러 이동 중 하나일 수도 있습니다.
+경로 객체에는 두 개의 경로 경유지 목록이 포함됩니다. 하나는 경로 자체용이고 하나는 할당된 차량용입니다. 자세한 내용은 이 문서를 참고하세요.
+대중교통 차량에는 경로 중간 지점 목록도 있습니다. 이 목록은 이 문서에서 자세히 설명합니다.
+
+[TAB_GROUP_PLACEHOLDER_0]
+
+경로 유형
+
+서비스가 이동을 만들 때 tripType 필드를 EXCLUSIVE 또는 SHARED로 설정할 수 있습니다.
+참고: 정의한 이동 유형은 해당 이동 유형을 지원하는 차량에만 할당할 수 있습니다. 예를 들어 supported_trip_types가 SHARED로 설정된 차량에만 SHARED 이동을 할당할 수 있습니다. 차량 서비스, gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko] 또는 Rest [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/providers.vehicles?hl=ko]의 참조를 참고하세요.
+독점 여행
+
+전용 이동은 다른 이동과 중복되지 않는 이동이며 차량이 일정에 따라 다른 이동 전후에 완료하는 이동입니다. 즉, 시스템에서 배타적인 경로를 할당할 때는 차량에 동시에 할당할 수 없으며 차례로 완료되도록 할당해야 합니다. 예를 들어 다음과 같은 특성을 사용하여 전용 이동 경로를 만들 수 있습니다.
+
+일정에 다른 이동이 없는 차량의 승차 1회 및 하차 1회 이동입니다.
+일정에 다른 이동이 없는 차량의 승차, 중간 웨이포인트, 하차가 포함된 이동입니다.
+이미 예약된 차량의 이동 끝에 픽업 및 하차가 추가된 이동입니다. 이 경우 각 이동은 다른 이동과 중복되지 않지만 이동이 연달아 순서대로 정렬됩니다.
+또한 필요한 경우 이러한 이동에 중간 경로를 포함할 수 있습니다.
+
+참고: 전용 경로에만 중간 경로 또는 웨이포인트가 있을 수 있습니다.
+자세한 내용은 경로 중간 지점 유형 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/trip-intro?hl=ko#trip-waypoint]을 참고하세요.
+공유된 이동 경로
+
+공유 여정은 이동 경로가 다른 여행 예약과 겹칠 수 있는 여정입니다. 이러한 이동 유형의 경우 시스템에서 교차 목적지와 동시에 발생하도록 할당할 수 있습니다. 예를 들어 한 이동의 하차가 다른 이동의 픽업 후에 발생할 수 있습니다. 또한 공유된 경로는 중간 경유지를 사용하지 않을 수 있습니다.
+
+일반적으로 경로 시나리오 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/trip-intro?hl=ko#trip-scenarios] 섹션에 설명된 공유 풀링 시나리오 중 하나에 공유 경로를 사용합니다.
+
+경로 경유지
+
+Google 지도에서 웨이포인트는 경로 중 하나로, 일반적으로 위도/경도 좌표로 정의됩니다. 주문형 이동의 경우 경로 지점은 다음과 같은 추가 정보가 포함된 TripWaypoint 객체로 표시됩니다.
+
+이동 ID
+WaypointType: 승차, 중간 또는 하차
+이전 경로 웨이포인트와 현재 경로 웨이포인트 간의 경로 및 거리 정보
+경로의 경로 중간 지점까지의 교통상황
+경로 중간 지점까지의 이동 시간 및 도착 예정 시간
+
+실험용: 이제 Fleet Engine은 실험용 기능으로 위도/경도와 함께 또는 그 대신 장소 ID를 사용하는 것을 지원합니다. 위치에 장소 ID와 위도-경도 모두 있는 경우 Fleet Engine은 경로 탐색에 위도-경도를 사용하고 위치 의견에 장소 ID를 사용합니다.
+참조를 확인하세요.
+
+TripWaypoint: gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#maps.fleetengine.v1.TripWaypoint] 또는 REST [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/TripWaypoint?hl=ko]
+WaypointType: gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#maps.fleetengine.v1.WaypointType] 또는 REST [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/WaypointType?hl=ko]
+
+경로 중간 지점 유형
+
+이동 경로 웨이포인트는 차량 이동의 일반적인 수명 주기와 관련하여 정의됩니다.
+
+픽업 웨이포인트: 운전자가 후속 배송을 위해 음식 주문을 수령하거나 나중에 승객을 태우기 위해 승객을 수령하는 경우와 같이 이동의 출발점 또는 시작점에 사용됩니다.
+중간 경유지: 운전자가 동일한 예약 당사자의 승객 1명을 내려주었지만 아직 더 많은 승객이 남아 있어 여정이 완료되지 않은 경우와 같이 다양한 목적으로 사용할 수 있는 중간 목적지입니다. 이 중간 지점은 선택사항이며 전용 이동에만 사용할 수 있습니다.
+하차 웨이포인트: 남은 승객이 차량에서 내릴 때와 같이 여정의 마지막 위치에 사용됩니다.
+
+경로 웨이포인트 목록
+
+Trip 항목에는 두 개의 경유지 목록이 포함되며, 각각은 TripWaypoint 유형의 반복 필드입니다. 한 목록은 이동 자체에 필요한 필드를 설명하고 다른 목록은 이동과 연결된 차량에 남은 모든 웨이포인트를 설명합니다. 이를 통해 이동과 전체 차량 이동 등 여정의 모든 요소를 전체적으로 파악할 수 있습니다.
+
+차량의 남은 웨이포인트: vehicle_waypoints라는 필드입니다.
+차량에 할당된 모든 이동의 남은 모든 웨이포인트가 포함됩니다.
+경로의 남은 중간 지점: remaining_waypoints라는 필드입니다.
+차량이 이동 경로의 최종 하차 지점 전에 순서대로 이동해야 하는 웨이포인트가 포함되어 있습니다. 경로 시나리오 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/trip-intro?hl=ko#trip-scenarios]에서 시나리오를 참고하세요.
+
+일정에 다른 이동이 없는 차량에 할당된 단일 목적지 이동의 경우 차량이 승차 웨이포인트를 떠나지 않았다고 가정하면 승차 위치와 하차 위치만 포함됩니다.
+차량이 다른 여정도 예약된 다른 여정 시나리오의 경우, 운항 일정에 있는 여정의 나머지 중간 지점에는 해당 여정의 하차 중간 지점에 도착하기 전에 차량이 통과해야 하는 다른 여정의 모든 중간 지점이 포함됩니다. 예를 들어 차량이 이동 중인 연쇄 이동에서 차량이 이동 중인 이동 A의 하차 지점으로 이동하는 경우 이동 B의 나머지 중간 지점에는 이동 A의 하차 중간 지점이 포함됩니다. Fleet Engine은 vehicle_waypoints 필드를 사용하여 이 정보를 계산합니다.
+
+Trip 항목 참조(gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#maps.fleetengine.v1.Trip] 또는 REST [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/providers.trips?hl=ko])를 확인하세요.
+
+이동 시나리오
+
+다음 다이어그램은 지원되는 다양한 이동 시나리오를 보여줍니다. 이러한 시나리오에서 공유 풀링 이동만 SHARED 유형이고 나머지는 모두 EXCLUSIVE입니다. 또한 다이어그램에는 이동을 실행하는 차량의 이동 상태와 남은 중간 지점(이 가이드의 뒷부분에서 설명하는 개념)이 표시됩니다.
+
+[TAB_GROUP_PLACEHOLDER_1]
+
+이동 상태 및 수명 주기
+
+이 섹션에서는 이동 상태와 이동 상태가 차량에 미치는 영향, 주문형 이동을 할당하고 관리할 때 발생하는 다양한 시나리오를 설명합니다.
+
+일반적으로 여정은 생성부터 완료까지 다양한 상태를 거치며 진행됩니다.
+대략적으로 경로는 상태에 따라 활성 또는 비활성 상태일 수 있습니다.
+이동 상태는 Fleet Engine의 다양한 사용 사례 시나리오와 이동 중 차량의 진행 상황을 식별하는 기능에 영향을 미칩니다. 이 문서의 나머지 부분에서는 이러한 시나리오를 설명합니다.
+
+다음 표에는 활성 상태와 비활성 상태별 이동 상태가 나와 있습니다.
+
+| 활성 이동 상태 | 비활성 경로 상태 |
+| --- | --- |
+| NEW UNKNOWN_TRIP_STATUS ENROUTE_TO_PICKUP ARRIVED_AT_PICKUP ENROUTE_TO_INTERMEDIATE_DESTINATION ARRIVED_AT_INTERMEDIATE_DESTINATION ENROUTE_TO_DROPOFF | COMPLETE CANCELED |
+참고: 상태 정의는 참조 gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#maps.fleetengine.v1.TripStatus] 또는 REST [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/providers.trips?hl=ko#tripstatus]를 참고하세요.
+이동 상태 및 남은 차량 경유지
+
+이미 이동을 실행 중인 차량에 이동을 추가로 할당할 때는 차량의 남은 경유지와 이동 상태가 남은 경유지에 미치는 영향의 관계를 이해해야 합니다.
+
+예를 들어 전용 이동만 지원하고 이동을 완료하는 중인 차량에 새 차량 공유 요청을 할당할 수 있습니다. 이 경우 이동을 연달아 발생하는 이동으로 모델링합니다. 이러한 경로를 할당할 때 시스템은 새 경로의 중간 지점이 진행 중인 경로의 중간 지점 뒤에 오도록 해야 합니다.
+
+차량 이동 중에 차량이 다음 목적지로 이동 중이거나 완료되었다고 보고하는 경우에만 차량의 남은 중간 지점 목록에서 이전 경로 중간 지점을 삭제합니다. 즉, 다음 중 하나를 의미합니다.
+
+ENROUTE_TO_INTERMEDIATE_DESTINATION
+ENROUTE_TO_DROPOFF
+완료됨
+
+이동 상태가 COMPLETED로 변경되면 Fleet Engine은 차량의 남은 중간 지점 목록에서 이동의 마지막 중간 지점을 삭제합니다.
+
+반면에 중간 지점에 도착했음을 나타내는 상태 변경은 일반적으로 차량의 남은 중간 지점 목록에 영향을 미치지 않습니다.
+
+ARRIVED_AT_PICKUP
+ARRIVED_AT_INTERMEDIATE_DESTINATION
+ARRIVED_AT_DROPOFF
+
+대리운전 예를 들어 설명하자면 운전자가 고객을 거주지에서 태워 장소로 이동한 후 고객이 할 일을 완료할 때까지 기다렸다가 다시 거주지로 이동한다고 가정해 보겠습니다. 처음 생성할 때는 경로에 PICKUP, INTERMEDIATE, DROPOFF라는 세 개의 웨이포인트가 있습니다. 다음 표는 경로의 다양한 상태에서 남은 중간 지점에 대한 쿼리의 결과를 보여줍니다.
+
+| 경로 상태 | 남은 경유지 |
+| --- | --- |
+| ARRIVED_AT_PICKUP | PICKUP INTERMEDIATE DROPOFF |
+| ENROUTE_TO_INTERMEDIATE_DESTINATION | PICKUP INTERMEDIATE DROPOFF |
+| ARRIVED_AT_INTERMEDIATE_DESTINATION | PICKUP INTERMEDIATE DROPOFF |
+| ENROUTE_TO_DROPOFF | PICKUP INTERMEDIATE DROPOFF |
+| ARRIVED_AT_DROPOFF | PICKUP INTERMEDIATE DROPOFF |
+| COMPLETE | PICKUP INTERMEDIATE DROPOFF |
+
+재할당 또는 취소된 경로의 상태 요구사항
+
+다음 작업을 수행하려면 먼저 이동 상태를 NEW 또는 CANCELED로 설정해야 합니다.
+
+경로의 차량 할당을 변경하는 경우 예를 들어 운전자가 이동에 대한 차량 할당을 거부하여 다른 차량에 재할당해야 하는 경우입니다.
+운전에 대한 차량 할당을 삭제할 때. 예를 들어 운전자가 이동 중에 이동을 취소하고 차량 할당을 삭제하려는 경우 상태는 NEW 또는 CANCELED여야 합니다.
+
+경로 상태를 기준으로 한 검색 결과
+
+특정 차량에 SearchTrips 서비스를 사용하면 SearchTripsResponse에 활성 경로 목록이 반환됩니다. 활성 경로가 Vehicle 항목의 active_trips 필드에도 표시됩니다. 자세한 내용은 SearchTripsResponse 참조(gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#searchtripsresponse] 또는 REST [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/providers.trips/search?hl=ko#response-body])를 참고하세요.
+
+따라서 활성 상태인 모든 이동이 active_trips 필드에 표시되지만 완료되거나 취소된 이동은 표시되지 않습니다.
+
+다음 단계
+
+Fleet Engine 설정 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/set-up-fleet?hl=ko]
+차량 만들기 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles?hl=ko]
+주문형 여정 만들기 [https://developers.google.com/maps/documentation/mobility/fleet-engine/journeys/trips?hl=ko]

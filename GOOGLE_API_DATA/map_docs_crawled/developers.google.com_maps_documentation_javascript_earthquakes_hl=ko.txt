@@ -1,0 +1,170 @@
+Source URL: https://developers.google.com/maps/documentation/javascript/earthquakes?hl=ko
+Title: 데이터 시각화: 지진 매핑하기
+
+의견 보내기
+
+데이터 시각화: 지진 매핑하기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+개요
+
+이 튜토리얼에서는 Google 지도에 데이터를 시각화하는 방법을 설명합니다. 예를 들어 이 튜토리얼의 지도는 지진의 위치와 규모에 대한 데이터를 시각화합니다. 자신의 데이터 소스에 사용할 기법을 알아보고 Google 지도에서 아래와 같은 강력한 스토리를 만들어 보세요.
+
+위의 처음 두 개의 프레임에는(왼쪽에서 오른쪽 순서로) 기본 마커 [https://developers.google.com/maps/documentation/javascript/earthquakes?hl=ko#place-basic-markers]와 크기가 지정된 원 [https://developers.google.com/maps/documentation/javascript/earthquakes?hl=ko#circle_size]이 있는 지도가 표시됩니다.
+마지막 프레임에는 히트맵 [https://developers.google.com/maps/documentation/javascript/earthquakes?hl=ko#heatmaps]이 표시됩니다.
+
+데이터 가져오기
+
+이 튜토리얼에서는 미국 지질조사국(USGS)의 실시간 지진 데이터 [http://earthquake.usgs.gov/earthquakes/feed/]를 사용합니다. USGS 웹사이트에서 다양한 형식의 데이터를 제공하므로 애플리케이션에서 로컬로 액세스할 수 있도록 도메인에 복사할 수 있습니다. 이 튜토리얼에서는 문서의 맨 위쪽에 script 태그를 추가하여 USGS 서버에 직접 JSONP [http://en.wikipedia.org/wiki/JSONP]를 요청합니다.
+참고: 교차 도메인 콘텐츠를 로드하는 경우 보안 위험이 발생할 수 있으므로 완전히 신뢰할 수 있는 서버에만 데이터를 요청해야 합니다.
+"https://developers.google.com/maps/documentation/javascript/examples/json/earthquake_GeoJSONP.js";
+"https://developers.google.com/maps/documentation/javascript/examples/json/earthquake_GeoJSONP.js";
+/*
+* Always set the map height explicitly to define the size of the div element
+* that contains the map.
+*/
+body {
+<html>
+<head>
+<title>Earthquake Markers</title>
+
+<link rel="stylesheet" type="text/css" href="./style.css" />
+<script type="module" src="./index.js"></script>
+</head>
+<body>
+<div id="map"></div>
+
+<!--
+The `defer` attribute causes the script to execute after the full HTML
+document has been parsed. For non-blocking uses, avoiding race conditions,
+and consistent behavior across browsers, consider loading using Promises. See
+https://developers.google.com/maps/documentation/javascript/load-maps-js-api
+for more information.
+-->
+<script
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&callback=initMap&v=weekly"
+defer
+></script>
+</body>
+</html>index.html [https://github.com/googlemaps/js-samples/blob/2683f7366fb27829401945d2a7e27d77ed2df8e5/dist/samples/earthquake-markers/docs/index.html#L8-L30]
+
+샘플 사용해 보기
+
+JSFiddle.net [https://jsfiddle.net/gh/get/library/pure/googlemaps/js-samples/tree/master/dist/samples/earthquake-markers/jsfiddle]
+
+Google Cloud Shell [https://ssh.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fgooglemaps%2Fjs-samples&cloudshell_git_branch=sample-earthquake-markers&cloudshell_tutorial=cloud_shell_instructions.md&cloudshell_workspace=.&hl=ko]
+
+도형 및 히트맵을 사용하여 지도 맞춤설정하기
+
+이 섹션에서는 지도의 풍부한 데이터 세트를 맞춤설정하는 다른 방법을 설명합니다.
+이 튜토리얼의 이전 섹션에서 만든 모든 지진 위치에 마커를 표시한 지도를 생각해 보세요.
+마커를 맞춤설정하여 지진이 가장 많이 발생한 위치, 지진의 규모 또는 깊이와 같은 추가 데이터를 시각화할 수 있습니다.
+
+다음은 기본 마커를 맞춤설정할 수 있는 옵션입니다.
+
+원 크기 [https://developers.google.com/maps/documentation/javascript/earthquakes?hl=ko#circle_size] 사용: 기호 [https://developers.google.com/maps/documentation/javascript/symbols?hl=ko]를 사용하여 지진의 규모를 나타내는 크기의 원(또는 다른 도형)을 그릴 수 있습니다.
+이렇게 하면 강력한 지진이 지도에 가장 큰 원으로 표시됩니다.
+히트맵 [https://developers.google.com/maps/documentation/javascript/earthquakes?hl=ko#heatmaps] 사용: 시각화 라이브러리의 히트맵 레이어를 사용하면 지진의 분포를 간단하면서도 효과적으로 표시할 수 있습니다. 히트맵은 색상을 사용하여 지점의 밀도를 나타내므로 활동이 많은 지역을 쉽게 가려낼 수 있습니다. 히트맵은 또한 WeightedLocations를 사용하므로 더 큰 지진을 히트맵에서 더 눈에 띄게 표시할 수도 있습니다.
+
+원 크기
+
+아래 지도에서는 원을 사용하여 맞춤설정된 마커를 표시합니다. 원의 크기는 특정 위치에서 발생한 지진의 규모에 따라 증가합니다.
+
+아래 섹션에는 맞춤설정된 원 마커가 있는 지도를 만드는 데 필요한 전체 코드가 표시되어 있습니다.
+
+TypeScript
+"https://developers.google.com/maps/documentation/javascript/examples/json/earthquake_GeoJSONP.js";
+"https://developers.google.com/maps/documentation/javascript/examples/json/earthquake_GeoJSONP.js";
+/*
+* Always set the map height explicitly to define the size of the div element
+* that contains the map.
+*/
+body {
+<html>
+<head>
+<title>Earthquake Circles</title>
+
+<link rel="stylesheet" type="text/css" href="./style.css" />
+<script type="module" src="./index.js"></script>
+</head>
+<body>
+<div id="map"></div>
+
+<!--
+The `defer` attribute causes the script to execute after the full HTML
+document has been parsed. For non-blocking uses, avoiding race conditions,
+and consistent behavior across browsers, consider loading using Promises. See
+https://developers.google.com/maps/documentation/javascript/load-maps-js-api
+for more information.
+-->
+<script
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&callback=initMap&v=weekly"
+defer
+></script>
+</body>
+</html>index.html [https://github.com/googlemaps/js-samples/blob/2683f7366fb27829401945d2a7e27d77ed2df8e5/dist/samples/earthquake-circles/docs/index.html#L8-L30]
+
+샘플 사용해 보기
+
+JSFiddle.net [https://jsfiddle.net/gh/get/library/pure/googlemaps/js-samples/tree/master/dist/samples/earthquake-circles/jsfiddle]
+
+Google Cloud Shell [https://ssh.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fgooglemaps%2Fjs-samples&cloudshell_git_branch=sample-earthquake-circles&cloudshell_tutorial=cloud_shell_instructions.md&cloudshell_workspace=.&hl=ko]
+
+히트맵
+
+히트맵을 사용하면 사용자가 USGS에서 보고하는 지진의 분포를 쉽게 이해할 수 있습니다. 히트맵은 각 진원지에 마커를 배치하는 대신 색상과 도형을 사용하여 데이터의 분포를 나타냅니다. 이 예에서 빨간색은 지진 활동이 많은 지역을 나타냅니다.
+
+팁: gradient [https://developers.google.com/maps/documentation/javascript/reference?hl=ko#HeatmapLayerOptions] 속성을 사용하여 히트맵에 내가 원하는 색상을 설정할 수 있습니다.
+
+아래 섹션에는 이 지도를 만드는 데 필요한 전체 코드가 표시되어 있습니다.
+
+TypeScript
+"https://developers.google.com/maps/documentation/javascript/examples/json/earthquake_GeoJSONP.js";
+"https://developers.google.com/maps/documentation/javascript/examples/json/earthquake_GeoJSONP.js";
+/*
+* Always set the map height explicitly to define the size of the div element
+* that contains the map.
+*/
+body {
+<html>
+<head>
+<title>Earthquake Heatmap</title>
+
+<link rel="stylesheet" type="text/css" href="./style.css" />
+<script type="module" src="./index.js"></script>
+</head>
+<body>
+<div id="map"></div>
+
+<!--
+The `defer` attribute causes the script to execute after the full HTML
+document has been parsed. For non-blocking uses, avoiding race conditions,
+and consistent behavior across browsers, consider loading using Promises. See
+https://developers.google.com/maps/documentation/javascript/load-maps-js-api
+for more information.
+-->
+<script
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&callback=initMap&libraries=visualization&v=weekly"
+defer
+></script>
+</body>
+</html>index.html [https://github.com/googlemaps/js-samples/blob/2683f7366fb27829401945d2a7e27d77ed2df8e5/dist/samples/earthquake-heatmap/docs/index.html#L8-L30]
+
+샘플 사용해 보기
+
+JSFiddle.net [https://jsfiddle.net/gh/get/library/pure/googlemaps/js-samples/tree/master/dist/samples/earthquake-heatmap/jsfiddle]
+
+Google Cloud Shell [https://ssh.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fgooglemaps%2Fjs-samples&cloudshell_git_branch=sample-earthquake-heatmap&cloudshell_tutorial=cloud_shell_instructions.md&cloudshell_workspace=.&hl=ko]
+
+추가 정보
+
+다음 주제에 대해 자세히 알아보세요.
+
+기본 마커 [https://developers.google.com/maps/documentation/javascript/markers?hl=ko]
+도형을 사용하여 지도 맞춤설정하기 [https://developers.google.com/maps/documentation/javascript/shapes?hl=ko]
+히트맵 레이어 [https://developers.google.com/maps/documentation/javascript/heatmaplayer?hl=ko]
+
+의견 보내기

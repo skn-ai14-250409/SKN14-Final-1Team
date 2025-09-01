@@ -1,0 +1,92 @@
+Source URL: https://developers.google.com/maps/documentation/mobility/fleet-engine/journeys/trips/retrieve-trips-directly?hl=ko
+Title: Fleet Engine에서 직접 이동 데이터 검색
+
+Fleet Engine에서 직접 이동 데이터 검색
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용여행 정보 가져오기 [https://developers.google.com/maps/documentation/mobility/fleet-engine/journeys/trips/retrieve-trips-directly?hl=ko#retrieve_trip_information]남은 여행 경유지 가져오기 [https://developers.google.com/maps/documentation/mobility/fleet-engine/journeys/trips/retrieve-trips-directly?hl=ko#retrieve_remaining_trip_waypoints]
+
+이 가이드에서는 Consumer SDK를 사용하는 대신 Fleet Engine에서 직접 여정 데이터를 가져오는 방법을 보여줍니다. 이 방법을 사용하면 Fleet Engine의 정확한 실시간 차량 위치, 예상 도착 시간, 경로를 활용하면서 최종 사용자 환경을 더 세밀하게 제어할 수 있습니다.
+
+Consumer SDK 사용에 관한 자세한 내용은 주문형 이동 여정 공유하기 [https://developers.google.com/maps/documentation/mobility/journey-sharing/on-demand?hl=ko]를 참고하세요.
+
+여행 정보 가져오기
+
+Fleet Engine에서 직접 이동 정보를 가져오려면 JOURNEY_SHARING_V1S 뷰를 지정하여 GetTrip 메서드를 호출하세요. RPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#tripview] 또는 REST [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/providers.trips?hl=ko#tripview] 참조를 확인하세요.
+
+일반적으로 라이더가 차량 진행 상황을 적극적으로 모니터링하는 동안 서버는 각 여정의 상태를 여정 서비스에 폴링합니다. 차량 위치 업데이트는 일반적으로 10초마다 발생하며 시스템은 동일한 비율로 폴링해야 합니다. Trip.last_location.update_time 필드를 모니터링하여 GetTrip의 이전 호출 이후 업데이트가 있었는지 확인할 수 있습니다.
+static final String PROJECT_ID = "my-rideshare-co-gcp-project";
+static final String TRIP_ID = "trip-A";
+
+String tripName = "providers/" + PROJECT_ID + "/trips/" + TRIP_ID;
+GetTripRequest getTripRequest =
+GetTripRequest.newBuilder()
+.setName(tripName)
+.setView(JOURNEY_SHARING_V1S)
+.build();
+Trip trip = tripService.getTrip(getTripRequest);
+
+결과 Trip 객체에는 다음과 같은 필드가 여행에 사용할 수 있는 최신 정보로 채워져 있습니다.
+
+| name | trip_status | remaining_waypoints |
+| --- | --- | --- |
+| vehicle_id | trip_type | last_location |
+| number_of_passengers | pickup_point | view (== JOURNEY_SHARING_V1S) |
+| actual_pickup_point | intermediate_destinations | intermediate_destination_index |
+| pickup_time | intermediate_destinations_version | dropoff_point |
+| actual_dropoff_point | dropoff_time |  |
+
+남은 여행 경유지 가져오기
+
+Trip 엔티티에는 TripWaypoint 유형의 반복 필드가 포함됩니다. 이 필드에는 이 여정의 최종 하차 지점 전에 차량이 이동해야 하는 모든 경유지가 순서대로 포함됩니다. 여정 공유 뷰를 지정하면 Fleet Engine이 remaining_waypoints[0]TripWaypoint에 업데이트된 정보를 배치합니다. 여정 공유가 아닌 다른 보기에서는 해당 경유지가 할당된 차량의 최신 위치를 반영하지 않습니다. RPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#tripwaypoint] 또는 REST [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/TripWaypoint?hl=ko] 참조를 확인하세요.
+
+자세한 내용은 여행 소개 가이드의 여행 상태 및 남은 차량 경유지 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/trip-intro?hl=ko#trip_status_and_remaining_vehicle_waypoints]를 참고하세요.
+
+다음은 여행(여행 A)의 remaining_waypoints 필드의 예입니다.
+
+| [0] | [0] location.point = trip.pickup_point.point trip_id = 'trip_A' waypoint_type = PICKUP_WAYPOINT_TYPE path_to_waypoint = LatLng[] 수령까지 남은 경로의 첫 번째 LatLng 나머지 경로에서 픽업까지의 두 번째 LatLng ... 수령까지 남은 경로의 마지막 LatLng 수령 장소(이전과 다른 경우) traffic_data distance_meters = 현재 vehicle_location에서 path_to_waypoint를 따라 승차 지점까지의 거리 eta = 업데이트된 도착예정시간 duration = 업데이트된 기간 | location.point = trip.pickup_point.point | trip_id = 'trip_A' | waypoint_type = PICKUP_WAYPOINT_TYPE | path_to_waypoint = LatLng[] | 수령까지 남은 경로의 첫 번째 LatLng | 나머지 경로에서 픽업까지의 두 번째 LatLng | ... | 수령까지 남은 경로의 마지막 LatLng | 수령 장소(이전과 다른 경우) | traffic_data | distance_meters = 현재 vehicle_location에서 path_to_waypoint를 따라 승차 지점까지의 거리 | eta = 업데이트된 도착예정시간 | duration = 업데이트된 기간 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [0] | location.point = trip.pickup_point.point |
+| trip_id = 'trip_A' |
+| waypoint_type = PICKUP_WAYPOINT_TYPE |
+| path_to_waypoint = LatLng[] | 수령까지 남은 경로의 첫 번째 LatLng |
+| 나머지 경로에서 픽업까지의 두 번째 LatLng |
+| ... |
+| 수령까지 남은 경로의 마지막 LatLng |
+| 수령 장소(이전과 다른 경우) |
+| traffic_data |
+| distance_meters = 현재 vehicle_location에서 path_to_waypoint를 따라 승차 지점까지의 거리 |
+| eta = 업데이트된 도착예정시간 |
+| duration = 업데이트된 기간 |
+| [1] | [1] location.point = trip.dropoff_point.point trip_id = "trip_A" waypoint_type = DROP_OFF_WAYPOINT_TYPE path_to_waypoint = LatLng[] 하차 구간의 첫 번째 LatLng 하차 구간의 두 번째 LatLng ... 하차 구간의 마지막 LatLng 이전과 다른 경우 하차 지점 traffic_data distance_meters = 픽업 지점부터 경로를 따라 드롭오프 지점까지의 거리 eta = 업데이트된 도착예정시간 duration = 반납 구간 시간 | location.point = trip.dropoff_point.point | trip_id = "trip_A" | waypoint_type = DROP_OFF_WAYPOINT_TYPE | path_to_waypoint = LatLng[] | 하차 구간의 첫 번째 LatLng | 하차 구간의 두 번째 LatLng | ... | 하차 구간의 마지막 LatLng | 이전과 다른 경우 하차 지점 | traffic_data | distance_meters = 픽업 지점부터 경로를 따라 드롭오프 지점까지의 거리 | eta = 업데이트된 도착예정시간 | duration = 반납 구간 시간 |
+| [1] | location.point = trip.dropoff_point.point |
+| trip_id = "trip_A" |
+| waypoint_type = DROP_OFF_WAYPOINT_TYPE |
+| path_to_waypoint = LatLng[] | 하차 구간의 첫 번째 LatLng |
+| 하차 구간의 두 번째 LatLng |
+| ... |
+| 하차 구간의 마지막 LatLng |
+| 이전과 다른 경우 하차 지점 |
+| traffic_data |
+| distance_meters = 픽업 지점부터 경로를 따라 드롭오프 지점까지의 거리 |
+| eta = 업데이트된 도착예정시간 |
+| duration = 반납 구간 시간 |
+
+연속 및 공유 풀링 여정의 경우 이 목록에는 이 여정 전에 이동할 다른 여정의 경유지가 포함될 수 있습니다. 예를 들어 이동 B가 이동 A와 동일한 차량에 할당되는 시나리오를 생각해 보세요. 그러면 여행 A의 remaining_waypoints 필드가 다음과 같이 채워집니다.
+간결성을 위해 대부분의 필드가 생략되었지만 이전 예시와 일관되게 채워집니다.
+
+| [0] | trip_id = "trip_A" |
+| --- | --- |
+| waypoint_type = PICKUP_WAYPOINT_TYPE |
+| [1] | trip_id = "trip_B" |
+| waypoint_type = PICKUP_WAYPOINT_TYPE |
+| [2] | trip_id = "trip_B" |
+| waypoint_type = DROP_OFF_WAYPOINT_TYPE |
+| [3] | trip_id = "trip_A" |
+| waypoint_type = DROP_OFF_WAYPOINT_TYPE |
+
+여행 B의 remaining_waypoint 필드는 유사하게 채워지지만 여행 A의 하차 지점은 여행 B의 경로에 포함되지 않으므로 처음 세 항목만 표시됩니다.
+참고: 현재 사용자의 여정이 아닌 다른 여정의 경유지를 표시할 때는 개인 정보 보호 영향을 신중하게 고려하세요.

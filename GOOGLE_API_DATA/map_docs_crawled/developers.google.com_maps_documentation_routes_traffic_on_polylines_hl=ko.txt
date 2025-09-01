@@ -1,0 +1,123 @@
+Source URL: https://developers.google.com/maps/documentation/routes/traffic_on_polylines?hl=ko
+Title: 경로 다중선 요청
+
+의견 보내기
+
+경로 다중선 요청
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+유럽 경제 지역 (EEA) 개발자
+
+청구서 수신 주소가 유럽 경제 지역에 있는 경우 2025년 7월 8일부터 서비스 사용 시 Google Maps Platform EEA 서비스 약관 [https://cloud.google.com/terms/maps-platform/eea?hl=ko]이 적용됩니다. 기능은 리전에 따라 다릅니다.
+자세히 알아보기 [https://developers.google.com/maps/comms/eea/faq?hl=ko]
+
+참고: Routes API의 Compute Route Matrix 기능에서는 다중선이 지원되지 않습니다.
+computeRoutes [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko] 메서드 (REST)와 ComputeRoutes [https://developers.google.com/maps/documentation/routes/reference/rpc/google.maps.routing.v2?hl=ko#google.maps.routing.v2.Routes.ComputeRoutes] 메서드 (gRPC)는 모두 응답의 일부로 다중선으로 표현된 경로를 반환합니다. 이 API는 두 가지 유형의 다중선을 반환합니다.
+
+기본 다중선 (기본값): 경로를 나타내지만 다중선에 교통정보가 삽입되지 않습니다. 기본 다중선이 반환되는 요청에는 Routes Basic 요금이 청구됩니다. Routes API의 결제에 대해 자세히 알아보세요 [https://developers.google.com/maps/documentation/routes/usage-and-billing?hl=ko].
+트래픽 인식 다중선: 경로의 교통 상황에 관한 정보가 포함됩니다. 교통상황은 다중선의 지정된 간격에 적용되는 속도 카테고리 (NORMAL, SLOW, TRAFFIC_JAM)로 표현됩니다. 교통 인식 다중선의 요청에는 Routes Preferred 요금이 청구됩니다. Routes API의 결제 자세히 알아보기 [https://developers.google.com/maps/documentation/routes/usage-and-billing?hl=ko] 자세한 내용은 다중선 품질 구성 [https://developers.google.com/maps/documentation/routes/config_trade_offs?hl=ko#polyline-quality]을 참고하세요.
+
+다중선에 관한 자세한 내용은 다음을 참고하세요.
+
+다중선에 대한 개념 정보 [https://developers.google.com/maps/documentation/automotive/attributes/concepts/segments?hl=ko#segment_polyline]
+대화형 폴리라인 인코더 유틸리티 [https://developers.google.com/maps/documentation/utilities/polylineutility?hl=ko]를 사용하면 UI에서 인코딩된 다중선을 만들거나 지도에 표시할 다중선을 디코딩할 수 있습니다. 예를 들어 이 유틸리티를 사용하여 아래 코드로 만든 다중선을 디코딩할 수 있습니다.
+참고: REST API에서 반환된 다중선의 특수문자는 JSON 이스케이프됩니다. 이러한 폴리라인을 대화형 폴리라인 인코더 유틸리티 [https://developers.google.com/maps/documentation/utilities/polylineutility?hl=ko]에 표시하려면 먼저 이스케이프 처리를 해제해야 합니다. JSON 이스케이프 해제를 실행하는 데 사용할 수 있는 여러 유틸리티가 있습니다(예: Freeformatter [https://www.freeformatter.com/json-escape.html]).
+
+경로, 구간 또는 단계의 기본 다중선 요청
+
+다중선은 다중선 [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko#polyline] (REST) 또는 다중선 [https://developers.google.com/maps/documentation/routes/reference/rpc/google.maps.routing.v2?hl=ko#polyline] (gRPC) 객체로 표시됩니다. 경로, 구간, 단계 수준의 응답에서 폴리라인을 반환할 수 있습니다.
+
+응답 필드 마스크 [https://developers.google.com/maps/documentation/routes/choose_fields?hl=ko]를 사용하여 반환할 다중선 지점을 지정합니다.
+
+경로 수준에서 응답 필드 마스크에 routes.polyline를 포함하여 응답에 다중선 객체를 반환합니다.
+구간 수준에서 routes.legs.polyline를 포함하여 경로의 각 구간에 대한 응답에 다중선 객체를 반환합니다.
+참고: 경로의 정류장을 나타내는 경유지에 대해 via가 false인 경우 각 구간은 두 경유지 간의 이동에 해당합니다. 예를 들어 중간 경유지가 없는 경로에는 구간이 하나만 있습니다. 정류장이 있는 중간 경로가 포함된 경로에는 두 개의 구간이 있습니다. via가 true로 설정된 중간 경유지가 하나 포함된 경로에는 구간이 하나 있습니다.
+단계 수준에서 routes.legs.steps.polyline를 포함하여 구간의 각 단계에 대한 응답에서 다중선 객체를 반환합니다.
+
+예를 들어 전체 경로, 각 구간, 각 구간의 각 단계에 대한 다중선 객체를 반환하려면 다음을 실행합니다.
+
+curl -X POST -d '{
+"origin":{
+"address": "1600 Amphitheatre Parkway, Mountain View, CA"
+
+예를 들어 요청 본문은 다음과 같습니다.
+
+"origin":{
+"location":{
+"latLng":{
+"latitude": 37.419734,
+"longitude": -122.0827784
+요청에서 TRAFFIC_AWARE 또는 TRAFFIC_AWARE_OPTIMAL 라우팅 환경설정을 지정합니다. 자세한 내용은 품질과 지연 시간 구성 [https://developers.google.com/maps/documentation/routes/config_trade_offs?hl=ko]을 참고하세요.
+응답 속성을 반환하도록 지정하는 응답 필드 마스크를 설정합니다.
+
+경로 수준에서 응답 필드 마스크에 routes.travelAdvisory를 포함하여 응답에 모든 이동 정보를 반환합니다. 트래픽 정보만 반환하려면 routes.travelAdvisory.speedReadingIntervals를 지정합니다.
+구간 수준에서 routes.legs.travelAdvisory를 포함하여 경로의 각 구간에 대한 응답에 모든 이동 정보를 반환합니다. 트래픽 정보만 반환하려면 routes.legs.travelAdvisory.speedReadingIntervals를 지정합니다.
+
+curl -X POST -d '{
+"origin":{
+"address": "1600 Amphitheatre Parkway, Mountain View, CA"
+SpeedReadingInterval 객체에는 NORMAL, SLOW, TRAFFIC_JAM와 같은 경로 간격의 속도 판독값이 포함됩니다. 전체 객체 배열은 경로의 전체 다중선을 겹치지 않게 덮습니다. 지정된 간격의 시작점은 이전 간격의 끝점과 동일합니다.
+
+모든 간격은 startPolylinePointIndex, endPolylinePointIndex, 해당 속도 카테고리로 설명됩니다. 간격 내에 시작 색인이 없으면 proto3 관행 [https://developers.google.com/protocol-buffers/docs/proto3?hl=ko#default]에 따라 색인 0과 일치합니다.
+
+startPolylinePointIndex 및 endPolylinePointIndex 값은 항상 연속적이지 않습니다. 예를 들면 다음과 같습니다.
+
+"startPolylinePointIndex": 2,
+"endPolylinePointIndex": 4,
+"speed": "NORMAL"
+Maps SDK로 교통 인식 폴리라인 렌더링
+
+폴리라인 구간에 따른 맞춤 색상, 획, 패턴 등 Google Maps SDK에서 제공하는 다양한 기능을 사용하여 지도에 교통 인식 폴리라인을 표시하는 것이 좋습니다. 다중선 사용에 관한 자세한 내용은 Android용 다중선 기능 [https://developers.google.com/maps/documentation/android-sdk/polygon-tutorial?hl=ko#java_4] 및 iOS용 다중선 기능 [https://developers.google.com/maps/documentation/ios-sdk/shapes?hl=ko]을 참고하세요.
+
+다중선 렌더링 예
+
+Maps SDK 사용자는 속도 카테고리와 다중선 렌더링 스키마 간에 맞춤설정된 매핑 로직을 정의할 수 있습니다. 예를 들어 '일반' 속도를 지도에 두꺼운 파란색 선으로 표시하고 '느림' 속도는 두꺼운 주황색 선으로 표시할 수 있습니다.
+
+다음 스니펫은 멜버른에서 퍼스까지의 최단 거리 보간을
+
+파란색의 굵은 다중선으로 추가합니다. 자세한 내용은 표시 형식 맞춤설정 [https://developers.google.com/maps/documentation/android-sdk/polygon-tutorial?hl=ko#add_custom_styling_to_your_polyline](Android용) 및 다중선 맞춤설정 [https://developers.google.com/maps/documentation/ios-sdk/shapes?hl=ko#customize-a-polyline] (iOS용)을 참고하세요.
+
+Android
+
+자바
+Polyline line = map.addPolyline(new PolylineOptions()
+.add(new LatLng(-37.81319, 144.96298), new LatLng(-31.95285, 115.85734))
+.width(25)
+.color(Color.BLUE)
+.geodesic(true));
+Kotlin
+val line: Polyline = map.addPolyline(
+PolylineOptions()
+.add(LatLng(-37.81319, 144.96298), LatLng(-31.95285, 115.85734))
+.width(25f)
+.color(Color.BLUE)
+.geodesic(true)
+
+iOS
+
+Objective-C
+GMSMutablePath *path = [GMSMutablePath path];
+[path addLatitude:-37.81319 longitude:144.96298];
+[path addLatitude:-31.95285 longitude:115.85734];
+GMSPolyline *polyline = [GMSPolyline polylineWithPath:path];
+polyline.strokeWidth = 10.f;
+polyline.strokeColor = .blue;
+polyline.geodesic = YES;
+polyline.map = mapView;
+Swift
+polyline.geodesic = true
+polyline.map = mapView
+
+경로 검색과 함께 인코딩된 다중선 사용
+
+Places API 텍스트 검색을 사용하여 계산된 경로를 따라 검색합니다. Routes API Compute Routes에서 사전 계산된 경로의 인코딩된 다중선 좌표를 텍스트 검색 요청에 전달합니다. 그러면 응답에는 검색 기준과 일치하고 지정된 경로 근처에 있는 장소가 포함됩니다. 자세한 내용은 경로를 따라 검색 [https://developers.google.com/maps/documentation/places/web-service/sar-overview?hl=ko]을 참고하세요.
+
+예를 들어 출발지와 목적지 사이의 경로에 있는 카페를 반환하려면 다음을 실행합니다.
+
+Node.js
+fetchResources(textSearch_service,textSearch_request).then(places => {
+
+의견 보내기

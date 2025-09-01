@@ -1,0 +1,174 @@
+Source URL: https://developers.google.com/maps/documentation/mobility/fleet-engine/journeys/trips/shared-pooling?hl=ko
+Title: 공유 풀링 여행 만들기
+
+공유 풀링 여행 만들기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 문서에서는 공유 풀링 여정을 만들고, 올바른 필드를 설정하고, 이를 차량에 할당하여 완료하는 방법을 설명합니다. Fleet Engine을 설정하고, 차량을 만들고, 작동하는 드라이버 앱과 선택적으로 소비자 앱이 있다고 가정합니다. 또한 주문형 이동에 사용할 수 있는 다양한 이동 시나리오에 익숙해야 합니다. 자세한 내용은 다음 관련 가이드를 참고하세요.
+
+Fleet Engine 설정 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/set-up-fleet?hl=ko]
+차량 만들기 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles/on-demand-create-vehicle?hl=ko]
+주문형 이동 개요의 이동 시나리오 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/trip-intro?hl=ko#trip-scenarios]
+
+여행 항목 만들기 기본사항
+
+이 섹션에서는 Fleet Engine에서 여정을 만드는 데 필요한 요청 세부정보를 설명합니다. gRPC와 REST 중 하나를 사용하여 생성 요청을 실행합니다.
+
+CreateTrip() 메서드: gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#maps.fleetengine.v1.TripService] 또는 REST [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/providers.trips/create?hl=ko]
+CreateTripRequest 메시지: gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#maps.fleetengine.v1.CreateTripRequest]만 해당
+
+참고: CreateTrip()를 사용하려면 Fleet Engine: 서비스 계정 역할 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/set-up-fleet/service-accounts?hl=ko]에 언급된 권한이 있는 계정의 사용자 인증 정보가 필요합니다.
+이동 필드
+
+다음 필드를 사용하여 Fleet Engine에서 여정을 만듭니다. 단일 또는 다중 목적지, 연속, 공유 풀링 여정 등 다양한 종류의 여정에 서로 다른 필드를 사용할 수 있습니다. 여행을 만들 때 선택사항 필드를 제공하거나 나중에 여행을 업데이트할 때 설정할 수 있습니다.
+
+| 이름 | 필수 여부 | 설명 |
+| --- | --- | --- |
+| parent | 예 | 프로젝트 ID가 포함된 문자열입니다. 이 ID는 동일한 서비스 계정 역할로 전체 Fleet Engine 통합에서 사용되는 ID와 동일해야 합니다. |
+| trip_id | 예 | 이 여정을 고유하게 식별하기 위해 사용자가 만드는 문자열입니다. 여행 ID에는 참조에 표시된 대로 특정 제한사항이 있습니다. |
+| trip_type | 예 | 생성 중인 여행 유형에 따라 TripType을 다음 값으로 설정합니다. 단일 대상: SHARED 또는 EXCLUSIVE로 설정합니다. 다중 대상: EXCLUSIVE로 설정합니다. 연속: EXCLUSIVE로 설정합니다. 공유 풀링: SHARED로 설정합니다. |
+| pickup_point | 예 | 여행의 출발지입니다. |
+| 중간 대상 | 예 | 다중 목적지 여정만 해당: 기사가 탑승과 하차 사이에 방문하는 중간 목적지 목록입니다. dropoff_point와 마찬가지로 이 필드는 나중에 UpdateTrip를 호출하여 설정할 수도 있지만 다중 목적지 여정에는 정의상 중간 목적지가 포함됩니다. |
+| vehicle_waypoints | 예 | 공유 풀링 여정만 해당: 이 필드는 여러 여정의 경유지를 인터리브하는 것을 지원합니다. 할당된 차량의 나머지 모든 경유지와 이 여정의 픽업 및 하차 경유지가 포함됩니다. CreateTrip 또는 UpdateTrip을 호출하여 이 필드를 설정할 수 있습니다. UpdateVehicle 호출을 통해 waypoints 필드를 사용하여 차량 경유지를 업데이트할 수도 있습니다. 개인 정보 보호를 위해 서비스는 GetTrip 호출에서 이 정보를 반환하지 않습니다. |
+| number_of_passengers | 아니요 | 여행의 승객 수입니다. |
+| dropoff_point | 아니요 | 여행의 목적지입니다. |
+| vehicle_id | 아니요 | 이동에 할당된 차량의 ID입니다. |
+
+예: 공유 풀링 여정 만들기
+
+다음 백엔드 통합 샘플은 여행을 만들고 공유 풀링 여행으로 차량에 할당하는 방법을 보여줍니다.
+static final String TRIP_ID = "shared-trip-A";
+static final String VEHICLE_ID = "your-vehicle-id";
+static final String TRIP_A_ID = "trip-a-id";
+static final String TRIP_B_ID = "trip-b-id";
+
+TripServiceBlockingStub tripService = TripService.newBlockingStub(channel);
+
+String parent = "providers/" + PROJECT_ID;
+
+LatLng tripBPickup =
+LatLng.newBuilder().setLatitude(-12.12314).setLongitude(88.142123).build();
+LatLng tripBDropoff =
+LatLng.newBuilder().setLatitude(-14.12314).setLongitude(90.142123).build();
+
+TerminalLocation tripBPickupTerminalLocation =
+TerminalLocation.newBuilder().setPoint(tripBPickup).build();
+TerminalLocation tripBDropoffTerminalLocation =
+TerminalLocation.newBuilder().setPoint(tripBDropoff).build();
+
+Trip tripB = Trip.newBuilder()
+.setTripType(TripType.SHARED)
+.setVehicleId(VEHICLE_ID)
+.setPickupPoint(tripBPickupTerminalLocation)
+.setDropoffPoint(tripBDropoffTerminalLocation)
+.addAllVehicleWaypoints(
+ImmutableList.of(
+TripWaypoint.newBuilder()
+.setLocation(tripBPickupTerminalLocation)
+.setTripId(TRIP_B_ID)
+.setWaypointType(WaypointType.PICKUP_WAYPOINT_TYPE)
+.build(),
+TripWaypoint.newBuilder()
+.setLocation(tripA.getDropoffPoint())
+.setTripId(TRIP_A_ID)
+.setWaypointType(WaypointType.DROP_OFF_WAYPOINT_TYPE)
+.build(),
+TripWaypoint.newBuilder()
+.setLocation(tripBDropoffTerminalLocation)
+.setTripId(TRIP_B_ID)
+.setWaypointType(WaypointType.DROP_OFF_WAYPOINT_TYPE)
+.build()))
+.build();
+
+CreateTripRequest createTripRequest = CreateTripRequest.newBuilder()
+.setParent(parent)
+.setTripId(TRIP_B_ID)
+.setTrip(tripB)
+.build();
+
+try {
+Trip createdTrip = tripService.createTrip(createTripRequest);
+Status s = e.getStatus();
+switch (s.getCode()) {
+case ALREADY_EXISTS:
+break;
+case PERMISSION_DENIED:
+break;
+Fleet Engine에서 이동 일정을 계산하고 추적하려면 Fleet Engine에서 생성된 모든 이동 일정을 차량에 할당해야 합니다. 여행을 만드는 동안 또는 나중에 여행을 업데이트할 때 이 작업을 수행할 수 있습니다.
+
+공유 풀링 여정의 경우 여정의 차량 경유지 (Trip.vehicle_waypoints) 컬렉션에서 방문하지 않은 경유지의 순서를 지정해야 합니다. Fleet Engine은 이 목록을 사용하여 공유 풀의 모든 여정에 대한 여정 경유지를 자동으로 업데이트합니다.
+
+예를 들어 이동 A와 이동 B라는 두 개의 공유 풀 이동이 있다고 가정해 보겠습니다.
+
+A 여정이 하차 위치로 이동 중입니다.
+그런 다음 이동 B가 동일한 차량에 추가됩니다.
+
+여행 B의 한 UpdateTripRequest에서 vehicleId를 설정하고 Trip.vehicle_waypoints를 최적의 경유지 순서인 B 탑승 → A 하차 → B 하차로 설정합니다.
+
+getVehicle()를 호출하면 다음을 포함하는 remainingWaypoints가 반환됩니다.
+B 승차 →
+A 하차 →
+B 하차
+
+getTrip() 또는 여정 A의 onTripRemainingWaypointsUpdated 콜백은 다음을 포함하는 remainingWaypoints를 반환합니다.
+B 승차 →
+A 하차
+
+여정 B의 getTrip() 또는 onTripRemainingWaypointsUpdated 콜백은 , B 승차 → A 하차 → B 하차를 포함하는 remainingWaypoints를 반환합니다.
+
+예
+
+다음 백엔드 통합 샘플은 차량 ID와 공유 풀 여행 2개의 경유지를 사용하여 여행을 업데이트하는 방법을 보여줍니다.
+static final String PROJECT_ID = "my-rideshare-co-gcp-project";
+static final String TRIP_A_ID = "share-trip-A";
+static final String TRIP_B_ID = "share-trip-B";
+static final String VEHICLE_ID = "Vehicle";
+
+String tripName = "providers/" + PROJECT_ID + "/trips/" + TRIP_B_ID;
+
+Trip tripA = …;
+Trip tripB = …;
+
+TripServiceBlockingStub tripService = TripService.newBlockingStub(channel);
+
+Trip trip = Trip.newBuilder()
+.setVehicleId(VEHICLE_ID)
+.addAllVehicleWaypoints(
+ImmutableList.of(
+TripWaypoint.newBuilder()
+.setLocation(tripB.getPickupPoint())
+.setTripId(TRIP_B_ID)
+.setWaypointType(WaypointType.PICKUP_WAYPOINT_TYPE)
+.build(),
+TripWaypoint.newBuilder()
+.setLocation(tripA.getDropoffPoint())
+.setTripId(TRIP_A_ID)
+.setWaypointType(WaypointType.DROP_OFF_WAYPOINT_TYPE)
+.build(),
+TripWaypoint.newBuilder()
+.setLocation(tripB.getDropoffPoint())
+.setTripId(TRIP_B_ID)
+.setWaypointType(WaypointType.DROP_OFF_WAYPOINT_TYPE)
+.build()))
+.build();
+
+UpdateTripRequest updateTripRequest = UpdateTripRequest.newBuilder()
+.setName(tripName)
+.setTrip(trip)
+.setUpdateMask(FieldMask.newBuilder()
+.addPaths("vehicle_id")
+.addPaths("vehicle_waypoints"))
+.build();
+
+Trip updatedTrip = tripService.updateTrip(updateTripRequest);
+Status s = e.getStatus();
+switch (s.getCode()) {
+case NOT_FOUND:          // Either the trip or vehicle does not exist.
+break;
+case PERMISSION_DENIED:
+break;
+case INVALID_REQUEST:    // vehicle_waypoints is invalid.
+break;

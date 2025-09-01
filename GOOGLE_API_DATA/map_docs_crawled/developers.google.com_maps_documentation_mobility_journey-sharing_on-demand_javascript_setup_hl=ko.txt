@@ -1,0 +1,82 @@
+Source URL: https://developers.google.com/maps/documentation/mobility/journey-sharing/on-demand/javascript/setup?hl=ko
+Title: JavaScript 소비자 SDK 설정
+
+JavaScript 소비자 SDK 설정
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+플랫폼 선택:
+
+Android [https://developers.google.com/maps/documentation/mobility/journey-sharing/on-demand/android/setup?hl=ko]
+
+iOS [https://developers.google.com/maps/documentation/mobility/journey-sharing/on-demand/ios/setup?hl=ko]
+
+JavaScript [https://developers.google.com/maps/documentation/mobility/journey-sharing/on-demand/javascript/setup?hl=ko]
+
+JavaScript Consumer SDK를 사용하면 소비자 앱이 웹 기반 지도에 Fleet Engine에서 추적되는 차량의 위치와 기타 관심 위치를 표시할 수 있습니다. 이를 통해 소비자는 운전자의 이동 경로 진행 상황을 확인할 수 있습니다.
+이 가이드에서는 연결된 Google Cloud 프로젝트 및 API 키를 사용하여 Fleet Engine을 설정했다고 가정합니다. 자세한 내용은 Fleet Engine [https://developers.google.com/maps/documentation/mobility/fleet-engine?hl=ko]을 참고하세요.
+
+다음 단계에 따라 JavaScript Consumer SDK를 설정합니다.
+
+Maps JavaScript API 사용 설정 [https://developers.google.com/maps/documentation/mobility/journey-sharing/on-demand/javascript/setup?hl=ko#enable-api]
+승인 설정하기 [https://developers.google.com/maps/documentation/mobility/journey-sharing/on-demand/javascript/setup?hl=ko#set-up-auth]
+
+Maps JavaScript API 사용 설정
+
+Google Cloud 콘솔에서 Maps JavaScript API를 사용 설정합니다. 자세한 내용은 Google Cloud 문서의 API 사용 설정 [https://cloud.google.com/apis/docs/getting-started?hl=ko#enabling_apis]을 참고하세요. 이렇게 하면 JavaScript용 Consumer SDK가 사용 설정됩니다.
+
+승인 설정하기
+
+Fleet Engine에서는 신뢰도가 낮은 환경(스마트폰 및 브라우저)에서 API 메서드를 호출할 때 JSON 웹 토큰(JWT)을 사용해야 합니다.
+
+JWT는 서버에서 생성되고 서명, 암호화되어 만료되거나 더 이상 유효하지 않을 때까지 후속 서버 상호작용을 위해 클라이언트에 전달됩니다.
+
+주요 세부정보
+
+애플리케이션 기본 사용자 인증 정보 [https://google.aip.dev/auth/4110]를 사용하여 Fleet Engine에 대해 인증하고 승인합니다.
+적절한 서비스 계정을 사용하여 JWT에 서명합니다. Fleet Engine 기본사항의 Fleet Engine 서비스 계정 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/set-up-fleet/service-accounts?hl=ko#fleet_engine_service_account_roles] 역할을 참고하세요.
+
+승인은 어떻게 작동하나요?
+
+Fleet Engine 데이터를 사용한 승인에는 서버 측 및 클라이언트 측 구현이 모두 포함됩니다.
+
+서버 측 승인
+
+웹 기반 애플리케이션에서 인증 및 승인을 설정하기 전에 백엔드 서버가 Fleet Engine에 액세스할 수 있도록 웹 기반 애플리케이션에 JSON 웹 토큰을 발급할 수 있어야 합니다. 웹 기반 애플리케이션은 요청과 함께 이러한 JWT를 전송하므로 Fleet Engine은 요청이 인증되었으며 요청의 데이터에 액세스할 권한이 있음을 인식합니다. 서버 측 JWT 구현에 관한 안내는 Fleet Engine 기본사항의 JSON 웹 토큰 발급 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/set-up-fleet/issue-jwt?hl=ko]을 참고하세요.
+
+특히 이동 경로 공유를 위한 JavaScript Consumer SDK의 경우 다음 사항에 유의하세요.
+
+JSON 웹 토큰 발급을 위한 일반 가이드라인 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/set-up-fleet/issue-jwt?hl=ko#general_guidelines]
+주문형 차량 JWT 가이드라인 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/set-up-fleet/issue-jwt?hl=ko#for_on-demand_trips]
+소비자 작업을 위한 토큰의 예 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/set-up-fleet/issue-jwt?hl=ko#example_token_for_a_consumer_app_operation]
+
+클라이언트 측 승인
+
+JavaScript Consumer SDK를 사용하면 승인 토큰 가져오기를 사용하여 서버에서 토큰을 요청합니다. 다음 중 하나가 참인 경우 이 작업을 실행합니다.
+
+SDK가 새로고침된 페이지에서 가져오기를 호출하지 않았거나 가져오기가 토큰을 반환하지 않은 경우와 같이 유효한 토큰이 없습니다.
+토큰이 만료되었습니다.
+토큰이 만료되기 1분 전입니다.
+
+그렇지 않으면 JavaScript Consumer SDK는 이전에 발급된 유효한 토큰을 사용하고 패처를 호출하지 않습니다.
+
+승인 토큰 가져오기 도구 만들기
+
+다음 가이드라인에 따라 승인 토큰 가져오기를 만듭니다.
+
+데이터 가져오기는 다음과 같이 Promise로 래핑된 두 필드가 있는 데이터 구조를 반환해야 합니다.
+
+문자열 token입니다.
+expiresInSeconds 숫자입니다. 토큰은 가져온 후 이 시간 후에 만료됩니다. 인증 토큰 가져오기는 가져온 시간부터 라이브러리까지의 만료 시간을 초 단위로 전달해야 합니다(예 참고).
+
+Fetcher는 서버의 URL을 호출하여 토큰을 가져와야 합니다. 이 URL(SERVER_TOKEN_URL)은 백엔드 구현에 따라 다릅니다. 다음 예시 URL은 GitHub의 샘플 앱 백엔드 [https://github.com/googlemaps/last-mile-fleet-solution-samples/tree/main/backend]용입니다.
+
+https://SERVER_URL/token/consumer/TRIPID
+
+예시 -- 인증 토큰 가져오기 프로그램 만들기
+
+다음 예에서는 승인 토큰 가져오기를 만드는 방법을 보여줍니다.
+
+자바스크립트async function authTokenFetcher(options) {

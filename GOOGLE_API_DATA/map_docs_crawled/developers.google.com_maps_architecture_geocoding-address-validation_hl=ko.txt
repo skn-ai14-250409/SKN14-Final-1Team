@@ -1,0 +1,232 @@
+Source URL: https://developers.google.com/maps/architecture/geocoding-address-validation?hl=ko
+Title: Google Maps Platform을 사용하여 위치 확인 기능 구축하기
+
+의견 보내기
+
+Google Maps Platform을 사용하여 위치 확인 기능 구축하기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+목표
+
+장소의 위치를 확인해야 하는 경우가 많습니다. Google Maps Platform에는 이 사용 사례에 도움이 되는 몇 가지 서비스가 있습니다.
+이 문서에서는 두 가지 기본 위치 유효성 검사 서비스인 Address Validation API와 Geocoding API 중에서 선택하는 방법을 설명합니다.
+
+Address Validation API [https://developers.google.com/maps/documentation/address-validation/reference/rest?hl=ko]는 고객이 주소가 정확한지 여부를 검증할 수 있도록 지원하는 Google Maps Platform의 제품입니다.
+
+Geocoding API [https://developers.google.com/maps/documentation/geocoding?hl=ko]를 사용한 지오코딩 [https://developers.google.com/maps/documentation/geocoding/requests-geocoding?hl=ko]은 주소를 지리적 좌표로 변환하는 과정으로, 이를 사용하여 지도에 마커를 배치하거나 지도에서 위치를 지정할 수 있습니다.
+
+주소 유효성 검사 API와 지오코딩 API의 차이점에 대한 개략적인 개요는 여기 [https://developers.google.com/maps/documentation/address-validation/overview?hl=ko#address-validation-api-vs-geocoding-api]에서 확인할 수 있습니다.
+
+지금 사용해 보기: Google Cloud 콘솔을 방문하여 Address Validation API [https://console.cloud.google.com/marketplace/product/google/addressvalidation.googleapis.com?utm_source=architecture_AV_geocoding&hl=ko]와 Places API [https://console.cloud.google.com/marketplace/product/google/places-backend.googleapis.com?utm_source=architecture_AV_geocoding&hl=ko]를 사용 설정하세요.
+
+Address Validation API와 Geocoding API의 선택 기준
+
+위 흐름 차트에 관한 참고사항:
+
+사용자 상호작용 사용 사례는 사용자가 결과를 확인하기 위해 직접 참여하는 경우를 말합니다.
+Places Autocomplete [https://developers.google.com/maps/documentation/javascript/examples/places-autocomplete?hl=ko]은 JavaScript API이므로 사용자 인터페이스와 통합하는 데 적합합니다.
+기존 주소에 데이터 품질 문제가 있을 수 있습니다. 따라서 지오코드만 필요하더라도 Address Validation API를 통해 해당 위치를 실행하여 데이터 세트를 수정하는 것이 좋습니다.
+
+위의 결정 트리에 따라 한 제품을 다른 제품보다 선택할 수 있는 상황이 많습니다. 하지만 목표를 달성하기 위해 두 제품을 모두 사용해야 하는 상황도 있을 수 있습니다.
+
+다음과 같은 경우 Geocoding API 대신 Address Validation API를 사용하는 것이 좋습니다.
+
+의심스러운 데이터가 있을 가능성이 높거나 잘못된 주소를 가져오면 다운스트림에 부정적인 영향을 미치는 경우 이는 Address Validation API가 입력에 높은 정밀도 결과가 제공되지 않은 이유에 관한 더 많은 의견을 제공하기 때문입니다.
+사용자 입력 (예: 철자 오류 또는 누락된 필드)을 수정해야 하므로 출력에서 정확한 결과가 나올 가능성이 높아집니다.
+타겟 지역은 Geocoding API에 비해 Address Validation API에서 더 많은 메타데이터를 반환합니다(예: 건물 유형을 주거용과 상업용으로 분류).
+
+다음과 같은 경우 Address Validation API 대신 Geocoding을 사용할 수 있습니다.
+
+기본 목표가 주소의 위치를 가져오는 것이며 개별 주소의 정확성은 중요하지 않을 수 있습니다.
+
+예를 들어 대규모 데이터 세트에서 히트맵을 생성할 수 있습니다.
+
+글로벌 솔루션이 필요하며 일부 타겟 지역에서는 Address Validation API를 사용할 수 없습니다.
+
+다음은 Geocoding API와 비교하여 Address Validation API 기능을 보여주는 몇 가지 예입니다.
+
+잘못된 주소의 예
+
+1 Fake St, Mountain View, CA 94043, USA
+
+Address Validation API는 이 입력을 개별 주소 구성요소 (거리, 도시, 주 등)로 분류합니다. 또한 주소가 유효하지 않은 이유를 PREMISE 수준까지 세부적으로 제공할 수 있습니다.
+
+Fake St는 캘리포니아주 마운틴뷰에 존재하지 않으며 Address Validation API는 반환된 구성요소 수준 세부정보에 이를 반영합니다.
+"componentName": {
+"text": "Fake St",
+"languageCode": "en"
+API 결과를 피드백으로 사용하면 이 입력의 거리 구성요소 (Fake St)에 문제가 있음을 추론할 수 있습니다.
+
+Geocoding API에서 동일한 주소를 사용하면 여기 [https://developers-dot-devsite-v2-prod.appspot.com/maps/documentation/utils/geocoder?hl=ko#q=1%2520Fake%2520St%252C%2520Mountain%2520View%252C%2520CA%252094043%252C%2520USA]에서 사용해 볼 수 있는 지오코딩 도구의 스크린샷에 표시된 대로 'California'와 일치시킬 수 있습니다.
+
+하지만 결과는 전체 주의 지오코드이며 입력의 어떤 구성요소에 오류가 있을 수 있는지에 관한 피드백은 최소한으로 제공됩니다.
+
+맞춤법 오류 예시
+
+76 Buckingamm Palace Road, Londn, SW1W 9TQ, GB
+
+위 주소에는 도로명과 지역에 각각 철자 오류가 있습니다.
+
+Address Validation API와 Geocoding API 모두 이러한 실수를 수정하고 76 Buckingham Palace Road, London, SW1W 9TQ라는 결과를 얻을 수 있습니다. 하지만 Address Validation API를 사용하면 절차에 대한 자세한 정보를 확인할 수 있습니다.
+
+입력 시 철자가 틀린 주소 구성요소 중 하나를 살펴보세요.
+"componentName": {
+"text": "Buckingham Palace Road",
+"languageCode": "en"
+Address Validation API는 필드가 수정되었음을 나타내는 플래그를 반환합니다. 비즈니스 로직은 이 플래그에 대해 구현되어 전자상거래 결제의 고객과 같은 데이터 제공자와 수정사항을 다시 확인할 수 있습니다.
+
+데이터 누락 및 맞춤법 오류 예
+
+Bollschestraße 86, 12587, DE
+
+위 주소에는 도로명에 맞춤법 오류가 있으며 베를린의 도시 (지역)가 누락되어 있습니다.
+
+Address Validation API는 이러한 두 오류를 모두 수정할 수 있으며 PREMISE [https://developers.google.com/maps/documentation/address-validation/reference/rest/v1/TopLevel/validateAddress?hl=ko#granularity] 수준 지오코드와 PREMISE 수준으로 확인된 주소를 반환합니다.
+Bölschestraße 86, 12587 Berlin, DE
+
+이 경우 Geocoding API는 입력 오류를 해결할 수 없으며 ZERO_RESULTS 결과를 반환합니다.
+
+추가 주소 메타데이터 예시
+
+111 8th Avenue Ste 123, New York, NY 10011-5201, US
+
+이 주소는 건물 내에 존재하지 않는 호수 (Ste 123)를 제외하고는 올바릅니다.
+
+Address Validation API는 주소를 PREMISE (111 8th Ave)로 검증하고 해당 주소가 상업용임을 포함한 부동산에 관한 일부 메타데이터를 제공할 수 있습니다.
+
+프레미스:
+"business": true
+
+또한 응답의 uspsData [https://developers.google.com/maps/documentation/address-validation/reference/rest/v1/TopLevel/validateAddress?hl=ko#uspsdata]에 포함되어 반환되는 dpvConfirmation 값은 S입니다.
+"dpvConfirmation": "S"
+
+dpvConfirmation 값이 S이면 주소가 PREMISE 수준으로 확인되었지만 입력에 제공된 동 번호가 해당 주소와 연결되지 않았음을 나타냅니다.
+
+Geocoding API는 이 정보를 제공할 수 없습니다.
+
+Geocoding API 응답 이해
+
+개요
+
+Geocoding API를 사용하는 경우 지오코드 결과에는 제공된 주소의 세부정보를 이해하는 데 사용할 수 있는 다양한 단서가 응답에 포함됩니다.
+
+Geocoding API는 계층 구조에서 주소 구성요소를 확인하는 방식으로 작동합니다.
+
+**예를 들어 123 Example Street, Chicago, 60007, USA는 다음 순서로 확인됩니다.
+
+/ Example Street/ Chicago/ 60007/ USA 가 이 순서대로 평가됩니다. 이 경우 첫 번째 일치 항목은 시카고이며, 더 구체적으로는 60007 우편번호입니다. 따라서 해당 우편번호에 대해 다음 Place_id를 반환합니다.
+
+ChIJwRKzf8ixD4gRHiXqucwr_HQ
+
+Geocode API는 응답에 다음 정보를 포함합니다.
+"partial_match": true,
+"place_id": "ChIJwRKzf8ixD4gRHiXqucwr_HQ",
+"types": [
+"postal_code"
+]
+
+Geocoding API를 사용하면 이 주소가 어떤 종류의 장소에 속하는지 확인할 수 있습니다. Geocoding API에서 반환된 주소 types 목록은 여기 [https://developers.google.com/maps/documentation/places/web-service/supported_types?hl=ko#table1]에서 확인할 수 있습니다.
+
+입력의 구성요소가 확인되지 않으면 API는 다음을 반환합니다.
+"results": [],
+"status": "ZERO_RESULTS"
+ROOFTOP은 반환된 결과가 정확한 지오코드이며, Google에 상세 주소 수준의 정확한 위치 정보가 있음을 나타냅니다.
+RANGE_INTERPOLATED는 반환된 결과가 일반적으로 도로에서 정확한 두 지점(예: 교차로) 간에 보간된 근사값을 반영함을 나타냅니다. 거리 주소에 루프톱 지오코드를 사용할 수 없는 경우에는 일반적으로 보간된 결과가 반환됩니다.
+GEOMETRIC_CENTER는 반환된 결과가 다중선 (예: 거리) 또는 다각형 (지역)과 같은 결과의 도형 중심임을 나타냅니다.
+APPROXIMATE는 반환된 결과가 위에 나열된 결과가 아님을 나타냅니다.
+
+Geocoding API가 ROOFTOP  또는 RANGE_INTERPOLATED의 location_type를 반환한다고 해서 주소가 반드시 존재하는 것은 아닙니다. 마찬가지로 Geocoding API가 partial_match 플래그가 true로 설정되어 반환되더라도 올바른 결과일 수 있습니다.
+
+이러한 유형의 잘못된 매칭은 Geocoding API로 해결하기 매우 어려운 문제입니다. 최소한 요청 / 응답의 국가 및 지역에 대한 기본적인 후처리 유효성 검사를 구현하는 것이 좋습니다. 맞춤법 오류 또는 불완전한 주소가 있는지 실제 상세 주소를 비교해 보는 것이 좋습니다.
+
+참고: Geocoding API를 사용하기로 한 경우 초기 요청과 Geocoding API 응답 간에 데이터 품질 검사를 정기적으로 실행하는 것이 좋습니다.
+
+부분 일치 및 잘못된 일치
+
+주소가 부분적으로 일치하는 경우(즉, Geocoding API가 주소를 정확하게 식별할 수 없는 경우) 응답에는 다음이 포함됩니다.
+"partial_match": true,
+"types": [
+"locality",
+"political"
+]
+
+위의 위치 유형보다 더 중요한 것은 대답에 partial_match = true이 있는 경우를 고려하는 것입니다. partial_match는 Geocoding API가 원래 요청에 대해 정확히 일치하는 결과를 반환하지 않았지만 요청된 주소의 일부분과 일치함을 나타냅니다.
+
+원래 요청에 불완전한 주소가 포함되어 있는지 검사할 수도 있습니다. 부분 일치는 요청에 지정된 지역 내에 상세 주소가 존재하지 않는 경우 가장 자주 발생합니다. 또한, 동일한 지역에서 한 요청에 대해 2개 이상의 위치가 일치하는 경우에도 부분 일치가 반환될 수 있습니다.
+
+예를 들어 '21 Henr St, Bristol, UK'는 Henry Street 및 Henrietta Street 모두에 대해 부분 일치를 반환합니다. 요청에 맞춤법이 틀린 주소 구성요소가 포함된 경우에는 Geocoding API에서 대체 주소를 제안할 수도 있습니다. 이러한 방식으로 실행된 제안은 부분 일치로 표시되지 않습니다.
+
+합성 주소
+
+Geocoding API는 Google 데이터베이스에 정확한 위치로 존재하지 않는 '합성' 주소의 위치를 반환할 수 있습니다.
+
+이러한 시나리오에서 응답 객체에는 긴 장소 ID와 geometry.location_type=APPROXIMATE 속성이 포함되는 경우가 많습니다.
+
+대답에서 이러한 표시기가 발견되면 입력 주소를 잘못된 것으로 표시하고 다른 방법으로 다시 유효성을 검사해 보세요.
+
+참고: Address Validation API를 사용하면 주소가 존재하지 않는 경우 직접적인 피드백을 받을 수 있는 또 다른 예입니다.
+
+Address Validation API 응답 이해
+
+Address Validation API의 응답을 이해하는 방법에 관한 훌륭한 문서가 이미 있으므로 여기서는 자세히 설명하지 않겠습니다.
+
+응답 객체 개요는 여기 [https://developers.google.com/maps/documentation/address-validation/requests-validate-address?hl=ko#response]에서 확인할 수 있습니다.
+대답의 다양한 구성요소를 보여주는 데모는 여기 [https://developers.google.com/maps/documentation/address-validation/demo?hl=ko]에 있습니다.
+결제 주소 유효성 검사 문서 [https://developers.google.com/maps/architecture/ecommerce-checkout-address-validation?hl=ko]에는 올바른 주소와 잘못된 주소를 구분하는 방법이 자세히 설명되어 있습니다.
+
+권장사항
+
+지역 지정
+
+주소 유효성 검사 API 또는 Geocoding API를 호출할 때는 해당 주소를 검색할 지리적 위치를 제한하는 것이 좋습니다. 두 API는 서로 다른 두 가지 방식으로 이를 구현합니다.
+
+Geocoding API - 지역 편향
+
+지오코드가 특정 국가 내에 있을 것으로 예상되는 경우 지역 상세 검색 [https://developers.google.com/maps/documentation/geocoding/overview?hl=ko#RegionCodes]을 사용하면 훨씬 더 나은 결과를 얻을 수 있습니다. 예를 들어 캐나다에서 지오코딩하는 경우 캐나다로 편향되도록 요청에 &region=ca를 추가하는 것이 좋습니다. 지역 상세 검색은 해당 지역 내의 결과만을 선택합니다. 지역 외부의 결과도 계속 표시될 수 있습니다.
+Address Validation API - 지역 코드
+
+마찬가지로 regionCode [https://developers.google.com/maps/documentation/address-validation/requests-validate-address?hl=ko#request] 필드를 사용하여 요청에 ISO2 [https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2] 코드를 전달하면 Address Validation API에서 더 정확한 결과를 생성합니다.
+
+장소 ID 저장하기
+
+향후 요청에 사용할 수 있도록 Google Maps Platform의 위치 정보를 저장하려면 내 데이터베이스에 위치의 속성으로 무기한 장소 ID를 저장 [https://developers.google.com/maps/documentation/places/web-service/place-id?hl=ko#save-id]할 수 있습니다. Find Place [https://developers.google.com/maps/documentation/places/web-service/search-find-place?hl=ko] 요청은 placeID당 한 번만 하면 됩니다. 또한 장소 ID는 사용자가 거래 세부정보를 요청할 때마다 검색할 수 있습니다.
+
+항상 최신 정보를 유지하려면 12개월마다 place_id 매개변수를 포함한 장소 세부정보 [https://developers.google.com/maps/documentation/places/web-service/details?hl=ko] 요청을 사용하여 장소 ID를 새로고침 [https://developers.google.com/maps/documentation/places/web-service/place-id?hl=ko#refresh-id]하세요.
+
+참고: 지오코딩에 관한 권장사항 가이드 [https://developers.google.com/maps/documentation/geocoding/best-practices?hl=ko]도 검토하세요.
+
+결론
+
+이 문서에서는 주소 유효성 검사 API와 지오코딩 API의 핵심 차이점을 설명합니다.  요약하자면 다음과 같은 경우 Address Validation API를 사용하는 것이 좋습니다.
+
+특히 수신 가능성을 위해 정확한 우편 주소가 필요합니다.
+입력 데이터의 품질이 낮은 것으로 알려져 있습니다. Address Validation API는 입력 오류에 더 관대하며, 확인할 수 없는 주소 구성요소를 강조 표시하고 입력 데이터를 수정합니다.
+주소에 대한 추가 정보가 필요합니다 (일부 지역에서 사용 가능). 예를 들어 거주용인지 상업용인지 등이 있습니다.
+
+다음 단계
+
+신뢰할 수 있는 주소로 결제, 배송, 운영 개선 [https://mapsplatform.withgoogle.com/address-validation-whitepaper/home.html?utm_source=architecture&utm_medium=website&utm_campaign=FY23-Q1-global-Maps-website-dl-GMP-AV-Whitepaper&utm_content=av_whitepaper] 백서를 다운로드하고 주소 확인으로 결제, 배송, 운영 개선 [https://mapsonair.withgoogle.com/events/improving-checkout-operations-with-address-validation-webinar?utm_source=architecture&utm_medium=website&utm_campaign=FY23-Q1-global-Maps-onlineevent-er-GMP-Improving-Ops-with-Address-Validation&utm_content=january_webinar] 웨비나를 시청하세요.
+
+추천 추가 자료:
+
+전자상거래 결제를 위한 주소 확인 [https://developers.google.com/maps/architecture/ecommerce-checkout-address-validation?hl=ko]
+Place Autocomplete 문서 [https://developers.google.com/maps/documentation/javascript/examples/places-autocomplete?hl=ko]
+Address Validation API 문서 [https://developers.google.com/maps/documentation/address-validation?hl=ko]
+Google Maps Platform 보고 [https://developers.google.com/maps/reporting-and-monitoring/reporting?hl=ko]
+
+참여자
+
+Google에서 이 도움말을 유지관리합니다. 다음 참여자가 원래 작성했습니다.
+
+주요 저자:
+
+헨리크 밸브 [https://www.linkedin.com/in/henrikvalve/] | 솔루션 엔지니어
+
+토마스 앙글라레 [https://www.linkedin.com/in/thomas-anglaret/] | 솔루션 엔지니어
+
+사르탁 강굴리 [https://www.linkedin.com/in/sarthakganguly/] | 솔루션 엔지니어
+
+의견 보내기
