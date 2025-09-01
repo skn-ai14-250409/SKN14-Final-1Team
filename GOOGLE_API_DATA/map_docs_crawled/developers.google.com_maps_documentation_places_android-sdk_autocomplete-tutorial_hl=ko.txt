@@ -1,0 +1,382 @@
+Source URL: https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko
+Title: 주소 양식에 Place Autocomplete 추가하기
+bookmark_border
+
+의견 보내기
+
+주소 양식에 Place Autocomplete 추가하기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용코드 가져오기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#get-the-code]API 사용 설정 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#enabling_apis]입력란에 자동 완성 추가하기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#autocomplete]Place Autocomplete 위젯 추가하기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#add-widget]Place Autocomplete에서 반환한 주소 처리하기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#handle-address]Place Autocomplete 구현 시 고려사항 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#considerations]주소에 대한 시각적 확인 제공하기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#visual]SupportMapFragment 추가하기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#fragment]핸들을 프래그먼트로 가져오고 콜백 등록하기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#callback]스타일을 지정하고 지도에 마커 추가하기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#styling]지도 컨트롤 사용 중지하기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#controls]
+
+배송지 주소, 청구 정보 또는 이벤트 정보를 입력할 때 Place Autocomplete [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete?hl=ko]가 사용 설정된 양식을 사용하면 사용자가 주소 정보를 입력할 때 키 입력 횟수와 실수를 줄일 수 있습니다. 이 튜토리얼에서는 Place Autocomplete를 사용하여 입력란을 사용 설정하고, 사용자가 선택한 주소의 주소 구성요소로 주소 양식 필드를 채우고, 시각적 확인을 지원하기 위해 지도에 선택한 주소를 표시하는 데 필요한 단계를 안내합니다.
+
+동영상: Place Autocomplete으로 주소 양식 개선하기
+
+[TAB_GROUP_PLACEHOLDER_0]
+
+Google Maps Platform은 Place Autocomplete 위젯을 모바일 플랫폼과 웹에 제공합니다. 위의 그림에서도 보았지만 이 위젯은 위치 범위를 지정한 검색에도 최적화할 수 있는 자동 완성 기능이 내장된 검색 대화상자를 제공합니다.
+
+코드 가져오기
+
+GitHub에서 Google Places SDK for Android 데모 저장소 [https://github.com/googlemaps-samples/android-places-demos]를 클론하거나 다운로드합니다.
+
+활동의 Java 버전을 확인하세요.
+
+코드 표시/숨기기
+/*
+* Copyright 2022 Google LLC
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*     https://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
+package com.example.placesdemo;
+
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.res.Resources;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.view.ViewStub;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.Toast;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+
+import com.example.placesdemo.databinding.AutocompleteAddressActivityBinding;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.GoogleMapOptions;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MapStyleOptions;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.libraries.places.api.Places;
+import com.google.android.libraries.places.api.model.AddressComponent;
+import com.google.android.libraries.places.api.model.AddressComponents;
+import com.google.android.libraries.places.api.model.Place;
+import com.google.android.libraries.places.api.model.TypeFilter;
+import com.google.android.libraries.places.api.net.PlacesClient;
+import com.google.android.libraries.places.widget.Autocomplete;
+import com.google.android.libraries.places.widget.model.AutocompleteActivityMode;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static android.Manifest.permission.ACCESS_FINE_LOCATION;
+import static com.google.maps.android.SphericalUtil.computeDistanceBetween;
+import androidx.activity.EdgeToEdge;
+
+/**
+* Activity for using Place Autocomplete to assist filling out an address form.
+*/
+@SuppressWarnings("FieldCanBeLocal")
+public class AutocompleteAddressActivity extends AppCompatActivity implements OnMapReadyCallback {
+
+private static final String TAG = "ADDRESS_AUTOCOMPLETE";
+private static final String MAP_FRAGMENT_TAG = "MAP";
+private LatLng coordinates;
+private boolean checkProximity = false;
+private SupportMapFragment mapFragment;
+private GoogleMap map;
+private Marker marker;
+private PlacesClient placesClient;
+private View mapPanel;
+private LatLng deviceLocation;
+private static final double acceptedProximity = 150;
+
+private AutocompleteAddressActivityBinding binding;
+
+View.OnClickListener startAutocompleteIntentListener = view -> {
+view.setOnClickListener(null);
+startAutocompleteIntent();
+new ActivityResultContracts.StartActivityForResult(),
+result -> {
+if (result.getResultCode() == Activity.RESULT_OK) {
+Intent intent = result.getData();
+if (intent != null) {
+Place place = Autocomplete.getPlaceFromIntent(intent);
+
+Log.d(TAG, "Place: " + place.getAddressComponents());
+fillInAddress(place);
+Log.i(TAG, "User canceled autocomplete");
+binding.autocompleteAddress1.setOnClickListener(startAutocompleteIntentListener);
+EdgeToEdge.enable(this);
+super.onCreate(savedInstanceState);
+
+binding = AutocompleteAddressActivityBinding.inflate(getLayoutInflater());
+setContentView(binding.getRoot());
+
+CheckBox checkProximityBox = findViewById(R.id.checkbox_proximity);
+checkProximityBox.setOnCheckedChangeListener((view, isChecked) -> {
+Button saveButton = findViewById(R.id.autocomplete_save_button);
+saveButton.setOnClickListener(v -> saveForm());
+
+Button resetButton = findViewById(R.id.autocomplete_reset_button);
+resetButton.setOnClickListener(v -> clearForm());
+List<Place.Field> fields = Arrays.asList(Place.Field.ADDRESS_COMPONENTS,
+Place.Field.LAT_LNG, Place.Field.VIEWPORT);
+
+Intent intent = new Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields)
+.setCountries(Arrays.asList("US"))
+.setTypesFilter(new ArrayList<String>() {{
+add(TypeFilter.ADDRESS.toString().toLowerCase());
+startAutocomplete.launch(intent);
+try {
+MapStyleOptions.loadRawResourceStyle(this, R.raw.style_json));
+
+if (!success) {
+Log.e(TAG, "Style parsing failed.");
+Log.e(TAG, "Can't find style. Error: ", e);
+marker = map.addMarker(new MarkerOptions().position(coordinates));
+AddressComponents components = place.getAddressComponents();
+StringBuilder address1 = new StringBuilder();
+StringBuilder postcode = new StringBuilder();
+
+String type = component.getTypes().get(0);
+switch (type) {
+case "street_number": {
+address1.insert(0, component.getName());
+break;
+address1.append(component.getShortName());
+break;
+break;
+break;
+break;
+
+case "administrative_area_level_1": {
+binding.autocompleteState.setText(component.getShortName());
+break;
+break;
+binding.autocompletePostal.setText(postcode.toString());
+
+getSupportFragmentManager().findFragmentByTag(MAP_FRAGMENT_TAG);
+
+GoogleMapOptions mapOptions = new GoogleMapOptions();
+mapOptions.mapToolbarEnabled(false);
+
+.beginTransaction()
+.add(R.id.confirmation_map, mapFragment, MAP_FRAGMENT_TAG)
+.commit();
+mapFragment.getMapAsync(this);
+map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f));
+if (mapPanel.getVisibility() == View.GONE) {
+mapPanel.setVisibility(View.VISIBLE);
+Log.d(TAG, "checkProximity = " + checkProximity);
+if (checkProximity) {
+checkLocationPermissions();
+Toast.makeText(
+this,
+R.string.autocomplete_skipped_message,
+Toast.LENGTH_SHORT)
+.show();
+binding.autocompleteAddress2.getText().clear();
+binding.autocompleteCity.getText().clear();
+binding.autocompleteState.getText().clear();
+binding.autocompletePostal.getText().clear();
+binding.autocompleteCountry.getText().clear();
+if (mapPanel != null) {
+mapPanel.setVisibility(View.GONE);
+registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+if (isGranted) {
+Log.d(TAG, "User denied permission");
+== PackageManager.PERMISSION_GRANTED) {
+getAndCompareLocations();
+ACCESS_FINE_LOCATION);
+LatLng enteredLocation = coordinates;
+map.setMyLocationEnabled(true);
+
+FusedLocationProviderClient fusedLocationClient =
+LocationServices.getFusedLocationProviderClient(this);
+
+fusedLocationClient.getLastLocation()
+.addOnSuccessListener(this, location -> {
+Log.d(TAG, "device location = " + deviceLocation);
+Log.d(TAG, "entered location = " + enteredLocation.toString());
+
+if (distanceInMeters <= acceptedProximity) {
+Log.d(TAG, "location matched");
+Log.d(TAG, "location not matched");
+
+이러한 권장사항을 구현하려면 Google Cloud 콘솔에서 다음 API를 사용 설정해야 합니다.
+
+Android용 Maps SDK [https://console.cloud.google.com/apis/library/maps-android-backend.googleapis.com?hl=ko]
+(또는 선택한 플랫폼에서 사용할 수 있는 API)
+Places API [https://console.cloud.google.com/apis/library/places-backend.googleapis.com?hl=ko]
+
+설정에 대한 자세한 내용은 Google Cloud 프로젝트 설정 [https://developers.google.com/maps/documentation/places/android-sdk/cloud-setup?hl=ko]을 참고하세요.
+
+입력란에 자동 완성 추가하기
+
+이 섹션에서는 주소 양식에 Place Autocomplete를 추가하는 방법을 설명합니다.
+
+Place Autocomplete 위젯 추가하기
+
+Android에서는 Autocomplete 인텐트 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete?hl=ko#option_2_use_an_intent_to_launch_the_autocomplete_activity]를 사용해
+자동완성 위젯을
+추가할 수 있습니다. 그러면 사용자가 처음 주소를 입력하는 주소 입력란
+1에서 Place Autocomplete이 실행됩니다. 사용자가 주소를 입력하기 시작하면
+Autocomplete 예상 검색어 목록에서 주소를 선택할 수 있습니다.
+
+먼저 앞서 시작된 활동의
+결과를
+수신 대기 [https://developer.android.com/training/basics/intents/result?hl=ko#launch]하는 ActivityResultLauncher [https://developer.android.com/reference/androidx/activity/result/ActivityResultLauncher?hl=ko]를
+사용해 활동 런처를 준비합니다. 결과 콜백에는 사용자가 Autocomplete
+예상 검색어 목록에서 선택하는 주소에 해당하는 Place 객체가
+포함됩니다.
+
+private final ActivityResultLauncher<Intent> startAutocomplete = registerForActivityResult(
+new ActivityResultContracts.StartActivityForResult(),
+result -> {
+if (result.getResultCode() == Activity.RESULT_OK) {
+Intent intent = result.getData();
+if (intent != null) {
+Place place = Autocomplete.getPlaceFromIntent(intent);
+
+Log.d(TAG, "Place: " + place.getAddressComponents());
+fillInAddress(place);
+Log.i(TAG, "User canceled autocomplete");
+List<Place.Field> fields = Arrays.asList(Place.Field.ADDRESS_COMPONENTS,
+Place.Field.LAT_LNG, Place.Field.VIEWPORT);
+
+Intent intent = new Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields)
+.setCountries(Arrays.asList("US"))
+.setTypesFilter(new ArrayList<String>() {{
+add(TypeFilter.ADDRESS.toString().toLowerCase());
+startAutocomplete.launch(intent);
+Place Autocomplete에서 반환한 주소 처리하기
+
+앞에서 ActivityResultLauncher를 정의했기 때문에 활동 결과가 콜백에서 반환될 때 실행할 작업도 정의되었습니다. 사용자가
+예상 목록에서 선택했다면 결과 객체에 포함된
+인텐트에서 전송됩니다. 인텐트는 Autocomplete.IntentBuilder로 빌드되었기 때문에
+메서드 Autocomplete.getPlaceFromIntent()가 인텐트에서 Place 객체를 추출할
+수 있습니다.
+
+private final ActivityResultLauncher<Intent> startAutocomplete = registerForActivityResult(
+new ActivityResultContracts.StartActivityForResult(),
+result -> {
+if (result.getResultCode() == Activity.RESULT_OK) {
+Intent intent = result.getData();
+if (intent != null) {
+Place place = Autocomplete.getPlaceFromIntent(intent);
+
+Log.d(TAG, "Place: " + place.getAddressComponents());
+fillInAddress(place);
+Log.i(TAG, "User canceled autocomplete");
+Place Autocomplete 구현 시 고려사항
+
+Place Autocomplete에는 위젯 그 이상을 사용하려는 경우
+유연하게 구현하기 위한 다양한 옵션이 있습니다. 일치하는 위치를
+적절한 방법으로 찾는 데 필요한 정확한 데이터를 얻기 위해 여러 서비스를
+조합하여 사용할 수 있습니다.
+
+주소 양식의 경우 유형 매개변수를 address로 설정하면 상세 주소 전체가
+일치하는 주소만 가져올 수 있습니다. Place Autocomplete 요청 시
+지원되는 유형 [https://developers.google.com/maps/documentation/places/android-sdk/supported_types?hl=ko#table3]에 대해 자세히 알아보세요.
+전 세계를 검색할 필요가 없다면 적절한 제한 및 상세 검색 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete?hl=ko#constrain_autocomplete_results]을 설정합니다. 특정 지역과 일치하는 데이터만 가져오기 위한 상세
+검색 또는 제한에 사용할 수 있는 다양한 매개변수가 있습니다.
+
+특정 지역으로 검색 범위를 제한하기 위해 직사각형 경계를 설정하려면
+RectangularBounds를 사용하고, 해당 지역의 주소만 반환되도록 하려면
+setLocationRestriction()을 사용합니다.
+응답을 몇 개의 특정 국가로만 제한하려면 setCountries()를 사용합니다.
+
+특정 필드가 검색에서 누락될 경우를 대비하여 필드를 수정 가능한 상태로 두고
+고객이 필요한 경우 주소를 업데이트할 수 있게 합니다. Place Autocomplete에서
+반환되는 대부분의 주소에는 아파트, 건물 번호, 호수 등의
+세부 주소가 포함되지 않으므로 필요한 경우 해당 정보를
+작성하도록 권장하기 위해 주소 입력란 2에 중점을 둡니다.
+
+주소에 대한 시각적 확인 제공하기
+
+주소 입력 시 지도에서 주소를 시각적으로 확인할 수 있는
+기능을 사용자에게 제공합니다. 이로써 사용자는 주소가 정확하게 입력된 것을 한 번 더 확인할
+수 있습니다.
+
+다음 그림은 입력된 주소에 핀이 표시된 지도가 주소 아래에 있는 모습을 보여줍니다.
+
+다음 예에서는 Android에서 지도를 추가하기 위한 기본 단계 [https://developers.google.com/maps/documentation/android-sdk/map?hl=ko]를
+따릅니다. 자세한 내용은 해당 문서를 참고하세요.
+
+SupportMapFragment 추가 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#fragment](이 경우 프래그먼트를 동적으로 추가)
+핸들을 프래그먼트로 가져오고 콜백 등록하기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#callback]
+스타일을 지정하고 지도에 마커 추가하기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#styling]
+지도 컨트롤 사용 중지하기 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#controls]
+
+SupportMapFragment 추가하기
+
+먼저 SupportMapFragment 프래그먼트를 레이아웃
+XML 파일 [https://github.com/googlemaps-samples/android-places-demos/blob/main/demo-java/app/src/main/res/layout/autocomplete_address_map.xml]에 추가합니다.
+
+<fragment
+android:name="com.google.android.gms.maps.SupportMapFragment"
+android:id="@+id/confirmation_map"
+android:layout_width="match_parent"
+android:layout_height="match_parent"/>
+
+이때 프래그먼트가 아직 없다면 프로그래매틱 방식으로 프래그먼트를 추가합니다.
+
+private void showMap(Place place) {
+coordinates = place.getLatLng();
+
+getSupportFragmentManager().findFragmentByTag(MAP_FRAGMENT_TAG);
+
+GoogleMapOptions mapOptions = new GoogleMapOptions();
+mapOptions.mapToolbarEnabled(false);
+
+.beginTransaction()
+.add(R.id.confirmation_map, mapFragment, MAP_FRAGMENT_TAG)
+.commit();
+mapFragment.getMapAsync(this);
+.findFragmentById(R.id.map) as SupportMapFragment
+mapFragment.getMapAsync(this)
+
+--- 탭: 자바 [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete-tutorial?hl=ko#%EC%9E%90%EB%B0%94] [None] ---
+SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+.findFragmentById(R.id.map);
+mapFragment.getMapAsync(this);
+
+스타일을 지정하고 지도에 마커 추가하기
+
+지도가 준비되면 스타일을 설정하고, 카메라를 중앙으로 이동한 후
+입력된 주소의 좌표에 마커를 추가합니다. 다음 코드에서는 JSON 객체에서
+정의한 스타일 지정을 사용하지만 그 밖에 클라우드 기반 지도
+스타일 지정 [https://developers.google.com/maps/documentation/android-sdk/cloud-based-map-styling?hl=ko]에서
+정의한 지도 ID를 로드하는 방법도 있습니다.
+
+@Override
+public void onMapReady(@NonNull GoogleMap googleMap) {
+map = googleMap;
+try {
+MapStyleOptions.loadRawResourceStyle(this, R.raw.style_json));
+
+if (!success) {
+Log.e(TAG, "Style parsing failed.");
+Log.e(TAG, "Can't find style. Error: ", e);
+marker = map.addMarker(new MarkerOptions().position(coordinates));

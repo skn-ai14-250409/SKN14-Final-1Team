@@ -1,0 +1,57 @@
+Source URL: https://developers.google.com/maps/documentation/mobility/driver-sdk/on-demand/android/migration-guide-v3?hl=ko
+Title: Android Driver SDK 3.0 이전 가이드
+
+Android Driver SDK 3.0 이전 가이드
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+참고: Android용 Driver SDK 4.0이 이제 정식 버전으로 제공됩니다. 자세한 내용은 Android Driver SDK 4.0 이전 가이드 [https://developers.google.com/maps/documentation/transportation-logistics/on-demand-rides-deliveries-solution/trip-order-progress/migrations/driver_sdk_v4_migration_guide?hl=ko]를 참고하세요.
+Android용 Driver SDK 3.0 출시에는 특정 작업을 위해 코드를 업데이트해야 합니다. 이 가이드에서는 변경사항과 코드를 이전하기 위해 해야 할 작업을 설명합니다.
+
+패키지 이름 변경
+
+패키지 이름이 com.google.android.libraries.ridesharing.driver에서 com.google.android.libraries.mapsplatform.transportation.driver으로 변경되었습니다. 코드에서 참조를 업데이트하세요.
+
+SDK 초기화
+
+이전 버전에서는 Navigation SDK를 초기화한 다음 FleetEngine 클래스에 대한 참조를 가져왔습니다. Driver SDK v3에서는 다음과 같이 SDK를 초기화합니다.
+
+NavigationApi에서 Navigator 객체를 가져옵니다.
+NavigationApi.getNavigator(
+this, // Activity
+new NavigationApi.NavigatorListener() {
+@Override
+public void onNavigatorReady(Navigator navigator) {
+
+필수 필드를 채워 DriverContext 객체를 만듭니다.
+DriverContext driverContext = DriverContext.builder(application)
+.setProviderId(providerId)
+.setVehicleId(vehicleId)
+.setAuthTokenFactory(authTokenFactory)
+.setNavigator(navigator)
+.setRoadSnappedLocationProvider(
+NavigationApi.getRoadSnappedLocationProvider(application))
+.build()
+
+DriverContext 객체를 사용하여 *DriverApi을 초기화합니다.
+
+API 객체에서 NavigationVehicleReporter를 가져옵니다.
+*VehicleReporter이 NavigationVehicleReporter을 확장합니다.
+
+위치 업데이트 사용 설정 및 사용 중지
+
+이전 버전에서는 FleetEngine 참조를 획득한 후 위치 업데이트를 사용 설정했습니다. 드라이버 SDK v3에서는 다음과 같이 위치 업데이트를 사용 설정합니다.
+
+보고 간격을 업데이트하려면 RidesharingVehicleReporter.setLocationReportingInterval(long, TimeUnit) 또는 DeliveryVehicleReporter.setLocationReportingInterval(long, TimeUnit)를 사용하세요.
+
+운전자의 교대 근무가 끝나면 NavigationVehicleReporter.disableLocationTracking()를 호출하여 위치 업데이트를 사용 중지하고 차량을 오프라인으로 표시합니다.
+
+StatusListener를 사용한 오류 보고
+
+ErrorListener이 삭제되고 StatusListener와 결합되었습니다. StatusListener는 다음과 같이 정의될 수 있습니다.
+class MyStatusListener implements StatusListener {
+StatusLevel statusLevel,
+StatusCode statusCode,
+String statusMsg) {

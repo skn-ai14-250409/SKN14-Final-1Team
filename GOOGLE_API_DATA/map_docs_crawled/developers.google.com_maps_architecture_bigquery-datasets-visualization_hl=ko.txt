@@ -1,0 +1,143 @@
+Source URL: https://developers.google.com/maps/architecture/bigquery-datasets-visualization?hl=ko
+Title: BigQuery 및 Datasets API를 사용한 데이터 시각화
+
+의견 보내기
+
+BigQuery 및 Datasets API를 사용한 데이터 시각화
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 문서에서는 Google Cloud BigQuery [https://cloud.google.com/bigquery?hl=ko] 및 Google Maps Platform Datasets API [https://developers.google.com/maps/documentation/datasets?hl=ko]에서 위치 데이터를 사용하여 지도 데이터 시각화를 만드는 참조 아키텍처와 예를 제공합니다. 예를 들어 개방형 시립 데이터를 분석하거나, 통신 범위 지도를 만들거나, 모바일 차량 이동 경로를 시각화할 수 있습니다.
+
+지도 데이터 시각화는 사용자의 참여를 유도하고 위치 데이터에서 공간 통계를 파악하는 강력한 도구입니다. 위치 데이터는 점, 선 또는 다각형 지형지물이 있는 데이터입니다. 예를 들어 날씨 지도는 소비자가 여행을 이해하고 계획하며 폭풍에 대비하는 데 도움이 되고, 비즈니스 인텔리전스 지도는 사용자가 데이터 분석에서 유용한 정보를 파악하는 데 도움이 되며, 통신 지도는 사용자가 특정 서비스 지역에서 제공업체의 서비스 범위와 품질을 이해하는 데 도움이 됩니다.
+
+하지만 앱 개발자가 성능이 우수하고 뛰어난 사용자 환경을 제공하는 대규모 지도 데이터 시각화를 만드는 것은 어렵습니다. 큰 데이터는 클라이언트 측 메모리에 로드해야 하므로 첫 번째 지도 로드 시간이 느려집니다. 시각적 요소는 메모리 및 GPU 제약이 있는 하위 모바일 휴대전화를 비롯한 모든 기기에서 성능이 우수해야 합니다. 마지막으로 개발자는 대규모 데이터에서 이식 가능하고 안정적이며 성능이 우수한 대규모 데이터 렌더링 라이브러리를 선택해야 합니다.
+
+참조 아키텍처
+
+대규모 데이터 시각화로 앱을 개발하려면 두 가지 주요 구성요소가 필요합니다.
+
+고객 백엔드 - 처리 및 저장과 같은 모든 백엔드 앱 데이터 및 서비스입니다.
+고객 클라이언트 - 지도 시각화 구성요소가 있는 앱 사용자 인터페이스입니다.
+
+다음은 이러한 두 구성요소가 앱 사용자, Google Cloud, Google Maps Platform과 상호작용하여 대규모 데이터 시각화 앱을 만드는 방법을 보여주는 시스템 다이어그램입니다.
+
+지금 사용해 보기: Google Cloud 콘솔을 방문하여 Maps Datasets API [https://console.cloud.google.com/marketplace/product/google/mapsplatformdatasets.googleapis.com?utm_source=architecture_visualization&hl=ko]를 사용 설정하세요.
+
+설계 고려사항
+
+Google Cloud 및 Google Maps Platform을 사용하여 성능이 우수한 데이터 시각화를 만들려면 따라야 하는 여러 설계 고려사항이 있습니다.
+
+소스 데이터 크기 및 업데이트 빈도
+
+geojson 형식의 소스 데이터가 5MB 미만이거나 매우 자주 업데이트되는 경우(예: 실시간 날씨 레이더 예측) 앱에서 클라이언트 측 geojson 객체로 데이터를 제공하고 deck.gl [https://developers.google.com/maps/architecture/bigquery-datasets-visualization/deck.gl?hl=ko] 레이어로 렌더링하는 것이 좋습니다.
+데이터 크기가 5MB를 초과하고 업데이트 빈도가 시간당 1회 이하인 경우 이 문서의 데이터 세트 API 아키텍처를 고려하세요.
+
+데이터 세트는 최대 350MB 크기의 파일 [https://developers.google.com/maps/documentation/datasets/create?hl=ko]을 지원합니다.
+데이터가 350MB보다 큰 경우 데이터 세트에 전달하기 전에 소스 파일에서 지오메트리 데이터를 정리하거나 단순화하는 것이 좋습니다 (아래의 데이터 정리 참고).
+
+스키마 및 형식
+
+각 기능에 전역적으로 고유한 ID 속성이 있는지 확인합니다. 고유 ID를 사용하면 특정 기능을 선택하고 스타일을 지정하거나 데이터를 기능에 조인하여 시각화할 수 있습니다(예: '클릭' 사용자 이벤트에서 선택한 기능의 스타일 지정).
+유효한 열 이름, 데이터 유형, GeoJSON 객체 유형을 사용하여 데이터 세트 API 사양 [https://developers.google.com/maps/documentation/datasets/create?hl=ko#dataset-geojson-requirements]에 따라 데이터를 CSV [https://developers.google.com/maps/documentation/datasets/create?hl=ko#dataset-csv-requirements] 또는 GeoJSON [https://developers.google.com/maps/documentation/datasets/create?hl=ko#dataset-geojson-requirements]으로 포맷합니다.
+BigQuery에서 데이터 세트를 쉽게 만들려면 SQL CSV 내보내기에서 wkt라는 열을 만드세요. 데이터 세트는 wkt이라는 열에서 잘 알려진 텍스트 [https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry] (WKT) 형식으로 CSV에서 도형을 가져오기 [https://developers.google.com/maps/documentation/datasets/create?hl=ko#dataset-csv-requirements]를 지원합니다.
+데이터가 유효한 도형 및 데이터 유형인지 확인합니다. 예를 들어 GeoJSON은 WGS84 좌표계, 도형 감기 순서 등을 따라야 합니다.
+geojson-validate [https://www.npmjs.com/package/geojson-validation]와 같은 도구를 사용하여 소스 파일의 모든 지오메트리가 유효한지 확인하거나 ogr2ogr [https://gdal.org/programs/ogr2ogr.html]을 사용하여 형식 또는 좌표계 간에 소스 파일을 변환합니다.
+
+데이터 정리
+
+기능의 속성 수를 최소화합니다. 런타임에 고유 식별자 키 (예 [https://developers.google.com/maps/architecture/dds-real-time?hl=ko])를 사용하여 기능에 추가 속성을 조인할 수 있습니다.
+가능한 경우 속성 객체에 정수 데이터 유형을 사용하여 타일 저장 공간을 최소화하고 클라이언트 앱에서 HTTPS를 통해 로드할 때 타일의 성능을 유지하세요.
+매우 복잡한 피처 지오메트리를 단순화하거나 집계합니다. 복잡한 다각형 지오메트리에 ST_Simplify [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_simplify]와 같은 BigQuery 함수를 사용하여 소스 파일 크기를 줄이고 지도 성능을 개선하는 것이 좋습니다.
+
+타일링
+
+Google Maps Datasets API는 웹 또는 모바일 Maps SDK에서 사용할 소스 데이터 파일에서 지도 타일을 만듭니다.
+지도 타일 [https://developers.google.com/maps/documentation/javascript/coordinates?hl=ko#:~:text=Tiles%20in%20Google%20Maps%20are,increasing%20from%20north%20to%20south.]은 시각적 앱에 데이터를 더 효율적으로 로드하는 방법을 제공하는 확대/축소 기반 색인 시스템입니다.
+지도 타일은 낮은 확대/축소 수준에서 밀도가 높거나 복잡한 기능을 삭제할 수 있습니다. 사용자가 주 또는 국가 (예: z5~z12)로 축소하면 도시 또는 동네 (예: z13~z18)로 확대했을 때와 다르게 보일 수 있습니다.
+
+예 - 런던의 철도
+
+이 예에서는 참조 아키텍처를 적용하여 Open Street Map [https://www.openstreetmap.org/] (OSM) 데이터에서 런던의 모든 철도를 시각화하는 Google Cloud 및 Google 지도 기반 웹 애플리케이션을 만듭니다.
+
+기본 요건
+
+BigQuery 샌드박스 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-cloud-console?hl=ko#expandable-1] 및 Cloud 콘솔 [https://cloud.google.com/bigquery/docs/quickstarts/quickstart-cloud-console?hl=ko] 액세스
+Google Cloud 프로젝트 및 결제 계정이 설정되어 있는지 확인합니다.
+
+1단계 - BigQuery에서 데이터 쿼리
+
+BigQuery 공개 데이터 세트 [https://cloud.google.com/bigquery/public-data?hl=ko]로 이동합니다. 'bigquery-public-data' 데이터 세트와 geo_openstreetmap.planet_features 테이블에는 가능한 모든 기능을 포함한 전 세계의 Open Street Map [https://www.openstreetmap.org/](OSM) 데이터가 포함되어 있습니다. amenity, road, landuse 등 OSM 위키 [https://wiki.openstreetmap.org/wiki/Map_features]에서 쿼리할 수 있는 모든 기능을 알아보세요.
+
+Cloud Shell [https://cloud.google.com/cloud-shell?hl=ko] 또는 BigQuery Cloud 콘솔 [https://console.cloud.google.com/?hl=ko]을 사용하여 SQL로 테이블을 쿼리합니다. 아래 코드 스니펫은 bq query [https://cloud.google.com/bigquery/docs/quickstarts/query-public-dataset-bq?hl=ko] 명령어를 사용하여 경계 상자와 ST_Intersects() [https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions?hl=ko#st_intersects] 함수를 사용하여 런던으로 필터링된 모든 철도를 쿼리합니다.
+
+Cloud Shell에서 이 쿼리를 실행하려면 다음 코드 스니펫을 실행하고 환경에 맞게 프로젝트 ID, 데이터 세트, 테이블 이름을 업데이트합니다.
+bq query --use_legacy_sql=false \
+--destination_table PROJECTID:DATASET.TABLENAME \
+--replace \
+'SELECT
+osm_id,
+feature_type,
+(SELECT value
+FROM   unnest(all_tags)
+WHERE  KEY = "name") AS name,
+(SELECT value
+FROM   unnest(all_tags)
+WHERE  KEY = "railway") AS railway,
+geometry as wkt
+FROM   bigquery-public-data.geo_openstreetmap.planet_features
+WHERE ("railway") IN (SELECT key FROM unnest(all_tags))
+AND ST_Intersects(
+geometry,
+ST_MakePolygon(ST_MakeLine(
+[ST_GeogPoint(-0.549370, 51.725346),
+ST_GeogPoint(-0.549370, 51.2529407),
+ST_GeogPoint(0.3110581, 51.25294),
+ST_GeogPoint(0.3110581, 51.725346),
+ST_GeogPoint(-0.549370, 51.725346)]
+))
+)'
+
+쿼리는 다음을 반환합니다.
+
+각 기능의 고유 식별자 osm_id
+feature_type(예: 점, 선 등)
+기능의 name(예: Paddington Station)
+railway 유형(예: main, tourism, military 등)
+지형지물의 wkt입니다. WKT 형식의 점, 선 또는 다각형 도형입니다. WKT는 BigQuery 지리 열이 쿼리에서 반환하는 표준 데이터 형식입니다.
+
+참고 - 데이터 세트를 만들기 전에 쿼리 결과를 시각적으로 검증하려면 Looker Studio [https://lookerstudio.google.com/?hl=ko]를 사용하여 BigQuery의 대시보드에서 데이터를 빠르게 시각화하면 됩니다.
+
+Google Cloud Storage 버킷의 CSV 파일로 테이블을 내보내려면 Cloud Shell에서 bq extract [https://cloud.google.com/bigquery/docs/exporting-data?hl=ko#exporting_table_data] 명령어를 사용합니다.
+bq extract \
+--destination_format "CSV" \
+--field_delimiter "," \
+--print_header=true \
+PROJECTID:DATASET.TABLENAME \
+gs://BUCKET/FILENAME.csv
+
+참고: Cloud Scheduler [https://cloud.google.com/scheduler?hl=ko]를 사용하여 각 단계를 자동화하여 데이터를 정기적으로 업데이트할 수 있습니다.
+
+2단계 - CSV 파일에서 데이터 세트 만들기
+
+그런 다음 Google Cloud Storage [https://cloud.google.com/storage?hl=ko] (GCS)의 쿼리 출력에서 Google Maps Platform 데이터 세트를 만듭니다. 데이터 세트 API [https://developers.google.com/maps/documentation/datasets/overview?hl=ko]를 사용하여 데이터 세트를 만들고 [https://developers.google.com/maps/documentation/datasets/create?hl=ko] GCS에 호스팅된 파일에서 데이터를 데이터 세트에 업로드 [https://developers.google.com/maps/documentation/datasets/create?hl=ko#upload_data_from_cloud_storage]할 수 있습니다.
+
+시작하려면 Google Cloud 프로젝트에서 Maps Datasets API를 사용 설정 [https://console.cloud.google.com/apis/library/mapsplatformdatasets.googleapis.com?hl=ko]하고 API 문서 [https://developers.google.com/maps/documentation/datasets/request?hl=ko]를 검토하세요. 앱 백엔드의 로직에서 Datasets API를 호출하기 위한 Python [https://developers.google.com/maps/documentation/datasets/client_libraries?hl=ko#python] 및 Node.js [https://developers.google.com/maps/documentation/datasets/client_libraries?hl=ko#node.js] 클라이언트 라이브러리가 있습니다.
+또한 Cloud 콘솔에서 데이터 세트를 수동으로 만들 수 있는 데이터 세트 GUI [https://developers.google.com/maps/documentation/javascript/dds-datasets/add-dataset-to-map?hl=ko]도 있습니다.
+
+데이터 세트 업로드가 완료되면 데이터 세트 GUI에서 데이터 세트를 미리 볼 수 있습니다.
+
+4단계 - 데이터 세트를 지도 ID와 연결하기
+
+데이터 세트를 만든 후 연결된 지도 스타일을 사용하여 지도 ID를 만들 수 있습니다 [https://developers.google.com/maps/documentation/javascript/dds-datasets/add-dataset-to-map?hl=ko]. 지도 스타일 편집기에서 mapId와 스타일을 데이터 세트와 연결할 수 있습니다. 여기에서 클라우드 기반 지도 스타일 지정 [https://developers.google.com/maps/documentation/cloud-customization/overview?hl=ko]을 적용하여 지도의 디자인과 분위기를 맞춤설정할 수도 있습니다.
+
+5단계 - 클라이언트 앱 지도 시각화 만들기
+
+마지막으로 Maps JS API [https://developers.google.com/maps/documentation/javascript/overview?hl=ko]를 사용하여 데이터 세트를 클라이언트 측 데이터 시각화 앱에 추가할 수 있습니다.
+이전 단계에서 데이터 세트와 연결된 mapID를 사용하여 지도 객체를 초기화합니다. 그런 다음 데이터 세트 레이어의 스타일과 상호작용을 설정합니다. 자세한 내용은 데이터 세트를 사용한 데이터 기반 스타일 지정 가이드 [https://developers.google.com/maps/documentation/javascript/dds-datasets/start?hl=ko]를 참고하세요.
+
+Maps JS API를 사용하여 스타일을 맞춤설정하고, 스타일을 동적으로 변경하는 이벤트 핸들러를 추가하는 등의 작업을 할 수 있습니다. 문서 [https://developers.google.com/maps/documentation/javascript/dds-datasets/style-data-features?hl=ko]의 예를 참고하세요.
+아래에서는 'feature_type' 속성을 기반으로 이 예의 포인트 및 선 기능 스타일을 만드는 setStyle 함수를 정의합니다.
+function setStyle(params) {

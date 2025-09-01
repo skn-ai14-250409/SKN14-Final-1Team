@@ -1,0 +1,199 @@
+Source URL: https://developers.google.com/maps/documentation/solar/calculate-costs-us?hl=ko
+Title: 태양광 비용 및 절감액 계산 (미국만 해당)
+
+의견 보내기
+
+태양광 비용 및 절감액 계산 (미국만 해당)
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+유럽 경제 지역 (EEA) 개발자
+
+청구서 수신 주소가 유럽 경제 지역에 있는 경우 2025년 7월 8일부터
+Google Maps Platform EEA 서비스 약관 [https://cloud.google.com/terms/maps-platform/eea?hl=ko]이 서비스 이용에 적용됩니다. 자세히 알아보기 [https://developers.google.com/maps/comms/eea/faq?hl=ko]
+또한 Solar API의 특정 콘텐츠가 더 이상 반환되지 않습니다.
+자세히 알아보기 [https://developers.google.com/maps/comms/eea/solar?hl=ko]
+
+이 문서에서는 Solar API가 태양광 패널 설치를 추천하고 미국 주소의 비용과 비용 절감을 추정하는 데 사용하는 다양한 값을 계산하는 방법을 설명합니다.
+
+미국 내 지원 지역의 거주지 주소를 입력하면 Solar API에 다음 추정치가 표시됩니다.
+
+주택이 연간 받는 일조량
+태양광 설치를 위한 지붕 공간
+태양광 시스템의 20년 수명 동안 가정에서 절약할 수 있는 금액(미국 달러)
+거주 지역의 평균 월별 전기 요금(가정에 맞게 조정 가능)
+주택의 태양광 시스템에 권장되는 크기(킬로와트(kW) 단위)
+
+Solar API는 데이터가 있는 모든 구조에 대한 추정치를 제공하지만, 제공되는 추정치는 주거용 또는 소규모 상업용 구조에 가장 적합합니다. Solar API는 가정에서 소비할 수 있는 것보다 많은 에너지를 연간 생산하지 않으면서 절감액을 극대화하는 태양광 설치 크기를 추천합니다. Solar API는 초과 에너지 생산과 관련된 값을 계산하지 않습니다.
+
+권장 설치 크기는 여러 이유로 연간 에너지 소비량으로 제한되지만, 주로 미국 가구에서 현재 초과 에너지 생산으로 인한 재정적 이점이 거의 없기 때문입니다. 순 계량기 [https://en.wikipedia.org/wiki/Net_metering]가 있는 미국 지역에서는 초과 에너지 생산으로 적립된 크레딧이 시간이 지남에 따라 만료되는 경우가 많습니다.
+
+미국 지역의 재무 분석에 필요한 값
+
+API 응답의 각 SolarPanelConfig [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#solarpanelconfig] 인스턴스에서 해당 인스턴스의 재무 분석을 실행하려면 다음 두 값이 필요합니다.
+
+panelsCount: 설치된 태양광 패널 수입니다. installationSize 계산에 이 값을 사용합니다.
+yearlyEnergyDcKwh: 특정 panelsCount가 주어졌을 때 1년 동안 레이아웃이 포착하는 일조량 에너지(DC kWh)입니다. 이 값을 사용하여 각 installationSize의 연간 태양 에너지 AC 생산량(initialAcKwhPerYear)을 계산합니다.
+
+또한 계산에 사용할 다음 변수의 위치별 값을 수집해야 합니다.
+
+billCostModel(): 특정 kWh를 사용하는 데 대해 가구에서 지불하는 비용을 현지 통화로 결정하는 모델입니다. 전력회사가 청구하는 전기 요금은 수요, 시간대, 가구에서 소비하는 전기량과 같은 요인에 따라 매일 또는 매시간 달라질 수 있습니다. 평균 비용을 추정해야 할 수도 있습니다.
+costIncreaseFactor: Solar API는 미국 위치에 1.022 (연간 2.2% 증가)를 사용합니다.
+dcToAcDerate: 인버터가 태양광 패널에서 생성된 DC 전력을 가정에서 사용되는 AC 전력으로 변환하는 효율성입니다. Solar API는 미국 위치에 85%를 사용합니다.
+discountRate: Solar API는 미국 위치에 1.04 (연간 4% 증가)를 사용합니다.
+efficiencyDepreciationFactor: 태양광 패널의 효율이 매년 얼마나 감소하는지입니다. Solar API는 미국 위치에 0.995 (연간 0.5% 감소)를 사용합니다.
+인센티브: 거주 지역의 정부 기관에서 제공하는 태양광 패널 설치에 대한 금전적 인센티브를 포함합니다.
+installationCostModel(): 지정된 installationSize에 대해 현지 통화로 태양광 설치 비용을 추정하는 메서드입니다. 비용 모델은 일반적으로 지정된 installationSize의 현지 인건비와 자재비를 고려합니다.
+installationLifeSpan: 태양광 설치의 예상 수명입니다.
+Solar API는 20년을 사용합니다. 지역에 맞게 이 값을 조정합니다.
+kWhConsumptionModel(): 월별 청구서를 기반으로 가구에서 소비하는 에너지 양을 결정하는 모델입니다. 가장 간단한 형태는 청구액을 거주 지역의 kWh당 평균 비용으로 나누는 것입니다.
+monthlyBill: 대상 가구의 월 평균 전기 요금입니다.
+monthlyKWhEnergyConsumption: 특정 위치의 가구에서 한 달에 소비하는 평균 전기량을 추정한 값입니다(단위: kWh).
+
+이러한 값과 API 응답에서 제공하는 정보를 사용하여 Solar API에서 다루지 않는 위치에 가장 적합한 installationSize를 추천하는 데 필요한 계산을 실행할 수 있습니다.
+
+작동 방식
+
+월 평균 전기 요금은 나머지 계산의 핵심입니다.
+
+Solar API는 처음에 사전 선택된 월별 청구 금액을 기반으로 계산합니다. 필요한 경우 자체 월별 평균 청구액을 더 정확하게 반영하는 다른 금액을 선택할 수 있습니다.
+
+특정 위치의 월별 청구액과 현재 전기 요금을 알고 있으면 Solar API가 가구에서 매달 소비하는 전기량(kWh)을 추정할 수 있습니다. 미국 전역의 현재 전기 요금을 확인하고 월별 요금에서 kWh를 확인하기 위해 Solar API는 Clean Power Research [https://developers.cleanpower.com/utility-rates-bill-savings/]에서 관리하는 데이터베이스를 참조합니다.
+
+Solar API는 가정에서 소비하는 kWh 수, 집 지붕의 사용 가능한 면적, 집 위치의 태양광 잠재력을 사용하여 하나 이상의 가능한 태양광 설치 규모를 평가하고 가장 많은 절감액을 제공하는 규모를 추천합니다.
+
+태양광 패널 설치 규모는 kW 등급으로 측정됩니다. kW 등급은 구성의 태양광 패널 수와 각 패널의 전력 등급(와트 단위)에 따라 달라집니다.
+
+설치의 kW 등급은 kWh로 측정되고 가변적인 설치의 에너지 출력과 동일하지 않습니다. 설치의 kWh 출력은 다음과 같은 요소에 따라 달라집니다.
+
+현재 시간
+날씨
+태양에 대한 패널의 방향
+주변 물체로 인해 패널에 드리워진 그림자
+지역별 태양광 잠재 발전량
+설치 기간
+
+Solar API는 태양광 발전 시스템의 연간 에너지 생산량을 추정할 때 지역별 태양광 잠재력, 설치 연령과 같은 요소를 고려합니다.
+
+지붕의 사용 가능한 면적을 확인하고 지붕에서 지원할 수 있는 태양광 발전 시스템 용량을 추정하기 위해 Solar API는 항공 이미지와 고급 3D 모델링을 사용합니다.
+
+값 및 계산에 대한 자세한 설명
+
+다음 섹션에서는 Solar API가 미국의 특정 구조물에 대한 태양광 설치 비용, 절감액, 크기를 계산하는 방법을 설명합니다.
+
+계산 설명에서는 용어를 사용하여 계산의 값을 나타냅니다. 용어에 대한 설명은 계산에 사용된 용어의 정의를 참고하세요.
+
+연간 가구 에너지 소비량
+
+앞서 언급한 바와 같이 Solar API는 월별 청구 금액과 가구가 위치한 지역의 전기 요금을 기준으로 월별 전기 소비량을 결정합니다. 가구의 월별 전기 소비량을 확인한 후 다음 수식을 사용하여 연간 에너지 소비량을 kWh로 계산합니다.
+
+annualKWhEnergyConsumption = monthlyKWhEnergyConsumption x 12
+
+태양광 발전 시스템의 수명 동안 가정의 에너지 소비량은 매년 동일하게 유지된다고 가정합니다. Solar API는 태양광 발전 시스템의 수명을 20년으로 가정합니다.
+
+연간 태양 에너지 생산량
+
+Solar API는 햇빛의 강도, 햇빛의 각도, 지역에서 연간 사용할 수 있는 햇빛 시간 수와 같은 요인을 고려하여 태양광 설치의 연간 에너지 생산량을 추정합니다.
+
+태양광 설비는 직류 (DC) 전기를 생산하며, 가정에서 사용하려면 인버터로 교류 (AC) 전기로 변환해야 합니다. 변환 과정에서 일부 전기가 손실되며 인버터의 효율성이 손실되는 양을 결정합니다.
+
+변환 프로세스의 효율성을 DC to AC derate라고 합니다. 손실을 고려하기 위해 Solar API는 태양광 설치의 연간 출력을 DC-AC 디레이트 0.85로 곱합니다. 결과는 다음 공식과 같이 AC 전기의 연간 생산량입니다.
+
+initialAcKwhPerYear = yearlyEnergyDcKwh x 0.85
+
+설치에서 생산하는 에너지 양은 설치 수명 동안 매년 약 0.5%씩 감소합니다. 이를 고려하기 위해 Solar API는 첫해 이후 설치의 연간 AC 출력을 설치의 예상 수명인 20년에 걸쳐 매년 99.5%(0.995)씩 곱합니다. 다음 표를 참고하세요.
+
+| 연도 | 연간 태양 에너지 생산량 (kWh) |
+| --- | --- |
+| 1 | initialAcKwhPerYear |
+| 2 | initialAcKwhPerYear x 0.995 |
+| : | : |
+| 20 | initialAcKwhPerYear x 0.99519 |
+
+태양광 패널 효율은 일정한 비율로 감소하므로 기본적으로 a = initialAcKwhPerYear, r = efficiencyDepreciationFactor인 기하급수입니다. 기하급수 합을 사용하여 LifetimeProductionAcKwh를 계산할 수 있습니다.
+
+LifetimeProductionAcKwh = (dcToAcDerate * initialAcKwhPerYear * (1 - pow(efficiencyDepreciationFactor, installationLifeSpan)) / (1 - efficiencyDepreciationFactor))
+
+태양광을 사용한 전기 요금
+
+지붕 크기나 기타 요인으로 인해 설치 크기가 제한되는 경우 태양광 발전 시스템에서 가정에서 소비하는 것보다 적은 전기를 생산할 수 있습니다. 이러한 경우 가구는 다음 공식에 따라 매년 일정량의 전기에 대한 공공요금을 지불해야 할 수 있습니다.
+
+annualKWhEnergyConsumption - initialAcKwhPerYear = annualUtilityEnergyRequired
+
+이 비용을 고려하기 위해 Solar API는 태양광 설치 수명 동안 가구에서 유틸리티로부터 필요로 하는 예상 전기량(kWh)에 청구 비용 모델을 적용합니다. 다음 공식은 이 계산을 보여줍니다.
+
+annualUtilityBillEstimate = billCostModel(utilityEnergyRequired)
+
+전기 요금의 연간 인상을 고려하기 위해 미국 지역에는 연간 2.2%(0.22)의 costIncreaseFactor를 적용합니다.
+
+costIncreaseFactor = 1 + 2.2% = 1.022
+
+인플레이션으로 인해 향후 비용 추정치에서 통화 가치를 할인해야 합니다. 이를 고려하기 위해 미국 위치의 모델에 4% 할인율 [https://en.wikipedia.org/wiki/Discounting]을 적용합니다.
+
+discountRate = 1 + 4% = 1.04
+
+다음 표는 태양광 설치 수명 동안 매년 공공요금 청구액이 계산되는 방식을 보여줍니다. remainingLifetimeUtilityBill은 태양광 설치의 수명인 20년 동안의 각 유틸리티 요금의 합계입니다.
+
+| 연도 | 현재 현지 통화 가치의 연간 공공요금 (USD) (annualUtilityBillEstimate) |
+| --- | --- |
+| 1 | billCostModel (yearlyKWhEnergyConsumption - initialAcKwhPerYear) = annualUtilityBillEstimateYear1 |
+| 2 | billCostModel (yearlyKWhEnergyConsumption - initialAcKwhPerYear x 0.995) x 1.022 / 1.04 = annualUtilityBillEstimateYear2 |
+| : | : |
+| 20 | billCostModel (yearlyKWhEnergyConsumption - initialAcKwhPerYear x 0.99519) x 1.02219 / 1.0419 = annualUtilityBillEstimateYear2 |
+| 합계 | remainingLifetimeUtilityBill = annualUtilityBillEstimateYear1 + annualUtilityBillEstimateYear2 + …. + annualUtilityBillEstimateYear20 |
+
+태양광이 없는 경우의 전기 비용
+
+태양광을 설치할 경우 가구에서 절약할 수 있는 금액을 계산하려면 태양광을 설치하지 않을 경우 가구에서 지불할 수 있는 금액도 계산해야 합니다.
+
+태양광으로 전기 요금을 계산할 때와 마찬가지로 costIncreaseFactor 1.022와 discountRate 1.04를 계산에 적용하여 전기 요금 인상과 인플레이션을 고려해야 합니다.
+
+다음 표는 태양광 설치 수명 동안 태양광이 없는 각 연도의 공공요금 청구액이 계산되는 방식을 보여줍니다. costOfElectricityWithoutSolar는 태양광을 설치한 경우의 전기 비용을 계산할 때 사용한 것과 동일한 20년 동안의 전기 요금의 합계입니다.
+
+| 연도 | 연간 공공요금 청구액 (USD) |
+| --- | --- |
+| 1 | monthlyBill x 12 |
+| 2 | monthlyBill x 12 x 1.022 / 1.04 |
+| : | : |
+| 20 | monthlyBill x 12 x 1.02219 / 1.0419 |
+| 합계 | 모든 연간 청구액의 합계입니다. costOfElectricityWithoutSolar = 204.35 x monthlyBill로도 표현할 수 있습니다. |
+
+태양광 설치 비용
+
+Solar API는 제공하는 추정치에 권장되는 태양광 구성 설치 비용을 포함합니다. 설치 비용을 추정하기 위해 Solar API는 현지화된 설치 비용 모델과 설치 크기를 사용합니다.
+
+installationCost = InstallationCostModel (installationSize)
+
+인센티브
+
+정부 기관에서 태양광 설치에 대한 인센티브를 제공할 수 있습니다. 인센티브는 세액 공제 형태로 제공되는 경우가 많습니다. 태양광 API는 가구의 위치를 기반으로 현재 가구에서 사용할 수 있는 인센티브를 총비용 추정치에서 차감합니다.
+
+태양광 설치 시 총비용
+
+Solar API는 다음 공식을 사용하여 태양광 구성의 총 20년 비용을 계산합니다.
+
+totalCostWithSolar = installationCost + remainingLifetimeUtilityBill - incentives
+
+총 절감액
+
+Solar API는 다음 공식을 사용하여 가구의 절감액을 계산합니다.
+
+savings = costOfElectricityWithoutSolar - totalCostWithSolar
+
+Solar API는 가능한 각 설치 크기에 대해 위의 계산을 수행한 다음 가구에 최대 절감액을 제공하는 설치 크기를 추천합니다. 예상 절감액은 추천과 함께 반환됩니다.
+
+이전
+
+arrow_back
+
+건물 검색 [https://developers.google.com/maps/documentation/solar/search-buildings?hl=ko]
+
+다음
+
+비용 및 절감액 계산 (미국 이외 지역)
+
+arrow_forward [https://developers.google.com/maps/documentation/solar/calculate-costs-non-us?hl=ko]
+
+의견 보내기

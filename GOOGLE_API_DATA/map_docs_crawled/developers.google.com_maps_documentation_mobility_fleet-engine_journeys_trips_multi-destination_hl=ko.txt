@@ -1,0 +1,156 @@
+Source URL: https://developers.google.com/maps/documentation/mobility/fleet-engine/journeys/trips/multi-destination?hl=ko
+Title: 다중 목적지 경로 만들기
+
+다중 목적지 경로 만들기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 문서에서는 여러 목적지가 있는 여정을 만들고, 올바른 필드를 설정하고, 이를 차량에 할당하여 완료하는 방법을 설명합니다. Fleet Engine을 설정하고, 차량을 만들고, 작동하는 드라이버 앱과 선택적으로 소비자 앱이 있다고 가정합니다. 또한 주문형 이동에 사용할 수 있는 다양한 이동 시나리오에 익숙해야 합니다. 자세한 내용은 다음 관련 가이드를 참고하세요.
+
+Fleet Engine 설정 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/set-up-fleet?hl=ko]
+차량 만들기 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles/on-demand-create-vehicle?hl=ko]
+주문형 이동 개요의 이동 시나리오 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/trip-intro?hl=ko#trip-scenarios]
+
+여행 항목 만들기 기본사항
+
+이 섹션에서는 Fleet Engine에서 여정을 만드는 데 필요한 요청 세부정보를 설명합니다. gRPC와 REST 중 하나를 사용하여 생성 요청을 실행합니다.
+
+CreateTrip() 메서드: gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#maps.fleetengine.v1.TripService] 또는 REST [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rest/v1/providers.trips/create?hl=ko]
+CreateTripRequest 메시지: gRPC [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#maps.fleetengine.v1.CreateTripRequest]만 해당
+
+참고: CreateTrip()를 사용하려면 Fleet Engine: 서비스 계정 역할 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/set-up-fleet/service-accounts?hl=ko]에 언급된 권한이 있는 계정의 사용자 인증 정보가 필요합니다.
+이동 필드
+
+다음 필드를 사용하여 Fleet Engine에서 여정을 만듭니다. 단일 또는 다중 목적지, 연속, 공유 풀링 여정 등 다양한 종류의 여정에 서로 다른 필드를 사용할 수 있습니다. 여행을 만들 때 선택사항 필드를 제공하거나 나중에 여행을 업데이트할 때 설정할 수 있습니다.
+
+| 이름 | 필수 여부 | 설명 |
+| --- | --- | --- |
+| parent | 예 | 프로젝트 ID가 포함된 문자열입니다. 이 ID는 동일한 서비스 계정 역할로 전체 Fleet Engine 통합에서 사용되는 ID와 동일해야 합니다. |
+| trip_id | 예 | 이 여정을 고유하게 식별하기 위해 사용자가 만드는 문자열입니다. 여행 ID에는 참조에 표시된 대로 특정 제한사항이 있습니다. |
+| trip_type | 예 | 생성 중인 여행 유형에 따라 TripType을 다음 값으로 설정합니다. 단일 대상: SHARED 또는 EXCLUSIVE로 설정합니다. 다중 대상: EXCLUSIVE로 설정합니다. 연속: EXCLUSIVE로 설정합니다. 공유 풀링: SHARED로 설정합니다. |
+| pickup_point | 예 | 여행의 출발지입니다. |
+| 중간 대상 | 예 | 다중 목적지 여정만 해당: 기사가 탑승과 하차 사이에 방문하는 중간 목적지 목록입니다. dropoff_point와 마찬가지로 이 필드는 나중에 UpdateTrip를 호출하여 설정할 수도 있지만 다중 목적지 여정에는 정의상 중간 목적지가 포함됩니다. |
+| vehicle_waypoints | 예 | 공유 풀링 여정만 해당: 이 필드는 여러 여정의 경유지를 인터리브하는 것을 지원합니다. 할당된 차량의 나머지 모든 경유지와 이 여정의 픽업 및 하차 경유지가 포함됩니다. CreateTrip 또는 UpdateTrip을 호출하여 이 필드를 설정할 수 있습니다. UpdateVehicle 호출을 통해 waypoints 필드를 사용하여 차량 경유지를 업데이트할 수도 있습니다. 개인 정보 보호를 위해 서비스는 GetTrip 호출에서 이 정보를 반환하지 않습니다. |
+| number_of_passengers | 아니요 | 여행의 승객 수입니다. |
+| dropoff_point | 아니요 | 여행의 목적지입니다. |
+| vehicle_id | 아니요 | 이동에 할당된 차량의 ID입니다. |
+
+예: 여러 목적지가 있는 여행 만들기
+
+다음은 픽업 지점, 하차 지점, 중간 목적지가 하나 있는 독점 다중 목적지 여정을 만드는 방법을 보여줍니다.
+static final String PROJECT_ID = "my-rideshare-co-gcp-project";
+static final String TRIP_ID = "multi-destination-trip-A";
+
+TripServiceBlockingStub tripService = TripService.newBlockingStub(channel);
+
+String parent = "providers/" + PROJECT_ID;
+
+Trip trip = Trip.newBuilder()
+.setTripType(TripType.EXCLUSIVE)
+.setPickupPoint(
+TerminalLocation.newBuilder().setPoint(
+LatLng.newBuilder()
+.setLatitude(-6.195139).setLongitude(106.820826)))
+.setNumberOfPassengers(1)
+.setDropoffPoint(
+TerminalLocation.newBuilder().setPoint(
+LatLng.newBuilder()
+.setLatitude(-6.1275).setLongitude(106.6537)))
+ImmutableList.of(
+TerminalLocation.newBuilder().setPoint(
+LatLng.newBuilder()
+.setLatitude(-6.195139).setLongitude(106.820826)).build()))
+.build();
+
+CreateTripRequest createTripRequest = CreateTripRequest.newBuilder()
+.setParent(parent)
+.setTripId(TRIP_ID)  // Trip ID assigned by the Provider server.
+.setTrip(trip)       // Initial state is NEW.
+.build();
+
+Trip createdTrip =
+tripService.createTrip(createTripRequest);
+Status s = e.getStatus();
+switch (s.getCode()) {
+case ALREADY_EXISTS:  // Trip already exists.
+break;
+case PERMISSION_DENIED:
+break;
+static final String TRIP_ID = "multi-destination-trip-A";
+
+String tripName = "providers/" + PROJECT_ID + "/trips/" + TRIP_ID;
+
+TripServiceBlockingStub tripService = TripService.newBlockingStub(channel);
+
+Trip trip = Trip.newBuilder()
+ImmutableList.of(
+TerminalLocation.newBuilder().setPoint(
+LatLng.newBuilder()
+.setLatitude(-6.195139).setLongitude(106.820826)).build()))
+.setVehicleId("8241890")
+.build();
+
+UpdateTripRequest updateTripRequest = UpdateTripRequest.newBuilder()
+.setName(tripName)
+.setTrip(trip)
+.setUpdateMask(
+FieldMask.newBuilder()
+.addPaths("intermediate_destinations")
+.addPaths("vehicle_id")
+.build())
+.build();
+
+Trip updatedTrip =
+tripService.updateTrip(updateTripRequest);
+Status s = e.getStatus();
+switch (s.getCode()) {
+case NOT_FOUND:            // The trip doesn't exist.
+break;
+case PERMISSION_DENIED:
+break;
+intermediateDestinationsVersion
+
+이렇게 하려면 TripStatus [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/trips/rpc/maps.fleetengine.v1?hl=ko#tripstatus] 열거형의 다음 값을 사용하세요.
+
+ENROUTE_TO_PICKUP
+ARRIVED_AT_PICKUP
+ENROUTE_TO_INTERMEDIATE_DESTINATION
+ARRIVED_AT_INTERMEDIATE_DESTINATION
+ENROUTE_TO_DROPOFF
+COMPLETE
+
+참고: 여정은 중간 목적지마다 ENROUTE_TO_INTERMEDIATE_DESTINATION와 ARRIVED_AT_INTERMEDIATE_DESTINATION를 한 번씩 통과해야 합니다.
+중간 목적지가 있는 여행의 예
+
+다음은 픽업 지점을 지나 첫 번째 중간 목적지로 이동 중인 다중 목적지 여정을 만드는 방법을 보여줍니다.
+static final String PROJECT_ID = "my-rideshare-co-gcp-project";
+static final String TRIP_ID = "multi-destination-trip-A";
+
+String tripName = "providers/" + PROJECT_ID + "/trips/" + TRIP_ID;
+
+Trip trip = …;
+
+TripServiceBlockingStub tripService = TripService.newBlockingStub(channel);
+
+Trip trip = Trip.newBuilder()
+.build();
+
+UpdateTripRequest updateTripRequest = UpdateTripRequest.newBuilder()
+.setName(tripName)
+.setTrip(trip)
+.setUpdateMask(
+FieldMask.newBuilder()
+.addPaths("trip_status")
+.addPaths("intermediate_destination_index")
+
+Trip updatedTrip =
+tripService.updateTrip(updateTripRequest);
+Status s = e.getStatus();
+switch (s.getCode()) {
+case NOT_FOUND:            // The trip doesn't exist.
+break;
+case FAILED_PRECONDITION:  // Either the trip status is invalid, or the
+case PERMISSION_DENIED:
+break;

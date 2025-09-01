@@ -1,0 +1,159 @@
+Source URL: https://developers.google.com/maps/documentation/address-validation/build-validation-logic?hl=ko
+Title: 유효성 검사 로직 빌드
+
+의견 보내기
+
+유효성 검사 로직 빌드
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 문서에서는 Address Validation API의 다양한 응답을 처리하는 주소 확인 시스템을 빌드하는 프로세스를 설명합니다. 여기에서는 고객에게 추가 정보를 요청할 시기와 방법을 결정하기 위해 API 응답을 해석하는 방법을 설명합니다.
+
+일반적으로 API 응답은 시스템에서 주소를 처리해야 하는 다음 방법을 결정합니다.
+
+handyman
+수정: 주소에 심각한 문제가 있을 수 있습니다.
+고객에게 추가 정보를 요청하는 것이 좋습니다.
+domain_add
+하위 건물 추가 - 주소에 하위 건물이 누락되었을 수 있습니다.
+고객에게 호수를 추가하라는 메시지를 표시하는 것이 좋습니다.
+edit
+확인: 주소에 사소한 문제가 있을 수 있습니다.
+고객에게 주소가 올바른지 확인하도록 요청하세요.
+check
+수락: 주소에 문제가 없을 수 있습니다.
+추가 프롬프트 없이 주소를 사용하는 경우 책임은 사용자에게 있습니다.
+
+키 용도
+
+이 문서는 API 응답을 가장 잘 분석하고 제공된 주소로 취할 다음 조치를 결정하도록 시스템을 수정하는 데 도움이 됩니다. 다음 의사 코드는 가능한 흐름을 보여줍니다.
+if (verdict.possibleNextAction == FIX)
+Prompt the user to fix the address.
+else if (verdict.possibleNextAction == CONFIRM_ADD_SUBPREMISES)
+Prompt the user to add a unit number.
+else if (verdict.possibleNextAction == CONFIRM)
+Confirm with the user that the address is correct.
+else
+Continue with the address returned by the API.
+
+정확한 로직은 상황에 따라 다릅니다. 자세한 내용은 유효성 검사 로직 맞춤설정 [https://developers.google.com/maps/documentation/address-validation/build-validation-logic?hl=ko#customize-logic]을 참고하세요.
+
+워크플로 예시
+
+아래 표에는 API 응답에 따라 고객에게 메시지를 표시하기 위해 구현할 수 있는 워크플로의 예가 요약되어 있습니다.
+
+| 시스템 동작 |
+| --- |
+| handyman 주소 수정 | verdict의 응답은 주소에 심각한 문제가 있을 수 있음을 나타냅니다. 예를 들어 verdict.possibleNextAction는 FIX입니다. 고객에게 추가 정보를 요청하는 것이 좋습니다. 워크플로 필요한 경우 주소 구성요소를 조사합니다. 고객에게 주소 문제를 해결하도록 안내합니다. 업데이트된 주소의 유효성 검사를 요청합니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. | 워크플로 필요한 경우 주소 구성요소를 조사합니다. 고객에게 주소 문제를 해결하도록 안내합니다. 업데이트된 주소의 유효성 검사를 요청합니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. |
+| 워크플로 필요한 경우 주소 구성요소를 조사합니다. 고객에게 주소 문제를 해결하도록 안내합니다. 업데이트된 주소의 유효성 검사를 요청합니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. |
+| domain_add 하위 건물 추가 | verdict의 응답은 주소에 하위 구역이 누락되었을 수 있음을 나타냅니다. 예를 들어 verdict.possibleNextAction는 CONFIRM_ADD_SUBPREMISES입니다. 고객에게 호수를 추가하라는 메시지를 표시하는 것이 좋습니다. 워크플로 고객에게 호수 번호를 추가하라는 메시지를 표시합니다. 업데이트된 주소의 유효성 검사를 요청합니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. | 워크플로 고객에게 호수 번호를 추가하라는 메시지를 표시합니다. 업데이트된 주소의 유효성 검사를 요청합니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. |
+| 워크플로 고객에게 호수 번호를 추가하라는 메시지를 표시합니다. 업데이트된 주소의 유효성 검사를 요청합니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. |
+| edit 주소 확인 | verdict의 응답은 주소에 사소한 문제가 있을 수 있음을 나타냅니다. 예를 들어 verdict.possibleNextAction는 CONFIRM입니다. 고객에게 주소를 검토하도록 요청하는 것이 좋습니다. 워크플로 수정이 필요한 부분: 필요한 경우 주소 구성요소를 조사합니다. 업데이트된 주소의 유효성 검사를 요청합니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. 수정할 필요가 없습니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. | 워크플로 수정이 필요한 부분: 필요한 경우 주소 구성요소를 조사합니다. 업데이트된 주소의 유효성 검사를 요청합니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. 수정할 필요가 없습니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. |
+| 워크플로 수정이 필요한 부분: 필요한 경우 주소 구성요소를 조사합니다. 업데이트된 주소의 유효성 검사를 요청합니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. 수정할 필요가 없습니다. (선택사항) API의 의견 엔드포인트로 요청을 보냅니다. 업데이트된 주소 처리를 참고하세요. 주소로 계속 진행합니다. |
+| check 주소 수락 | verdict의 응답은 주소에 문제가 없을 수 있음을 나타냅니다. 예를 들어 verdict.possibleNextAction는 ACCEPT입니다. 위험 수준에 따라 주소를 사용하세요. 워크플로 반품된 주소로 진행합니다. | 워크플로 반품된 주소로 진행합니다. |
+| 워크플로 반품된 주소로 진행합니다. |
+참고: 동일한 주소에 대해 Address Validation API에 요청을 반복하는 경우 provideValidationFeedback를 호출하여 결과를 나타낼 수 있습니다. 업데이트된 주소 처리 [https://developers.google.com/maps/documentation/address-validation/handle-updated-address?hl=ko]를 참고하세요.
+
+데모 사용해 보기 이 문서의 나머지 부분에서는 다양한 예를 사용하여 위에서 설명한 수정, 확인, 수락 흐름 프로세스를 이해하는 데 도움을 줍니다. Address Validation API 데모 [https://developers.google.com/maps/documentation/address-validation/demo?hl=ko]에 입력하여 이러한 예의 결과를 살펴볼 수 있습니다.
+
+유효성 검사 로직 맞춤설정
+
+verdict.possibleNextAction 필드의 결과를 사용하여 시스템이 API 응답을 처리하는 방법을 결정할 수 있지만 비즈니스별 요구사항을 처리하는 등 맞춤 로직을 빌드하는 것도 고려해 볼 수 있습니다.
+
+이 섹션의 목적은 고객에게 메시지를 표시할지 여부와 방법을 결정하기 위해 API 응답을 해석하는 맞춤 로직을 개발하는 방법을 설명하는 것입니다. 이 섹션에서는 맞춤설정에 고려해야 할 위험 수준과 추가 API 응답 신호를 다룹니다.
+
+하지만 verdict.possibleNextAction만으로 다음 단계를 결정하는 경우에도 아래에 설명된 추가 신호를 통해 주소의 잠재적 문제에 관한 세부정보를 파악할 수 있습니다.
+
+위험 허용 범위
+
+시스템이 Address Validation API의 신호에 응답하는 방식을 설계할 때 다음 권장사항을 따르면 더 효과적인 응답 모델을 빌드할 수 있습니다. 하지만 이는 추천일 뿐이므로 구현이 비즈니스 모델에 적합해야 합니다.
+
+|  | 안내 | 세부정보 |
+| --- | --- | --- |
+| 위험 수준 | 수정하라는 메시지를 표시하는 것과 입력된 주소를 그대로 수락하는 것 사이의 균형을 맞출 때 상황에 맞는 허용 수준을 고려하세요. | Address Validation API는 위험 수준과 통합하여 검증 프로세스를 최적화할 수 있는 다양한 신호를 반환합니다. 예를 들어 주소에 확인되지 않은 번지가 있는 경우에도 이를 수락할 수 있습니다. 반면 비즈니스 운영에 더 정확한 주소가 필요한 경우 사용자에게 메시지를 표시할 수 있습니다. 두 카테고리 중 하나에 속할 수 있는 예는 주소 수락 - 예의 미국 외 지역에서 확인되지 않은 번지수를 참고하세요. |
+| 주소 수락 | 고객이 프롬프트에 응답하지 않는 경우 시스템에서 원래 입력을 허용하는 것이 좋습니다. | 이 경우 고객이 시스템에 없는 주소(예: 신축 건물)를 입력했을 수 있습니다. |
+
+위험 회피형 결제 흐름 예시
+
+전송 실패 위험을 줄이려면 고객에게 더 자주 메시지를 표시하도록 로직을 맞춤설정하면 됩니다. 예를 들어 주요 목적 [https://developers.google.com/maps/documentation/address-validation/build-validation-logic?hl=ko#key-purpose] 섹션에 설명된 논리를 사용하는 대신 다음 논리를 사용할 수 있습니다.
+if (verdict.possibleNextAction == FIX or verdict.validationGranularity
+== OTHER or verdict.validationGranularity == ROUTE)
+Prompt customer to fix their address.
+else if (verdict.possibleNextAction == CONFIRM_ADD_SUBPREMISES)
+Prompt customer to add a unit number.
+else if (verdict.possibleNextAction == CONFIRM or verdict.validationGranularity
+== PREMISE_PROXIMITY or verdict.hasSpellCorrectedComponents or
+verdict.hasReplacedComponents or verdict.hasInferredComponents)
+Prompt customer to confirm their address.
+else
+Proceed with the returned address.
+
+마찰이 적은 결제 흐름 예
+
+결제 흐름의 불편함을 줄이려면 고객에게 메시지를 표시하는 빈도를 줄이도록 로직을 맞춤설정하면 됩니다. 예를 들어 주요 목적 [https://developers.google.com/maps/documentation/address-validation/build-validation-logic?hl=ko#key-purpose] 섹션에 설명된 논리를 사용하는 대신 다음 논리를 사용할 수 있습니다.
+if (verdict.possibleNextAction == FIX)
+Prompt customer to fix their address.
+else if (verdict.hasReplacedComponents)
+Prompt customer to confirm their address.
+else
+Proceed with the returned address.
+
+FIX 신호
+
+검색 결과에 주소로 배송되지 않을 수 있다고 명확하게 표시되는 경우 주소를 수정합니다. 그러면 시스템에서 고객에게 필요한 정보를 제공하라는 메시지를 표시할 수 있으며, 그 후에 워크플로를 다시 실행하여 배송 가능한 주소를 가져옵니다.
+
+Address Validation API 응답의 다음 필드를 verdict.possibleNextAction와 함께 사용하여 주소에 심각한 문제가 있는지, 문제가 무엇인지 확인할 수 있습니다.
+
+| 유효성 검사 세부사항 | 주소의 유효성 검사 세부사항 enum이 OTHER인 경우 주소가 잘못되었을 수 있습니다. |
+| --- | --- |
+| 누락된 구성요소 | address.missingComponentTypes가 비어 있지 않으면 주소에 핵심 정보가 누락되었을 가능성이 높습니다. |
+| 의심스러운 구성요소 | 구성요소의 확인 수준 enum이 UNCONFIRMED_AND_SUSPICIOUS이면 구성요소가 잘못되었을 수 있습니다. |
+| 해결되지 않은 구성요소 | unresolvedToken은 주소의 유효한 부분으로 인식되지 않는 입력의 일부입니다. |
+| USPS DPV 확인 | uspsData.dpvConfirmation이 N이거나 비어 있으면 주소에 문제가 있을 수 있습니다. 이 필드는 미국 주소에만 사용할 수 있습니다. uspsData.dpvConfirmation에 관한 자세한 내용은 미국 주소 처리를 참고하세요. |
+
+주소 수정 예 [https://developers.google.com/maps/documentation/address-validation/fix-address-example?hl=ko]
+
+CONFIRM_ADD_SUBPREMISES 신호 (미국 주소만 해당)
+
+Address Validation API 응답에 주소에 하위 건물이 누락되었을 수 있다고 표시되면 고객에게 주소를 검토하고 호수를 추가하도록 안내합니다. 이 경우 건물 주소는 유효할 수 있지만 결과 주소가 고객이 의도한 주소인지 더 확신하고 싶을 수 있습니다.
+
+verdict.possibleNextAction 외에도 Address Validation API 응답의 다음 필드를 사용하여 주소에 하위 구역이 누락되었을 가능성이 있는지 확인할 수 있습니다.
+
+| Missing subpremise component | address.missingComponentTypes 필드에 subpremise 값이 포함된 경우 주소에 단위 번호가 누락되었음을 나타냅니다. 참고: 필드에 subpremise 이외의 유형이 포함된 경우 작업은 FIX 카테고리에 속합니다. Geocoding 문서에서 구성요소 유형의 전체 목록을 참고하세요. |
+| --- | --- |
+| USPS DPV 확인 | uspsData.dpvConfirmation이 S인 경우 주소의 기본 번호가 USPS 데이터베이스의 주소와 일치했음을 의미합니다. 하지만 주소에는 보조 번호도 포함되어야 합니다. 이 필드는 미국 주소에만 사용할 수 있습니다. uspsData.dpvConfirmation에 관한 자세한 내용은 미국 주소 처리를 참고하세요. |
+
+하위 건물 주소 예 추가 [https://developers.google.com/maps/documentation/address-validation/add-subpremises-address-example?hl=ko]
+
+확인 신호
+
+평결에 Address Validation API가 검증된 주소를 생성하기 위해 주소 구성요소를 추론하거나 변경한 것으로 표시되면 주소를 확인합니다. 이 경우 배송 가능한 주소가 있지만 결과 주소가 고객이 의도한 주소인지 더 확실하게 확인하고 싶습니다.
+
+verdict.possibleNextAction 외에도 Address Validation API 응답의 다음 필드를 사용하여 주소에 사소한 문제가 있는지, 있다면 어떤 문제인지 확인할 수 있습니다.
+
+| 유효성 검사 세부사항 | 주소의 validationGranularity가 ROUTE 또는 PREMISE_PROXIMITY인 경우 주소가 잘못되었을 수 있습니다. |
+| --- | --- |
+| 추론된 데이터 | hasInferredComponents 필드가 true이면 API가 다른 주소 구성요소에서 수집한 정보를 입력한 것입니다. |
+| 교체된 데이터 | hasReplacedComponents 필드가 true인 경우 API는 입력된 데이터를 주소를 유효하게 만드는 것으로 간주되는 데이터로 대체했습니다. |
+| 맞춤법 수정 | hasSpellCorrectedComponents 필드가 true인 경우 API에서 철자가 틀린 일부 구성요소의 철자를 수정했습니다. |
+
+주소 확인 예 [https://developers.google.com/maps/documentation/address-validation/confirm-address-example?hl=ko]
+
+ACCEPT 신호
+
+주소 유효성 검사 API API 응답에서 주소가 배송 가능하며 다운스트림 프로세스에서 추가 고객 상호작용 없이 사용할 수 있다는 높은 신뢰도를 제공하는 경우 주소를 수락할 수 있습니다.
+참고: 주소를 수락할지 아니면 고객에게 추가 정보를 요청할지 결정할 때 위험 수준 [https://developers.google.com/maps/documentation/address-validation/build-validation-logic?hl=ko#risk-tolerance]을 고려하세요.
+verdict.possibleNextAction 외에도 Address Validation API 응답의 다음 필드를 사용하여 주소의 품질이 허용되는지 확인할 수 있습니다.
+
+| 유효성 검사 세부사항 | PREMISE의 validationGranularity는 허용되는 경우가 많지만 ROUTE 값은 여전히 배송 가능한 주소를 나타낼 수 있습니다. |
+| --- | --- |
+| 추론된 데이터 없음 | hasInferredComponents 필드가 false이면 출력의 구성요소가 추론되지 않았음을 알 수 있습니다. |
+| 대체된 데이터 없음 | hasReplacedComponents 필드가 false이면 입력 데이터가 대체되지 않았음을 알 수 있습니다. |
+| 맞춤법 수정 없음 | hasSpellCorrectedComponents 필드가 false이면 맞춤법 수정이 이루어지지 않았음을 알 수 있습니다. |
+| USPS DPV 확인 | uspsData.dpvConfirmation이 Y인 경우 주소가 USPS 데이터베이스의 주소와 일치한다는 의미입니다. 이 필드는 미국 주소에만 사용할 수 있습니다. uspsData.dpvConfirmation에 관한 자세한 내용은 미국 주소 처리를 참고하세요. |
+
+수락 주소 예 [https://developers.google.com/maps/documentation/address-validation/accept-address-example?hl=ko]
+
+의견 보내기
