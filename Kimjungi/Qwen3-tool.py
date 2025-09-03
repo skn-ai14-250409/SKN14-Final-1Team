@@ -40,7 +40,7 @@ system_message = """
 
 # Define LLM
 llm_cfg = {
-    "model": "qwen3:0.6b",
+    "model": "qwen3:4b",
     "model_server": "http://localhost:11434/v1",
     "api_key": "ollama",
     "generate_cfg": {
@@ -64,7 +64,9 @@ bot = Assistant(
 
 # Streaming generation
 messages = [
-    {"role": "user", "content": "1+3*6 계산해줘"},
+    {"role": "user", "content": "간장고추장 만들려면 간장 몇 스푼이 필요해?"},
+    {"role": "assistant", "content": "간장 고추장은 1/4 쪼이 필요합니다."},
+    {"role": "user", "content": "내가 아까 뭐라고 말했지?"},
 ]
 for responses in bot.run(messages=messages):
     pass
