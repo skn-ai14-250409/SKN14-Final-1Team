@@ -1,0 +1,239 @@
+Source URL: https://developers.google.com/maps/documentation/solar/visualize_data_layers
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Environment [https://developers.google.com/maps/environment?hl=ko]
+Solar API [https://developers.google.com/maps/documentation/solar?hl=ko]
+의견 보내기
+TypeScript에서 데이터 레이어 시각화
+데이터 레이어 [https://developers.google.com/maps/documentation/solar/data-layers?hl=ko] 응답은 GeoTIFF 파일 [https://en.wikipedia.org/wiki/GeoTIFF]로 제공됩니다. 자체 도구를 사용하여 관심 있는 데이터를 가져올 수 있습니다. 예를 들어 특정 지역의 온도 값을 보여주는 GeoTIFF 이미지가 있다고 가정해 보겠습니다. TypeScript를 사용하면 낮은 온도를 파란색으로, 높은 온도를 빨간색으로 매핑하여 온도 패턴을 시각화할 때 즉시 이해할 수 있는 다채로운 이미지를 만들 수 있습니다.
+이 TypeScript 코드는 GeoTIFF라는 특수 이미지 파일을 가져와 HTML 캔버스 (디지털 액자처럼)를 사용하여 웹사이트에 표시하도록 설계되었습니다. 이 코드는 다음 구성요소를 사용합니다.
+GeoTIFF 이미지: GeoTIFF는 여러 레이어의 이미지 데이터를 저장할 수 있으므로 지도 또는 과학적 분석에 유용합니다.
+RGB 이미지: 가장 일반적인 이미지 유형입니다 (예: 사진). 모든 픽셀에는 색상을 결정하는 빨간색, 녹색, 파란색 값이 있습니다.
+팔레트: 페인트 세트와 같습니다. 이미지에 색상을 지정하는 데 사용할 수 있는 사전 정의된 색상 목록이 포함되어 있습니다.
+이 페이지에서는 픽셀 데이터 값 (색상 값 및 기타 속성을 포함하여 디지털 이미지의 개별 픽셀에 저장된 정보)을 가져오고 GeoTIFF에서 위도와 경도를 계산하여 TypeScript 객체에 저장하는 방법을 보여줍니다.
+다음 코드 스니펫은 이 예에서 관심 있는 데이터를 저장하는 유형 정의를 보여줍니다. 필드와 데이터 유형은 TypeScript의 'type [https://www.typescripttutorial.net/typescript-tutorial/typescript-types]'입니다. 이 특정 예에서는 유형 검사를 허용하여 유형 오류를 줄이고 코드에 안정성을 추가하여 유지관리를 더 쉽게 할 수 있도록 했습니다. 픽셀 값과 위도/경도 경계 상자와 같은 여러 값을 반환하기 위해 해당 데이터를 저장할 유형을 정의합니다.
+export interface GeoTiff {
+  width: number;
+  height: number;
+  rasters: Array<number>[];
+  bounds: Bounds;
+}
+solar.ts [https://github.com/googlemaps-samples/js-solar-potential/blob/1892b99f1a8e4d7254c8b4426cfe9c8d492108b2/src/routes/solar.ts#L211-L216]
+참고: TypeScript 및 Google 지도 사용에 관한 가이드 [https://developers.google.com/maps/documentation/javascript/using-typescript?hl=ko]를 읽어 보세요.
+핵심 기능
+이 코드에는 함께 작동하는 여러 함수가 있습니다.
+renderRGB: RGB GeoTIFF 이미지와 선택적으로 마스크 (투명도용)를 가져와 웹사이트 캔버스 요소를 만들고 GeoTIFF의 각 픽셀을 통해 루프를 실행하고 캔버스에서 해당 픽셀에 색상을 지정합니다.
+renderPalette: 단일 데이터 레이어와 색상 팔레트가 있는 GeoTIFF를 가져와 GeoTIFF 데이터 값을 팔레트의 색상에 매핑하고, 팔레트 색상을 사용하여 새 RGB 이미지를 만들고, renderRGB를 호출하여 캔버스에 이미지를 표시합니다.
+/**
+ * Renders an RGB GeoTiff image into an HTML canvas.
+ *
+ * The GeoTiff image must include 3 rasters (bands) which
+ * correspond to [Red, Green, Blue] in that order.
+ *
+ * @param  {GeoTiff} rgb   GeoTiff with RGB values of the image.
+ * @param  {GeoTiff} mask  Optional mask for transparency, defaults to opaque.
+ * @return {HTMLCanvasElement}  Canvas element with the rendered image.
+ */
+export function renderRGB(rgb: GeoTiff, mask?: GeoTiff): HTMLCanvasElement {
+  // Create an HTML canvas to draw the image.
+  // https://www.w3schools.com/tags/canvas_createimagedata.asp
+  const canvas = document.createElement('canvas');
+
+  // Set the canvas size to the mask size if it's available,
+  // otherwise set it to the RGB data layer size.
+  canvas.width = mask ? mask.width : rgb.width;
+  canvas.height = mask ? mask.height : rgb.height;
+
+  // Since the mask size can be different than the RGB data layer size,
+  // we calculate the "delta" between the RGB layer size and the canvas/mask
+  // size. For example, if the RGB layer size is the same as the canvas size,
+  // the delta is 1. If the RGB layer size is smaller than the canvas size,
+  // the delta would be greater than 1.
+  // This is used to translate the index from the canvas to the RGB layer.
+  const dw = rgb.width / canvas.width;
+  const dh = rgb.height / canvas.height;
+
+  // Get the canvas image data buffer.
+  const ctx = canvas.getContext('2d')!;
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Fill in every pixel in the canvas with the corresponding RGB layer value.
+  // Since Javascript doesn't support multidimensional arrays or tensors,
+  // everything is stored in flat arrays and we have to keep track of the
+  // indices for each row and column ourselves.
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      // RGB index keeps track of the RGB layer position.
+      // This is multiplied by the deltas since it might be a different
+      // size than the image size.
+      const rgbIdx = Math.floor(y * dh) * rgb.width + Math.floor(x * dw);
+      // Mask index keeps track of the mask layer position.
+      const maskIdx = y * canvas.width + x;
+
+      // Image index keeps track of the canvas image position.
+      // HTML canvas expects a flat array with consecutive RGBA values.
+      // Each value in the image buffer must be between 0 and 255.
+      // The Alpha value is the transparency of that pixel,
+      // if a mask was not provided, we default to 255 which is opaque.
+      const imgIdx = y * canvas.width * 4 + x * 4;
+      img.data[imgIdx + 0] = rgb.rasters[0][rgbIdx]; // Red
+      img.data[imgIdx + 1] = rgb.rasters[1][rgbIdx]; // Green
+      img.data[imgIdx + 2] = rgb.rasters[2][rgbIdx]; // Blue
+      img.data[imgIdx + 3] = mask // Alpha
+        ? mask.rasters[0][maskIdx] * 255
+        : 255;
+    }
+  }
+
+  // Draw the image data buffer into the canvas context.
+  ctx.putImageData(img, 0, 0);
+  return canvas;
+}
+visualize.ts [https://github.com/googlemaps-samples/js-solar-potential/blob/1892b99f1a8e4d7254c8b4426cfe9c8d492108b2/src/routes/visualize.ts#L20-L84]
+참고: TypeScript 및 Google 지도 사용에 관한 가이드 [https://developers.google.com/maps/documentation/javascript/using-typescript?hl=ko]를 읽어 보세요.
+도우미 함수
+이 코드에는 추가 기능을 지원하는 여러 도우미 함수도 포함되어 있습니다.
+createPalette: 16진수 색상 코드 목록을 기반으로 이미지에 색상을 지정하는 데 사용할 색상 목록을 만듭니다.
+colorToRGB: '#FF00FF'와 같은 색상 코드를 빨간색, 녹색, 파란색 구성요소로 변환합니다.
+normalize, lerp, clamp: 이미지 처리를 위한 수학 도우미 함수입니다.
+/**
+ * Renders a single value GeoTiff image into an HTML canvas.
+ *
+ * The GeoTiff image must include 1 raster (band) which contains
+ * the values we want to display.
+ *
+ * @param  {GeoTiff}  data    GeoTiff with the values of interest.
+ * @param  {GeoTiff}  mask    Optional mask for transparency, defaults to opaque.
+ * @param  {string[]} colors  Hex color palette, defaults to ['000000', 'ffffff'].
+ * @param  {number}   min     Minimum value of the data range, defaults to 0.
+ * @param  {number}   max     Maximum value of the data range, defaults to 1.
+ * @param  {number}   index   Raster index for the data, defaults to 0.
+ * @return {HTMLCanvasElement}  Canvas element with the rendered image.
+ */
+export function renderPalette({
+  data,
+  mask,
+  colors,
+  min,
+  max,
+  index,
+}: {
+  data: GeoTiff;
+  mask?: GeoTiff;
+  colors?: string[];
+  min?: number;
+  max?: number;
+  index?: number;
+}): HTMLCanvasElement {
+  // First create a palette from a list of hex colors.
+  const palette = createPalette(colors ?? ['000000', 'ffffff']);
+  // Normalize each value of our raster/band of interest into indices,
+  // such that they always map into a value within the palette.
+  const indices = data.rasters[index ?? 0]
+    .map((x) => normalize(x, max ?? 1, min ?? 0))
+    .map((x) => Math.round(x * (palette.length - 1)));
+  return renderRGB(
+    {
+      ...data,
+      // Map each index into the corresponding RGB values.
+      rasters: [
+        indices.map((i: number) => palette[i].r),
+        indices.map((i: number) => palette[i].g),
+        indices.map((i: number) => palette[i].b),
+      ],
+    },
+    mask,
+  );
+}
+
+/**
+ * Creates an {r, g, b} color palette from a hex list of colors.
+ *
+ * Each {r, g, b} value is a number between 0 and 255.
+ * The created palette is always of size 256, regardless of the number of
+ * hex colors passed in. Inbetween values are interpolated.
+ *
+ * @param  {string[]} hexColors  List of hex colors for the palette.
+ * @return {{r, g, b}[]}         RGB values for the color palette.
+ */
+export function createPalette(hexColors: string[]): { r: number; g: number; b: number }[] {
+  // Map each hex color into an RGB value.
+  const rgb = hexColors.map(colorToRGB);
+  // Create a palette with 256 colors derived from our rgb colors.
+  const size = 256;
+  const step = (rgb.length - 1) / (size - 1);
+  return Array(size)
+    .fill(0)
+    .map((_, i) => {
+      // Get the lower and upper indices for each color.
+      const index = i * step;
+      const lower = Math.floor(index);
+      const upper = Math.ceil(index);
+      // Interpolate between the colors to get the shades.
+      return {
+        r: lerp(rgb[lower].r, rgb[upper].r, index - lower),
+        g: lerp(rgb[lower].g, rgb[upper].g, index - lower),
+        b: lerp(rgb[lower].b, rgb[upper].b, index - lower),
+      };
+    });
+}
+
+/**
+ * Convert a hex color into an {r, g, b} color.
+ *
+ * @param  {string} color  Hex color like 0099FF or #0099FF.
+ * @return {{r, g, b}}     RGB values for that color.
+ */
+export function colorToRGB(color: string): { r: number; g: number; b: number } {
+  const hex = color.startsWith('#') ? color.slice(1) : color;
+  return {
+    r: parseInt(hex.substring(0, 2), 16),
+    g: parseInt(hex.substring(2, 4), 16),
+    b: parseInt(hex.substring(4, 6), 16),
+  };
+}
+
+/**
+ * Normalizes a number to a given data range.
+ *
+ * @param  {number} x    Value of interest.
+ * @param  {number} max  Maximum value in data range, defaults to 1.
+ * @param  {number} min  Minimum value in data range, defaults to 0.
+ * @return {number}      Normalized value.
+ */
+export function normalize(x: number, max: number = 1, min: number = 0): number {
+  const y = (x - min) / (max - min);
+  return clamp(y, 0, 1);
+}
+
+/**
+ * Calculates the linear interpolation for a value within a range.
+ *
+ * @param  {number} x  Lower value in the range, when `t` is 0.
+ * @param  {number} y  Upper value in the range, when `t` is 1.
+ * @param  {number} t  "Time" between 0 and 1.
+ * @return {number}    Inbetween value for that "time".
+ */
+export function lerp(x: number, y: number, t: number): number {
+  return x + t * (y - x);
+}
+
+/**
+ * Clamps a value to always be within a range.
+ *
+ * @param  {number} x    Value to clamp.
+ * @param  {number} min  Minimum value in the range.
+ * @param  {number} max  Maximum value in the range.
+ * @return {number}      Clamped value.
+ */
+export function clamp(x: number, min: number, max: number): number {
+  return Math.min(Math.max(x, min), max);
+}
+visualize.ts [https://github.com/googlemaps-samples/js-solar-potential/blob/1892b99f1a8e4d7254c8b4426cfe9c8d492108b2/src/routes/visualize.ts#L88-L220]
+참고: TypeScript 및 Google 지도 사용에 관한 가이드 [https://developers.google.com/maps/documentation/javascript/using-typescript?hl=ko]를 읽어 보세요.
+이전 arrow_back GeoTIFF 파일 정보 [https://developers.google.com/maps/documentation/solar/geotiff?hl=ko]
+의견 보내기

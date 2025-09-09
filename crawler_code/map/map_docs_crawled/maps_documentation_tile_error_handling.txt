@@ -1,0 +1,76 @@
+Source URL: https://developers.google.com/maps/documentation/tile/error_handling
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Map Tiles API [https://developers.google.com/maps/documentation/tile?hl=ko]
+의견 보내기
+오류 처리
+유럽 경제 지역 (EEA) 개발자
+요청을 제출한 후 오류 세부정보가 포함된 응답을 받을 수 있습니다.
+2D 타일 및 스트리트 뷰 이미지
+다음 목록에는 2D 타일 및 스트리트 뷰 이미지를 사용할 때 발생할 수 있는 오류가 자세히 설명되어 있습니다.
+오류 목록
+다음 목록에는 지도 타일 API를 사용할 때 발생할 수 있는 오류가 자세히 설명되어 있습니다.
+required
+요청에 URL 매개변수가 누락되었습니다. 오류 메시지는 누락된 매개변수를 나타냅니다.
+notFound, invalid
+x, y 또는 z 값이 범위를 벗어났습니다.
+일반 지도 타일의 경우 최대 확대/축소 수준은 특정 지도 타일과 요청한 지도 옵션에 따라 달라집니다.
+일반 지도 타일의 경우 x 좌표는 [0, (2^확대/축소)-1] 범위에 있어야 합니다.
+일반 지도 타일의 경우 y 좌표는 [0, (2^(zoom-1))-1] 범위에 있어야 합니다.
+스트리트 뷰 타일의 경우 확대/축소는 0~5(포함)여야 합니다.
+스트리트 뷰 타일의 경우 x 및 y 좌표 범위는 5단계 확대/축소까지 일반 지도 타일과 동일합니다. 이때 최댓값은 imageHeight 또는 imagewidth을 tileHeight 또는 tileWidth로 나눈 값입니다.
+forbidden:
+가능한 원인:
+요청에 유효한 API 키가 없습니다.
+메시지: Your request cannot be served. Please ensure the parameters and request type are valid for your account and region.
+유럽 경제 지역 (EEA) 주소가 있는 결제 계정에 연결된 프로젝트에서는 2D 위성 타일을 사용할 수 없습니다. 자세한 내용은 EEA 고객을 위한 Map Tiles API 조정 [https://developers.google.com/maps/comms/eea/map-tiles?hl=ko#adjustments]을 참고하세요.
+expired
+session 토큰이 만료되었습니다. 세션 토큰은 생성 시간으로부터 2주 동안 유효합니다. 이 내용은 사전 통지 없이 변경될 수 있습니다. 이 오류가 표시되면 세션 토큰 사용 [https://developers.google.com/maps/documentation/tile/session_tokens?hl=ko]에 설명된 대로 새 세션 토큰을 가져와야 합니다.
+badRequest
+요청 형식이 잘못되었습니다. 일반적인 이유는 다음과 같습니다.
+roadmap 레이어를 포함하지 않고 terrain 지도 유형을 지정했습니다.
+로드맵이 아닌 지도 유형에 styles 배열을 포함했습니다.
+스트리트 뷰 메타데이터 요청에서 위도/경도 값과 파노라마 ID를 전송했습니다.
+quotaExceeded, rateLimitExceeded
+애플리케이션이 허용된 할당량을 초과했거나 초당 허용된 쿼리 수를 초과했습니다.
+오류 예시
+{
+  "error": {
+    "code": 403,
+    "message": "The request is missing a valid API key.",
+    "errors": [
+      {
+        "message": "The request is missing a valid API key.",
+        "domain": "global",
+        "reason": "forbidden"
+      }
+    ],
+    "status": "PERMISSION_DENIED"
+  }
+}
+재시도 요청
+quotaExceeded 및 rateLimitExceeded 오류가 발생한 요청의 경우 많은 클라이언트가 연속으로 요청을 재시도하므로 손상된 요청이나 대규모 오류가 Google 서버를 과부하하지 않도록 요청을 재시도해야 합니다. 즉, 요청을 다시 시도할 때 지수 백오프 [https://en.wikipedia.org/wiki/Exponential_backoff]를 사용해야 합니다. 지수 백오프를 사용하면 서버가 복구할 시간을 확보할 수 있도록 요청을 시간별로 분산해야 합니다.
+예를 들어 요청이 실패하면 1초 후에 다시 시도합니다. 하지만 이 시도도 실패하면 2초 후에 요청을 다시 시도하세요. 이 요청도 실패하면 4초 후에 다시 시도합니다. 따라서 요청 간 시간을 두 배로 늘리면 각 후속 요청을 효과적으로 분산할 수 있습니다.
+3D 타일
+Google 서버의 오류는 서버 오류 처리를 담당하는 렌더러를 통해 사실적인 타일에 액세스하므로 명확하지 않을 수 있습니다.
+타일 렌더러 오류
+예를 들어 CesiumJS 렌더러는 일반적으로 서버 오류가 발생할 때 자동으로 실패하므로 비정상 종료, 빈 화면, 특정 타일이 로드되지 않는 등 다양한 문제가 발생할 수 있습니다.
+서버 오류를 디버깅하는 데 사용하는 기술은 사용하는 특정 렌더러에 따라 달라집니다. CesiumJS와 같은 브라우저 기반 렌더러의 경우 대부분의 브라우저에 내장된 도구를 사용하여 네트워크 트래픽을 검사할 수 있습니다. 예를 들어 Chrome DevTools [https://developer.chrome.com/docs/devtools/?hl=ko]를 사용할 수 있습니다.
+일반적인 실수
+다음 목록에는 발생할 수 있는 가장 일반적인 오류에 관한 세부정보가 포함되어 있습니다.
+400: 잘못된 인수
+API 키, 쿼리 매개변수, 타일/타일 세트 ID가 잘못되었거나 세션 토큰이 만료되었습니다.
+400: 잘못된 값
+createSessionToken 요청이 이루어진 mapType이 후속 타일 엔드포인트에서 사용된 mapType와 일치하는지 확인합니다. 예를 들어 streetview 세션 토큰은 roadmap 타일을 요청하는 데 사용할 수 없습니다.
+403: 권한 거부됨
+가능한 원인:
+API 키가 누락되었거나, SSL 연결이 누락되었거나, API 키가 3D 타일의 허용 목록에 추가되지 않았습니다. 프로젝트 ID를 사용하여 Google 지원팀 [https://developers.google.com/maps/support?hl=ko#contact-maps-support]에 문의하여 Map Tiles API의 3D 타일 기능에 대한 허용 목록에 추가하세요.
+메시지: Your request cannot be served. Please ensure the parameters and request type are valid for your account and region.
+유럽 경제 지역 (EEA) 주소가 있는 결제 계정에 연결된 프로젝트에서는 포토리얼리스틱 3D 타일을 사용할 수 없습니다. 자세한 내용은 EEA 고객을 위한 Map Tiles API 조정 [https://developers.google.com/maps/comms/eea/map-tiles?hl=ko#adjustments]을 참고하세요.
+429: 요청이 너무 많음
+할당량이 소진되었습니다. 할당량을 늘리려면 Google 지원팀 [https://developers.google.com/maps/support?hl=ko#contact-maps-support]에 문의하세요.
+의견 보내기

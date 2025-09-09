@@ -1,0 +1,182 @@
+Source URL: https://developers.google.com/maps/documentation/javascript/routes/routes-migrate-rendering
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Web [https://developers.google.com/maps/web?hl=ko]
+Maps JavaScript API [https://developers.google.com/maps/documentation/javascript?hl=ko]
+의견 보내기
+새 렌더링 메서드로 이전
+이 가이드에서는 Route 클래스의 새로운 렌더링 메서드로 이전하는 방법을 보여줍니다. Directions 서비스 (기존)에서 렌더링 메서드는 DirectionsRenderer 클래스의 일부였습니다. Route 클래스 (베타)는 createPolylines 및 createWaypointAdvancedMarkers이라는 두 가지 새로운 렌더링 메서드를 제공합니다.
+기존 DirectionsRenderer
+Directions 서비스 (기존)에서 렌더링 메서드는 DirectionsRenderer 클래스의 일부였습니다. DirectionsRenderer 클래스는 다중선, 연결된 마커, 단계의 텍스트 표시를 처리하며 다음 메서드가 있습니다.
+setDirections() - 제공된 길찾기 응답을 렌더링합니다.
+setMap() - 경로 응답을 렌더링할 지도를 설정합니다.
+setPanel() - 패널에 경로를 일련의 텍스트 단계로 표시합니다.
+다음 예에서는 DirectionsRenderer 클래스를 사용하여 지도에 경로를 렌더링하는 방법을 보여줍니다.
+function initMap() {
+  var directionsService = new google.maps.DirectionsService();
+  var directionsRenderer = new google.maps.DirectionsRenderer();
+  var chicago = new google.maps.LatLng(41.850033, -87.6500523);
+  var mapOptions = {
+    zoom:7,
+    center: chicago
+  }
+  var map = new google.maps.Map(document.getElementById('map'), mapOptions);
+  // Set the map on the directions renderer.
+  directionsRenderer.setMap(map);
+  // Set the panel to display the directions as a series of textual steps.
+  directionsRenderer.setPanel(document.getElementById('directionsPanel'));
+}
+
+function calcRoute() {
+  var start = document.getElementById('start').value;
+  var end = document.getElementById('end').value;
+  var request = {
+    origin: start,
+    destination: end,
+    travelMode: 'DRIVING'
+  };
+  // Call the directions service to get the directions.
+  directionsService.route(request, function(response, status) {
+    if (status == 'OK') {
+      // Render the polyline and markers on the map.
+      directionsRenderer.setDirections(response);
+    }
+  });
+}
+    
+Route 클래스 (베타)
+Route 클래스 (베타)는 기존 DirectionsRenderer 클래스 메서드를 대체하는 다음과 같은 새로운 렌더링 메서드를 제공합니다.
+createPolylines
+createWaypointAdvancedMarkers
+Route 클래스에는 기존 DirectionsRenderer 클래스의 setPanel() 메서드에 해당하는 메서드가 없습니다. 텍스트 단계를 표시하려면 HTML 요소를 수동으로 만들고 DOM에 삽입해야 합니다. 다음 예에서는 Route 클래스를 사용하여 지도에 경로를 렌더링하고 텍스트 단계를 표시하는 HTML 요소를 수동으로 만드는 방법을 보여줍니다.
+let map;
+let mapPolylines = [];
+let markers = [];
+let center = { lat: 37.447646, lng: -122.113878 }; // Palo Alto, CA
+
+// Initialize and add the map.
+async function initMap() {
+  // Request the needed libraries.
+  const { Map } = await google.maps.importLibrary('maps') as google.maps.MapsLibrary;
+  const { Route } = await google.maps.importLibrary('routes') as google.maps.Routes;
+
+  map = new Map(document.getElementById("map"), {
+    zoom: 12,
+    center,
+    mapTypeControl: false,
+    mapId: 'DEMO_MAP_ID',
+  });
+
+  // Define a simple directions request.
+  const request = {
+    origin: 'Mountain View, CA',
+    destination: 'San Francisco, CA',
+    travelMode: 'DRIVING',
+    fields: ['legs'],
+  };
+
+  // Call computeRoutes to get the directions.
+  const { routes } = await Route.computeRoutes(request);
+  
+  // Use createPolylines to create polylines for the route.
+  mapPolylines = routes[0].createPolylines();
+  // Add polylines to the map.
+  mapPolylines.forEach((polyline) => polyline.setMap(map));
+  
+  fitMapToPath(routes[0].path);
+
+  // Add markers to start and end points.
+  const markers = await routes[0].createWaypointAdvancedMarkers({map});
+  
+
+  // Render navigation instructions.
+  const directionsPanel = document.getElementById("directions-panel");
+
+  if (!routes || routes.length === 0) {
+    if (directionsPanel) {
+      directionsPanel.textContent = "No routes available.";
+    }
+  }
+
+  const route = routes[0];
+  if (!route.legs || route.legs.length === 0) {
+    if (directionsPanel) {
+      directionsPanel.textContent = "The route has no legs.";
+    }
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  route.legs.forEach((leg, index) => {
+    const legContainer = document.createElement("div");
+    legContainer.className = "directions-leg";
+    legContainer.setAttribute("aria-label", `Leg ${index + 1}`);
+
+    // Leg Title
+    const legTitleElement = document.createElement("h3");
+    legTitleElement.textContent = `Leg ${index + 1} of ${route.legs.length}`;
+    legContainer.appendChild(legTitleElement);
+
+    if (leg.steps && leg.steps.length > 0) {
+      // Add steps to an ordered list
+      const stepsList = document.createElement("ol");
+      stepsList.className = "directions-steps";
+
+      leg.steps.forEach((step, stepIndex) => {
+        const stepItem = document.createElement("li");
+        stepItem.className = "direction-step";
+        stepItem.setAttribute("aria-label", `Step ${stepIndex + 1}`);
+
+        // Maneuver
+        if (step.maneuver) {
+          const maneuverNode = document.createElement("p");
+          maneuverNode.textContent = step.maneuver;
+          maneuverNode.className = "maneuver";
+          stepItem.appendChild(maneuverNode);
+        }
+
+        // Distance and Duration
+        if (step.localizedValues) {
+          const distanceNode = document.createElement("p");
+          distanceNode.textContent = `${step.localizedValues.distance} (${step.localizedValues.staticDuration})`;
+          distanceNode.className = "distance";
+          stepItem.appendChild(distanceNode);
+        }
+
+        // Instructions
+        if (step.instructions) {
+          const instructionsNode = document.createElement("p");
+          instructionsNode.textContent = step.instructions;
+          instructionsNode.className = "instruction";
+          stepItem.appendChild(instructionsNode);
+        }
+
+        stepsList.appendChild(stepItem);
+      });
+      legContainer.appendChild(stepsList);
+    }
+
+    fragment.appendChild(legContainer);
+    directionsPanel?.appendChild(fragment);
+  });
+  
+}
+
+// Helper function to fit the map to the path.
+async function fitMapToPath(path) {
+  const { LatLngBounds } = await google.maps.importLibrary('core') as google.maps.CoreLibrary;
+  const bounds = new LatLngBounds();
+  path.forEach((point) => {
+    bounds.extend(point);
+  });
+  map.fitBounds(bounds);
+}
+
+initMap();
+    
+의견 보내기

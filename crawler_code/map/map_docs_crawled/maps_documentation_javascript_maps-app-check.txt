@@ -1,0 +1,111 @@
+Source URL: https://developers.google.com/maps/documentation/javascript/maps-app-check
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Web [https://developers.google.com/maps/web?hl=ko]
+Maps JavaScript API [https://developers.google.com/maps/documentation/javascript?hl=ko]
+의견 보내기
+플랫폼 선택: Android [https://developers.google.com/maps/documentation/places/android-sdk/app-check?hl=ko] iOS [https://developers.google.com/maps/documentation/places/ios-sdk/app-check?hl=ko] JavaScript [https://developers.google.com/maps/documentation/javascript/maps-app-check?hl=ko]
+App Check를 사용하여 API 키 보호
+Firebase 앱 체크 [https://firebase.google.com/docs/app-check?hl=ko]는 정상적인 앱 이외의 소스에서 발생하는 트래픽을 차단하여 앱에서 Google Maps Platform으로의 호출을 보호합니다. 이 작업은 reCAPTCHA Enterprise [https://cloud.google.com/recaptcha-enterprise?hl=ko]와 같은 증명 제공업체의 토큰을 확인하여 실행됩니다. 앱을 앱 체크와 통합하면 악의적인 요청을 방지하여 승인되지 않은 API 호출에 대한 요금이 청구되지 않습니다.
+앱 체크가 나에게 적합한가요?
+대부분의 경우 App Check가 권장되지만 다음 경우에는 App Check가 필요하지 않거나 지원되지 않습니다.
+비공개 또는 실험용 앱 앱에 공개적으로 액세스할 수 없는 경우 앱 확인이 필요하지 않습니다.
+앱이 서버 간으로만 사용되는 경우 앱 확인은 필요하지 않습니다. 하지만 GMP와 통신하는 서버가 모바일 앱과 같은 공개 클라이언트에서 사용되는 경우 GMP 대신 App Check를 사용하여 해당 서버를 보호 [https://firebase.google.com/docs/app-check/custom-resource-backend?hl=ko]하는 것이 좋습니다.
+구현 단계 개요
+대략적으로 앱을 앱 확인과 통합하는 단계는 다음과 같습니다.
+앱에 Firebase를 추가합니다.
+앱 체크 라이브러리를 추가하고 초기화합니다.
+앱에 토큰 제공자를 추가합니다.
+Maps JS 및 앱 체크 API를 초기화합니다.
+디버깅을 사용 설정합니다.
+앱 요청을 모니터링하고 시행 여부를 결정합니다.
+App Check와 통합하면 Firebase 콘솔에서 백엔드 트래픽 측정항목을 확인할 수 있습니다. 이러한 측정항목은 유효한 앱 체크 토큰이 포함되었는지 여부에 따라 요청을 분류합니다. 자세한 내용은 Firebase 앱 체크 문서 [https://firebase.google.com/docs/app-check/monitor-metrics?hl=ko]를 참고하세요.
+대부분의 요청이 합법적인 소스에서 발생하고 사용자가 앱 체크 구현이 포함된 최신 버전의 앱으로 업데이트한 것이 확실하면 시행을 사용 설정할 수 있습니다. 적용이 사용 설정되면 앱 체크에서 유효한 앱 체크 토큰이 없는 모든 트래픽을 거부합니다.
+참고: 앱 체크 시행은 기본적으로 사용 설정되어 있지 않습니다.
+앱 체크 통합을 계획할 때 고려사항
+통합을 계획할 때 고려해야 할 사항은 다음과 같습니다.
+Google에서 추천하는 증명 제공업체 중 하나인 reCAPTCHA Enterprise [https://cloud.google.com/recaptcha-enterprise?hl=ko]는 월 10,000회를 초과하는 평가에 대해 요금을 청구합니다.
+Google에서 추천하는 다른 증명 제공업체인 reCAPTCHA v3 [https://developers.google.com/recaptcha/docs/v3?hl=ko]에는 할당량이 있으며, 이 할당량을 초과하면 트래픽이 평가되지 않습니다.
+맞춤 증명 제공업체를 사용할 수도 있지만 이는 고급 사용 사례입니다. 자세한 내용은 앱 체크 문서 [https://firebase.google.com/docs/app-check/custom-provider?hl=ko]를 참고하세요.
+앱 사용자는 시작 시 약간의 지연 시간을 경험하게 됩니다. 하지만 이후에는 주기적인 재증명이 백그라운드에서 이루어지므로 사용자에게 더 이상 지연 시간이 발생하지 않습니다. 시작 시 정확한 지연 시간은 선택한 증명 제공업체에 따라 달라집니다.
+앱 체크 토큰이 유효한 시간 (수명, TTL)에 따라 재증명의 빈도가 결정됩니다. 이 기간은 Firebase Console에서 구성할 수 있습니다. 재증명은 TTL의 약 절반이 경과하면 발생합니다. 자세한 내용은 증명 제공업체의 Firebase 문서 [https://firebase.google.com/docs/app-check?hl=ko#get_started]를 참고하세요.
+앱을 앱 체크와 통합
+참고: 더 빠르게 도움을 받으세요. 이 프로세스의 Firebase 관련 부분에 대한 지원은 Firebase 지원 [https://firebase.google.com/support?hl=ko]을 참고하세요. Google Places API에 관한 지원은 Google Maps Platform 지원 [https://developers.google.com/maps/support?hl=ko]을 참고하세요.
+기본 요건 및 요구사항
+최신 주간 또는 분기별 버전의 Maps JS API [https://developers.google.com/maps/documentation/javascript/versions?hl=ko] 및 핵심 라이브러리가 로드된 앱
+Maps JS API가 사용 설정된 클라우드 프로젝트
+Cloud Console에서 앱의 소유자여야 합니다.
+Cloud 콘솔의 앱 프로젝트 ID가 필요합니다.
+1단계: 앱에 Firebase 추가
+Firebase 개발자 문서의 안내 [https://firebase.google.com/docs/web/setup?hl=ko]에 따라 앱에 Firebase를 추가합니다.
+2단계: 앱 체크 라이브러리 추가 및 앱 체크 초기화
+Firebase는 각 기본 증명 제공업체에 대한 안내를 제공합니다. 이 안내에서는 Firebase 프로젝트를 설정하고 앱에 App Check 라이브러리를 추가하는 방법을 보여줍니다. 제공된 코드 샘플에 따라 App Check를 초기화하세요.
+reCAPTCHA Enterprise 안내 [https://firebase.google.com/docs/app-check/web/recaptcha-enterprise-provider?hl=ko]
+reCAPTCHA v3 안내 [https://firebase.google.com/docs/app-check/web/recaptcha-provider?hl=ko]
+Cloud 콘솔에서 API를 사용 설정하기 전에 reCAPTCHA 사이트 등록 도구를 사용하여 reCAPTCHA v3에 사이트를 등록하고 reCAPTCHA v3 사이트 키와 보안 비밀 키를 가져와야 합니다. 자세한 내용과 안내는 reCAPTCHA v3 문서 [https://developers.google.com/recaptcha/intro?hl=ko]를 참고하세요.
+3단계: Maps JS API 라이브러리 로드
+다음 스니펫과 같이 핵심 및 지도 라이브러리를 로드합니다. 자세한 내용과 안내는 Maps JavaScript API 문서 [https://developers.google.com/maps/documentation/javascript/load-maps-js-api?hl=ko]를 참고하세요.
+async function init() {
+  const {Settings} = await google.maps.importLibrary('core');
+  const {Map} = await google.maps.importLibrary('maps');
+}  
+4단계: 지도 및 App Check API 초기화
+Firebase Console에서 제공하는 구성을 사용하여 앱 체크를 초기화합니다.
+reCAPTCHA v3 안내 [https://firebase.google.com/docs/app-check/web/recaptcha-provider?hl=ko]를 참고하세요.
+reCAPTCHA Enterprise 안내 [https://firebase.google.com/docs/app-check/web/recaptcha-enterprise-provider?hl=ko]
+Maps JS API에 대한 요청에 앱 체크 토큰이 포함되어 있는지 확인합니다.
+  import {initializeApp} from 'firebase/app';
+  import {
+    getToken,
+    initializeAppCheck,
+    ReCaptchaEnterpriseProvider,
+  } from 'firebase/app-check';
+    
+  async function init() {
+    const {Settings} = await google.maps.importLibrary('core');
+    const {Map} = await google.maps.importLibrary('maps');
+  
+    const app = initializeApp({
+      // Your firebase configuration object
+    });
+  
+    // Pass your reCAPTCHA Enterprise site key to initializeAppCheck().
+    const appCheck = initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(
+        'abcdefghijklmnopqrstuvwxy-1234567890abcd',
+      ),
+  
+      // Optional argument. If true, the SDK automatically refreshes App Check
+      // tokens as needed.
+      isTokenAutoRefreshEnabled: true,
+    });
+  
+    Settings.getInstance().fetchAppCheckToken = () =>
+        getToken(appCheck, /* forceRefresh = */ false);
+  
+    // Load a map
+    map = new Map(document.getElementById("map"), {
+      center: { lat: 37.4161493, lng: -122.0812166 },
+      zoom: 8,
+    });
+  }  
+  
+5단계: 디버깅 사용 설정 (선택사항)
+로컬에서 앱을 개발 및 테스트하거나 지속적 통합 (CI) 환경에서 앱을 실행하려면 디버그 비밀을 사용하여 유효한 앱 체크 토큰을 획득하는 앱의 디버그 빌드를 만들면 됩니다. 이렇게 하면 디버그 빌드에서 실제 증명 제공자를 사용하지 않아도 됩니다.
+앱을 로컬에서 테스트하려면 다음 단계를 따르세요.
+개발 목적으로 디버그 제공자를 활성화합니다.
+SDK의 디버그 로그에서 자동으로 생성된 무작위 UUID4(_디버그 토큰_이라고도 함)를 받게 됩니다. 이 토큰을 Firebase Console에 추가합니다.
+자세한 내용과 안내는 앱 체크 문서 [https://firebase.google.com/docs/app-check/web/debug-provider?hl=ko#localhost]를 참고하세요.
+CI 환경에서 앱을 실행하려면 다음 단계를 따르세요.
+Firebase Console에서 임의의 UUID4를 생성합니다.
+UUID4를 디버그 토큰으로 추가한 다음 CI 테스트에서 테스트 실행별로 액세스할 수 있는 비밀 스토어에 복사합니다.
+자세한 내용과 안내는 앱 체크 문서 [https://firebase.google.com/docs/app-check/web/debug-provider?hl=ko#ci]를 참고하세요.
+6단계: 앱 요청 모니터링 및 시정 조치 결정
+시행을 시작하기 전에 앱의 적법한 사용자를 방해하지 않는지 확인해야 합니다. 이렇게 하려면 앱 체크 측정항목 화면을 방문하여 앱 트래픽 중 인증된 트래픽, 오래된 트래픽, 불법 트래픽의 비율을 확인하세요. 대부분의 트래픽이 인증된 것으로 확인되면 시행을 사용 설정할 수 있습니다.
+자세한 내용과 안내는 Firebase 앱 체크 문서 [https://firebase.google.com/docs/app-check/monitor-metrics?hl=ko]를 참고하세요.
+App Check를 적용하기 전에 Cloud 프로젝트의 모든 웹 서비스 호출이 OAuth [https://developers.google.com/maps/documentation/places/web-service/oauth-token?hl=ko]를 사용하는지 확인하세요.
+의견 보내기
