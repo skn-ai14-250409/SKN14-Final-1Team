@@ -1,0 +1,219 @@
+Source URL: https://developers.google.com/maps/solutions/enriched-transactions/best-practices?hl=ko
+Title: Enriched Transactions 구현 가이드
+
+의견 보내기
+
+Enriched Transactions 구현 가이드
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+개요
+
+웹
+android
+iOS
+API
+
+Google Maps Platform은 웹(JS, TS), Android, iOS에서
+사용할 수 있으며 장소, 경로, 거리에 대한 정보를 가져오는
+웹 서비스 API도 제공합니다. 이 가이드의 샘플은 단일 플랫폼을 대상으로 작성되었지만
+다른 플랫폼에 구현할 경우에 참고할 수 있는 문서 링크도 함께 제공됩니다.
+
+거래 명세서에서는 판매자 이름을 약어로
+써(예: 'Acme Houseware'를 'ACMEHCORP'로 표시) 사용자가 이해하기 힘든 경우가 많으며, 그 결과 고객 지원을 요청하는 전화가
+증가하고 많은 비용이 소요되는 분쟁이 발생할 수 있습니다.
+Enriched Transactions를 사용하면 판매자의 전체 이름, 비즈니스 카테고리,
+오프라인 매장 사진, 지도상의 주소 및 위치, 전체 연락처 정보 등이
+제공되므로 거래 과정이 간소화되고 사용자가 거래 내용을 직관적으로 이해할 수 있습니다. 이는
+사용자 만족도와 투명성을 개선하고, 고객 지원 요청 전화를 줄이며,
+NPS를 높이고, 앱 사용 시간을 늘리는 데 도움이 됩니다.
+
+이번 주제에서 구현 가이드와 맞춤설정
+팁을 제공하는 Enriched Transactions는 거래 내역을 쉽게 이해할 수 있는 사용자 환경을 개발하기 위해
+여러 Google Maps Platform API를 최적으로 조합한 권장 도구입니다. 이번 구현 가이드에서는 위치와 특정 판매자를 연결하여
+세부정보를 표시하는 방법에 대해서 소개합니다.
+
+[https://developers.google.com/static/maps/solutions/enriched-transactions/images/diagram.png?hl=ko]
+Enriched Transactions 샘플 화면(클릭하여 확대)
+
+API 사용 설정
+
+Enriched Transactions를 구현하려면 Google Cloud 콘솔에서 다음 API를
+사용 설정해야 합니다. 다음 하이퍼링크를 클릭하면 Google Cloud 콘솔로 이동하여
+선택한 프로젝트에 각 API를 사용 설정할 수 있습니다.
+
+Places API [https://console.cloud.google.com/apis/library/places-backend.googleapis.com?hl=ko]
+Geocoding API [https://console.cloud.google.com/apis/library/geocoding-backend.googleapis.com?hl=ko]
+Maps Static API [https://console.cloud.google.com/apis/library/static-maps-backend.googleapis.com?hl=ko],
+Android용 Maps SDK [https://console.cloud.google.com/apis/library/maps-android-backend.googleapis.com?hl=ko],
+iOS용 Maps SDK [https://console.cloud.google.com/apis/library/maps-ios-backend.googleapis.com?hl=ko]
+
+설정에 대한 자세한 내용은 Google Maps Platform
+시작하기 [https://developers.google.com/maps/get-started?hl=ko]를 참고하세요.
+
+구현 가이드 섹션
+
+다음은 이번 주제에서 다룰 구현 항목 및 맞춤설정입니다.
+
+check_circle_filled
+체크표시 아이콘은 핵심 구현 단계입니다.
+
+stars
+별표 아이콘은 선택사항이지만 솔루션을 개선하기 위해
+권장되는 맞춤설정입니다.
+
+| check_circle_filled | 판매자를 Google Maps Platform과 연결하기 | 거래 내역에 있는 판매자를 Google Maps Platform의 장소와 연결합니다. |
+| --- | --- | --- |
+| check_circle_filled | 판매자 세부정보 표시하기 | 사용자가 거래를 빠르게 인지할 수 있도록 판매자에 관한 유용한 정보를 충분히 포함하는 거래 내역을 표시합니다. |
+| check_circle_filled | 판매자 위치의 지도 추가하기 | 판매자 위치의 지도를 추가합니다. |
+
+참고: 솔루션 코드 샘플의 채택을 추적하고 솔루션 품질을 개선하기 위해 Google은 이 페이지에 나온 샘플 코드의 API 호출에 solution_channel 쿼리 매개변수를 포함합니다.
+이를 원하지 않으면 샘플 코드에서 solution_channel 쿼리 매개변수를 삭제하세요.
+자세한 내용은 Google Maps Platform 솔루션 매개변수 [https://developers.google.com/maps/reporting-and-monitoring/reporting?hl=ko#solutions-usage]를 참고하세요.
+
+check_circle_filled
+
+판매자를 Google Maps Platform과 연결하기
+
+| 이 예에서 사용하는 API: Places API |  |
+| --- | --- |
+
+다음 다이어그램은 애플리케이션에서 기존 판매자 데이터베이스의 장소 세부정보를
+사용하거나 장소 검색 요청을 통해 판매자 거래를 연결하여
+결과를 반환하는 방법을 나타낸 것입니다.
+
+[https://developers.google.com/static/maps/solutions/enriched-transactions/images/decision-matrix-diagram.png?hl=ko]
+판매자 연결의 흐름을 보여주는 매트릭스(클릭하여 확대)
+
+Google Maps Platform 장소 ID 가져오기
+
+판매자 데이터베이스에 업체 이름, 주소 같은 기본 정보가
+저장되어 있을 수 있습니다. 연락처 정보와 사용자가 직접 입력한 정보를
+포함해 해당 장소와 관련하여 Google Maps Platform에 저장된 정보를
+가져오려면 데이터베이스에 저장된 각 판매자에 해당하는 Google Maps
+Platform 장소 ID가 필요합니다.
+
+비즈니스의 장소 ID를 가져오려면 Places API에서 /findplacefromtext [https://developers.google.com/maps/documentation/places/web-service/search?hl=ko] 엔드포인트에 place_id 필드만 요청하세요. 그러면 해당 요청은 무료 Find Place - ID only [https://developers.google.com/maps/documentation/places/web-service/usage-and-billing?hl=ko#find-place-id-only] 호출로 청구됩니다. 판매자의 위치가 여러 곳인 경우에는 판매자의 이름을 도시 또는 도로 이름과 함께 사용하세요. 호출로 반환되는 데이터는
+품질에 차이가 있으므로 반환된 결과가 실제로 원하는
+판매자와 일치하는지 확인해야 합니다.
+
+다음은 판매자 이름과 도시를 사용해 Google 타이베이 오피스의
+장소 ID를 요청하는 예입니다.
+https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=google%20taipei&inputtype=textquery&fields=place_id&key=YOUR_API_KEY&solution_channel=GMP_guides_enrichedtransactions_v1_a
+
+API 요청에서 입력 매개변수를
+URL 인코딩 [https://developers.google.com/maps/documentation/places/web-service/web-services-best-practices?hl=ko#BuildingURLs]해야 합니다.
+
+장소 ID 저장하기
+
+이후 요청에 사용할 수 있도록 Google Maps Platform의 판매자 정보를
+저장하려면 내 데이터베이스에 판매자
+기록의 속성으로 무기한 이 장소 ID를 저장 [https://developers.google.com/maps/documentation/places/web-service/place-id?hl=ko#save-id]할 수 있습니다. 장소 검색 요청은 판매자 1명당 1회로 제한됩니다. 또한 장소
+ID는 사용자가 거래 세부정보를 요청할 때마다 검색할 수 있습니다.
+
+항상 정확한 정보를 유지하려면 12개월마다
+place_id 매개변수를 포함한 장소 세부정보 [https://developers.google.com/maps/documentation/places/web-service/details?hl=ko] 요청을 사용하여
+장소 ID를
+새로고침 [https://developers.google.com/maps/documentation/places/web-service/place-id?hl=ko#refresh-id]하세요.
+
+표시되는 장소 세부정보가 실제로 거래한 판매자와 일치하지
+않을 경우를 대비해 사용자에게 판매자 연결의 품질에 대한 피드백을
+제공할 수 있도록 허용하는 것이 좋습니다.
+
+check_circle_filled
+
+판매자 세부정보 표시하기
+
+| 이 예에서 사용하는 API: Places API | 기타 지원되는 환경: Android용 Places SDK \| iOS용 Places SDK \| Maps JavaScript API의 장소 라이브러리 |
+| --- | --- |
+
+사용자가 내 매장을 방문한 후에 알아야 할 장소 세부정보를 공유할
+수 있습니다. 연락처 정보, 영업시간, 사용자 평가, 사용자 사진 등
+풍부한 장소 세부정보를 활용해 앱에서 사용자에게 완료된 거래를
+알릴 수 있습니다. 장소 세부정보를 가져오기 위해 Places API [https://developers.google.com/maps/documentation/places/web-service/details?hl=ko]를 호출한 후 정보 창, 웹 사이드바
+또는 기타 원하는 방식으로 응답을 필터링하여 렌더링할 수
+있습니다.
+
+[https://developers.google.com/static/maps/solutions/enriched-transactions/images/enriched-transactions.png?hl=ko]
+판매자 세부정보 샘플 화면(클릭하여 확대)
+
+장소 세부정보를 요청하려면 각 매장의 장소 ID가 필요합니다.
+장소 ID를 가져오는 방법은
+장소 ID 가져오기 [https://developers.google.com/maps/solutions/enriched-transactions/best-practices?hl=ko#getting_place_ids]를 참고하세요.
+
+다음 장소 세부정보 요청은 Google 타이베이 101 장소 ID에 대한 json 출력으로 주소, 좌표, 웹사이트, 전화번호, 평점, 영업시간을 반환합니다.
+https://maps.googleapis.com/maps/api/place/details/json?placeid=ChIJraeA2rarQjQRyAqIxkx2vN8&fields=name%2Cformatted_address%2Cwebsite%2Cformatted_phone_number%2Cgeometry/location%2Cicon%2Copening_hours%2Crating&key=YOUR_API_KEY&solution_channel=GMP_guides_enrichedtransactions_v1_a
+
+check_circle_filled
+
+판매자 위치의 지도 추가하기
+
+| 이 예에서 사용하는 API: Geocoding API \| Maps Static API | 기타 지원되는 환경: Android \| iOS |
+| --- | --- |
+
+판매자의 위치 확인하기
+
+Maps Static API에서는 주소 또는 좌표를 이용해 마커를
+배치합니다. 판매자 기록에 이미 주소가 있을 경우
+다음 섹션으로 건너뛸 수 있지만 정밀한 지도를 만들려면
+주소보다는 좌표 사용을 권장합니다.
+
+판매자 데이터베이스에 지리적 좌표 없이 상세 주소만 저장된 상태에서
+아직 장소 세부정보를 요청 [https://developers.google.com/maps/solutions/enriched-transactions/best-practices?hl=ko#display_merchants]하지 않았다면
+Geocoding API를 사용해 상세 주소를 서버 측에서 위도/경도
+좌표로 변환하여 해당 좌표를 데이터베이스에 저장한 후
+최소 30일마다 한 번씩 [https://cloud.google.com/maps-platform/terms/maps-service-terms?hl=ko#3.-geocoding-api] 좌표를 새로고침할 수 있습니다.
+
+다음은 Geocoding API를 사용해 Google 타이베이 오피스
+장소 ID의 위도와 경도를 가져오는 예입니다.
+https://maps.googleapis.com/maps/api/geocode/json?place_id=ChIJraeA2rarQjQRyAqIxkx2vN8&key=YOUR_API_KEY&solution_channel=GMP_guides_enrichedtransactions_v1_a
+
+판매자 위치에 대한 마커를 지도에 추가하기
+
+사용자는 탐색이나 이동을 위해서가 아니라 거래를 확인하기 위해 지도를 보는 것이기 때문에
+상호작용 기능이 제한적인 지도를 만들면 됩니다.
+
+데스크톱과 모바일 웹의 경우에는 판매자의 위도/경도 또는 주소에 단일 마커가 포함된 Maps Static API URL [https://developers.google.com/maps/documentation/maps-static/start?hl=ko#Markers]을 만듭니다. 웹 서비스 호출을
+사용하는 Maps Static API를 사용해 지정된 매개변수를
+토대로 이미지 버전의 지도를 만들 수 있습니다. 모바일의 경우에는 다음 모바일 애플리케이션에 지도 추가하기 섹션 [https://developers.google.com/maps/solutions/enriched-transactions/best-practices?hl=ko#adding_a_map_on_your_mobile_application]으로 건너뛰세요.
+
+다음 호출은 크기가 640x480px이고, 중심 위치는
+Google 타이베이 오피스의 마커이며, 확대/축소 수준은 기본값인 로드맵을 표시합니다. 또한 빨간색
+배달 위치 마커와 클라우드 기반 지도 스타일을 지정합니다.
+https://maps.googleapis.com/maps/api/staticmap?size=640x480&markers=color:red%7C25.033976%2C121.5645389&map_id=b224095f76859890&key=YOUR_API_KEY&signature=BASE64_SIGNATURE&solution_channel=GMP_guides_enrichedtransactions_v1_a
+
+이 호출은 다음과 같은 섹션으로 구성되어 있습니다.
+
+| API URL | https://maps.googleapis.com/maps/api/staticmap? |
+| --- | --- |
+| 이미지 크기 | size=640x480 |
+| 판매자 위치 마커(URL 인코딩 사용) | markers=color:red%7C25.033976%2C121.5645389 |
+| 클라우드 기반 지도 스타일 | map_id=b224095f76859890 |
+| API 키 | key=YOUR_API_KEY |
+| 디지털 서명(디지털 방식으로 요청에 서명하는 방법 알아보기) | signature=BASE64_SIGNATURE |
+| 솔루션 채널 매개변수(매개변수 문서 참고) | solution_channel=GMP_guides_enrichedtransactions_v1_a |
+
+아래와 같이 이미지가 표시됩니다.
+
+다음과 같이 주소를 마커 위치로 사용할 수도 있습니다.
+https://maps.googleapis.com/maps/api/staticmap?size=640x480&markers=color:green%7CTaipei%20101%20Tower%2CNo.%207信義路五段信義區台北市%20Taiwan%20110&map_id=b224095f76859890&key=YOUR_API_KEY&signature=BASE64_SIGNATURE&solution_channel=GMP_guides_enrichedtransactions_v1_a
+
+기타 매개변수 옵션은 Maps Static API 문서 [https://developers.google.com/maps/documentation/static-maps?hl=ko]를 참고하세요.
+
+모바일 애플리케이션에 지도 추가하기
+
+Android용 Maps SDK 또는 iOS용 Maps SDK를 사용하는 경우
+장소 세부정보 [https://developers.google.com/maps/solutions/enriched-transactions/best-practices?hl=ko#using_merchant_details]에 있는 정보의 좌표를 사용해
+마커를 배치할 수 있습니다.
+
+사용자는 탐색이나 이동하기 위해서가 아니라 거래를 확인하기 위해 지도를 보는 것이기 때문에
+상호작용 기능이 제한적인 지도를 선택하세요.
+
+Android 애플리케이션의 경우 마커가 포함된 지도 추가하기 튜토리얼 [https://developers.google.com/maps/documentation/android-sdk/map-with-marker?hl=ko]을
+참고하면서 라이트 모드 [https://developers.google.com/maps/documentation/android-sdk/lite?hl=ko]를
+사용 설정하여 제한적인 상호작용 기능을 제공하세요.
+iOS 애플리케이션의 경우에는 마커가 포함된 지도 추가하기 튜토리얼 [https://developers.google.com/maps/documentation/ios-sdk/map-with-marker?hl=ko]을 참고하면서 GMSUiSettings 플래그를 사용하여 컨트롤 및 동작을 중지 [https://developers.google.com/maps/documentation/ios-sdk/controls?hl=ko#map_controls]하세요.
+
+의견 보내기

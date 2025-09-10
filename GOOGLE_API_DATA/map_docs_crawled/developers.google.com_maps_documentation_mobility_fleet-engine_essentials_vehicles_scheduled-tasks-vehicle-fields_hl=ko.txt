@@ -1,0 +1,83 @@
+Source URL: https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles/scheduled-tasks-vehicle-fields?hl=ko
+Title: 배송 차량 필드 업데이트
+
+배송 차량 필드 업데이트
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+참고: 차량 요청을 구성하기 전에 소개의 차량 요청 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles?hl=ko#vehicle_requests]에 있는 요구사항을 읽어보세요.
+| 이 문서에서는 차량을 만들고 관리할 때 업데이트할 수 있는 중요한 차량 필드를 설명합니다. type: 이 배송 차량의 유형입니다. 이는 이 차량에 대해 생성된 경로에 영향을 미칩니다. attributes[]: DeliveryVehicleAttribute 유형의 옵션 배열입니다. 이를 사용하여 서비스의 차량에 대한 맞춤 기준을 정의하여 차량을 검색하거나 나열할 때 필터링 동작을 개선하세요. |  | 차량 필드의 전체 목록은 다음을 참고하세요. DeliveryVehicle message DeliveryVehicle resource |
+| --- | --- | --- |
+
+차량 속성 필드
+
+차량 attributes 필드를 사용하여 소비자가 다양한 검색 기준으로 차량을 찾을 수 있도록 맞춤 기준을 만드세요. 이를 통해 다른 차량 필드만을 기반으로 검색 기준을 사용하는 것보다 더 나은 차량 일치 항목을 제공하는 앱의 기능을 향상할 수 있습니다. 각 차량에는 최대 100개의 속성이 있을 수 있으며 각 속성에는 고유한 키가 있어야 합니다. 값은 문자열, 불리언 또는 숫자일 수 있습니다.
+
+예를 들어 배송 차량이 운행하는 도시의 구역을 구분하기 위해 zone이라는 맞춤 속성을 선언할 수 있습니다. 1B, 2C, 3A과 같은 문자열 값을 사용하여 서로 다른 영역을 나타냅니다. 그런 다음 Fleet Tracking에서 필터를 사용하여 특정 구역에서 작업하는 차량만 해당 구역을 담당하는 운영자에게 표시할 수 있습니다.
+
+하지만 맞춤 속성 값은 상호 배타적이지 않아도 됩니다. available-at-night 및 has-refrigeration과 같은 기준을 사용할 수 있습니다. 각각 부울 값을 사용하는 별도의 맞춤 속성일 수 있습니다. 특정 차량에는 이 세 가지 맞춤 속성이 모두 할당될 수 있으며, 지역 맞춤 속성은 적절한 문자열 값으로 설정됩니다.
+
+차량 속성 업데이트
+
+각 attributes 키에는 차량당 하나의 값만 있을 수 있습니다. 필드 마스크에서 attributes를 사용하여 맞춤 차량 속성을 선언한 다음 아래 방법에 따라 값을 제공합니다.
+
+이 UpdateDeliveryVehicle API는 단일 속성만 업데이트하는 것을 허용하지 않습니다. 이 방법을 사용하면 필드 마스크에서 attributes 필드를 사용하는 경우 차량의 전체 집합이 차량에 대해 다시 선언됩니다. 이렇게 하면 필드 마스크에 명시적으로 포함되지 않은 기존 속성이 덮어쓰여집니다. 이 메서드를 사용하여 새 맞춤 속성을 선언하는 경우 차량이 유지하도록 하려는 모든 맞춤 속성도 다시 선언해야 합니다. 필드 마스크에서 attributes를 제외하면 이 메서드는 기존 맞춤 속성을 차량에 대해 이전에 정의된 대로 유지합니다.
+필드 마스크에서 attributes을 사용하지만 값을 설정하지 않으면 차량에서 모든 맞춤 속성을 삭제하는 것과 같습니다.
+
+차량 필드 업데이트 예시
+
+이 섹션에서는 업데이트할 필드를 나타내는 update_mask가 포함된 UpdateDeliveryVehicleRequest를 사용하여 차량 필드를 업데이트하는 방법을 보여줍니다. 자세한 내용은 필드 마스크 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles/protobuf.dev/reference/cpp/api-docs/google.protobuf.util.field_mask_util?hl=ko]에 관한 프로토콜 버퍼 문서를 참고하세요.
+참고: update_mask 필드는 항상 설정해야 합니다. update_mask 필드를 설정하지 않으면 기본적으로 모든 필드가 작성됩니다. 이로 인해 의도하지 않은 동작이 발생할 수 있습니다.
+last_location 이외의 필드를 업데이트하려면 Fleet Engine Delivery 관리자 권한이 필요합니다.
+
+예: 맞춤 속성 설정
+
+이 예에서는 새 속성 zone을 지정합니다. 앞서 차량 속성 업데이트 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles/scheduled-tasks-vehicle-fields?hl=ko#update_vehicle_attributes]에서 설명한 것처럼 이 방법을 사용하여 attributes 필드를 업데이트하려면 유지하려는 모든 맞춤 속성을 표시해야 합니다.
+따라서 이 예에서는 attributes 필드를 지정하는 업데이트 작업 중에 덮어쓰지 않도록 available-at-night 값이 작성됩니다.
+
+providers.deliveryVehicles.patch [https://developers.google.com/maps/documentation/mobility/fleet-engine/reference/tasks/rest/v1/providers.deliveryVehicles/patch?hl=ko] 참조를 확인하세요.
+
+gRPC  static final String PROJECT_ID = "my-delivery-co-gcp-project";
+static final String VEHICLE_ID = "vehicle-8241890";
+
+DeliveryServiceBlockingStub deliveryService =
+DeliveryServiceGrpc.newBlockingStub(channel);
+
+String vehicleName = "providers/" + PROJECT_ID + "/deliveryVehicles/" + VEHICLE_ID;
+DeliveryVehicle myDeliveryVehicle = DeliveryVehicle.newBuilder()
+.addAllAttributes(ImmutableList.of(
+DeliveryVehicleAttribute.newBuilder().setKey("zone").setValue("1B").build(),
+DeliveryVehicleAttribute.newBuilder().setKey("available-at-night").setValue("true").build()))
+.build();
+
+UpdateDeliveryVehicleRequest updateDeliveryVehicleRequest =
+UpdateDeliveryVehicleRequest.newBuilder()  // No need for the header
+.setName(vehicleName)
+.setDeliveryVehicle(myDeliveryVehicle)
+.setUpdateMask(FieldMask.newBuilder()
+.addPaths("attributes"))
+.build();
+
+try {
+DeliveryVehicle updatedDeliveryVehicle =
+deliveryService.updateDeliveryVehicle(updateDeliveryVehicleRequest);
+Status s = e.getStatus();
+switch (s.getCode()) {
+case NOT_FOUND:
+break;
+case PERMISSION_DENIED:
+break;
+REST  # Set JWT, PROJECT_ID, VEHICLE_ID, TASK1_ID, and TASK2_ID in the local
+# environment
+curl -X PATCH "https://fleetengine.googleapis.com/v1/providers/${PROJECT_ID}/deliveryVehicles/${VEHICLE_ID}?updateMask=attributes" \
+-H "Content-type: application/json" \
+-H "Authorization: Bearer ${JWT}" \
+--data-binary @- << EOM
+"attributes": [
+]
+
+다음 단계
+
+배송 차량 위치 업데이트 [https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/vehicles/scheduled-tasks-update-vehicle-location?hl=ko]

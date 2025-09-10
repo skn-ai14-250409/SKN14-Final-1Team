@@ -1,0 +1,569 @@
+Source URL: https://developers.google.com/maps/documentation/tile/use-renderer
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Map Tiles API [https://developers.google.com/maps/documentation/tile?hl=ko]
+의견 보내기
+3D 타일 렌더기 사용
+유럽 경제 지역 (EEA) 개발자
+포토리얼리스틱 3D 타일은 OGC 표준 glTF 형식 [https://portal.ogc.org/files/102132]으로 제공되므로 OGC 3D 타일 사양을 지원하는 렌더러를 사용하여 3D 시각화를 빌드할 수 있습니다. 예를 들어 Cesium [https://cesium.com/platform/]은 3D 시각화를 렌더링하기 위한 기본 오픈소스 라이브러리입니다.
+CesiumJS 사용
+CesiumJS는 웹에서 3D 시각화를 위한 오픈소스 JavaScript 라이브러리입니다. CesiumJS 사용에 관한 자세한 내용은 CesiumJS 학습 [https://cesium.com/learn/cesiumjs-learn/]을 참고하세요.
+도움말: 여러 CesiumJS 코드 샘플의 데모는 CesiumJS 렌더러 예시 [https://developers.google.com/maps/documentation/tile/use-renderer?hl=ko#cesiumjs-renderer-examples]를 참고하세요.
+사용자 컨트롤
+CesiumJS 타일 렌더러에는 표준 사용자 컨트롤 세트가 있습니다.
+작업 설명
+팬 뷰 왼쪽 클릭 후 드래그
+뷰 확대/축소 마우스 오른쪽 버튼을 클릭한 상태로 드래그하거나 마우스 휠을 스크롤합니다.
+보기 회전 Ctrl + 왼쪽/오른쪽 클릭 후 드래그 또는 가운데 클릭 후 드래그
+권장사항
+CesiumJS 3D 로드 시간을 줄이는 방법에는 여러 가지가 있습니다. 예를 들면 다음과 같습니다.
+렌더링 HTML에 다음 문을 추가하여 동시 요청을 사용 설정합니다.
+Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = <REQUEST_COUNT>
+REQUEST_COUNT가 높을수록 타일 로드 속도가 빨라집니다. 하지만 REQUEST_COUNT가 10보다 크고 캐시가 사용 중지된 Chrome 브라우저에서 로드하면 알려진 Chrome 문제 [https://bugs.chromium.org/p/chromium/issues/detail?id=1428295]가 발생할 수 있습니다. 대부분의 사용 사례에서는 최적의 성능을 위해 REQUEST_COUNT를 18로 설정하는 것이 좋습니다.
+세부정보 수준 건너뛰기를 사용 설정합니다. 자세한 내용은 이 Cesium 문제 [https://github.com/CesiumGS/cesium/issues/3857]를 참고하세요.
+showCreditsOnScreen: true를 사용 설정하여 데이터 출처를 올바르게 표시해야 합니다. 자세한 내용은 정책 [https://developers.google.com/maps/documentation/tile/policies?hl=ko#cesiumjs]을 참고하세요.
+렌더링 측정항목
+프레임 속도를 확인하려면 초당 requestAnimationFrame [https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame] 메서드가 호출되는 횟수를 확인하세요.
+프레임 지연 시간이 계산되는 방식을 확인하려면 PerformanceDisplay [https://github.com/CesiumGS/cesium/blob/9295450e64c3077d96ad579012068ea05f97842c/packages/engine/Source/Scene/PerformanceDisplay.js#L83] 클래스를 참고하세요.
+CesiumJS 렌더러 예시
+루트 타일셋 URL을 제공하기만 하면 Map Tiles API의 3D 타일과 함께 CesiumJS 렌더러를 사용할 수 있습니다.
+간단한 예시
+다음 예에서는 CesiumJS 렌더러를 초기화한 다음 루트 타일셋을 로드합니다.
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <title>CesiumJS 3D Tiles Simple Demo</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js"></script>
+  <link href="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <script>
+
+    // Enable simultaneous requests.
+    Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = 18;
+
+    // Create the viewer.
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      imageryProvider: false,
+      baseLayerPicker: false,
+      geocoder: false,
+      globe: false,
+      // https://cesium.com/blog/2018/01/24/cesium-scene-rendering-performance/#enabling-request-render-mode
+      requestRenderMode: true,
+    });
+
+    // Add 3D Tiles tileset.
+    const tileset = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
+      url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=YOUR_API_KEY",
+      // This property is needed to appropriately display attributions
+      // as required.
+      showCreditsOnScreen: true,
+    }));
+  </script>
+</body>
+requestRenderMode에 관한 자세한 내용은 요청 렌더링 모드 사용 설정 [https://cesium.com/blog/2018/01/24/cesium-scene-rendering-performance/#enabling-request-render-mode]을 참고하세요.
+HTML 페이지가 다음과 같이 렌더링됩니다.
+Places API 통합
+Places API [https://developers.google.com/maps/documentation/places/web-service?hl=ko]와 함께 CesiumJS를 사용하여 자세한 정보를 검색할 수 있습니다. 자동 완성 위젯을 사용하여 장소의 표시 영역으로 이동할 수 있습니다. 이 예에서는 이 안내를 따라 [https://developers.google.com/maps/documentation/javascript/places-autocomplete?hl=ko] 사용 설정된 Places Autocomplete API와 이 안내를 따라 [https://developers.google.com/maps/documentation/javascript/cloud-setup?hl=ko#enabling-apis] 사용 설정된 Maps JavaScript API를 사용합니다.
+<!DOCTYPE html>
+<head>
+ <meta charset="utf-8" />
+ <title>CesiumJS 3D Tiles Places API Integration Demo</title>
+ <script src="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js"></script>
+ <link href="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+</head>
+<body>
+ <label for="pacViewPlace">Go to a place: </label>
+ <input
+   type="text"
+   id="pacViewPlace"
+   name="pacViewPlace"
+   placeholder="Enter a location..."
+   style="width: 300px"
+ />
+ <div id="cesiumContainer"></div>
+ <script>
+   // Enable simultaneous requests.
+   Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = 18;
+
+   // Create the viewer.
+   const viewer = new Cesium.Viewer("cesiumContainer", {
+     imageryProvider: false,
+     baseLayerPicker: false,
+     requestRenderMode: true,
+     geocoder: false,
+     globe: false,
+   });
+
+   // Add 3D Tiles tileset.
+   const tileset = viewer.scene.primitives.add(
+     new Cesium.Cesium3DTileset({
+       url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=YOUR_API_KEY",
+       // This property is required to display attributions as required.
+       showCreditsOnScreen: true,
+     })
+   );
+
+   const zoomToViewport = (viewport) => {
+     viewer.entities.add({
+       polyline: {
+         positions: Cesium.Cartesian3.fromDegreesArray([
+           viewport.getNorthEast().lng(), viewport.getNorthEast().lat(),
+           viewport.getSouthWest().lng(), viewport.getNorthEast().lat(),
+           viewport.getSouthWest().lng(), viewport.getSouthWest().lat(),
+           viewport.getNorthEast().lng(), viewport.getSouthWest().lat(),
+           viewport.getNorthEast().lng(), viewport.getNorthEast().lat(),
+         ]),
+         width: 10,
+         clampToGround: true,
+         material: Cesium.Color.RED,
+       },
+     });
+     viewer.flyTo(viewer.entities);
+   };
+
+   function initAutocomplete() {
+     const autocomplete = new google.maps.places.Autocomplete(
+       document.getElementById("pacViewPlace"),
+       {
+         fields: [
+           "geometry",
+           "name",
+         ],
+       }
+     );
+     autocomplete.addListener("place_changed", () => {
+       viewer.entities.removeAll();
+       const place = autocomplete.getPlace();
+       if (!place.geometry || !place.geometry.viewport) {
+         window.alert("No viewport for input: " + place.name);
+         return;
+       }
+       zoomToViewport(place.geometry.viewport);
+     });
+   }
+ </script>
+ <script
+   async=""
+   src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places&callback=initAutocomplete"
+ ></script>
+</body>
+드론 뷰 회전
+타일셋을 통해 애니메이션을 적용하도록 카메라를 제어할 수 있습니다. Places API 및 Elevation API와 결합하면 이 애니메이션은 관심 지점의 대화형 드론 플라이오버를 시뮬레이션합니다.
+이 코드 샘플은 자동 완성 위젯에서 선택한 장소를 둘러보도록 합니다.
+참고: 이 코드 샘플을 사용하려면 3D 타일에 사용하는 것과 동일한 프로젝트에서 Places API [https://console.cloud.google.com/apis/library/places-backend.googleapis.com?hl=ko], Maps JavaScript API [https://console.cloud.google.com/apis/library/maps-backend.googleapis.com?hl=ko], Elevation API [https://console.cloud.google.com/apis/library/elevation-backend.googleapis.com?hl=ko]를 사용 설정해야 합니다. 각 페이지로 이동하여 페이지 상단의 파란색 막대에 있는 드롭다운 메뉴에서 3D 타일 프로젝트를 선택합니다. 그런 다음 API 이름 아래에 있는 파란색 사용 설정 버튼을 선택합니다.
+버튼에 관리가 표시되면 API가 이미 해당 프로젝트에 사용 설정된 것입니다.
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8" />
+  <title>CesiumJS 3D Tiles Rotating Drone View Demo</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js"></script>
+  <link href="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+</head>
+<body>
+  <label for="pacViewPlace">Go to a place: </label>
+  <input type="text" id="pacViewPlace" name="pacViewPlace" placeholder="Enter a location..." style="width: 300px" />
+  <div id="cesiumContainer"></div>
+  <script>
+    // Enable simultaneous requests.
+    Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = 18;
+
+    // Create the viewer and remove unneeded options.
+    const viewer = new Cesium.Viewer("cesiumContainer", {
+      imageryProvider: false,
+      baseLayerPicker: false,
+      homeButton: false,
+      fullscreenButton: false,
+      navigationHelpButton: false,
+      vrButton: false,
+      sceneModePicker: false,
+      geocoder: false,
+      globe: false,
+      infobox: false,
+      selectionIndicator: false,
+      timeline: false,
+      projectionPicker: false,
+      clockViewModel: null,
+      animation: false,
+      requestRenderMode: true,
+    });
+
+    // Add 3D Tile set.
+    const tileset = viewer.scene.primitives.add(
+      new Cesium.Cesium3DTileset({
+        url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=YOUR_API_KEY",
+        // This property is required to display attributions.
+        showCreditsOnScreen: true,
+      })
+    );
+
+    // Point the camera at a location and elevation, at a viewport-appropriate distance.
+    function pointCameraAt(location, viewport, elevation) {
+      const distance = Cesium.Cartesian3.distance(
+        Cesium.Cartesian3.fromDegrees(
+          viewport.getSouthWest().lng(), viewport.getSouthWest().lat(), elevation),
+        Cesium.Cartesian3.fromDegrees(
+          viewport.getNorthEast().lng(), viewport.getNorthEast().lat(), elevation)
+      ) / 2;
+      const target = new Cesium.Cartesian3.fromDegrees(location.lng(), location.lat(), elevation);
+      const pitch = -Math.PI / 4;
+      const heading = 0;
+      viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(heading, pitch, distance));
+    }
+
+    // Rotate the camera around a location and elevation, at a viewport-appropriate distance.
+    let unsubscribe = null;
+    function rotateCameraAround(location, viewport, elevation) {
+      if(unsubscribe) unsubscribe();
+      pointCameraAt(location, viewport, elevation);
+      unsubscribe = viewer.clock.onTick.addEventListener(() => {
+        viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z);
+      });
+    }
+
+    function initAutocomplete() {
+      const autocomplete = new google.maps.places.Autocomplete(
+        document.getElementById("pacViewPlace"), {
+          fields: [
+            "geometry",
+            "name",
+          ],
+        }
+      );
+
+      autocomplete.addListener("place_changed", async () => {
+        const place = autocomplete.getPlace();
+
+        if (!(place.geometry && place.geometry.viewport && place.geometry.location)) {
+          window.alert(`Insufficient geometry data for place: ${place.name}`);
+          return;
+        }
+        // Get place elevation using the ElevationService.
+        const elevatorService = new google.maps.ElevationService();
+        const elevationResponse =  await elevatorService.getElevationForLocations({
+          locations: [place.geometry.location],
+        });
+
+        if(!(elevationResponse.results && elevationResponse.results.length)){
+          window.alert(`Insufficient elevation data for place: ${place.name}`);
+          return;
+        }
+        const elevation = elevationResponse.results[0].elevation || 10;
+
+        rotateCameraAround(
+          place.geometry.location,
+          place.geometry.viewport,
+          elevation
+        );
+      });
+    }
+  </script>
+  <script async src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places&callback=initAutocomplete"></script>
+</body>
+다중선 및 라벨 그리기
+이 코드 샘플은 지도에 다중선과 라벨을 추가하는 방법을 보여줍니다. 지도에 폴리라인을 추가하여 운전 및 도보 경로를 표시하거나, 부동산 경계를 표시하거나, 운전 및 도보 시간을 계산할 수 있습니다. 실제로 장면을 렌더링하지 않고 속성을 가져올 수도 있습니다.
+사용자를 위해 선별된 동네 투어를 진행하거나 현재 판매 중인 인근 부동산을 보여준 다음 광고판과 같은 3D 객체를 장면으로 추가할 수 있습니다.
+여행을 요약하여 본 숙박 시설을 나열하고 이러한 세부정보를 가상 객체에 표시할 수 있습니다.
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8" />
+  <title>CesiumJS 3D Tiles Polyline and Label Demo</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js"></script>
+  <link
+    href="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css"
+    rel="stylesheet"
+  />
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <script>
+    // Enable simultaneous requests.
+    Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = 18;
+
+    // Create the viewer.
+    const viewer = new Cesium.Viewer("cesiumContainer", {
+      imageryProvider: false,
+      baseLayerPicker: false,
+      requestRenderMode: true,
+      geocoder: false,
+      globe: false,
+    });
+
+    // Add 3D Tiles tileset.
+    const tileset = viewer.scene.primitives.add(
+      new Cesium.Cesium3DTileset({
+        url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=YOUR_API_KEY",
+
+        // This property is required to display attributions as required.
+        showCreditsOnScreen: true,
+      })
+    );
+
+    // Draws a circle at the position, and a line from the previous position.
+    const drawPointAndLine = (position, prevPosition) => {
+      viewer.entities.removeAll();
+      if (prevPosition) {
+        viewer.entities.add({
+          polyline: {
+            positions: [prevPosition, position],
+            width: 3,
+            material: Cesium.Color.WHITE,
+            clampToGround: true,
+            classificationType: Cesium.ClassificationType.CESIUM_3D_TILE,
+          },
+        });
+      }
+      viewer.entities.add({
+        position: position,
+        ellipsoid: {
+          radii: new Cesium.Cartesian3(1, 1, 1),
+          material: Cesium.Color.RED,
+        },
+      });
+    };
+
+    // Compute, draw, and display the position's height relative to the previous position.
+    var prevPosition;
+    const processHeights = (newPosition) => {
+      drawPointAndLine(newPosition, prevPosition);
+
+      const newHeight = Cesium.Cartographic.fromCartesian(newPosition).height;
+      let labelText = "Current altitude (meters above sea level):\n\t" + newHeight;
+      if (prevPosition) {
+        const prevHeight =
+          Cesium.Cartographic.fromCartesian(prevPosition).height;
+        labelText += "\nHeight from previous point (meters):\n\t" + Math.abs(newHeight - prevHeight);
+      }
+      viewer.entities.add({
+        position: newPosition,
+        label: {
+          text: labelText,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          pixelOffset: new Cesium.Cartesian2(0, -10),
+          showBackground: true,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        }
+      });
+
+      prevPosition = newPosition;
+    };
+
+    const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+    handler.setInputAction(function (event) {
+      const earthPosition = viewer.scene.pickPosition(event.position);
+      if (Cesium.defined(earthPosition)) {
+        processHeights(earthPosition);
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  </script>
+</body>
+카메라 궤도
+Cesium에서는 관심 지점 주변으로 카메라를 회전시켜 건물과의 충돌을 방지할 수 있습니다. 또는 카메라가 건물을 통과할 때 건물을 투명하게 만들 수 있습니다.
+먼저 카메라를 한 지점에 고정한 다음 카메라 궤도를 만들어 애셋을 선보일 수 있습니다. 이 코드 샘플에 나와 있는 것처럼 이벤트 리스너와 함께 카메라의 lookAtTransform [https://cesium.com/learn/cesiumjs/ref-doc/Camera.html#lookAtTransform] 함수를 사용하여 이 작업을 수행할 수 있습니다.
+// Lock the camera onto a point.
+const center = Cesium.Cartesian3.fromRadians(
+  2.4213211833389243,
+  0.6171926869414084,
+  3626.0426275055174
+);
+
+const transform = Cesium.Transforms.eastNorthUpToFixedFrame(center);
+
+viewer.scene.camera.lookAtTransform(
+  transform,
+  new Cesium.HeadingPitchRange(0, -Math.PI / 8, 2900)
+);
+
+// Orbit around this point.
+viewer.clock.onTick.addEventListener(function (clock) {
+  viewer.scene.camera.rotateRight(0.005);
+});
+카메라 제어에 관한 자세한 내용은 카메라 제어하기 [https://cesium.com/learn/cesiumjs-learn/cesiumjs-camera/]를 참고하세요.
+Cesium for Unreal 사용
+3D Tiles API와 함께 Cesium for Unreal 플러그인을 사용하려면 아래 단계를 따르세요.
+도움말: 자세한 안내는 Cesium for Unreal 빠른 시작 [https://cesium.com/learn/unreal/unreal-quickstart/]을 참고하세요.
+Cesium for Unreal 플러그인을 설치합니다.
+새 Unreal 프로젝트를 만듭니다.
+Google 실사 3D 타일 API에 연결합니다.
+메뉴에서 Cesium > Cesium을 선택하여 Cesium 창을 엽니다.
+빈 3D 타일 타일셋을 선택합니다.
+월드 아웃라이너에서 이 Cesium3DTileset을 선택하여 세부정보 패널을 엽니다.
+소스를 Cesium Ion에서에서 URL에서로 변경합니다.
+URL을 Google 3D 타일 URL로 설정합니다.
+https://tile.googleapis.com/v1/3dtiles/root.json?key=YOUR_API_KEY
+화면에 저작자 표시를 사용 설정하여 저작자 표시를 올바르게 표시합니다.
+이렇게 하면 월드가 로드됩니다. LatLng로 이동하려면 아웃라이너 패널에서 CesiumGeoreference 항목을 선택한 다음 세부정보 패널에서 원점 위도/경도/높이를 수정합니다.
+Cesium for Unity 사용
+참고: Cesium for Unity에 대한 자세한 내용은 Cesium for Unity 빠른 시작 [https://cesium.com/learn/unity/unity-quickstart/]을 참고하세요.
+Cesium for Unity에서 사실적인 타일을 사용하려면 다음 단계를 따르세요.
+새 Unity 프로젝트를 만듭니다.
+패키지 관리자 섹션에서 새 범위 등록기관을 추가합니다 (Editor > Project Settings).
+이름: Cesium
+URL: https://unity.pkg.cesium.com
+범위: com.cesium.unity
+Cesium for Unity 패키지를 설치합니다.
+Google 실사 3D 타일 API에 연결합니다.
+메뉴에서 Cesium > Cesium을 선택하여 Cesium 창을 엽니다.
+빈 3D 타일 타일셋을 클릭합니다.
+왼쪽 패널의 소스 아래에 있는 타일셋 소스 옵션에서 URL에서 (Cesium Ion에서가 아님)을 선택합니다.
+URL을 Google 3D 타일 URL로 설정합니다.
+https://tile.googleapis.com/v1/3dtiles/root.json?key=YOUR_API_KEY
+화면에 저작자 표시를 사용 설정하여 저작자 표시를 올바르게 표시합니다.
+이렇게 하면 월드가 로드됩니다. LatLng로 이동하려면 Scene Hierarchy에서 CesiumGeoreference 항목을 선택한 다음 Inspector에서 Origin Latitude/Longitude/Height를 수정합니다.
+deck.gl 사용
+참고: Map Tiles API와 함께 사용할 수 있는 deck.gl의 최소 버전은 8.9.13 이상입니다.
+deck.gl [https://deck.gl/]은 WebGL 기반의 고성능 대규모 데이터 시각화를 위한 오픈소스 JavaScript 프레임워크입니다.
+기여 분석
+타일 gltf asset에서 copyright 필드를 추출한 다음 렌더링된 뷰에 표시하여 데이터 출처를 올바르게 표시해야 합니다. 자세한 내용은 데이터 출처 표시 [https://developers.google.com/maps/documentation/tile/create-renderer?hl=ko#display-attributions]를 참고하세요.
+deck.gl 렌더러 예
+간단한 예시
+다음 예에서는 deck.gl 렌더러를 초기화한 다음 3D로 장소를 로드합니다. 코드에서 YOUR_API_KEY를 실제 API 키로 바꿔야 합니다.
+<!DOCTYPE html>
+<html>
+ <head>
+   <title>deck.gl Photorealistic 3D Tiles example</title>
+   <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+   <style>
+     body { margin: 0; padding: 0;}
+     #map { position: absolute; top: 0;bottom: 0;width: 100%;}
+     #credits { position: absolute; bottom: 0; right: 0; padding: 2px; font-size: 15px; color: white;
+        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;}
+   </style>
+ </head>
+
+ <body>
+   <div id="map"></div>
+   <div id="credits"></div>
+   <script>
+     const GOOGLE_API_KEY = YOUR_API_KEY;
+     const TILESET_URL = `https://tile.googleapis.com/v1/3dtiles/root.json`;
+     const creditsElement = document.getElementById('credits');
+     new deck.DeckGL({
+       container: 'map',
+       initialViewState: {
+         latitude: 50.0890,
+         longitude: 14.4196,
+         zoom: 16,
+         bearing: 90,
+         pitch: 60,
+         height: 200
+       },
+       controller: {minZoom: 8},
+       layers: [
+         new deck.Tile3DLayer({
+           id: 'google-3d-tiles',
+           data: TILESET_URL,
+           loadOptions: {
+            fetch: {
+              headers: {
+                'X-GOOG-API-KEY': GOOGLE_API_KEY
+              }
+            }
+          },
+           onTilesetLoad: tileset3d => {
+             tileset3d.options.onTraversalComplete = selectedTiles => {
+               const credits = new Set();
+               selectedTiles.forEach(tile => {
+                 const {copyright} = tile.content.gltf.asset;
+                 copyright.split(';').forEach(credits.add, credits);
+                 creditsElement.innerHTML = [...credits].join('; ');
+               });
+               return selectedTiles;
+             }
+           }
+         })
+       ]
+     });
+   </script>
+ </body>
+</html>
+Google 포토리얼리스틱 3D 타일 위에 2D 레이어 시각화
+deck.gl TerrainExtension [https://deck.gl/docs/api-reference/extensions/terrain-extension]은 2D 데이터를 3D 표면에 렌더링합니다. 예를 들어 포토리얼리스틱 3D 타일 지오메트리 위에 건물 윤곽의 GeoJSON을 드레이핑할 수 있습니다.
+다음 예에서는 포토리얼리스틱 3D 타일 표면에 맞게 조정된 다각형으로 건물 레이어가 시각화됩니다.
+<!DOCTYPE html>
+<html>
+ <head>
+   <title>Google 3D tiles example</title>
+   <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+   <style>
+     body { margin: 0; padding: 0;}
+     #map { position: absolute; top: 0;bottom: 0;width: 100%;}
+     #credits { position: absolute; bottom: 0; right: 0; padding: 2px; font-size: 15px; color: white;
+        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;}
+   </style>
+ </head>
+
+ <body>
+   <div id="map"></div>
+   <div id="credits"></div>
+   <script>
+     const GOOGLE_API_KEY = YOUR_API_KEY;
+     const TILESET_URL = `https://tile.googleapis.com/v1/3dtiles/root.json`;
+     const BUILDINGS_URL = 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/google-3d-tiles/buildings.geojson'
+     const creditsElement = document.getElementById('credits');
+     const deckgl = new deck.DeckGL({
+       container: 'map',
+       initialViewState: {
+         latitude: 50.0890,
+         longitude: 14.4196,
+         zoom: 16,
+         bearing: 90,
+         pitch: 60,
+         height: 200
+       },
+       controller: true,
+       layers: [
+         new deck.Tile3DLayer({
+           id: 'google-3d-tiles',
+           data: TILESET_URL,
+           loadOptions: {
+            fetch: {
+              headers: {
+                'X-GOOG-API-KEY': GOOGLE_API_KEY
+              }
+            }
+          },
+          onTilesetLoad: tileset3d => {
+             tileset3d.options.onTraversalComplete = selectedTiles => {
+               const credits = new Set();
+               selectedTiles.forEach(tile => {
+                 const {copyright} = tile.content.gltf.asset;
+                 copyright.split(';').forEach(credits.add, credits);
+                 creditsElement.innerHTML = [...credits].join('; ');
+               });
+               return selectedTiles;
+             }
+           },
+           operation: 'terrain+draw'
+         }),
+         new deck.GeoJsonLayer({
+           id: 'buildings',
+           // This dataset is created by CARTO, using other Open Datasets available. More info at: https://3dtiles.carto.com/#about.
+           data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/google-3d-tiles/buildings.geojson',
+           stroked: false,
+           filled: true,
+           getFillColor: ({properties}) => {
+             const {tpp} = properties;
+             // quantiles break
+             if (tpp < 0.6249)
+               return [254, 246, 181]
+             else if (tpp < 0.6780)
+               return [255, 194, 133]
+             else if (tpp < 0.8594)
+               return [250, 138, 118]
+             return [225, 83, 131]
+           },
+           opacity: 0.2,
+           extensions: [new deck._TerrainExtension()]
+         })
+       ]
+     });
+   </script>
+ </body>
+</html>
+의견 보내기

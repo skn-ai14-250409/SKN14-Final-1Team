@@ -1,0 +1,148 @@
+Source URL: https://developers.google.com/maps/tt/route-optimization/experimental/objectives/make-request
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Route Optimization API [https://developers.google.com/maps/tt/route-optimization/experimental/overview?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+가이드 [https://developers.google.com/maps/documentation/route-optimization?hl=ko]
+목표
+이 제품 또는 기능은 실험용(GA 이전) 버전입니다. GA 이전 제품과 기능에 대한 지원이 제한될 수 있으며 GA 이전 제품과 기능의 변경사항이 다른 GA 이전 버전과 호환되지 않을 수 있습니다. GA 이전 버전 제품 또는 서비스에는 Google Maps Platform 서비스별 약관 [https://cloud.google.com/maps-platform/terms/maps-service-terms?hl=ko]이 적용됩니다. 자세한 내용은 출시 단계 설명 [https://developers.google.com/maps/launch-stages?hl=ko]을 참고하세요.
+목표는 가장 짧은 이동 거리 또는 시간, 정시 배송, 운전자 간 부하 균형 조정과 같은 일반적인 최적화 타겟을 미리 정의하는 파라미터입니다. 비용 매개변수의 정교함과 전체 맞춤설정을 학습하기 전에 개발자가 경로 최적화 API에 더 쉽게 온보딩할 수 있도록 설계되었습니다. 다양한 목표를 완전히 맞춤설정하는 방법은 'cost model [https://developers.google.com/maps/documentation/route-optimization/concepts/costs?hl=ko]'을 참고하세요.
+설정되면 ShipmentModel.objectives [https://developers.google.com/maps/tt/route-optimization/experimental/objectives/reference/rpc/google.maps.routeoptimization.v1?hl=ko#shipmentmodel]가 비용 모델을 완전히 덮어쓰므로 기존 비용과 호환되지 않습니다. 각 Objective [https://developers.google.com/maps/tt/route-optimization/experimental/objectives/reference/rpc/google.maps.routeoptimization.v1?hl=ko#objective]은 차량, 배송 또는 전환 속성에 대해 미리 정의된 여러 비용에 매핑됩니다.
+참고: 비용과 목표가 모두 설정된 OptimizeToursRequests는 유효하지 않으며 유효성 검사 오류와 함께 거부됩니다.
+TRANSFORM_AND_RETURN_REQUEST [https://developers.google.com/maps/tt/route-optimization/experimental/objectives/reference/rpc/google.maps.routeoptimization.v1?hl=ko#solvingmode] 해결 모드를 지정하면 요청이 해결되지 않고 지정된 목표에 해당하는 비용으로만 검증되고 채워집니다. 수정된 요청은 OptimizeToursResponse.processed_request [https://developers.google.com/maps/tt/route-optimization/experimental/objectives/reference/rpc/google.maps.routeoptimization.v1?hl=ko#optimizetoursresponse]로 반환됩니다. 다른 모든 해결 모드는 해결된 요청을 반환합니다.
+참고: TRANSFORM_AND_RETURN_REQUEST 요청에는 요금이 청구되지 않습니다.
+TRANSFORM_AND_RETURN_REQUEST 해결 모드는 OptimizeTours 요청에만 유효하며 다른 경로 최적화 API 요청에는 사용할 수 없습니다.
+예: ShipmentModel.objectives 요청하기
+요청을 하기 전에 다음 단계를 완료하세요.
+OAuth 사용 [https://developers.google.com/maps/documentation/route-optimization/oauth-token?hl=ko]에 설명된 대로 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/provide-credentials-adc?hl=ko]가 구성되어 있는지 확인합니다.
+PROJECT_NUMBER_OR_ID를 클라우드 프로젝트 번호 또는 ID로 설정합니다.
+다음 명령어는 OptimizeToursRequest를 Route Optimization API로 전송하며, 이 API는 OptimizeToursResponse를 반환합니다.
+curl -X POST 'https://routeoptimization.googleapis.com/v1/projects/PROJECT_NUMBER_OR_ID:optimizeTours' \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
+--data @- <<EOM
+{
+  "model": {
+    "shipments": [
+      {
+        "pickups": [
+          {
+            "arrivalLocation": {
+              "latitude": 37.42506261000996,
+              "longitude": -122.09535511930135
+            }
+          }
+        ],
+        "deliveries": [
+          {
+            "arrivalLocation": {
+              "latitude": 37.42421503206021,
+              "longitude": -122.09526063135228
+            }
+          }
+        ]
+      }
+    ],
+    "vehicles": [
+      {
+        "travelMode": "DRIVING",
+      }
+    ],
+    "objectives": [
+      {
+        "type": "MIN_TRAVEL_TIME"
+      }
+    ],
+  }
+}
+EOM
+참고: 이 예에서는 --data @-를 사용하여 표준 입력에서 요청을 읽습니다. --data @Filename을 사용하여 파일에서 읽습니다.
+예: TRANSFORM_AND_RETURN_REQUEST 요청하기
+요청을 하기 전에 다음 단계를 완료하세요.
+OAuth 사용 [https://developers.google.com/maps/documentation/route-optimization/oauth-token?hl=ko]에 설명된 대로 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/provide-credentials-adc?hl=ko]가 구성되어 있는지 확인합니다.
+PROJECT_NUMBER_OR_ID를 클라우드 프로젝트 번호 또는 ID로 설정합니다.
+다음 명령어는 Route Optimization API에 OptimizeToursRequest를 전송하며, 이 API는 ProcessedRequest [https://developers.google.com/maps/tt/route-optimization/experimental/objectives/reference/rpc/google.maps.routeoptimization.v1?hl=ko#optimizetoursresponse] 필드가 설정된 OptimizeToursResponse를 반환합니다.
+curl -X POST 'https://routeoptimization.googleapis.com/v1/projects/PROJECT_NUMBER_OR_ID:optimizeTours' \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
+--data @- <<EOM
+{
+  "model": {
+    "shipments": [
+      {
+        "pickups": [
+          {
+            "arrivalLocation": {
+              "latitude": 37.42506261000996,
+              "longitude": -122.09535511930135
+            }
+          }
+        ],
+        "deliveries": [
+          {
+            "arrivalLocation": {
+              "latitude": 37.42421503206021,
+              "longitude": -122.09526063135228
+            }
+          }
+        ]
+      }
+    ],
+    "vehicles": [
+      {
+        "travelMode": "DRIVING",
+      }
+    ],
+    "objectives": [
+      {
+        "type": "MIN_TRAVEL_TIME"
+      }
+    ]
+  },
+  "solvingMode": "TRANSFORM_AND_RETURN_REQUEST"
+}
+EOM
+이전 명령어는 다음과 유사한 응답을 생성합니다.
+{
+  "processedRequest": {
+    "model": {
+      "shipments": [
+        {
+          "pickups": [
+            {
+              "arrivalLocation": {
+                "latitude": 37.425062610009959,
+                "longitude": -122.09535511930135
+              }
+            }
+          ],
+          "deliveries": [
+            {
+              "arrivalLocation": {
+                "latitude": 37.424215032060211,
+                "longitude": -122.09526063135228
+              }
+            }
+          ]
+        }
+      ],
+      "vehicles": [
+        {
+          "travelMode": "DRIVING",
+          "costPerHour": 30,
+          "costPerTraveledHour": 330,
+          "costPerKilometer": 0.2
+        }
+      ],
+      "objectives": [
+        {
+          "type": "MIN_TRAVEL_TIME"
+        }
+      ]
+    },
+    "solvingMode": "TRANSFORM_AND_RETURN_REQUEST"
+  }
+}
+참고: 이 예에서는 --data @-를 사용하여 표준 입력에서 요청을 읽습니다. --data @Filename을 사용하여 파일에서 읽습니다.

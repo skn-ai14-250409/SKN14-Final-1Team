@@ -1,0 +1,203 @@
+Source URL: https://developers.google.com/maps/solutions/checkout/best-practices?hl=ko
+Title: 결제 구현 가이드
+
+의견 보내기
+
+결제 구현 가이드
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용개요 [https://developers.google.com/maps/solutions/checkout/best-practices?hl=ko#checkout]API 사용 설정 [https://developers.google.com/maps/solutions/checkout/best-practices?hl=ko#enabling-apis]권장사항 섹션 [https://developers.google.com/maps/solutions/checkout/best-practices?hl=ko#practices-sections]입력란에 자동 완성 추가 [https://developers.google.com/maps/solutions/checkout/best-practices?hl=ko#autocomplete]Place Autocomplete 시작하기 [https://developers.google.com/maps/solutions/checkout/best-practices?hl=ko#autocomplete-getstarted]Place Autocomplete 구현 시 고려사항 [https://developers.google.com/maps/solutions/checkout/best-practices?hl=ko#autocomplete-considerations]Maps Static API로 시각적 확인 제공 [https://developers.google.com/maps/solutions/checkout/best-practices?hl=ko#static]Maps Static API 시작하기 [https://developers.google.com/maps/solutions/checkout/best-practices?hl=ko#static-getstarted]결제 절차를 더 개선하기 위한 도움말 [https://developers.google.com/maps/solutions/checkout/best-practices?hl=ko#checkout-tips]
+
+개요
+
+웹
+android
+iOS
+API
+
+Google Maps Platform은 웹(JS, TS), Android, iOS에서
+사용할 수 있으며 장소, 경로, 거리에 대한 정보를 가져오는
+웹 서비스 API도 제공합니다. 이 가이드의 샘플은 단일 플랫폼을 대상으로 작성되었지만 다른 플랫폼에 구현할 경우에 참고할 수 있는 문서 링크도 함께 제공됩니다.
+
+build_circle 지금 빌드해 보세요.
+Google Cloud 콘솔의 빠른 빌더 [https://console.cloud.google.com/google/maps-apis/build/address-selection?utm_source=Docs_QB&hl=ko]를 사용하면 JavaScript 코드를 자동으로 생성해 주는 양방향 UI를 사용하여 주소 양식 자동 완성 기능을 빌드할 수 있습니다.
+
+온라인 쇼핑과 주문은 우리 생활 전반에서 보편적으로 사용되는 서비스가 되었습니다. 당일 배송 서비스에서 택시 예약, 저녁식사 주문에 이르기까지 고객은 원활한 결제 서비스를 기대하기에 이르렀습니다.
+
+그러나 이 모든 애플리케이션에서 청구서 수신지나 배송지 주소 입력은 결제 절차에서 많은 시간이 소요되고 번거로운 걸림돌로 남아 있습니다. 모바일 환경에서는 원활한 결제 환경이 한층 더 중요합니다. 작은 화면에서 복잡한 텍스트를 입력하는 일은 짜증스럽고 고객 전환의 또 다른 장벽이 될 수 있기 때문입니다.
+
+이번 주제에서는 예상 주소 자동 입력으로 고객이 결제 절차를 빠르게 완료하도록 도울 수 있는 구현 가이드를 제시합니다.
+
+아래 다이어그램에는 결제 기능을 구현하는 데 사용되는 핵심 API가 나와 있습니다(클릭하여 확대).
+
+[https://developers.google.com/static/maps/solutions/images/checkout/checkout_arch_diagram.png?hl=ko]
+
+API 사용 설정
+
+결제 기능을 구현하려면 Google Cloud 콘솔에서 다음 API를 사용 설정해야 합니다.
+
+Maps JavaScript API [https://console.cloud.google.com/apis/library/maps-backend.googleapis.com?hl=ko]
+Places API [https://console.cloud.google.com/apis/library/places-backend.googleapis.com?hl=ko]
+Maps Static API [https://console.cloud.google.com/apis/library/static-maps-backend.googleapis.com?hl=ko]
+
+설정에 대한 자세한 내용은 Google Maps Platform 시작하기 [https://developers.google.com/maps/get-started?hl=ko]를 참고하세요.
+
+권장사항 섹션
+
+다음은 이번 주제에서 다룰 도움말과 맞춤설정입니다.
+
+check_circle_filled
+체크표시 아이콘은 핵심 권장사항입니다.
+
+stars 별표 아이콘은 선택사항이지만 솔루션을 개선하기 위해 권장되는 맞춤설정입니다.
+
+| check_circle_filled | 입력란에 자동 완성 추가 | 주소 양식을 자동으로 완성합니다. 모든 플랫폼에서 사용자 경험을 개선하고 최소한의 키 입력으로 주소의 정확도를 높이기 위해 자동 완성 기능을 추가합니다. |
+| --- | --- | --- |
+| check_circle_filled | Maps Static API로 시각적 확인 제공 | 특정 주소의 위도/경도 좌표를 찾거나(지오코딩) 지리적 위치의 위도/경도 좌표를 주소로 변환합니다(역 지오코딩). |
+| stars | 결제 절차를 더 개선하기 위한 도움말 | Place Autocomplete 고급 기능을 사용하여 한층 더 나은 결제 환경을 만들 수 있습니다. |
+
+참고: 솔루션 코드 샘플의 채택을 추적하고 솔루션 품질을 개선하기 위해 Google은 이 페이지에 나온 샘플 코드의 API 호출에 solution_channel 쿼리 매개변수를 포함합니다.
+이를 원하지 않으면 샘플 코드에서 solution_channel 쿼리 매개변수를 삭제하세요.
+자세한 내용은 Google Maps Platform 솔루션 매개변수 [https://developers.google.com/maps/reporting-and-monitoring/reporting?hl=ko#solutions-usage]를 참고하세요.
+
+check_circle_filled
+
+입력란에 자동 완성 추가
+
+| 이 예에서 사용하는 API: Maps JavaScript API의 장소 라이브러리 | 기타 지원되는 환경: Android \| iOS |
+| --- | --- |
+
+Place Autocomplete은 애플리케이션에서의 주소 입력 절차를 간소화하여 전환율을 높이고 고객에게 원활한 환경을 제공합니다. Autocomplete은 간편한 단일 입력란에 예상 주소 자동 입력 기능을 제공하여 청구서 수신지나 배송지 주소 양식을 자동으로 채울 수 있도록 지원합니다.
+
+Place Autocomplete을 온라인 장바구니에 통합하면 다음과 같은 이점이 있습니다.
+
+주소 입력 오류 감소
+결제 단계 수 감소
+모바일 또는 웨어러블 기기의 주소 입력 환경 간소화
+고객이 주문하는 데 필요한 키 입력 및 총 시간 대폭 감소
+
+사용자가 Autocomplete 입력 상자를 선택하고 입력을 시작하면 예상 주소 목록이 나타납니다.
+
+사용자가 예상 목록에서 주소를 선택하면 해당 응답을 사용하여 주소를 확인하고 위치를 가져올 수 있습니다. 그러면 애플리케이션에서 주소 입력 양식의 올바른 입력란을 채울 수 있습니다.
+
+동영상: Place Autocomplete으로 주소 양식 개선하기
+
+[TAB_GROUP_PLACEHOLDER_0]
+
+Place Autocomplete 시작하기
+
+자바스크립트 코드 몇 줄이면 사이트에 Place Autocomplete을 구현할 수 있습니다.
+
+가장 간단한 방법은 사이트에 Maps JavaScript API를 포함하고(지도를 표시하지 않는 경우도 마찬가지) 다음 예와 같이 초기화 함수도 실행하는 장소 라이브러리를 지정하는 것입니다.
+
+<script async
+src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&loading=async&libraries=places&callback=initAutocomplete&solution_channel=GMP_guides_checkout_v1_a">
+</script>
+
+그 다음, 사용자 입력에 사용할 텍스트 상자를 페이지에 추가합니다.
+
+<input id="autocomplete" placeholder="Enter your address"></input>
+
+마지막으로, Autocomplete 서비스를 초기화하고 이름을 지정한 텍스트 상자에 연결합니다.
+
+function initAutocomplete() {
+function fillInAddress() {
+break;
+break;
+break;
+break;
+break;
+
+case "administrative_area_level_1": {
+(document.querySelector("#state") as HTMLInputElement).value =
+component.short_name;
+break;
+break;
+postalField.value = postcode;
+
+function fillInAddress() {
+break;
+break;
+break;
+break;
+case "administrative_area_level_1": {
+postalField.value = postcode;
+Place Autocomplete 구현 시 고려사항
+
+Place Autocomplete에는 위젯 그 이상을 사용하려는 경우 유연하게 구현하기 위한 다양한 옵션이 있습니다. 일치하는 위치를 올바른 방법으로 찾는 데 필요한 정확한 데이터를 얻기 위해 여러 서비스를 조합하여 사용할 수 있습니다.
+
+주소 양식의 경우 types 매개변수를 address로 설정하여 상세 주소 전체가 일치하는 주소만 가져올 수 있습니다. Place Autocomplete 요청 시 지원되는 유형 [https://developers.google.com/maps/documentation/places/web-service/supported_types?hl=ko#table3]에 대해 자세히 알아보세요.
+
+글로벌 단위로 검색할 필요가 없다면 적절한 제한 [https://developers.google.com/maps/documentation/javascript/places-autocomplete?hl=ko#set-search-area] 및 상세 검색을 설정합니다. 특정 지역과 일치하는 데이터만 가져오기 위한 상세 검색 또는 제한에 사용할 수 있는 다양한 매개변수가 있습니다.
+
+특정 지역으로 검색 범위를 제한하기 위해 직사각형 경계를 설정하려면 bounds를 사용하고, 해당 지역의 주소만 반환되도록 하려면 strictBounds를 사용합니다.
+
+응답을 몇 개의 특정 국가로만 제한하려면 componentRestrictions를 사용합니다.
+
+특정 필드가 검색에서 누락될 경우를 대비하여 필드를 수정 가능한 상태로 두고 고객이 필요한 경우 주소를 업데이트할 수 있게 합니다. Place Autocomplete에서 반환되는 대부분의 주소에는 아파트, 건물 번호, 호수 등의 세부 주소가 포함되지 않으므로 이 예에서는 사용자가 필요한 경우 해당 정보를 작성하도록 권장하기 위해 주소 입력란 2에 중점을 둡니다.
+
+check_circle_filled
+
+Maps Static API로 시각적 확인 제공
+
+주소 입력 후 간단한 정적 지도를 통해 사용자가 배달 또는 수령 위치를 시각적으로 확인할 수 있게 합니다. 그러면 고객은 주소가 올바른지를 한 번 더 확인할 수 있고 배달/수령 오류를 줄일 수 있습니다. 이 정적 지도는 고객이 주소를 입력하는 페이지에 표시할 수도 있고, 주문 확인 이메일을 통해 전송할 수도 있습니다.
+
+두 경우 모두 지도의 이미지 버전을 페이지 또는 이메일 내의 이미지 태그에 추가하는 Maps Static API [https://developers.google.com/maps/documentation/static-maps?hl=ko]를 사용하여 구현할 수 있습니다.
+
+Maps Static API 시작하기
+
+웹 서비스 호출을 사용하는 Maps Static API를 사용해 지정된 매개변수를 토대로 이미지 버전의 지도를 만들 수 있습니다. 동적 지도와 마찬가지로, 지도 유형을 지정하고 동일한 클라우드 기반 스타일을 사용하며 마커를 추가하고 위치를 구별할 수 있습니다.
+
+다음 호출이 표시하는 로드맵은 크기가 600x300px, 중심 위치는 캘리포니아주 마운틴 뷰의 Googleplex이며 확대/축소 수준은 13입니다. 또한 파란색 배달 위치 마커와 온라인 지도 스타일이 지정되어 있습니다.
+
+https://maps.googleapis.com/maps/api/staticmap?center=37.422177,-122.084082
+&zoom=13
+&size=600x300
+&maptype=roadmap
+&markers=color:blue%7Clabel:S%7C37.422177,-122.084082
+&map_id=8f348d1b5a61d4bb
+&key=YOUR_API_KEY
+&solution_channel=GMP_guides_checkout_v1_a
+
+이 호출은 다음과 같은 섹션으로 구성되어 있습니다.
+
+| API URL | https://maps.googleapis.com/maps/api/staticmap? |
+| --- | --- |
+| 지도 중심 | center=37.422177,-122.084082 |
+| 확대/축소 수준 | zoom=13 |
+| 이미지 크기 | size=600x300 |
+| 지도 유형 | maptype=roadmap |
+| 매장 위치 마커 | markers=color:blue%7Clabel:C%7C37.422177,-122.084082 |
+| 클라우드 지도 스타일 | map_id=8f348d1b5a61d4bb |
+| API 키 | key=YOUR_API_KEY |
+| 솔루션 채널 매개변수(매개변수 문서 참고) | solution_channel=GMP_guides_checkout_v1_a |
+
+이미지는 아래와 같이 표시됩니다.
+
+Maps Static API 옵션에 대한 자세한 내용은 이 문서 [https://developers.google.com/maps/documentation/static-maps?hl=ko]를 참고하세요.
+
+stars
+
+결제 절차를 더 개선하기 위한 도움말
+
+Place Autocomplete가 제공하는 고급 기능을 활용하여 고객 경험을 더 개선할 수 있습니다. 아래는 Autocomplete 주소 입력 상자를 개선하기 위한 도움말입니다.
+
+stars
+사용자가 업체 또는 관심 장소 이름을 토대로 주소를 입력할 수 있게 합니다.
+자동으로 입력되는 예상 검색어 서비스는 주소에도 사용할 수 있지만 업체 또는 명소 이름을 입력할 수 있도록 선택할 수도 있습니다.  사용자가 업체 이름을 입력하면 장소 세부정보 [https://developers.google.com/maps/documentation/javascript/places?hl=ko#place_details]를 호출하여 쉽게 주소를 가져올 수 있습니다.
+주소와 시설 이름을 모두 입력할 수 있게 하려면 Autocomplete 정의에서 types 속성을 삭제합니다.
+
+stars
+웹사이트 스타일에 맞게 Place Autocomplete 상자의 모양과 디자인을 맞춤설정합니다.
+자동 완성 위젯의 스타일도 장바구니의 모양과 디자인에 맞춰 지정할 수 있습니다.
+다양한 CSS 클래스를 맞춤설정에 사용할 수 있습니다.  자동 완성 상자 스타일을 지정하는 방법에 관한 자세한 내용은 이 문서 [https://developers.google.com/maps/documentation/javascript/places-autocomplete?hl=ko#style-autocomplete]를 참고하세요.
+
+stars
+맞춤 UI를 만들려는 경우.
+Google에서 디자인한 UI 대신 맞춤 UI를 만들려면 프로그래매틱 방식으로 Place Autocomplete 서비스를 호출하여 입력된 텍스트를 토대로 예상 검색어를 가져옵니다.
+자바스크립트 [https://developers.google.com/maps/documentation/javascript/places-autocomplete?hl=ko#place_autocomplete_service], Android [https://developers.google.com/maps/documentation/places/android-sdk/autocomplete?hl=ko#get_place_predictions_programmatically], iOS [https://developers.google.com/maps/documentation/places/ios-sdk/autocomplete?hl=ko#getting_place_predictions_programmatically]에서 Place Autocomplete 예상 검색어를 프로그래매틱 방식으로 가져올 수도 있고 Places API [https://developers.google.com/maps/documentation/places/web-service/autocomplete?hl=ko]를 통해 직접 웹 서비스 API를 호출할 수도 있습니다.
+
+의견 보내기

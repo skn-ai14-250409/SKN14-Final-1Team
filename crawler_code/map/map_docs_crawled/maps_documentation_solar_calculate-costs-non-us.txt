@@ -1,0 +1,181 @@
+Source URL: https://developers.google.com/maps/documentation/solar/calculate-costs-non-us
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Environment [https://developers.google.com/maps/environment?hl=ko]
+Solar API [https://developers.google.com/maps/documentation/solar?hl=ko]
+의견 보내기
+미국 외 지역의 태양광 비용 및 절감액 계산하기
+유럽 경제 지역 (EEA) 개발자
+이 섹션에서는 미국 외 지역의 가구에 가장 적합한 태양광 구성을 결정할 수 있는 계산 방법을 설명합니다. 추천을 계산하려면 Solar API 응답의 데이터를 사용하여 태양광 패널 설치 비용과 태양광 패널로 얻을 수 있는 절감액을 모델링해야 합니다.
+미국 위치의 경우 Solar API는 입력 위치의 각 전기 요금 크기에 대해 FinancialAnalysis [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#FinancialAnalysis] 객체의 인스턴스를 반환합니다. 이러한 인스턴스의 정보를 사용하여 각 태양광 설치 크기와 관련된 청구서, 에너지 소비량, 궁극적으로 절감액을 결정합니다.
+미국 이외의 지역의 경우 API 응답에 FinancialAnalysis [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#FinancialAnalysis] 인스턴스가 포함되지 않으므로 최적의 구성을 추천하려면 각 태양광 구성의 비용과 절감액을 직접 계산해야 합니다. 계산을 수행하려면 위치별 데이터를 수집하고 이 문서의 안내를 따라야 합니다.
+미국 위치에 Solar API가 사용하는 계산을 기반으로 계산을 모델링할 수 있습니다. 이러한 계산에 대한 설명은 비용 절감액 계산 (미국) [https://developers.google.com/maps/documentation/solar/calculate-costs-us?hl=ko]을 참고하세요.
+태양광 패널 구성
+미국 외 지역의 경우 재무 분석에 필요한 각 태양광 패널 구성에 관한 정보가 SolarPanelConfig [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#solarpanelconfig] 필드에 제공됩니다. 반환되는 SolarPanelConfig 인스턴스 수는 입력 위치의 지붕 크기에 따라 다릅니다. 계산에는 다음 두 필드의 값이 필요합니다.
+panelsCount [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#SolarPanelConfig.FIELDS.panels_count]: 이 구성에 사용되는 패널 수입니다.
+yearlyEnergyDcKwh [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#SolarPanelConfig.FIELDS.yearly_energy_dc_kwh]: SolarPotential [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#solarpotential] 객체의 다음 필드에 정의된 패널 크기를 고려할 때 이 구성이 1년 동안 생성하는 태양 에너지의 양(kWh 단위의 DC 전기)입니다.
+panelHeightMeters [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#SolarPotential.FIELDS.panel_height_meters]: 패널 높이(미터)입니다.
+panelWidthMeters [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#SolarPotential.FIELDS.panel_width_meters]: 패널 너비(미터)입니다.
+panelCapacityWatts [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#SolarPotential.FIELDS.panel_capacity_watts]: 패널 전력 등급(와트)입니다.
+다음 예는 요청 응답의 solarPanelConfigs 필드에 있는 SolarPanelConfig 객체의 인스턴스를 보여줍니다.
+  "solarPanelConfigs": [
+      {
+        "panelsCount": 4,
+        "yearlyEnergyDcKwh": 1709.2424,
+        "roofSegmentSummaries": [
+          {
+            "pitchDegrees": 16.253168,
+            "azimuthDegrees": 169.41516,
+            "panelsCount": 4,
+            "yearlyEnergyDcKwh": 1709.2424
+          }
+        ]
+      }
+  ]
+태양광 설치의 경우 installationSize은 면적이나 패널 수가 아닌 kW 출력을 나타내며 다음과 같이 정의됩니다.
+installationSize = panelsCount * panelCapacityWatts/1000 kW
+다양한 패널 등급에 맞게 에너지 생산량 추정치 조정
+yearlyEnergyDcKwh 값을 계산하기 위해 Solar API는 현재 400W인 panelCapacityWatts [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#SolarPotential.FIELDS.panel_capacity_watts] 필드의 전력 등급을 사용합니다.
+계산에 다른 패널 전력 등급을 사용해야 하고 패널의 크기가 panelHeightMeters 및 panelWidthMeters 필드의 값과 대략적으로 유사한 경우 yearlyEnergyDcKwh 필드에서 API가 반환한 값에 전력 등급과 panelCapacityWatts의 값의 비율을 곱하여 계산을 조정할 수 있습니다.
+예를 들어 패널의 전력 등급이 500W이고 panelCapacityWatts이 400W인 경우 API가 panelCapacityWatts을 사용하여 계산한 yearlyEnergyDcKwh 값을 500/400 또는 1.25의 계수로 곱합니다. 패널 전력 등급이 200W인 경우 yearlyEnergyDcKwh에 200/400 또는 0.5를 곱합니다.
+과도한 에너지 생산
+태양광 설치로 생산될 수 있는 초과 에너지는 Solar API 계산 범위에 포함되지 않습니다. 실제로 Solar API가 특정 가구에 대해 가능한 SolarPanelConfig 인스턴스를 여러 개 반환하는 경우 Solar API는 FinancialAnalysis에서 가정된 미국 평균 가구 소비량보다 더 많은 전력을 생산하는 결과나 구성을 고려하지 않습니다.
+하지만 과도한 전기를 생산하는 설치를 추천에 포함해야 하는 이유가 있을 수 있습니다. 예를 들어 설치 수명 초기에 과도한 생산을 허용하여 패널 효율의 점진적인 감소 (efficiencyDepreciationFactor)를 상쇄할 수 있습니다. 자세한 내용은 재무 분석에 필요한 값 [https://developers.google.com/maps/documentation/solar/calculate-costs-non-us?hl=ko#required-values]을 참고하세요.
+이유가 무엇이든 간에 잉여 전기를 생산하는 태양광 설치를 계산에 포함하는 경우 여기에 설명된 계산에는 해당 시나리오가 포함되지 않습니다.
+미국 외 지역의 재무 분석에 필요한 값
+API 응답의 각 SolarPanelConfig [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#solarpanelconfig] 인스턴스에서 해당 인스턴스의 재무 분석을 실행하려면 다음 두 값이 필요합니다.
+panelsCount: 설치된 태양광 패널 수입니다. installationSize 계산에 이 값을 사용합니다.
+yearlyEnergyDcKwh: 특정 panelsCount가 주어졌을 때 1년 동안 레이아웃에서 포착하는 태양 에너지의 양(kWh 단위의 DC 전기)입니다. 이 값은 각 installationSize의 가정에서 AC 전기로 사용할 수 있는 태양 에너지 (initialAcKwhPerYear)를 계산할 때 사용되며, DC에서 AC로 변환하는 동안 발생하는 에너지 손실을 고려합니다.
+또한 계산에 사용할 다음 변수의 위치별 값을 수집해야 합니다.
+billCostModel(): 특정 kWh를 사용하는 데 대해 가구에서 지불하는 비용을 현지 통화로 결정하는 모델입니다. 전력회사가 청구하는 전기 요금은 수요, 시간대, 가구에서 소비하는 전기량과 같은 요인에 따라 매일 또는 매시간 달라질 수 있습니다. 평균 비용을 추정해야 할 수도 있습니다.
+costIncreaseFactor: 전기 비용이 매년 증가하는 비율입니다. Solar API는 미국 위치에 1.022 (연간 2.2% 증가)를 사용합니다. 지역에 맞게 이 값을 조정합니다.
+dcToAcDerate: 인버터가 태양광 패널에서 생성된 DC 전력을 가정에서 사용되는 AC 전력으로 변환하는 효율성입니다. Solar API는 미국 위치에 85%를 사용합니다. 지역에 맞게 이 값을 조정합니다.
+discountRate: Solar API는 미국 위치에 1.04 (연간 4% 증가)를 사용합니다. 지역에 맞게 이 값을 조정합니다.
+efficiencyDepreciationFactor: 태양광 패널의 효율이 매년 얼마나 감소하는지입니다. Solar API는 미국 위치에 0.995 (연간 0.5% 감소)를 사용합니다. 지역에 맞게 이 값을 조정합니다.
+인센티브: 거주 지역의 정부 기관에서 제공하는 태양광 패널 설치에 대한 금전적 인센티브를 포함합니다.
+installationCostModel(): 지정된 installationSize에 대해 현지 통화로 태양광 설치 비용을 추정하는 메서드입니다. 비용 모델은 일반적으로 지정된 installationSize의 현지 인건비와 자재비를 고려합니다.
+installationLifeSpan: 태양광 설치의 예상 수명입니다. Solar API는 20년을 사용합니다. 지역에 맞게 이 값을 조정합니다.
+kWhConsumptionModel(): 월별 청구서를 기반으로 가구에서 소비하는 에너지 양을 결정하는 모델입니다. 가장 간단한 형태는 청구액을 거주 지역의 kWh당 평균 비용으로 나누는 것입니다.
+monthlyBill: 대상 가구의 월 평균 전기 요금입니다.
+monthlyKWhEnergyConsumption: 특정 위치의 가구에서 한 달에 소비하는 평균 전기량을 추정한 값입니다(단위: kWh).
+이러한 값과 API 응답에서 제공하는 정보를 사용하여 Solar API에서 다루지 않는 위치에 가장 적합한 installationSize를 추천하는 데 필요한 계산을 실행할 수 있습니다.
+계산 단계
+다음 단계는 Solar API의 방법론을 기반으로 합니다. 위치에 따라 사용할 수 있는 정보를 기반으로 방법을 조정해야 할 수 있습니다.
+입력 위치에서 가구의 연간 에너지 소비량을 계산합니다.
+가구의 월별 청구액을 추정하거나 요청합니다.
+월별 요금에서 monthlyKWhEnergyConsumption을 계산합니다. (monthlyKWhEnergyConsumption을 알고 있으면 이 단계를 건너뛸 수 있습니다.) 예를 들면 다음과 같습니다.
+monthlyKWhEnergyConsumption = kWhConsumptionModel(monthlyBill)
+monthlyKWhEnergyConsumption에 12를 곱하여 annualKWhEnergyConsumption을 계산합니다.
+annualKWhEnergyConsumption = monthlyKWhEnergyConsumption x 12
+타겟 가구의 API 응답 가져오기:
+https://solar.googleapis.com/v1/buildingInsights:findClosest?location.latitude=lat-number&location.longitude=long-number&key=yourAPIKey
+대답에는 사용 가능한 햇빛, 사용 가능한 지붕 공간, 하나 이상의 가능한 태양 전지판 구성이 포함됩니다.
+API가 제안하는 각 installationSize의 연간 태양 에너지 AC 생산량을 API가 각 SolarPanelConfig 인스턴스에서 제공하는 yearlyEnergyDcKwh 값에 현지 dcToAcDerate를 곱하여 계산합니다.
+initialAcKwhPerYear = yearlyEnergyDcKwh x dcToAcDerate
+선택적으로 연간 가정 소비량보다 더 많은 전기를 생산하는 SolarPanelConfig 인스턴스를 고려 대상에서 제외합니다(initialAcKwhPerYear > annualKWhEnergyConsumption).
+반환된 각 installationSize의 전체 기간 태양 에너지 생산량(LifetimeProductionAcKwh)을 계산합니다.
+태양광 발전 시스템의 수명 동안 매년 시스템에서 생산되는 전력량을 계산하고 첫해 이후 매년에 efficiencyDepreciationFactor를 지수적으로 적용합니다.
+모든 연도의 합계를 더합니다.
+다음 표는 installationLifeSpan이 20년이라고 가정할 때 평생 에너지 생산량을 계산하는 방법을 보여줍니다. 각 행은 생산 연도를 나타냅니다. 첫해 이후에는 효율성 감소가 지수적으로 적용됩니다. 마지막으로 모든 행의 합계는 태양광 설치의 전체 기간 에너지 생산량입니다.
+연도 연간 태양 에너지 생산량 (kWh)
+1 initialAcKwhPerYear
+2 + initialAcKwhPerYear x efficiencyDepreciationFactor
+: :
+20 + initialAcKwhPerYear x efficiencyDepreciationFactor19
+합계 LifetimeProductionAcKwh
+태양광 패널 효율은 일정한 비율로 감소하므로 기본적으로 a = initialAcKwhPerYear, r = efficiencyDepreciationFactor인 기하급수입니다. 기하급수 합을 사용하여 LifetimeProductionAcKwh를 계산할 수 있습니다.
+LifetimeProductionAcKwh = (dcToAcDerate * initialAcKwhPerYear * (1 - pow(efficiencyDepreciationFactor, installationLifeSpan)) / (1 - efficiencyDepreciationFactor))
+다음 Python 코드는 위의 기하급수 합계를 계산합니다.
+def LifetimeProductionAcKwh(
+    dcToAcDerate,
+    yearlyEnergyDcKwh,
+    efficiencyDepreciationFactor,
+    installationLifeSpan):
+  return (
+    dcToAcDerate *
+    yearlyEnergyDcKwh *
+    (1 - pow(
+      efficiencyDepreciationFactor,
+      installationLifeSpan)) /
+    (1 - efficiencyDepreciationFactor))
+반환된 각 installationSize에 대해 installationSize이 설치된 경우 에너지 소비의 수명 비용을 계산합니다.
+태양광 설치의 수명 기간 동안 태양광으로 충족되지 않는 에너지 소비를 충당하기 위해 가구에서 매년 구매해야 하는 전기 비용을 계산합니다. 이전에 계산한 annualKWhEnergyConsumption 및 initialAcKwhPerYear 값을 사용합니다. 첫해 이후의 각 연도에 대해 efficiencyDepreciationFactor, costIncreaseFactor, discountRate을 값에 적용합니다.
+모든 연도의 합계를 더합니다.
+다음 표는 전기 수명의 비용을 계산하는 방법을 보여주는 예입니다. 각 행은 태양광 설치 수명 동안의 연간 전기 비용을 나타냅니다. 첫해 이후에는 전기 요금 인상과 할인율이 모두 기하급수적으로 적용됩니다. 마지막으로 모든 행의 합계는 태양광 설치가 있는 경우의 전체 기간 전기 비용입니다.
+연도 현재 현지 통화 가치의 연간 공공요금 청구액 (USD) (annualUtilityBillEstimate)
+1 annualUtilityBillEstimateYear1 = billCostModel (yearlyKWhEnergyConsumption - initialAcKwhPerYear)
+2 annualUtilityBillEstimateYear2 = billCostModel (yearlyKWhEnergyConsumption - initialAcKwhPerYear x efficiencyDepreciationFactor) x costIncreaseFactor / discountRate
+: :
+20 annualUtilityBillEstimateYear20 = billCostModel (yearlyKWhEnergyConsumption - initialAcKwhPerYear x efficiencyDepreciationFactor19) x costIncreaseFactor19 / discountRate19
+합계 remainingLifetimeUtilityBill
+다음 Python 코드는 installationLifeSpan의 모든 연도에 대해 annualUtilityBillEstimate 배열을 반환합니다.
+def annualUtilityBillEstimate(
+    yearlyKWhEnergyConsumption,
+    initialAcKwhPerYear,
+    efficiencyDepreciationFactor,
+    year,
+    costIncreaseFactor,
+    discountRate):
+  return (
+    billCostModel(
+      yearlyKWhEnergyConsumption -
+      annualProduction(
+        initialAcKwhPerYear,
+        efficiencyDepreciationFactor,
+        year)) *
+    pow(costIncreaseFactor, year) /
+    pow(discountRate, year))
+
+def lifetimeUtilityBill(
+    yearlyKWhEnergyConsumption,
+    initialAcKwhPerYear,
+    efficiencyDepreciationFactor,
+    installationLifeSpan,
+    costIncreaseFactor,
+    discountRate):
+  bill = [0] * installationLifeSpan
+  for year in range(installationLifeSpan):
+    bill[year] = annualUtilityBillEstimate(
+      yearlyKWhEnergyConsumption,
+      initialAcKwhPerYear,
+      efficiencyDepreciationFactor,
+      year,
+      costIncreaseFactor,
+      discountRate)
+  return bill
+태양광 설치가 설치되지 않은 경우의 전체 기간 전기 비용 계산:
+태양광 설치의 수명 기간 동안 태양광이 설치되지 않은 경우 가구에서 매년 구매해야 하는 전기 비용을 계산합니다. monthlyBill 값을 사용합니다. 첫해 이후의 각 연도에 대해 costIncreaseFactor 및 discountRate 값을 monthlyBill에 적용합니다.
+모든 연도의 합계를 더합니다.
+다음 표는 태양광이 없는 경우의 평생 전기 비용을 계산하는 방법을 보여줍니다. 각 행은 태양광 설치의 수명과 동일한 기간 동안의 연간 전기 비용을 나타냅니다. 첫해 이후에는 전기 요금 인상과 할인율이 모두 지수적으로 적용됩니다. 마지막으로 모든 행의 합계는 태양광 설치가 없는 경우의 평생 전기료입니다.
+연도 현재 현지 통화 가치로 표시된 연간 공공요금 청구액
+1 annualBill = monthlyBill x 12
+2 annualBill = monthlyBill x 12 x costIncreaseFactor / discountRate
+: :
+20 annualBill = monthlyBill x 12 x costIncreaseFactor19 / discountRate19
+합계 costOfElectricityWithoutSolar
+다음 코드는 위의 계산을 실행합니다.
+lifetimeBill = (
+    monthlyBill * 12 *
+    (1 - pow(costIncreaseFactor / discountRate, installationLifeSpan)) /
+    (1 - costIncreaseFactor / discountRate))
+각 설치 크기에 대해 설치 비용을 계산합니다.
+installationCost = localInstallationCostModel(installationSize)
+가구 위치에서 사용할 수 있는 금전적 인센티브를 모두 합산합니다.
+각 설치 크기에 대해 태양광 설치와 관련된 총비용을 계산합니다.
+totalCostWithSolar = installationCost + remainingLifetimeUtilityBill - incentives
+각 설치 크기에 대해 태양광 설치와 관련된 총 절감액을 계산합니다.
+savings = costOfElectricityWithoutSolar - totalCostWithSolar
+가장 많은 절감 효과를 제공하는 설치 크기를 선택합니다.
+계산이 완료된 경우
+제공된 정보, Solar API에서 반환된 정보, 위의 계산을 사용하여 해당 지역의 가구에 최대한의 비용 절감을 제공하는 태양광 설치 크기를 추천할 수 있습니다.
+최종 사용자에게 제공하는 추천에는 solarPotential 필드의 SolarPotential [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#solarpotential] 객체에서 API가 반환하는 다음 정보도 포함할 수 있습니다.
+주택이 연간 받는 사용 가능한 일조량입니다. SolarPotential 객체의 maxSunshineHoursPerYear [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#SolarPotential.FIELDS.max_sunshine_hours_per_year] 필드에 반환됩니다.
+태양광 설치에 사용할 수 있는 지붕의 면적(제곱피트)입니다. SolarPotential 객체의 wholeRoofStats [https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest?hl=ko#SolarPotential.FIELDS.whole_roof_stats] 필드에 반환됩니다.
+가구의 월평균 전기 요금입니다.
+이전 arrow_back 비용 및 절감액 계산 (미국만 해당) [https://developers.google.com/maps/documentation/solar/calculate-costs-us?hl=ko]
+다음 TypeScript에서 비용 및 절감액 계산하기 arrow_forward [https://developers.google.com/maps/documentation/solar/calculate-costs-typescript?hl=ko]
+의견 보내기

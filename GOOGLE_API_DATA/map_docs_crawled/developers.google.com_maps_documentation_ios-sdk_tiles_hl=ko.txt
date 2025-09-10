@@ -1,0 +1,102 @@
+Source URL: https://developers.google.com/maps/documentation/ios-sdk/tiles?hl=ko
+Title: 타일 오버레이
+
+의견 보내기
+
+타일 오버레이
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+플랫폼 선택:
+
+Android [https://developers.google.com/maps/documentation/android-sdk/tileoverlay?hl=ko]
+
+iOS [https://developers.google.com/maps/documentation/ios-sdk/tiles?hl=ko]
+
+JavaScript [https://developers.google.com/maps/documentation/javascript/customoverlays?hl=ko]
+
+지도 상단에 이미지를 타일 계층으로 추가할 수 있습니다. 타일 레이어는 특정 확대/축소 수준에서 지도 타일 위에 배치됩니다. 타일이 충분하면 여러 확대/축소 수준에서 전체 지도의 Google 지도 데이터를 보완할 수 있습니다.
+
+소개
+
+타일 레이어(타일 오버레이라고도 함)를 사용하면 Google의 기본 지도 타일 위에 이미지를 겹칠 수 있습니다. 이 기능을 사용하여 관심분야, 교통 정보, 로컬 이미지와 같은 데이터를 앱에 추가합니다. kGMSTypeNone 지도 유형과 결합하면 타일 레이어를 사용하여 Google의 기본 지도 데이터를 자체 데이터로 효과적으로 대체할 수 있습니다.
+
+타일 레이어는 대체로 큰 지리적 영역이 포함된 광범위한 이미지를 지도에 추가하고자 할 때 유용합니다. 반면 지면 오버레이 [https://developers.google.com/maps/documentation/ios-sdk/overlays?hl=ko]는 단일 이미지를 지도의 한 지점에 고정하려는 경우에 유용합니다.
+
+타일 좌표
+
+지도 API는 각 확대/축소 수준의 이미지를 순서가 지정된 그리드에 정렬된 정사각형 지도 타일 집합으로 분할합니다. 지도가 새 위치나 새 확대/축소 수준으로 스크롤되면 지도 API는 어느 타일이 필요한지 알아내고 이를 검색할 타일 집합으로 변환합니다.
+
+Google의 메르카토르 투영법 구현에서 좌표가 (0,0)인 타일은 항상 지도의 북서쪽 모서리에 있으며 x 값은 서쪽에서 동쪽으로 갈수록 증가하고 y 값은 북쪽에서 남쪽으로 갈수록 증가합니다.
+타일의 색인은 해당 원점에서부터 x,y 좌표를 사용하여 생성됩니다. 예를 들어 확대/축소 수준 2에서 지구가 16개의 타일로 나뉘면 각 타일은 다음과 같이 고유한 x,y 쌍으로 참조될 수 있습니다.
+
+각 지도 타일은 256x256 포인트의 정사각형입니다. 확대/축소 수준 0에서는 세계 전체가 하나의 타일에 렌더링됩니다. 각 확대/축소 수준에서 2의 배수로 배율이 올라갑니다. 예를 들어 확대/축소 수준 1에서 지도는 2x2 그리드의 타일로 렌더링되고, 확대/축소 수준 2에서는 4x4 그리드로, 확대/축소 수준 3에서는 8x8 그리드로 렌더링됩니다. 타일 레이어의 이미지를 만들려면 지원하려는 각 확대/축소 수준에서 각 타일에 대해 256x256 포인트 이미지를 만듭니다.
+
+타일 레이어 추가
+
+GMSURLTileLayer [https://developers.google.com/maps/documentation/ios-sdk/reference/objc/Classes/GMSURLTileLayer?hl=ko] 객체 또는 GMSTileLayer [https://developers.google.com/maps/documentation/ios-sdk/reference/objc/Classes/GMSTileLayer?hl=ko] 또는 GMSSyncTileLayer [https://developers.google.com/maps/documentation/ios-sdk/reference/objc/Classes/GMSSyncTileLayer?hl=ko]의 맞춤 서브클래스를 인스턴스화합니다.
+원하는 경우 zIndex 속성을 수정하여 다른 타일 레이어와 관련된 위치를 조정합니다.
+map 속성을 설정하여 GMSTileLayer 객체를 지도에 할당합니다.
+
+iOS용 Maps SDK는 타일 레이어를 구현하는 데 사용할 수 있는 세 가지 클래스를 제공합니다. 각 클래스를 사용하면 지정된 {x,y,zoom} 좌표에 대해 올바른 지도 타일을 가져오는 방법을 정의해야 합니다. 사용 가능한 옵션은 다음과 같습니다.
+
+UIImage 인스턴스를 반환하는 tileForX:y:zoom 구현을 제공하여 GMSSyncTileLayer를 서브클래스로 지정합니다.
+GMSTileLayer를 서브클래스화하여 나중에 타일 이미지로 다시 호출되는 비동기 메서드 requestTileForX:y:zoom의 구현을 제공합니다.
+기존 클래스 GMSURLTileLayer를 사용하여 URL에서 타일을 자동으로 가져와 GMSTileURLConstructor 블록을 제공합니다. GMSURLTileLayer는 서브클래스로 만들 수 없는 구체적인 클래스입니다.
+
+GMSSyncTileLayer 또는 GMSTileLayer를 서브클래스화하는 경우 nil 타일 결과를 제공하면 iOS용 Maps SDK에 데이터가 제공되지 않지만 향후 제공될 수 있다고 알립니다. 또는 이 위치에 타일이 없음을 나타내기 위해 kGMSTileLayerNoTile를 반환합니다.
+
+GMSURLTileLayer의 경우 GMSTileURLConstructor에서 nil를 반환하면 이 위치에 타일이 없음을 나타냅니다.
+
+GMSURLTileLayer를 사용하여 URL에서 타일 가져오기
+
+GMSURLTileLayer에는 서브클래스가 필요하지 않지만 GMSTileURLConstructor 블록을 구현해야 합니다. 아래 코드는 GMSURLTileLayer를 사용하여 다층 건물의 평면도를 표시하는 방법을 보여줍니다.
+
+Swift
+layer.map = mapView
+
+Objective-C
+NSInteger floor = 1;
+
+return [NSURL URLWithString:url];
+layer.map = mapView;
+
+GMSSyncTileLayer를 하위 클래스로 지정하여 UIImage로 타일 게재
+
+GMSSyncTileLayer 및 GMSTileLayer은 서브클래스로 처리되도록 설계된 추상 클래스입니다. 이러한 클래스를 사용하여 타일을 UIImage로 제공할 수 있습니다. 아래 예에서는 GMSSyncTileLayer를 서브클래싱하여 지도에 있는 일부 타일 위에 맞춤 이미지를 렌더링하는 방법을 보여줍니다.
+
+Swift
+class TestTileLayer: GMSSyncTileLayer {
+override func tileFor(x: UInt, y: UInt, zoom: UInt) -> UIImage? {
+Objective-C
+@interface TestTileLayer : GMSSyncTileLayer
+@end
+
+@implementation TestTileLayer
+
+- (UIImage *)tileForX:(NSUInteger)x y:(NSUInteger)y zoom:(NSUInteger)zoom {
+
+Objective-C
+GMSTileLayer *layer = [[TestTileLayer alloc] init];
+layer.map = mapView;
+
+레티나 기기를 위한 고DPI 타일
+
+tileSize을 512로 설정하여 GMSSyncTileLayer [https://developers.google.com/maps/documentation/ios-sdk/reference/objc/Classes/GMSSyncTileLayer?hl=ko] 또는 GMSURLTileLayer [https://developers.google.com/maps/documentation/ios-sdk/reference/objc/Classes/GMSURLTileLayer?hl=ko]와 함께 고해상도 이미지를 사용할 수 있습니다.
+tileSize 속성은 반환된 타일 이미지가 표시되기를 원하는 픽셀 수를 나타냅니다. 기본값은 256입니다. 이는 Retina가 아닌 기기에서 Google 지도 타일의 크기입니다.
+
+고DPI 기기에 일반 DPI 타일을 표시하는 경우 tileSize을 512로 설정하여 이미지를 확대할 수 있습니다. 이미지를 업스케일링하면 특히 가는 선이나 텍스트의 경우 이미지 품질이 저하될 수 있습니다. 최상의 결과를 얻으려면 tileSize 및 이미지 DPI를 디스플레이와 일치시키세요. 레티나 기기에 표시되는 지도는 tileSize가 512인 고DPI 이미지를 표시할 때 가장 보기 좋으며, 비레티나 기기에 표시되는 지도는 일반 이미지와 기본 tileSize인 256으로도 보기 좋습니다.
+참고: Retina 기기에는 256 미만의 값이 권장되지 않습니다.
+오래된 타일 삭제
+
+레이어에서 제공하는 타일이 '오래된' 경우 레이어에서 clearTileCache 메서드를 호출하여 강제로 새로고침해야 합니다. 그러면 이 레이어에 있는 모든 타일이 다시 로드됩니다.
+
+Swift
+layer.clearTileCache()
+
+Objective-C
+[layer clearTileCache];
+
+의견 보내기

@@ -1,0 +1,289 @@
+Source URL: https://developers.google.com/maps/documentation/routes/traffic_on_polylines
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Web Services [https://developers.google.com/maps/web-services?hl=ko]
+Routes API [https://developers.google.com/maps/documentation/routes?hl=ko]
+의견 보내기
+경로 다중선 요청
+유럽 경제 지역 (EEA) 개발자
+참고: Routes API의 Compute Route Matrix 기능에서는 다중선이 지원되지 않습니다.
+computeRoutes [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko] 메서드 (REST)와 ComputeRoutes [https://developers.google.com/maps/documentation/routes/reference/rpc/google.maps.routing.v2?hl=ko#google.maps.routing.v2.Routes.ComputeRoutes] 메서드 (gRPC)는 모두 응답의 일부로 다중선으로 표현된 경로를 반환합니다. 이 API는 두 가지 유형의 다중선을 반환합니다.
+기본 다중선 (기본값): 경로를 나타내지만 다중선에 교통정보가 삽입되지 않습니다. 기본 다중선이 반환되는 요청에는 Routes Basic 요금이 청구됩니다. Routes API의 결제에 대해 자세히 알아보세요 [https://developers.google.com/maps/documentation/routes/usage-and-billing?hl=ko].
+트래픽 인식 다중선: 경로의 교통 상황에 관한 정보가 포함됩니다. 교통상황은 다중선의 지정된 간격에 적용되는 속도 카테고리 (NORMAL, SLOW, TRAFFIC_JAM)로 표현됩니다. 교통 인식 다중선의 요청에는 Routes Preferred 요금이 청구됩니다. Routes API의 결제 자세히 알아보기 [https://developers.google.com/maps/documentation/routes/usage-and-billing?hl=ko] 자세한 내용은 다중선 품질 구성 [https://developers.google.com/maps/documentation/routes/config_trade_offs?hl=ko#polyline-quality]을 참고하세요.
+다중선에 관한 자세한 내용은 다음을 참고하세요.
+다중선에 대한 개념 정보 [https://developers.google.com/maps/documentation/automotive/attributes/concepts/segments?hl=ko#segment_polyline]
+대화형 폴리라인 인코더 유틸리티 [https://developers.google.com/maps/documentation/utilities/polylineutility?hl=ko]를 사용하면 UI에서 인코딩된 다중선을 만들거나 지도에 표시할 다중선을 디코딩할 수 있습니다. 예를 들어 이 유틸리티를 사용하여 아래 코드로 만든 다중선을 디코딩할 수 있습니다.
+참고: REST API에서 반환된 다중선의 특수문자는 JSON 이스케이프됩니다. 이러한 폴리라인을 대화형 폴리라인 인코더 유틸리티 [https://developers.google.com/maps/documentation/utilities/polylineutility?hl=ko]에 표시하려면 먼저 이스케이프 처리를 해제해야 합니다. JSON 이스케이프 해제를 실행하는 데 사용할 수 있는 여러 유틸리티가 있습니다(예: Freeformatter [https://www.freeformatter.com/json-escape.html]).
+경로, 구간 또는 단계의 기본 다중선 요청
+다중선은 다중선 [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko#polyline] (REST) 또는 다중선 [https://developers.google.com/maps/documentation/routes/reference/rpc/google.maps.routing.v2?hl=ko#polyline] (gRPC) 객체로 표시됩니다. 경로, 구간, 단계 수준의 응답에서 폴리라인을 반환할 수 있습니다.
+응답 필드 마스크 [https://developers.google.com/maps/documentation/routes/choose_fields?hl=ko]를 사용하여 반환할 다중선 지점을 지정합니다.
+경로 수준에서 응답 필드 마스크에 routes.polyline를 포함하여 응답에 다중선 객체를 반환합니다.
+구간 수준에서 routes.legs.polyline를 포함하여 경로의 각 구간에 대한 응답에 다중선 객체를 반환합니다.
+참고: 경로의 정류장을 나타내는 경유지에 대해 via가 false인 경우 각 구간은 두 경유지 간의 이동에 해당합니다. 예를 들어 중간 경유지가 없는 경로에는 구간이 하나만 있습니다. 정류장이 있는 중간 경로가 포함된 경로에는 두 개의 구간이 있습니다. via가 true로 설정된 중간 경유지가 하나 포함된 경로에는 구간이 하나 있습니다.
+단계 수준에서 routes.legs.steps.polyline를 포함하여 구간의 각 단계에 대한 응답에서 다중선 객체를 반환합니다.
+예를 들어 전체 경로, 각 구간, 각 구간의 각 단계에 대한 다중선 객체를 반환하려면 다음을 실행합니다.
+curl -X POST -d '{
+  "origin":{
+    "address": "1600 Amphitheatre Parkway, Mountain View, CA"
+  },
+  "destination":{
+    "address": "24 Willie Mays Plaza, San Francisco, CA 94107"
+  },
+  "travelMode": "DRIVE"
+}' \
+-H 'Content-Type: application/json' \
+-H 'X-Goog-Api-Key: YOUR_API_KEY' \
+-H 'X-Goog-FieldMask: routes.duration,routes.distanceMeters,routes.polyline,routes.legs.polyline,routes.legs.steps.polyline' \
+'https://routes.googleapis.com/directions/v2:computeRoutes'
+이 요청은 경로의 다중선, 경로의 각 구간, 구간의 각 단계를 포함하는 다음 응답을 반환합니다.
+{
+  "routes": [
+    {
+      "legs": [
+        {
+          "polyline": {
+              "encodedPolyline": "ipkcFfich...@Bs@?A?O?SD{A@o@B}@I?qA?_AA_@@_@?"
+          }
+        },
+          "steps": [
+              {
+                  "polyline": {
+                      "encodedPolyline": "kclcF...@sC@YIOKI"
+                  }
+              },
+              {
+                  "polyline": {
+                      "encodedPolyline": "wblcF~...SZSF_@?"
+                  }
+              },
+              ...
+      ],
+      "distanceMeters": 56901,
+      "duration": "2420s",
+      "polyline": {
+        "encodedPolyline": "ipkcFfich...@Bs@?A?O?SD{A@o@B}@I?qA?_AA_@@_@?"
+      }
+    }
+  ]
+}
+이 요청에는 출발지와 목적지만 포함되므로 반환된 경로에는 단일 구간만 포함됩니다. 따라서 구간과 경로의 다중선은 동일합니다.
+요청에 중간 경로를 추가하면 반환된 경로에 두 구간이 포함됩니다.
+curl -X POST -d '{
+  "origin":{
+    "address": "1600 Amphitheatre Parkway, Mountain View, CA"
+  },
+  "destination":{
+    "address": "24 Willie Mays Plaza, San Francisco, CA 94107"
+  },
+  "intermediates": [
+    { "address": "450 Serra Mall, Stanford, CA 94305, USA"},
+  ],
+  "travelMode": "DRIVE",
+}' \
+-H 'Content-Type: application/json' \
+-H 'X-Goog-Api-Key: YOUR_API_KEY' \
+-H 'X-Goog-FieldMask: routes.duration,routes.distanceMeters,routes.polyline,routes.legs.polyline' \
+'https://routes.googleapis.com/directions/v2:computeRoutes'
+이 요청은 각각 고유한 다중선이 있는 두 구간과 전체 경로의 다중선을 반환합니다.
+{
+  "routes": [
+    {
+      "legs": [
+        {
+          "polyline": {
+            "encodedPolyline": "kclcFfqchV?A...?I@G?GAECCCEKICBAFG"
+          }
+          "steps": [
+            {
+                "polyline": {
+                    "encodedPolyline": "kclcFfqch...YIOKI"
+                }
+            },
+        ...
+        },
+        {
+          "polyline": {
+            "encodedPolyline": "ojmcFtethV?K...QOYQOGA?_@MUG[Ga@G"
+          }
+          "steps": [
+            {
+                "polyline": {
+                    "encodedPolyline": "uypeFbo`jVgJq...PoBiC"
+                }
+            },
+        ...
+        }
+      ],
+      "distanceMeters": 68403,
+      "duration": "3759s",
+      "polyline": {
+          "encodedPolyline": "kclcFfqchV?A?CBKF[Ha...?GAECCCEKICBAFGJEBE"
+      }
+    }
+  ]
+}
+다중선 품질
+다중선의 품질은 다음 용어로 설명할 수 있습니다.
+포인트의 부동 소수점 정밀도
+점은 단일 정밀도 부동 소수점 형식으로 표시되는 위도 및 경도 값으로 지정됩니다. 이는 정확하게 표현할 수 있는 작은 값에 적합하지만, 부동 소수점 반올림 오류로 인해 값이 커질수록 정밀도가 감소합니다.
+computeRoutes [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko] 메서드 (REST) 및 ComputeRoutes [https://developers.google.com/maps/documentation/routes/reference/rpc/google.maps.routing.v2?hl=ko#google.maps.routing.v2.Routes.ComputeRoutes]에서는 polylineEncoding [https://developers.google.com/maps/documentation/routes/traffic_on_polylines?hl=ko#polylineEncoding]로 제어됩니다.
+다중선의 점을 구성하는 점의 수
+점의 수가 많을수록 특히 곡선에서 다중선이 더 부드럽게 표시됩니다.
+computeRoutes [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko] 메서드 (REST) 및 ComputeRoutes [https://developers.google.com/maps/documentation/routes/reference/rpc/google.maps.routing.v2?hl=ko#google.maps.routing.v2.Routes.ComputeRoutes]에서는 polylineQuality [https://developers.google.com/maps/documentation/routes/traffic_on_polylines?hl=ko#polylineQuality]로 제어됩니다.
+다중선 인코딩 유형 구성
+polylineEncoding 요청 옵션을 사용하여 다중선 유형을 제어합니다. polylineEncoding 속성은 다중선이 ENCODED_POLYLINE (기본값)으로 인코딩되어 인코딩된 다중선 알고리즘 형식 [https://developers.google.com/maps/documentation/utilities/polylinealgorithm?hl=ko]이 사용되는지 또는 GEO_JSON_LINESTRING로 인코딩되어 GeoJSON 선형 문자열 형식 [https://www.rfc-editor.org/rfc/rfc7946#section-3.1.4]이 사용되는지를 제어합니다.
+예를 들어 요청 본문은 다음과 같습니다.
+curl -X POST -d '{
+  "origin":{
+    "address": "1600 Amphitheatre Parkway, Mountain View, CA"
+  },
+  "destination":{
+    "address": "24 Willie Mays Plaza, San Francisco, CA 94107"
+  },
+  "travelMode": "DRIVE",
+  "polylineEncoding": "ENCODED_POLYLINE"
+}' \
+-H 'Content-Type: application/json' \
+-H 'X-Goog-Api-Key: YOUR_API_KEY' \
+-H 'X-Goog-FieldMask: routes.duration,routes.distanceMeters,routes.polyline,routes.legs.polyline' \
+'https://routes.googleapis.com/directions/v2:computeRoutes'
+다중선 품질 구성
+polylineQuality는 다중선의 품질을 HIGH_QUALITY 또는 OVERVIEW (기본값)로 지정합니다. OVERVIEW를 사용하면 폴리라인이 소수의 점을 사용하여 구성되며 HIGH_QUALITY보다 요청 지연 시간이 짧습니다.
+예를 들어 요청 본문은 다음과 같습니다.
+{
+  "origin":{
+    "location":{
+      "latLng":{
+        "latitude": 37.419734,
+        "longitude": -122.0827784
+      }
+    }
+  },
+  "destination":{
+    "location":{
+      "latLng":{
+        "latitude": 37.417670,
+        "longitude": -122.079595
+      }
+    }
+  },
+  "travelMode": "DRIVE",
+  "routingPreference": "TRAFFIC_AWARE",
+  "polylineQuality": "HIGH_QUALITY",
+  "polylineEncoding": "ENCODED_POLYLINE",
+  "departureTime": "2023-10-15T15:01:23.045123456Z",
+  ...
+}
+트래픽 인식 다중선 요청
+주의: 교통 인식 다중선의 요청에는 더 높은 요율이 적용됩니다. Routes API의 결제에 대해 자세히 알아보세요 [https://developers.google.com/maps/documentation/routes/usage-and-billing?hl=ko].
+위에 표시된 예시에서는 모두 기본 다중선을 반환합니다. 즉, 교통 정보가 없는 다중선입니다. 또한 폴리라인에 경로 및 경로의 각 구간에 대한 교통정보가 포함되도록 요청할 수도 있습니다.
+참고: 단계 수준의 다중선에서는 교통정보를 사용할 수 없습니다.
+교통 인식 다중선에는 경로의 교통상황에 관한 정보가 포함됩니다. 교통 상황은 응답 다중선의 지정된 간격에 대한 속도 카테고리(NORMAL, SLOW, TRAFFIC_JAM)로 표현됩니다. 간격은 시작 (양 끝값 포함) 및 종료 (양 끝값 제외) 다중선 지점의 색인으로 정의됩니다.
+예를 들어 다음 응답은 다중선 지점 2와 4 사이의 NORMAL 트래픽을 보여줍니다.
+{
+  "startPolylinePointIndex": 2,
+  "endPolylinePointIndex": 4,
+  "speed": "NORMAL"
+}
+트래픽 인식 다중선 계산을 요청하려면 요청에 다음 속성을 설정합니다.
+트래픽 계산을 사용 설정하려면 extraComputations 배열 필드를 TRAFFIC_ON_POLYLINE로 설정합니다.
+travelMode을 DRIVE 또는 TWO_WHEELER로 설정합니다. 다른 이동 수단에 대한 요청은 오류를 반환합니다.
+요청에서 TRAFFIC_AWARE 또는 TRAFFIC_AWARE_OPTIMAL 라우팅 환경설정을 지정합니다. 자세한 내용은 품질과 지연 시간 구성 [https://developers.google.com/maps/documentation/routes/config_trade_offs?hl=ko]을 참고하세요.
+응답 속성을 반환하도록 지정하는 응답 필드 마스크를 설정합니다.
+경로 수준에서 응답 필드 마스크에 routes.travelAdvisory를 포함하여 응답에 모든 이동 정보를 반환합니다. 트래픽 정보만 반환하려면 routes.travelAdvisory.speedReadingIntervals를 지정합니다.
+구간 수준에서 routes.legs.travelAdvisory를 포함하여 경로의 각 구간에 대한 응답에 모든 이동 정보를 반환합니다. 트래픽 정보만 반환하려면 routes.legs.travelAdvisory.speedReadingIntervals를 지정합니다.
+curl -X POST -d '{
+  "origin":{
+    "address": "1600 Amphitheatre Parkway, Mountain View, CA"
+  },
+  "destination":{
+    "address": "24 Willie Mays Plaza, San Francisco, CA 94107"
+  },
+  "travelMode": "DRIVE",
+  "extraComputations": ["TRAFFIC_ON_POLYLINE"],
+  "routingPreference": "TRAFFIC_AWARE_OPTIMAL"
+}' \
+-H 'Content-Type: application/json' \
+-H 'X-Goog-Api-Key: YOUR_API_KEY' \
+-H 'X-Goog-FieldMask: routes.duration,routes.distanceMeters,routes.polyline,routes.legs.polyline,routes.travelAdvisory,routes.legs.travelAdvisory' \
+'https://routes.googleapis.com/directions/v2:computeRoutes'
+트래픽 인식 다중선의 응답 예시
+응답에서 교통 데이터는 다중선으로 인코딩되며 RouteLegTravelAdvisory [https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes?hl=ko#routelegtraveladvisory] 객체 (각 구간) 및 RouteTravelAdvisory [https://developers.google.com/maps/documentation/routes/reference/rest/v2/RouteTravelAdvisory?hl=ko] 객체 (경로) 유형의 travelAdvisory 필드에 포함됩니다.
+예를 들면 다음과 같습니다.
+{
+  "routes": [
+    {
+      "legs": {
+        "polyline": {
+          "encodedPolyline": "}boeF~zbjVAg@EmB`GWHlD"
+        },
+        // Traffic data for the leg.
+        "travelAdvisory": {
+          "speedReadingIntervals": [
+            {
+              "endPolylinePointIndex": 1,
+              "speed": "NORMAL"
+            },
+            {
+              "startPolylinePointIndex": 1,
+              "endPolylinePointIndex": 2,
+              "speed": "SLOW"
+            },
+            {
+              "startPolylinePointIndex": 2,
+              "endPolylinePointIndex": 4,
+              "speed": "NORMAL"
+            }
+          ] 
+        }
+      },
+      "polyline": {
+        "encodedPolyline": "}boeF~zbjVAg@EmB`GWHlD"
+      },
+      // Traffic data for the route.
+      "travelAdvisory": {
+        "speedReadingIntervals": [
+          {
+            "endPolylinePointIndex": 1,
+            "speed": "NORMAL"
+          },
+          {
+            "startPolylinePointIndex": 1,
+            "endPolylinePointIndex": 2,
+            "speed": "SLOW"
+          },
+          {
+            "startPolylinePointIndex": 2,
+            "endPolylinePointIndex": 4,
+            "speed": "NORMAL"
+          }
+        ] 
+      }
+    }
+  ]
+}
+RouteTravelAdvisory와 RouteLegTravelAdvisory 모두 교통 속도 정보가 포함된 speedReadingIntervals라는 배열 필드를 포함합니다. 배열의 각 객체는 SpeedReadingInterval [https://developers.google.com/maps/documentation/routes/reference/rest/v2/SpeedReadingInterval?hl=ko] (REST) 또는 SpeedReadingInterval [https://developers.google.com/maps/documentation/routes/reference/rpc/google.maps.routing.v2?hl=ko#speedreadinginterval](gRPC) 객체로 표시됩니다.
+SpeedReadingInterval 객체에는 NORMAL, SLOW, TRAFFIC_JAM와 같은 경로 간격의 속도 판독값이 포함됩니다. 전체 객체 배열은 경로의 전체 다중선을 겹치지 않게 덮습니다. 지정된 간격의 시작점은 이전 간격의 끝점과 동일합니다.
+모든 간격은 startPolylinePointIndex, endPolylinePointIndex, 해당 속도 카테고리로 설명됩니다. 간격 내에 시작 색인이 없으면 proto3 관행 [https://developers.google.com/protocol-buffers/docs/proto3?hl=ko#default]에 따라 색인 0과 일치합니다.
+startPolylinePointIndex 및 endPolylinePointIndex 값은 항상 연속적이지 않습니다. 예를 들면 다음과 같습니다.
+{
+  "startPolylinePointIndex": 2,
+  "endPolylinePointIndex": 4,
+  "speed": "NORMAL"
+}
+이 경우 색인 2에서 색인 4까지 트래픽 조건이 동일했습니다.
+Maps SDK로 교통 인식 폴리라인 렌더링
+폴리라인 구간에 따른 맞춤 색상, 획, 패턴 등 Google Maps SDK에서 제공하는 다양한 기능을 사용하여 지도에 교통 인식 폴리라인을 표시하는 것이 좋습니다. 다중선 사용에 관한 자세한 내용은 Android용 다중선 기능 [https://developers.google.com/maps/documentation/android-sdk/polygon-tutorial?hl=ko#java_4] 및 iOS용 다중선 기능 [https://developers.google.com/maps/documentation/ios-sdk/shapes?hl=ko]을 참고하세요.
+다중선 렌더링 예
+Maps SDK 사용자는 속도 카테고리와 다중선 렌더링 스키마 간에 맞춤설정된 매핑 로직을 정의할 수 있습니다. 예를 들어 '일반' 속도를 지도에 두꺼운 파란색 선으로 표시하고 '느림' 속도는 두꺼운 주황색 선으로 표시할 수 있습니다.
+다음 스니펫은 멜버른에서 퍼스까지의 최단 거리 보간을 파란색의 굵은 다중선으로 추가합니다. 자세한 내용은 표시 형식 맞춤설정 [https://developers.google.com/maps/documentation/android-sdk/polygon-tutorial?hl=ko#add_custom_styling_to_your_polyline](Android용) 및 다중선 맞춤설정 [https://developers.google.com/maps/documentation/ios-sdk/shapes?hl=ko#customize-a-polyline] (iOS용)을 참고하세요.
+Android
+iOS
+경로 검색과 함께 인코딩된 다중선 사용
+Places API 텍스트 검색을 사용하여 계산된 경로를 따라 검색합니다. Routes API Compute Routes에서 사전 계산된 경로의 인코딩된 다중선 좌표를 텍스트 검색 요청에 전달합니다. 그러면 응답에는 검색 기준과 일치하고 지정된 경로 근처에 있는 장소가 포함됩니다. 자세한 내용은 경로를 따라 검색 [https://developers.google.com/maps/documentation/places/web-service/sar-overview?hl=ko]을 참고하세요.
+예를 들어 출발지와 목적지 사이의 경로에 있는 카페를 반환하려면 다음을 실행합니다.
+의견 보내기

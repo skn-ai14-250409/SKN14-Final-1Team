@@ -1,0 +1,542 @@
+Source URL: https://developers.google.com/maps/documentation/javascript/legacy/directions?hl=ko
+Title: 경로 서비스
+
+의견 보내기
+
+경로 서비스
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+중요: 이 서비스를 사용하려면 프로젝트에서 Directions API (기존)를 사용 설정 [https://console.cloud.google.com/apis/library/directions-backend.googleapis.com?hl=ko]해야 합니다.
+
+유럽 경제 지역 (EEA) 개발자
+
+청구서 수신 주소가 유럽 경제 지역에 있는 경우 2025년 7월 8일부터 서비스 사용 시 Google Maps Platform EEA 서비스 약관 [https://cloud.google.com/terms/maps-platform/eea?hl=ko]이 적용됩니다. 기능은 리전에 따라 다릅니다.
+자세히 알아보기 [https://developers.google.com/maps/comms/eea/faq?hl=ko]
+
+참고: 서버 측 라이브러리
+
+이 페이지에서는 Maps JavaScript API와 함께 사용할 수 있는 클라이언트 측 서비스를 설명합니다.
+서버에서 Google 지도 웹 서비스를 사용하려면 Google 지도 서비스용 Node.js 클라이언트 [https://developers.google.com/maps/web-services/client-library?hl=ko]를 참고하세요. 이 링크의 페이지에는 Google 지도 서비스용 Java 클라이언트, Python 클라이언트, Go 클라이언트도 소개되어 있습니다.
+
+개요
+
+참고 항목: Maps JavaScript API 참조:
+경로 [https://developers.google.com/maps/documentation/javascript/reference/directions?hl=ko]
+
+DirectionsService 객체를 사용하여 (다양한 교통수단을 이용한) 경로를 계산할 수 있습니다. 이 객체는 경로 요청을 받고 효율적인 경로를 반환하는 Google Maps API 경로 서비스와 통신합니다.
+이동 시간이 최적화되는 주요 요소이지만 거리, 방향 전환 횟수 등 다른 요인을 고려할 수도 있습니다.
+이러한 경로 결과를 직접 처리하거나 DirectionsRenderer 객체를 사용하여 이러한 결과를 렌더링할 수도 있습니다.
+
+경로 요청에서 출발지나 목적지를 지정할 때 쿼리 문자열(예: 'Chicago, IL', 'Darwin, NSW, Australia'), LatLng 값 또는 장소 [https://developers.google.com/maps/documentation/javascript/reference/directions?hl=ko#Place] 객체를 지정할 수 있습니다.
+
+경로 서비스는 여러 개의 경유지가 포함된 여러 부분으로 구성된 경로를 반환할 수 있습니다. 경로는 지도상에 경로를 나타내는 다중선과 그에 더해 <div> 요소 내의 텍스트 설명(예: '윌리엄스버그 다리 진입로로 우회전')으로 표시됩니다.
+
+시작하기
+
+Maps JavaScript API에서 경로 서비스를 사용하려면 먼저 Google Cloud 콘솔에서 Maps JavaScript API를 위해 설정한 것과 동일한 프로젝트의 Directions API (기존)를 사용 설정해야 합니다.
+사용 설정된 API의 목록을 보려면 다음 단계를 따르세요.
+
+Google Cloud 콘솔 [https://console.cloud.google.com/project/_/apiui/apis/enabled?utm_source=Docs_EnabledAPIsView&hl=ko]로 이동합니다.
+
+프로젝트 선택 버튼을 클릭한 후 Maps JavaScript API를 위해 설정한 것과 동일한 프로젝트를 선택하고 열기를 클릭합니다.
+대시보드의 API 목록에서 Directions API (기존)를 찾습니다.
+목록에 API가 표시되면 완료된 것입니다. API가 표시되지 않으면 https://console.cloud.google.com/apis/library/directions-backend.googleapis.com [https://console.cloud.google.com/apis/library/directions-backend.googleapis.com?hl=ko]에서 API를 사용 설정하세요.
+
+가격 정보 및 정책
+가격 책정
+JavaScript 경로 서비스의 가격 및 사용 정책에 대해 알아보려면 Directions API (기존)의 사용량 및 결제 [https://developers.google.com/maps/documentation/directions/usage-and-billing?hl=ko]를 참고하세요.
+
+정책
+경로 서비스는 Directions API (기존)에 설명된 정책 [https://developers.google.com/maps/documentation/directions/policies?hl=ko]에 따라 사용해야 합니다.
+
+경로 요청
+
+Google Maps API는 외부 서버를 호출해야 하므로 경로 서비스 액세스는 비동기식입니다. 따라서 요청 완료 시 실행할 콜백 메서드를 전달해야 합니다. 이 콜백 메서드에서 결과를 처리해야 합니다. 경로 서비스에서 두 개 이상의 가능한 여정을 개별 routes[]의 배열로서 반환할 수도 있습니다.
+
+Maps JavaScript API에서 경로를 사용하려면 DirectionsService 유형의 객체를 만들고 DirectionsService.route()를 호출하여 경로 서비스에 대한 요청을 시작하고 응답 수신 시 실행할 입력 용어와 콜백 메서드가 포함된 DirectionsRequest 객체 리터럴에 이를 전달하세요.
+
+DirectionsRequest 객체 리터럴에는 다음 필드가 포함됩니다.
+
+origin: LatLng | String | google.maps.Place,
+destination: LatLng | String | google.maps.Place,
+travelMode: TravelMode,
+transitOptions: TransitOptions,
+drivingOptions: DrivingOptions,
+unitSystem: UnitSystem,
+waypoints[]: DirectionsWaypoint,
+optimizeWaypoints: Boolean,
+provideRouteAlternatives: Boolean,
+avoidFerries: Boolean,
+avoidHighways: Boolean,
+avoidTolls: Boolean,
+region: String
+travelMode(필수)는 경로를 계산할 때 사용할 교통수단을 지정합니다. 유효한 값은 아래의 이동 수단 [https://developers.google.com/maps/documentation/javascript/legacy/directions?hl=ko#TravelModes]에 지정되어 있습니다.
+transitOptions(선택사항)는 travelMode가 TRANSIT인 요청에만 적용되는 값을 지정합니다. 유효한 값은 아래의 대중교통 옵션 [https://developers.google.com/maps/documentation/javascript/legacy/directions?hl=ko#TransitOptions]에 설명되어 있습니다.
+drivingOptions(선택사항)는 travelMode가 DRIVING인 요청에만 적용되는 값을 지정합니다. 유효한 값은 아래의 운전 옵션 [https://developers.google.com/maps/documentation/javascript/legacy/directions?hl=ko#DrivingOptions]에 설명되어 있습니다.
+unitSystem(선택사항)은 결과를 표시할 때 사용할 단위 체계를 지정합니다. 유효한 값은 아래의 단위 체계 [https://developers.google.com/maps/documentation/javascript/legacy/directions?hl=ko#UnitSystems]에 지정되어 있습니다.
+waypoints[](선택사항)는 DirectionsWaypoint의 배열을 지정합니다. 경유지는 지정된 위치를 지나가도록 경로를 변경합니다.
+경유지는 아래의 필드가 포함된 객체 리터럴로 지정됩니다.
+
+location은 경유지의 위치를 LatLng, 장소 [https://developers.google.com/maps/documentation/javascript/reference/directions?hl=ko#Place] 객체 또는 지오코딩될 String으로 지정합니다.
+stopover는 경유지가 경로상의 한 지점임을 나타내는 불리언이며 경로를 두 개의 경로로 분할하는 효과가 있습니다.
+
+경유지에 대한 자세한 내용은 아래의 경로에서 경유지 사용 [https://developers.google.com/maps/documentation/javascript/legacy/directions?hl=ko#Waypoints]을 참고하세요.
+
+optimizeWaypoints(선택사항)는 제공된 waypoints를 사용하는 경로를 경유지를 더 효율적인 순서로 재정렬하여 최적화할 수도 있음을 지정합니다. true인 경우 경로 서비스에서 waypoint_order 필드에 재정렬된 waypoints를 반환합니다(자세한 내용은 경로에서 경유지 사용 [https://developers.google.com/maps/documentation/javascript/legacy/directions?hl=ko#Waypoints]을 참고하세요).
+provideRouteAlternatives(선택사항): true로 설정된 경우 경로 서비스에서 응답에 두 개 이상의 대체 경로를 제공할 수도 있음을 나타냅니다. 대체 경로를 제공하면 서버의 응답 시간이 늘어날 수도 있습니다.  중간 경유지가 없는 요청에만 사용할 수 있습니다.
+avoidFerries(선택사항): true로 설정된 경우 경로 계산 시 페리를 제외해야 함을 나타냅니다(가능한 경우).
+avoidHighways(선택사항): true로 설정된 경우 경로 계산 시 주요 고속도로를 제외해야 함을 나타냅니다(가능한 경우).
+avoidTolls(선택사항): true로 설정된 경우 경로 계산 시 유료 도로를 제외해야 함을 나타냅니다(가능한 경우).
+region(선택사항)은 ccTLD('최상위 도메인') 2자리 값으로 지정되는 지역 코드를 지정합니다. 자세한 내용은 아래의 지역 편중 [https://developers.google.com/maps/documentation/javascript/legacy/directions?hl=ko#DirectionsRegionBiasing]을 참고하세요.
+참고: durationInTraffic 필드는 이제 지원 중단되었습니다. 이전에는 이 방법이 Google Maps Platform 프리미엄 플랜 고객이 현재 교통상황을 고려한 시간을 결과에 포함해야 할지 여부를 지정할 때 권장되는 방법이었습니다.
+이제 drivingOptions 필드를 대신 사용해야 합니다.
+
+다음은 DirectionsRequest 샘플입니다.
+
+origin: 'Chicago, IL',
+destination: 'Los Angeles, CA',
+waypoints: [
+location: 'Joplin, MO',
+stopover: false
+BICYCLING은 자전거 전용 도로 및 선호하는 거리를 경유하는 자전거 경로를 요청합니다.
+TRANSIT은 대중교통 경로를 경유하는 경로를 요청합니다.
+WALKING은 보행자 전용 도로와 인도를 경유하는 도보 경로를 요청합니다.
+
+특정 국가에서 지원되는 경로의 범위에 대해서는 Google Maps Platform 서비스 지역 세부정보 [https://developers.google.com/maps/coverage?hl=ko]를 참고하세요. 해당 경로 유형을 사용할 수 없는 지역에 대해 경로를 요청하면 DirectionsStatus="ZERO_RESULTS" 응답이 반환됩니다.
+
+참고: 도보 경로에 명확한 보행자 전용 도로가 포함되지 않을 수도 있으므로 도보 경로에서는 DirectionsResult에 경고를 반환합니다. 이러한 경고는 항상 사용자에게 표시되어야 합니다. 기본 DirectionsRenderer를 사용하지 않을 경우 경고가 표시되도록 해야 합니다.
+
+대중교통 옵션
+
+경로 요청에 사용할 수 있는 옵션은 이동 수단에 따라 다릅니다.
+대중교통 경로를 요청할 때 avoidHighways, avoidTolls, waypoints[], optimizeWaypoints 옵션은 무시됩니다. 대중교통에 해당하는 경로 옵션은 TransitOptions [https://developers.google.com/maps/documentation/javascript/3.exp/reference?hl=ko#TransitOptions] 객체 리터럴을 통해 지정할 수 있습니다.
+
+대중교통 경로는 시간에 민감합니다. 미래의 시간에 해당하는 경로만 반환됩니다.
+
+TransitOptions 객체 리터럴에는 다음 필드가 포함됩니다.
+
+arrivalTime: Date,
+departureTime: Date,
+modes[]: TransitMode,
+routingPreference: TransitRoutePreference
+departureTime(선택사항)은 원하는 출발 시간을 Date 객체로 지정합니다. arrivalTime이 지정되면 departureTime은 무시됩니다. departureTime 및 arrivalTime에 값이 지정되지 않으면 '지금'(현재 시간)이 기본값이 됩니다.
+modes[](선택사항)는 하나 이상의 TransitMode 객체 리터럴이 포함된 배열입니다. 이 필드는 요청에 API 키가 포함된 경우에만 포함할 수 있습니다. 각 TransitMode는 선호하는 대중교통 수단을 지정합니다. 다음과 같은 값이 허용됩니다.
+BUS는 경로 계산 시 버스 이동을 우선적으로 고려해야 함을 나타냅니다.
+RAIL은 경로 계산 시 기차, 트램, 경전철 및 지하철 이동을 우선적으로 고려해야 함을 나타냅니다.
+SUBWAY는 경로 계산 시 지하철 이동을 우선적으로 고려해야 함을 나타냅니다.
+TRAIN은 경로 계산 시 기차 이동을 우선적으로 고려해야 함을 나타냅니다.
+TRAM은 경로 계산 시 트램 이동을 우선적으로 고려해야 함을 나타냅니다.
+
+routingPreference(선택사항)는 대중교통 경로의 환경설정을 지정합니다. 이 옵션을 사용하면 API에서 선택한 기본 최적 경로를 수락하는 대신 반환되는 옵션에 편중할 수 있습니다.
+이 필드는 요청에 API 키가 포함된 경우에만 지정할 수 있습니다. 다음과 같은 값이 허용됩니다.
+FEWER_TRANSFERS는 경로 계산 시 환승 횟수를 제한해야 함을 나타냅니다.
+LESS_WALKING은 경로 계산 시 도보 이동을 제한해야 함을 나타냅니다.
+
+다음은 대중교통에 의한 DirectionsRequest의 샘플입니다.
+
+origin: 'Hoboken NJ',
+destination: 'Carroll Gardens, Brooklyn',
+travelMode: 'TRANSIT',
+transitOptions: {
+departureTime: new Date(1337675679473),
+modes: ['BUS'],
+routingPreference: 'FEWER_TRANSFERS'
+DrivingOptions 객체에는 다음 필드가 포함됩니다.
+
+departureTime: Date,
+trafficModel: TrafficModel
+trafficModel(선택사항)은 이동 시간을 계산할 때 사용할 가정을 지정합니다. 이 설정은 응답의 duration_in_traffic 필드에 반환되는 값에 영향을 미칩니다. 이 필드에는 이전 평균을 기반으로 한 예상 이동 시간이 포함됩니다.
+기본값은 bestguess입니다. 다음과 같은 값이 허용됩니다.
+bestguess(기본값)는 이전 교통상황과 실시간 교통정보에 대해 알려진 정보를 기준으로 할 때 반환된 duration_in_traffic이 최적의 예상 이동 시간임을 나타냅니다. departureTime이 지금에 가까울수록 실시간 교통정보가 더 중요합니다.
+pessimistic은 대부분의 날에는 반환된 duration_in_traffic이 실제 이동 시간보다 더 길다는 것을 나타내지만 특히 교통상황이 나쁜 날은 이 값을 초과할 수도 있습니다.
+optimistic은 대부분의 날에 반환된 duration_in_traffic이 실제 이동 시간보다 더 짧다는 것을 나타냅니다. 다만 교통상황이 특별히 좋은 날은 이 값보다 빠를 수도 있습니다.
+
+주의: 출발 시간을 지정하지 않으면 현재 도로 조건이 아닌 도로망 및 평균 시간과 무관한 교통상황을 기반으로 경로 및 소요 시간이 선택됩니다. 따라서 경로에는 일시적으로 폐쇄된 도로가 포함될 수 있습니다. 지정된 요청의 결과는 도로망의 변화, 평균 교통상황의 업데이트 및 분산된 서비스 특성으로 인해 시간이 지남에 따라 달라질 수도 있습니다. 거의 동일한 경로 간에도 언제든지 또는 수시로 결과가 달라질 수 있습니다.
+
+참고: 요청에 실시간 교통정보를 사용하려면 departureTime을 지금으로 설정하세요. 교통정보를 사용하는 요청에는 비교적 높은 청구 요율이 적용됩니다.
+Google Maps Platform 제품의 요금 청구 방식 자세히 알아보기 [https://developers.google.com/maps/billing/understanding-cost-of-use?hl=ko]
+
+다음은 운전 경로에 대한 DirectionsRequest 샘플입니다.
+
+origin: 'Chicago, IL',
+destination: 'Los Angeles, CA',
+travelMode: 'DRIVING',
+drivingOptions: {
+departureTime: new Date(Date.now() + N),  // for the time N milliseconds from now.
+trafficModel: 'optimistic'
+UnitSystem.METRIC은 미터법 사용을 지정합니다. 거리가 킬로미터로 표시됩니다.
+UnitSystem.IMPERIAL은 야드파운드법(영국) 사용을 지정합니다. 거리가 마일로 표시됩니다.
+
+참고: 이 단위 체계 설정은 사용자에게 표시되는 텍스트에만 영향을 미칩니다. 경로 결과에는 항상 미터 단위로 표현되는, 사용자에게 표시되지 않는 거리 값도 포함됩니다.
+
+경로의 지역 편중
+
+Google Maps API 경로 서비스는 JavaScript 부트스트랩을 로드한 영역(지역 또는 국가)의 영향을 받은 주소 결과를 반환합니다. (대부분의 사용자가 https://maps.googleapis.com/을 로드하며 이 경우 영역이 암시적으로 미국으로 설정됩니다.) 지원되는 다른 영역에서 부트스트랩을 로드하면 그 영역의 영향을 받은 결과를 얻게 됩니다. 예를 들어 'San Francisco'를 검색하는 경우 https://maps.googleapis.com/(미국)을 로드하는 애플리케이션은 http://maps.google.es/(스페인)를 로드하는 애플리케이션과 다른 결과를 반환될 수 있습니다.
+
+region 매개변수를 사용하여 특정 지역에 편중된 결과를 반환하도록 경로 서비스를 설정할 수도 있습니다. 이 매개변수는 숫자가 아닌 2자리 유니코드 지역 하위 태그로 지정된 지역 코드를 사용합니다. 대부분의 경우 이 태그는 'co.uk'의 'uk'와 같이 2자리 ccTLD('최상위 도메인') 값으로 직접 매핑됩니다. 경우에 따라 region 태그는 ccTLD 값과 다른 ISO-3166-1 코드도 지원합니다(예: 'Great Britain'의 'GB').
+
+region 매개변수를 사용하는 경우:
+
+하나의 국가 또는 지역만 지정하세요. 값이 여러 개인 경우 무시되며 요청이 실패할 수 있습니다.
+2자리 지역 하위 태그(유니코드 CLDR 형식)만 사용하세요. 다른 값을 입력하면 오류가 발생합니다.
+
+지역 편중은 경로를 지원하는 국가 및 지역의 경우에만 지원됩니다. Directions API (기존)의 국제적 사용 범위는 Google Maps Platform 서비스 지역 세부정보 [https://developers.google.com/maps/coverage?hl=ko]를 참고하세요.
+
+경로 렌더링
+
+route() 메서드로 DirectionsService에 대한 경로 요청을 시작하려면 서비스 요청이 완료될 때 실행되는 콜백을 전달해야 합니다. 이 콜백은 응답에 DirectionsResult 및 DirectionsStatus 코드를 반환합니다.
+
+경로 쿼리의 상태
+
+DirectionsStatus는 다음 값을 반환할 수도 있습니다.
+
+OK는 응답에 유효한 DirectionsResult가 포함되어 있음을 나타냅니다.
+NOT_FOUND는 요청의 출발지, 목적지 또는 경유지에 지정된 위치 중 하나 이상을 지오코딩할 수 없음을 나타냅니다.
+ZERO_RESULTS는 출발지와 목적지 사이에서 경로를 찾지 못했음을 나타냅니다.
+MAX_WAYPOINTS_EXCEEDED는 DirectionsRequest에 너무 많은 DirectionsWaypoint 필드가 제공되었음을 나타냅니다. 아래의 경유지 제한 [https://developers.google.com/maps/documentation/javascript/legacy/directions?hl=ko#waypoint-limits]에 관한 섹션을 참고하세요.
+MAX_ROUTE_LENGTH_EXCEEDED는 요청된 경로가 너무 길어서 처리할 수 없음을 나타냅니다. 이 오류는 더 복잡한 경로가 반환될 때 발생합니다. 경유지, 방향 전환 또는 안내의 수를 줄여 보세요.
+INVALID_REQUEST는 제공된 DirectionsRequest가 잘못되었음을 나타냅니다. 이 오류가 발생하는 가장 일반적인 원인은 요청에 출발지 또는 목적지가 누락되었거나 대중교통 요청에 경유지가 포함되었기 때문입니다.
+OVER_QUERY_LIMIT은 웹페이지에서 허용된 시간 내에 너무 많은 요청을 전송했다는 것을 나타냅니다.
+REQUEST_DENIED는 웹페이지에서 경로 서비스를 사용할 수 없음을 나타냅니다.
+UNKNOWN_ERROR는 서버 오류로 인해 경로 요청을 처리하지 못했음을 나타냅니다. 다시 시도하면 요청이 성공할 수도 있습니다.
+
+결과를 처리하기 전에 이 값을 확인하여 경로 쿼리가 올바른 결과를 반환했는지 확인해야 합니다.
+
+DirectionsResult 표시
+
+DirectionsResult에는 경로 쿼리의 결과가 포함되며, 이 결과를 직접 처리하거나 지도에 결과가 표시되도록 자동으로 처리하는 DirectionsRenderer 객체에 전달할 수도 있습니다.
+
+DirectionsRenderer를 사용하여 DirectionsResult를 표시하려면 다음을 실행해야 합니다.
+
+DirectionsRenderer 객체를 만듭니다.
+렌더러에서 setMap()을 호출하여 전달된 지도에 바인딩합니다.
+렌더러에서 setDirections()를 호출하여 위에서 언급한 대로 DirectionsResult에 전달합니다. 렌더러는 MVCObject이므로 속성의 변경사항을 자동으로 감지하고 연결된 경로가 변경된 경우 지도를 업데이트합니다.
+
+다음 예에서는 Route 66의 두 위치 간 경로를 계산하며, 여기서 출발지와 목적지는 드롭다운 목록의 지정된 "start" 및 "end" 값으로 설정됩니다. DirectionsRenderer는 표시된 위치 사이의 다중선 표시 및 출발지, 목적지 및 경유지(해당하는 경우)의 마커 배치도 처리합니다.
+
+function initMap() {
+DirectionsRenderer는 다중선 및 연결된 마커의 표시를 처리할 뿐만 아니라 경로의 텍스트 표시를 일련의 단계로 처리할 수도 있습니다. 이렇게 하려면 DirectionsRenderer에서 setPanel()을 호출하여 이 정보를 표시할 <div>에 전달하세요.
+그러면 적절한 저작권 정보 및 결과와 관련되었을 수도 있는 모든 경고가 표시됩니다.
+
+텍스트 경로는 브라우저의 기본 언어 설정 또는 language 매개변수를 사용하여 API JavaScript를 로드할 때 지정된 언어를 사용하여 제공됩니다. 자세한 내용은 현지화 [https://developers.google.com/maps/documentation/javascript/localization?hl=ko]를 참고하세요. 대중교통 경로의 경우 해당 대중교통 정류장의 시간대로 시간이 표시됩니다.
+
+다음 예는 위에 표시된 예와 동일하지만 경로를 표시할 <div> 패널이 포함되어 있습니다.
+
+function initMap() {
+directionsRenderer.setPanel(document.getElementById('directionsPanel'));
+DirectionsResult 객체
+
+DirectionsService에 경로 요청을 보내면 상태 코드로 구성된 응답 및 결과(DirectionsResult 객체)를 받게 됩니다. DirectionsResult는 다음과 같은 필드가 있는 객체 리터럴입니다.
+
+geocoded_waypoints[]에는 DirectionsGeocodedWaypoint 객체의 배열이 포함되며 각 객체에는 출발지, 목적지, 경유지의 지오코딩에 관한 세부정보가 포함됩니다.
+routes[]에는 DirectionsRoute 객체의 배열이 포함됩니다. 각 경로는 출발지에서 DirectionsRequest에 제공된 목적지까지 이동하는 경로를 나타냅니다. 일반적으로 요청의 provideRouteAlternatives 필드가 true로 설정(이 경우 여러 개의 경로가 반환될 수도 있음)되지 않은 경우 지정된 요청에 대해 하나의 경로만 반환됩니다.
+
+참고: 대체 경로에서는 via_waypoint 속성이 지원 중단되었습니다. 버전 3.27이 대체 경로에 경유지를 추가하는 마지막 API입니다. API 버전 3.28 이상에서는 대체 경로의 드래그를 사용 중지하여 경로 서비스를 사용한 드래그 가능 경로를 계속 구현할 수 있습니다.
+기본 경로만 드래그 가능합니다. 사용자는 대체 경로와 일치할 때까지 기본 경로를 드래그할 수 있습니다.
+
+경로 지오코딩된 경유지
+
+DirectionsGeocodedWaypoint에는 출발지, 목적지, 경유지의 지오코딩에 관한 세부정보가 포함됩니다.
+
+DirectionsGeocodedWaypoint는 다음과 같은 필드가 있는 객체 리터럴입니다.
+
+geocoder_status는 지오코딩 작업 결과 발생한 상태 코드를 나타냅니다.
+이 필드에는 다음과 같은 값이 포함될 수도 있습니다.
+
+"OK"는 오류가 발생하지 않았음을 나타냅니다. 주소가 성공적으로 파싱되었고 한 개 이상의 지오코드가 반환되었습니다.
+"ZERO_RESULTS"는 지오코딩이 성공했지만 반환된 결과가 없음을 나타냅니다.
+지오코더가 존재하지 않는 address에 전달된 경우 이러한 결과가 발생할 수도 있습니다.
+
+partial_match는 지오코더가 원래 요청에 대해 정확히 일치하는 결과를 반환하지 않았지만 요청된 주소의 일부분과 일치함을 나타냅니다. 원래 요청에 맞춤법 오류 또는 불완전한 주소가 포함되어 있는지 검사할 수도 있습니다.
+부분 일치는 요청에 전달되는 지역 내에 상세 주소가 존재하지 않는 경우 가장 자주 발생합니다. 요청이 동일한 지역에 있는 두 개 이상의 위치와 일치하는 경우에도 부분 일치가 반환될 수 있습니다.
+예를 들어 'Hillpar St, Bristol, UK'는 Henry Street 및 Henrietta Street 모두에 대해 부분 일치를 반환합니다. 요청에 맞춤법이 틀린 주소 구성요소가 포함된 경우에는 지오코딩 서비스에서 대체 주소를 제안할 수도 있습니다. 이러한 방식으로 실행된 제안도 부분 일치로 표시될 수 있습니다.
+
+place_id는 다른 Google API와 함께 사용할 수 있는 장소의 고유 식별자입니다. 예를 들어 place_id를 Google Places API [https://developers.google.com/maps/documentation/javascript/places?hl=ko] 라이브러리와 함께 사용하여 전화번호, 영업시간, 사용자 리뷰 등 지역 비즈니스의 세부정보를 가져올 수 있습니다. 장소 ID 개요 [https://developers.google.com/maps/documentation/places/web-service/place-id?hl=ko]를 참고하세요.
+
+types[]는 반환된 결과의 유형을 나타내는 배열입니다. 이 배열에는 결과에 반환되는 지형지물의 유형을 나타내는 0개 이상의 태그 집합이 포함됩니다. 예를 들어 '시카고'의 지오코드는 '시카고'가 도시임을 나타내는 'locality'를 반환하고 시카고가 정치적 독립체임을 나타내는 'political'도 반환합니다.
+
+경로
+
+참고: 기존 DirectionsTrip 객체의 이름이 DirectionsRoute로 변경되었습니다. 이제 경로는 단순히 상위 경로의 한 구간이 아닌 시작부터 끝까지의 전체 여정을 가리킵니다.
+
+DirectionsRoute에는 지정된 출발지와 목적지로부터의 단일 결과가 포함됩니다. 이 경로는 경유지가 지정되었는지에 따라 하나 이상의 구간(DirectionsLeg 유형)으로 구성될 수도 있습니다. 또한 경로에는 경로 정보 외에 사용자에게 표시해야 하는 저작권 및 경고 정보도 포함됩니다.
+
+DirectionsRoute는 다음과 같은 필드가 있는 객체 리터럴입니다.
+
+legs[]에는 DirectionsLeg 객체의 배열이 포함되며 각 객체에는 지정된 경로 내 두 위치 사이 하나의 구간에 대한 정보가 포함됩니다. 지정된 각 경유지 또는 목적지에 대해 별도의 구간이 존재합니다. (경유지가 없는 경로에는 정확히 하나의 DirectionsLeg가 포함됩니다.) 각 구간은 일련의 DirectionStep으로 구성됩니다.
+waypoint_order에는 계산된 경로에 있는 경유지의 순서를 나타내는 배열이 포함됩니다. 이 배열에는 DirectionsRequest에 optimizeWaypoints: true가 전달된 경우 변경된 순서가 포함될 수도 있습니다.
+overview_path에는 결과 경로의 대략적인(평활화된) 경로를 나타내는 LatLng의 배열이 포함됩니다.
+overview_polyline에는 경로의 인코딩된 다중선 [https://developers.google.com/maps/documentation/utilities/polylinealgorithm?hl=ko] 표현이 포함된 단일 points 객체가 포함됩니다. 이 다중선은 결과 경로의 대략적인(평활화된) 경로입니다.
+bounds에는 이 지정된 경로를 따라 다중선의 경계를 표시하는 LatLngBounds가 포함됩니다.
+copyrights에는 이 경로에 대해 표시해야 할 저작권 텍스트가 포함됩니다.
+참고: 제공된 DirectionsRenderer 객체를 사용하지 않는 경우 이 정보를 직접 처리하고 표시해야 합니다.
+warnings[]에는 이 경로를 보여줄 때 표시해야 할 경고의 배열이 포함됩니다. 제공된 DirectionsRenderer 객체를 사용하지 않는 경우 이 경고를 직접 처리하고 표시해야 합니다.
+fare에는 이 경로상의 총요금(즉 총 티켓 비용)이 포함됩니다. 이 속성은 대중교통 요청 및 모든 대중교통 구간에 대해 요금 정보를 사용할 수 있는 경로의 경우에만 반환됩니다. 이 정보에는 다음과 같은 항목이 포함됩니다.
+currency: 금액이 표시되는 통화를 나타내는 ISO 4217 통화 코드 [https://en.wikipedia.org/wiki/ISO_4217]
+
+value: 총 요금액(위에 지정된 통화로 표시됨)
+
+경로 구간
+
+참고: 기존 DirectionsRoute 객체의 이름이 DirectionsLeg로 변경되었습니다.
+
+DirectionsLeg는 계산된 경로의 출발지에서 목적지까지 여정의 단일 구간을 지정합니다.
+경유지가 포함되지 않은 경로의 경우 경로가 하나의 '구간'으로 구성되지만, 하나 이상의 경유지가 정의된 경로의 경우 경로가 여정의 특정 구간에 해당하는 하나 이상의 구간으로 구성됩니다.
+
+DirectionsLeg는 다음과 같은 필드가 있는 객체 리터럴입니다.
+
+steps[]에는 여정 구간에 있는 별도의 각 단계에 대한 정보를 표시하는 DirectionsStep 객체의 배열이 포함됩니다.
+distance는 이 구간에 포함되는 총거리를 다음과 같은 형태의 Distance 객체로 나타냅니다.
+
+value는 거리를 미터 단위로 나타냅니다.
+text에는 거리의 문자열 표현이 포함되며, 기본적으로 출발지에서 사용되는 단위로 표시됩니다. (예를 들어 미국 내 출발지의 경우 마일이 사용됩니다.) 원래 쿼리의 UnitSystem을 구체적으로 설정하여 이 단위 체계를 재정의할 수도 있습니다.
+어떤 단위 체계를 사용하든지 관계없이 distance.value 필드에는 항상 미터 단위로 표시된 값이 포함됩니다.
+
+거리를 알 수 없는 경우 이 필드가 정의되지 않을 수도 있습니다.
+
+duration은 이 구간의 전체 소요 시간을 다음과 같은 형태의 Duration 객체로 나타냅니다.
+
+value는 소요 시간을 초 단위로 나타냅니다.
+text에는 소요 시간의 문자열 표현이 포함됩니다.
+
+소요 시간을 알 수 없는 경우 이 필드가 정의되지 않을 수도 있습니다.
+
+duration_in_traffic은 현재 교통상황을 고려하여 이 구간의 총 소요 시간을 나타냅니다. duration_in_traffic은 다음 조건이 모두 참인 경우에만 반환됩니다.
+
+요청에 중간 기착 경유지가 포함되지 않았습니다. 즉 stopover가 true인 경유지가 포함되지 않았습니다.
+운전 경로에 관한 요청입니다. mode가 driving으로 설정되었습니다.
+departureTime이 요청에서 drivingOptions 필드의 일부로 포함되어 있습니다.
+요청된 경로에 대해 교통상황이 제공됩니다.
+
+duration_in_traffic에는 다음과 같은 필드가 포함됩니다.
+
+value는 소요 시간을 초 단위로 나타냅니다.
+text에는 소요 시간의 사람이 읽을 수 있는 표현이 포함됩니다.
+
+arrival_time에는 이 구간의 도착 예정 시간이 포함됩니다. 이 속성은 대중교통 경로에 대해서만 반환됩니다. 결과는 다음 세 가지 속성이 있는 Time 객체로 반환됩니다.
+value: JavaScript Date 객체로 지정된 시간입니다.
+text: 문자열로 지정된 시간입니다. 시간은 대중교통 정류장의 시간대로 표시됩니다.
+time_zone에는 이 역의 시간대가 포함됩니다. 이 값은 IANA 시간대 데이터베이스 [http://www.iana.org/time-zones]에 정의된 시간대의 이름입니다(예: 'America/New_York').
+
+departure_time에는 이 구간의 출발 예상 시간이 Time 객체로 포함됩니다. departure_time은 대중교통 경로에만 사용할 수 있습니다.
+start_location에는 이 구간 출발지의 LatLng가 포함됩니다. 경로 웹 서비스는 출발지와 도착지에서 가장 가까운 교통수단 옵션(일반적으로 도로)을 사용하여 위치 간의 거리를 계산하기 때문에, 예를 들어 출발지 근처에 도로가 없는 경우 start_location이 구간의 제공된 출발지와 다를 수도 있습니다.
+end_location에는 이 구간 목적지의 LatLng가 포함됩니다. DirectionsService는 출발지와 도착지에서 가장 가까운 교통수단 옵션(일반적으로 도로)을 사용하여 위치 간의 거리를 계산하기 때문에, 예를 들어 목적지 근처에 도로가 없는 경우 end_location이 구간의 제공된 목적지와 다를 수도 있습니다.
+start_address에는 이 구간 출발지의 사람이 읽을 수 있는 주소(일반적으로 상세 주소)가 포함됩니다.이 콘텐츠는 있는 그대로 읽어야 합니다. 형식이 지정된 주소를 프로그래매틱 방식으로 파싱하지 마세요.
+end_address에는 이 구간의 목적지의 사람이 읽을 수 있는 주소(일반적으로 상세 주소)가 포함됩니다.이 콘텐츠는 있는 그대로 읽어야 합니다. 형식이 지정된 주소를 프로그래매틱 방식으로 파싱하지 마세요.
+
+경로 단계
+
+DirectionsStep은 경로의 최소 단위이며 여정의 구체적이고 개별적인 안내를 제공하는 단일 단계가 포함됩니다. 예: 'W. 4th St.에서 좌회전' 단계에는 안내 및 이 단계가 다음 단계와 어떻게 관련되는지에 관한 거리 및 소요 시간 정보가 포함됩니다.
+예를 들어 'I-80 West로 합류'라고 표시된 단계에, 다음 단계가 이 단계로부터 59.5킬로미터/40분 거리에 있음을 나타내는 '59.5킬로미터' 및 '40분'의 소요 시간이 포함될 수도 있습니다.
+
+경로 서비스를 사용하여 대중교통 경로를 검색할 때는 단계 배열에 transit 객체 형태의 대중교통 정보 [https://developers.google.com/maps/documentation/javascript/legacy/directions?hl=ko#TransitInformation]가 추가로 포함됩니다. 경로에 여러 교통수단이 포함되어 있는 경우에는 steps[] 배열에 자세한 도보 경로 또는 운전 경로가 제공됩니다.
+예를 들어 도보 단계에는 출발지에서 목적지까지의 경로가 포함됩니다(예: 'Innes Ave & Fitch St까지 도보로 이동'). 이 단계에는 steps[] 배열에 해당 경로의 자세한 도보 경로가 포함됩니다(예: '북서쪽으로 이동', 'Arelious Walker로 좌회전', 'Innes Ave로 좌회전').
+
+DirectionsStep은 다음과 같은 필드가 있는 객체 리터럴입니다.
+
+instructions에는 이 단계에 대한 안내가 텍스트 문자열로 포함됩니다.
+distance에는 다음 단계에 도달할 때까지 이 단계에 포함된 거리가 Distance 객체로 포함합니다. 위 DirectionsLeg의 설명을 참고하세요. 거리를 알 수 없는 경우 이 필드가 정의되지 않을 수도 있습니다.
+duration에는 다음 단계에 도달할 때까지 이 단계를 완료하는 데 필요한 예상 시간이 Duration 객체로 포함됩니다. 위 DirectionsLeg의 설명을 참고하세요. 소요 시간을 알 수 없는 경우 이 필드가 정의되지 않을 수도 있습니다.
+start_location에는 이 단계 출발지의 지오코딩된 LatLng가 포함됩니다.
+end_location에는 이 단계 도착지의 LatLng가 포함됩니다.
+polyline에는 단계의 인코딩된 다중선 [https://developers.google.com/maps/documentation/utilities/polylinealgorithm?hl=ko] 표현이 포함된 단일 points 객체가 포함됩니다. 이 다중선은 단계의 대략적인(평활화된) 경로입니다.
+steps[]: 대중교통 경로의 도보 또는 운전 단계에 대한 자세한 안내가 포함된 DirectionsStep 객체 리터럴입니다. 하위 단계는 대중교통 경로에만 제공됩니다.
+travel_mode에는 이 단계에서 사용된 TravelMode가 포함됩니다. 대중교통 경로에는 도보 경로와 대중교통 경로의 조합이 포함될 수도 있습니다.
+path에는 이 단계의 과정을 설명하는 LatLngs의 배열이 포함됩니다.
+transit에는 도착 및 출발 시간, 대중교통 노선의 이름과 같은 대중교통 정보가 포함됩니다.
+
+대중교통 정보
+
+대중교통 경로는 다른 교통수단과 무관한 추가 정보를 반환합니다. 이러한 추가 속성은 TransitDetails 객체를 통해 표시되며 DirectionsStep의 속성으로 반환됩니다. 아래 설명된 대로 TransitDetails 객체에서 TransitStop, TransitLine, TransitAgency, VehicleType 객체의 추가 정보에 액세스할 수 있습니다.
+
+대중교통 상세정보
+TransitDetails 객체는 다음과 같은 속성을 나타냅니다.
+
+arrival_stop에는 도착역/정류장을 나타내며 다음과 같은 속성이 있는 TransitStop [https://developers.google.com/maps/documentation/javascript/3.exp/reference?hl=ko#TransitStop] 객체가 포함됩니다.
+name: 역/정류장의 이름입니다.
+예: 'Union Square'
+location: 역/정류장의 위치로 LatLng로 표시됩니다.
+
+departure_stop에는 출발역/정류장을 나타내는 TransitStop 객체가 포함됩니다.
+arrival_time에는 세 가지 속성이 있는 Time 객체로 지정된 도착 시간이 포함됩니다.
+value: JavaScript Date 객체로 지정된 시간입니다.
+text: 문자열로 지정된 시간입니다. 시간은 대중교통 정류장의 시간대로 표시됩니다.
+time_zone에는 이 역의 시간대가 포함됩니다. 이 값은 IANA 시간대 데이터베이스 [http://www.iana.org/time-zones]에 정의된 시간대의 이름입니다(예: 'America/New_York').
+
+departure_time에는 Time 객체로 지정된 출발 시간이 포함됩니다.
+headsign은 이 노선의 이동 방향을 지정하며 차량이나 출발 정류장에 표시됩니다.
+이는 대부분의 경우 종착역입니다.
+headway(해당하는 경우)는 현재 동일한 정류장의 예상 배차 간격을 초 단위로 지정합니다. 예를 들어 headway 값이 600인 경우 버스를 놓치면 다음 버스까지 10분을 기다려야 합니다.
+line에는 이 단계에서 사용되는 대중교통 노선에 대한 정보가 포함된 TransitLine 객체 리터럴이 포함됩니다. TransitLine은 노선 이름과 운영업체 및 TransitLine [https://developers.google.com/maps/documentation/javascript/3.exp/reference?hl=ko#TransitLine] 참조 문서에 설명되어 있는 기타 속성을 제공합니다.
+num_stops에는 이 단계의 정류장 수가 포함됩니다.
+도착 정류장은 포함되지만, 출발 정류장은 포함되지 않습니다. 예를 들어 정류장 A에서 출발하여 정류장 B와 C를 지나 정류장 D에 도착하는 경로의 경우 num_stops는 3을 반환합니다.
+
+대중교통 노선
+TransitLine 객체는 다음과 같은 속성을 나타냅니다.
+
+name에는 대중교통 노선의 전체 이름이 포함됩니다(예: '7 Avenue Express' 또는 '14th St Crosstown').
+short_name에는 이 대중교통 노선의 짧은 이름이 포함됩니다. 일반적으로 '2' 또는 'M14'와 같은 노선 번호입니다.
+agencies는 단일 TransitAgency 객체가 포함된 배열입니다. TransitAgency 객체는 다음 속성을 포함하여 이 노선의 운영업체에 대한 정보를 제공합니다.
+name에는 대중교통 기관의 이름이 포함됩니다.
+phone에는 대중교통 기관의 전화번호가 포함됩니다.
+url에는 대중교통 기관의 URL이 포함됩니다.
+
+참고: DirectionsRenderer 객체를 사용하는 대신 직접 대중교통 경로를 렌더링하는 경우에는 경로 결과를 제공하는 대중교통 기관의 이름과 URL을 표시해야 합니다.
+url에는 대중교통 기관에서 제공하는 대중교통 노선의 URL이 포함됩니다.
+icon에는 이 노선과 연결된 아이콘의 URL이 포함됩니다.
+대부분 도시에서 차량 유형별로 달라지는 일반 아이콘을 사용합니다. 뉴욕 지하철 시스템과 같은 일부 대중교통 노선의 경우 해당 노선에만 적용되는 아이콘이 있습니다.
+color에는 이 대중교통의 표지판에 흔히 사용되는 색상이 포함됩니다. 색상은 #FF0033과 같은 16진수 문자열로 지정됩니다.
+
+text_color에는 이 노선의 표지판에 흔히 사용되는 텍스트의 색상이 포함됩니다. 색상은 16진수 문자열로 지정됩니다.
+vehicle에는 다음 속성이 포함된 Vehicle 객체가 포함됩니다.
+name에는 이 노선의 운송 수단 이름이 포함됩니다(예: '지하철').
+type에는 이 노선에 사용되는 운송 수단의 유형이 포함됩니다.
+지원되는 값의 전체 목록은 운송 수단 유형 [https://developers.google.com/maps/documentation/javascript/legacy/directions?hl=ko#VehicleType] 문서를 참고하세요.
+icon에는 이 운송 수단과 흔히 연결되는 아이콘의 URL이 포함됩니다.
+local_icon에는 지역 교통 표지판을 기반으로 이 운송 수단 유형과 연결되는 아이콘의 URL이 포함됩니다.
+
+운송 수단 유형
+VehicleType 객체는 다음과 같은 속성을 나타냅니다.
+
+| 값 | 정의 |
+| --- | --- |
+| VehicleType.RAIL | 기차 |
+| VehicleType.METRO_RAIL | 경전철 |
+| VehicleType.SUBWAY | 지하철 |
+| VehicleType.TRAM | 지상철 |
+| VehicleType.MONORAIL | 모노레일 |
+| VehicleType.HEAVY_RAIL | 철도 |
+| VehicleType.COMMUTER_TRAIN | 통근 열차 |
+| VehicleType.HIGH_SPEED_TRAIN | 고속 열차 |
+| VehicleType.BUS | 버스 |
+| VehicleType.INTERCITY_BUS | 시외버스 |
+| VehicleType.TROLLEYBUS | 트롤리 버스 |
+| VehicleType.SHARE_TAXI | 합승 택시는 버스의 일종으로 경로상의 어느 곳에서나 승객이 승하차할 수 있습니다. |
+| VehicleType.FERRY | 페리 |
+| VehicleType.CABLE_CAR | 일반적으로 지상에서 케이블로 운영되는 차량입니다. 공중 케이블카는 VehicleType.GONDOLA_LIFT 유형일 수도 있습니다. |
+| VehicleType.GONDOLA_LIFT | 공중 케이블카 |
+| VehicleType.FUNICULAR | 케이블로 당겨서 가파른 경사를 오르는 차량입니다. 푸니쿨라는 보통 두 대의 차량으로 구성되며 각 차량이 다른 차량의 평형추 역할을 합니다. |
+| VehicleType.OTHER | 기타 모든 운송 수단은 이 유형을 반환합니다. |
+
+DirectionsResults 검사
+
+DirectionsResults 구성요소(DirectionsRoute, DirectionsLeg, DirectionsStep, TransitDetails)는 경로 응답을 파싱할 때 검사하고 사용할 수도 있습니다.
+중요: DirectionsRenderer 객체를 사용하는 대신 직접 대중교통 경로를 렌더링하는 경우에는 경로 결과를 제공하는 대중교통 기관의 이름과 URL을 표시해야 합니다.
+
+다음 예는 뉴욕시의 특정 관광 명소까지의 도보 경로를 보여줍니다. 경로의 DirectionsStep을 검사하여 각 단계에 대한 마커를 추가하고 InfoWindow에 해당 단계의 안내 텍스트와 함께 정보를 첨부합니다.
+
+참고:  도보 경로를 계산하므로 별도의 <div> 패널에 사용자에게 경고도 표시됩니다.
+
+directionsRenderer.setDirections(response);
+showSteps(response);
+markerArray[i] = marker;
+stepDisplay.open(map, marker);
+
+location(필수)은 경유지의 주소를 지정합니다.
+stopover(선택사항)는 이 경유지가 경로상의 실제 정류장인지(true) 단지 표시된 위치를 경유하기 위한 선호 지점인지(false)를 나타냅니다. 중간 기착은 기본적으로 true입니다.
+주의: 중간 기착을 피하기 위해 stopover를 false로 설정하면 경유지를 매우 엄격하게 해석한 경로가 생성됩니다. 이로 인해 심하게 우회하는 경로가 생성되거나 경로 서비스에서 해당 지점을 지나는 경로를 만들 수 없는 경우 응답 상태 코드에 ZERO_RESULTS가 반환될 수도 있습니다.
+
+기본적으로 경로 서비스는 제공된 경유지를 통해 지정된 순서대로 경로를 계산합니다. optimizeWaypoints: true 내에
+DirectionsRequest를 전달하여 경로 서비스에서 더 효율적인 순서로 경유지를 재정렬하여 제공된 경로를 최적화하도록 할 수도 있습니다. 이 최적화는 여행하는 영업사원 문제 [https://en.wikipedia.org/wiki/Travelling_salesman_problem]를 적용한 사례입니다. 이동 시간이 최적화되는 주요 요소이지만 가장 효율적인 경로를 결정할 때 거리, 방향 전환 횟수 등 여러 요인이 고려될 수 있습니다. 경로 서비스에서 경로를 최적화하려면 모든 경유지가 중간 기착지여야 합니다.
+
+경로 서비스에서 경유지의 순서를 최적화하도록 지정한 경우 경유지의 순서는 DirectionsResult 객체 내 waypoint_order 필드에 반환됩니다.
+
+다음 예에서는 다양한 출발지, 도착지 및 경유지를 사용하여 미국을 횡단하는 경로를 계산합니다. 여러 개의 경유지를 선택하려면 목록에서 항목을 선택할 때 Ctrl을 누른 상태로 클릭하세요.
+Google에서는 routes.start_address 및 routes.end_address를 검사하여 각 경로의 출발지 및 도착지의 텍스트를 제공합니다.
+
+TypeScript
+function initMap(): void {
+
+directionsRenderer.setMap(map);
+
+(document.getElementById("submit") as HTMLElement).addEventListener(
+"click",
+() => {
+calculateAndDisplayRoute(directionsService, directionsRenderer);
+directionsService: google.maps.DirectionsService,
+directionsRenderer: google.maps.DirectionsRenderer
+) {
+
+for (let i = 0; i < checkboxArray.length; i++) {
+if (checkboxArray.options[i].selected) {
+waypts.push({
+location: (checkboxArray[i] as HTMLOptionElement).value,
+stopover: true,
+.route({
+origin: (document.getElementById("start") as HTMLInputElement).value,
+destination: (document.getElementById("end") as HTMLInputElement).value,
+waypoints: waypts,
+optimizeWaypoints: true,
+travelMode: google.maps.TravelMode.DRIVING,
+
+summaryPanel.innerHTML = "";
+
+"<b>Route Segment: " + routeSegment + "</b><br>";
+summaryPanel.innerHTML += route.legs[i].start_address + " to ";
+summaryPanel.innerHTML += route.legs[i].end_address + "<br>";
+summaryPanel.innerHTML += route.legs[i].distance!.text + "<br><br>";
+
+function initMap() {
+.route({
+origin: document.getElementById("start").value,
+destination: document.getElementById("end").value,
+waypoints: waypts,
+optimizeWaypoints: true,
+travelMode: google.maps.TravelMode.DRIVING,
+
+"<b>Route Segment: " + routeSegment + "</b><br>";
+summaryPanel.innerHTML += route.legs[i].start_address + " to ";
+summaryPanel.innerHTML += route.legs[i].end_address + "<br>";
+summaryPanel.innerHTML += route.legs[i].distance.text + "<br><br>";
+Google Maps Platform 프리미엄 플랜 고객에게는 25개의 경유지와 출발지 및 목적지가 허용됩니다.
+대중교통 경로에서는 경유지를 사용할 수 없습니다.
+
+드래그 가능한 경로
+
+사용자는 표시된 자전거, 도보 또는 운전 경로가 드래그 가능한 경우 DirectionsRenderer를 사용하여 경로를 동적으로 수정할 수 있습니다. 이를 통해 지도에 표시된 경로를 클릭하고 드래그하여 경로를 선택하고 변경할 수 있습니다.
+draggable 속성을 true로 설정하여 렌더러에서 드래그 가능한 경로를 표시할지를 나타낼 수 있습니다. 대중교통 경로는 드래그 가능하도록 설정할 수 없습니다.
+
+경로가 드래그 가능하면 사용자가 렌더링된 결과의 경로에 있는 한 지점이나 경유지를 선택하여 표시된 구성요소를 새 위치로 이동할 수 있습니다. DirectionsRenderer는 수정된 경로를 표시하도록 동적으로 업데이트됩니다. 드래그를 마치면 전환된 경유지가 지도에 추가되며 작은 흰색 마커로 표시됩니다. 경로 세그먼트를 선택하여 이동하면 경로의 해당 구간이 변경되지만 출발지와 도착지를 포함하여 경유지 마커를 선택하여 이동하면 해당 경유지를 통과하는 경로의 구간이 변경됩니다.
+
+드래그 가능한 경로는 클라이언트 측에서 수정되고 렌더링되므로 DirectionsRenderer에서 directions_changed 이벤트를 모니터링하고 처리하여 사용자가 표시된 경로를 수정한 경우 알림을 받는 것이 좋습니다.
+
+다음 코드는 호주 서해안의 퍼스에서 동해안의 시드니까지의 이동 경로를 표시합니다. 이 코드는 directions_changed 이벤트를 모니터링하여 여행 중 모든 구간의 총거리를 업데이트합니다.
+
+TypeScript
+function initMap(): void {
+
+panel: document.getElementById("panel") as HTMLElement,
+"Perth, WA",
+"Sydney, NSW",
+directionsService,
+directionsRenderer
+origin: string,
+destination: string,
+service: google.maps.DirectionsService,
+display: google.maps.DirectionsRenderer
+) {
+service
+.route({
+origin: origin,
+destination: destination,
+waypoints: [
+],
+travelMode: google.maps.TravelMode.DRIVING,
+avoidTolls: true,
+(document.getElementById("total") as HTMLElement).innerHTML = total + " km";
+function initMap() {
+panel: document.getElementById("panel"),
+"Perth, WA",
+"Sydney, NSW",
+directionsService,
+directionsRenderer,
+.route({
+origin: origin,
+destination: destination,
+waypoints: [
+],
+travelMode: google.maps.TravelMode.DRIVING,
+avoidTolls: true,
