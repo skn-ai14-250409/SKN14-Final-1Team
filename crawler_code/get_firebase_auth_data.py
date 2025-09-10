@@ -64,7 +64,10 @@ def is_allowed(url: str) -> bool:
 def safe_filename_from_url(url: str) -> str:
     parsed = urlparse(url)
     base = (parsed.netloc + parsed.path).strip("/") or "index"
-    if parsed.query: base += "_" + re.sub(r"[^a-zA-Z0--9_=-]", "_", parsed.query)
+    # --- ▼▼▼ 여기가 수정된 부분입니다 ▼▼▼ ---
+    # 0-- 를 0-9 로 수정하여 정규표현식 오류 해결
+    if parsed.query: base += "_" + re.sub(r"[^a-zA-Z0-9_=-]", "_", parsed.query)
+    # --- ▲▲▲ 여기가 수정된 부분입니다 ▲▲▲ ---
     base = re.sub(r'[/\\?%*:|"<>]', "_", base).strip("_") or "page"
     return base + ".txt"
 
