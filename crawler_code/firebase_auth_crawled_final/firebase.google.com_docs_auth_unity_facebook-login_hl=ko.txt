@@ -1,0 +1,84 @@
+Source URL: https://firebase.google.com/docs/auth/unity/facebook-login?hl=ko
+Title: Facebook 로그인과 Unity를 사용하여 인증하기
+bookmark_border
+
+의견 보내기
+
+Facebook 로그인과 Unity를 사용하여 인증하기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/unity/facebook-login?hl=ko#before_you_begin]Firebase.Auth.FirebaseAuth 클래스 액세스 [https://firebase.google.com/docs/auth/unity/facebook-login?hl=ko#access_the_firebaseauthfirebaseauth_class]Firebase로 인증 [https://firebase.google.com/docs/auth/unity/facebook-login?hl=ko#authenticate_with_firebase]다음 단계 [https://firebase.google.com/docs/auth/unity/facebook-login?hl=ko#next_steps]
+
+Facebook 로그인을 앱에 통합하여 사용자가 Facebook 계정으로 Firebase에 인증하도록 설정할 수 있습니다.
+
+시작하기 전에
+
+Firebase Authentication [https://firebase.google.com/docs/reference/unity/namespace/firebase/auth?hl=ko]을 사용하려면 먼저 다음 작업을 해야 합니다.
+
+Unity 프로젝트를 등록하고 Firebase를 사용하도록 구성합니다.
+
+Unity 프로젝트에서 현재 Firebase를 사용하고 있다면 이미 등록되어 Firebase용으로 구성된 것입니다.
+Unity 프로젝트가 없는 경우 샘플 앱 [https://github.com/google/mechahamster]을 다운로드하면 됩니다.
+
+Firebase Unity SDK [https://firebase.google.com/download/unity?hl=ko](특히 FirebaseAuth.unitypackage)를 Unity 프로젝트에 추가합니다.
+
+초기 설정 작업에 관한 자세한 안내는 Unity 프로젝트에 Firebase 추가 [https://firebase.google.com/docs/unity/setup?hl=ko#prerequisites]를 참조하세요.Unity 프로젝트에 Firebase를 추가할 때 Firebase Console [https://console.firebase.google.com/?hl=ko] 및 열려 있는 Unity 프로젝트 모두에서 작업을 수행해야 합니다. 예를 들어 Console에서 Firebase 구성 파일을 다운로드한 후 이 파일을 Unity 프로젝트로 이동하는 작업이 필요합니다.
+
+Firebase.Auth.FirebaseAuth 클래스 액세스
+
+FirebaseAuth 클래스는 모든 API 호출을 위한 게이트웨이입니다.
+
+FirebaseAuth.DefaultInstance [https://firebase.google.com/docs/reference/unity/class/firebase/auth/firebase-auth?hl=ko#defaultinstance]를 통해 액세스할 수 있습니다.
+Firebase.Auth.FirebaseAuth auth = Firebase.Auth.FirebaseAuth.DefaultInstance;
+
+Firebase로 인증
+
+Android [https://firebase.google.com/docs/auth/android/facebook-login?hl=ko#authenticate_with_firebase] 및 iOS+ [https://firebase.google.com/docs/auth/ios/facebook-login?hl=ko#authenticate_with_firebase] 관련 안내에 따라 로그인한 Facebook 사용자의 액세스 토큰을 가져옵니다.
+사용자가 정상적으로 로그인한 후에 액세스 토큰을 Firebase 사용자 인증 정보로 교환하고 Firebase 사용자 인증 정보를 사용해 Firebase에 인증합니다.Firebase.Auth.Credential credential =
+Firebase.Auth.FacebookAuthProvider.GetCredential(accessToken);
+auth.SignInAndRetrieveDataWithCredentialAsync(credential).ContinueWith(task => {
+if (task.IsCanceled) {
+Debug.LogError("SignInAndRetrieveDataWithCredentialAsync was canceled.");
+return;
+}
+if (task.IsFaulted) {
+Debug.LogError("SignInAndRetrieveDataWithCredentialAsync encountered an error: " + task.Exception);
+return;
+}
+
+Firebase.Auth.AuthResult result = task.Result;
+Debug.LogFormat("User signed in successfully: {0} ({1})",
+result.User.DisplayName, result.User.UserId);
+});
+
+다음 단계
+
+사용자가 처음으로 로그인하면 신규 사용자 계정이 생성되고 사용자가 로그인할 때 사용한 사용자 인증 정보(사용자 이름과 비밀번호, 전화번호 또는 인증 제공업체 정보)에 연결됩니다.
+이 신규 계정은 Firebase 프로젝트에 저장되며 사용자의 로그인 방법과 무관하게 프로젝트 내의 모든 앱에서 사용자를 식별하는 데 사용할 수 있습니다.
+
+앱의 Firebase.Auth.FirebaseUser [https://firebase.google.com/docs/reference/unity/class/firebase/auth/firebase-user?hl=ko] 객체에서 사용자의 기본 프로필 정보를 가져올 수 있습니다.
+
+Firebase.Auth.FirebaseUser user = auth.CurrentUser;
+if (user != null) {
+string name = user.DisplayName;
+string email = user.Email;
+System.Uri photo_url = user.PhotoUrl;
+// The user's Id, unique to the Firebase project.
+// Do NOT use this value to authenticate with your backend server, if you
+// have one; use User.TokenAsync() instead.
+string uid = user.UserId;
+}
+
+Firebase Realtime Database와 Cloud Storage 보안 규칙 [https://firebase.google.com/docs/database/security/user-security?hl=ko]의 auth 변수에서 로그인한 사용자의 고유 사용자 ID를 가져온 후 이 ID를 통해 사용자가 액세스할 수 있는 데이터를 관리할 수 있습니다.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결 [https://firebase.google.com/docs/auth/unity/account-linking?hl=ko]하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+
+사용자를 로그아웃시키려면 SignOut() [https://firebase.google.com/docs/reference/unity/class/firebase/auth/firebase-auth?hl=ko#signout]을 호출합니다.
+auth.SignOut();
+
+의견 보내기

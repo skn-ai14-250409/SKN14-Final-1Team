@@ -1,0 +1,212 @@
+Source URL: https://cloud.google.com/firestore/docs/security/rules-structure?hl=ko
+Title: 보안 규칙 구조화
+bookmark_border
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+
+의견 보내기
+
+이 페이지의 내용서비스 및 데이터베이스 선언 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko#service_and_database_declaration]읽기/쓰기 기본 규칙 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko#basic_readwrite_rules]상세 작업 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko#granular_operations]계층적 데이터 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko#hierarchical_data]재귀 와일드 카드 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko#recursive_wildcards]중첩 match 문 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko#overlapping_match_statements]보안 규칙 한도 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko#security_rule_limits]다음 단계 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko#next_steps]
+
+보안 규칙 구조화
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Firestore 보안 규칙을 통해 데이터베이스의 문서와 컬렉션에 대한 액세스를 제어할 수 있습니다. 유연한 규칙 구문을 사용하면 전체 데이터베이스에 대한 모든 쓰기 작업부터 특정 문서에 대한 작업까지 어떠한 상황에 맞는 규칙이라도 작성할 수 있습니다.
+
+이 가이드에서는 보안 규칙의 기본적인 구문과 구조를 설명합니다. 이 구문과 보안 규칙 조건 [https://cloud.google.com/firestore/native/docs/security/rules-conditions?hl=ko]을 결합하면 완전한 규칙 세트가 생성됩니다.
+
+참고: 서버 클라이언트 라이브러리는 모든 Firestore 보안 규칙을 우회하고 대신 Google 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/production?hl=ko]를 통해 인증합니다.
+서버 클라이언트 라이브러리, REST 또는 RPC API를 사용하는 경우 Firestore용 Identity and Access Management (IAM) [https://cloud.google.com/firestore/docs/security/iam?hl=ko]를 설정해야 합니다.
+
+서비스 및 데이터베이스 선언
+
+Firestore 보안 규칙은 항상 다음 선언으로 시작됩니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// ...
+}
+}
+
+service cloud.firestore 선언은 규칙의 범위를 Firestore로 지정하여 Firestore 보안 규칙과 다른 제품(예: Cloud Storage)에 대한 규칙 간의 충돌을 방지합니다.
+
+match /databases/{database}/documents 선언은 규칙이 프로젝트의 모든 Firestore 데이터베이스와 일치하도록 지정합니다. 현재 각 프로젝트에는 (default)라는 데이터베이스 하나만 있습니다.
+
+읽기/쓰기 기본 규칙
+
+기본 규칙은 문서 경로를 지정하는 match 문과 지정한 데이터를 읽을 수 있는 조건에 관한 allow 표현식으로 구성됩니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+
+// Match any document in the 'cities' collection
+match /cities/{city} {
+allow read: if <condition>;
+allow write: if <condition>;
+}
+}
+}
+
+모든 match 문은 컬렉션이 아닌 문서를 가리켜야 합니다. match 문은 match /cities/SF와 같이 특정 문서를 가리킬 수도 있고, match /cities/{city}와 같이 와일드 카드를 사용해 지정한 경로의 모든 문서를 가리킬 수도 있습니다.
+
+위의 예시에서는 match 문에 {city} 와일드 카드 구문이 사용되었습니다.
+따라서 cities 컬렉션에 포함된 /cities/SF 또는 /cities/NYC 등의 모든 문서에 규칙이 적용됩니다. match 문의 allow 표현식이 평가될 때 city 변수는 SF 또는 NYC 등의 city 문서 이름으로 확인됩니다.
+참고: 보안 규칙에서 명시적으로 액세스를 허용하는 문서에만 액세스할 수 있습니다. 예를 들어 위 규칙에서는 cities 컬렉션의 문서에 대한 액세스만 허용하므로, 다른 컬렉션의 문서에 대한 액세스는 모두 거부됩니다.
+상세 작업
+
+상황에 따라서는 read 및 write를 상세 작업으로 나누는 것이 유용합니다. 예를 들어 앱에서 문서 작성과 문서 삭제에 서로 다른 조건을 적용해야 할 수 있습니다. 또는 단일 문서 읽기는 허용하면서 대규모 쿼리는 거부해야 할 수 있습니다.
+
+read 규칙은 get과 list로, write 규칙은 create, update, delete로 나눌 수 있습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// A read rule can be divided into get and list rules
+match /cities/{city} {
+// Applies to single document read requests
+allow get: if <condition>;
+
+// Applies to queries and collection read requests
+allow list: if <condition>;
+}
+
+// A write rule can be divided into create, update, and delete rules
+match /cities/{city} {
+// Applies to writes to nonexistent documents
+allow create: if <condition>;
+
+// Applies to writes to existing documents
+allow update: if <condition>;
+
+// Applies to delete operations
+allow delete: if <condition>;
+}
+}
+}
+
+계층적 데이터
+
+Firestore의 데이터는 문서 컬렉션으로 정리되며, 각 문서는 하위 컬렉션을 통해 계층구조를 이룰 수 있습니다. 계층적 데이터에 보안 규칙이 어떻게 적용되는지 이해하는 것이 중요합니다.
+
+cities 컬렉션의 각 문서가 landmarks 하위 컬렉션을 포함하는 경우를 예로 들어보겠습니다. 보안 규칙은 일치된 경로에만 적용되므로, cities 컬렉션에 정의된 액세스 제어는 landmarks 하위 컬렉션에 적용되지 않습니다. 따라서 하위 컬렉션의 액세스를 제어하는 명시적 규칙을 작성해야 합니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /cities/{city} {
+allow read, write: if <condition>;
+
+// Explicitly define rules for the 'landmarks' subcollection
+match /landmarks/{landmark} {
+allow read, write: if <condition>;
+}
+}
+}
+}
+
+match 문을 중첩하면 내부 match 문의 경로는 항상 외부 match 문의 경로를 기준으로 합니다.  따라서 다음 규칙 세트는 서로 동일합니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /cities/{city} {
+match /landmarks/{landmark} {
+allow read, write: if <condition>;
+}
+}
+}
+}
+service cloud.firestore {
+match /databases/{database}/documents {
+match /cities/{city}/landmarks/{landmark} {
+allow read, write: if <condition>;
+}
+}
+}
+
+재귀 와일드 카드
+
+임의적으로 깊은 계층구조까지 규칙을 적용하려면 재귀 와일드 카드 구문인 {name=**}를 사용합니다. 예를 들면 다음과 같습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Matches any document in the cities collection as well as any document
+// in a subcollection.
+match /cities/{document=**} {
+allow read, write: if <condition>;
+}
+}
+}
+
+재귀 와일드 카드 구문을 사용하면 와일드 카드 변수에 일치하는 경로 세그먼트 전체가 포함되며, 깊이 중첩된 하위 컬렉션에 문서가 위치한 경우에도 마찬가지입니다. 예를 들어 위에 나열한 규칙은 /cities/SF/landmarks/coit_tower에 위치한 문서와 일치하며, 이때 document 변수의 값은 SF/landmarks/coit_tower입니다.
+
+그러나 재귀 와일드 카드의 동작은 규칙 버전에 따라 달라집니다.
+
+--- 탭: 버전 1 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko#%EB%B2%84%EC%A0%84-1] ---
+보안 규칙은 기본적으로 버전 1을 사용합니다. 버전 1에서는 재귀 와일드 카드가 하나 이상의 경로 항목과 일치합니다. 재귀 와일드 카드는 빈 경로와 일치할 수 없으므로 match /cities/{city}/{document=**}는 cities 컬렉션이 아닌 하위 컬렉션에 속한 문서와 일치합니다. 반면, match /cities/{document=**}는 cities 컬렉션 및 하위 컬렉션의 문서와 모두 일치합니다.
+재귀 와일드 카드는 match 문 끝에 와야 합니다.
+
+--- 탭: 버전 2 [https://cloud.google.com/firestore/native/docs/security/rules-structure?hl=ko#%EB%B2%84%EC%A0%84-2] ---
+```
+rules_version = '2';
+service cloud.firestore {
+match /databases/{database}/documents {
+// Matches any document in the cities collection as well as any document
+// in a subcollection.
+match /cities/{city}/{document=**} {
+allow read, write: if <condition>;
+}
+}
+}
+```
+```
+rules_version = '2';
+service cloud.firestore {
+match /databases/{database}/documents {
+// Matches any document in the songs collection group
+match /{path=**}/songs/{song} {
+allow read, write: if <condition>;
+}
+}
+}
+```
+컬렉션 그룹 쿼리 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#collection-group-query]를 사용하는 경우 버전 2를 사용해야 합니다. 컬렉션 그룹 쿼리 보안 [https://cloud.google.com/firestore/native/docs/security/rules-query?hl=ko#secure_and_query_documents_based_on_collection_groups]을 참조하세요.
+
+중첩 match 문
+
+문서 하나가 2개 이상의 match 문과 일치할 수도 있습니다. 요청과 일치하는 allow 표현식이 여러 개인 경우 조건 중 하나라도 true이면 액세스가 허용됩니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Matches any document in the 'cities' collection.
+match /cities/{city} {
+allow read, write: if false;
+}
+
+// Matches any document in the 'cities' collection or subcollections.
+match /cities/{document=**} {
+allow read, write: if true;
+}
+}
+}
+
+위의 예시에서는 cities 컬렉션에 대한 읽기와 쓰기가 모두 허용되는데, 그 이유는 첫 번째 규칙은 항상 false이지만 두 번째 규칙이 항상 true이기 때문입니다.
+
+보안 규칙 한도
+
+보안 규칙을 사용할 때 다음 한도에 유의하시기 바랍니다.
+
+| 한도 | 세부정보 |
+| --- | --- |
+| 요청당 최대 exists(), get(), getAfter() 호출 수 | 단일 문서 요청 및 쿼리 요청의 경우 10입니다. 여러 문서 읽기, 트랜잭션, 일괄 쓰기의 경우 20입니다. 이전의 한도인 10도 각 작업에 적용됩니다. 예를 들어 3개의 쓰기 작업으로 일괄 쓰기 요청을 만들고 보안 규칙이 2회의 문서 액세스 호출을 사용하여 각 쓰기를 검증한다고 가정해 봅니다. 이 경우 각 쓰기는 10회의 액세스 호출 중 2회를 사용하고 일괄 쓰기 요청은 20회의 액세스 호출 중 6회를 사용합니다. 한도 중 하나라도 초과하면 권한 거부 오류가 발생합니다. 일부 문서 액세스 호출은 캐시될 수 있으며 캐시된 호출은 한도에 적용되지 않습니다. |
+| 중첩된 match 문 최대 심도 | 10 |
+| 중첩된 match 문 집합 내에서 허용되는 최대 경로 길이(경로 세그먼트) | 100 |
+| 중첩된 match 문 집합 내에서 허용되는 최대 경로 캡처 변수 개수 | 20 |
+| 함수 호출 최대 심도 | 20 |
+| 최대 함수 인수 개수 | 7 |
+| 함수당 최대 let 변수 결합 개수 | 10 |
+| 재귀 또는 순환 함수 호출의 최대 개수 | 0&lpar;허용되지 않음&rpar; |
+| 요청당 평가되는 최대 표현식 수 | 1,000 |
+| 규칙 세트의 최대 크기 | 규칙 세트는 다음 두 가지 크기 제한을 준수해야 합니다. Firebase Console 또는 firebase deploy를 사용하여 CLI에서 게시된 규칙 세트 텍스트 소스 크기는 256KB로 제한됩니다. Firebase가 소스를 처리하고 백엔드에서 활성화할 때 생성되는 컴파일된 규칙 세트의 크기는 250KB로 제한됩니다. |
+
+다음 단계
+
+커스텀 보안 규칙 조건 [https://cloud.google.com/firestore/native/docs/security/rules-conditions?hl=ko] 작성
+보안 규칙 참조 [https://firebase.google.com/docs/reference/rules/rules?hl=ko] 읽어보기
+
+의견 보내기

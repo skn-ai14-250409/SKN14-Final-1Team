@@ -1,0 +1,171 @@
+Source URL: https://firebase.google.com/docs/auth/unity/phone-auth?hl=ko
+Title: Unity에서 전화번호로 Firebase 인증하기
+bookmark_border
+
+의견 보내기
+
+Unity에서 전화번호로 Firebase 인증하기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에보안 문제Firebase 프로젝트에서 전화번호 로그인 사용 설정APN 알림 수신 시작(iOS만 해당)사용자 전화로 인증 코드 전송인증 코드로 사용자 로그인 처리다음 단계
+
+Firebase Authentication을 사용하면 사용자의 전화로 SMS 메시지를 전송하여 로그인하는 것이 가능합니다. 사용자는 SMS 메시지에 포함된 일회용 코드를 사용하여 로그인합니다.
+
+이 문서에서는 Firebase SDK를 사용하여 전화번호 로그인 과정을 구현하는 방법을 설명합니다.
+
+Google은 Firebase를 비롯한 Google 서비스 전반에서 스팸 및 악용 사례를 방지하기 위해 최종 사용자가 인증용으로 제공하는 전화번호를 전송하고 저장합니다. 개발자는 Firebase Authentication 전화번호 로그인 서비스를 사용하기 전에 최종 사용자로부터 적절한 동의를 얻어야 합니다.
+
+시작하기 전에
+
+Firebase Authentication [https://firebase.google.com/docs/reference/unity/namespace/firebase/auth?hl=ko]을 사용하려면 먼저 Firebase Unity SDK [https://firebase.google.com/download/unity?hl=ko](특히 FirebaseAuth.unitypackage)를 Unity 프로젝트에 추가해야 합니다.
+
+이러한 초기 설정 단계에 관한 자세한 내용은 Unity 프로젝트에 Firebase 추가 [https://firebase.google.com/docs/unity/setup?hl=ko#set_up_environment]를 참조하세요.
+
+아직 Firebase 프로젝트에 앱을 연결하지 않았다면 Firebase Console [https://console.firebase.google.com/?hl=ko]에서 연결합니다.
+
+전화번호 로그인의 플랫폼 요구사항을 알아보세요.
+
+전화번호 로그인은 모바일 플랫폼에만 사용할 수 있습니다.
+iOS의 경우 전화번호 로그인에 실제 기기가 필요하며 시뮬레이터에서는 작동하지 않습니다.
+
+보안 문제
+
+전화번호만 사용하는 인증은 편리하기는 하지만, 전화번호 소유권은 사용자 간에 쉽게 이전될 수 있으므로 다른 방식보다 보안성이 떨어집니다. 또한 기기에 여러 사용자 프로필이 있는 경우 SMS 메시지를 받을 수 있는 사람이라면 누구든지 기기의 전화번호로 계정에 로그인할 수 있습니다.
+
+앱에서 전화번호 기반 로그인을 사용하는 경우 더 안전한 로그인 방법을
+함께 제공해야 하고, 전화번호 로그인을 사용하면 보안이 약화된다는
+점을 사용자에게 알려야 합니다.
+
+Firebase 프로젝트에서 전화번호 로그인 사용 설정
+
+SMS 메시지로 사용자를 로그인 처리하려면 우선 Firebase 프로젝트에서 전화번호 로그인 방법을 사용 설정해야 합니다.
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다.
+로그인 방법 페이지에서 전화번호 로그인 방법을 사용 설정합니다.
+선택사항: 설정 페이지에서 SMS 메시지 전송을 허용하거나 거부할 리전에 대한 정책을 설정합니다. SMS 리전 정책을 설정하면 SMS 악용으로부터 앱을 보호할 수 있습니다.
+
+APN 알림 수신 시작(iOS만 해당)
+
+iOS에서 전화번호 인증을 사용하려면 앱에서 Firebase가 전송하는 APN
+알림을 수신할 수 있어야 합니다. 기기에서 처음으로 전화번호를 통해 사용자를 로그인시키면 Firebase Authentication에서 기기로 자동 푸시 알림을 전송하여 앱에서 전화번호 로그인 요청을 보냈는지 확인합니다. 따라서 시뮬레이터에서는 전화번호 로그인을 사용할 수 없습니다.
+
+Firebase Authentication와 함께 사용하기 위해 APN 알림을 사용 설정하는 방법은 다음과 같습니다.
+
+Xcode에서 프로젝트에 푸시 알림을 사용 설정 [http://help.apple.com/xcode/mac/current/#/dev11b059073?sub=dev73a37248c]합니다.
+
+Firebase에 APN 인증서를 업로드합니다.
+아직 APN 인증서가 없다면 Apple Developer Member Center [https://developer.apple.com/membercenter/index.action]에서 만드세요.
+
+Firebase Console 프로젝트 내에서 톱니바퀴 아이콘을 선택하고 프로젝트 설정을 선택한 다음 클라우드 메시징 탭을 선택합니다.
+
+개발 인증서, 프로덕션 인증서 또는 모든 인증서에 대해 인증서 업로드 버튼을 선택합니다. 하나 이상은 반드시 필요합니다.
+
+각 인증서에 대해 .p12 파일을 선택하고 해당되는 경우 비밀번호를 입력합니다.  이 인증서의 번들 ID가 앱의 번들 ID와 일치해야 합니다. 저장을 선택합니다.
+
+사용자 전화로 인증 코드 전송
+
+전화번호 로그인을 시작하려면 사용자에게 전화번호를 제공하도록 요청하는 인터페이스를 제시한 다음, PhoneAuthProvider.VerifyPhoneNumber을 호출하여 Firebase가 사용자의 전화에 SMS 인증 코드를 전송하도록 요청합니다.
+
+사용자의 전화번호를 확인합니다.
+지역에 따라 현지 법규가 다르지만, 일반적으로는 사용자가 제반 상황을 미리 알 수 있도록 휴대전화 로그인을 사용하면 인증용 SMS 메시지가 발송되고 일반 요금이 부과될 수 있다는 점을 알려야 합니다.
+
+PhoneAuthProvider.VerifyPhoneNumber를 호출하여 사용자의 전화번호가 포함된 PhoneAuthOptions에 전달합니다.
+PhoneAuthProvider provider = PhoneAuthProvider.GetInstance(firebaseAuth);
+provider.VerifyPhoneNumber(
+new Firebase.Auth.PhoneAuthOptions {
+PhoneNumber = phoneNumber,
+TimeoutInMilliseconds = phoneAuthTimeoutMs,
+ForceResendingToken = null
+},
+verificationCompleted: (credential) =&gt {
+// Auto-sms-retrieval or instant validation has succeeded (Android only).
+// There is no need to input the verification code.
+// `credential` can be used instead of calling GetCredential().
+},
+verificationFailed: (error) =&gt {
+// The verification code was not sent.
+// `error` contains a human readable explanation of the problem.
+},
+codeSent: (id, token) =&gt {
+// Verification code was successfully sent via SMS.
+// `id` contains the verification id that will need to passed in with
+// the code from the user when calling GetCredential().
+// `token` can be used if the user requests the code be sent again, to
+// tie the two requests together.
+},
+codeAutoRetrievalTimeout: (id) =&gt {
+// Called when the auto-sms-retrieval has timed out, based on the given
+// timeout parameter.
+// `id` contains the verification id of the request that timed out.
+});
+
+참고: 관련 사용량 한도 및 할당량은 Firebase Authentication 한도 [https://firebase.google.com/docs/auth/limits?hl=ko#phone-auth]를 참조하세요.
+
+PhoneAuthProvider.VerifyPhoneNumber를 호출하면 Firebase가 다음을 수행합니다.
+
+iOS의 경우 앱으로 백그라운 푸시 알림을 보냅니다.
+지정된 전화번호로 인증 코드가 포함된 SMS 메시지를 보내고 완료 함수에 인증 ID를 전달합니다. 인증 코드와 인증 ID가 모두 있어야 사용자의 로그인을 처리할 수 있습니다.
+
+인증 ID를 저장한 후 앱이 로드되면 이를 복원합니다. 이렇게 하면 사용자가 로그인 과정을 완료하기 전에 앱이 종료되더라도(예: SMS 앱으로 전환) 올바른 인증 ID를 유지할 수 있습니다.
+원하는 방식으로 인증 ID를 유지할 수 있습니다. 간단한 방법은 UnityEngine.PlayerPrefs로 인증 ID를 저장하는 것입니다.
+
+codeSent에 전달한 콜백이 호출되면 사용자에게 SMS 메시지로 받은 인증 코드를 입력하라는 메시지를 표시할 수 있습니다.
+반면 verificationCompleted에 대한 콜백이 호출되면 자동 인증에 성공한 것이며 이제 아래의 설명과 같이 사용할 수 있는 PhoneAuthCredential을 갖게 됩니다.Firebase는 악용을 방지하고자 단일 전화번호로 일정 기간 내에 보낼 수 있는 SMS 메시지 수를 제한합니다.
+이 한도를 초과하면 전화번호 인증 요청이 제한될 수 있습니다.
+개발 중에 이 문제가 발생하면 테스트에 다른 전화번호를 사용하거나 나중에 요청을 다시 시도하세요.
+
+인증 코드로 사용자 로그인 처리
+
+사용자가 SMS 메시지의 인증 코드를 앱에 제공하면 인증 코드와 인증 ID를 사용하여 PhoneAuthCredential 객체를 만들고 이 객체를 FirebaseAuth.SignInAndRetrieveDataWithCredentialAsync에 전달합니다.
+
+사용자로부터 인증 코드를 받습니다.
+인증 코드 및 인증 ID를 사용하여 Credential 객체를 만듭니다.
+PhoneAuthCredential credential =
+phoneAuthProvider.GetCredential(verificationId, verificationCode);
+
+PhoneAuthCredential 객체로 사용자를 로그인 처리합니다.
+auth.SignInAndRetrieveDataWithCredentialAsync(credential).ContinueWith(task =&gt {
+if (task.IsFaulted) {
+Debug.LogError("SignInAndRetrieveDataWithCredentialAsync encountered an error: " +
+task.Exception);
+return;
+}
+
+FirebaseUser newUser = task.Result.User;
+Debug.Log("User signed in successfully");
+// This should display the phone number.
+Debug.Log("Phone number: " + newUser.PhoneNumber);
+// The phone number providerID is 'phone'.
+Debug.Log("Phone provider ID: " + newUser.ProviderId);
+});
+
+다음 단계
+
+사용자가 처음으로 로그인하면 신규 사용자 계정이 생성되고 사용자가 로그인할 때 사용한 사용자 인증 정보(사용자 이름과 비밀번호, 전화번호 또는 인증 제공업체 정보)에 연결됩니다. 이 신규 계정은 Firebase 프로젝트에 저장되며 사용자의 로그인 방법과 무관하게 프로젝트 내의 모든 앱에서 사용자를 식별하는 데 사용할 수 있습니다.
+
+앱의 Firebase.Auth.FirebaseUser [https://firebase.google.com/docs/reference/unity/class/firebase/auth/firebase-user?hl=ko] 객체에서 사용자의 기본 프로필 정보를 가져올 수 있습니다.
+
+Firebase.Auth.FirebaseUser user = auth.CurrentUser;
+if (user != null) {
+string name = user.DisplayName;
+string email = user.Email;
+System.Uri photo_url = user.PhotoUrl;
+// The user's Id, unique to the Firebase project.
+// Do NOT use this value to authenticate with your backend server, if you
+// have one; use User.TokenAsync() instead.
+string uid = user.UserId;
+}
+
+Firebase Realtime Database와 Cloud Storage 보안 규칙 [https://firebase.google.com/docs/database/security/user-security?hl=ko]의 auth 변수에서 로그인한 사용자의 고유 사용자 ID를 가져온 후 이 ID를 통해 사용자가 액세스할 수 있는 데이터를 관리할 수 있습니다.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결 [https://firebase.google.com/docs/auth/unity/account-linking?hl=ko]하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+
+사용자를 로그아웃시키려면 SignOut() [https://firebase.google.com/docs/reference/unity/class/firebase/auth/firebase-auth?hl=ko#signout]을 호출합니다.
+auth.SignOut();
+
+의견 보내기

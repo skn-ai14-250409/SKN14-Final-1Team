@@ -1,0 +1,748 @@
+Source URL: https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko
+Title: 세션 쿠키 관리
+bookmark_border
+
+의견 보내기
+
+세션 쿠키 관리
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용로그인 [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#sign_in]세션 쿠키 만들기 [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#create_session_cookie]세션 쿠키 인증 및 권한 확인 [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#verify_session_cookie_and_check_permissions]로그아웃 [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#sign_out]타사 JWT 라이브러리를 사용한 세션 쿠키 인증 [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#verify_session_cookies_using_a_third-party_jwt_library]
+
+Firebase Auth를 사용하면 세션 쿠키를 사용하는 기존 웹사이트에 대해 서버측 세션 쿠키 관리를 할 수 있습니다. 만료되는 세션 쿠키를 업데이트하기 위해 매번 리디렉션 메커니즘이 필요한 수명이 짧은 클라이언트측 ID 토큰과 비교하면 이 솔루션은 여러 이점을 갖고 있습니다.
+
+승인된 서비스 계정만을 사용해 생성되는 JWT 기반 세션으로 보안이 강화됩니다.
+인증에 JWT를 사용할 경우 제공되는 모든 이점과 함께 상태 비추적 방식의 세션 쿠키를 사용할 수 있습니다. 세션 쿠키와 ID 토큰은 클레임(맞춤 클레임 포함)이 동일해 세션 쿠키에서도 똑같이 권한 확인을 시행할 수 있습니다.
+5분에서 2주까지 커스텀 만료 시간으로 세션 쿠키를 만들 수 있습니다.
+도메인, 경로, 보안, httpOnly 등 애플리케이션 요구사항에 따라 쿠키 정책을 유연하게 적용할 수 있습니다.
+토큰 도난이 의심되면 기존 토큰 새로고침 취소 API를 사용하여 세션 쿠키를 취소할 수 있습니다.
+주요 계정 변경사항에 대한 세션 취소를 감지할 수 있습니다.
+
+로그인
+
+애플리케이션에서 httpOnly 서버 측 쿠키를 사용한다는 가정하에 로그인 페이지에서 클라이언트 SDK를 사용하여 사용자가 로그인하도록 합니다. Firebase ID 토큰이 생성되고 Admin SDK를 통해 세션 쿠키가 생성되는 세션 로그인 엔드포인트로 ID 토큰이 HTTP POST를 통해 전송됩니다. 성공 시 클라이언트측 저장소에서 상태가 삭제됩니다.
+firebase.initializeApp({
+apiKey: 'AIza…',
+authDomain: '<PROJECT_ID>.firebasepp.com'
+});
+
+// As httpOnly cookies are to be used, do not persist any state client side.
+firebase.auth().setPersistence(firebase.auth.Auth.Persistence.NONE);
+
+// When the user signs in with email and password.
+firebase.auth().signInWithEmailAndPassword('user@example.com', 'password').then(user => {
+// Get the user's ID token as it is needed to exchange for a session cookie.
+return user.getIdToken().then(idToken => {
+// Session login endpoint is queried and the session cookie is set.
+// CSRF protection should be taken into account.
+// ...
+const csrfToken = getCookie('csrfToken')
+return postIdTokenToSessionLogin('/sessionLogin', idToken, csrfToken);
+});
+}).then(() => {
+// A page redirect would suffice as the persistence is set to NONE.
+return firebase.auth().signOut();
+}).then(() => {
+window.location.assign('/profile');
+});
+
+세션 쿠키 만들기
+
+제공된 ID 토큰을 사용하는 대신 세션 쿠키를 생성하려면 HTTP 엔드포인트가 필요합니다. 토큰을 엔드포인트로 전송하고 Firebase Admin SDK를 사용하여 커스텀 세션 시간을 설정합니다. 사이트 간 요청 위조(CSRF) 공격을 방지하기 위한 적절한 조치를 취해야 합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#node.js] ---
+```
+app.post('/sessionLogin', (req, res) => {
+// Get the ID token passed and the CSRF token.
+const idToken = req.body.idToken.toString();
+const csrfToken = req.body.csrfToken.toString();
+// Guard against CSRF attacks.
+if (csrfToken !== req.cookies.csrfToken) {
+res.status(401).send('UNAUTHORIZED REQUEST!');
+return;
+}
+// Set session expiration to 5 days.
+const expiresIn = 60 * 60 * 24 * 5 * 1000;
+// Create the session cookie. This will also verify the ID token in the process.
+// The session cookie will have the same claims as the ID token.
+// To only allow session cookie setting on recent sign-in, auth_time in ID token
+// can be checked to ensure user was recently signed in before creating a session cookie.
+getAuth()
+.createSessionCookie(idToken, { expiresIn })
+.then(
+(sessionCookie) => {
+// Set cookie policy for session cookie.
+const options = { maxAge: expiresIn, httpOnly: true, secure: true };
+res.cookie('session', sessionCookie, options);
+res.end(JSON.stringify({ status: 'success' }));
+},
+(error) => {
+res.status(401).send('UNAUTHORIZED REQUEST!');
+}
+);
+});
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+@POST
+@Path("/sessionLogin")
+@Consumes("application/json")
+public Response createSessionCookie(LoginRequest request) {
+// Get the ID token sent by the client
+String idToken = request.getIdToken();
+// Set session expiration to 5 days.
+long expiresIn = TimeUnit.DAYS.toMillis(5);
+SessionCookieOptions options = SessionCookieOptions.builder()
+.setExpiresIn(expiresIn)
+.build();
+try {
+// Create the session cookie. This will also verify the ID token in the process.
+// The session cookie will have the same claims as the ID token.
+String sessionCookie = FirebaseAuth.getInstance().createSessionCookie(idToken, options);
+// Set cookie policy parameters as required.
+NewCookie cookie = new NewCookie("session", sessionCookie /* ... other parameters */);
+return Response.ok().cookie(cookie).build();
+} catch (FirebaseAuthException e) {
+return Response.status(Status.UNAUTHORIZED).entity("Failed to create a session cookie")
+.build();
+}
+}
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#python] ---
+```
+@app.route('/sessionLogin', methods=['POST'])
+def session_login():
+# Get the ID token sent by the client
+id_token = flask.request.json['idToken']
+# Set session expiration to 5 days.
+expires_in = datetime.timedelta(days=5)
+try:
+# Create the session cookie. This will also verify the ID token in the process.
+# The session cookie will have the same claims as the ID token.
+session_cookie = auth.create_session_cookie(id_token, expires_in=expires_in)
+response = flask.jsonify({'status': 'success'})
+# Set cookie policy for session cookie.
+expires = datetime.datetime.now() + expires_in
+response.set_cookie(
+'session', session_cookie, expires=expires, httponly=True, secure=True)
+return response
+except exceptions.FirebaseError:
+return flask.abort(401, 'Failed to create a session cookie')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#go] ---
+```
+return func(w http.ResponseWriter, r *http.Request) {
+// Get the ID token sent by the client
+defer r.Body.Close()
+idToken, err := getIDTokenFromBody(r)
+if err != nil {
+http.Error(w, err.Error(), http.StatusBadRequest)
+return
+}
+
+// Set session expiration to 5 days.
+expiresIn := time.Hour * 24 * 5
+
+// Create the session cookie. This will also verify the ID token in the process.
+// The session cookie will have the same claims as the ID token.
+// To only allow session cookie setting on recent sign-in, auth_time in ID token
+// can be checked to ensure user was recently signed in before creating a session cookie.
+cookie, err := client.SessionCookie(r.Context(), idToken, expiresIn)
+if err != nil {
+http.Error(w, "Failed to create a session cookie", http.StatusInternalServerError)
+return
+}
+
+// Set cookie policy for session cookie.
+http.SetCookie(w, &http.Cookie{
+Name:     "session",
+Value:    cookie,
+MaxAge:   int(expiresIn.Seconds()),
+HttpOnly: true,
+Secure:   true,
+})
+w.Write([]byte(`{"status": "success"}`))
+}
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#c] ---
+```
+// POST: /sessionLogin
+[HttpPost]
+public async Task<ActionResult> Login([FromBody] LoginRequest request)
+{
+// Set session expiration to 5 days.
+var options = new SessionCookieOptions()
+{
+ExpiresIn = TimeSpan.FromDays(5),
+};
+
+try
+{
+// Create the session cookie. This will also verify the ID token in the process.
+// The session cookie will have the same claims as the ID token.
+var sessionCookie = await FirebaseAuth.DefaultInstance
+.CreateSessionCookieAsync(request.IdToken, options);
+
+// Set cookie policy parameters as required.
+var cookieOptions = new CookieOptions()
+{
+Expires = DateTimeOffset.UtcNow.Add(options.ExpiresIn),
+HttpOnly = true,
+Secure = true,
+};
+this.Response.Cookies.Append("session", sessionCookie, cookieOptions);
+return this.Ok();
+}
+catch (FirebaseAuthException)
+{
+return this.Unauthorized("Failed to create a session cookie");
+}
+}
+```
+민감한 애플리케이션인 경우 세션 쿠키를 발행하기 전에 auth_time을 확인하여 ID 토큰 도난 시의 공격 기간을 최소화해야 합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#node.js] ---
+```
+getAuth()
+.verifyIdToken(idToken)
+.then((decodedIdToken) => {
+// Only process if the user just signed in in the last 5 minutes.
+if (new Date().getTime() / 1000 - decodedIdToken.auth_time < 5 * 60) {
+// Create session cookie and set it.
+return getAuth().createSessionCookie(idToken, { expiresIn });
+}
+// A user that was not recently signed in is trying to set a session cookie.
+// To guard against ID token theft, require re-authentication.
+res.status(401).send('Recent sign in required!');
+});
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+// To ensure that cookies are set only on recently signed in users, check auth_time in
+// ID token before creating a cookie.
+FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+long authTimeMillis = TimeUnit.SECONDS.toMillis(
+(long) decodedToken.getClaims().get("auth_time"));
+
+// Only process if the user signed in within the last 5 minutes.
+if (System.currentTimeMillis() - authTimeMillis < TimeUnit.MINUTES.toMillis(5)) {
+long expiresIn = TimeUnit.DAYS.toMillis(5);
+SessionCookieOptions options = SessionCookieOptions.builder()
+.setExpiresIn(expiresIn)
+.build();
+String sessionCookie = FirebaseAuth.getInstance().createSessionCookie(idToken, options);
+// Set cookie policy parameters as required.
+NewCookie cookie = new NewCookie("session", sessionCookie);
+return Response.ok().cookie(cookie).build();
+}
+// User did not sign in recently. To guard against ID token theft, require
+// re-authentication.
+return Response.status(Status.UNAUTHORIZED).entity("Recent sign in required").build();
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#python] ---
+```
+# To ensure that cookies are set only on recently signed in users, check auth_time in
+# ID token before creating a cookie.
+try:
+decoded_claims = auth.verify_id_token(id_token)
+# Only process if the user signed in within the last 5 minutes.
+if time.time() - decoded_claims['auth_time'] < 5 * 60:
+expires_in = datetime.timedelta(days=5)
+expires = datetime.datetime.now() + expires_in
+session_cookie = auth.create_session_cookie(id_token, expires_in=expires_in)
+response = flask.jsonify({'status': 'success'})
+response.set_cookie(
+'session', session_cookie, expires=expires, httponly=True, secure=True)
+return response
+# User did not sign in recently. To guard against ID token theft, require
+# re-authentication.
+return flask.abort(401, 'Recent sign in required')
+except auth.InvalidIdTokenError:
+return flask.abort(401, 'Invalid ID token')
+except exceptions.FirebaseError:
+return flask.abort(401, 'Failed to create a session cookie')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#go] ---
+```
+return func(w http.ResponseWriter, r *http.Request) {
+// Get the ID token sent by the client
+defer r.Body.Close()
+idToken, err := getIDTokenFromBody(r)
+if err != nil {
+http.Error(w, err.Error(), http.StatusBadRequest)
+return
+}
+
+decoded, err := client.VerifyIDToken(r.Context(), idToken)
+if err != nil {
+http.Error(w, "Invalid ID token", http.StatusUnauthorized)
+return
+}
+// Return error if the sign-in is older than 5 minutes.
+if time.Now().Unix()-decoded.Claims["auth_time"].(int64) > 5*60 {
+http.Error(w, "Recent sign-in required", http.StatusUnauthorized)
+return
+}
+
+expiresIn := time.Hour * 24 * 5
+cookie, err := client.SessionCookie(r.Context(), idToken, expiresIn)
+if err != nil {
+http.Error(w, "Failed to create a session cookie", http.StatusInternalServerError)
+return
+}
+http.SetCookie(w, &http.Cookie{
+Name:     "session",
+Value:    cookie,
+MaxAge:   int(expiresIn.Seconds()),
+HttpOnly: true,
+Secure:   true,
+})
+w.Write([]byte(`{"status": "success"}`))
+}
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#c] ---
+```
+// To ensure that cookies are set only on recently signed in users, check auth_time in
+// ID token before creating a cookie.
+var decodedToken = await FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(idToken);
+var authTime = new DateTime(1970, 1, 1).AddSeconds(
+(long)decodedToken.Claims["auth_time"]);
+
+// Only process if the user signed in within the last 5 minutes.
+if (DateTime.UtcNow - authTime < TimeSpan.FromMinutes(5))
+{
+var options = new SessionCookieOptions()
+{
+ExpiresIn = TimeSpan.FromDays(5),
+};
+var sessionCookie = await FirebaseAuth.DefaultInstance.CreateSessionCookieAsync(
+idToken, options);
+// Set cookie policy parameters as required.
+this.Response.Cookies.Append("session", sessionCookie);
+return this.Ok();
+}
+
+// User did not sign in recently. To guard against ID token theft, require
+// re-authentication.
+return this.Unauthorized("Recent sign in required");
+```
+세션 쿠키 인증 및 권한 확인
+
+로그인 후 일부 보안 규칙에 따라 제한된 콘텐츠를 제공하기 전에 액세스가 보호되는 모든 웹사이트 섹션에서 세션 쿠키를 확인하고 이를 인증해야 합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#node.js] ---
+```
+// Whenever a user is accessing restricted content that requires authentication.
+app.post('/profile', (req, res) => {
+const sessionCookie = req.cookies.session || '';
+// Verify the session cookie. In this case an additional check is added to detect
+// if the user's Firebase session was revoked, user deleted/disabled, etc.
+getAuth()
+.verifySessionCookie(sessionCookie, true /** checkRevoked */)
+.then((decodedClaims) => {
+serveContentForUser('/profile', req, res, decodedClaims);
+})
+.catch((error) => {
+// Session cookie is unavailable or invalid. Force user to login.
+res.redirect('/login');
+});
+});
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+@POST
+@Path("/profile")
+public Response verifySessionCookie(@CookieParam("session") Cookie cookie) {
+String sessionCookie = cookie.getValue();
+try {
+// Verify the session cookie. In this case an additional check is added to detect
+// if the user's Firebase session was revoked, user deleted/disabled, etc.
+final boolean checkRevoked = true;
+FirebaseToken decodedToken = FirebaseAuth.getInstance().verifySessionCookie(
+sessionCookie, checkRevoked);
+return serveContentForUser(decodedToken);
+} catch (FirebaseAuthException e) {
+// Session cookie is unavailable, invalid or revoked. Force user to login.
+return Response.temporaryRedirect(URI.create("/login")).build();
+}
+}
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#python] ---
+```
+@app.route('/profile', methods=['POST'])
+def access_restricted_content():
+session_cookie = flask.request.cookies.get('session')
+if not session_cookie:
+# Session cookie is unavailable. Force user to login.
+return flask.redirect('/login')
+
+# Verify the session cookie. In this case an additional check is added to detect
+# if the user's Firebase session was revoked, user deleted/disabled, etc.
+try:
+decoded_claims = auth.verify_session_cookie(session_cookie, check_revoked=True)
+return serve_content_for_user(decoded_claims)
+except auth.InvalidSessionCookieError:
+# Session cookie is invalid, expired or revoked. Force user to login.
+return flask.redirect('/login')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#go] ---
+```
+return func(w http.ResponseWriter, r *http.Request) {
+// Get the ID token sent by the client
+cookie, err := r.Cookie("session")
+if err != nil {
+// Session cookie is unavailable. Force user to login.
+http.Redirect(w, r, "/login", http.StatusFound)
+return
+}
+
+// Verify the session cookie. In this case an additional check is added to detect
+// if the user's Firebase session was revoked, user deleted/disabled, etc.
+decoded, err := client.VerifySessionCookieAndCheckRevoked(r.Context(), cookie.Value)
+if err != nil {
+// Session cookie is invalid. Force user to login.
+http.Redirect(w, r, "/login", http.StatusFound)
+return
+}
+
+serveContentForUser(w, r, decoded)
+}
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#c] ---
+```
+// POST: /profile
+[HttpPost]
+public async Task<ActionResult> Profile()
+{
+var sessionCookie = this.Request.Cookies["session"];
+if (string.IsNullOrEmpty(sessionCookie))
+{
+// Session cookie is not available. Force user to login.
+return this.Redirect("/login");
+}
+
+try
+{
+// Verify the session cookie. In this case an additional check is added to detect
+// if the user's Firebase session was revoked, user deleted/disabled, etc.
+var checkRevoked = true;
+var decodedToken = await FirebaseAuth.DefaultInstance.VerifySessionCookieAsync(
+sessionCookie, checkRevoked);
+return ViewContentForUser(decodedToken);
+}
+catch (FirebaseAuthException)
+{
+// Session cookie is invalid or revoked. Force user to login.
+return this.Redirect("/login");
+}
+}
+```
+Admin SDK verifySessionCookie API를 사용하여 세션 쿠키를 인증합니다. 이 작업은 오버헤드가 적습니다. 공개 인증서가 처음에 쿼리된 후 만료될 때까지 캐시됩니다. 추가 네트워크 요청 없이 캐시된 공개 인증서로 세션 쿠키를 인증할 수 있습니다.
+
+잘못된 쿠키인 경우 삭제되었는지 확인 후 사용자에게 다시 로그인하라고 요청하세요. 세션 취소를 확인할 수 있는 추가 옵션이 지원되고 있습니다. 이 옵션의 경우 세션 쿠키를 인증할 때마다 추가 네트워크 요청이 추가됩니다.
+
+보안상의 이유로 Firebase 세션 쿠키는 최대 2주로 기간을 설정할 수 있는 맞춤 유효 기간으로 인해 다른 Firebase 서비스에서 사용할 수 없습니다. 서버측 쿠키를 사용하는 모든 애플리케이션은 서버측 쿠키를 인증한 후 권한 확인을 시행해야 합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#node.js] ---
+```
+getAuth()
+.verifySessionCookie(sessionCookie, true)
+.then((decodedClaims) => {
+// Check custom claims to confirm user is an admin.
+if (decodedClaims.admin === true) {
+return serveContentForAdmin('/admin', req, res, decodedClaims);
+}
+res.status(401).send('UNAUTHORIZED REQUEST!');
+})
+.catch((error) => {
+// Session cookie is unavailable or invalid. Force user to login.
+res.redirect('/login');
+});
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+try {
+final boolean checkRevoked = true;
+FirebaseToken decodedToken = FirebaseAuth.getInstance().verifySessionCookie(
+sessionCookie, checkRevoked);
+if (Boolean.TRUE.equals(decodedToken.getClaims().get("admin"))) {
+return serveContentForAdmin(decodedToken);
+}
+return Response.status(Status.UNAUTHORIZED).entity("Insufficient permissions").build();
+} catch (FirebaseAuthException e) {
+// Session cookie is unavailable, invalid or revoked. Force user to login.
+return Response.temporaryRedirect(URI.create("/login")).build();
+}
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#python] ---
+```
+try:
+decoded_claims = auth.verify_session_cookie(session_cookie, check_revoked=True)
+# Check custom claims to confirm user is an admin.
+if decoded_claims.get('admin') is True:
+return serve_content_for_admin(decoded_claims)
+
+return flask.abort(401, 'Insufficient permissions')
+except auth.InvalidSessionCookieError:
+# Session cookie is invalid, expired or revoked. Force user to login.
+return flask.redirect('/login')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#go] ---
+```
+return func(w http.ResponseWriter, r *http.Request) {
+cookie, err := r.Cookie("session")
+if err != nil {
+// Session cookie is unavailable. Force user to login.
+http.Redirect(w, r, "/login", http.StatusFound)
+return
+}
+
+decoded, err := client.VerifySessionCookieAndCheckRevoked(r.Context(), cookie.Value)
+if err != nil {
+// Session cookie is invalid. Force user to login.
+http.Redirect(w, r, "/login", http.StatusFound)
+return
+}
+
+// Check custom claims to confirm user is an admin.
+if decoded.Claims["admin"] != true {
+http.Error(w, "Insufficient permissions", http.StatusUnauthorized)
+return
+}
+
+serveContentForAdmin(w, r, decoded)
+}
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#c] ---
+```
+try
+{
+var checkRevoked = true;
+var decodedToken = await FirebaseAuth.DefaultInstance.VerifySessionCookieAsync(
+sessionCookie, checkRevoked);
+object isAdmin;
+if (decodedToken.Claims.TryGetValue("admin", out isAdmin) && (bool)isAdmin)
+{
+return ViewContentForAdmin(decodedToken);
+}
+
+return this.Unauthorized("Insufficient permissions");
+}
+catch (FirebaseAuthException)
+{
+// Session cookie is invalid or revoked. Force user to login.
+return this.Redirect("/login");
+}
+```
+세션 쿠키를 인증하려면 프로젝트 ID를 사용하여 Admin SDK를 초기화해야 합니다. 이 과정은 서비스 계정 사용자 인증 정보를 사용하여 SDK를 초기화하면 자동으로 진행됩니다. 또는 프로젝트 ID를 Firebase 앱 옵션으로 설정하거나 GCLOUD_PROJECT 환경 변수를 통해 지정할 수 있습니다.
+
+로그아웃
+
+사용자가 클라이언트측에서 로그아웃하면 엔드포인트를 통해 서버측에서 이를 처리합니다. POST/GET 요청으로 인해 세션 쿠키가 삭제됩니다.
+쿠키가 삭제되어도 자연스럽게 만료될 때까지는 활성 상태로 유지됩니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#node.js] ---
+```
+app.post('/sessionLogout', (req, res) => {
+res.clearCookie('session');
+res.redirect('/login');
+});
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+@POST
+@Path("/sessionLogout")
+public Response clearSessionCookie(@CookieParam("session") Cookie cookie) {
+final int maxAge = 0;
+NewCookie newCookie = new NewCookie(cookie, null, maxAge, true);
+return Response.temporaryRedirect(URI.create("/login")).cookie(newCookie).build();
+}
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#python] ---
+```
+@app.route('/sessionLogout', methods=['POST'])
+def session_logout():
+response = flask.make_response(flask.redirect('/login'))
+response.set_cookie('session', expires=0)
+return response
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#go] ---
+```
+return func(w http.ResponseWriter, r *http.Request) {
+http.SetCookie(w, &http.Cookie{
+Name:   "session",
+Value:  "",
+MaxAge: 0,
+})
+http.Redirect(w, r, "/login", http.StatusFound)
+}
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#c] ---
+```
+// POST: /sessionLogout
+[HttpPost]
+public ActionResult ClearSessionCookie()
+{
+this.Response.Cookies.Delete("session");
+return this.Redirect("/login");
+}
+```
+취소 API를 호출하면 세션이 취소되고 다른 모든 사용자 세션도 취소되어 새로 로그인해야 합니다. 중요한 애플리케이션에는 세션 기간을 짧게 지정하는 것이 좋습니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#node.js] ---
+```
+app.post('/sessionLogout', (req, res) => {
+const sessionCookie = req.cookies.session || '';
+res.clearCookie('session');
+getAuth()
+.verifySessionCookie(sessionCookie)
+.then((decodedClaims) => {
+return getAuth().revokeRefreshTokens(decodedClaims.sub);
+})
+.then(() => {
+res.redirect('/login');
+})
+.catch((error) => {
+res.redirect('/login');
+});
+});
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+@POST
+@Path("/sessionLogout")
+public Response clearSessionCookieAndRevoke(@CookieParam("session") Cookie cookie) {
+String sessionCookie = cookie.getValue();
+try {
+FirebaseToken decodedToken = FirebaseAuth.getInstance().verifySessionCookie(sessionCookie);
+FirebaseAuth.getInstance().revokeRefreshTokens(decodedToken.getUid());
+final int maxAge = 0;
+NewCookie newCookie = new NewCookie(cookie, null, maxAge, true);
+return Response.temporaryRedirect(URI.create("/login")).cookie(newCookie).build();
+} catch (FirebaseAuthException e) {
+return Response.temporaryRedirect(URI.create("/login")).build();
+}
+}
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#python] ---
+```
+@app.route('/sessionLogout', methods=['POST'])
+def session_logout():
+session_cookie = flask.request.cookies.get('session')
+try:
+decoded_claims = auth.verify_session_cookie(session_cookie)
+auth.revoke_refresh_tokens(decoded_claims['sub'])
+response = flask.make_response(flask.redirect('/login'))
+response.set_cookie('session', expires=0)
+return response
+except auth.InvalidSessionCookieError:
+return flask.redirect('/login')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#go] ---
+```
+return func(w http.ResponseWriter, r *http.Request) {
+cookie, err := r.Cookie("session")
+if err != nil {
+// Session cookie is unavailable. Force user to login.
+http.Redirect(w, r, "/login", http.StatusFound)
+return
+}
+
+decoded, err := client.VerifySessionCookie(r.Context(), cookie.Value)
+if err != nil {
+// Session cookie is invalid. Force user to login.
+http.Redirect(w, r, "/login", http.StatusFound)
+return
+}
+if err := client.RevokeRefreshTokens(r.Context(), decoded.UID); err != nil {
+http.Error(w, "Failed to revoke refresh token", http.StatusInternalServerError)
+return
+}
+
+http.SetCookie(w, &http.Cookie{
+Name:   "session",
+Value:  "",
+MaxAge: 0,
+})
+http.Redirect(w, r, "/login", http.StatusFound)
+}
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-cookies?hl=ko#c] ---
+```
+// POST: /sessionLogout
+[HttpPost]
+public async Task<ActionResult> ClearSessionCookieAndRevoke()
+{
+var sessionCookie = this.Request.Cookies["session"];
+try
+{
+var decodedToken = await FirebaseAuth.DefaultInstance
+.VerifySessionCookieAsync(sessionCookie);
+await FirebaseAuth.DefaultInstance.RevokeRefreshTokensAsync(decodedToken.Uid);
+this.Response.Cookies.Delete("session");
+return this.Redirect("/login");
+}
+catch (FirebaseAuthException)
+{
+return this.Redirect("/login");
+}
+}
+```
+타사 JWT 라이브러리를 사용한 세션 쿠키 인증
+
+백엔드가 Firebase Admin SDK에서 지원하지 않는 언어로 작성되었더라도 세션 쿠키를 인증할 수 있습니다. 우선 해당 언어의 타사 JWT 라이브러리를 검색 [https://jwt.io/]합니다. 그런 다음 세션 쿠키의 헤더, 페이로드, 서명을 인증합니다.
+
+세션 쿠키의 헤더가 다음과 같은 제약조건에 맞는지 확인합니다.
+
+| Firebase 세션 쿠키 헤더 클레임 |
+| --- |
+| alg | 알고리즘 | "RS256" |
+| kid | 키 ID | https://www.googleapis.com/identitytoolkit/v3/relyingparty/publicKeys에 나열된 공개 키 중 하나와 일치해야 합니다. |
+
+세션 쿠키의 페이로드가 다음 제약조건에 맞는지 확인합니다.
+
+| Firebase 세션 쿠키 페이로드 클레임 |
+| --- |
+| exp | 만료 시간 | 미래 시간이어야 합니다. UNIX 기점을 기준으로 측정한 시간(초)입니다. 만료 시간은 쿠키가 생성될 때 제공되는 맞춤 기간에 따라 설정됩니다. |
+| iat | 발급 시간 | 과거 시간이어야 합니다. UNIX 기점을 기준으로 측정한 시간(초)입니다. |
+| aud | 대상 | Firebase 프로젝트 ID(Firebase 프로젝트의 고유 식별자)여야 합니다. 프로젝트 콘솔의 URL에서 확인할 수 있습니다. |
+| iss | 발급자 | "https://session.firebase.google.com/<projectId>"여야 합니다. 여기서 <projectId>는 위 aud에 사용된 프로젝트 ID와 동일합니다. |
+| sub | 소유자 | 비어 있지 않은 문자열이어야 하며 사용자 또는 기기의 uid여야 합니다. |
+| auth_time | 인증 시간 | 과거 시간이어야 합니다. 사용자를 인증한 시간입니다. 세션 쿠키를 만들 때 사용한 ID 토큰의 auth_time과 일치합니다. |
+
+마지막으로 토큰의 kid 클레임에 해당하는 비공개 키로 세션 쿠키가 서명되었는지 확인합니다. https://www.googleapis.com/identitytoolkit/v3/relyingparty/publicKeys에서 공개 키를 가져오고 JWT 라이브러리를 사용하여 서명을 확인합니다. 이 엔드포인드에서 보낸 응답의 Cache-Control 헤더에 있는 max-age 값을 사용하여 공개 키를 새로고침할 시점을 확인합니다.
+
+위의 인증이 모두 성공하면 세션 쿠키의 제목(sub)을 해당 사용자 또는 기기의 uid로 사용할 수 있습니다.
+
+도움이 되었나요?
+
+의견 보내기

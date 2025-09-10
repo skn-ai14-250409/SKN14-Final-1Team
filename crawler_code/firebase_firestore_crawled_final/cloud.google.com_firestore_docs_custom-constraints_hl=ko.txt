@@ -1,0 +1,265 @@
+Source URL: https://cloud.google.com/firestore/docs/custom-constraints?hl=ko
+Title: 커스텀 제약조건을 사용하여 Firestore 리소스 관리
+bookmark_border
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+
+의견 보내기
+
+이 페이지의 내용조직 정책 및 제약조건 정보 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#about_organization_policies_and_constraints]정책 상속 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#policy-inheritance]이점 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#benefits]시작하기 전에 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#before-you-begin]필요한 역할 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#required-roles]커스텀 제약조건 만들기 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#create_custom_constraint]커스텀 제약조건 설정 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#set_up_custom_constraint]커스텀 조직 정책 적용 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#enforce_custom_constraint]커스텀 조직 정책 테스트 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#test_constraint]정책 테스트 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#example-test-policy]조직 정책 변경사항 테스트 및 분석 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#test_and_analyze_organization_policy_changes]일반적인 사용 사례의 커스텀 조직 정책 예시 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#example_constraints]Firestore 지원 리소스 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#supported_resources]다음 단계 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#whats_next]
+
+커스텀 제약조건을 사용하여 Firestore 리소스 관리
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지에서는 조직 정책 서비스 커스텀 제약 조건을 사용하여 다음 Google Cloud 리소스에 대한 특정 작업을 제한하는 방법을 보여줍니다.
+
+firestore.googleapis.com/Database
+
+조직 정책에 대한 자세한 내용은 커스텀 조직 정책 [https://cloud.google.com/resource-manager/docs/organization-policy/overview?hl=ko#custom-organization-policies]을 참조하세요.
+
+조직 정책 및 제약조건 정보
+
+Google Cloud 조직 정책 서비스를 사용하면 조직 리소스를 중앙에서 프로그래매틱 방식으로 제어할 수 있습니다. 조직 정책 관리자 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#orgpolicy.policyAdmin]는 Google Cloud 리소스 계층 구조 [https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy?hl=ko]에서Google Cloud 리소스 및 이러한 리소스의 하위 요소에 적용되는 제약조건이라는 제한사항 집합인 조직 정책을 정의할 수 있습니다. 조직, 폴더 또는 프로젝트 수준에서 조직 정책을 적용할 수 있습니다.
+
+조직 정책은 다양한 Google Cloud 서비스에 내장된 관리형 제약조건 [https://cloud.google.com/resource-manager/docs/organization-policy/org-policy-constraints?hl=ko]을 제공합니다. 그러나 조직 정책에서 제한되는 특정 필드를 보다 세부적으로 맞춤설정 가능한 방식으로 제어하려면 커스텀 제약조건을 만들고 조직 정책에 이러한 커스텀 제약조건을 사용할 수 있습니다.
+
+정책 상속
+
+기본적으로 조직 정책은 정책을 적용하는 리소스의 하위 요소에 상속됩니다. 예를 들어 폴더에 정책을 적용하면 Google Cloud 가 폴더의 모든 프로젝트에 정책을 적용합니다. 이 동작 및 이를 변경하는 방법에 대한 자세한 내용은 계층 구조 평가 규칙 [https://cloud.google.com/resource-manager/docs/organization-policy/understanding-hierarchy?hl=ko#disallow_inheritance]을 참조하세요.
+
+이점
+
+보안, 규정 준수, 거버넌스: 다음과 같이 커스텀 조직 정책을 사용할 수 있습니다.
+
+재해 복구 요구사항을 적용하려면 데이터베이스에서 삭제 보호, 특정 시점 복구와 같은 특정 재해 복구 설정이 필요합니다.
+특정 위치로만 데이터베이스 생성을 제한할 수 있습니다.
+데이터베이스에 CMEK (고객 관리 암호화 키)를 요구할 수 있습니다.
+
+감사: 맞춤 조직 정책 제약 조건은 감사 로그에 기록됩니다. 제약 조건 수정 및 제약 조건 확인을 포함한 모든 작업은 해당 Cloud 감사 로그를 생성합니다.
+
+시작하기 전에
+
+Sign in to your Google Cloud account. If you're new to
+Google Cloud, create an account [https://console.cloud.google.com/freetrial?hl=ko] to evaluate how our products perform in
+real-world scenarios. New customers also get $300 in free credits to
+run, test, and deploy workloads.
+
+In the Google Cloud console, on the project selector page,
+select or create a Google Cloud project.
+
+Note: If you don't plan to keep the
+resources that you create in this procedure, create a project instead of
+selecting an existing project. After you finish these steps, you can
+delete the project, removing all resources associated with the project.
+
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+
+Install [https://cloud.google.com/sdk/docs/install?hl=ko] the Google Cloud CLI.
+
+외부 ID 공급업체(IdP)를 사용하는 경우 먼저 제휴 ID로 gcloud CLI에 로그인 [https://cloud.google.com/iam/docs/workforce-log-in-gcloud?hl=ko]해야 합니다.
+
+gcloud CLI를 초기화하려면 [https://cloud.google.com/sdk/docs/initializing?hl=ko] 다음 명령어를 실행합니다.
+
+gcloud init
+
+In the Google Cloud console, on the project selector page,
+select or create a Google Cloud project.
+
+Note: If you don't plan to keep the
+resources that you create in this procedure, create a project instead of
+selecting an existing project. After you finish these steps, you can
+delete the project, removing all resources associated with the project.
+
+Go to project selector [https://console.cloud.google.com/projectselector2/home/dashboard?hl=ko]
+
+Verify that billing is enabled for your Google Cloud project [https://cloud.google.com/billing/docs/how-to/verify-billing-enabled?hl=ko#confirm_billing_is_enabled_on_a_project].
+
+Install [https://cloud.google.com/sdk/docs/install?hl=ko] the Google Cloud CLI.
+
+외부 ID 공급업체(IdP)를 사용하는 경우 먼저 제휴 ID로 gcloud CLI에 로그인 [https://cloud.google.com/iam/docs/workforce-log-in-gcloud?hl=ko]해야 합니다.
+
+gcloud CLI를 초기화하려면 [https://cloud.google.com/sdk/docs/initializing?hl=ko] 다음 명령어를 실행합니다.
+
+gcloud init
+
+조직 ID [https://cloud.google.com/resource-manager/docs/creating-managing-organization?hl=ko#retrieving_your_organization_id]를 알고 있어야 합니다.
+
+필요한 역할
+
+커스텀 조직 정책을 관리하는 데 필요한 권한을 얻으려면 관리자에게 조직 리소스에 대한 조직 정책 관리자 [https://cloud.google.com/iam/docs/roles-permissions/orgpolicy?hl=ko#orgpolicy.policyAdmin](roles/orgpolicy.policyAdmin) IAM 역할을 부여해 달라고 요청하세요.
+
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+
+커스텀 제약조건 만들기
+
+커스텀 제약조건은 조직 정책을 적용하는 서비스에서 지원되는 리소스, 메서드, 조건, 작업을 사용하여 YAML 파일에서 정의됩니다. 커스텀 제약조건의 조건은 Common Expression Language(CEL) [https://github.com/google/cel-spec/blob/master/doc/intro.md]를 사용하여 정의됩니다. CEL을 사용해서 커스텀 제약조건에서 조건을 빌드하는 방법은 커스텀 제약조건 만들기 및 관리 [https://cloud.google.com/resource-manager/docs/organization-policy/creating-managing-custom-constraints?hl=ko#common_expression_language]의 CEL 섹션을 참조하세요.
+
+커스텀 제약조건을 만들려면 다음 형식을 사용하여 YAML 파일을 만듭니다.
+
+name: organizations/ORGANIZATION_ID/customConstraints/CONSTRAINT_NAME
+resourceTypes:
+- RESOURCE_NAME
+methodTypes:
+- CREATE
+- UPDATE
+condition: "CONDITION"
+actionType: ACTION
+displayName: DISPLAY_NAME
+description: DESCRIPTION
+
+다음을 바꿉니다.
+
+ORGANIZATION_ID: 조직 ID(예: 123456789)
+CONSTRAINT_NAME: 새 커스텀 제약조건에 사용하려는 이름. 커스텀 제약조건은 custom.으로 시작해야 하며 대문자, 소문자 또는 숫자만 포함할 수 있습니다. 예를 들면 custom.deleteProtectionRequired입니다. 이 필드의 최대 길이는 70자입니다.
+RESOURCE_NAME: 제한하려는 객체 및 필드가 포함된Google Cloud 리소스의 정규화된 이름. 예를 들면 firestore.googleapis.com/Database입니다.
+CONDITION: 지원되는 서비스 리소스의 표현에 대해 작성된 CEL 조건 [https://cloud.google.com/resource-manager/docs/organization-policy/creating-managing-custom-constraints?hl=ko#common_expression_language]. 이 필드의 최대 길이는 1000자(영문 기준)입니다. 조건을 작성하는 데 사용할 수 있는 리소스에 대한 자세한 내용은 지원되는 리소스 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#supported_resources]를 참조하세요. 예를 들면 "resource.deleteProtectionState == \"DELETE_PROTECTION_ENABLED\""입니다.
+ACTION: condition이 충족될 때 수행할 작업.
+가능한 값은 ALLOW 및 DENY입니다.
+
+DISPLAY_NAME: 제약조건에 대한 사용자 친화적인 이름. 이 필드의 최대 길이는 200자(영문 기준)입니다.
+DESCRIPTION: 정책을 위반할 때 오류 메시지로 표시할 제약조건에 대한 사용자 친화적인 설명. 이 필드의 최대 길이는 2,000자(영문 기준)입니다.
+
+커스텀 제약조건을 만드는 방법에 대한 자세한 내용은 커스텀 제약조건 정의 [https://cloud.google.com/resource-manager/docs/organization-policy/creating-managing-custom-constraints?hl=ko#defining_custom_constraints]를 참조하세요.
+
+커스텀 제약조건 설정
+
+새 커스텀 제약조건의 YAML 파일을 만든 후에는 조직에서 조직 정책에 사용할 수 있도록 설정해야 합니다. 커스텀 제약조건을 설정하려면 gcloud org-policies set-custom-constraint 명령어를 사용합니다.
+
+gcloud org-policies set-custom-constraint CONSTRAINT_PATH
+
+CONSTRAINT_PATH를 커스텀 제약조건 파일의 전체 경로로 바꿉니다. 예를 들면 /home/user/customconstraint.yaml입니다.
+
+완료되면 Google Cloud 조직 정책 목록에서 조직 정책으로 커스텀 제약조건을 사용할 수 있습니다.
+
+커스텀 제약조건이 존재하는지 확인하려면 gcloud org-policies list-custom-constraints 명령어를 사용합니다.
+
+gcloud org-policies list-custom-constraints --organization=ORGANIZATION_ID
+
+ORGANIZATION_ID를 조직 리소스 ID로 바꿉니다.
+
+자세한 내용은 조직 정책 보기 [https://cloud.google.com/resource-manager/docs/organization-policy/creating-managing-policies?hl=ko#viewing_organization_policies]를 참조하세요.
+
+커스텀 조직 정책 적용
+
+제약조건을 참조하는 조직 정책을 만들고 해당 조직 정책을 Google Cloud 리소스에 적용하여 제약조건을 적용할 수 있습니다.
+
+--- 탭: 콘솔 [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 조직 정책 페이지로 이동합니다.
+조직 정책으로 이동 [https://console.cloud.google.com/iam-admin/orgpolicies?hl=ko]
+프로젝트 선택 도구에서 조직 정책을 설정할 프로젝트를 선택합니다.
+조직 정책 페이지의 목록에서 제약조건을 선택하여 해당 제약조건의 정책 세부정보 페이지를 봅니다.
+이 리소스의 조직 정책을 구성하려면 정책 관리를 클릭합니다.
+정책 수정 페이지에서 상위 정책 재정의를 선택합니다.
+규칙 추가를 클릭합니다.
+적용 섹션에서 이 조직 정책 적용을 사용 설정할지 여부를 선택합니다.
+(선택사항) 태그로 조직 정책을 조건부로 만들려면 조건 추가를 클릭합니다. 조건부 규칙을 조직 정책에 추가하면 비조건부 규칙을 최소 하나 이상 추가해야 합니다. 그렇지 않으면 정책을 저장할 수 없습니다. 자세한 내용은 태그를 사용하여 조직 정책 설정 [https://cloud.google.com/resource-manager/docs/organization-policy/tags-organization-policy?hl=ko]을 참조하세요.
+변경사항 테스트를 클릭하여 조직 정책의 효과를 시뮬레이션합니다. 기존 관리형 제약조건에는 정책 시뮬레이션을 사용할 수 없습니다. 자세한 내용은 정책 시뮬레이터로 조직 정책 변경사항 테스트 [https://cloud.google.com/policy-intelligence/docs/test-organization-policies?hl=ko]를 참조하세요.
+조직 정책을 완료하고 적용하려면 정책 설정을 클릭합니다. 정책이 적용되는 데 최대 15분이 소요됩니다.
+
+--- 탭: gcloud [https://cloud.google.com/firestore/native/docs/custom-constraints?hl=ko#gcloud] ---
+불리언 규칙이 있는 조직 정책을 만들려면 제약조건을 참조하는 정책 YAML 파일을 만듭니다.
+name: projects/
+PROJECT_ID/policies/
+CONSTRAINT_NAME
+spec:
+rules:
+- enforce: true
+
+다음을 바꿉니다.
+PROJECT_ID: 제약조건을 적용할 프로젝트
+CONSTRAINT_NAME: 커스텀 제약조건에 대해 정의된 이름. 예를 들면 custom.deleteProtectionRequired입니다.
+제약조건이 포함된 조직 정책을 적용하려면 다음 명령어를 실행합니다.
+gcloud org-policies set-policy
+POLICY_PATH
+
+POLICY_PATH를 조직 정책 YAML 파일의 전체 경로로 바꿉니다. 정책이 적용되는 데 최대 15분이 소요됩니다.
+
+커스텀 조직 정책 테스트
+
+시작하기 전에 다음 사항을 알아야 합니다.
+
+조직 ID
+
+다음과 같이 deleteProtectionRequired.yaml 파일을 만듭니다.
+name: organizations/ORGANIZATION_ID/customConstraints/custom.deleteProtectionRequired
+resourceTypes:
+- firestore.googleapis.com/Database
+methodTypes:
+- CREATE
+- UPDATE
+condition: "resource.deleteProtectionState == \"DELETE_PROTECTION_ENABLED\""
+actionType: ALLOW
+displayName: Firestore Delete Protection Required
+description: To ensure the data security, Delete Protection is required to be enabled for Firestore databases.
+
+이렇게 하면 Firestore 데이터베이스의 모든 CREATE 및 UPDATE 메서드가 DELETE_PROTECTION_ENABLED인 deleteProtectionState의 제약 조건을 충족합니다. 따라서 삭제 보호를 명시적으로 사용 설정하지 않은 데이터베이스 생성/업데이트/복원/클론 작업은 거부됩니다.
+조직 수준에서 커스텀 제약조건을 설정합니다.
+gcloud org-policies set-custom-constraint deleteProtectionRequired.yaml
+
+정책 테스트
+
+조직의 프로젝트에서 --delete-protection 플래그를 설정하지 않고 데이터베이스를 만들어 봅니다.
+gcloud firestore database create \
+--project=PROJECT_ID \
+--database=DATABASE_ID \
+
+출력은 다음과 같습니다.
+Operation denied by custom org policies: ["customConstraints/custom.deleteProtectionRequired": "To ensure the data security, Delete Protection is required to be enabled for Firestore databases"]
+
+조직 정책 변경사항 테스트 및 분석
+
+조직 정책에 대한 모든 변경사항을 테스트하고 테스트 실행하여 환경의 상태와 변경사항이 환경에 미치는 영향을 더 잘 파악하는 것이 좋습니다.
+
+조직 정책에 대한 정책 시뮬레이터를 사용하면 현재 환경에 대한 제약 조건 및 조직 정책의 영향을 파악할 수 있습니다. 이 도구를 사용하면 프로덕션 환경에 적용되기 전에 모든 리소스 구성을 검토하여 위반이 발생하는 위치를 확인할 수 있습니다. 자세한 안내는 정책 시뮬레이터로 조직 정책 변경사항 테스트 [https://cloud.google.com/policy-intelligence/docs/test-organization-policies?hl=ko]를 참고하세요.
+
+현재 효과를 파악한 후 테스트 실행 모드에서 조직 정책을 만들어 향후 30일 동안 정책의 영향과 잠재적 위반을 파악할 수 있습니다. 테스트 실행 모드의 조직 정책은 정책 위반이 감사 로그로 작성되지만 위반 작업이 거부되지 않는 조직 정책 유형입니다. Google Cloud 콘솔 또는 Google Cloud CLI를 사용하여 커스텀 제약조건에 대해 테스트 실행 모드에서 조직 정책을 만들 수 있습니다. 자세한 안내는 테스트 실행 모드의 조직 정책 만들기 [https://cloud.google.com/resource-manager/docs/organization-policy/dry-run-policy?hl=ko#create_dry_run_boolean_policy]를 참고하세요.
+
+일반적인 사용 사례의 커스텀 조직 정책 예시
+
+이 표에서는 몇 가지 일반적인 맞춤 제약 조건의 구문 예를 제공합니다.
+
+| 설명 | 제약조건 구문 |
+| --- | --- |
+| 데이터베이스 이름은 특정 패턴을 따라야 합니다. 맞춤 조직 정책의 데이터베이스 이름 형식은 projects/project-id/databases/database-id이지만 데이터베이스 관리 작업에는 database-id만 지정됩니다. | name: organizations/ORGANIZATION_ID/customConstraints/custom.nameSuffixMobile resourceTypes: - firestore.googleapis.com/Database methodTypes: - CREATE condition: "resource.name.endsWith('-mobile')" actionType: ALLOW displayName: Firestore database names end with "-mobile" description: Only allow the creation of database names ending with suffix "-mobile" |
+| 데이터베이스는 지정된 위치에만 만들 수 있습니다. | name: organizations/ORGANIZATION_ID/customConstraints/custom.locationUsCentral1 resourceTypes: - firestore.googleapis.com/Database methodTypes: - CREATE condition: "resource.locationId == 'us-central1'" actionType: ALLOW displayName: Firestore database location id us-central1 description: Only allow the creation of databases in region us-central1 |
+| 데이터베이스는 지정된 유형이어야 합니다. | name: organizations/ORGANIZATION_ID/customConstraints/custom.typeFirestore resourceTypes: - firestore.googleapis.com/Database methodTypes: - CREATE - UPDATE condition: "resource.type=="FIRESTORE_NATIVE"" actionType: ALLOW displayName: Firestore database type Firestore_Native description: Only allow creation and updating of databases if the type is Firestore in native mode. |
+| 데이터베이스는 지정된 동시 실행 모드를 사용해야 합니다. | name: organizations/ORGANIZATION_ID/customConstraints/custom.concurrencyNotPessimistic resourceTypes: - firestore.googleapis.com/Database methodTypes: - CREATE - UPDATE condition: "resource.concurrencyMode == 'PESSIMISTIC'" actionType: DENY displayName: Firestore database concurrencyMode not pessimistic description: Disallow the creation and updating of databases with pessimistic concurrency mode. |
+| 데이터베이스에서 point-in-time-recovery를 사용 설정해야 합니다. | name: organizations/ORGANIZATION_ID/customConstraints/custom.pitrEnforce resourceTypes: - firestore.googleapis.com/Database methodTypes: - CREATE - UPDATE condition: "resource.pointInTimeRecoveryEnablement == "POINT_IN_TIME_RECOVERY_ENABLED"" actionType: ALLOW displayName: Firestore database enables PiTR description: Only allow the creation and updating of a databases if PiTR is enabled. |
+| 데이터베이스는 지정된 App Engine 통합 모드를 사용해야 합니다. | name: organizations/ORGANIZATION_ID/customConstraints/custom.enableAppEngineIntegrationMode resourceTypes: - firestore.googleapis.com/Database methodTypes: - CREATE - UPDATE condition: "resource.appEngineIntegrationMode == 'ENABLED'" actionType: ALLOW displayName: Firestore Database App Engine integration mode enabled description: Only allow the creation and updating of databases with App Engine Integration Mode enabled. |
+| 삭제 보호가 사용 설정되지 않은 경우 데이터베이스 생성을 허용하지 않습니다. | name: organizations/ORGANIZATION_ID/customConstraints/custom.deleteProtectionRequired resourceTypes: - firestore.googleapis.com/Database methodTypes: - CREATE - UPDATE condition: "resource.deleteProtectionState == "DELETE_PROTECTION_ENABLED"" actionType: ALLOW displayName: Firestore Delete Protection Required description: To ensure the data security, Delete Protection is required to be enabled for Firestore databases. |
+| 데이터베이스는 지정된 CMEK (고객 관리 암호화 키) 구성을 사용해야 합니다. | name: organizations/ORGANIZATION_ID/customConstraints/custom.cmekKeyNotDev resourceTypes: - firestore.googleapis.com/Database methodTypes: - CREATE - UPDATE condition: "resource.cmekConfig.kmsKeyName.matches('dev$')" actionType: DENY displayName: Firestore database CMEK key not dev description: Disallow the creation and updating of databases with CMEK KMS keys ending with "dev". |
+| 데이터베이스는 지정된 데이터베이스 버전을 사용해야 합니다. | name: organizations/ORGANIZATION_ID/customConstraints/custom.standardEditionRequired resourceTypes: - firestore.googleapis.com/Database methodTypes: - CREATE - UPDATE condition: "resource.databaseEdition == "STANDARD"" actionType: ALLOW displayName: Firestore Standard Edition Required description: Only allow the creation and updating of databases with Standard Edition. |
+
+Firestore 지원 리소스
+
+다음 표에는 커스텀 제약 조건에서 참조할 수 있는 Firestore 리소스가 나와 있습니다.
+
+| 리소스 | 필드 |
+| --- | --- |
+| firestore.googleapis.com/Database | resource.appEngineIntegrationMode |
+| resource.cmekConfig.kmsKeyName |
+| resource.concurrencyMode |
+| resource.deleteProtectionState |
+| resource.locationId |
+| resource.name |
+| resource.pointInTimeRecoveryEnablement |
+| resource.type |
+
+다음 단계
+
+조직 정책 서비스 [https://cloud.google.com/resource-manager/docs/organization-policy/overview?hl=ko] 자세히 알아보기
+조직 정책을 만들고 관리 [https://cloud.google.com/resource-manager/docs/organization-policy/using-constraints?hl=ko]하는 방법 자세히 알아보기
+관리형 조직 정책 제약조건 [https://cloud.google.com/resource-manager/docs/organization-policy/org-policy-constraints?hl=ko]의 전체 목록 참조하기
+
+도움이 되었나요?
+
+의견 보내기

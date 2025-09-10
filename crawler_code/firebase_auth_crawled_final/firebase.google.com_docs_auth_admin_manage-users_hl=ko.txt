@@ -1,0 +1,888 @@
+Source URL: https://firebase.google.com/docs/auth/admin/manage-users?hl=ko
+Title: 사용자 관리
+bookmark_border
+
+의견 보내기
+
+사용자 관리
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#before_you_begin]사용자 데이터 검색 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#retrieve_user_data]사용자 데이터 일괄 검색 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#bulk_retrieve_user_data]사용자 생성 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#create_a_user]사용자 업데이트 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#update_a_user]사용자 삭제 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#delete_a_user]여러 사용자 삭제 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#delete_multiple_users]모든 사용자 나열 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#list_all_users]나열된 사용자의 비밀번호 해시 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#password_hashes_of_listed_users]
+
+Firebase Admin SDK는 더 많은 권한으로 Firebase Authentication 사용자를 관리하는 API를 제공합니다. 관리자 사용자 관리 API를 사용하면
+안전한 서버 환경에서 프로그래매틱 방식으로 다음과 같은 작업을 완료할 수
+있습니다.
+
+제한 또는 비율 제한 없이 새 사용자 생성
+uid, 이메일, 전화번호 등 여러 기준으로 사용자 조회
+지정된 프로젝트에 속한 모든 사용자를 배치별로 나열
+계정 생성 날짜 및 마지막으로 로그인한 날짜 등 사용자 메타데이터 액세스
+기존 사용자 비밀번호를 입력하지 않고 사용자 삭제
+사용자로 로그인하지 않고 비밀번호 등 사용자 속성 업데이트
+비밀번호를 확인하기 위한 대역 외 작업 흐름을 거치지 않고 이메일 확인
+변경사항을 취소하기 위한 이메일 링크를 보내지 않고 사용자 이메일 변경
+SMS 확인 흐름을 거치지 않고 전화번호로 새 사용자 생성
+SMS 확인 흐름을 거치지 않고 사용자의 전화번호 변경
+중지 상태에서 오프라인으로 사용자 프로비저닝한 후 사용자를 사용 설정할 시기를
+나중에 제어
+특정 애플리케이션의 사용자 관리 시스템에 맞는 커스텀 사용자 콘솔 빌드
+
+시작하기 전에
+
+Firebase Admin SDK가 제공하는 사용자 관리 API를 사용하려면
+서비스 계정이 있어야 합니다. Admin SDK를 초기화하는 자세한 방법은 설정 안내 [https://firebase.google.com/docs/admin/setup?hl=ko]를 참조하세요.
+
+사용자 데이터 검색
+
+사용자를 식별하는 기본 방식은 사용자의 고유 식별자인 사용자의 uid를 사용하는 것입니다. Admin SDK는 uid에 따라 사용자의 프로필 정보를 가져오는 메서드를 제공합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#node.js] ---
+```
+getAuth()
+.getUser(uid)
+.then((userRecord) => {
+// See the UserRecord reference doc for the contents of userRecord.
+console.log(`Successfully fetched user data: ${userRecord.toJSON()}`);
+})
+.catch((error) => {
+console.log('Error fetching user data:', error);
+});
+manage_users.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/auth/manage_users.js#L14-L22]
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+UserRecord userRecord = FirebaseAuth.getInstance().getUser(uid);
+// See the UserRecord reference doc for the contents of userRecord.
+System.out.println("Successfully fetched user data: " + userRecord.getUid());
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#python] ---
+```
+from firebase_admin import auth
+
+user = auth.get_user(uid)
+print(f'Successfully fetched user data: {user.uid}')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#go] ---
+```
+// Get an auth client from the firebase.App
+client, err := app.Auth(ctx)
+if err != nil {
+log.Fatalf("error getting Auth client: %v\n", err)
+}
+
+u, err := client.GetUser(ctx, uid)
+if err != nil {
+log.Fatalf("error getting user %s: %v\n", uid, err)
+}
+log.Printf("Successfully fetched user data: %v\n", u)
+auth.go [https://github.com/firebase/firebase-admin-go/blob/26dec0b7589ef7641eefd6681981024079b8524c/snippets/auth.go#L149-L159]
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#c] ---
+```
+UserRecord userRecord = await FirebaseAuth.DefaultInstance.GetUserAsync(uid);
+// See the UserRecord reference doc for the contents of userRecord.
+Console.WriteLine($"Successfully fetched user data: {userRecord.Uid}");
+```
+이 메서드는 메서드에 제공된 uid에 해당하는 사용자의 UserRecord 객체를 반환합니다.
+
+제공된 uid가 기존 사용자에게 속하지 않거나 기타 이유로 사용자를 가져올 수 없는 경우 위 메서드에서 오류가 발생합니다.
+설명 및 해결 단계가 포함된 전체 오류 코드 목록은 Admin Auth API 오류 [https://firebase.google.com/docs/auth/admin/errors?hl=ko]를 참조하세요.
+
+사용자의 uid 대신 사용자의 이메일이 있을 수도 있습니다. Firebase Admin SDK는 이메일로 사용자 정보를 조회하는 기능을 지원합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#node.js] ---
+```
+getAuth()
+.getUserByEmail(email)
+.then((userRecord) => {
+// See the UserRecord reference doc for the contents of userRecord.
+console.log(`Successfully fetched user data: ${userRecord.toJSON()}`);
+})
+.catch((error) => {
+console.log('Error fetching user data:', error);
+});
+manage_users.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/auth/manage_users.js#L26-L34]
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+UserRecord userRecord = FirebaseAuth.getInstance().getUserByEmail(email);
+// See the UserRecord reference doc for the contents of userRecord.
+System.out.println("Successfully fetched user data: " + userRecord.getEmail());
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#python] ---
+```
+from firebase_admin import auth
+
+user = auth.get_user_by_email(email)
+print(f'Successfully fetched user data: {user.uid}')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#go] ---
+```
+u, err := client.GetUserByEmail(ctx, email)
+if err != nil {
+log.Fatalf("error getting user by email %s: %v\n", email, err)
+}
+log.Printf("Successfully fetched user data: %v\n", u)
+auth.go [https://github.com/firebase/firebase-admin-go/blob/26dec0b7589ef7641eefd6681981024079b8524c/snippets/auth.go#L167-L171]
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#c] ---
+```
+UserRecord userRecord = await FirebaseAuth.DefaultInstance.GetUserByEmailAsync(email);
+// See the UserRecord reference doc for the contents of userRecord.
+Console.WriteLine($"Successfully fetched user data: {userRecord.Uid}");
+```
+이 메서드는 제공된 이메일에 해당하는 사용자의 UserRecord 객체를 반환합니다.
+
+제공된 이메일이 기존 사용자에게 속하지 않거나 기타 이유로 사용자를
+가져올 수 없는 경우 Admin SDK에서 오류가 발생합니다.
+설명 및 해결 단계가 포함된 전체 오류 코드 목록은 Admin Authentication API 오류 [https://firebase.google.com/docs/auth/admin/errors?hl=ko]를 참조하세요.
+경고: 이메일 조회에서는 기본(최상위 수준) 이메일만 검색할 수 있고 제공업체별 이메일을 검색할 수 없습니다. 예를 들어 다른 이메일 facebookUser@example.com을 사용하는 Facebook 계정이 이메일 user@example.com을 사용하는 기존 사용자에 연결된 경우 getUserByEmail("facebookUser@example.com")을 호출하면 아무 결과도 나타나지 않는 반면 getUserByEmail("user@example.com")은 예상 사용자를 반환합니다. 기본값인 '이메일당 계정 1개' 설정의 경우 로그인하는 데 사용되는 첫 번째 이메일은 이후에 수정하지 않는 한 최상위 수준 이메일로 사용됩니다. '이메일당 여러 계정'이 설정되어 있는 경우 직접 업데이트하지 않는 한 기본 이메일은 비밀번호 사용자를 만들었을 때만 설정됩니다.
+사용자의 uid 대신 전화번호가 있을 수도 있습니다. Firebase Admin SDK는 전화번호로 사용자 정보를 조회하는 기능을 지원합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#node.js] ---
+```
+getAuth()
+.getUserByPhoneNumber(phoneNumber)
+.then((userRecord) => {
+// See the UserRecord reference doc for the contents of userRecord.
+console.log(`Successfully fetched user data:  ${userRecord.toJSON()}`);
+})
+.catch((error) => {
+console.log('Error fetching user data:', error);
+});
+manage_users.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/auth/manage_users.js#L38-L46]
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+UserRecord userRecord = FirebaseAuth.getInstance().getUserByPhoneNumber(phoneNumber);
+// See the UserRecord reference doc for the contents of userRecord.
+System.out.println("Successfully fetched user data: " + userRecord.getPhoneNumber());
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#python] ---
+```
+from firebase_admin import auth
+
+user = auth.get_user_by_phone_number(phone)
+print(f'Successfully fetched user data: {user.uid}')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#go] ---
+```
+u, err := client.GetUserByPhoneNumber(ctx, phone)
+if err != nil {
+log.Fatalf("error getting user by phone %s: %v\n", phone, err)
+}
+log.Printf("Successfully fetched user data: %v\n", u)
+auth.go [https://github.com/firebase/firebase-admin-go/blob/26dec0b7589ef7641eefd6681981024079b8524c/snippets/auth.go#L179-L183]
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#c] ---
+```
+UserRecord userRecord = await FirebaseAuth.DefaultInstance.GetUserByPhoneNumberAsync(phoneNumber);
+// See the UserRecord reference doc for the contents of userRecord.
+Console.WriteLine($"Successfully fetched user data: {userRecord.Uid}");
+```
+이 메서드는 제공된 전화번호에 해당하는 사용자의 UserRecord 객체를 반환합니다.
+
+제공된 전화번호가 기존 사용자에게 속하지 않거나 기타 이유로 사용자를
+가져올 수 없는 경우 Admin SDK에서 오류가 발생합니다.
+설명 및 해결 단계가 포함된 전체 오류 코드 목록은 Admin Authentication API 오류 [https://firebase.google.com/docs/auth/admin/errors?hl=ko]를 참조하세요.
+
+사용자 데이터 일괄 검색
+
+Firebase Admin SDK를 사용하면 제공한 식별자를 기반으로 사용자 목록을 검색할 수도 있습니다. 사용자 ID, 이메일 또는 전화번호로 사용자를 식별할 수 있습니다. 호출 한 번에 최대 100개의 식별자를 제공할 수 있습니다.
+다음과 같이 여러 유형의 식별자가 포함될 수 있습니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#node.js] ---
+```
+getAuth()
+.getUsers([
+{ uid: 'uid1' },
+{ email: 'user2@example.com' },
+{ phoneNumber: '+15555550003' },
+{ providerId: 'google.com', providerUid: 'google_uid4' },
+])
+.then((getUsersResult) => {
+console.log('Successfully fetched user data:');
+getUsersResult.users.forEach((userRecord) => {
+console.log(userRecord);
+});
+
+console.log('Unable to find users corresponding to these identifiers:');
+getUsersResult.notFound.forEach((userIdentifier) => {
+console.log(userIdentifier);
+});
+})
+.catch((error) => {
+console.log('Error fetching user data:', error);
+});
+manage_users.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/auth/manage_users.js#L50-L70]
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+GetUsersResult result = FirebaseAuth.getInstance().getUsersAsync(Arrays.asList(
+new UidIdentifier("uid1"),
+new EmailIdentifier("user2@example.com"),
+new PhoneIdentifier("+15555550003"),
+new ProviderIdentifier("google.com", "google_uid4"))).get();
+
+System.out.println("Successfully fetched user data:");
+for (UserRecord user : result.getUsers()) {
+System.out.println(user.getUid());
+}
+
+System.out.println("Unable to find users corresponding to these identifiers:");
+for (UserIdentifier uid : result.getNotFound()) {
+System.out.println(uid);
+}
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#python] ---
+```
+from firebase_admin import auth
+
+result = auth.get_users([
+auth.UidIdentifier('uid1'),
+auth.EmailIdentifier('user2@example.com'),
+auth.PhoneIdentifier(+15555550003),
+auth.ProviderIdentifier('google.com', 'google_uid4')
+])
+
+print('Successfully fetched user data:')
+for user in result.users:
+print(user.uid)
+
+print('Unable to find users corresponding to these identifiers:')
+for uid in result.not_found:
+print(uid)
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#go] ---
+```
+getUsersResult, err := client.GetUsers(ctx, []auth.UserIdentifier{
+auth.UIDIdentifier{UID: "uid1"},
+auth.EmailIdentifier{Email: "user@example.com"},
+auth.PhoneIdentifier{PhoneNumber: "+15555551234"},
+auth.ProviderIdentifier{ProviderID: "google.com", ProviderUID: "google_uid1"},
+})
+if err != nil {
+log.Fatalf("error retriving multiple users: %v\n", err)
+}
+
+log.Printf("Successfully fetched user data:")
+for _, u := range getUsersResult.Users {
+log.Printf("%v", u)
+}
+
+log.Printf("Unable to find users corresponding to these identifiers:")
+for _, id := range getUsersResult.NotFound {
+log.Printf("%v", id)
+}
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#c] ---
+```
+GetUsersResult result = await FirebaseAuth.DefaultInstance.GetUsersAsync(
+new List<UserIdentifier>
+{
+new UidIdentifier("uid1"),
+new EmailIdentifier("user2@example.com"),
+new PhoneIdentifier("+15555550003"),
+new ProviderIdentifier("google.com", "google_uid4"),
+});
+
+Console.WriteLine("Successfully fetched user data:");
+foreach (UserRecord user in result.Users)
+{
+Console.WriteLine($"User: {user.Uid}");
+}
+
+Console.WriteLine("Unable to find users corresponding to these identifiers:");
+foreach (UserIdentifier uid in result.NotFound)
+{
+Console.WriteLine($"{uid}");
+}
+```
+이 메서드는 입력 목록과 동일한 크기의 목록을 반환하며, 각 항목에는 해당 UserRecord 또는 해당 식별자를 찾을 수 없는 이유를 나타내는 오류가 포함되어 있습니다. 설명 및 해결 단계가 포함된 전체 오류 코드 목록은 Admin Authentication API 오류 [https://firebase.google.com/docs/auth/admin/errors?hl=ko]를 참조하세요.
+
+사용자 생성
+
+Admin SDK는 Firebase Authentication 사용자를 새로 만드는 메서드를 제공합니다. 이 메서드는 새로 만든 사용자 계정에 포함할 프로필 정보가 들어 있는 객체를 취합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#node.js] ---
+```
+getAuth()
+.createUser({
+email: 'user@example.com',
+emailVerified: false,
+phoneNumber: '+11234567890',
+password: 'secretPassword',
+displayName: 'John Doe',
+photoURL: 'http://www.example.com/12345678/photo.png',
+disabled: false,
+})
+.then((userRecord) => {
+// See the UserRecord reference doc for the contents of userRecord.
+console.log('Successfully created new user:', userRecord.uid);
+})
+.catch((error) => {
+console.log('Error creating new user:', error);
+});
+manage_users.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/auth/manage_users.js#L74-L90]
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+CreateRequest request = new CreateRequest()
+.setEmail("user@example.com")
+.setEmailVerified(false)
+.setPassword("secretPassword")
+.setPhoneNumber("+11234567890")
+.setDisplayName("John Doe")
+.setPhotoUrl("http://www.example.com/12345678/photo.png")
+.setDisabled(false);
+
+UserRecord userRecord = FirebaseAuth.getInstance().createUser(request);
+System.out.println("Successfully created new user: " + userRecord.getUid());
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#python] ---
+```
+user = auth.create_user(
+email='user@example.com',
+email_verified=False,
+phone_number='+15555550100',
+password='secretPassword',
+display_name='John Doe',
+photo_url='http://www.example.com/12345678/photo.png',
+disabled=False)
+print(f'Sucessfully created new user: {user.uid}')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#go] ---
+```
+params := (&auth.UserToCreate{}).
+Email("user@example.com").
+EmailVerified(false).
+PhoneNumber("+15555550100").
+Password("secretPassword").
+DisplayName("John Doe").
+PhotoURL("http://www.example.com/12345678/photo.png").
+Disabled(false)
+u, err := client.CreateUser(ctx, params)
+if err != nil {
+log.Fatalf("error creating user: %v\n", err)
+}
+log.Printf("Successfully created user: %v\n", u)
+auth.go [https://github.com/firebase/firebase-admin-go/blob/26dec0b7589ef7641eefd6681981024079b8524c/snippets/auth.go#L214-L226]
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#c] ---
+```
+UserRecordArgs args = new UserRecordArgs()
+{
+Email = "user@example.com",
+EmailVerified = false,
+PhoneNumber = "+11234567890",
+Password = "secretPassword",
+DisplayName = "John Doe",
+PhotoUrl = "http://www.example.com/12345678/photo.png",
+Disabled = false,
+};
+UserRecord userRecord = await FirebaseAuth.DefaultInstance.CreateUserAsync(args);
+// See the UserRecord reference doc for the contents of userRecord.
+Console.WriteLine($"Successfully created new user: {userRecord.Uid}");
+```
+기본적으로 Firebase Authentication은 신규 사용자에 대한 임의 uid를 생성합니다. 신규 사용자의 uid를 직접 지정하려면 사용자 생성 메서드에 전달하는 인수로 포함하면 됩니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#node.js] ---
+```
+getAuth()
+.createUser({
+uid: 'some-uid',
+email: 'user@example.com',
+phoneNumber: '+11234567890',
+})
+.then((userRecord) => {
+// See the UserRecord reference doc for the contents of userRecord.
+console.log('Successfully created new user:', userRecord.uid);
+})
+.catch((error) => {
+console.log('Error creating new user:', error);
+});
+manage_users.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/auth/manage_users.js#L94-L106]
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+CreateRequest request = new CreateRequest()
+.setUid("some-uid")
+.setEmail("user@example.com")
+.setPhoneNumber("+11234567890");
+
+UserRecord userRecord = FirebaseAuth.getInstance().createUser(request);
+System.out.println("Successfully created new user: " + userRecord.getUid());
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#python] ---
+```
+user = auth.create_user(
+uid='some-uid', email='user@example.com', phone_number='+15555550100')
+print(f'Sucessfully created new user: {user.uid}')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#go] ---
+```
+params := (&auth.UserToCreate{}).
+UID(uid).
+Email("user@example.com").
+PhoneNumber("+15555550100")
+u, err := client.CreateUser(ctx, params)
+if err != nil {
+log.Fatalf("error creating user: %v\n", err)
+}
+log.Printf("Successfully created user: %v\n", u)
+auth.go [https://github.com/firebase/firebase-admin-go/blob/26dec0b7589ef7641eefd6681981024079b8524c/snippets/auth.go#L234-L242]
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#c] ---
+```
+UserRecordArgs args = new UserRecordArgs()
+{
+Uid = "some-uid",
+Email = "user@example.com",
+PhoneNumber = "+11234567890",
+};
+UserRecord userRecord = await FirebaseAuth.DefaultInstance.CreateUserAsync(args);
+// See the UserRecord reference doc for the contents of userRecord.
+Console.WriteLine($"Successfully created new user: {userRecord.Uid}");
+```
+다음 속성을 원하는 대로 조합하여 제공할 수 있습니다.
+
+표 1. 사용자 생성 작업에서 지원하는 속성
+
+| 속성 | 유형 | 설명 |
+| --- | --- | --- |
+| uid | 문자열 | 새로 만든 사용자에게 할당할 uid 1~128자인 문자열이어야 합니다. 제공하지 않은 경우 자동으로 임의 uid가 생성됩니다. uid이 짧을수록 성능이 향상됩니다. |
+| email | 문자열 | 사용자의 기본 이메일. 유효한 이메일 주소를 입력하십시오. |
+| emailVerified | 부울 | 사용자의 기본 이메일이 확인되었는지 여부 제공하지 않은 경우 기본값은 false입니다. |
+| phoneNumber | 문자열 | 사용자의 기본 전화번호입니다. 유효한 E.164 사양과 호환되는 전화번호여야 합니다. |
+| password | 문자열 | 사용자의 해시되지 않은 원시 비밀번호. 6자(영문 기준) 이상이어야 합니다. |
+| displayName | 문자열 | 사용자의 표시 이름 |
+| photoURL | 문자열 | 사용자의 사진 URL |
+| disabled | 부울 | 사용자의 사용 중지 여부입니다. 사용이 중지된 경우 true이고 사용하는 경우 false입니다. 제공하지 않은 경우 기본값은 false입니다. |
+참고: 위 속성은 모두 선택사항입니다. 특정 속성을 지정하지 않은 경우 위 표에서 기본값이 언급되어 있지 않으면 해당 속성의 값은 비어 있게 됩니다.
+사용자 생성 메서드는 새로 만들어진 사용자의 UserRecord 객체를 반환합니다.
+
+제공된 uid, 이메일 또는 전화번호를 기존 사용자가 이미 사용하고 있거나 기타 이유로 사용자를 만들 수 없는 경우 위 메서드가 실패하고 오류가 발생합니다. 설명 및 해결 단계가 포함된 전체 오류 코드 목록은 Admin Authentication API 오류 [https://firebase.google.com/docs/auth/admin/errors?hl=ko]를 참조하세요.
+
+사용자 업데이트
+
+Firebase Admin SDK는 기존 사용자의 데이터를 수정하는 기능을 지원합니다. 업데이트할 사용자 속성과 함께 해당 사용자의 uid를 지정해야 합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#node.js] ---
+```
+getAuth()
+.updateUser(uid, {
+email: 'modifiedUser@example.com',
+phoneNumber: '+11234567890',
+emailVerified: true,
+password: 'newPassword',
+displayName: 'Jane Doe',
+photoURL: 'http://www.example.com/12345678/photo.png',
+disabled: true,
+})
+.then((userRecord) => {
+// See the UserRecord reference doc for the contents of userRecord.
+console.log('Successfully updated user', userRecord.toJSON());
+})
+.catch((error) => {
+console.log('Error updating user:', error);
+});
+manage_users.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/auth/manage_users.js#L110-L126]
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+UpdateRequest request = new UpdateRequest(uid)
+.setEmail("user@example.com")
+.setPhoneNumber("+11234567890")
+.setEmailVerified(true)
+.setPassword("newPassword")
+.setDisplayName("Jane Doe")
+.setPhotoUrl("http://www.example.com/12345678/photo.png")
+.setDisabled(true);
+
+UserRecord userRecord = FirebaseAuth.getInstance().updateUser(request);
+System.out.println("Successfully updated user: " + userRecord.getUid());
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#python] ---
+```
+user = auth.update_user(
+uid,
+email='user@example.com',
+phone_number='+15555550100',
+email_verified=True,
+password='newPassword',
+display_name='John Doe',
+photo_url='http://www.example.com/12345678/photo.png',
+disabled=True)
+print(f'Sucessfully updated user: {user.uid}')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#go] ---
+```
+params := (&auth.UserToUpdate{}).
+Email("user@example.com").
+EmailVerified(true).
+PhoneNumber("+15555550100").
+Password("newPassword").
+DisplayName("John Doe").
+PhotoURL("http://www.example.com/12345678/photo.png").
+Disabled(true)
+u, err := client.UpdateUser(ctx, uid, params)
+if err != nil {
+log.Fatalf("error updating user: %v\n", err)
+}
+log.Printf("Successfully updated user: %v\n", u)
+auth.go [https://github.com/firebase/firebase-admin-go/blob/26dec0b7589ef7641eefd6681981024079b8524c/snippets/auth.go#L250-L262]
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#c] ---
+```
+UserRecordArgs args = new UserRecordArgs()
+{
+Uid = uid,
+Email = "modifiedUser@example.com",
+PhoneNumber = "+11234567890",
+EmailVerified = true,
+Password = "newPassword",
+DisplayName = "Jane Doe",
+PhotoUrl = "http://www.example.com/12345678/photo.png",
+Disabled = true,
+};
+UserRecord userRecord = await FirebaseAuth.DefaultInstance.UpdateUserAsync(args);
+// See the UserRecord reference doc for the contents of userRecord.
+Console.WriteLine($"Successfully updated user: {userRecord.Uid}");
+```
+다음 속성을 원하는 대로 조합하여 제공할 수 있습니다.
+
+표 2. 사용자 업데이트 작업에서 지원하는 속성
+
+| 속성 | 유형 | 설명 |
+| --- | --- | --- |
+| email | 문자열 | 사용자의 새 기본 이메일. 유효한 이메일 주소를 입력하십시오. |
+| emailVerified | 부울 | 사용자의 기본 이메일이 확인되었는지 여부 제공하지 않은 경우 기본값은 false입니다. |
+| phoneNumber | 문자열 | 사용자의 새 기본 전화번호입니다. 유효한 E.164 사양과 호환되는 전화번호여야 합니다. 사용자의 기존 전화번호를 지우려면 null로 설정합니다. |
+| password | 문자열 | 사용자의 해시되지 않은 새 원시 비밀번호. 6자(영문 기준) 이상이어야 합니다. |
+| displayName | 문자열 \| null | 사용자의 새 표시 이름입니다. 사용자의 기존 표시 이름을 지우려면 null로 설정합니다. |
+| photoURL | 문자열 \| null | 사용자의 새 사진 URL. 사용자의 기존 사진 URL을 지우려면 null로 설정합니다. null이 아닌 경우 유효한 URL을 제공해야 합니다. |
+| disabled | 부울 | 사용자의 사용 중지 여부입니다. 사용이 중지된 경우 true이고 사용하는 경우 false입니다. |
+참고: 위 속성은 모두 선택사항입니다. 특정 속성을 지정하지 않은 경우 해당 속성의 기존 값은 변경되지 않습니다.
+사용자 업데이트 메서드는 업데이트가 정상적으로 완료되면 업데이트된 UserRecord 객체를 반환합니다.
+
+제공된 uid가 기존 사용자에 해당하지 않거나, 제공된 이메일 또는 전화번호를 기존 사용자가 이미 사용하고 있거나, 기타 이유로 사용자를 업데이트할 수 없는 경우 위 메서드가 실패하고 오류가 발생합니다. 설명 및 해결 단계가 포함된 전체 오류 코드 목록은 Admin Authentication API 오류 [https://firebase.google.com/docs/auth/admin/errors?hl=ko]를 참조하세요.
+
+사용자 삭제
+
+Firebase Admin SDK는 uid에 따라 기존 사용자를 삭제하는 기능을 지원합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#node.js] ---
+```
+getAuth()
+.deleteUser(uid)
+.then(() => {
+console.log('Successfully deleted user');
+})
+.catch((error) => {
+console.log('Error deleting user:', error);
+});
+manage_users.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/auth/manage_users.js#L130-L137]
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+FirebaseAuth.getInstance().deleteUser(uid);
+System.out.println("Successfully deleted user.");
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#python] ---
+```
+auth.delete_user(uid)
+print('Successfully deleted user')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#go] ---
+```
+err := client.DeleteUser(ctx, uid)
+if err != nil {
+log.Fatalf("error deleting user: %v\n", err)
+}
+log.Printf("Successfully deleted user: %s\n", uid)
+auth.go [https://github.com/firebase/firebase-admin-go/blob/26dec0b7589ef7641eefd6681981024079b8524c/snippets/auth.go#L269-L273]
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#c] ---
+```
+await FirebaseAuth.DefaultInstance.DeleteUserAsync(uid);
+Console.WriteLine("Successfully deleted user.");
+```
+사용자 삭제 메서드는 삭제가 정상적으로 완료되면 빈 결과를
+반환합니다.
+
+제공된 uid가 기존 사용자에 해당하지 않거나 기타 이유로 사용자를 삭제할 수 없는 경우 사용자 삭제 메서드에서 오류가 발생합니다.
+설명 및 해결 단계가 포함된 전체 오류 코드 목록은 Admin Authentication API 오류 [https://firebase.google.com/docs/auth/admin/errors?hl=ko]를 참조하세요.
+
+여러 사용자 삭제
+
+Firebase Admin SDK에서는 다음과 같이 여러 사용자를 한 번에 삭제할 수도 있습니다. 하지만 deleteUsers(uids)와 같은 메서드를 사용하여 한 번에 여러 사용자를 삭제하면 Cloud Functions for Firebase의 onDelete() 이벤트 핸들러가 트리거되지 않습니다.
+일괄 삭제는 사용자별로 사용자 삭제 이벤트를 트리거하지 않기 때문입니다. 삭제된 각 사용자에 대해 사용자 삭제 이벤트를 실행하려면 한 번에 한 명씩 사용자를 삭제하세요.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#node.js] ---
+```
+getAuth()
+.deleteUsers([uid1, uid2, uid3])
+.then((deleteUsersResult) => {
+console.log(`Successfully deleted ${deleteUsersResult.successCount} users`);
+console.log(`Failed to delete ${deleteUsersResult.failureCount} users`);
+deleteUsersResult.errors.forEach((err) => {
+console.log(err.error.toJSON());
+});
+})
+.catch((error) => {
+console.log('Error deleting users:', error);
+});
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+DeleteUsersResult result = FirebaseAuth.getInstance().deleteUsersAsync(
+Arrays.asList("uid1", "uid2", "uid3")).get();
+
+System.out.println("Successfully deleted " + result.getSuccessCount() + " users");
+System.out.println("Failed to delete " + result.getFailureCount() + " users");
+for (ErrorInfo error : result.getErrors()) {
+System.out.println("error #" + error.getIndex() + ", reason: " + error.getReason());
+}
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#python] ---
+```
+from firebase_admin import auth
+
+result = auth.delete_users(["uid1", "uid2", "uid3"])
+
+print(f'Successfully deleted {result.success_count} users')
+print(f'Failed to delete {result.failure_count} users')
+for err in result.errors:
+print(f'error #{result.index}, reason: {result.reason}')
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#go] ---
+```
+deleteUsersResult, err := client.DeleteUsers(ctx, []string{"uid1", "uid2", "uid3"})
+if err != nil {
+log.Fatalf("error deleting users: %v\n", err)
+}
+
+log.Printf("Successfully deleted %d users", deleteUsersResult.SuccessCount)
+log.Printf("Failed to delete %d users", deleteUsersResult.FailureCount)
+for _, err := range deleteUsersResult.Errors {
+log.Printf("%v", err)
+}
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#c] ---
+```
+DeleteUsersResult result = await FirebaseAuth.DefaultInstance.DeleteUsersAsync(new List<string>
+{
+"uid1",
+"uid2",
+"uid3",
+});
+
+Console.WriteLine($"Successfully deleted {result.SuccessCount} users.");
+Console.WriteLine($"Failed to delete {result.FailureCount} users.");
+
+foreach (ErrorInfo err in result.Errors)
+{
+Console.WriteLine($"Error #{err.Index}, reason: {err.Reason}");
+}
+```
+사용자 삭제 메서드는 삭제할 수 없는 사용자에 대해 실패 목록을 반환합니다. 설명 및 해결 단계가 포함된 전체 오류 코드 목록은 Admin Authentication API 오류 [https://firebase.google.com/docs/auth/admin/errors?hl=ko]를 참조하세요.
+
+모든 사용자 나열
+
+Firebase Admin SDK를 사용하여 전체 사용자 목록을 배치별로 검색할 수 있습니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#node.js] ---
+```
+const listAllUsers = (nextPageToken) => {
+// List batch of users, 1000 at a time.
+getAuth()
+.listUsers(1000, nextPageToken)
+.then((listUsersResult) => {
+listUsersResult.users.forEach((userRecord) => {
+console.log('user', userRecord.toJSON());
+});
+if (listUsersResult.pageToken) {
+// List next batch of users.
+listAllUsers(listUsersResult.pageToken);
+}
+})
+.catch((error) => {
+console.log('Error listing users:', error);
+});
+};
+// Start listing users from the beginning, 1000 at a time.
+listAllUsers();
+manage_users.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/auth/manage_users.js#L156-L174]
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+// Start listing users from the beginning, 1000 at a time.
+ListUsersPage page = FirebaseAuth.getInstance().listUsers(null);
+while (page != null) {
+for (ExportedUserRecord user : page.getValues()) {
+System.out.println("User: " + user.getUid());
+}
+page = page.getNextPage();
+}
+
+// Iterate through all users. This will still retrieve users in batches,
+// buffering no more than 1000 users in memory at a time.
+page = FirebaseAuth.getInstance().listUsers(null);
+for (ExportedUserRecord user : page.iterateAll()) {
+System.out.println("User: " + user.getUid());
+}
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#python] ---
+```
+# Start listing users from the beginning, 1000 at a time.
+page = auth.list_users()
+while page:
+for user in page.users:
+print('User: ' + user.uid)
+# Get next batch of users.
+page = page.get_next_page()
+
+# Iterate through all users. This will still retrieve users in batches,
+# buffering no more than 1000 users in memory at a time.
+for user in auth.list_users().iterate_all():
+print('User: ' + user.uid)
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#go] ---
+```
+// Note, behind the scenes, the Users() iterator will retrive 1000 Users at a time through the API
+iter := client.Users(ctx, "")
+for {
+user, err := iter.Next()
+if err == iterator.Done {
+break
+}
+if err != nil {
+log.Fatalf("error listing users: %s\n", err)
+}
+log.Printf("read user user: %v\n", user)
+}
+
+// Iterating by pages 100 users at a time.
+// Note that using both the Next() function on an iterator and the NextPage()
+// on a Pager wrapping that same iterator will result in an error.
+pager := iterator.NewPager(client.Users(ctx, ""), 100, "")
+for {
+var users []*auth.ExportedUserRecord
+nextPageToken, err := pager.NextPage(&users)
+if err != nil {
+log.Fatalf("paging error %v\n", err)
+}
+for _, u := range users {
+log.Printf("read user user: %v\n", u)
+}
+if nextPageToken == "" {
+break
+}
+}
+auth.go [https://github.com/firebase/firebase-admin-go/blob/26dec0b7589ef7641eefd6681981024079b8524c/snippets/auth.go#L394-L423]
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#c] ---
+```
+// Start listing users from the beginning, 1000 at a time.
+var pagedEnumerable = FirebaseAuth.DefaultInstance.ListUsersAsync(null);
+var responses = pagedEnumerable.AsRawResponses().GetAsyncEnumerator();
+while (await responses.MoveNextAsync())
+{
+ExportedUserRecords response = responses.Current;
+foreach (ExportedUserRecord user in response.Users)
+{
+Console.WriteLine($"User: {user.Uid}");
+}
+}
+
+// Iterate through all users. This will still retrieve users in batches,
+// buffering no more than 1000 users in memory at a time.
+var enumerator = FirebaseAuth.DefaultInstance.ListUsersAsync(null).GetAsyncEnumerator();
+while (await enumerator.MoveNextAsync())
+{
+ExportedUserRecord user = enumerator.Current;
+Console.WriteLine($"User: {user.Uid}");
+}
+```
+각 결과 배치에는 사용자 목록과 함께 다음 사용자 배치를 나열하는 데 사용되는 다음 페이지 토큰이 들어 있습니다. 모든 사용자가 이미 나열된 경우 pageToken이 반환되지 않습니다.
+
+maxResults 필드를 지정하지 않으면 기본적으로 배치당 사용자 1,000명이 포함됩니다.
+한 번에 나열할 수 있는 최대 사용자 수도 이 숫자로 제한됩니다. 최댓값보다 큰 값은 인수 오류를 발생시킵니다.
+pageToken를 지정하지 않으면 맨 처음 사용자부터 uid 순으로 나열됩니다.
+
+설명 및 해결 단계가 포함된 전체 오류 코드 목록은 Admin Authentication API 오류 [https://firebase.google.com/docs/auth/admin/errors?hl=ko]를 참조하세요.
+
+나열된 사용자의 비밀번호 해시
+
+또한 이 API는 사용자/서비스 계정이 firebaseauth.configs.getHashConfig 권한이 있는 요청 OAuth 액세스 토큰을 생성하는 데 사용되는 경우 비밀번호 사용자의 Firebase 인증 백엔드에서 해싱한 passwordSalt 및 passwordHash를 반환합니다. 그렇지 않으면 passwordHash 및 passwordSalt가 설정되지 않습니다.
+
+비밀번호 해시의 민감한 특성으로 인해 Firebase Admin SDK 서비스 계정에는 기본적으로 firebaseauth.configs.getHashConfig 권한이 없습니다. 사용자 서비스 계정에 권한을 직접 추가할 수 없지만 커스텀 IAM 역할을 만들어 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko] 간접적으로 권한을 추가할 수 있습니다.
+
+커스텀 IAM 역할을 만들려면 다음 안내를 따르세요.
+
+Google Cloud 콘솔의 IAM 및 관리자 패널에서 역할 페이지로 이동합니다.
+페이지 상단의 드롭다운에서 프로젝트를 선택합니다.
+역할 만들기를 클릭합니다.
+권한 추가를 클릭합니다.
+firebaseauth.configs.getHashConfig 권한을 검색하고 해당 체크박스를 선택합니다.
+추가를 클릭합니다.
+만들기를 클릭하여 새 역할 만들기를 마칩니다.
+
+IAM 페이지의 사용자/서비스 계정에 만든 커스텀 역할을 추가합니다.
+
+IAM 및 관리자 패널에서 IAM을 선택합니다.
+구성원 목록에서 서비스 또는 사용자 계정을 선택하여 수정합니다.
+다른 역할 추가를 클릭합니다.
+이전에 만든 새 커스텀 역할을 검색합니다.
+저장을 클릭합니다.
+
+경고: firebaseauth.configs.getHashConfig 권한을 추가하는 수단으로 Editor 역할을 사용하지 마세요. 이 강력한 역할은 의도한 범위를 벗어난 권한을 제공합니다.
+
+도움이 되었나요?
+
+의견 보내기

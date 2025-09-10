@@ -1,0 +1,257 @@
+Source URL: https://firebase.google.com/docs/auth/android/start?hl=ko
+Title: Android에서 Firebase 인증 시작하기
+bookmark_border
+
+의견 보내기
+
+Android에서 Firebase 인증 시작하기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용Firebase에 앱 연결 [https://firebase.google.com/docs/auth/android/start?hl=ko#connect_your_app_to_firebase]앱에 Firebase Authentication 추가 [https://firebase.google.com/docs/auth/android/start?hl=ko#add_to_your_app](선택사항) Firebase Local Emulator Suite으로 프로토타입 제작 및 테스트 [https://firebase.google.com/docs/auth/android/start?hl=ko#optional_prototype_and_test_with]현재 인증 상태 확인 [https://firebase.google.com/docs/auth/android/start?hl=ko#check_current_auth_state]신규 사용자 가입 [https://firebase.google.com/docs/auth/android/start?hl=ko#sign_up_new_users]기존 사용자 로그인 [https://firebase.google.com/docs/auth/android/start?hl=ko#sign_in_existing_users]사용자 정보 액세스 [https://firebase.google.com/docs/auth/android/start?hl=ko#access_user_information]다음 단계 [https://firebase.google.com/docs/auth/android/start?hl=ko#next_steps]
+
+Firebase에 앱 연결
+
+아직 추가하지 않았다면 Android 프로젝트에 Firebase를 추가 [https://firebase.google.com/docs/android/setup?hl=ko]합니다.
+
+앱에 Firebase Authentication 추가
+
+모듈(앱 수준) Gradle 파일(일반적으로 <project>/<app-module>/build.gradle.kts 또는 <project>/<app-module>/build.gradle)에서 Android용 Firebase Authentication 라이브러리의 종속 항목을 추가합니다. 라이브러리 버전 관리 제어에는 Firebase Android BoM [https://firebase.google.com/docs/android/learn-more?hl=ko#bom]을 사용하는 것이 좋습니다.
+
+dependencies {
+// Import the BoM for the Firebase platform
+implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
+
+// Add the dependency for the Firebase Authentication library
+// When using the BoM, you don't specify versions in Firebase library dependencies
+implementation("com.google.firebase:firebase-auth")
+}
+
+Firebase Android BoM [https://firebase.google.com/docs/android/learn-more?hl=ko#bom]을 사용하면 앱에서 항상 호환되는 Firebase Android 라이브러리 버전만 사용합니다.
+
+(대안)
+BoM을 사용하지 않고 Firebase 라이브러리 종속 항목을 추가합니다.
+
+Firebase BoM을 사용하지 않도록 선택한 경우에는 종속 항목 줄에 각 Firebase 라이브러리 버전을 지정해야 합니다.
+앱에서 여러 Firebase 라이브러리를 사용하는 경우 모든 버전이 호환되도록 BoM을 사용하여 라이브러리 버전을 관리하는 것이 좋습니다.
+
+dependencies {
+// Add the dependency for the Firebase Authentication library
+// When NOT using the BoM, you must specify versions in Firebase library dependencies
+implementation("com.google.firebase:firebase-auth:24.0.1")
+}
+
+인증 제공업체를 사용하려면 Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 제공업체를 사용 설정해야 합니다. Firebase Authentication 섹션의 로그인 방법 페이지로 이동하여 이메일/비밀번호 로그인과 앱에 사용할 다른 ID 공급업체를 사용 설정합니다.
+
+(선택사항) Firebase Local Emulator Suite으로 프로토타입 제작 및 테스트
+
+앱에서 사용자를 인증하는 방법을 설명하기 전에 Authentication 기능의 프로토타입을 제작하고 테스트하는 데 사용할 수 있는 도구 모음인 Firebase Local Emulator Suite을 소개하겠습니다. 사용할 인증 기술과 제공업체를 결정하거나, Authentication 및 Firebase Security Rules을 사용하는 공개 및 비공개 데이터가 포함된 다양한 데이터 모델을 사용해 보거나, 로그인 UI 디자인의 프로토타입을 제작하는 경우 라이브 서비스를 배포하지 않고 로컬에서 작업할 수 있다는 것은 획기적인 아이디어입니다.
+
+Authentication 에뮬레이터는 Local Emulator Suite의 일부이며 앱에서 에뮬레이션된 데이터베이스 콘텐츠와 구성은 물론 필요에 따라 에뮬레이션된 프로젝트 리소스(함수, 기타 데이터베이스, 보안 규칙)와 상호작용할 수 있게 해줍니다.
+
+Authentication 에뮬레이터를 사용하려면 다음 몇 단계만 거치면 됩니다.
+
+에뮬레이터에 연결하려면 앱의 테스트 구성에 코드 줄을 추가합니다.
+로컬 프로젝트 디렉터리의 루트에서 firebase emulators:start를 실행합니다.
+대화형 프로토타입 제작에는 Local Emulator Suite UI를, 비대화형 테스트에는 Authentication 에뮬레이터 REST API를 사용합니다.
+
+자세한 안내는 Authentication 에뮬레이터에 앱 연결 [https://firebase.google.com/docs/emulator-suite/connect_auth?hl=ko]을 참조하세요.
+자세한 내용은 Local Emulator Suite 소개 [https://firebase.google.com/docs/emulator-suite?hl=ko]를 참조하세요.
+
+이제 사용자 인증 방법을 계속 살펴보겠습니다.
+
+현재 인증 상태 확인
+
+FirebaseAuth의 인스턴스를 선언합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/start?hl=ko#kotlin-android] ---
+private lateinit var auth: FirebaseAuth
+EmailPasswordActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/EmailPasswordActivity.kt#L15-L15]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/start?hl=ko#java-android] ---
+private FirebaseAuth mAuth;
+EmailPasswordActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/EmailPasswordActivity.java#L36-L36]
+onCreate() 메서드에서 FirebaseAuth 인스턴스를 초기화합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/start?hl=ko#kotlin-android] ---
+// Initialize Firebase Auth
+auth = Firebase.auth
+EmailPasswordActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/EmailPasswordActivity.kt#L22-L23]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/start?hl=ko#java-android] ---
+// Initialize Firebase Auth
+mAuth = FirebaseAuth.getInstance();
+EmailPasswordActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/EmailPasswordActivity.java#L43-L44]
+활동을 초기화할 때 사용자가 현재 로그인되어 있는지 확인합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/start?hl=ko#kotlin-android] ---
+public override fun onStart() {
+super.onStart()
+// Check if user is signed in (non-null) and update UI accordingly.
+val currentUser = auth.currentUser
+if (currentUser != null) {
+reload()
+}
+}
+EmailPasswordActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/EmailPasswordActivity.kt#L28-L35]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/start?hl=ko#java-android] ---
+@Override
+public void onStart() {
+super.onStart();
+// Check if user is signed in (non-null) and update UI accordingly.
+FirebaseUser currentUser = mAuth.getCurrentUser();
+if(currentUser != null){
+reload();
+}
+}
+EmailPasswordActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/EmailPasswordActivity.java#L49-L57]
+
+신규 사용자 가입
+
+createUserWithEmailAndPassword [https://firebase.google.com/docs/reference/android/com/google/firebase/auth/FirebaseAuth?hl=ko#createUserWithEmailAndPassword(java.lang.String,%20java.lang.String)] 메서드를 사용하여 이메일 주소와 비밀번호를 가져와 유효성을 검사한 후 신규 사용자를 만드는 새 createAccount 메서드를 만듭니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/start?hl=ko#kotlin-android] ---
+auth.createUserWithEmailAndPassword(email, password)
+.addOnCompleteListener(this) { task ->
+if (task.isSuccessful) {
+// Sign in success, update UI with the signed-in user's information
+Log.d(TAG, "createUserWithEmail:success")
+val user = auth.currentUser
+updateUI(user)
+} else {
+// If sign in fails, display a message to the user.
+Log.w(TAG, "createUserWithEmail:failure", task.exception)
+Toast.makeText(
+baseContext,
+"Authentication failed.",
+Toast.LENGTH_SHORT,
+).show()
+updateUI(null)
+}
+}
+EmailPasswordActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/EmailPasswordActivity.kt#L40-L57]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/start?hl=ko#java-android] ---
+mAuth.createUserWithEmailAndPassword(email, password)
+.addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+if (task.isSuccessful()) {
+// Sign in success, update UI with the signed-in user's information
+Log.d(TAG, "createUserWithEmail:success");
+FirebaseUser user = mAuth.getCurrentUser();
+updateUI(user);
+} else {
+// If sign in fails, display a message to the user.
+Log.w(TAG, "createUserWithEmail:failure", task.getException());
+Toast.makeText(EmailPasswordActivity.this, "Authentication failed.",
+Toast.LENGTH_SHORT).show();
+updateUI(null);
+}
+}
+});
+EmailPasswordActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/EmailPasswordActivity.java#L62-L79]
+이메일 및 비밀번호가 포함된 신규 사용자 등록 양식을 추가하고 양식이 제출될 때 이 새 메서드를 호출합니다. 빠른 시작 샘플 [https://github.com/firebase/quickstart-android/tree/master/auth/app/src/main]에서 예를 볼 수 있습니다.
+
+기존 사용자 로그인
+
+signInWithEmailAndPassword [https://firebase.google.com/docs/reference/android/com/google/firebase/auth/FirebaseAuth?hl=ko#signInWithEmailAndPassword(java.lang.String,%20java.lang.String)] 메서드를 사용하여 이메일 주소와 비밀번호를 가져와 유효성을 검사한 후 사용자를 로그인시키는 새 signIn 메서드를 만듭니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/start?hl=ko#kotlin-android] ---
+auth.signInWithEmailAndPassword(email, password)
+.addOnCompleteListener(this) { task ->
+if (task.isSuccessful) {
+// Sign in success, update UI with the signed-in user's information
+Log.d(TAG, "signInWithEmail:success")
+val user = auth.currentUser
+updateUI(user)
+} else {
+// If sign in fails, display a message to the user.
+Log.w(TAG, "signInWithEmail:failure", task.exception)
+Toast.makeText(
+baseContext,
+"Authentication failed.",
+Toast.LENGTH_SHORT,
+).show()
+updateUI(null)
+}
+}
+EmailPasswordActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/EmailPasswordActivity.kt#L63-L80]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/start?hl=ko#java-android] ---
+mAuth.signInWithEmailAndPassword(email, password)
+.addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+if (task.isSuccessful()) {
+// Sign in success, update UI with the signed-in user's information
+Log.d(TAG, "signInWithEmail:success");
+FirebaseUser user = mAuth.getCurrentUser();
+updateUI(user);
+} else {
+// If sign in fails, display a message to the user.
+Log.w(TAG, "signInWithEmail:failure", task.getException());
+Toast.makeText(EmailPasswordActivity.this, "Authentication failed.",
+Toast.LENGTH_SHORT).show();
+updateUI(null);
+}
+}
+});
+EmailPasswordActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/EmailPasswordActivity.java#L85-L102]
+이메일 및 비밀번호가 포함된 사용자 로그인 양식을 추가하고 양식이 제출될 때 이 새 메서드를 호출합니다. 빠른 시작 샘플 [https://github.com/firebase/quickstart-android/tree/master/auth/app/src/main]에서 예를 볼 수 있습니다.
+
+사용자 정보 액세스
+
+사용자가 성공적으로 로그인되면 getCurrentUser 메서드를 사용하여 언제든지 사용자의 계정 데이터를 가져올 수 있습니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/start?hl=ko#kotlin-android] ---
+val user = Firebase.auth.currentUser
+user?.let {
+// Name, email address, and profile photo Url
+val name = it.displayName
+val email = it.email
+val photoUrl = it.photoUrl
+
+// Check if user's email is verified
+val emailVerified = it.isEmailVerified
+
+// The user's ID, unique to the Firebase project. Do NOT use this value to
+// authenticate with your backend server, if you have one. Use
+// FirebaseUser.getIdToken() instead.
+val uid = it.uid
+}
+MainActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L55-L69]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/start?hl=ko#java-android] ---
+FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+if (user != null) {
+// Name, email address, and profile photo Url
+String name = user.getDisplayName();
+String email = user.getEmail();
+Uri photoUrl = user.getPhotoUrl();
+
+// Check if user's email is verified
+boolean emailVerified = user.isEmailVerified();
+
+// The user's ID, unique to the Firebase project. Do NOT use this value to
+// authenticate with your backend server, if you have one. Use
+// FirebaseUser.getIdToken() instead.
+String uid = user.getUid();
+}
+MainActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L77-L91]
+다음 단계
+
+다른 ID 및 인증 서비스 추가에 대한 가이드를 살펴보세요.
+
+Google 로그인 [https://firebase.google.com/docs/auth/android/google-signin?hl=ko]
+Facebook 로그인 [https://firebase.google.com/docs/auth/android/facebook-login?hl=ko]
+익명 인증 [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko]
+
+도움이 되었나요?
+
+의견 보내기

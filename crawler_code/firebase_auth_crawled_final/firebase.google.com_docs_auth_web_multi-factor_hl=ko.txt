@@ -1,0 +1,682 @@
+Source URL: https://firebase.google.com/docs/auth/web/multi-factor?hl=ko
+Title: 웹 앱에 다중 인증(MFA) 추가
+bookmark_border
+
+의견 보내기
+
+웹 앱에 다중 인증(MFA) 추가
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#before_you_begin]멀티테넌시 사용 [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#using_multi-tenancy]다중 인증(MFA) 사용 설정 [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#enabling_multi-factor_authentication]등록 패턴 선택 [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#choosing_an_enrollment_pattern]reCAPTCHA 확인자 설정 [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#setting_up_the_recaptcha_verifier]보이지 않는 reCAPTCHA 사용 [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#using_invisible_recaptcha]reCAPTCHA 위젯 사용 [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#using_the_recaptcha_widget]reCAPTCHA 사전 렌더링 [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#pre-rendering_the_recaptcha]두 번째 단계 등록 [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#enrolling_a_second_factor]두 번째 단계 인증으로 사용자 로그인 처리 [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#signing_users_in_with_a_second_factor]다음 단계 [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#whats_next]
+
+Firebase Authentication with Identity Platform으로 업그레이드했다면 웹 앱에 SMS 다중 인증(MFA)을 추가할 수 있습니다.
+
+다중 인증(MFA)을 통해 앱의 보안이 강화됩니다. 공격자는 종종 비밀번호와 소셜 미디어 계정을 유출시키지만 문자 메시지를 가로채는 것은 더 어렵습니다.
+
+시작하기 전에
+
+다중 인증(MFA)을 지원하는 제공업체를 하나 이상 사용 설정합니다.
+전화 인증, 익명 인증, Apple Game Center를 제외한 모든 제공업체는 MFA를 지원합니다.
+SMS 인증을 사용할 리전을 사용 설정합니다.
+Firebase는 기본적으로 더 안전한 상태로 프로젝트를 만드는 데 도움이 되는 SMS 완전 차단 리전 정책을 사용합니다.
+앱이 사용자 이메일을 확인하고 있는지 확인합니다. MFA를 사용하려면 이메일 인증이 필요합니다.
+이를 통해 악의적인 행위자가 자신이 소유하지 않은 이메일에 서비스를 등록한 후 두 번째 단계를 추가하여 실제 소유자의 접근을 막는 일을 방지할 수 있습니다.
+
+멀티테넌시 사용
+
+멀티 테넌트 [https://cloud.google.com/identity-platform/docs/multi-tenancy?hl=ko] 환경에서 사용하기 위해 다단계 인증을 사용 설정하는 경우 이 도움말의 나머지 안내와 함께 다음 단계를 완료해야 합니다.
+
+Google Cloud 콘솔에서 작업할 테넌트를 선택합니다.
+코드에서 Auth 인스턴스의 tenantId 필드를 테넌트의 ID로 설정합니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+import { getAuth } from "firebase/auth";
+
+const auth = getAuth(app);
+auth.tenantId = "myTenantId1";
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+firebase.auth().tenantId = 'myTenantId1';
+```
+
+다중 인증(MFA) 사용 설정
+
+Firebase Console의 인증 > 로그인 방법 [https://console.firebase.google.com/project/_/authentication/providers?hl=ko] 페이지를 엽니다.
+고급 섹션에서 SMS 다중 인증(MFA)을 사용 설정합니다.
+
+앱을 테스트할 전화번호도 입력해야 합니다.
+선택사항이지만 개발 중 제한이 발생하지 않도록 테스트 전화번호를 등록하는 것이 좋습니다.
+아직 앱 도메인을 승인하지 않았다면 Firebase Console의 인증 > 설정 [https://console.firebase.google.com/project/_/authentication/settings?hl=ko] 페이지에서 허용 목록에 추가합니다.
+
+등록 패턴 선택
+
+앱에 다중 인증(MFA)이 필요한지 여부 및 사용자 등록 방법과 시기를 선택할 수 있습니다. 일반적인 패턴은 다음과 같습니다.
+
+등록 시 사용자의 두 번째 단계를 등록합니다. 앱이 모든 사용자에게 다중 인증(MFA)을 요구한다면 이 방법을 사용하세요.
+등록 시 건너뛸 수 있는 옵션으로 두 번째 단계를 등록하는 옵션을 제공하세요. 다중 인증(MFA)을 권고하지만 필수이지는 않은 앱은 이 방법을 사용하는 것이 좋습니다.
+가입 화면이 아닌 사용자의 계정 또는 프로필 관리 페이지에서 두 번째 단계를 추가할 수 있도록 합니다. 이렇게 하면 등록 프로세스 중에 발생하는 마찰을 최소화하면서도 보안에 민감한 사용자에게 다중 인증(MFA)을 제공할 수 있습니다.
+사용자가 보안 요구사항이 향상된 기능에 액세스하려고 할 때 두 번째 단계를 점진적으로 추가하도록 합니다.
+
+reCAPTCHA 확인자 설정
+
+SMS 코드를 보내려면 reCAPTCHA 확인자를 구성해야 합니다.
+Firebase는 reCAPTCHA를 통해 전화번호 인증 요청이 앱의 허용된 도메인 중 하나에서 발생하도록 하여 악용을 방지합니다.
+
+reCAPTCHA 클라이언트를 수동으로 설정할 필요가 없습니다. 클라이언트 SDK의 RecaptchaVerifier 객체는 필요한 클라이언트 키 및 보안 비밀을 자동으로 만들고 초기화합니다.
+
+보이지 않는 reCAPTCHA 사용
+
+RecaptchaVerifier 객체는 종종 상호작용 없이 사용자를 확인할 수 있는 보이지 않는 reCAPTCHA [https://www.google.com/recaptcha/intro/invisible.html?hl=ko]를 지원합니다. 보이지 않는 reCAPTCHA를 사용하려면 size 매개변수가 invisible로 설정된 RecaptchaVerifier를 만들고 다단계 등록을 시작하는 UI 요소의 ID를 지정합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+import { RecaptchaVerifier, getAuth } from "firebase/auth";
+
+const recaptchaVerifier = new RecaptchaVerifier(getAuth(), "sign-in-button", {
+"size": "invisible",
+"callback": function(response) {
+// reCAPTCHA solved, you can proceed with
+// phoneAuthProvider.verifyPhoneNumber(...).
+onSolvedRecaptcha();
+}
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('sign-in-button', {
+'size': 'invisible',
+'callback': function(response) {
+// reCAPTCHA solved, you can proceed with phoneAuthProvider.verifyPhoneNumber(...).
+onSolvedRecaptcha();
+}
+});
+```
+reCAPTCHA 위젯 사용
+
+표시되는 reCAPTCHA 위젯을 사용하려면 위젯을 포함할 HTML 요소를 만든 다음 UI 컨테이너의 ID가 있는 RecaptchaVerifier 객체를 만듭니다. 선택적으로 reCAPTCHA가 해결되거나 만료될 때 호출되는 콜백을 설정할 수도 있습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+import { RecaptchaVerifier, getAuth } from "firebase/auth";
+
+const recaptchaVerifier = new RecaptchaVerifier(
+getAuth(),
+"recaptcha-container",
+
+// Optional reCAPTCHA parameters.
+{
+"size": "normal",
+"callback": function(response) {
+// reCAPTCHA solved, you can proceed with
+// phoneAuthProvider.verifyPhoneNumber(...).
+onSolvedRecaptcha();
+},
+"expired-callback": function() {
+// Response expired. Ask user to solve reCAPTCHA again.
+// ...
+}
+}
+);
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+var recaptchaVerifier = new firebase.auth.RecaptchaVerifier(
+'recaptcha-container',
+// Optional reCAPTCHA parameters.
+{
+'size': 'normal',
+'callback': function(response) {
+// reCAPTCHA solved, you can proceed with phoneAuthProvider.verifyPhoneNumber(...).
+// ...
+onSolvedRecaptcha();
+},
+'expired-callback': function() {
+// Response expired. Ask user to solve reCAPTCHA again.
+// ...
+}
+});
+```
+reCAPTCHA 사전 렌더링
+
+필요에 따라 2단계 등록을 시작하기 전에 reCAPTCHA를 미리 렌더링할 수 있습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+recaptchaVerifier.render()
+.then(function (widgetId) {
+window.recaptchaWidgetId = widgetId;
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+recaptchaVerifier.render()
+.then(function(widgetId) {
+window.recaptchaWidgetId = widgetId;
+});
+```
+render()가 확인되면 reCAPTCHA의 위젯 ID를 가져옵니다. 이 ID를 사용하여 reCAPTCHA API [https://developers.google.com/recaptcha/intro?hl=ko]를 호출할 수 있습니다.
+var recaptchaResponse = grecaptcha.getResponse(window.recaptchaWidgetId);
+
+RecaptchaVerifier는 verify [https://firebase.google.com/docs/reference/js/auth.recaptchaverifier.md?hl=ko#recaptchaverifierverify] 메서드를 사용하여 이 로직을 추상화하므로 grecaptcha 변수를 직접 처리할 필요가 없습니다.
+
+두 번째 단계 등록
+
+사용자의 새로운 두 번째 단계를 등록하려면 다음 단계를 따르세요.
+
+사용자를 다시 인증합니다.
+사용자에게 전화번호를 입력하도록 요청합니다.
+참고: Google은 모든 Google 서비스의 스팸 및 악용 방지를 위해 전화번호를 저장하고 사용합니다. 전화번호를 Firebase로 보내기 전에 사용자에게 적절한 동의를 얻어야 합니다.
+이전 섹션에서 설명한 대로 reCAPTCHA 확인자를 초기화합니다.
+RecaptchaVerifier 인스턴스가 이미 구성된 경우 이 단계를 건너뛰세요.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+import { RecaptchaVerifier, getAuth } from "firebase/auth";
+
+const recaptchaVerifier = new RecaptchaVerifier(
+getAuth(),'recaptcha-container-id', undefined);
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-id');
+```
+사용자를 위한 다중 세션을 가져옵니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+import { multiFactor } from "firebase/auth";
+
+multiFactor(user).getSession().then(function (multiFactorSession) {
+// ...
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+user.multiFactor.getSession().then(function(multiFactorSession) {
+// ...
+})
+```
+사용자의 전화번호 및 다중 세션을 사용하여 PhoneInfoOptions 객체를 초기화합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+// Specify the phone number and pass the MFA session.
+const phoneInfoOptions = {
+phoneNumber: phoneNumber,
+session: multiFactorSession
+};
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+// Specify the phone number and pass the MFA session.
+var phoneInfoOptions = {
+phoneNumber: phoneNumber,
+session: multiFactorSession
+};
+```
+사용자 전화로 인증 코드 보내기
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+import { PhoneAuthProvider } from "firebase/auth";
+
+const phoneAuthProvider = new PhoneAuthProvider(auth);
+phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, recaptchaVerifier)
+.then(function (verificationId) {
+// verificationId will be needed to complete enrollment.
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+var phoneAuthProvider = new firebase.auth.PhoneAuthProvider();
+// Send SMS verification code.
+return phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, recaptchaVerifier)
+.then(function(verificationId) {
+// verificationId will be needed for enrollment completion.
+})
+```
+필수 사항은 아니지만, 사용자에게 SMS 메시지가 전송되고 표준 요금이 적용된다는 점을 미리 알리는 것이 좋습니다.
+요청이 실패하면 reCAPTCHA를 재설정하고 이전 단계를 반복하면 사용자가 다시 시도할 수 있습니다. reCAPTCHA 토큰은 일회용이기 때문에 verifyPhoneNumber()는 오류가 발생하면 reCAPTCHA를 자동으로 재설정합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+recaptchaVerifier.clear();
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+recaptchaVerifier.clear();
+```
+SMS 코드가 전송되면 사용자에게 코드를 확인하도록 요청합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+// Ask user for the verification code. Then:
+const cred = PhoneAuthProvider.credential(verificationId, verificationCode);
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+// Ask user for the verification code. Then:
+var cred = firebase.auth.PhoneAuthProvider.credential(verificationId, verificationCode);
+```
+PhoneAuthCredential로 MultiFactorAssertion 객체를 초기화합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+import { PhoneMultiFactorGenerator } from "firebase/auth";
+
+const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred);
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+var multiFactorAssertion = firebase.auth.PhoneMultiFactorGenerator.assertion(cred);
+```
+등록을 완료합니다. 선택사항으로 두 번째 단계의 표시 이름을 지정할 수 있습니다. 인증 과정에서 전화번호가 마스킹되므로(예: +1******1234) 두 번째 단계가 여러 개인 사용자에게 유용합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+// Complete enrollment. This will update the underlying tokens
+// and trigger ID token change listener.
+multiFactor(user).enroll(multiFactorAssertion, "My personal phone number");
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+// Complete enrollment. This will update the underlying tokens
+// and trigger ID token change listener.
+user.multiFactor.enroll(multiFactorAssertion, 'My personal phone number');
+```
+
+다음 코드는 두 번째 단계를 등록하는 전체 예시를 보여줍니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+import {
+multiFactor, PhoneAuthProvider, PhoneMultiFactorGenerator,
+RecaptchaVerifier, getAuth
+} from "firebase/auth";
+
+const recaptchaVerifier = new RecaptchaVerifier(getAuth(),
+'recaptcha-container-id', undefined);
+multiFactor(user).getSession()
+.then(function (multiFactorSession) {
+// Specify the phone number and pass the MFA session.
+const phoneInfoOptions = {
+phoneNumber: phoneNumber,
+session: multiFactorSession
+};
+
+const phoneAuthProvider = new PhoneAuthProvider(auth);
+
+// Send SMS verification code.
+return phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, recaptchaVerifier);
+}).then(function (verificationId) {
+// Ask user for the verification code. Then:
+const cred = PhoneAuthProvider.credential(verificationId, verificationCode);
+const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred);
+
+// Complete enrollment.
+return multiFactor(user).enroll(multiFactorAssertion, mfaDisplayName);
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-id');
+user.multiFactor.getSession().then(function(multiFactorSession) {
+// Specify the phone number and pass the MFA session.
+var phoneInfoOptions = {
+phoneNumber: phoneNumber,
+session: multiFactorSession
+};
+var phoneAuthProvider = new firebase.auth.PhoneAuthProvider();
+// Send SMS verification code.
+return phoneAuthProvider.verifyPhoneNumber(
+phoneInfoOptions, recaptchaVerifier);
+})
+.then(function(verificationId) {
+// Ask user for the verification code.
+var cred = firebase.auth.PhoneAuthProvider.credential(verificationId, verificationCode);
+var multiFactorAssertion = firebase.auth.PhoneMultiFactorGenerator.assertion(cred);
+// Complete enrollment.
+return user.multiFactor.enroll(multiFactorAssertion, mfaDisplayName);
+});
+```
+수고하셨습니다. 사용자의 두 번째 인증 단계가 성공적으로 등록되었습니다.
+중요: 계정 복구를 위해 사용자가 두 번째 단계를 두 개 이상 등록하도록 강력히 권고해야 합니다. 사용자가 두 번째 단계를 한 개만 등록했는데 나중에 액세스 권한을 분실하는 경우 계정에 액세스할 수 없습니다.
+두 번째 단계 인증으로 사용자 로그인 처리
+
+2단계 SMS 인증으로 사용자를 로그인 처리하려면 다음 안내를 따르세요.
+
+첫 번째 단계로 사용자를 로그인한 다음 auth/multi-factor-auth-required 오류를 포착합니다. 이 오류에는 리졸버, 등록된 두 번째 단계에 대한 힌트, 사용자가 첫 번째 단계에서 성공적으로 인증되었음을 증명하는 기본 세션이 포함됩니다.
+
+예를 들어 사용자의 첫 번째 단계가 이메일과 비밀번호인 경우는 다음과 같습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+import { getAuth, signInWithEmailAndPassword, getMultiFactorResolver} from "firebase/auth";
+
+const auth = getAuth();
+signInWithEmailAndPassword(auth, email, password)
+.then(function (userCredential) {
+// User successfully signed in and is not enrolled with a second factor.
+})
+.catch(function (error) {
+if (error.code == 'auth/multi-factor-auth-required') {
+// The user is a multi-factor user. Second factor challenge is required.
+resolver = getMultiFactorResolver(auth, error);
+// ...
+} else if (error.code == 'auth/wrong-password') {
+// Handle other errors such as wrong password.
+}
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+firebase.auth().signInWithEmailAndPassword(email, password)
+.then(function(userCredential) {
+// User successfully signed in and is not enrolled with a second factor.
+})
+.catch(function(error) {
+if (error.code == 'auth/multi-factor-auth-required') {
+// The user is a multi-factor user. Second factor challenge is required.
+resolver = error.resolver;
+// ...
+} else if (error.code == 'auth/wrong-password') {
+// Handle other errors such as wrong password.
+} ...
+});
+```
+사용자의 첫 번째 단계가 OAuth, SAML 또는 OIDC와 같은 제휴 공급업체라면 signInWithPopup() 또는 signInWithRedirect()를 호출한 후 오류를 포착합니다.
+사용자가 보조 단계를 여러 개 등록한 경우 어떤 단계를 사용할지 질문합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+// Ask user which second factor to use.
+// You can get the masked phone number via resolver.hints[selectedIndex].phoneNumber
+// You can get the display name via resolver.hints[selectedIndex].displayName
+
+if (resolver.hints[selectedIndex].factorId ===
+PhoneMultiFactorGenerator.FACTOR_ID) {
+// User selected a phone second factor.
+// ...
+} else if (resolver.hints[selectedIndex].factorId ===
+TotpMultiFactorGenerator.FACTOR_ID) {
+// User selected a TOTP second factor.
+// ...
+} else {
+// Unsupported second factor.
+}
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+// Ask user which second factor to use.
+// You can get the masked phone number via resolver.hints[selectedIndex].phoneNumber
+// You can get the display name via resolver.hints[selectedIndex].displayName
+if (resolver.hints[selectedIndex].factorId === firebase.auth.PhoneMultiFactorGenerator.FACTOR_ID) {
+// User selected a phone second factor.
+// ...
+} else if (resolver.hints[selectedIndex].factorId === firebase.auth.TotpMultiFactorGenerator.FACTOR_ID) {
+// User selected a TOTP second factor.
+// ...
+} else {
+// Unsupported second factor.
+}
+```
+이전 섹션에서 설명한 대로 reCAPTCHA 확인자를 초기화합니다.
+RecaptchaVerifier 인스턴스가 이미 구성된 경우 이 단계를 건너뛰세요.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+import { RecaptchaVerifier, getAuth } from "firebase/auth";
+
+recaptchaVerifier = new RecaptchaVerifier(getAuth(),
+'recaptcha-container-id', undefined);
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+var recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container-id');
+```
+사용자의 전화번호 및 다단계 세션을 사용하여 PhoneInfoOptions 객체를 초기화합니다. 이 값은 auth/multi-factor-auth-required 오류에 전달된 resolver 객체에 포함됩니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+const phoneInfoOptions = {
+multiFactorHint: resolver.hints[selectedIndex],
+session: resolver.session
+};
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+var phoneInfoOptions = {
+multiFactorHint: resolver.hints[selectedIndex],
+session: resolver.session
+};
+```
+사용자 전화로 인증 코드 보내기
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+// Send SMS verification code.
+const phoneAuthProvider = new PhoneAuthProvider(auth);
+phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, recaptchaVerifier)
+.then(function (verificationId) {
+// verificationId will be needed for sign-in completion.
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+var phoneAuthProvider = new firebase.auth.PhoneAuthProvider();
+// Send SMS verification code.
+return phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, recaptchaVerifier)
+.then(function(verificationId) {
+// verificationId will be needed for sign-in completion.
+})
+```
+요청이 실패하면 reCAPTCHA를 재설정하고 이전 단계를 반복하면 사용자가 다시 시도할 수 있습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+recaptchaVerifier.clear();
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+recaptchaVerifier.clear();
+```
+SMS 코드가 전송되면 사용자에게 코드를 확인하도록 요청합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+const cred = PhoneAuthProvider.credential(verificationId, verificationCode);
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+// Ask user for the verification code. Then:
+var cred = firebase.auth.PhoneAuthProvider.credential(verificationId, verificationCode);
+```
+PhoneAuthCredential로 MultiFactorAssertion 객체를 초기화합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred);
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+var multiFactorAssertion = firebase.auth.PhoneMultiFactorGenerator.assertion(cred);
+```
+resolver.resolveSignIn()을 호출하여 2차 인증을 완료합니다.
+그런 다음 표준 공급업체별 데이터 및 인증 사용자 인증 정보가 포함된 원래 로그인 결과에 액세스할 수 있습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+// Complete sign-in. This will also trigger the Auth state listeners.
+resolver.resolveSignIn(multiFactorAssertion)
+.then(function (userCredential) {
+// userCredential will also contain the user, additionalUserInfo, optional
+// credential (null for email/password) associated with the first factor sign-in.
+
+// For example, if the user signed in with Google as a first factor,
+// userCredential.additionalUserInfo will contain data related to Google
+// provider that the user signed in with.
+// - user.credential contains the Google OAuth credential.
+// - user.credential.accessToken contains the Google OAuth access token.
+// - user.credential.idToken contains the Google OAuth ID token.
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+// Complete sign-in. This will also trigger the Auth state listeners.
+resolver.resolveSignIn(multiFactorAssertion)
+.then(function(userCredential) {
+// userCredential will also contain the user, additionalUserInfo, optional
+// credential (null for email/password) associated with the first factor sign-in.
+// For example, if the user signed in with Google as a first factor,
+// userCredential.additionalUserInfo will contain data related to Google provider that
+// the user signed in with.
+// user.credential contains the Google OAuth credential.
+// user.credential.accessToken contains the Google OAuth access token.
+// user.credential.idToken contains the Google OAuth ID token.
+});
+```
+
+아래 코드는 다중 인증 사용자를 위한 전체 로그인 예시를 보여줍니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-modular-api] ---
+```
+import {
+getAuth,
+getMultiFactorResolver,
+PhoneAuthProvider,
+PhoneMultiFactorGenerator,
+RecaptchaVerifier,
+signInWithEmailAndPassword
+} from "firebase/auth";
+
+const recaptchaVerifier = new RecaptchaVerifier(getAuth(),
+'recaptcha-container-id', undefined);
+
+const auth = getAuth();
+signInWithEmailAndPassword(auth, email, password)
+.then(function (userCredential) {
+// User is not enrolled with a second factor and is successfully
+// signed in.
+// ...
+})
+.catch(function (error) {
+if (error.code == 'auth/multi-factor-auth-required') {
+const resolver = getMultiFactorResolver(auth, error);
+// Ask user which second factor to use.
+if (resolver.hints[selectedIndex].factorId ===
+PhoneMultiFactorGenerator.FACTOR_ID) {
+const phoneInfoOptions = {
+multiFactorHint: resolver.hints[selectedIndex],
+session: resolver.session
+};
+const phoneAuthProvider = new PhoneAuthProvider(auth);
+// Send SMS verification code
+return phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, recaptchaVerifier)
+.then(function (verificationId) {
+// Ask user for the SMS verification code. Then:
+const cred = PhoneAuthProvider.credential(
+verificationId, verificationCode);
+const multiFactorAssertion =
+PhoneMultiFactorGenerator.assertion(cred);
+// Complete sign-in.
+return resolver.resolveSignIn(multiFactorAssertion)
+})
+.then(function (userCredential) {
+// User successfully signed in with the second factor phone number.
+});
+} else if (resolver.hints[selectedIndex].factorId ===
+TotpMultiFactorGenerator.FACTOR_ID) {
+// Handle TOTP MFA.
+// ...
+} else {
+// Unsupported second factor.
+}
+} else if (error.code == 'auth/wrong-password') {
+// Handle other errors such as wrong password.
+}
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/multi-factor?hl=ko#web-namespaced-api] ---
+```
+var resolver;
+firebase.auth().signInWithEmailAndPassword(email, password)
+.then(function(userCredential) {
+// User is not enrolled with a second factor and is successfully signed in.
+// ...
+})
+.catch(function(error) {
+if (error.code == 'auth/multi-factor-auth-required') {
+resolver = error.resolver;
+// Ask user which second factor to use.
+if (resolver.hints[selectedIndex].factorId ===
+firebase.auth.PhoneMultiFactorGenerator.FACTOR_ID) {
+var phoneInfoOptions = {
+multiFactorHint: resolver.hints[selectedIndex],
+session: resolver.session
+};
+var phoneAuthProvider = new firebase.auth.PhoneAuthProvider();
+// Send SMS verification code
+return phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, recaptchaVerifier)
+.then(function(verificationId) {
+// Ask user for the SMS verification code.
+var cred = firebase.auth.PhoneAuthProvider.credential(
+verificationId, verificationCode);
+var multiFactorAssertion =
+firebase.auth.PhoneMultiFactorGenerator.assertion(cred);
+// Complete sign-in.
+return resolver.resolveSignIn(multiFactorAssertion)
+})
+.then(function(userCredential) {
+// User successfully signed in with the second factor phone number.
+});
+} else if (resolver.hints[selectedIndex].factorId ===
+firebase.auth.TotpMultiFactorGenerator.FACTOR_ID) {
+// Handle TOTP MFA.
+// ...
+} else {
+// Unsupported second factor.
+}
+} else if (error.code == 'auth/wrong-password') {
+// Handle other errors such as wrong password.
+} ...
+});
+```
+수고하셨습니다. 다중 인증(MFA)을 사용하여 사용자가 성공적으로 로그인했습니다.
+
+다음 단계
+
+Admin SDK를 사용하여 프로그래매틱 방식으로 다중 인증 사용자를 관리 [https://firebase.google.com/docs/auth/admin/manage-mfa-users?hl=ko]합니다.
+
+도움이 되었나요?
+
+의견 보내기

@@ -1,0 +1,343 @@
+Source URL: https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko
+Title: 이메일 작업 링크 생성
+bookmark_border
+
+의견 보내기
+
+이메일 작업 링크 생성
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용ActionCodeSettings 초기화 [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#initialize-actioncodesettings]비밀번호 재설정 이메일 링크 생성 [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#generate-password-reset]이메일 확인 링크 생성 [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#generate-email-verify]로그인용 이메일 링크 생성 [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#generate-email-signin]
+
+모바일 앱에서는 이메일을 보내 사용자와 상호작용하고 특정 작업을 하라는 알림을 제공해야 하는 경우가 있습니다.
+
+Firebase 클라이언트 SDK [https://firebase.google.com/docs/libraries?hl=ko#client-sdks]를 사용하면 비밀번호 재설정, 이메일 주소 확인, 이메일 기반 로그인에 사용할 수 있는 링크가 포함된 이메일을 사용자에게 보낼 수 있습니다. 이러한 템플릿 기반 이메일은 Google에서 보내며 맞춤설정이 제한적입니다.
+
+자체 이메일 템플릿과 이메일 전송 서비스를 이용하려면 이 페이지의 설명에 따라 Firebase Admin SDK [https://firebase.google.com/docs/admin/setup?hl=ko]를 사용하여 위의 작업 흐름에 대한 링크를 프로그래매틱 방식으로 생성한 후 사용자에게 보내는 이메일에 이 링크를 포함하면 됩니다.
+
+이 방식에는 다음과 같은 장점이 있습니다.
+
+이메일 템플릿 맞춤설정: 새 스타일과 맞춤 브랜딩을 추가하고 문구와 로고를 변경하고, 성을 포함한 전체 이름이 아니라 사용자의 이름만 호명하는 이메일을 보내는 기능 등이 포함됩니다.
+컨텍스트별로 템플릿 적용: 예를 들어 사용자가 뉴스레터를 구독하기 위해 이메일을 인증하는 경우 이메일 내용에 컨텍스트를 제공해야 할 수 있습니다. 또 다른 예로는 이메일 링크 로그인이 있습니다. 상황에 따라 이메일 링크 로그인을 같은 사용자가 트리거할 수도 있고 다른 사용자의 초대를 받은 사용자가 트리거할 수도 있으므로 컨텍스트를 이메일에 포함해야 합니다.
+맞춤설정된 이메일 템플릿 현지화
+안전한 서버 환경에서 링크를 생성하는 기능
+링크를 여는 방법(모바일 앱과 브라우저 중 선택) 및 추가 상태 정보를 전달하는 방법 등을 맞춤설정하는 기능
+이메일 작업 링크를 구성할 때 모바일 앱 흐름에 사용되는 모바일 링크 도메인을 맞춤설정할 수 있는 기능
+
+ActionCodeSettings 초기화
+
+이메일 작업 링크를 생성하려면 ActionCodeSettings 인스턴스를 초기화해야 할 수도 있습니다.
+
+ActionCodeSettings를 사용하면 사용자가 이메일 링크를 클릭한 후 액세스할 수 있는 연결 URL을 통해 추가 상태를 전달할 수 있습니다. 그러면 작업이 완료된 후 사용자가 앱으로 돌아갈 수 있습니다. 또한 모바일 애플리케이션이 설치된 경우 이메일 작업 링크를 모바일 애플리케이션에서 직접 처리할지 또는 브라우저에서 처리할지 지정할 수 있습니다.
+
+모바일 앱을 통해 열어야 하는 링크의 경우 모바일 앱에서 이러한 링크를 감지하도록 몇 가지 작업을 수행해야 합니다. 이메일 작업에 모바일 링크를 구성 [https://firebase.google.com/docs/auth/web/passing-state-in-email-actions?hl=ko#configuring-hosting-links]하는 방법에 대한 안내를 참조하세요.
+
+ActionCodeSettings 인스턴스를 초기화하려면 다음 데이터를 제공합니다.
+
+| 매개변수 | 유형 | 설명 |
+| --- | --- | --- |
+| url | 문자열 | 컨텍스트에 따라 다른 의미를 가지는 링크(상태/연결 URL)를 설정합니다. 웹 작업 위젯에서 링크가 처리되는 경우 continueUrl 쿼리 매개변수의 딥 링크입니다. 앱에서 링크가 직접 처리되는 경우 Hosting 링크의 딥 링크에 있는 continueUrl 쿼리 파라미터입니다. |
+| iOS | ({bundleId: string}\|undefined) | Firebase Authentication이 Apple 기기에서 열리는 웹 전용 링크 또는 모바일 링크를 만들어야 하는지 결정하는 데 도움이 됩니다. |
+| android | ({packageName: string, installApp:boolean\|undefined, minimumVersion: string\|undefined}\|undefined) | Firebase Authentication이 Android 기기에서 열리는 웹 전용 링크 또는 모바일 링크를 만들어야 하는지 결정하는 데 도움이 됩니다. |
+| handleCodeInApp | (boolean\|undefined) | 이메일 작업 링크를 모바일 앱과 웹 링크 중 어디에서 먼저 열지 지정합니다. 기본값은 false입니다. true로 설정하면 작업 코드 링크가 범용 링크 또는 Android 앱 링크로 전송되고 앱이 설치된 경우 앱에서 열립니다. false이면 코드가 먼저 웹 위젯에 전송되고 앱이 설치된 경우 계속해서 앱으로 리디렉션됩니다. |
+| linkDomain | (string\|undefined) | 프로젝트에 커스텀 호스팅 링크 도메인이 정의된 경우 지정된 모바일 앱에서 링크를 열 때 사용할 도메인을 지정합니다. 그렇지 않으면 기본 도메인이 자동으로 선택됩니다(예: PROJECT_ID.firebaseapp.com). |
+| dynamicLinkDomain | (string\|undefined) | 지원 중단되었습니다. 이 파라미터를 지정하지 마세요. |
+
+다음 예시에서는 모바일 앱에서 먼저 열리는 이메일 인증 링크를 보내는 방법을 보여줍니다. 딥 링크에는 연결 URL 페이로드(https://www.example.com/checkout?cartId=1234)가 포함됩니다. 사용되는 커스텀 Hosting 링크 도메인은 custom-domain.com이며 Firebase Hosting과 함께 사용하도록 구성되어야 합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#node.js] ---
+```
+const actionCodeSettings = {
+// URL you want to redirect back to. The domain (www.example.com) for
+// this URL must be whitelisted in the Firebase Console.
+url: 'https://www.example.com/checkout?cartId=1234',
+// This must be true for email link sign-in.
+handleCodeInApp: true,
+iOS: {
+bundleId: 'com.example.ios',
+},
+android: {
+packageName: 'com.example.android',
+installApp: true,
+minimumVersion: '12',
+},
+// The domain must be configured in Firebase Hosting and owned by the project.
+linkDomain: 'custom-domain.com',
+};
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+ActionCodeSettings actionCodeSettings = ActionCodeSettings.builder()
+.setUrl("https://www.example.com/checkout?cartId=1234")
+.setHandleCodeInApp(true)
+.setIosBundleId("com.example.ios")
+.setAndroidPackageName("com.example.android")
+.setAndroidInstallApp(true)
+.setAndroidMinimumVersion("12")
+.setDynamicLinkDomain("coolapp.page.link")
+.build();
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#python] ---
+```
+action_code_settings = auth.ActionCodeSettings(
+url='https://www.example.com/checkout?cartId=1234',
+handle_code_in_app=True,
+ios_bundle_id='com.example.ios',
+android_package_name='com.example.android',
+android_install_app=True,
+android_minimum_version='12',
+dynamic_link_domain='coolapp.page.link',
+)
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#go] ---
+```
+actionCodeSettings := &auth.ActionCodeSettings{
+URL:                   "https://www.example.com/checkout?cartId=1234",
+HandleCodeInApp:       true,
+IOSBundleID:           "com.example.ios",
+AndroidPackageName:    "com.example.android",
+AndroidInstallApp:     true,
+AndroidMinimumVersion: "12",
+DynamicLinkDomain:     "coolapp.page.link",
+}
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#c] ---
+```
+var actionCodeSettings = new ActionCodeSettings()
+{
+Url = "https://www.example.com/checkout?cartId=1234",
+HandleCodeInApp = true,
+IosBundleId = "com.example.ios",
+AndroidPackageName = "com.example.android",
+AndroidInstallApp = true,
+AndroidMinimumVersion = "12",
+LinkDomain = "coolapp.page.link",
+};
+```
+자세한 내용은 이메일 작업의 상태 전달 [https://firebase.google.com/docs/auth/web/passing-state-in-email-actions?hl=ko]을 참조하세요.
+
+비밀번호 재설정 이메일 링크 생성
+
+비밀번호 재설정 링크를 생성하려면 기존 사용자의 이메일과 선택사항인 ActionCodeSettings 객체를 제공하세요. 이 작업은 이메일 작업 링크를 사용하여 처리됩니다. 사용되는 이메일은 기존 사용자의 이메일이어야 합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#node.js] ---
+```
+// Admin SDK API to generate the password reset link.
+const userEmail = 'user@example.com';
+getAuth()
+.generatePasswordResetLink(userEmail, actionCodeSettings)
+.then((link) => {
+// Construct password reset email template, embed the link and send
+// using custom SMTP server.
+return sendCustomPasswordResetEmail(userEmail, displayName, link);
+})
+.catch((error) => {
+// Some error occurred.
+});
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+String email = "user@example.com";
+try {
+String link = FirebaseAuth.getInstance().generatePasswordResetLink(
+email, actionCodeSettings);
+// Construct email verification template, embed the link and send
+// using custom SMTP server.
+sendCustomEmail(email, displayName, link);
+} catch (FirebaseAuthException e) {
+System.out.println("Error generating email link: " + e.getMessage());
+}
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#python] ---
+```
+email = 'user@example.com'
+link = auth.generate_password_reset_link(email, action_code_settings)
+# Construct password reset email from a template embedding the link, and send
+# using a custom SMTP server.
+send_custom_email(email, link)
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#go] ---
+```
+email := "user@example.com"
+link, err := client.PasswordResetLinkWithSettings(ctx, email, actionCodeSettings)
+if err != nil {
+log.Fatalf("error generating email link: %v\n", err)
+}
+
+// Construct password reset template, embed the link and send
+// using custom SMTP server.
+sendCustomEmail(email, displayName, link)
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#c] ---
+```
+var email = "user@example.com";
+var link = await FirebaseAuth.DefaultInstance.GeneratePasswordResetLinkAsync(
+email, actionCodeSettings);
+// Construct email verification template, embed the link and send
+// using custom SMTP server.
+SendCustomEmail(email, displayName, link);
+```
+링크가 생성되면 링크를 커스텀 비밀번호 재설정 이메일에 삽입한 다음 커스텀 SMTP 서버를 사용하여 해당 사용자에게 이메일로 보낼 수 있습니다.
+
+기본 비밀번호 재설정 방문 페이지를 사용하지 않고 자체 맞춤 핸들러를 만드는 경우 맞춤 이메일 작업 핸들러 만들기 [https://firebase.google.com/docs/auth/custom-email-handler?hl=ko]를 참조하세요.
+
+이메일 확인 링크 생성
+
+이메일 확인 링크를 생성하려면 기존 사용자의 확인되지 않은 이메일과 선택사항인 ActionCodeSettings 객체를 제공합니다. 이 작업은 이메일 작업 링크를 사용하여 처리됩니다.
+사용되는 이메일은 기존 사용자의 이메일이어야 합니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#node.js] ---
+```
+// Admin SDK API to generate the email verification link.
+const useremail = 'user@example.com';
+getAuth()
+.generateEmailVerificationLink(useremail, actionCodeSettings)
+.then((link) => {
+// Construct email verification template, embed the link and send
+// using custom SMTP server.
+return sendCustomVerificationEmail(useremail, displayName, link);
+})
+.catch((error) => {
+// Some error occurred.
+});
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+String email = "user@example.com";
+try {
+String link = FirebaseAuth.getInstance().generateEmailVerificationLink(
+email, actionCodeSettings);
+// Construct email verification template, embed the link and send
+// using custom SMTP server.
+sendCustomEmail(email, displayName, link);
+} catch (FirebaseAuthException e) {
+System.out.println("Error generating email link: " + e.getMessage());
+}
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#python] ---
+```
+email = 'user@example.com'
+link = auth.generate_email_verification_link(email, action_code_settings)
+# Construct email from a template embedding the link, and send
+# using a custom SMTP server.
+send_custom_email(email, link)
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#go] ---
+```
+email := "user@example.com"
+link, err := client.EmailVerificationLinkWithSettings(ctx, email, actionCodeSettings)
+if err != nil {
+log.Fatalf("error generating email link: %v\n", err)
+}
+
+// Construct email verification template, embed the link and send
+// using custom SMTP server.
+sendCustomEmail(email, displayName, link)
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#c] ---
+```
+var email = "user@example.com";
+var link = await FirebaseAuth.DefaultInstance.GenerateEmailVerificationLinkAsync(
+email, actionCodeSettings);
+// Construct email verification template, embed the link and send
+// using custom SMTP server.
+SendCustomEmail(email, displayName, link);
+```
+링크가 생성되면 링크를 커스텀 인증 메일에 삽입한 다음 커스텀 SMTP 서버를 사용하여 해당 사용자에게 이메일로 보낼 수 있습니다.
+
+기본 이메일 인증 방문 페이지를 사용하지 않고 자체 맞춤 핸들러를 만드는 경우 맞춤 이메일 작업 핸들러 만들기 [https://firebase.google.com/docs/auth/custom-email-handler?hl=ko]를 참조하세요.
+
+로그인용 이메일 링크 생성
+
+이메일 링크 로그인으로 사용자를 인증하려면 Firebase 프로젝트에서 이메일 링크 로그인을 사용 설정 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#enable_email_link_sign-in_for_your_firebase_project]해야 합니다.
+
+로그인 링크를 생성하려면 사용자의 이메일과 ActionCodeSettings 객체를 제공합니다. 이 경우에 ActionCodeSettings 객체는 필수항목으로, 로그인을 완료하기 위해 링크를 클릭한 후 사용자를 어디로 보낼지에 대한 정보를 제공합니다. 이 작업은 이메일 작업 링크를 사용하여 처리됩니다.
+
+여기에 사용되는 이메일은 비밀번호 재설정 및 이메일 인증과 달리 기존 사용자의 이메일이 아니어도 됩니다. 이메일 링크를 통해 새 사용자를 앱에 가입시키는 데 이 작업을 사용할 수 있기 때문입니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#node.js] ---
+```
+// Admin SDK API to generate the sign in with email link.
+const useremail = 'user@example.com';
+getAuth()
+.generateSignInWithEmailLink(useremail, actionCodeSettings)
+.then((link) => {
+// Construct sign-in with email link template, embed the link and
+// send using custom SMTP server.
+return sendSignInEmail(useremail, displayName, link);
+})
+.catch((error) => {
+// Some error occurred.
+});
+```
+
+--- 탭: 자바 [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#%EC%9E%90%EB%B0%94] ---
+```
+String email = "user@example.com";
+try {
+String link = FirebaseAuth.getInstance().generateSignInWithEmailLink(
+email, actionCodeSettings);
+// Construct email verification template, embed the link and send
+// using custom SMTP server.
+sendCustomEmail(email, displayName, link);
+} catch (FirebaseAuthException e) {
+System.out.println("Error generating email link: " + e.getMessage());
+}
+```
+
+--- 탭: Python [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#python] ---
+```
+email = 'user@example.com'
+link = auth.generate_sign_in_with_email_link(email, action_code_settings)
+# Construct email from a template embedding the link, and send
+# using a custom SMTP server.
+send_custom_email(email, link)
+```
+
+--- 탭: Go [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#go] ---
+```
+email := "user@example.com"
+link, err := client.EmailSignInLink(ctx, email, actionCodeSettings)
+if err != nil {
+log.Fatalf("error generating email link: %v\n", err)
+}
+
+// Construct sign-in with email link template, embed the link and send
+// using custom SMTP server.
+sendCustomEmail(email, displayName, link)
+```
+
+--- 탭: C# [https://firebase.google.com/docs/auth/admin/email-action-links?hl=ko#c] ---
+```
+var email = "user@example.com";
+var link = await FirebaseAuth.DefaultInstance.GenerateSignInWithEmailLinkAsync(
+email, actionCodeSettings);
+// Construct email verification template, embed the link and send
+// using custom SMTP server.
+SendCustomEmail(email, displayName, link);
+```
+링크가 생성되면 링크를 커스텀 로그인 이메일에 삽입한 다음 커스텀 SMTP 서버를 사용하여 해당 사용자에게 이메일로 보낼 수 있습니다.
+
+이메일 링크를 사용하여 Firebase로 사용자 인증 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko]에 대해 자세히 알아보세요.
+사용자가 링크를 클릭하고 다시 앱으로 리디렉션된 후 로그인을 완료하는 방법에 대한 정보를 얻을 수 있습니다.
+
+도움이 되었나요?
+
+의견 보내기

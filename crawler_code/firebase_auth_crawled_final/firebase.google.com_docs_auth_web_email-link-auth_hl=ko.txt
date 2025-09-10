@@ -1,0 +1,404 @@
+Source URL: https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko
+Title: 자바스크립트에서 이메일 링크를 사용하여 Firebase에 인증하기
+bookmark_border
+
+의견 보내기
+
+자바스크립트에서 이메일 링크를 사용하여 Firebase에 인증하기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#before_you_begin]Firebase 프로젝트에서 이메일 링크 로그인 사용 설정 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#enable_email_link_sign-in_for_your_firebase_project]사용자의 이메일 주소로 인증 링크 전송 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#send_an_authentication_link_to_the_users_email_address]이메일 링크로 로그인 완료 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#complete_sign_in_with_the_email_link]보안 문제 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#security_concerns]웹 페이지에서 로그인 완료 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#completing_sign-in_in_a_web_page]모바일 앱에서 로그인 완료 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#completing_sign-in_in_a_mobile_app]이메일 링크를 사용하여 연결/재인증 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#linkingre-authentication_with_email_link]지원 중단됨: 이메일-비밀번호 로그인과 이메일 링크 로그인 구별 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#differentiating_emailpassword_from_email_link]링크 로그인을 위한 기본 이메일 템플릿 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#default-email]다음 단계 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#next_steps]
+
+Firebase 인증을 사용하면 로그인 링크를 이메일로 전송해서 사용자가 바로 로그인하게 할 수 있습니다. 이 과정에서 사용자의
+이메일 주소도 확인됩니다.
+
+이메일로 로그인하는 경우 다음과 같은 많은 이점이 있습니다.
+
+편리한 가입 및 로그인
+여러 애플리케이션에서 비밀번호 재사용에 따른 위험이 적음(재사용하면 아무리 보안등급이 높은 비밀번호라 해도 보안이 취약해질 수 있음)
+사용자를 인증하는 동시에 사용자가 이메일 주소의 합법적인
+소유자인지 확인 가능
+액세스 가능한 이메일 계정만 있으면 로그인 가능 전화번호 또는
+소셜 미디어 계정 소유를 필요로 하지 않음
+사용자가 모바일 기기에서 번거롭게 비밀번호를 입력하거나
+기억할 필요 없이 안전하게 로그인 가능
+이전에 이메일 식별자(비밀번호 또는 제휴)로 로그인한 기존 사용자는 이메일만 사용하여 로그인하도록 업그레이드 가능. 일례로 사용자가
+비밀번호를 기억하지 못하더라도 비밀번호를 재설정하지 않고 계속
+로그인할 수 있습니다.
+
+시작하기 전에
+
+아직 복사하지 않았다면 JavaScript 프로젝트에 Firebase 추가 [https://firebase.google.com/docs/web/setup?hl=ko]의 설명대로 Firebase Console [https://console.firebase.google.com/?hl=ko]의 초기화 스니펫을 프로젝트에 복사합니다.
+
+Firebase 프로젝트에서 이메일 링크 로그인 사용 설정
+
+이메일 링크로 사용자를 로그인 처리하려면 우선 Firebase 프로젝트에서 이메일 제공업체 및 이메일 링크 로그인 방법을 사용 설정해야 합니다.
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다.
+로그인 방법 탭에서 이메일/비밀번호 제공업체를 사용 설정합니다. 이메일
+링크 로그인을 사용하려면 이메일/비밀번호 로그인이 사용 설정되어야 합니다.
+같은 섹션에서 이메일 링크(비밀번호가 없는 로그인) 로그인을
+사용 설정합니다.
+저장을 클릭합니다.
+
+사용자의 이메일 주소로 인증 링크 전송
+
+이 인증 과정을 시작하려면 사용자에게 이메일 주소를 제공하도록 요청하는 인터페이스를 제시하고 sendSignInLinkToEmail을 호출하여 Firebase가 사용자의 이메일에 인증 링크를 전송하도록 요청합니다.
+
+Firebase에 이메일 링크를 만드는 방법에 대한 지침을 제시하는 ActionCodeSettings 객체를 만듭니다. 다음 필드를 설정합니다.
+
+url: 삽입할 딥 링크 및 함께 전달할 추가 상태입니다.
+승인된 도메인의 Firebase Console 목록에 링크의 도메인을 추가해야 하며 로그인 방법 탭(인증 -> 설정)으로 이동하여 확인할 수 있습니다.
+
+중요: 2025년 4월 28일 이후에 생성된 프로젝트에서는 Firebase Authentication에 더 이상 기본적으로 localhost가 승인된 도메인으로 포함되지 않습니다. 프로덕션 프로젝트에서는 localhost를 사용하지 않는 것이 좋습니다. localhost를 승인하는 경우 설정 페이지의 승인된 도메인에서 도메인 추가를 클릭하여 수동으로 추가할 수 있습니다.
+
+android 및 ios: Firebase Authentication이 Android 또는 Apple 기기에서 열리는 웹 전용 링크 또는 모바일 링크를 만들어야 하는지 결정하는 데 도움이 됩니다.
+handleCodeInApp: true로 설정합니다. 다른 대역 외 이메일 작업(비밀번호 재설정 및 이메일 인증)과 달리 이 로그인 작업은 항상 앱에서 완료해야 합니다. 그 이유는 인증 과정 마지막에 사용자가 로그인하고 사용자의 인증 상태를 앱에서 유지해야 하기 때문입니다.
+linkDomain: 프로젝트에 대해 커스텀 Hosting 링크 도메인이 정의된 경우 지정된 모바일 앱에서 링크를 열 때 사용할 도메인을 지정합니다. 그러지 않으면 기본 도메인이 자동으로 선택됩니다(예: PROJECT_ID.firebaseapp.com).
+dynamicLinkDomain: 지원 중단되었습니다. 이 파라미터를 지정하지 마세요.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-modular-api] ---
+const actionCodeSettings = {
+// URL you want to redirect back to. The domain (www.example.com) for this
+// URL must be in the authorized domains list in the Firebase Console.
+url: 'https://www.example.com/finishSignUp?cartId=1234',
+// This must be true.
+handleCodeInApp: true,
+iOS: {
+bundleId: 'com.example.ios'
+},
+android: {
+packageName: 'com.example.android',
+installApp: true,
+minimumVersion: '12'
+},
+// The domain must be configured in Firebase Hosting and owned by the project.
+linkDomain: 'custom-domain.com'
+};
+auth_email_link_actioncode_settings.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/email-link-auth/auth_email_link_actioncode_settings.js#L8-L24]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-namespaced-api] ---
+var actionCodeSettings = {
+// URL you want to redirect back to. The domain (www.example.com) for this
+// URL must be in the authorized domains list in the Firebase Console.
+url: 'https://www.example.com/finishSignUp?cartId=1234',
+// This must be true.
+handleCodeInApp: true,
+iOS: {
+bundleId: 'com.example.ios'
+},
+android: {
+packageName: 'com.example.android',
+installApp: true,
+minimumVersion: '12'
+},
+dynamicLinkDomain: 'example.page.link'
+};
+email-link-auth.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/email-link-auth.js#L11-L26]
+
+ActionCodeSettings에 대해 자세히 알아보려면 이메일 작업의 상태 전달 [https://firebase.google.com/docs/auth/web/passing-state-in-email-actions?hl=ko#passing_statecontinue_url_in_email_actions] 섹션을 참조하세요.
+사용자에게 이메일 주소 입력을 요청합니다.
+사용자의 이메일에 인증 링크를 전송하고 사용자가 같은 기기에서 이메일 로그인을 완료할 경우를 대비해 사용자의 이메일을 저장합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-modular-api] ---
+import { getAuth, sendSignInLinkToEmail } from "firebase/auth";
+
+const auth = getAuth();
+sendSignInLinkToEmail(auth, email, actionCodeSettings)
+.then(() => {
+// The link was successfully sent. Inform the user.
+// Save the email locally so you don't need to ask the user for it again
+// if they open the link on the same device.
+window.localStorage.setItem('emailForSignIn', email);
+// ...
+})
+.catch((error) => {
+const errorCode = error.code;
+const errorMessage = error.message;
+// ...
+});
+auth_email_link_send.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/email-link-auth/auth_email_link_send.js#L8-L23]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-namespaced-api] ---
+firebase.auth().sendSignInLinkToEmail(email, actionCodeSettings)
+.then(() => {
+// The link was successfully sent. Inform the user.
+// Save the email locally so you don't need to ask the user for it again
+// if they open the link on the same device.
+window.localStorage.setItem('emailForSignIn', email);
+// ...
+})
+.catch((error) => {
+var errorCode = error.code;
+var errorMessage = error.message;
+// ...
+});
+email-link-auth.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/email-link-auth.js#L32-L44]
+
+이메일 링크로 로그인 완료
+
+보안 문제
+
+의도하지 않은 사용자나 기기를 통해 로그인 링크가 사용되는 것을 방지하기 위해 Firebase 인증에서는 로그인 과정을 완료할 때 사용자의 이메일 주소를 입력해야 합니다. 로그인하려면 이 이메일 주소가 처음에 로그인 링크를
+보낸 주소와 일치해야 합니다.
+
+링크를 요청한 기기에서 로그인 링크를 여는 사용자를 위해 이 과정을
+간소화할 수 있습니다. 예를 들어 로그인 이메일을 보낼 때 localStorage
+또는 쿠키를 사용하여 사용자의 이메일 주소를 로컬에 저장하면 됩니다. 그런 다음 이 이메일 주소를 사용하여 이 과정을 완료합니다.
+세션 인젝션의 위험이 있으므로 사용자의 이메일을
+리디렉션 URL 매개변수에서 전달해서는 안 되며 재사용해서도 안 됩니다.
+
+로그인이 완료되면 확인되지 않은 이전 로그인 메커니즘은 사용자에게서
+모두 삭제되고 기존 세션은 무효화됩니다.
+예를 들어 누군가가 이전에 같은 이메일과 비밀번호로 확인되지 않은 계정을 만든 경우 이 사용자의 비밀번호는 삭제됩니다. 이는 명의를 도용해 소유권을 주장하고 확인되지 않은 계정을 만들었던 사람이 이 이메일과 비밀번호로 다시 로그인하는 것을 방지하기 위해서입니다.
+
+또한 중개 서버에서 링크를 가로채지 않도록 프로덕션 단계에서 HTTPS URL을 사용해야 합니다.
+
+웹 페이지에서 로그인 완료
+
+이메일 링크 딥 링크의 형식은 대역 외 이메일 작업에 사용된 형식 [https://firebase.google.com/docs/auth/custom-email-handler?hl=ko#create_the_email_action_handler_page]과 같습니다. 이러한 작업에는 이메일 인증, 비밀번호 재설정, 이메일 변경 취소 등이 있습니다.
+Firebase 인증에서는 이메일 링크를 사용한 로그인 링크인지 간편하게 확인할 수 있도록 isSignInWithEmailLink API를 제공합니다.
+
+방문 페이지에서 로그인을 완료하려면 사용자의 이메일과 1회용 코드가 포함된
+실제 이메일 링크를 사용하여 signInWithEmailLink를 호출합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-modular-api] ---
+import { getAuth, isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
+
+// Confirm the link is a sign-in with email link.
+const auth = getAuth();
+if (isSignInWithEmailLink(auth, window.location.href)) {
+// Additional state parameters can also be passed via URL.
+// This can be used to continue the user's intended action before triggering
+// the sign-in operation.
+// Get the email if available. This should be available if the user completes
+// the flow on the same device where they started it.
+let email = window.localStorage.getItem('emailForSignIn');
+if (!email) {
+// User opened the link on a different device. To prevent session fixation
+// attacks, ask the user to provide the associated email again. For example:
+email = window.prompt('Please provide your email for confirmation');
+}
+// The client SDK will parse the code from the link for you.
+signInWithEmailLink(auth, email, window.location.href)
+.then((result) => {
+// Clear email from storage.
+window.localStorage.removeItem('emailForSignIn');
+// You can access the new user by importing getAdditionalUserInfo
+// and calling it with result:
+// getAdditionalUserInfo(result)
+// You can access the user's profile via:
+// getAdditionalUserInfo(result)?.profile
+// You can check if the user is new or existing:
+// getAdditionalUserInfo(result)?.isNewUser
+})
+.catch((error) => {
+// Some error occurred, you can inspect the code: error.code
+// Common errors could be invalid email and invalid or expired OTPs.
+});
+}
+email_link_complete.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/email-link-auth/email_link_complete.js#L8-L41]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-namespaced-api] ---
+// Confirm the link is a sign-in with email link.
+if (firebase.auth().isSignInWithEmailLink(window.location.href)) {
+// Additional state parameters can also be passed via URL.
+// This can be used to continue the user's intended action before triggering
+// the sign-in operation.
+// Get the email if available. This should be available if the user completes
+// the flow on the same device where they started it.
+var email = window.localStorage.getItem('emailForSignIn');
+if (!email) {
+// User opened the link on a different device. To prevent session fixation
+// attacks, ask the user to provide the associated email again. For example:
+email = window.prompt('Please provide your email for confirmation');
+}
+// The client SDK will parse the code from the link for you.
+firebase.auth().signInWithEmailLink(email, window.location.href)
+.then((result) => {
+// Clear email from storage.
+window.localStorage.removeItem('emailForSignIn');
+// You can access the new user via result.user
+// Additional user info profile not available via:
+// result.additionalUserInfo.profile == null
+// You can check if the user is new or existing:
+// result.additionalUserInfo.isNewUser
+})
+.catch((error) => {
+// Some error occurred, you can inspect the code: error.code
+// Common errors could be invalid email and invalid or expired OTPs.
+});
+}
+email-link-auth.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/email-link-auth.js#L50-L78]
+
+모바일 앱에서 로그인 완료
+
+경고: 2025년 8월 25일에 Firebase Dynamic Links가 종료되면 다음 세 가지 Firebase Authentication 기능이 영향을 받습니다. 모바일 앱의 이메일 링크 인증, 이전 버전의 Authentication SDK를 사용하는 Android 앱의 OAuth 흐름, 웹 앱의 Cordova OAuth 지원입니다. Dynamic Links 종료 후 이러한 기능을 사용하려면 최신 SDK 버전을 사용하도록 마이그레이션하고 몇 가지 추가 단계를 완료하세요.
+
+자세한 내용과 마이그레이션 안내는 Dynamic Links 지원 중단 FAQ [https://firebase.google.com/support/dynamic-links-faq?hl=ko#impacts-on-email-link-authentication]를 참조하세요.
+
+Firebase Authentication에서는 Firebase Hosting을 사용하여 모바일 기기로 이메일 링크를 보냅니다. 모바일 애플리케이션을 통해 로그인을 완료하는 경우, 웹 과정에서처럼 애플리케이션에서 수신 애플리케이션 링크를 감지하고 기본 딥 링크를 파싱한 다음 로그인을 완료하도록 구성해야 합니다.
+
+Android 애플리케이션에서 이메일 링크를 사용한 로그인 처리 방법을 자세히 알아보려면 Android 가이드 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko]를 참조하세요.
+
+Apple 애플리케이션에서 이메일 링크를 사용한 로그인 처리 방법을 자세히 알아보려면 Apple 플랫폼 가이드 [https://firebase.google.com/docs/auth/ios/email-link-auth?hl=ko]를 참조하세요.
+
+이메일 링크를 사용하여 연결/재인증
+
+기존 사용자에게도 이 인증 방법을 연결할 수 있습니다. 예를 들어
+이전에 전화번호 등 다른 제공업체로 인증된 사용자의 경우
+기존 사용자 계정에 이 로그인 방법을 추가할 수 있습니다.
+
+이 경우 작업 뒷부분이 달라집니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-modular-api] ---
+import { getAuth, linkWithCredential, EmailAuthProvider } from "firebase/auth";
+
+// Construct the email link credential from the current URL.
+const credential = EmailAuthProvider.credentialWithLink(
+email, window.location.href);
+
+// Link the credential to the current user.
+const auth = getAuth();
+linkWithCredential(auth.currentUser, credential)
+.then((usercred) => {
+// The provider is now successfully linked.
+// The phone user can now sign in with their phone number or email.
+})
+.catch((error) => {
+// Some error occurred.
+});
+auth_email_link_link.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/email-link-auth/auth_email_link_link.js#L8-L23]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-namespaced-api] ---
+// Construct the email link credential from the current URL.
+var credential = firebase.auth.EmailAuthProvider.credentialWithLink(
+email, window.location.href);
+
+// Link the credential to the current user.
+firebase.auth().currentUser.linkWithCredential(credential)
+.then((usercred) => {
+// The provider is now successfully linked.
+// The phone user can now sign in with their phone number or email.
+})
+.catch((error) => {
+// Some error occurred.
+});
+email-link-auth.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/email-link-auth.js#L84-L96]
+
+민감한 작업을 실행하기 전에 이메일 링크 사용자를 재인증하는 경우에도 사용할 수 있습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-modular-api] ---
+import { getAuth, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+
+// Construct the email link credential from the current URL.
+const credential = EmailAuthProvider.credentialWithLink(
+email, window.location.href);
+
+// Re-authenticate the user with this credential.
+const auth = getAuth();
+reauthenticateWithCredential(auth.currentUser, credential)
+.then((usercred) => {
+// The user is now successfully re-authenticated and can execute sensitive
+// operations.
+})
+.catch((error) => {
+// Some error occurred.
+});
+auth_email_link_reauth.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/email-link-auth/auth_email_link_reauth.js#L8-L23]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-namespaced-api] ---
+// Construct the email link credential from the current URL.
+var credential = firebase.auth.EmailAuthProvider.credentialWithLink(
+email, window.location.href);
+
+// Re-authenticate the user with this credential.
+firebase.auth().currentUser.reauthenticateWithCredential(credential)
+.then((usercred) => {
+// The user is now successfully re-authenticated and can execute sensitive
+// operations.
+})
+.catch((error) => {
+// Some error occurred.
+});
+email-link-auth.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/email-link-auth.js#L102-L114]
+
+하지만 원래의 사용자가 로그인하지 않은 다른 기기에서 인증 과정이 종료되면 이 인증 과정이 완료되지 않을 수 있습니다. 이러한 경우 같은 기기에서
+링크를 열도록 사용자에게 오류를 표시할 수 있습니다. 링크에 일부 상태를 전달하여
+작업 유형 및 사용자 UID에 대한 정보를 표시할 수 있습니다.
+
+지원 중단됨: 이메일-비밀번호 로그인과 이메일 링크 로그인 구별
+
+2023년 9월 15일 이후에 프로젝트를 만든 경우 이메일 열거 보호가 기본적으로 사용 설정됩니다. 이 기능은 프로젝트의 사용자 계정 보안을 개선하지만, 이전에 식별자 우선 인증 과정을 구현하는 데 권장되었던 fetchSignInMethodsForEmail() 메서드는 사용 중지됩니다.
+
+프로젝트에서 이메일 열거 보호를 사용 중지할 수 있지만 그렇게 하지 않는 것이 좋습니다.
+
+자세한 내용은 이메일 열거 보호 [https://cloud.google.com/identity-platform/docs/admin/email-enumeration-protection?hl=ko]에 대한 문서를 참조하세요.
+
+링크 로그인을 위한 기본 이메일 템플릿
+
+기본 이메일 템플릿에는 제목과 이메일 본문에 타임스탬프가 포함되어 있으므로 이후 이메일이 단일 대화목록으로 접히지 않고 링크가 숨겨지지 않습니다 [https://github.com/firebase/firebase-js-sdk/issues/2574].
+
+이 템플릿은 다음 언어에 적용됩니다.
+
+| 코드 | 언어 |
+| --- | --- |
+| ar | 아랍어 |
+| zh-CN | 중국어(간체) |
+| zh-TW | 중국어(번체) |
+| nl | 네덜란드어 |
+| en | 영어 |
+| en-GB | 영어(영국) |
+| fr | 프랑스어 |
+| de | 독일어 |
+| id | 인도네시아어 |
+| it | 이탈리아어 |
+| ja | 일본어 |
+| ko | 한국어 |
+| pl | 폴란드어 |
+| pt-BR | 포르투갈어(브라질) |
+| pt-PT | 포르투갈어(포르투갈) |
+| ru | 러시아어 |
+| es | 스페인어 |
+| es-419 | 스페인어(라틴아메리카) |
+| th | 태국어 |
+
+다음 단계
+
+사용자가 처음으로 로그인하면 신규 사용자 계정이 생성되고 사용자가 로그인할 때 사용한 사용자 인증 정보(사용자 이름과 비밀번호, 전화번호 또는 인증 제공업체 정보)에 연결됩니다. 이 신규 계정은 Firebase 프로젝트에 저장되며 사용자의 로그인 방법과 무관하게 프로젝트 내의 모든 앱에서 사용자 본인 확인에 사용할 수 있습니다.
+
+앱에서 사용자의 인증 상태를 파악할 때 권장하는 방법은 Auth 객체에 관찰자를 설정하는 것입니다. 그러면 User 객체로부터 사용자의 기본 프로필 정보를 가져올 수 있습니다. 사용자 관리 [https://firebase.google.com/docs/auth/web/manage-users?hl=ko]를 참조하세요.
+
+Firebase Realtime Database와 Cloud Storage 보안 규칙 [https://firebase.google.com/docs/database/security/user-security?hl=ko]의 auth 변수에서 로그인한 사용자의 고유 사용자 ID를 가져온 후 이 ID를 통해 사용자가 액세스할 수 있는 데이터를 관리할 수 있습니다.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결 [https://firebase.google.com/docs/auth/web/account-linking?hl=ko]하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+
+사용자를 로그아웃시키려면 signOut [https://firebase.google.com/docs/reference/js/auth?hl=ko#signout]을 호출합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-modular-api] ---
+import { getAuth, signOut } from "firebase/auth";
+
+const auth = getAuth();
+signOut(auth).then(() => {
+// Sign-out successful.
+}).catch((error) => {
+// An error happened.
+});
+auth_sign_out.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/index/auth_sign_out.js#L8-L15]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko#web-namespaced-api] ---
+firebase.auth().signOut().then(() => {
+// Sign-out successful.
+}).catch((error) => {
+// An error happened.
+});
+index.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/index.js#L33-L37]
+
+도움이 되었나요?
+
+의견 보내기

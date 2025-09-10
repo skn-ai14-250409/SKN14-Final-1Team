@@ -1,0 +1,123 @@
+Source URL: https://firebase.google.com/docs/auth/cpp/start?hl=ko
+Title: C++에서 Firebase 인증 시작
+bookmark_border
+
+의견 보내기
+
+C++에서 Firebase 인증 시작
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용Firebase에 C++ 프로젝트 연결 [https://firebase.google.com/docs/auth/cpp/start?hl=ko#connect_your_c_project_to_firebase]신규 사용자 가입 [https://firebase.google.com/docs/auth/cpp/start?hl=ko#sign_up_new_users]기존 사용자 로그인 [https://firebase.google.com/docs/auth/cpp/start?hl=ko#sign_in_existing_users]인증 상태 리스너 설정 및 계정 데이터 가져오기 [https://firebase.google.com/docs/auth/cpp/start?hl=ko#set_an_authentication_state_listener_and_get_account_data]다음 단계 [https://firebase.google.com/docs/auth/cpp/start?hl=ko#next_steps]
+
+Firebase Authentication을 사용하면 사용자가 앱에 로그인할 때 이메일 주소와 비밀번호를 통한 로그인 방법이나 Google 로그인, Facebook 로그인과 같은 제휴 ID 공급업체를 통한 로그인 등 1개 이상의 로그인 방법을 사용하여 로그인할 수 있습니다. 이 튜토리얼에서는 Firebase Authentication을 시작할 수 있도록 앱에 이메일 주소와 비밀번호를 통한 로그인을 추가하는 방법을 보여줍니다.
+
+Firebase에 C++ 프로젝트 연결
+
+Firebase Authentication [https://firebase.google.com/docs/reference/unity/namespace/firebase/auth?hl=ko]을 사용하려면 먼저 다음 작업을 해야 합니다.
+
+C++ 프로젝트를 등록하고 Firebase를 사용하도록 구성합니다.
+
+C++ 프로젝트에서 현재 Firebase를 사용하고 있다면 이미 등록되어 Firebase용으로 구성된 상태입니다.
+C++ 프로젝트에 Firebase C++ SDK [https://firebase.google.com/download/cpp?hl=ko]를 추가합니다.
+
+초기 설정 작업에 관한 자세한 안내는 C++ 프로젝트에 Firebase 추가 [https://firebase.google.com/docs/cpp/setup?hl=ko#note-select-platform]를 참조하세요.
+
+C++ 프로젝트에 Firebase를 추가할 때 Firebase Console [https://console.firebase.google.com/?hl=ko] 및 열려 있는 C++ 프로젝트 모두에서 작업을 수행해야 합니다. 예를 들어 Console에서 Firebase 구성 파일을 다운로드한 후 이 파일을 C++ 프로젝트로 옮기는 작업이 필요합니다.
+
+신규 사용자 가입
+
+신규 사용자가 자신의 이메일 주소와 비밀번호를 사용해 앱에 가입할 수 있는 양식을 만듭니다. 사용자가 양식을 작성하면 사용자가 입력한 이메일 주소와 비밀번호의 유효성을 검사한 후 CreateUserWithEmailAndPassword 메서드에 전달합니다.
+firebase::Future<firebase::auth::AuthResult> result =
+auth->CreateUserWithEmailAndPassword(email, password);
+
+계정 생성 작업의 상태를 확인하려면 CreateUserWithEmailAndPasswordLastResult Future 객체에 콜백을 등록하거나, 게임과 같이 주기적인 업데이트 루프를 갖는 앱을 개발하는 경우 업데이트 루프에서 상태를 폴링합니다.
+
+다음은 Future를 사용하는 예시입니다.
+firebase::Future<firebase::auth::AuthResult> result =
+auth->CreateUserWithEmailAndPasswordLastResult();
+
+// The lambda has the same signature as the callback function.
+result.OnCompletion(
+[](const firebase::Future<firebase::auth::AuthResult>& result,
+void* user_data) {
+// `user_data` is the same as &my_program_context, below.
+// Note that we can't capture this value in the [] because std::function
+// is not supported by our minimum compiler spec (which is pre C++11).
+MyProgramContext* program_context =
+static_cast<MyProgramContext*>(user_data);
+
+// Process create user result...
+(void)program_context;
+},
+&my_program_context);
+
+다음은 게임의 업데이트 루프에서 폴링을 사용하는
+예입니다.
+firebase::Future<firebase::auth::AuthResult> result =
+auth->CreateUserWithEmailAndPasswordLastResult();
+if (result.status() == firebase::kFutureStatusComplete) {
+if (result.error() == firebase::auth::kAuthErrorNone) {
+firebase::auth::AuthResult* auth_result = *result.result();
+printf("Create user succeeded for email %s\n", auth_result.user.email().c_str());
+} else {
+printf("Created user failed with error '%s'\n", result.error_message());
+}
+}
+
+기존 사용자 로그인
+
+기존 사용자가 자신의 이메일 주소와 비밀번호를 사용해 로그인할 수 있는 양식을 만듭니다. 사용자가 양식을 작성하면 SignInWithEmailAndPassword 메서드를 호출합니다.
+firebase::Future<firebase::auth::AuthResult> result =
+auth->SignInWithEmailAndPassword(email, password);
+
+가입 결과를 가져올 때와 같은 방법으로 로그인 작업의 결과를 가져옵니다.
+
+인증 상태 리스너 설정 및 계정 데이터 가져오기
+
+로그인 및 로그아웃 이벤트에 응답하려면 전역 인증 객체에 리스너를
+연결합니다. 이 리스너는 사용자의 로그인 상태가 변경될 때마다
+호출됩니다. 인증 객체가 완전히 초기화되고 네트워크 호출이 완료된 후에만 리스너가 실행되므로 리스너는 로그인한 사용자에 대한 정보를 가져오기에 가장 적합한 위치입니다.
+
+firebase::auth::AuthStateListener 추상 클래스를 구현하여 리스너를 만듭니다. 예를 들어 사용자가 로그인에 성공할 때 사용자에 대한 정보를 가져오는 리스너를 만드는 방법은 다음과 같습니다.
+class MyAuthStateListener : public firebase::auth::AuthStateListener {
+public:
+void OnAuthStateChanged(firebase::auth::Auth* auth) override {
+firebase::auth::User user = auth.current_user();
+if (user.is_valid()) {
+// User is signed in
+printf("OnAuthStateChanged: signed_in %s\n", user.uid().c_str());
+const std::string displayName = user.DisplayName();
+const std::string emailAddress = user.Email();
+const std::string photoUrl = user.PhotoUrl();
+} else {
+// User is signed out
+printf("OnAuthStateChanged: signed_out\n");
+}
+// ...
+}
+};
+
+firebase::auth::Auth 객체의 AddAuthStateListener 메서드를 사용하여 리스너를 연결합니다.
+MyAuthStateListener state_change_listener;
+auth->AddAuthStateListener(&state_change_listener);
+
+다음 단계
+
+다른 ID 공급업체 및 익명 게스트 계정에 대한 지원을 추가하는 방법을 알아보세요.
+
+Google 로그인 [https://firebase.google.com/docs/auth/cpp/google-signin?hl=ko]
+Facebook 로그인 [https://firebase.google.com/docs/auth/cpp/facebook-login?hl=ko]
+Apple 로그인 [https://firebase.google.com/docs/auth/cpp/apple?hl=ko]
+Twitter 로그인 [https://firebase.google.com/docs/auth/cpp/twitter-login?hl=ko]
+GitHub 로그인 [https://firebase.google.com/docs/auth/cpp/github-auth?hl=ko]
+Microsoft 로그인 [https://firebase.google.com/docs/auth/cpp/microsoft-oauth?hl=ko]
+Yahoo 로그인 [https://firebase.google.com/docs/auth/cpp/yahoo-oauth?hl=ko]
+익명 로그인 [https://firebase.google.com/docs/auth/cpp/anonymous-auth?hl=ko]
+전화 인증 [https://firebase.google.com/docs/auth/cpp/phone-auth?hl=ko]
+
+의견 보내기

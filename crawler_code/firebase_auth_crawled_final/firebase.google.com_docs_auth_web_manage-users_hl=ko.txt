@@ -1,0 +1,442 @@
+Source URL: https://firebase.google.com/docs/auth/web/manage-users?hl=ko
+Title: Firebase에서 사용자 관리하기
+bookmark_border
+
+의견 보내기
+
+Firebase에서 사용자 관리하기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용사용자 생성현재 로그인한 사용자 가져오기사용자 프로필 가져오기제공업체별 사용자 프로필 정보 가져오기사용자 프로필 업데이트사용자 이메일 주소 설정사용자에게 인증 메일 보내기사용자 비밀번호 설정비밀번호 재설정 이메일 보내기사용자 삭제하기사용자 재인증하기사용자 계정 가져오기
+
+사용자 생성
+
+Firebase 프로젝트에서 신규 사용자를 생성할 때는 createUserWithEmailAndPassword [https://firebase.google.com/docs/auth/web/password-auth?hl=ko#create_a_password-based_account] 메서드를 호출하는 방법과 Google 로그인 [https://firebase.google.com/docs/auth/web/google-signin?hl=ko] 또는 Facebook 로그인 [https://firebase.google.com/docs/auth/web/facebook-login?hl=ko]과 같은 제휴 ID 공급업체를 이용해 사용자의 최초 로그인을 처리하는 방법이 있습니다.
+
+또한 Firebase Console [https://console.firebase.google.com/?hl=ko] '인증' 섹션의 '사용자' 페이지에서 또는 Admin SDK [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko#create_a_user]를 활용하여 비밀번호 인증을 사용하는 신규 사용자를 생성할 수 있습니다.
+
+현재 로그인한 사용자 가져오기
+
+현재 사용자를 가져올 때 권장하는 방법은 다음과 같이 Auth 개체에 관찰자를 설정하는 것입니다.
+
+--- 탭: Web ---
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+
+const auth = getAuth();
+onAuthStateChanged(auth, (user) => {
+if (user) {
+// User is signed in, see docs for a list of available properties
+// https://firebase.google.com/docs/reference/js/auth.user
+const uid = user.uid;
+// ...
+} else {
+// User is signed out
+// ...
+}
+});
+auth_state_listener.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/index/auth_state_listener.js#L8-L21]
+
+--- 탭: Web ---
+firebase.auth().onAuthStateChanged((user) => {
+if (user) {
+// User is signed in, see docs for a list of available properties
+// https://firebase.google.com/docs/reference/js/v8/firebase.User
+var uid = user.uid;
+// ...
+} else {
+// User is signed out
+// ...
+}
+});
+index.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/index.js#L43-L53]
+
+관찰자를 사용하면 현재 사용자를 가져올 때 Auth 객체가 중간 단계(초기화 등)에 있지 않도록 할 수 있습니다. signInWithRedirect를 사용하면 onAuthStateChanged 관찰자는
+getRedirectResult가 해결될 때까지 기다린 후에 트리거됩니다.
+
+currentUser 속성을 사용하여 현재 로그인한 사용자를 가져올 수도 있습니다. 사용자가 로그인 상태가 아니라면 currentUser 값이 null입니다.
+
+--- 탭: Web ---
+import { getAuth } from "firebase/auth";
+
+const auth = getAuth();
+const user = auth.currentUser;
+
+if (user) {
+// User is signed in, see docs for a list of available properties
+// https://firebase.google.com/docs/reference/js/auth.user
+// ...
+} else {
+// No user is signed in.
+}
+auth_current_user.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/index/auth_current_user.js#L8-L19]
+
+--- 탭: Web ---
+const user = firebase.auth().currentUser;
+
+if (user) {
+// User is signed in, see docs for a list of available properties
+// https://firebase.google.com/docs/reference/js/v8/firebase.User
+// ...
+} else {
+// No user is signed in.
+}
+index.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/index.js#L59-L67]
+
+참고: auth 객체의 초기화가 완료되지 않아 currentUser가 null일 수도 있습니다. 관찰자를 사용해 사용자의 로그인 상태를 추적하면 이런 상황을 처리할 필요가 없습니다.
+사용자 프로필 가져오기
+
+사용자의 프로필 정보를 가져오려면 User 인스턴스의 속성을 사용합니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web ---
+import { getAuth } from "firebase/auth";
+
+const auth = getAuth();
+const user = auth.currentUser;
+if (user !== null) {
+// The user object has basic properties such as display name, email, etc.
+const displayName = user.displayName;
+const email = user.email;
+const photoURL = user.photoURL;
+const emailVerified = user.emailVerified;
+
+// The user's ID, unique to the Firebase project. Do NOT use
+// this value to authenticate with your backend server, if
+// you have one. Use User.getToken() instead.
+const uid = user.uid;
+}
+auth_get_user_profile.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/manage/auth_get_user_profile.js#L8-L23]
+
+--- 탭: Web ---
+const user = firebase.auth().currentUser;
+if (user !== null) {
+// The user object has basic properties such as display name, email, etc.
+const displayName = user.displayName;
+const email = user.email;
+const photoURL = user.photoURL;
+const emailVerified = user.emailVerified;
+
+// The user's ID, unique to the Firebase project. Do NOT use
+// this value to authenticate with your backend server, if
+// you have one. Use User.getIdToken() instead.
+const uid = user.uid;
+}
+manage.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/manage.js#L9-L21]
+
+중요: displayName 및 photoURL처럼 사용자에게 표시될 수 있는 UI 값을 설정하고 표시할 때 주의하세요. API는 XSS 유형의 잠재적 공격을 차단하기 위해 이 값을 필터링하지 않습니다.
+제공업체별 사용자 프로필 정보 가져오기
+
+사용자에게 연결된 로그인 제공업체로부터 프로필 정보를 가져오려면 providerData 속성을 사용합니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web ---
+import { getAuth } from "firebase/auth";
+
+const auth = getAuth();
+const user = auth.currentUser;
+
+if (user !== null) {
+user.providerData.forEach((profile) => {
+console.log("Sign-in provider: " + profile.providerId);
+console.log("  Provider-specific UID: " + profile.uid);
+console.log("  Name: " + profile.displayName);
+console.log("  Email: " + profile.email);
+console.log("  Photo URL: " + profile.photoURL);
+});
+}
+auth_get_user_profile_provider.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/manage/auth_get_user_profile_provider.js#L8-L21]
+
+--- 탭: Web ---
+const user = firebase.auth().currentUser;
+
+if (user !== null) {
+user.providerData.forEach((profile) => {
+console.log("Sign-in provider: " + profile.providerId);
+console.log("  Provider-specific UID: " + profile.uid);
+console.log("  Name: " + profile.displayName);
+console.log("  Email: " + profile.email);
+console.log("  Photo URL: " + profile.photoURL);
+});
+}
+manage.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/manage.js#L27-L37]
+
+사용자 프로필 업데이트
+
+사용자의 표시 이름 및 프로필 사진 URL 등의 기본 프로필 정보를 업데이트할 때는 updateProfile 메서드를 사용합니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web ---
+import { getAuth, updateProfile } from "firebase/auth";
+const auth = getAuth();
+updateProfile(auth.currentUser, {
+displayName: "Jane Q. User", photoURL: "https://example.com/jane-q-user/profile.jpg"
+}).then(() => {
+// Profile updated!
+// ...
+}).catch((error) => {
+// An error occurred
+// ...
+});
+auth_update_user_profile.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/manage/auth_update_user_profile.js#L8-L18]
+
+--- 탭: Web ---
+const user = firebase.auth().currentUser;
+
+user.updateProfile({
+displayName: "Jane Q. User",
+photoURL: "https://example.com/jane-q-user/profile.jpg"
+}).then(() => {
+// Update successful
+// ...
+}).catch((error) => {
+// An error occurred
+// ...
+});
+manage.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/manage.js#L43-L54]
+
+사용자 이메일 주소 설정
+
+updateEmail 메서드로 사용자의 이메일 주소를 설정할 수 있습니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web ---
+import { getAuth, updateEmail } from "firebase/auth";
+const auth = getAuth();
+updateEmail(auth.currentUser, "user@example.com").then(() => {
+// Email updated!
+// ...
+}).catch((error) => {
+// An error occurred
+// ...
+});
+auth_update_user_email.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/manage/auth_update_user_email.js#L8-L16]
+
+--- 탭: Web ---
+const user = firebase.auth().currentUser;
+
+user.updateEmail("user@example.com").then(() => {
+// Update successful
+// ...
+}).catch((error) => {
+// An error occurred
+// ...
+});
+manage.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/manage.js#L60-L68]
+
+중요: 사용자의 이메일 주소를 설정하려면 사용자가 최근에 로그인한 적이 있어야 합니다.
+사용자 재인증하기 [https://firebase.google.com/docs/auth/web/manage-users?hl=ko#re-authenticate_a_user]를 참조하세요.
+사용자에게 인증 메일 보내기
+
+sendEmailVerification 메서드로 사용자에게 주소 인증 메일을 보낼 수 있습니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web ---
+import { getAuth, sendEmailVerification } from "firebase/auth";
+
+const auth = getAuth();
+sendEmailVerification(auth.currentUser)
+.then(() => {
+// Email verification sent!
+// ...
+});
+auth_send_email_verification.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/email/auth_send_email_verification.js#L8-L15]
+
+--- 탭: Web ---
+firebase.auth().currentUser.sendEmailVerification()
+.then(() => {
+// Email verification sent!
+// ...
+});
+email.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/email.js#L44-L48]
+
+또한 Firebase Console [https://console.firebase.google.com/?hl=ko] '인증' 섹션의 '이메일 템플릿' 페이지에서 이메일 템플릿을 맞춤설정할 수 있습니다.
+Firebase 고객센터의 이메일 템플릿 [https://support.google.com/firebase/answer/7000714?hl=ko] 항목을 참조하세요.
+
+인증 메일을 보낼 때 연결 URL [https://firebase.google.com/docs/auth/web/passing-state-in-email-actions?hl=ko]을
+통해 상태를 전달하여 앱으로 다시 리디렉션할
+수도 있습니다.
+
+또한 이메일을 보내기 전에 인증 인스턴스의 언어 코드를 업데이트하면
+인증 메일을 현지화할 수 있습니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web ---
+import { getAuth } from "firebase/auth";
+
+const auth = getAuth();
+auth.languageCode = 'it';
+// To apply the default browser preference instead of explicitly setting it.
+// auth.useDeviceLanguage();
+auth_set_language_code.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/index/auth_set_language_code.js#L8-L13]
+
+--- 탭: Web ---
+firebase.auth().languageCode = 'it';
+// To apply the default browser preference instead of explicitly setting it.
+// firebase.auth().useDeviceLanguage();
+index.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/index.js#L73-L75]
+
+사용자 비밀번호 설정
+
+updatePassword 메서드로 사용자의 비밀번호를 설정할 수 있습니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web ---
+import { getAuth, updatePassword } from "firebase/auth";
+
+const auth = getAuth();
+
+const user = auth.currentUser;
+const newPassword = getASecureRandomPassword();
+
+updatePassword(user, newPassword).then(() => {
+// Update successful.
+}).catch((error) => {
+// An error ocurred
+// ...
+});
+auth_update_password.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/manage/auth_update_password.js#L8-L20]
+
+--- 탭: Web ---
+const user = firebase.auth().currentUser;
+const newPassword = getASecureRandomPassword();
+
+user.updatePassword(newPassword).then(() => {
+// Update successful.
+}).catch((error) => {
+// An error ocurred
+// ...
+});
+manage.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/manage.js#L91-L99]
+
+중요: 사용자의 비밀번호를 설정하려면 사용자가 최근에 로그인한 적이 있어야 합니다. 사용자 재인증하기 [https://firebase.google.com/docs/auth/web/manage-users?hl=ko#re-authenticate_a_user]를 참조하세요.
+비밀번호 재설정 이메일 보내기
+
+sendPasswordResetEmail 메서드로 사용자에게 비밀번호 재설정 이메일을 보낼 수 있습니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web ---
+import { getAuth, sendPasswordResetEmail } from "firebase/auth";
+
+const auth = getAuth();
+sendPasswordResetEmail(auth, email)
+.then(() => {
+// Password reset email sent!
+// ..
+})
+.catch((error) => {
+const errorCode = error.code;
+const errorMessage = error.message;
+// ..
+});
+auth_send_password_reset.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/email/auth_send_password_reset.js#L8-L20]
+
+--- 탭: Web ---
+firebase.auth().sendPasswordResetEmail(email)
+.then(() => {
+// Password reset email sent!
+// ..
+})
+.catch((error) => {
+var errorCode = error.code;
+var errorMessage = error.message;
+// ..
+});
+email.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/email.js#L55-L64]
+
+또한 Firebase Console [https://console.firebase.google.com/?hl=ko] '인증' 섹션의 '이메일 템플릿' 페이지에서 이메일 템플릿을 맞춤설정할 수 있습니다.
+Firebase 고객센터의 이메일 템플릿 [https://support.google.com/firebase/answer/7000714?hl=ko] 항목을 참조하세요.
+
+비밀번호 재설정 이메일을 보낼 때 연결 URL [https://firebase.google.com/docs/auth/web/passing-state-in-email-actions?hl=ko]을 통해 상태를 전달하여 앱으로 다시 리디렉션할 수도 있습니다.
+
+또한 이메일을 보내기 전에 인증 인스턴스의 언어 코드를 업데이트하면
+비밀번호 재설정 이메일을 현지화할 수 있습니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web ---
+import { getAuth } from "firebase/auth";
+
+const auth = getAuth();
+auth.languageCode = 'it';
+// To apply the default browser preference instead of explicitly setting it.
+// auth.useDeviceLanguage();
+auth_set_language_code.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/index/auth_set_language_code.js#L8-L13]
+
+--- 탭: Web ---
+firebase.auth().languageCode = 'it';
+// To apply the default browser preference instead of explicitly setting it.
+// firebase.auth().useDeviceLanguage();
+index.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/index.js#L73-L75]
+
+또한 Firebase Console에서 비밀번호 재설정 이메일을 보낼 수도 있습니다.
+
+사용자 삭제하기
+
+delete 메서드로 사용자 계정을 삭제할 수 있습니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web ---
+import { getAuth, deleteUser } from "firebase/auth";
+
+const auth = getAuth();
+const user = auth.currentUser;
+
+deleteUser(user).then(() => {
+// User deleted.
+}).catch((error) => {
+// An error ocurred
+// ...
+});
+auth_delete_user.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/manage/auth_delete_user.js#L8-L18]
+
+--- 탭: Web ---
+const user = firebase.auth().currentUser;
+
+user.delete().then(() => {
+// User deleted.
+}).catch((error) => {
+// An error ocurred
+// ...
+});
+manage.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/manage.js#L119-L126]
+
+중요: 사용자를 삭제하려면 사용자가 최근에 로그인한 적이 있어야 합니다. 사용자 재인증하기 [https://firebase.google.com/docs/auth/web/manage-users?hl=ko#re-authenticate_a_user]를 참조하세요.
+또한 Firebase Console [https://console.firebase.google.com/?hl=ko] '인증' 섹션의 '사용자' 페이지에서 사용자를 삭제할 수도 있습니다.
+
+사용자 재인증하기
+
+계정 삭제 [https://firebase.google.com/docs/auth/web/manage-users?hl=ko#delete_a_user], 기본 이메일 주소 설정 [https://firebase.google.com/docs/auth/web/manage-users?hl=ko#set_a_users_email_address], 비밀번호 변경 [https://firebase.google.com/docs/auth/web/manage-users?hl=ko#set_a_users_password]과 같이 보안에 민감한 작업을 하려면 사용자가 최근에 로그인한 적이 있어야 합니다. 이런 작업을 할 때 사용자가 너무 오래 전에 로그인했다면 오류가 발생하면서 작업이 실패합니다.
+이때에는 사용자에게 새로운 로그인 인증 정보를 받은 다음 이 정보를 reauthenticateWithCredential에 전달하여 사용자를 재인증해야 합니다.
+예를 들면 다음과 같습니다.
+
+--- 탭: Web ---
+import { getAuth, reauthenticateWithCredential } from "firebase/auth";
+
+const auth = getAuth();
+const user = auth.currentUser;
+
+// TODO(you): prompt the user to re-provide their sign-in credentials
+const credential = promptForCredentials();
+
+reauthenticateWithCredential(user, credential).then(() => {
+// User re-authenticated.
+}).catch((error) => {
+// An error ocurred
+// ...
+});
+auth_reauth_with_credential.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/manage/auth_reauth_with_credential.js#L8-L21]
+
+--- 탭: Web ---
+const user = firebase.auth().currentUser;
+
+// TODO(you): prompt the user to re-provide their sign-in credentials
+const credential = promptForCredentials();
+
+user.reauthenticateWithCredential(credential).then(() => {
+// User re-authenticated.
+}).catch((error) => {
+// An error occurred
+// ...
+});
+manage.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/manage.js#L139-L149]
+
+사용자 계정 가져오기
+
+Firebase CLI의 auth:import [https://firebase.google.com/docs/cli/auth-import?hl=ko] 명령어를 사용하여 파일에서 Firebase 프로젝트로 사용자 계정을 가져올 수 있습니다. 예를 들면 다음과 같습니다.
+firebase auth:import users.json --hash-algo=scrypt --rounds=8 --mem-cost=14
+
+의견 보내기
