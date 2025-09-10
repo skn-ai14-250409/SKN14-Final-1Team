@@ -1,0 +1,527 @@
+Source URL: https://firebase.google.com/docs/firestore/manage-data/enable-offline?hl=ko
+Title: 오프라인으로 데이터에 액세스
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+오프라인으로 데이터에 액세스
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Cloud Firestore는 오프라인 데이터 지속성을 지원합니다. 이 기능은 기기가 오프라인 상태일 때 앱에서 데이터에 액세스할 수 있도록 앱에서 자주 사용하는 Cloud Firestore 데이터의 사본을 캐시합니다. 캐시된 데이터를 쓰고, 읽고, 리슨하고, 쿼리할 수 있습니다. 기기가 다시 온라인 상태가 되면 Cloud Firestore는 앱이 적용한 로컬 변경사항을 Cloud Firestore 백엔드에 동기화합니다.
+참고: 오프라인 지속성은 Android, Apple, 웹 앱에서만 지원됩니다.오프라인 지속성을 사용하기 위해 Cloud Firestore 데이터에 액세스할 때 사용하는 코드를 변경할 필요는 없습니다. 오프라인 지속성을 사용 설정하면 Cloud Firestore 클라이언트 라이브러리는 온라인 및 오프라인 데이터 액세스를 자동으로 관리하고 기기가 다시 온라인 상태가 되면 로컬 데이터를 동기화합니다.
+
+오프라인 지속성 구성
+
+Cloud Firestore를 초기화할 때 오프라인 지속성을 사용 설정하거나 중지할 수 있습니다.
+
+Android 및 Apple 플랫폼에서는 오프라인 지속성이 기본적으로 사용 설정됩니다. 지속성을 사용 중지하려면 PersistenceEnabled 옵션을 false로 설정하세요.
+웹에서는 오프라인 지속성이 기본적으로 사용 중지됩니다. 지속성을 사용 설정하려면 enablePersistence 메서드를 호출하세요. Cloud Firestore의 캐시는 세션 간에 자동으로 삭제되지 않습니다. 따라서 웹 앱에서 중요한 정보를 처리하는 경우 지속성을 사용 설정하기 전에 신뢰할 수 있는 기기인지 사용자에게 확인해야 합니다.중요: 웹의 경우 오프라인 지속성은 Chrome, Safari, Firefox 웹브라우저에서만 지원합니다.
+
+Web
+
+트리 쉐이킹 작업이 가능한 웹 v9 모듈형 SDK에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 버전 8에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+// Memory cache is the default if no config is specified.
+initializeFirestore(app);
+
+// This is the default behavior if no persistence is specified.
+initializeFirestore(app, {localCache: memoryLocalCache()});
+
+// Defaults to single-tab persistence if no tab manager is specified.
+initializeFirestore(app, {localCache: persistentLocalCache(/*settings*/{})});
+
+// Same as `initializeFirestore(app, {localCache: persistentLocalCache(/*settings*/{})})`,
+// but more explicit about tab management.
+initializeFirestore(app,
+{localCache:
+persistentLocalCache(/*settings*/{tabManager: persistentSingleTabManager()})
+});
+
+// Use multi-tab IndexedDb persistence.
+initializeFirestore(app,
+{localCache:
+persistentLocalCache(/*settings*/{tabManager: persistentMultipleTabManager()})
+});
+
+Web
+
+트리 쉐이킹 작업이 가능한 웹 v9 모듈형 SDK에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 버전 8에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+firebase.firestore().enablePersistence()
+.catch((err) => {
+if (err.code == 'failed-precondition') {
+// Multiple tabs open, persistence can only be enabled
+// in one tab at a a time.
+// ...
+} else if (err.code == 'unimplemented') {
+// The current browser does not support all of the
+// features required to enable persistence
+// ...
+}
+});
+// Subsequent queries will use persistence, if it was enabled successfullytest.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L63-L75]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let settings = FirestoreSettings()
+
+// Use memory-only cache
+settings.cacheSettings =
+MemoryCacheSettings(garbageCollectorSettings: MemoryLRUGCSettings())
+
+// Use persistent disk cache, with 100 MB cache size
+settings.cacheSettings = PersistentCacheSettings(sizeBytes: 100 * 1024 * 1024 as NSNumber)
+
+// Any additional options
+// ...
+
+// Enable offline data persistence
+let db = Firestore.firestore()
+db.settings = settingsViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L1089-L1103]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRFirestoreSettings *settings = [[FIRFirestoreSettings alloc] init];
+
+// Use memory-only cache
+settings.cacheSettings = [[FIRMemoryCacheSettings alloc]
+initWithGarbageCollectorSettings:[[FIRMemoryLRUGCSettings alloc] init]];
+
+// Use persistent disk cache (default behavior)
+// This example uses 100 MB.
+settings.cacheSettings = [[FIRPersistentCacheSettings alloc]
+initWithSizeBytes:@(100 * 1024 * 1024)];
+
+// Any additional options
+// ...
+
+// Enable offline data persistence
+FIRFirestore *db = [FIRFirestore firestore];
+db.settings = settings;ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L1005-L1021]
+
+Kotlin
+val settings = firestoreSettings {
+// Use memory cache
+setLocalCacheSettings(memoryCacheSettings {})
+// Use persistent disk cache (default)
+setLocalCacheSettings(persistentCacheSettings {})
+}
+db.firestoreSettings = settingsDocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L112-L118]
+
+Java
+FirebaseFirestoreSettings settings =
+new FirebaseFirestoreSettings.Builder(db.getFirestoreSettings())
+// Use memory-only cache
+.setLocalCacheSettings(MemoryCacheSettings.newBuilder().build())
+// Use persistent disk cache (default)
+.setLocalCacheSettings(PersistentCacheSettings.newBuilder()
+.build())
+.build();
+db.setFirestoreSettings(settings);DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L134-L142]
+
+Dart
+// Apple and Android
+db.settings = const Settings(persistenceEnabled: true);
+
+// Web
+await db
+.enablePersistence(const PersistenceSettings(synchronizeTabs: true));firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L1072-L1077]
+
+캐시 크기 구성
+
+지속성이 사용 설정되면 Cloud Firestore는 백엔드에서 수신된 모든 문서를 오프라인 액세스용으로 캐시합니다. Cloud Firestore는 캐시 크기의 기본 임곗값을 설정합니다. 기본값을 초과하면 Cloud Firestore는 사용하지 않는 오래된 문서를 주기적으로 정리합니다. 다른 캐시 크기 임곗값을 구성하거나 정리 프로세스를 완전히 사용 중지할 수 있습니다.
+
+Web
+import { initializeFirestore, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
+
+const firestoreDb = initializeFirestore(app, {
+cacheSizeBytes: CACHE_SIZE_UNLIMITED
+});fs_setup_cache.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/fs_setup_cache.js#L8-L12]
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+firebase.firestore().settings({
+cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L49-L51]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// The default cache size threshold is 100 MB. Configure "cacheSizeBytes"
+// for a different threshold (minimum 1 MB) or set to "FirestoreCacheSizeUnlimited"
+// to disable clean-up.
+let settings = Firestore.firestore().settings
+// Set cache size to 100 MB
+settings.cacheSettings = PersistentCacheSettings(sizeBytes: 100 * 1024 * 1024 as NSNumber)
+Firestore.firestore().settings = settingsViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L145-L148]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// The default cache size threshold is 100 MB. Configure "cacheSizeBytes"
+// for a different threshold (minimum 1 MB) or set to "kFIRFirestoreCacheSizeUnlimited"
+// to disable clean-up.
+FIRFirestoreSettings *settings = [FIRFirestore firestore].settings;
+// Set cache size to 100 MB
+settings.cacheSettings =
+[[FIRPersistentCacheSettings alloc] initWithSizeBytes:@(100 * 1024 * 1024)];
+[FIRFirestore firestore].settings = settings;ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L82-L86]
+
+Kotlin
+
+// The default cache size threshold is 100 MB. Configure "setCacheSizeBytes"
+// for a different threshold (minimum 1 MB) or set to "CACHE_SIZE_UNLIMITED"
+// to disable clean-up.
+val settings = FirebaseFirestoreSettings.Builder()
+.setCacheSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+.build()
+db.firestoreSettings = settings
+
+Java
+
+// The default cache size threshold is 100 MB. Configure "setCacheSizeBytes"
+// for a different threshold (minimum 1 MB) or set to "CACHE_SIZE_UNLIMITED"
+// to disable clean-up.
+FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
+.setCacheSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+.build();
+db.setFirestoreSettings(settings);
+
+Dart
+db.settings = const Settings(
+persistenceEnabled: true,
+cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L1083-L1086]
+
+오프라인 데이터 수신 대기
+
+오프라인 지속성을 사용 설정한 경우 기기가 오프라인 상태이면 로컬에 캐시된
+데이터가 변경될 때 리스너가 수신 대기 이벤트를 수신합니다. 문서, 컬렉션, 쿼리를 수신 대기할 수 있습니다.
+
+데이터의 출처가 서버인지 아니면 캐시인지 확인하려면 스냅샷 이벤트의 SnapshotMetadata에 있는 fromCache 속성을 사용합니다. fromCache가 true이면 캐시에서 가져온 데이터이므로 서버와 일치하지 않거나 불완전할 수 있습니다. fromCache가 false이면 서버의 최신 업데이트와 일치하는 완전한 최신 데이터입니다.
+
+기본적으로 SnapshotMetadata만 변경되면 이벤트가 발생하지 않습니다. fromCache 값에 의존하는 경우 수신 대기 핸들러를 연결할 때 includeMetadataChanges 수신 대기 옵션을 지정하세요.
+
+Web
+import { collection, onSnapshot, where, query } from "firebase/firestore";
+
+const q = query(collection(db, "cities"), where("state", "==", "CA"));
+onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+snapshot.docChanges().forEach((change) => {
+if (change.type === "added") {
+console.log("New city: ", change.doc.data());
+}
+
+const source = snapshot.metadata.fromCache ? "local cache" : "server";
+console.log("Data came from " + source);
+});
+});use_from_cache.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/use_from_cache.js#L8-L20]
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").where("state", "==", "CA")
+.onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
+snapshot.docChanges().forEach((change) => {
+if (change.type === "added") {
+console.log("New city: ", change.doc.data());
+}
+
+var source = snapshot.metadata.fromCache ? "local cache" : "server";
+console.log("Data came from " + source);
+});
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L107-L117]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// Listen to metadata updates to receive a server snapshot even if
+// the data is the same as the cached data.
+db.collection("cities").whereField("state", isEqualTo: "CA")
+.addSnapshotListener(includeMetadataChanges: true) { querySnapshot, error in
+guard let snapshot = querySnapshot else {
+print("Error retreiving snapshot: \(error!)")
+return
+}
+
+for diff in snapshot.documentChanges {
+if diff.type == .added {
+print("New city: \(diff.document.data())")
+}
+}
+
+let source = snapshot.metadata.isFromCache ? "local cache" : "server"
+print("Metadata: Data fetched from \(source)")
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L1110-L1127]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// Listen to metadata updates to receive a server snapshot even if
+// the data is the same as the cached data.
+[[[db collectionWithPath:@"cities"] queryWhereField:@"state" isEqualTo:@"CA"]
+addSnapshotListenerWithIncludeMetadataChanges:YES
+listener:^(FIRQuerySnapshot *snapshot, NSError *error) {
+if (snapshot == nil) {
+NSLog(@"Error retreiving snapshot: %@", error);
+return;
+}
+for (FIRDocumentChange *diff in snapshot.documentChanges) {
+if (diff.type == FIRDocumentChangeTypeAdded) {
+NSLog(@"New city: %@", diff.document.data);
+}
+}
+
+NSString *source = snapshot.metadata.isFromCache ? @"local cache" : @"server";
+NSLog(@"Metadata: Data fetched from %@", source);
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L1028-L1045]
+
+Kotlin
+db.collection("cities").whereEqualTo("state", "CA")
+.addSnapshotListener(MetadataChanges.INCLUDE) { querySnapshot, e ->
+if (e != null) {
+Log.w(TAG, "Listen error", e)
+return@addSnapshotListener
+}
+
+for (change in querySnapshot!!.documentChanges) {
+if (change.type == DocumentChange.Type.ADDED) {
+Log.d(TAG, "New city: ${change.document.data}")
+}
+
+val source = if (querySnapshot.metadata.isFromCache) {
+"local cache"
+} else {
+"server"
+}
+Log.d(TAG, "Data fetched from $source")
+}
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L1054-L1073]
+
+Java
+db.collection("cities").whereEqualTo("state", "CA")
+.addSnapshotListener(MetadataChanges.INCLUDE, new EventListener<QuerySnapshot>() {
+@Override
+public void onEvent(@Nullable QuerySnapshot querySnapshot,
+@Nullable FirebaseFirestoreException e) {
+if (e != null) {
+Log.w(TAG, "Listen error", e);
+return;
+}
+
+for (DocumentChange change : querySnapshot.getDocumentChanges()) {
+if (change.getType() == Type.ADDED) {
+Log.d(TAG, "New city:" + change.getDocument().getData());
+}
+
+String source = querySnapshot.getMetadata().isFromCache() ?
+"local cache" : "server";
+Log.d(TAG, "Data fetched from " + source);
+}
+
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1265-L1286]
+
+Dart
+db
+.collection("cities")
+.where("state", isEqualTo: "CA")
+.snapshots(includeMetadataChanges: true)
+.listen((querySnapshot) {
+for (var change in querySnapshot.docChanges) {
+if (change.type == DocumentChangeType.added) {
+final source =
+(querySnapshot.metadata.isFromCache) ? "local cache" : "server";
+
+print("Data fetched from $source}");
+}
+}
+});firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L1092-L1105]
+
+오프라인 데이터 가져오기
+
+기기가 오프라인 상태일 때 문서를 가져오면 Cloud Firestore는 캐시의 데이터를 반환합니다.
+
+컬렉션을 쿼리할 때 캐시된 문서가 없으면 빈 결과가 반환됩니다. 특정 문서를 가져오면 대신 오류가 반환됩니다.
+
+오프라인 데이터 쿼리
+
+쿼리는 오프라인 지속성과 연동합니다. 앞에서 설명한 것처럼
+직접 가져오기 또는 수신 대기를 통해 쿼리 결과를 검색할 수
+있습니다. 기기가 오프라인 상태일 때 로컬에 유지되는 데이터에 대해 새 쿼리를 만들 수도 있지만 이러한 쿼리는 처음에는 캐시된 문서에 대해서만 실행됩니다.
+
+오프라인 쿼리 색인 구성
+
+기본적으로 Firestore SDK는 오프라인 쿼리를 실행할 때 로컬 캐시의 컬렉션에 있는 모든 문서를 스캔합니다. 이 기본 동작을 사용하면 사용자가 장시간 오프라인 상태일 때 오프라인 쿼리 성능이 저하될 수 있습니다.
+
+영구 캐시를 사용 설정하면 SDK가 로컬 쿼리 색인을 자동으로 만들도록 하여 오프라인 쿼리의 성능을 개선할 수 있습니다.
+
+자동 색인 생성은 기본적으로 사용 중지되어 있습니다. 앱이 시작할 때마다 자동 색인 생성을 사용 설정해야 합니다. 아래와 같이 자동 색인 생성의 사용 설정 여부를 제어합니다.
+
+Swift
+if let indexManager = Firestore.firestore().persistentCacheIndexManager {
+// Indexing is disabled by default
+indexManager.enableIndexAutoCreation()
+} else {
+print("indexManager is nil")
+}
+
+Objective-C
+PersistentCacheIndexManager *indexManager = [FIRFirestore firestore].persistentCacheIndexManager;
+if (indexManager) {
+// Indexing is disabled by default
+[indexManager enableIndexAutoCreation];
+}
+
+Kotlin
+// return type: PersistentCacheManager?
+
+Firebase.firestore.persistentCacheIndexManager?.apply {
+// Indexing is disabled by default
+enableIndexAutoCreation()
+} ?: println("indexManager is null")
+
+Java
+// return type: @Nullable PersistentCacheIndexManager
+PersistentCacheIndexManager indexManager = FirebaseFirestore.getInstance().getPersistentCacheIndexManager();
+if (indexManager != null) {
+// Indexing is disabled by default
+indexManager.enableIndexAutoCreation();
+}
+
+// If not check indexManager != null, IDE shows warning: Method invocation 'enableIndexAutoCreation' may produce 'NullPointerException'
+FirebaseFirestore.getInstance().getPersistentCacheIndexManager().enableIndexAutoCreation();
+
+자동 색인 생성이 사용 설정되면 SDK는 캐시된 문서가 많은 컬렉션을 평가하고 로컬 쿼리의 성능을 최적화합니다.
+
+SDK는 쿼리 색인을 삭제하는 메서드를 제공합니다.
+
+네트워크 액세스 중지 및 사용 설정
+
+다음 방법을 사용하여 Cloud Firestore 클라이언트에 대한 네트워크 액세스를 중지할 수 있습니다. 네트워크 액세스가 중지되어 있으면 모든 스냅샷 리스너와 문서 요청이 캐시에서 결과를 검색합니다. 쓰기 작업은 네트워크 액세스가 다시 사용 설정될 때까지 큐에 추가됩니다.
+
+Web
+import { disableNetwork } from "firebase/firestore";
+
+await disableNetwork(db);
+console.log("Network disabled!");
+// Do offline actions
+// ...disable_network.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/disable_network.js#L8-L15]
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+firebase.firestore().disableNetwork()
+.then(() => {
+// Do offline actions
+// ...
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L82-L88]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+Firestore.firestore().disableNetwork { (error) in
+// Do offline things
+// ...
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L1133-L1136]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[[FIRFirestore firestore] disableNetworkWithCompletion:^(NSError *_Nullable error) {
+// Do offline actions
+// ...
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L1051-L1054]
+
+Kotlin
+db.disableNetwork().addOnCompleteListener {
+// Do offline things
+// ...
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L1038-L1041]
+
+Java
+db.disableNetwork()
+.addOnCompleteListener(new OnCompleteListener<Void>() {
+@Override
+public void onComplete(@NonNull Task<Void> task) {
+// Do offline things
+// ...
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1241-L1248]
+
+Dart
+db.disableNetwork().then((_) {
+// Do offline things
+});firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L1111-L1113]
+
+네트워크 액세스를 다시 사용 설정하려면 다음 방법을 사용하세요.
+
+Web
+import { enableNetwork } from "firebase/firestore";
+
+await enableNetwork(db);
+// Do online actions
+// ...enable_network.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/enable_network.js#L8-L14]
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+firebase.firestore().enableNetwork()
+.then(() => {
+// Do online actions
+// ...
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L93-L99]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+Firestore.firestore().enableNetwork { (error) in
+// Do online things
+// ...
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L1140-L1143]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[[FIRFirestore firestore] enableNetworkWithCompletion:^(NSError *_Nullable error) {
+// Do online actions
+// ...
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L1058-L1061]
+
+Kotlin
+db.enableNetwork().addOnCompleteListener {
+// Do online things
+// ...
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L1045-L1048]
+
+Java
+db.enableNetwork()
+.addOnCompleteListener(new OnCompleteListener<Void>() {
+@Override
+public void onComplete(@NonNull Task<Void> task) {
+// Do online things
+// ...
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1252-L1259]
+
+Dart
+db.enableNetwork().then((_) {
+// Back online
+});firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L1119-L1121]
+
+의견 보내기

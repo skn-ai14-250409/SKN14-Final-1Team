@@ -1,0 +1,1705 @@
+Source URL: https://firebase.google.com/docs/firestore/query-data/listen?hl=ko
+Title: Cloud Firestore로 실시간 업데이트 가져오기
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+Cloud Firestore로 실시간 업데이트 가져오기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+onSnapshot() 메서드로 문서를 리슨할 수 있습니다. 사용자가 제공하는 콜백이 최초로 호출될 때 단일 문서의 현재 콘텐츠로 문서 스냅샷이 즉시 생성됩니다. 그런 다음 콘텐츠가 변경될 때마다 콜백이 호출되어 문서 스냅샷을 업데이트합니다.참고: 실시간 리스너는 PHP 클라이언트 라이브러리에서 지원되지 않습니다.
+
+Web
+import { doc, onSnapshot } from "firebase/firestore";
+
+const unsub = onSnapshot(doc(db, "cities", "SF"), (doc) => {
+console.log("Current data: ", doc.data());
+});listen_document.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/listen_document.js#L8-L12]
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").doc("SF")
+.onSnapshot((doc) => {
+console.log("Current data: ", doc.data());
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L623-L626]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+db.collection("cities").document("SF")
+.addSnapshotListener { documentSnapshot, error in
+guard let document = documentSnapshot else {
+print("Error fetching document: \(error!)")
+return
+}
+guard let data = document.data() else {
+print("Document data was empty.")
+return
+}
+print("Current data: \(data)")
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L759-L770]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[[[self.db collectionWithPath:@"cities"] documentWithPath:@"SF"]
+addSnapshotListener:^(FIRDocumentSnapshot *snapshot, NSError *error) {
+if (snapshot == nil) {
+NSLog(@"Error fetching document: %@", error);
+return;
+}
+NSLog(@"Current data: %@", snapshot.data);
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L695-L702]
+
+Kotlin
+val docRef = db.collection("cities").document("SF")
+docRef.addSnapshotListener { snapshot, e ->
+if (e != null) {
+Log.w(TAG, "Listen failed.", e)
+return@addSnapshotListener
+}
+
+if (snapshot != null && snapshot.exists()) {
+Log.d(TAG, "Current data: ${snapshot.data}")
+} else {
+Log.d(TAG, "Current data: null")
+}
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L524-L536]
+
+Java
+final DocumentReference docRef = db.collection("cities").document("SF");
+docRef.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+@Override
+public void onEvent(@Nullable DocumentSnapshot snapshot,
+@Nullable FirebaseFirestoreException e) {
+if (e != null) {
+Log.w(TAG, "Listen failed.", e);
+return;
+}
+
+if (snapshot != null && snapshot.exists()) {
+Log.d(TAG, "Current data: " + snapshot.getData());
+} else {
+Log.d(TAG, "Current data: null");
+}
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L680-L696]
+
+Dart
+final docRef = db.collection("cities").doc("SF");
+docRef.snapshots().listen(
+(event) => print("current data: ${event.data()}"),
+onError: (error) => print("Listen failed: $error"),
+);
+firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L525-L530]
+Firestore 문서 또는 컬렉션의 콘텐츠 변경사항에 따라 UI가 반응하도록 만들고자 하는 경우, Firestore 스냅샷 스트림을 사용하는 StreamBuilder 위젯을 사용합니다.
+class UserInformation extends StatefulWidget {
+@override
+_UserInformationState createState() => _UserInformationState();
+}
+
+class _UserInformationState extends State<UserInformation> {
+final Stream<QuerySnapshot> _usersStream =
+FirebaseFirestore.instance.collection('users').snapshots();
+
+@override
+Widget build(BuildContext context) {
+return StreamBuilder<QuerySnapshot>(
+stream: _usersStream,
+builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+if (snapshot.hasError) {
+return const Text('Something went wrong');
+}
+
+if (snapshot.connectionState == ConnectionState.waiting) {
+return const Text("Loading");
+}
+
+return ListView(
+children: snapshot.data!.docs
+.map((DocumentSnapshot document) {
+Map<String, dynamic> data =
+document.data()! as Map<String, dynamic>;
+return ListTile(
+title: Text(data['full_name']),
+subtitle: Text(data['company']),
+);
+})
+.toList()
+.cast(),
+);
+},
+);
+}
+}user_info_streambuilder.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/widgets/user_info_streambuilder.dart#L5-L43]
+
+자바
+
+DocumentReference docRef = db.collection("cities").document("SF");
+docRef.addSnapshotListener(
+new EventListener<DocumentSnapshot>() {
+@Override
+public void onEvent(@Nullable DocumentSnapshot snapshot, @Nullable FirestoreException e) {
+if (e != null) {
+System.err.println("Listen failed: " + e);
+return;
+}
+
+if (snapshot != null && snapshot.exists()) {
+System.out.println("Current data: " + snapshot.getData());
+} else {
+System.out.print("Current data: null");
+}
+}
+});ListenDataSnippets.java [https://github.com/googleapis/java-firestore/blob/d546b5a3d30086f86ed3688b725f639fbdf7c11c/samples/snippets/src/main/java/com/example/firestore/snippets/ListenDataSnippets.java#L53-L74]
+
+Python
+
+# Create an Event for notifying main thread.
+callback_done = threading.Event()
+
+# Create a callback on_snapshot function to capture changes
+def on_snapshot(doc_snapshot, changes, read_time):
+for doc in doc_snapshot:
+print(f"Received document snapshot: {doc.id}")
+callback_done.set()
+
+doc_ref = db.collection("cities").document("SF")
+
+# Watch the document
+doc_watch = doc_ref.on_snapshot(on_snapshot)snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L676-L689]
+
+C++
+DocumentReference doc_ref = db->Collection("cities").Document("SF");
+doc_ref.AddSnapshotListener(
+[](const DocumentSnapshot& snapshot, Error error, const std::string& errorMsg) {
+if (error == Error::kErrorOk) {
+if (snapshot.exists()) {
+std::cout << "Current data: " << snapshot << std::endl;
+} else {
+std::cout << "Current data: null" << std::endl;
+}
+} else {
+std::cout << "Listen failed: " << error << std::endl;
+}
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L613-L625]
+
+Node.js
+
+const doc = db.collection('cities').doc('SF');
+
+const observer = doc.onSnapshot(docSnapshot => {
+console.log(`Received doc snapshot: ${docSnapshot}`);
+// ...
+}, err => {
+console.log(`Encountered error: ${err}`);
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L781-L791]
+
+Go
+
+import (
+"context"
+"fmt"
+"io"
+"time"
+
+"cloud.google.com/go/firestore"
+"google.golang.org/grpc/codes"
+"google.golang.org/grpc/status"
+)
+
+// listenDocument listens to a single document.
+func listenDocument(ctx context.Context, w io.Writer, projectID, collection string) error {
+// projectID := "project-id"
+// Сontext with timeout stops listening to changes.
+ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+defer cancel()
+
+client, err := firestore.NewClient(ctx, projectID)
+if err != nil {
+return fmt.Errorf("firestore.NewClient: %w", err)
+}
+defer client.Close()
+
+it := client.Collection(collection).Doc("SF").Snapshots(ctx)
+for {
+snap, err := it.Next()
+// DeadlineExceeded will be returned when ctx is cancelled.
+if status.Code(err) == codes.DeadlineExceeded {
+return nil
+}
+if err != nil {
+return fmt.Errorf("Snapshots.Next: %w", err)
+}
+if !snap.Exists() {
+fmt.Fprintf(w, "Document no longer exists\n")
+return nil
+}
+fmt.Fprintf(w, "Received document snapshot: %v\n", snap.Data())
+}
+}
+listen_document.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/listen_document.go#L18-L61]
+
+PHP
+// Not supported in the PHP client library
+
+Unity
+DocumentReference docRef = db.Collection("cities").Document("SF");
+docRef.Listen(snapshot => {
+Debug.Log("Callback received document snapshot.");
+Debug.Log(String.Format("Document data for {0} document:", snapshot.Id));
+Dictionary<string, object> city = snapshot.ToDictionary();
+foreach (KeyValuePair<string, object> pair in city) {
+Debug.Log(String.Format("{0}: {1}", pair.Key, pair.Value));
+}
+});
+
+C#
+
+DocumentReference docRef = db.Collection("cities").Document("SF");
+FirestoreChangeListener listener = docRef.Listen(snapshot =>
+{
+Console.WriteLine("Callback received document snapshot.");
+Console.WriteLine("Document exists? {0}", snapshot.Exists);
+if (snapshot.Exists)
+{
+Console.WriteLine("Document data for {0} document:", snapshot.Id);
+Dictionary<string, object> city = snapshot.ToDictionary();
+foreach (KeyValuePair<string, object> pair in city)
+{
+Console.WriteLine("{0}: {1}", pair.Key, pair.Value);
+}
+}
+});Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/ListenData/Program.cs#L40-L54]
+
+Ruby
+
+doc_ref = firestore.col(collection_path).doc document_path
+snapshots = []
+
+# Watch the document.
+listener = doc_ref.listen do |snapshot|
+puts "Received document snapshot: #{snapshot.document_id}"
+snapshots << snapshot
+endquery_watch.rb [https://github.com/googleapis/google-cloud-ruby/blob/0539c9e4faccfe857c5cd0999d9f50f1a4404531/google-cloud-firestore/samples/query_watch.rb#L24-L31]
+
+로컬 변경 이벤트
+
+앱에서 로컬로 쓰면 즉시 스냅샷 리스너가 호출됩니다.
+이는 '지연 시간 보정'이라는 중요한 기능 때문입니다.
+쓰기를 수행하면 데이터가 백엔드로 전송되기 전에 리스너에 새 데이터가 통보됩니다.
+
+검색된 문서의 metadata.hasPendingWrites 속성은 문서에 아직 백엔드에 쓰기 처리되지 않은 로컬 변경사항이 있는지 여부를 나타냅니다. 이 속성을 사용하여 스냅샷 리스너가 수신한 이벤트의 소스를 확인할 수 있습니다.
+
+Web
+import { doc, onSnapshot } from "firebase/firestore";
+
+const unsub = onSnapshot(doc(db, "cities", "SF"), (doc) => {
+const source = doc.metadata.hasPendingWrites ? "Local" : "Server";
+console.log(source, " data: ", doc.data());
+});listen_document_local.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/listen_document_local.js#L8-L13]
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").doc("SF")
+.onSnapshot((doc) => {
+var source = doc.metadata.hasPendingWrites ? "Local" : "Server";
+console.log(source, " data: ", doc.data());
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L638-L642]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+db.collection("cities").document("SF")
+.addSnapshotListener { documentSnapshot, error in
+guard let document = documentSnapshot else {
+print("Error fetching document: \(error!)")
+return
+}
+let source = document.metadata.hasPendingWrites ? "Local" : "Server"
+print("\(source) data: \(document.data() ?? [:])")
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L776-L784]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[[[self.db collectionWithPath:@"cities"] documentWithPath:@"SF"]
+addSnapshotListener:^(FIRDocumentSnapshot *snapshot, NSError *error) {
+if (snapshot == nil) {
+NSLog(@"Error fetching document: %@", error);
+return;
+}
+NSString *source = snapshot.metadata.hasPendingWrites ? @"Local" : @"Server";
+NSLog(@"%@ data: %@", source, snapshot.data);
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L708-L716]
+
+Kotlin
+val docRef = db.collection("cities").document("SF")
+docRef.addSnapshotListener { snapshot, e ->
+if (e != null) {
+Log.w(TAG, "Listen failed.", e)
+return@addSnapshotListener
+}
+
+val source = if (snapshot != null && snapshot.metadata.hasPendingWrites()) {
+"Local"
+} else {
+"Server"
+}
+
+if (snapshot != null && snapshot.exists()) {
+Log.d(TAG, "$source data: ${snapshot.data}")
+} else {
+Log.d(TAG, "$source data: null")
+}
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L542-L560]
+
+Java
+final DocumentReference docRef = db.collection("cities").document("SF");
+docRef.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+@Override
+public void onEvent(@Nullable DocumentSnapshot snapshot,
+@Nullable FirebaseFirestoreException e) {
+if (e != null) {
+Log.w(TAG, "Listen failed.", e);
+return;
+}
+
+String source = snapshot != null && snapshot.getMetadata().hasPendingWrites()
+? "Local" : "Server";
+
+if (snapshot != null && snapshot.exists()) {
+Log.d(TAG, source + " data: " + snapshot.getData());
+} else {
+Log.d(TAG, source + " data: null");
+}
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L702-L721]
+
+Dart
+final docRef = db.collection("cities").doc("SF");
+docRef.snapshots().listen(
+(event) {
+final source = (event.metadata.hasPendingWrites) ? "Local" : "Server";
+print("$source data: ${event.data()}");
+},
+onError: (error) => print("Listen failed: $error"),
+);
+firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L536-L544]
+
+자바
+# Not yet supported in the Java client library
+
+Python
+// Not yet supported in Python client library
+
+C++
+DocumentReference doc_ref = db->Collection("cities").Document("SF");
+doc_ref.AddSnapshotListener([](const DocumentSnapshot& snapshot,
+Error error, const std::string& errorMsg) {
+if (error == Error::kErrorOk) {
+const char* source =
+snapshot.metadata().has_pending_writes() ? "Local" : "Server";
+if (snapshot.exists()) {
+std::cout << source << " data: " << snapshot.Get("name").string_value()
+<< std::endl;
+} else {
+std::cout << source << " data: null" << std::endl;
+}
+} else {
+std::cout << "Listen failed: " << error << std::endl;
+}
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L647-L662]
+
+Node.js
+// Not yet supported in the Node.js client library
+
+Go
+// Not yet supported in the Go client library
+
+PHP
+// Not supported in the PHP client library
+
+Unity
+DocumentReference docRef = db.Collection("cities").Document("SF");
+docRef.Listen(
+snapshot =>
+{
+string source = (snapshot != null && snapshot.Metadata.HasPendingWrites) ? "Local" : "Server";
+string snapshotData = "null";
+if (snapshot != null && snapshot.Exists)
+{
+System.Text.StringBuilder builder = new System.Text.StringBuilder();
+IDictionary<string, object> dict = snapshot.ToDictionary();
+foreach (var KVPair in dict)
+{
+builder.Append($"{KVPair.Key}: {KVPair.Value}\n");
+}
+snapshotData = builder.ToString();
+}
+Debug.Log($"{source} data: ${snapshotData}");
+});
+
+C#
+// Not yet supported in the C# client library
+
+Ruby
+// Not yet supported in the Ruby client library
+
+메타데이터 변경 이벤트
+
+문서, 컬렉션 또는 쿼리 변경사항을 리슨할 때 리스너에서 수신할 이벤트의 세분화 수준을 제어하는 옵션을 전달할 수 있습니다.
+
+기본적으로 메타데이터에만 영향을 미치는 변경사항은 리스너에 통보되지 않습니다.
+앱에서 새 문서를 쓰면 다음과 같은 일이 일어납니다.
+
+새 데이터로 변경 이벤트가 즉시 시작됩니다. 문서가 아직 백엔드에 쓰기 처리되지 않았으므로 '쓰기 대기 중' 플래그가 true입니다.
+문서가 백엔드에 쓰기 처리됩니다.
+백엔드가 클라이언트에 쓰기 완료를 통보합니다. 문서 데이터가 변경되지 않았지만 '쓰기 대기 중' 플래그가 이제 false이므로 메타데이터가 변경되었습니다.
+
+문서 또는 쿼리 메타데이터가 변경될 때 스냅샷 이벤트를 수신하려면 리스너를 연결할 때 리슨 옵션 객체를 전달합니다.
+참고: 다음 샘플과 같이 리스너 옵션을 전달할 수 있습니다.
+아래 설명 [https://firebase.google.com/docs/firestore/query-data/listen?hl=ko#events-local-only]된 스냅샷 옵션에 대한 구성 인터페이스를 사용하여 메타데이터 변경에 대한 이벤트를 명시적으로 구성할 수도 있습니다. 자세한 내용은 Kotlin + KTX Android, Java Android, Swift, Objective-C, 웹 모듈식의 참고 문서를 참조하세요.
+
+Web
+import { doc, onSnapshot } from "firebase/firestore";
+
+const unsub = onSnapshot(
+doc(db, "cities", "SF"),
+{ includeMetadataChanges: true },
+(doc) => {
+// ...
+});listen_with_metadata.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/listen_with_metadata.js#L8-L15]
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").doc("SF")
+.onSnapshot({
+// Listen for document metadata changes
+includeMetadataChanges: true
+}, (doc) => {
+// ...
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L654-L660]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// Listen to document metadata.
+db.collection("cities").document("SF")
+.addSnapshotListener(includeMetadataChanges: true) { documentSnapshot, error in
+// ...
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L790-L794]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// Listen for metadata changes.
+[[[self.db collectionWithPath:@"cities"] documentWithPath:@"SF"]
+addSnapshotListenerWithIncludeMetadataChanges:YES
+listener:^(FIRDocumentSnapshot *snapshot, NSError *error) {
+// ...
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L722-L727]
+
+Kotlin
+// Listen for metadata changes to the document.
+val docRef = db.collection("cities").document("SF")
+docRef.addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, e ->
+// ...
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L566-L570]
+
+Java
+// Listen for metadata changes to the document.
+DocumentReference docRef = db.collection("cities").document("SF");
+docRef.addSnapshotListener(MetadataChanges.INCLUDE, new EventListener<DocumentSnapshot>() {
+@Override
+public void onEvent(@Nullable DocumentSnapshot snapshot,
+@Nullable FirebaseFirestoreException e) {
+// ...
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L727-L735]
+
+Dart
+final docRef = db.collection("cities").doc("SF");
+docRef.snapshots(includeMetadataChanges: true).listen((event) {
+// ...
+});firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L550-L553]
+
+자바
+// Not yet supported in the Java client library
+
+Python
+// Not yet supported in Python client library
+
+C++
+DocumentReference doc_ref = db->Collection("cities").Document("SF");
+doc_ref.AddSnapshotListener(
+MetadataChanges::kInclude,
+[](const DocumentSnapshot& snapshot, Error error, const std::string& errorMsg) { /* ... */ });snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L690-L693]
+
+Node.js
+// Not yet supported the Node.js client library
+
+Go
+// Not yet supported in the Go client library
+
+PHP
+// Not supported in the PHP client library
+
+Unity
+DocumentReference docRef = db.Collection("cities").Document("SF");
+docRef.Listen(MetadataChanges.Include, snapshot =>
+{
+// ...
+});
+
+C#
+// Not yet supported in the C# client library
+
+Ruby
+// Not yet supported in the Ruby client library
+
+참고: 쓰기가 완료된 시점만 파악하려면 hasPendingWrites를 사용하는 대신 완료 콜백을 리슨하면 됩니다.  JavaScript에서는 .then() 콜백을 연결하여 쓰기 작업에서 반환된 Promise를 사용하면 됩니다. Swift에서는 쓰기 함수에 완료 콜백을 전달합니다.
+로컬 변경사항에 대해서만 리스너 구성
+
+Cloud Firestore 스냅샷 리스너는 로컬 캐시에서 초기 스냅샷을 가져오고 동시에 서버에서 해당 데이터를 가져옵니다.
+
+경우에 따라 서버에서 추가로 데이터 가져오기를 원하지 않을 수 있습니다. 클라이언트 SDK를 사용하면 로컬 캐시에 있는 데이터에 대해서만 리스너가 실행되도록 구성할 수 있습니다. 이렇게 하면 불필요한 서버 호출과 비용을 방지하고 로컬 데이터와 변형을 반영하는 클라이언트 측 캐시를 활용할 수 있습니다.
+
+여기에서는 클라이언트 코드에서 스냅샷 옵션을 설정하여 로컬 변경 사항만 수신할 수 있도록 합니다.
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+const unsubscribe = onSnapshot(
+doc(db, "cities", "SF"),
+{
+includeMetadataChanges: true,
+source:'cache'
+},
+(documentSnapshot) => {//…}
+);
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+// Not yet supported in the Web namespaced API
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// Set up listener options
+let options = SnapshotListenOptions()
+.withSource(ListenSource.cache)
+.withIncludeMetadataChanges(true)
+db.collection("cities").document("SF")
+.addSnapshotListener(options: options) { documentSnapshot, error in
+// ...
+}
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// Set up listener options
+FIRSnapshotListenOptions *options = [[FIRSnapshotListenOptions alloc] init];
+FIRSnapshotListenOptions *optionsWithSourceAndMetadata =
+[[options optionsWithIncludeMetadataChanges:YES]
+optionsWithSource:FIRListenSourceCache];
+[[[self.db collectionWithPath:@"cities"] documentWithPath:@"SF"]
+addSnapshotListenerWithOptions:optionsWithSourceAndMetadata
+listener: ^ (FIRDocumentSnapshot * snapshot, NSError * error) {
+//…
+}
+];
+
+Kotlin
+// Set up listener options
+val options = SnapshotListenOptions.Builder()
+.setMetadataChanges(MetadataChanges.INCLUDE)
+.setSource(ListenSource.CACHE)
+.build();
+db.collection("cities").document("SF")
+.addSnapshotListener(options) { snapshot, error ->
+//…
+}
+
+Java
+// Set up listener options
+SnapshotListenOptions options = new SnapshotListenOptions.Builder()
+.setMetadataChanges(MetadataChanges.INCLUDE)
+.setSource(ListenSource.CACHE)
+.build();
+db.collection("cities").document("SF").addSnapshotListener(options, new EventListener<DocumentSnapshot>() {
+//…
+});
+
+Dart
+// Not yet supported in this client library
+
+자바
+# Not yet supported in the Java client library
+
+Python
+// Not yet supported in Python client library
+
+C++
+// Not yet supported in the C++ client library
+
+Node.js
+// Not yet supported in the Node.js client library
+
+Go
+// Not yet supported in the Go client library
+
+PHP
+// Not yet supported in the PHP client library
+
+Unity
+// Not yet supported in the Unity client library
+
+C#
+// Not yet supported in the C# client library
+
+Ruby
+// Not yet supported in the Ruby client library
+
+컬렉션의 여러 문서 수신 대기
+
+문서와 마찬가지로 get() 대신 onSnapshot()을 사용하여 쿼리 결과를 리슨할 수 있습니다. 이렇게 하면 쿼리 스냅샷이 만들어집니다. 예를 들어 주가 CA인 문서를 리슨하는 방법은 다음과 같습니다.
+
+Web
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+
+const q = query(collection(db, "cities"), where("state", "==", "CA"));
+const unsubscribe = onSnapshot(q, (querySnapshot) => {
+const cities = [];
+querySnapshot.forEach((doc) => {
+cities.push(doc.data().name);
+});
+console.log("Current cities in CA: ", cities.join(", "));
+});listen_multiple.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/listen_multiple.js#L8-L17]
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").where("state", "==", "CA")
+.onSnapshot((querySnapshot) => {
+var cities = [];
+querySnapshot.forEach((doc) => {
+cities.push(doc.data().name);
+});
+console.log("Current cities in CA: ", cities.join(", "));
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L703-L710]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+db.collection("cities").whereField("state", isEqualTo: "CA")
+.addSnapshotListener { querySnapshot, error in
+guard let documents = querySnapshot?.documents else {
+print("Error fetching documents: \(error!)")
+return
+}
+let cities = documents.compactMap { $0["name"] }
+print("Current cities in CA: \(cities)")
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L840-L848]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[[[self.db collectionWithPath:@"cities"] queryWhereField:@"state" isEqualTo:@"CA"]
+addSnapshotListener:^(FIRQuerySnapshot *snapshot, NSError *error) {
+if (snapshot == nil) {
+NSLog(@"Error fetching documents: %@", error);
+return;
+}
+NSMutableArray *cities = [NSMutableArray array];
+for (FIRDocumentSnapshot *document in snapshot.documents) {
+[cities addObject:document.data[@"name"]];
+}
+NSLog(@"Current cities in CA: %@", cities);
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L778-L789]
+
+Kotlin
+db.collection("cities")
+.whereEqualTo("state", "CA")
+.addSnapshotListener { value, e ->
+if (e != null) {
+Log.w(TAG, "Listen failed.", e)
+return@addSnapshotListener
+}
+
+val cities = ArrayList<String>()
+for (doc in value!!) {
+doc.getString("name")?.let {
+cities.add(it)
+}
+}
+Log.d(TAG, "Current cites in CA: $cities")
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L624-L639]
+
+Java
+db.collection("cities")
+.whereEqualTo("state", "CA")
+.addSnapshotListener(new EventListener<QuerySnapshot>() {
+@Override
+public void onEvent(@Nullable QuerySnapshot value,
+@Nullable FirebaseFirestoreException e) {
+if (e != null) {
+Log.w(TAG, "Listen failed.", e);
+return;
+}
+
+List<String> cities = new ArrayList<>();
+for (QueryDocumentSnapshot doc : value) {
+if (doc.get("name") != null) {
+cities.add(doc.getString("name"));
+}
+}
+Log.d(TAG, "Current cites in CA: " + cities);
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L801-L820]
+
+Dart
+db
+.collection("cities")
+.where("state", isEqualTo: "CA")
+.snapshots()
+.listen((event) {
+final cities = [];
+for (var doc in event.docs) {
+cities.add(doc.data()["name"]);
+}
+print("cities in CA: ${cities.join(", ")}");
+});firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L559-L569]
+
+자바
+
+db.collection("cities")
+.whereEqualTo("state", "CA")
+.addSnapshotListener(
+new EventListener<QuerySnapshot>() {
+@Override
+public void onEvent(
+@Nullable QuerySnapshot snapshots, @Nullable FirestoreException e) {
+if (e != null) {
+System.err.println("Listen failed:" + e);
+return;
+}
+
+List<String> cities = new ArrayList<>();
+for (DocumentSnapshot doc : snapshots) {
+if (doc.get("name") != null) {
+cities.add(doc.getString("name"));
+}
+}
+System.out.println("Current cites in CA: " + cities);
+}
+});ListenDataSnippets.java [https://github.com/googleapis/java-firestore/blob/d546b5a3d30086f86ed3688b725f639fbdf7c11c/samples/snippets/src/main/java/com/example/firestore/snippets/ListenDataSnippets.java#L85-L110]
+
+Python
+
+# Create an Event for notifying main thread.
+callback_done = threading.Event()
+
+# Create a callback on_snapshot function to capture changes
+def on_snapshot(col_snapshot, changes, read_time):
+print("Callback received query snapshot.")
+print("Current cities in California:")
+for doc in col_snapshot:
+print(f"{doc.id}")
+callback_done.set()
+
+col_query = db.collection("cities").where(filter=FieldFilter("state", "==", "CA"))
+
+# Watch the collection query
+query_watch = col_query.on_snapshot(on_snapshot)
+snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L712-L728]
+
+C++
+db->Collection("cities")
+.WhereEqualTo("state", FieldValue::String("CA"))
+.AddSnapshotListener([](const QuerySnapshot& snapshot, Error error, const std::string& errorMsg) {
+if (error == Error::kErrorOk) {
+std::vector<std::string> cities;
+std::cout << "Current cities in CA: " << error << std::endl;
+for (const DocumentSnapshot& doc : snapshot.documents()) {
+cities.push_back(doc.Get("name").string_value());
+std::cout << "" << cities.back() << std::endl;
+}
+} else {
+std::cout << "Listen failed: " << error << std::endl;
+}
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L709-L722]
+
+Node.js
+
+const query = db.collection('cities').where('state', '==', 'CA');
+
+const observer = query.onSnapshot(querySnapshot => {
+console.log(`Received query snapshot of size ${querySnapshot.size}`);
+// ...
+}, err => {
+console.log(`Encountered error: ${err}`);
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L742-L752]
+
+Go
+
+import (
+"context"
+"fmt"
+"io"
+"time"
+
+"cloud.google.com/go/firestore"
+"google.golang.org/api/iterator"
+"google.golang.org/grpc/codes"
+"google.golang.org/grpc/status"
+)
+
+// listenMultiple listens to a query, returning the names of all cities
+// for a state.
+func listenMultiple(ctx context.Context, w io.Writer, projectID, collection string) error {
+// projectID := "project-id"
+ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+defer cancel()
+
+client, err := firestore.NewClient(ctx, projectID)
+if err != nil {
+return fmt.Errorf("firestore.NewClient: %w", err)
+}
+defer client.Close()
+
+it := client.Collection(collection).Where("state", "==", "CA").Snapshots(ctx)
+for {
+snap, err := it.Next()
+// DeadlineExceeded will be returned when ctx is cancelled.
+if status.Code(err) == codes.DeadlineExceeded {
+return nil
+}
+if err != nil {
+return fmt.Errorf("Snapshots.Next: %w", err)
+}
+if snap != nil {
+for {
+doc, err := snap.Documents.Next()
+if err == iterator.Done {
+break
+}
+if err != nil {
+return fmt.Errorf("Documents.Next: %w", err)
+}
+fmt.Fprintf(w, "Current cities in California: %v\n", doc.Ref.ID)
+}
+}
+}
+}
+listen_multiple.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/listen_multiple.go#L18-L67]
+
+PHP
+// Not supported in the PHP client library
+
+Unity
+Query query = db.Collection("cities").WhereEqualTo("State", "CA");
+
+ListenerRegistration listener = query.Listen(snapshot => {
+Debug.Log("Callback received query snapshot.");
+Debug.Log("Current cities in California:");
+foreach (DocumentSnapshot documentSnapshot in snapshot.Documents) {
+Debug.Log(documentSnapshot.Id);
+}
+});
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+Query query = db.Collection("cities").WhereEqualTo("State", "CA");
+
+FirestoreChangeListener listener = query.Listen(snapshot =>
+{
+Console.WriteLine("Callback received query snapshot.");
+Console.WriteLine("Current cities in California:");
+foreach (DocumentSnapshot documentSnapshot in snapshot.Documents)
+{
+Console.WriteLine(documentSnapshot.Id);
+}
+});Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/ListenData/Program.cs#L81-L92]
+
+Ruby
+
+query = firestore.col(collection_path).where :state, :==, "CA"
+docs = []
+
+# Watch the collection query.
+listener = query.listen do |snapshot|
+puts "Callback received query snapshot."
+puts "Current cities in California:"
+snapshot.docs.each do |doc|
+puts doc.document_id
+docs << doc
+end
+endquery_watch.rb [https://github.com/googleapis/google-cloud-ruby/blob/0539c9e4faccfe857c5cd0999d9f50f1a4404531/google-cloud-firestore/samples/query_watch.rb#L146-L157]
+
+스냅샷 핸들러는 문서의 추가, 삭제, 수정 등 쿼리 결과가 변경될 때마다 새 쿼리 스냅샷을 수신합니다.
+중요: 위 로컬 변경 이벤트 [https://firebase.google.com/docs/firestore/query-data/listen?hl=ko#events-local-changes]의 설명대로 로컬 쓰기에 대한 이벤트는 즉시 수신됩니다. 리스너는 각 문서의 metadata.hasPendingWrites 필드를 사용하여 문서에 아직 백엔드에 쓰기 처리되지 않은 로컬 변경사항이 있는지 확인할 수 있습니다.
+스냅샷 간 변경사항 보기
+
+단순히 전체 쿼리 스냅샷을 사용하는 대신 쿼리 스냅샷 간에 실제로 변경된 쿼리 결과를 확인하는 것이 유용한 경우가 많습니다. 일례로 개별 문서가 추가, 삭제, 수정될 때 캐시를 유지해야 하는 경우가 있습니다.
+
+Web
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+
+const q = query(collection(db, "cities"), where("state", "==", "CA"));
+const unsubscribe = onSnapshot(q, (snapshot) => {
+snapshot.docChanges().forEach((change) => {
+if (change.type === "added") {
+console.log("New city: ", change.doc.data());
+}
+if (change.type === "modified") {
+console.log("Modified city: ", change.doc.data());
+}
+if (change.type === "removed") {
+console.log("Removed city: ", change.doc.data());
+}
+});
+});listen_diffs.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/listen_diffs.js#L8-L23]
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").where("state", "==", "CA")
+.onSnapshot((snapshot) => {
+snapshot.docChanges().forEach((change) => {
+if (change.type === "added") {
+console.log("New city: ", change.doc.data());
+}
+if (change.type === "modified") {
+console.log("Modified city: ", change.doc.data());
+}
+if (change.type === "removed") {
+console.log("Removed city: ", change.doc.data());
+}
+});
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L721-L734]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+db.collection("cities").whereField("state", isEqualTo: "CA")
+.addSnapshotListener { querySnapshot, error in
+guard let snapshot = querySnapshot else {
+print("Error fetching snapshots: \(error!)")
+return
+}
+snapshot.documentChanges.forEach { diff in
+if (diff.type == .added) {
+print("New city: \(diff.document.data())")
+}
+if (diff.type == .modified) {
+print("Modified city: \(diff.document.data())")
+}
+if (diff.type == .removed) {
+print("Removed city: \(diff.document.data())")
+}
+}
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L854-L871]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[[[self.db collectionWithPath:@"cities"] queryWhereField:@"state" isEqualTo:@"CA"]
+addSnapshotListener:^(FIRQuerySnapshot *snapshot, NSError *error) {
+if (snapshot == nil) {
+NSLog(@"Error fetching documents: %@", error);
+return;
+}
+for (FIRDocumentChange *diff in snapshot.documentChanges) {
+if (diff.type == FIRDocumentChangeTypeAdded) {
+NSLog(@"New city: %@", diff.document.data);
+}
+if (diff.type == FIRDocumentChangeTypeModified) {
+NSLog(@"Modified city: %@", diff.document.data);
+}
+if (diff.type == FIRDocumentChangeTypeRemoved) {
+NSLog(@"Removed city: %@", diff.document.data);
+}
+}
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L795-L812]
+
+Kotlin
+db.collection("cities")
+.whereEqualTo("state", "CA")
+.addSnapshotListener { snapshots, e ->
+if (e != null) {
+Log.w(TAG, "listen:error", e)
+return@addSnapshotListener
+}
+
+for (dc in snapshots!!.documentChanges) {
+when (dc.type) {
+DocumentChange.Type.ADDED -> Log.d(TAG, "New city: ${dc.document.data}")
+DocumentChange.Type.MODIFIED -> Log.d(TAG, "Modified city: ${dc.document.data}")
+DocumentChange.Type.REMOVED -> Log.d(TAG, "Removed city: ${dc.document.data}")
+}
+}
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L645-L660]
+
+Java
+db.collection("cities")
+.whereEqualTo("state", "CA")
+.addSnapshotListener(new EventListener<QuerySnapshot>() {
+@Override
+public void onEvent(@Nullable QuerySnapshot snapshots,
+@Nullable FirebaseFirestoreException e) {
+if (e != null) {
+Log.w(TAG, "listen:error", e);
+return;
+}
+
+for (DocumentChange dc : snapshots.getDocumentChanges()) {
+switch (dc.getType()) {
+case ADDED:
+Log.d(TAG, "New city: " + dc.getDocument().getData());
+break;
+case MODIFIED:
+Log.d(TAG, "Modified city: " + dc.getDocument().getData());
+break;
+case REMOVED:
+Log.d(TAG, "Removed city: " + dc.getDocument().getData());
+break;
+}
+}
+
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L826-L852]
+
+Dart
+db
+.collection("cities")
+.where("state", isEqualTo: "CA")
+.snapshots()
+.listen((event) {
+for (var change in event.docChanges) {
+switch (change.type) {
+case DocumentChangeType.added:
+print("New City: ${change.doc.data()}");
+break;
+case DocumentChangeType.modified:
+print("Modified City: ${change.doc.data()}");
+break;
+case DocumentChangeType.removed:
+print("Removed City: ${change.doc.data()}");
+break;
+}
+}
+});firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L575-L593]
+
+자바
+
+db.collection("cities")
+.whereEqualTo("state", "CA")
+.addSnapshotListener(
+new EventListener<QuerySnapshot>() {
+@Override
+public void onEvent(
+@Nullable QuerySnapshot snapshots, @Nullable FirestoreException e) {
+if (e != null) {
+System.err.println("Listen failed: " + e);
+return;
+}
+
+for (DocumentChange dc : snapshots.getDocumentChanges()) {
+switch (dc.getType()) {
+case ADDED:
+System.out.println("New city: " + dc.getDocument().getData());
+break;
+case MODIFIED:
+System.out.println("Modified city: " + dc.getDocument().getData());
+break;
+case REMOVED:
+System.out.println("Removed city: " + dc.getDocument().getData());
+break;
+default:
+break;
+}
+}
+}
+});ListenDataSnippets.java [https://github.com/googleapis/java-firestore/blob/d546b5a3d30086f86ed3688b725f639fbdf7c11c/samples/snippets/src/main/java/com/example/firestore/snippets/ListenDataSnippets.java#L121-L154]
+
+C++
+db->Collection("cities")
+.WhereEqualTo("state", FieldValue::String("CA"))
+.AddSnapshotListener([](const QuerySnapshot& snapshot, Error error, const std::string& errorMsg) {
+if (error == Error::kErrorOk) {
+for (const DocumentChange& dc : snapshot.DocumentChanges()) {
+switch (dc.type()) {
+case DocumentChange::Type::kAdded:
+std::cout << "New city: "
+<< dc.document().Get("name").string_value() << std::endl;
+break;
+case DocumentChange::Type::kModified:
+std::cout << "Modified city: "
+<< dc.document().Get("name").string_value() << std::endl;
+break;
+case DocumentChange::Type::kRemoved:
+std::cout << "Removed city: "
+<< dc.document().Get("name").string_value() << std::endl;
+break;
+}
+}
+} else {
+std::cout << "Listen failed: " << error << std::endl;
+}
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L741-L764]
+
+Python
+
+# Create an Event for notifying main thread.
+delete_done = threading.Event()
+
+# Create a callback on_snapshot function to capture changes
+def on_snapshot(col_snapshot, changes, read_time):
+print("Callback received query snapshot.")
+print("Current cities in California: ")
+for change in changes:
+if change.type.name == "ADDED":
+print(f"New city: {change.document.id}")
+elif change.type.name == "MODIFIED":
+print(f"Modified city: {change.document.id}")
+elif change.type.name == "REMOVED":
+print(f"Removed city: {change.document.id}")
+delete_done.set()
+
+col_query = db.collection("cities").where(filter=FieldFilter("state", "==", "CA"))
+
+# Watch the collection query
+query_watch = col_query.on_snapshot(on_snapshot)
+snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L747-L768]
+
+Node.js
+
+const observer = db.collection('cities').where('state', '==', 'CA')
+.onSnapshot(querySnapshot => {
+querySnapshot.docChanges().forEach(change => {
+if (change.type === 'added') {
+console.log('New city: ', change.doc.data());
+}
+if (change.type === 'modified') {
+console.log('Modified city: ', change.doc.data());
+}
+if (change.type === 'removed') {
+console.log('Removed city: ', change.doc.data());
+}
+});
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L758-L775]
+
+Go
+
+import (
+"context"
+"fmt"
+"io"
+"time"
+
+"cloud.google.com/go/firestore"
+"google.golang.org/grpc/codes"
+"google.golang.org/grpc/status"
+)
+
+// listenChanges listens to a query, returning the list of document changes.
+func listenChanges(ctx context.Context, w io.Writer, projectID, collection string) error {
+// projectID := "project-id"
+ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+defer cancel()
+
+client, err := firestore.NewClient(ctx, projectID)
+if err != nil {
+return fmt.Errorf("firestore.NewClient: %w", err)
+}
+defer client.Close()
+
+it := client.Collection(collection).Where("state", "==", "CA").Snapshots(ctx)
+for {
+snap, err := it.Next()
+// DeadlineExceeded will be returned when ctx is cancelled.
+if status.Code(err) == codes.DeadlineExceeded {
+return nil
+}
+if err != nil {
+return fmt.Errorf("Snapshots.Next: %w", err)
+}
+if snap != nil {
+for _, change := range snap.Changes {
+switch change.Kind {
+case firestore.DocumentAdded:
+fmt.Fprintf(w, "New city: %v\n", change.Doc.Data())
+case firestore.DocumentModified:
+fmt.Fprintf(w, "Modified city: %v\n", change.Doc.Data())
+case firestore.DocumentRemoved:
+fmt.Fprintf(w, "Removed city: %v\n", change.Doc.Data())
+}
+}
+}
+}
+}
+listen_changes.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/listen_changes.go#L18-L65]
+
+PHP
+// Not supported in the PHP client library
+
+Unity
+Query query = db.Collection("cities").WhereEqualTo("State", "CA");
+
+ListenerRegistration listener = query.Listen(snapshot =>
+{
+foreach (DocumentChange change in snapshot.GetChanges())
+{
+if (change.ChangeType == DocumentChange.Type.Added)
+{
+Debug.Log(String.Format("New city: {0}", change.Document.Id));
+}
+else if (change.ChangeType == DocumentChange.Type.Modified)
+{
+Debug.Log(String.Format("Modified city: {0}", change.Document.Id));
+}
+else if (change.ChangeType == DocumentChange.Type.Removed)
+{
+Debug.Log(String.Format("Removed city: {0}", change.Document.Id));
+}
+}
+});
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+Query query = db.Collection("cities").WhereEqualTo("State", "CA");
+
+FirestoreChangeListener listener = query.Listen(snapshot =>
+{
+foreach (DocumentChange change in snapshot.Changes)
+{
+if (change.ChangeType.ToString() == "Added")
+{
+Console.WriteLine("New city: {0}", change.Document.Id);
+}
+else if (change.ChangeType.ToString() == "Modified")
+{
+Console.WriteLine("Modified city: {0}", change.Document.Id);
+}
+else if (change.ChangeType.ToString() == "Removed")
+{
+Console.WriteLine("Removed city: {0}", change.Document.Id);
+}
+}
+});Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/ListenData/Program.cs#L118-L138]
+
+Ruby
+
+query = firestore.col(collection_path).where :state, :==, "CA"
+added = []
+modified = []
+removed = []
+
+# Watch the collection query.
+listener = query.listen do |snapshot|
+puts "Callback received query snapshot."
+puts "Current cities in California:"
+snapshot.changes.each do |change|
+if change.added?
+puts "New city: #{change.doc.document_id}"
+added << snapshot
+elsif change.modified?
+puts "Modified city: #{change.doc.document_id}"
+modified << snapshot
+elsif change.removed?
+puts "Removed city: #{change.doc.document_id}"
+removed << snapshot
+end
+end
+endquery_watch.rb [https://github.com/googleapis/google-cloud-ruby/blob/0539c9e4faccfe857c5cd0999d9f50f1a4404531/google-cloud-firestore/samples/query_watch.rb#L59-L80]
+
+중요: 첫 번째 쿼리 스냅샷은 쿼리와 일치하는 모든 기존 문서에 대한 added 이벤트를 포함합니다. 쿼리의 초기 상태를 기준으로 쿼리 스냅샷을 현재 상태로 만든 변경사항 집합을 가져오기 때문입니다. 따라서 초기 상태를 처리하는 특수한 로직을 추가할 필요 없이 첫 번째 쿼리 스냅샷으로 수신된 변경사항에 따라 직접 UI에 데이터를 채울 수 있습니다.
+초기 상태는 서버에서 직접 가져오거나 로컬 캐시에서 가져올 수 있습니다. 로컬 캐시에 사용 가능한 상태가 있으면 쿼리 스냅샷에 우선 캐시된 데이터가 채워진 후, 클라이언트에서 서버의 상태를 따라잡았을 때 서버의 데이터로 업데이트됩니다.
+
+리스너 분리
+
+더 이상 데이터를 리슨할 필요가 없으면 이벤트 콜백이 호출되지 않도록 리스너를 분리해야 합니다. 이렇게 하면 클라이언트에서 업데이트 수신을 위한 대역폭 사용을 중지합니다. 예를 들면 다음과 같습니다.
+
+Web
+import { collection, onSnapshot } from "firebase/firestore";
+
+const unsubscribe = onSnapshot(collection(db, "cities"), () => {
+// Respond to data
+// ...
+});
+
+// Later ...
+
+// Stop listening to changes
+unsubscribe();detach_listener.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/detach_listener.js#L8-L18]
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+var unsubscribe = db.collection("cities")
+.onSnapshot(() => {
+// Respond to data
+// ...
+});
+
+// Later ...
+
+// Stop listening to changes
+unsubscribe();test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L744-L753]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let listener = db.collection("cities").addSnapshotListener { querySnapshot, error in
+// ...
+}
+
+// ...
+
+// Stop listening to changes
+listener.remove()ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L898-L906]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+id<FIRListenerRegistration> listener = [[self.db collectionWithPath:@"cities"]
+addSnapshotListener:^(FIRQuerySnapshot *snapshot, NSError *error) {
+// ...
+}];
+
+// ...
+
+// Stop listening to changes
+[listener remove];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L838-L846]
+
+Kotlin
+val query = db.collection("cities")
+val registration = query.addSnapshotListener { snapshots, e ->
+// ...
+}
+
+// ...
+
+// Stop listening to changes
+registration.remove()DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L689-L697]
+
+Java
+Query query = db.collection("cities");
+ListenerRegistration registration = query.addSnapshotListener(
+new EventListener<QuerySnapshot>() {
+// ...
+});
+
+// ...
+
+// Stop listening to changes
+registration.remove();DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L886-L901]
+
+Dart
+final collection = db.collection("cities");
+final listener = collection.snapshots().listen((event) {
+// ...
+});
+listener.cancel();firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L599-L603]
+
+자바
+
+Query query = db.collection("cities");
+ListenerRegistration registration =
+query.addSnapshotListener(
+new EventListener<QuerySnapshot>() {
+// ...
+});
+
+// ...
+
+// Stop listening to changes
+registration.remove();ListenDataSnippets.java [https://github.com/googleapis/java-firestore/blob/d546b5a3d30086f86ed3688b725f639fbdf7c11c/samples/snippets/src/main/java/com/example/firestore/snippets/ListenDataSnippets.java#L163-L178]
+
+Python
+
+# Terminate watch on a document
+doc_watch.unsubscribe()snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L704-L705]
+
+C++
+// Add a listener
+Query query = db->Collection("cities");
+ListenerRegistration registration = query.AddSnapshotListener(
+[](const QuerySnapshot& snapshot, Error error, const std::string& errorMsg) { /* ... */ });
+// Stop listening to changes
+registration.Remove();snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L779-L784]
+
+Node.js
+
+const unsub = db.collection('cities').onSnapshot(() => {
+});
+
+// ...
+
+// Stop listening for changes
+unsub();index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L797-L803]
+
+Go
+
+// Сontext with timeout stops listening to changes.
+ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+defer cancel()listen_document.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/listen_document.go#L33-L35]
+
+PHP
+// Not supported in the PHP client library
+
+Unity
+listener.Stop();
+
+C#
+
+await listener.StopAsync();Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/ListenData/Program.cs#L73-L73]
+
+Ruby
+
+listener.stopquery_watch.rb [https://github.com/googleapis/google-cloud-ruby/blob/0539c9e4faccfe857c5cd0999d9f50f1a4404531/google-cloud-firestore/samples/query_watch.rb#L49-L49]
+
+수신 대기 오류 처리
+
+보안 권한이 부족하거나 잘못된 쿼리를 리슨하는 등의 경우에 리슨이 실패할 수 있습니다. 올바른 쿼리 및 잘못된 쿼리 [https://firebase.google.com/docs/firestore/query-data/queries?hl=ko#compound_queries]에 대해 자세히 알아보세요. 이러한 오류를 처리하려면 스냅샷 리스너를 연결할 때 오류 콜백을 제공합니다. 오류가 발생하면 리스너는 이벤트를 더 이상 수신하지 않으므로 리스너를 분리할 필요는 없습니다.
+
+Web
+import { collection, onSnapshot } from "firebase/firestore";
+
+const unsubscribe = onSnapshot(
+collection(db, "cities"),
+(snapshot) => {
+// ...
+},
+(error) => {
+// ...
+});handle_listen_errors.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/handle_listen_errors.js#L8-L17]
+
+Web
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities")
+.onSnapshot((snapshot) => {
+// ...
+}, (error) => {
+// ...
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L760-L765]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+db.collection("cities")
+.addSnapshotListener { querySnapshot, error in
+if let error = error {
+print("Error retreiving collection: \(error)")
+}
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L912-L917]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[[self.db collectionWithPath:@"cities"]
+addSnapshotListener:^(FIRQuerySnapshot *snapshot, NSError *error) {
+if (error != nil) {
+NSLog(@"Error retreving collection: %@", error);
+}
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L852-L857]
+
+Kotlin
+db.collection("cities")
+.addSnapshotListener { snapshots, e ->
+if (e != null) {
+Log.w(TAG, "listen:error", e)
+return@addSnapshotListener
+}
+
+for (dc in snapshots!!.documentChanges) {
+if (dc.type == DocumentChange.Type.ADDED) {
+Log.d(TAG, "New city: ${dc.document.data}")
+}
+}
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L703-L715]
+
+Java
+db.collection("cities")
+.addSnapshotListener(new EventListener<QuerySnapshot>() {
+@Override
+public void onEvent(@Nullable QuerySnapshot snapshots,
+@Nullable FirebaseFirestoreException e) {
+if (e != null) {
+Log.w(TAG, "listen:error", e);
+return;
+}
+
+for (DocumentChange dc : snapshots.getDocumentChanges()) {
+if (dc.getType() == Type.ADDED) {
+Log.d(TAG, "New city: " + dc.getDocument().getData());
+}
+}
+
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L907-L924]
+
+Dart
+final docRef = db.collection("cities");
+docRef.snapshots().listen(
+(event) => print("listener attached"),
+onError: (error) => print("Listen failed: $error"),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L609-L613]
+
+자바
+
+db.collection("cities")
+.addSnapshotListener(
+new EventListener<QuerySnapshot>() {
+@Override
+public void onEvent(
+@Nullable QuerySnapshot snapshots, @Nullable FirestoreException e) {
+if (e != null) {
+System.err.println("Listen failed: " + e);
+return;
+}
+
+for (DocumentChange dc : snapshots.getDocumentChanges()) {
+if (dc.getType() == Type.ADDED) {
+System.out.println("New city: " + dc.getDocument().getData());
+}
+}
+}
+});ListenDataSnippets.java [https://github.com/googleapis/java-firestore/blob/d546b5a3d30086f86ed3688b725f639fbdf7c11c/samples/snippets/src/main/java/com/example/firestore/snippets/ListenDataSnippets.java#L185-L202]
+
+Python
+// Snippet coming soon
+
+C++
+// Snippet coming soon.
+
+Node.js
+
+db.collection('cities')
+.onSnapshot((snapshot) => {
+//...
+}, (error) => {
+//...
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L809-L814]
+
+Go
+
+import (
+"context"
+"fmt"
+"io"
+"time"
+
+"cloud.google.com/go/firestore"
+"google.golang.org/grpc/codes"
+"google.golang.org/grpc/status"
+)
+
+// listenErrors demonstrates how to handle listening errors.
+func listenErrors(ctx context.Context, w io.Writer, projectID, collection string) error {
+// projectID := "project-id"
+ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+defer cancel()
+
+client, err := firestore.NewClient(ctx, projectID)
+if err != nil {
+return fmt.Errorf("firestore.NewClient: %w", err)
+}
+defer client.Close()
+
+it := client.Collection(collection).Snapshots(ctx)
+for {
+snap, err := it.Next()
+// Canceled will be returned when ctx is cancelled and DeadlineExceeded will
+// be returned when ctx reaches its deadline.
+if e := status.Code(err); e == codes.Canceled || e == codes.DeadlineExceeded {
+return nil
+}
+if err != nil {
+return fmt.Errorf("Snapshots.Next: %w", err)
+}
+if snap != nil {
+for _, change := range snap.Changes {
+if change.Kind == firestore.DocumentAdded {
+fmt.Fprintf(w, "New city: %v\n", change.Doc.Data())
+}
+}
+}
+}
+}
+listen_errors.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/listen_errors.go#L18-L61]
+
+PHP
+// Not supported in the PHP client library
+
+Unity
+ListenerRegistration registration =
+db.Collection("cities").Listen(
+querySnapshot =>
+{
+// ...
+});
+
+registration.ListenerTask.ContinueWithOnMainThread(
+listenerTask =>
+{
+if (listenerTask.IsFaulted)
+{
+Debug.LogError($"Listen failed: {listenerTask.Exception}");
+// ...
+// Handle the listener error.
+// ...
+}
+});
+
+C#
+// Snippet coming soon
+
+Ruby
+
+listener = firestore.col(collection_path).listen do |snapshot|
+snapshot.changes.each do |change|
+puts "New city: #{change.doc.document_id}" if change.added?
+end
+end
+
+# Register to be notified when unhandled errors occur.
+listener.on_error do |error|
+puts "Listen failed: #{error.message}"
+endquery_watch.rb [https://github.com/googleapis/google-cloud-ruby/blob/0539c9e4faccfe857c5cd0999d9f50f1a4404531/google-cloud-firestore/samples/query_watch.rb#L125-L134]
+
+다음 단계
+
+리스너에 간단한 쿼리 및 복합 쿼리 결합 [https://firebase.google.com/docs/firestore/query-data/queries?hl=ko]
+검색된 문서 정렬 및 제한 [https://firebase.google.com/docs/firestore/query-data/order-limit-data?hl=ko]
+리스너의 결제 이해 [https://firebase.google.com/docs/firestore/pricing?hl=ko#operations]
+
+의견 보내기

@@ -1,0 +1,266 @@
+Source URL: https://firebase.google.com/docs/firestore/security/rules-fields?hl=ko
+Title: 특정 필드에 대한 액세스 제어
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+특정 필드에 대한 액세스 제어
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지에서는 보안 규칙 구조화 [https://firebase.google.com/docs/firestore/security/rules-structure?hl=ko]와 보안 규칙 조건 작성 [https://firebase.google.com/docs/firestore/security/rules-conditions?hl=ko]의 개념을 바탕으로 Cloud Firestore Security Rules을 사용하여 클라이언트가 문서의 일부 필드에서만 작업을 수행하도록 하는 규칙을 만드는 방법을 설명합니다.
+
+참고: 서버 클라이언트 라이브러리는 모든 Cloud Firestore Security Rules를 우회하고 대신 Google 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/production?hl=ko]를 통해 인증합니다.
+서버 클라이언트 라이브러리, REST 또는 RPC API를 사용하는 경우 Cloud Firestore용 Identity and Access Management(IAM) [https://cloud.google.com/firestore/docs/security/iam?hl=ko]를 설정해야 합니다.
+
+문서 수준에서가 아닌 필드 수준에서 문서 변경사항을 제어하려는 경우가 있을 수 있습니다.
+
+예를 들어 클라이언트가 문서를 만들거나 변경하도록 허용하지만 문서의 특정 필드를 수정하지 못하게 할 수 있습니다. 또는 항상 클라이언트가 만드는 모든 문서에 특정 필드 세트가 포함되도록 적용할 수 있습니다. 이 가이드에서는 Cloud Firestore Security Rules을 사용하여 이러한 작업 중 일부를 수행하는 방법을 설명합니다.
+
+특정 필드에만 읽기 액세스 허용
+
+Cloud Firestore의 읽기는 문서 수준에서 수행됩니다. 전체 문서를 검색하거나 아무것도 검색하지 못합니다. 부분 문서를 검색할 수 있는 방법은 없습니다. 보안 규칙만 사용해서는 사용자가 문서 내 특정 필드를 읽지 못하게 할 수 없습니다.
+
+문서 내 특정 필드가 일부 사용자에게 표시되지 않게 하려면 별도의 문서에 이러한 필드를 배치하는 것이 가장 좋습니다. 예를 들어 다음과 같이 private 하위 컬렉션에 문서를 만드는 것이 좋습니다.
+
+/employees/{emp_id}
+name: "Alice Hamilton",
+department: 461,
+start_date: <timestamp>
+
+/employees/{emp_id}/private/finances
+salary: 80000,
+bonus_mult: 1.25,
+perf_review: 4.2
+
+그런 다음 두 컬렉션에 서로 다른 수준의 액세스 권한이 있는 보안 규칙을 추가할 수 있습니다. 다음 예시에서는 커스텀 인증 클레임 [https://firebase.google.com/docs/auth/admin/custom-claims?hl=ko]을 사용하여 커스텀 인증 클레임 role이 Finance인 사용자만 직원의 금융 정보를 볼 수 있게 합니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Allow any logged in user to view the public employee data
+match /employees/{emp_id} {
+allow read: if request.resource.auth != null
+// Allow only users with the custom auth claim of "Finance" to view
+// the employee's financial data
+match /private/finances {
+allow read: if request.resource.auth &&
+request.resource.auth.token.role == 'Finance'
+}
+}
+}
+}
+
+문서 생성 시 필드 제한
+
+Cloud Firestore에는 스키마가 없습니다. 즉, 문서에 포함된 필드의 데이터베이스 수준에서는 제한이 없습니다. 이러한 유연성으로 인해 개발이 더욱 쉬워지지만 클라이언트가 특정 필드를 포함하거나 다른 필드를 포함하지 않는 문서만 만들 수 있도록 해야 하는 경우가 있습니다.
+
+request.resource.data [https://firebase.google.com/docs/reference/rules/rules.firestore.Resource?hl=ko#data] 객체의 keys 메서드를 검사하여 이러한 규칙을 만들 수 있습니다. 이 목록은 클라이언트가 이 새 문서에서 쓰기를 시도하는 모든 필드의 목록입니다. 이 필드 세트를 hasOnly() [https://firebase.google.com/docs/reference/rules/rules.List?hl=ko#hasOnly] 또는 hasAny() [https://firebase.google.com/docs/reference/rules/rules.List?hl=ko#hasAny]와 같은 함수와 결합하면 사용자가 Cloud Firestore에 추가할 수 있는 문서 유형을 제한하는 논리를 추가할 수 있습니다.
+
+새 문서에 특정 필드 포함
+
+restaurant 컬렉션에서 만든 모든 문서에 name, location, city 필드가 최소한 한 개 이상 있는지 확인하려고 한다고 가정해 보겠습니다. 새 문서의 키 목록에서 hasAll() [https://firebase.google.com/docs/reference/rules/rules.List?hl=ko#hasAll]을 호출하면 됩니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Allow the user to create a document only if that document contains a name
+// location, and city field
+match /restaurant/{restId} {
+allow create: if request.resource.data.keys().hasAll(['name', 'location', 'city']);
+}
+}
+}
+
+이렇게 하면 레스토랑 문서에 다른 필드도 포함될 수 있지만 클라이언트가 만든 모든 문서에는 적어도 해당 필드 3개가 포함됩니다.
+
+새 문서에서 특정 필드 금지
+
+마찬가지로 금지된 필드 목록에 hasAny() [https://firebase.google.com/docs/reference/rules/rules.List?hl=ko#hasAny]를 사용하여 클라이언트가 특정 필드가 포함된 문서를 만들지 못하게 할 수 있습니다. 이 메서드는 문서에 이러한 필드가 포함되어 있으면 true로 평가하므로 특정 필드를 금지하기 위해 결과를 무효화할 수 있습니다.
+
+예를 들어 다음 예시에서 클라이언트는 average_score 또는 rating_count 필드가 포함된 문서를 만들 수 없습니다. 이러한 필드는 이후 서버 호출에서 추가되기 때문입니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Allow the user to create a document only if that document does *not*
+// contain an average_score or rating_count field.
+match /restaurant/{restId} {
+allow create: if (!request.resource.data.keys().hasAny(
+['average_score', 'rating_count']));
+}
+}
+}
+
+새 문서의 필드 허용 목록 생성
+
+새 문서에서 특정 필드를 금지하는 대신 새 문서에서 명시적으로 허용된 필드만 있는 목록을 만들고자 하는 경우가 있을 수 있습니다. 이 경우 hasOnly() [https://firebase.google.com/docs/reference/rules/rules.List?hl=ko#hasOnly] 함수를 사용하여 생성된 모든 새 문서에 이러한 필드(또는 이러한 필드의 하위 집합)만 있고 다른 필드는 없는지 확인할 수 있습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Allow the user to create a document only if that document doesn't contain
+// any fields besides the ones listed below.
+match /restaurant/{restId} {
+allow create: if (request.resource.data.keys().hasOnly(
+['name', 'location', 'city', 'address', 'hours', 'cuisine']));
+}
+}
+}
+
+필수 필드와 선택 필드 결합
+
+보안 규칙에 hasAll 작업과 hasOnly 작업을 결합하면 일부 필드를 포함하고 다른 필드를 허용할 수 있습니다. 예를 들어 이 예시에서는 모든 새 문서에 name, location, city 필드가 포함되고 필요에 따라 address, hours, cuisine 필드를 허용하도록 합니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Allow the user to create a document only if that document has a name,
+// location, and city field, and optionally address, hours, or cuisine field
+match /restaurant/{restId} {
+allow create: if (request.resource.data.keys().hasAll(['name', 'location', 'city'])) &&
+(request.resource.data.keys().hasOnly(
+['name', 'location', 'city', 'address', 'hours', 'cuisine']));
+}
+}
+}
+
+실제 시나리오에서는 다음과 같이 코드 중복을 방지하고 선택 필드와 필수 필드를 단일 목록으로 더욱 간편하게 결합하기 위해 이 로직을 도우미 함수로 이동할 수 있습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+function verifyFields(required, optional) {
+let allAllowedFields = required.concat(optional);
+return request.resource.data.keys().hasAll(required) &&
+request.resource.data.keys().hasOnly(allAllowedFields);
+}
+match /restaurant/{restId} {
+allow create: if verifyFields(['name', 'location', 'city'],
+['address', 'hours', 'cuisine']);
+}
+}
+}
+
+업데이트 시 필드 제한
+
+일반적으로 클라이언트가 일부 필드만 수정하도록 허용하는 보안 관행을 수행합니다. 이전 섹션에서 설명한 request.resource.data.keys() 목록을 살펴보는 것만으로는 이 작업을 수행할 수 없습니다. 이 목록은 업데이트 이후의 전체 문서를 나타내므로 클라이언트가 변경하지 않은 필드를 포함하고 있기 때문입니다.
+
+그러나 diff() [https://firebase.google.com/docs/reference/rules/rules.Map?hl=ko#diff] 함수를 사용하면 request.resource.data를 업데이트 전의 데이터베이스에 있는 문서를 나타내는 resource.data 객체와 비교할 수 있습니다. 그러면 서로 다른 두 지도 간의 모든 변경사항이 포함된 객체인 mapDiff [https://firebase.google.com/docs/reference/rules/rules.MapDiff?hl=ko] 객체가 생성됩니다.
+
+이 mapDiff에서 affectedKeys() [https://firebase.google.com/docs/reference/rules/rules.MapDiff?hl=ko#affectedKeys] 메서드를 호출하면 수정 시 변경된 필드 세트를 확인할 수 있습니다. 그런 다음 hasOnly() [https://firebase.google.com/docs/reference/rules/rules.Set?hl=ko#hasOnly] 또는 hasAny() [https://firebase.google.com/docs/reference/rules/rules.Set?hl=ko#hasAny]와 같은 함수를 사용하여 이 세트에 특정 항목이 포함되어 있는지 여부를 확인할 수 있습니다.
+
+일부 필드 변경 방지
+
+affectedKeys() [https://firebase.google.com/docs/reference/rules/rules.MapDiff?hl=ko#affectedKeys]로 생성된 세트에서 hasAny() [https://firebase.google.com/docs/reference/rules/rules.Set?hl=ko#hasAny] 메서드를 사용한 후 결과를 무효화하면 변경하지 않으려는 필드를 변경하려는 클라이언트의 요청을 거절할 수 있습니다.
+
+예를 들어 클라이언트가 레스토랑 정보를 업데이트할 수 있지만 평균 점수나 리뷰 수를 변경하지 못하게 할 수 있습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /restaurant/{restId} {
+// Allow the client to update a document only if that document doesn't
+// change the average_score or rating_count fields
+allow update: if (!request.resource.data.diff(resource.data).affectedKeys()
+.hasAny(['average_score', 'rating_count']));
+}
+}
+}
+
+특정 필드만 변경 허용
+
+변경하지 않으려는 필드를 지정하는 대신 hasOnly() [https://firebase.google.com/docs/reference/rules/rules.Set?hl=ko#hasOnly] 함수를 사용하여 변경할 필드 목록을 지정할 수도 있습니다. 보안 규칙에서 명시적으로 허용할 때까지 새 문서 필드에 쓰기가 기본적으로 허용되지 않으므로 일반적으로 이 방법이 더 안전하다고 간주됩니다.
+
+예를 들어 average_score 및 rating_count 필드를 허용하지 않는 대신 클라이언트가 name, location, city, address, hours, cuisine 필드만 변경하도록 허용하는 보안 규칙을 만들 수 있습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /restaurant/{restId} {
+// Allow a client to update only these 6 fields in a document
+allow update: if (request.resource.data.diff(resource.data).affectedKeys()
+.hasOnly(['name', 'location', 'city', 'address', 'hours', 'cuisine']));
+}
+}
+}
+
+즉, 향후 앱이 반복되는 과정에서 레스토랑 문서에 telephone 필드가 포함되면 보안 규칙의 hasOnly() 목록으로 돌아가서 이 필드를 추가할 때까지 수정할 수 없습니다.
+
+필드 유형 적용
+
+Cloud Firestore에 스키마가 없기 때문에 또한 특정 필드에 저장할 수 있는 데이터 유형의 데이터베이스 수준에는 적용할 수 있는 규칙이 없습니다. 하지만 is 연산자를 사용하면 보안 규칙에 적용할 수 있습니다.
+
+예를 들어 다음 보안 규칙은 리뷰의 score 필드는 정수, headline, content, author_name 필드는 문자열, review_date는 타임스탬프로 적용합니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /restaurant/{restId} {
+// Restaurant rules go here...
+match /review/{reviewId} {
+allow create: if (request.resource.data.score is int &&
+request.resource.data.headline is string &&
+request.resource.data.content is string &&
+request.resource.data.author_name is string &&
+request.resource.data.review_date is timestamp
+);
+}
+}
+}
+}
+
+is 연산자의 유효한 데이터 유형은 bool, bytes, float, int, list, latlng, number, path, map, string, timestamp입니다. 또한 is 연산자는 constraint, duration, set, map_diff 데이터 유형을 지원합니다. 하지만 이러한 유형은 보안 규칙 언어 자체에서 생성되고 클라이언트에서는 생성되지 않으므로 대부분 실제 애플리케이션에서는 거의 사용되지 않습니다.
+
+list 및 map 데이터 유형은 제네릭이나 유형 인수를 지원하지 않습니다.
+즉, 보안 규칙을 사용하여 특정 필드가 목록이나 지도를 포함하도록 적용할 수 있지만 필드가 모든 정수나 모든 문자열의 목록을 포함하도록 적용할 수는 없습니다.
+
+마찬가지로 보안 규칙을 사용하여 목록 또는 지도의 특정 항목에 유형 값을 적용할 수 있습니다(각각 대괄호 표기법이나 키 이름 사용). 하지만 지도나 목록에 있는 모든 구성원의 데이터 유형을 한 번에 적용할 수는 없습니다.
+
+예를 들어 다음 규칙에서는 문서의 tags 필드에 목록이 포함되어 있고 첫 번째 항목이 문자열인지 확인합니다. 또한 product 필드에 문자열인 제품 이름과 정수인 수량이 차례대로 포함된 지도가 포함되어 있는지 확인합니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /orders/{orderId} {
+allow create: if request.resource.data.tags is list &&
+request.resource.data.tags[0] is string &&
+request.resource.data.product is map &&
+request.resource.data.product.name is string &&
+request.resource.data.product.quantity is int
+}
+}
+}
+}
+
+문서를 만들고 업데이트할 때 모두 필드 유형을 적용해야 합니다.
+따라서 보안 규칙의 생성 및 업데이트 섹션 모두에서 호출할 수 있는 도우미 함수를 만드는 것이 좋습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+
+function reviewFieldsAreValidTypes(docData) {
+return docData.score is int &&
+docData.headline is string &&
+docData.content is string &&
+docData.author_name is string &&
+docData.review_date is timestamp;
+}
+
+match /restaurant/{restId} {
+// Restaurant rules go here...
+match /review/{reviewId} {
+allow create: if reviewFieldsAreValidTypes(request.resource.data) &&
+// Other rules may go here
+allow update: if reviewFieldsAreValidTypes(request.resource.data) &&
+// Other rules may go here
+}
+}
+}
+}
+
+선택 필드 유형 적용
+
+foo가 없는 문서에서 request.resource.data.foo를 호출하면 오류가 발생하므로 이 호출을 수행하는 보안 규칙은 요청을 거부한다는 점에 유의해야 합니다. request.resource.data에서 get [https://firebase.google.com/docs/reference/rules/rules.Map?hl=ko#get] 메서드를 사용하여 이러한 상황에 대처할 수 있습니다. get 메서드를 사용하면 지도에서 검색 중인 필드가 없는 경우 해당 필드의 기본 인수를 제공할 수 있습니다.
+
+예를 들어 리뷰 문서에 photo_url 선택 필드와 tags 선택 필드가 포함되어 있고 이러한 필드가 각각 문자열과 목록인지 확인하려면 다음과 같이 reviewFieldsAreValidTypes 함수를 다시 작성하여 처리하면 됩니다.
+function reviewFieldsAreValidTypes(docData) {
+return docData.score is int &&
+docData.headline is string &&
+docData.content is string &&
+docData.author_name is string &&
+docData.review_date is timestamp &&
+docData.get('photo_url', '') is string &&
+docData.get('tags', []) is list;
+}
+
+그러면 tags가 있지만 목록이 아닌 문서는 거부되지만 tags(또는 photo_url) 필드가 포함되지 않은 문서는 계속 허용됩니다.
+
+부분 쓰기 금지
+
+Cloud Firestore Security Rules의 마지막 사항은 클라이언트가 문서를 변경하도록 허용하거나 전체 편집을 거부한다는 것입니다.
+같은 작업에서 문서의 일부 필드에 쓰기를 수락하는 동시에 다른 편집을 거부하는 보안 규칙을 만들 수 없습니다.
+
+의견 보내기

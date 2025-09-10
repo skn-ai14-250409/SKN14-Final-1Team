@@ -1,0 +1,199 @@
+Source URL: https://firebase.google.com/docs/firestore/security/rules-conditions?hl=ko
+Title: Cloud Firestore 보안 규칙의 쓰기 조건
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+Cloud Firestore 보안 규칙의 쓰기 조건
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 가이드에서는 보안 규칙 구조화 [https://firebase.google.com/docs/firestore/security/rules-structure?hl=ko] 가이드를 바탕으로 Cloud Firestore Security Rules에 조건을 추가하는 방법을 보여줍니다. Cloud Firestore Security Rules의 기본사항에 익숙하지 않다면 시작하기 [https://firebase.google.com/docs/firestore/security/get-started?hl=ko] 가이드를 참조하세요.
+
+Cloud Firestore Security Rules의 기본 구성 요소는 조건입니다. 조건이란 특정 작업을 허용 또는 거부할지 여부를 결정하는 부울 표현식입니다. 보안 규칙을 사용하여 조건을 작성하면 사용자 인증을
+확인하고, 수신 데이터를 검증하고, 데이터베이스의 다른 부분에 액세스할 수도
+있습니다.
+
+참고: 서버 클라이언트 라이브러리는 모든 Cloud Firestore Security Rules를 우회하고 대신 Google 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/production?hl=ko]를 통해 인증합니다.
+서버 클라이언트 라이브러리, REST 또는 RPC API를 사용하는 경우 Cloud Firestore용 Identity and Access Management(IAM) [https://cloud.google.com/firestore/docs/security/iam?hl=ko]를 설정해야 합니다.
+
+인증
+
+가장 일반적인 보안 규칙 패턴 중 하나는 사용자의 인증 상태에 따라
+액세스를 제어하는 것입니다. 예를 들어 앱에서 로그인한 사용자만 데이터를
+기록하도록 허용할 수 있습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Allow the user to access documents in the "cities" collection
+// only if they are authenticated.
+match /cities/{city} {
+allow read, write: if request.auth != null;
+}
+}
+}
+
+또 다른 일반적인 패턴은 사용자가 자신의 데이터만 읽고 쓸 수 있도록 허용하는 것입니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Make sure the uid of the requesting user matches name of the user
+// document. The wildcard expression {userId} makes the userId variable
+// available in rules.
+match /users/{userId} {
+allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+allow create: if request.auth != null;
+}
+}
+}
+
+앱에서 Firebase 인증 또는 Google Cloud Identity Platform [https://cloud.google.com/identity-platform?hl=ko]을 사용하는 경우 request.auth 변수에는 데이터를 요청하는 클라이언트의 인증 정보가 포함됩니다.
+request.auth에 대한 자세한 내용은 참조 문서 [https://firebase.google.com/docs/reference/rules/rules.firestore.Request?hl=ko#auth]를 확인하세요.
+
+데이터 검증
+
+액세스 제어 정보를 데이터베이스의 문서에 필드로 저장하는 앱이 많습니다.
+Cloud Firestore Security Rules는 문서 데이터에 따라 동적으로 액세스를 허용하거나 거부할 수 있습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Allow the user to read data if the document has the 'visibility'
+// field set to 'public'
+match /cities/{city} {
+allow read: if resource.data.visibility == 'public';
+}
+}
+}
+
+resource 변수는 요청된 문서를 가리키고, resource.data는 문서에 저장된 모든 필드와 값의 맵입니다. resource 변수에 관한 자세한 내용은 참조 문서 [https://firebase.google.com/docs/reference/rules/rules.firestore.Resource?hl=ko]를 확인하세요.
+
+데이터를 기록할 때 수신 데이터를 기존 데이터와 비교해야 할 수 있습니다.
+이러한 경우 규칙 세트에서 대기 중인 쓰기를 허용하면 request.resource 변수에 문서의 미래 상태가 포함됩니다. 문서 필드의 일부만 수정하는 update 작업의 경우 request.resource 변수는 작업 후 대기 중인 문서 상태를 포함합니다. request.resource의 필드 값을 확인하여 불필요하거나 일관성이 없는 데이터 업데이트를 방지할 수 있습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Make sure all cities have a positive population and
+// the name is not changed
+match /cities/{city} {
+allow update: if request.resource.data.population > 0
+&& request.resource.data.name == resource.data.name;
+}
+}
+}
+
+다른 문서 액세스
+
+보안 규칙에서 get() 및 exists() 함수를 사용하여 수신된 요청을 데이터베이스의 다른 문서와 비교할 수 있습니다. get() 및 exists() 함수에는 문서 경로 전체를 지정해야 합니다. 변수를 사용하여 get() 및 exists()의 경로를 작성하는 경우 $(variable) 구문을 사용하여 변수를 명시적으로 이스케이프해야 합니다.
+
+아래 예시에서는 match /databases/{database}/documents match 문으로 database 변수를 캡처하여 경로를 구성하는 데 사용합니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /cities/{city} {
+// Make sure a 'users' document exists for the requesting user before
+// allowing any writes to the 'cities' collection
+allow create: if request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+// Allow the user to delete cities if their user document has the
+// 'admin' field set to 'true'
+allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.admin == true;
+}
+}
+}
+
+쓰기의 경우, 트랜잭션 또는 일괄 쓰기가 완료된 후 getAfter() 함수를 사용하여 트랜잭션 또는 일괄 커밋 전에 문서의 상태에 액세스할 수 있습니다. get()과 마찬가지로 getAfter() 함수는 전체가 지정된 문서 경로를 사용합니다. getAfter()를 사용하여 트랜잭션 또는 일괄로 함께 수행해야 하는 쓰기 집합을 정의할 수 있습니다.
+
+액세스 호출 한도
+
+규칙 세트 평가별 문서 액세스 호출 수에는 제한이 있습니다.
+단일 문서 요청 및 쿼리 요청의 경우 10입니다.
+
+여러 문서 읽기, 트랜잭션, 일괄 쓰기의 경우 20입니다. 이전의 한도인 10도 각 작업에 적용됩니다.
+
+예를 들어 3번의 쓰기 작업으로 일괄 쓰기 요청을 만들고 보안 규칙이 2번의 문서 액세스 호출을 사용하여 각 쓰기를 검증한다고 가정해 봅니다. 이 경우 각 쓰기는 10번의 액세스 호출 중 2번을 사용하고 일괄 쓰기 요청은 20번의 액세스 호출 중 6번을 사용합니다.
+
+한도 중 하나라도 초과하면 권한 거부 오류가 발생합니다. 일부 문서 액세스 호출은 캐시될 수 있으며 캐시된 호출은 한도에 포함되지 않습니다.
+
+이러한 한도가 트랜잭션 및 일괄 쓰기에 어떻게 영향을 미치는지 자세히 알아보려면 원자적 작업에 대한 보안 설정 [https://firebase.google.com/docs/firestore/manage-data/transactions?hl=ko#security_rules_limits] 가이드를 참조하세요.
+
+액세스 호출 및 가격 책정
+
+이 함수를 사용하면 데이터베이스에서 읽기 작업이 실행됩니다. 즉, 규칙에서 요청을 거부하더라도 문서 읽기에 대한 요금이 청구됩니다. 보다 구체적인 결제 정보는 Cloud Firestore 가격 책정 [https://firebase.google.com/docs/firestore/pricing?hl=ko#operations]을 참조하세요.
+
+커스텀 함수
+
+보안 규칙이 복잡해지면 조건 세트를 함수로 묶어 규칙 세트 전체에서
+재사용할 수 있습니다. 보안 규칙에서는 커스텀 함수를 지원합니다. 커스텀 함수의 문법은 자바스크립트와 비슷하지만, 보안 규칙 함수는 도메인 언어로 작성되며 다음과 같은 중요한 제한사항이 있습니다.
+
+함수는 return 문 하나만 포함할 수 있습니다. 다른 로직은 포함할 수 없습니다. 예를 들어 루프를 실행하거나 외부 서비스를 호출할 수 없습니다.
+함수는 정의된 범위에 속하는 함수와 변수에 자동으로 액세스할 수 있습니다. 예를 들어 service cloud.firestore 범위 안에 정의된 함수는 resource 변수 및 get(), exists() 등의 기본 제공 함수에 액세스할 수 있습니다.
+함수는 다른 함수를 호출할 수 있지만 재귀 호출은 금지됩니다. 호출 스택 깊이는 최대 10으로 제한됩니다.
+규칙 버전 v2에서 함수는 let 키워드를 사용하여 변수를 정의할 수 있습니다.
+함수는 최대 10개의 let 바인딩을 가질 수 있지만 반환 구문으로 끝나야 합니다.
+
+함수는 function 키워드로 정의되며 0개 이상의 인수를 취합니다. 예를 들어 위 예시에 사용한 두 가지 유형의 조건을 하나의 함수로 결합할 수 있습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+// True if the user is signed in or the requested data is 'public'
+function signedInOrPublic() {
+return request.auth.uid != null || resource.data.visibility == 'public';
+}
+
+match /cities/{city} {
+allow read, write: if signedInOrPublic();
+}
+
+match /users/{user} {
+allow read, write: if signedInOrPublic();
+}
+}
+}
+
+보안 규칙에서 함수를 사용하면 규칙이 복잡해져도 쉽게 관리할 수 있습니다.
+
+규칙과 필터의 차이
+
+데이터를 보호하고 쿼리 작성을 시작했으면 보안 규칙이 필터가 아니라는 사실에 유의하세요. 컬렉션에 있는 모든 문서를 대상으로 쿼리를 작성할 수 없으며 Cloud Firestore는 현재 클라이언트가 액세스할 수 있는 문서만 반환합니다.
+
+예를 들어 다음 보안 규칙을 따르세요.
+service cloud.firestore {
+match /databases/{database}/documents {
+// Allow the user to read data if the document has the 'visibility'
+// field set to 'public'
+match /cities/{city} {
+allow read: if resource.data.visibility == 'public';
+}
+}
+}
+
+거부되는 쿼리: 다음 쿼리의 경우 결과 세트에 visibility가 public이 아닌 문서가 포함될 수 있으므로 규칙에서 거부됩니다.
+
+웹
+
+db.collection("cities").get()
+.then(function(querySnapshot) {
+querySnapshot.forEach(function(doc) {
+console.log(doc.id, " => ", doc.data());
+});
+});
+
+허용되는 쿼리: 다음 쿼리의 경우 where("visibility", "==", "public") 절이 결과 세트의 규칙 조건 충족을 보장하므로 이 규칙에서 허용됩니다.
+
+웹
+
+db.collection("cities").where("visibility", "==", "public").get()
+.then(function(querySnapshot) {
+querySnapshot.forEach(function(doc) {
+console.log(doc.id, " => ", doc.data());
+});
+});
+
+Cloud Firestore 보안 규칙이 잠재적 결과를 기준으로 각 쿼리를 평가하고 클라이언트가 읽을 수 없는 문서가 반환될 가능성이 있으면 요청이 실패합니다. 쿼리는 보안 규칙에 의해 설정된 제약조건을 따라야 합니다. 보안 규칙 및 쿼리에 대한 자세한 내용은 안전하게 데이터 쿼리 [https://firebase.google.com/docs/firestore/security/rules-query?hl=ko]를 참조하세요.
+
+다음 단계
+
+보안 규칙이 쿼리에 미치는 영향 [https://firebase.google.com/docs/firestore/security/rules-query?hl=ko] 알아보기
+보안 규칙 구조화 [https://firebase.google.com/docs/firestore/security/rules-structure?hl=ko] 방법 알아보기
+보안 규칙 참조 [https://firebase.google.com/docs/reference/rules/rules?hl=ko] 읽어보기
+
+Cloud Storage for Firebase를 사용하는 앱에서 Cloud Firestore 문서에 액세스하는 Cloud Storage Security Rules 조건을 작성 [https://firebase.google.com/docs/storage/security/rules-conditions?hl=ko#enhance_with_firestore]하는 방법 알아보기
+
+의견 보내기

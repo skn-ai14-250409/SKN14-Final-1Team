@@ -1,0 +1,172 @@
+Source URL: https://firebase.google.com/docs/firestore/ttl?hl=ko
+Title: TTL 정책으로 데이터 보관 관리
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+TTL 정책으로 데이터 보관 관리
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지에서는 Google Cloud 콘솔 및 Google Cloud CLI를 사용하여 TTL(수명) 정책을 구성하는 방법을 설명합니다. 이 페이지를 읽기 전에 Cloud Firestore 데이터 모델 [https://firebase.google.com/docs/firestore/data-model?hl=ko]을 이해해야 합니다.
+
+TTL(수명) 개요
+
+TTL 정책을 사용하여 데이터베이스에서 비활성 데이터를 자동으로 삭제하세요. TTL 정책은 특정 필드를 특정 컬렉션 그룹의 문서 만료 시간으로 지정합니다. TTL을 사용하면 사용되지 않는 데이터를 정리하여 스토리지 비용을 줄일 수 있습니다. 데이터는 일반적으로 만료일로부터 24시간 이내에 삭제됩니다.
+
+가격 책정
+
+TTL 삭제 작업은 문서 삭제 비용에 포함됩니다. 삭제 작업 가격은 Cloud Firestore 가격 책정 [https://firebase.google.com/docs/firestore/pricing?hl=ko]을 참조하세요.
+
+한도 및 제약조건
+
+컬렉션 그룹당 하나의 필드만 TTL 필드로 표시할 수 있습니다.
+필드 수준 구성은 최대 500개까지 허용됩니다. 한 필드 구성에 동일한 필드에 대한 여러 구성이 포함될 수 있습니다. 예를 들어 동일한 필드에 지정된 단일 필드 색인 생성 예외와 TTL 정책은 한도에서 필드 구성 1개로 집계됩니다.
+Datastore 모드의 Firestore 고객의 경우 TTL을 항목 그룹을 사용한 낙관적 [https://cloud.google.com/datastore/docs/concepts/transactions?hl=ko#concurrency_modes] 동시 실행 모드와 함께 사용할 수 없습니다.
+동시 실행 모드를 낙관적 동시 실행 모드 [https://cloud.google.com/datastore/docs/upgrade-to-firestore?hl=ko#optimistic_with_entity_groups_concurrency_mode]로 변경하는 것이 좋습니다.
+
+TTL 삭제
+
+TTL 기반 삭제의 다음 주요 동작에 유의하세요.
+
+TTL을 통한 삭제는 즉시 처리되지 않습니다. 만료된 문서는 TTL 프로세스에 의해 실제로 삭제될 때까지 쿼리 및 조회 요청에 계속 표시됩니다. TTL은 삭제 기한을 조정하여 삭제에 대한 총 소유 비용을 절감합니다.
+데이터는 일반적으로 만료일로부터 24시간 이내에 삭제됩니다.
+TTL을 통해 문서를 삭제해도 해당 문서의 하위 컬렉션은 삭제되지 않습니다.
+기존 컬렉션 그룹에 TTL 정책을 적용하면 새 TTL 정책에 따라 만료된 모든 데이터가 일괄 삭제됩니다. 이 일괄 삭제도 즉시 처리되지 않으며 컬렉션 그룹에 있는 데이터의 양에 따라 다릅니다.
+문서의 만료 시간이 과거로 설정되어 있는 상태에서 컬렉션에 새 TTL 정책을 추가하면 TTL 정책 설정이 완료 및 활성화된 후 24시간 이내에 문서가 삭제됩니다.
+TTL이 만료 타임스탬프와 같은 순서로 문서를 삭제하지는 않습니다.
+삭제는 트랜잭션 방식으로 완료되지 않습니다. 만료 시간이 동일한 문서가 반드시 동시에 삭제되지는 않습니다. 이 동작이 필요하면 클라이언트 라이브러리를 사용하여 삭제를 수행합니다.
+Cloud Firestore는 항상 최신 TTL 필드를 적용하여 만료 시간을 결정합니다. 예를 들어 만료되었지만 아직 삭제되지 않은 문서의 TTL 필드가 이후 날짜로 업데이트된 경우에는 문서가 만료되지 않고 새 날짜가 사용됩니다.
+TTL 필드가 Date and time 유형으로 설정된 경우에만 Cloud Firestore에서 문서가 만료됩니다. 필드를 비워두거나 null과 같은 값으로 설정하면 문서별로 만료를 사용 중지할 수 있습니다.
+TTL은 다른 데이터베이스 활동에 미치는 영향이 최소화되도록 설계되었습니다. TTL 기반 삭제는 더 낮은 우선순위로 처리됩니다. TTL 기반 삭제로 인한 트래픽 급증을 완화하기 위한 다른 전략도 있습니다.
+TTL을 통해 삭제하면 활성 스냅샷 리스너가 호출되고 Cloud Functions Cloud Firestore 트리거가 트리거됩니다.
+
+TTL 필드 및 색인
+
+TTL 필드에서 색인을 생성하거나 색인을 생성하지 않을 수 있습니다. 하지만 TTL 필드는 타임스탬프이므로 필드의 색인을 생성하면 트래픽 비율이 높을 때 성능에 영향을 미칠 수 있습니다.
+타임스탬프 필드의 색인을 생성하면 권장사항에 반하는 핫스팟 [https://firebase.google.com/docs/firestore/best-practices?hl=ko#hotspots]이 생성될 수 있습니다. 핫스팟은 좁은 문서 범위에 대한 높은 읽기, 쓰기, 삭제 속도를 말합니다.
+
+기본적으로 Cloud Firestore에서는 모든 필드에 단일 필드 색인을 만듭니다.
+TTL 필드의 색인을 사용 중지하려면 단일 필드 색인 예외를 생성 [https://firebase.google.com/docs/firestore/query-data/indexing?hl=ko#add_a_single-field_index_exemption]하면 됩니다.
+
+권한
+
+TTL 정책을 구성하는 주 구성원은 프로젝트에 대한 다음 권한이 필요합니다.
+
+TTL 정책을 보려면 datastore.indexes.list 및 datastore.indexes.get 권한이 필요합니다.
+TTL 정책을 수정하려면 datastore.indexes.update 권한이 필요합니다.
+TTL 작업의 상태를 확인하려면 datastore.operations.list 및 datastore.operations.get이 필요합니다.
+
+이러한 권한을 할당하는 역할은 Cloud Firestore Identity and Access Management 역할 [https://firebase.google.com/docs/firestore/security/iam?hl=ko#predefined_roles]을 참고하세요.
+
+시작하기 전에
+
+gcloud CLI를 사용하여 TTL 정책을 관리하기 전에 gcloud components update [https://cloud.google.com/sdk/gcloud/reference/components/update?hl=ko] 명령어를 사용하여 구성요소를 사용 가능한 최신 버전으로 업데이트합니다.
+gcloud components update
+
+TTL 정책 만들기
+
+TTL 정책을 만들 때 문서 필드를 컬렉션 그룹의 문서 만료 시간으로 지정합니다.
+
+TTL은 지정된 필드를 사용하여 삭제 가능한 문서를 식별합니다.
+이 TTL 필드는 Date and time 유형이어야 합니다. 이미 있는 필드를 선택하거나 나중에 추가할 필드를 지정할 수 있습니다.
+
+TTL 필드 값을 설정하기 전에 다음 사항을 고려하세요.
+
+TTL 필드 값은 미래, 현재 또는 과거의 시간일 수 있습니다. 값이 과거의 시간인 경우 문서는 즉시 삭제 가능한 대상이 될 수 있습니다. 예를 들어 expireAt 필드가 있는 TTL 정책을 만든 다음 기존 문서에 추가할 수 있습니다.
+다른 데이터 유형을 사용하거나 TTL 필드 값을 설정하지 않으면 개별 문서에 TTL이 사용 중지됩니다.
+
+TTL 정책을 만들려면 다음 단계를 따르세요.
+
+Google Cloud Console
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
+탐색 메뉴에서 TTL(수명)을 클릭합니다.
+정책 만들기를 클릭합니다.
+컬렉션 그룹 이름과 타임스탬프 필드 이름을 입력합니다.
+만들기를 클릭합니다.
+
+콘솔이 TTL(수명) 페이지로 돌아갑니다. 작업이 성공적으로 시작되면 페이지에서 TTL 정책 테이블 항목이 추가됩니다. 실패하면 페이지에 오류 메시지가 표시됩니다.
+gcloud
+
+firestore fields ttls
+update [https://cloud.google.com/sdk/gcloud/reference/firestore/fields/ttls/update?hl=ko] 명령어를 사용하여 TTL 정책을 구성합니다. 작업이 완료될 때까지 gcloud CLI가 대기하지 않도록 --async 플래그를 추가합니다.
+
+gcloud firestore fields ttls update
+ttl_field --collection-group=collection_group_name
+--enable-ttl
+
+TTL 정책 사용 설정 기간
+
+빈 데이터베이스에서도 TTL 정책을 사용 설정하는 데 10분 이상 걸릴 수 있습니다. 작업을 시작하면 터미널을 닫아도 작업이 취소되지 않습니다.
+
+TTL 정책 보기
+
+TTL 정책 및 상태를 확인하려면 다음 단계를 따르세요.
+
+Google Cloud Console
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
+탐색 메뉴에서 TTL(수명)을 클릭합니다.
+
+콘솔에 데이터베이스의 TTL 정책이 표시되고 각 정책의 상태가 포함됩니다.
+gcloud
+
+firestore fields ttls list [https://firebase.google.com/sdk/gcloud/reference/firestore/fields/ttls/list?hl=ko] 명령어를 사용하여 TTL 정책을 구성합니다. 다음 명령어는 모든 TTL 정책을 나열합니다.
+
+gcloud firestore fields ttls list
+
+특정 컬렉션 그룹의 TTL 정책을 나열하려면 다음 명령어를 사용합니다.
+
+gcloud firestore fields ttls list  --collection-group=collection_group_name
+
+작업 세부정보 보기
+
+gcloud CLI를 사용하여 CREATING 상태에 있는 TTL 정책에 대한 자세한 내용을 확인할 수 있습니다.
+
+operations list [https://firebase.google.com/sdk/gcloud/reference/firestore/operations/list?hl=ko] 명령어를 사용하면 모든 실행 중인 작업과 최근에 완료된 작업을 확인할 수 있습니다.
+
+gcloud firestore operations list
+
+응답에는 예상 작업 진행 상황이 포함됩니다.
+
+TTL 정책 사용 중지
+
+TTL 정책을 사용 중지하려면 다음 단계를 따르세요.
+
+Google Cloud Console
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
+탐색 메뉴에서 TTL(수명)을 클릭합니다.
+TTL 정책 테이블에서 TTL 정책 행을 찾습니다. 이 테이블 행 내에서 삭제(휴지통) 버튼을 클릭합니다.
+삭제를 클릭하여 확인합니다.
+
+콘솔이 TTL(수명) 페이지로 돌아갑니다. 성공하면 Cloud Firestore가 테이블에서 TTL 정책을 삭제합니다.
+gcloud
+
+1. firestore fields ttls update [https://firebase.google.com/sdk/gcloud/reference/firestore/fields/ttls/update?hl=ko] 명령어를 사용하여 TTL 정책을 구성합니다. 작업이 완료될 때까지 gcloud CLI가 대기하지 않도록 --async 플래그를 추가합니다.
+
+gcloud firestore fields ttls update ttl_field --collection-group=collection_group_name --disable-ttl
+
+TTL 삭제 모니터링
+
+Cloud Monitoring을 사용하여 TTL 기반 삭제에 대한 측정항목을 볼 수 있습니다.
+Cloud Firestore는 TTL에 대한 다음 측정항목을 제공합니다.
+
+| 측정항목 유형 | 측정항목 이름 | 측정항목 설명 |
+| --- | --- | --- |
+| firestore.googleapis.com/document/ttl_deletion_count | TTL(수명) 삭제 횟수 | TTL 정책에 의해 삭제된 총 문서 수입니다. |
+| firestore.googleapis.com/document/ttl_expiration_to_deletion_delays | TTL(수명) 만료 후 삭제까지 지연 시간 | TTL 정책에 따라 문서가 만료된 시점과 실제로 삭제된 시점 사이에 경과한 시간입니다. |
+
+대시보드에 Cloud Firestore 측정항목을 설정하려면 커스텀 대시보드 관리 [https://cloud.google.com/monitoring/charts/dashboards?hl=ko] 및 대시보드 위젯 추가 [https://cloud.google.com/monitoring/charts?hl=ko]를 참조하세요.
+
+의견 보내기

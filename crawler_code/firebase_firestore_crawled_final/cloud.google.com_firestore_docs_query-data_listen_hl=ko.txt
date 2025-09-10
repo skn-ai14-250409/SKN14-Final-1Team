@@ -1,0 +1,604 @@
+Source URL: https://cloud.google.com/firestore/docs/query-data/listen?hl=ko
+Title: 실시간 업데이트 가져오기
+bookmark_border
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+
+의견 보내기
+
+이 페이지의 내용로컬 변경 이벤트 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#events-local-changes]메타데이터 변경 이벤트 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#events-metadata-changes]로컬 변경사항에 대해서만 리스너 구성 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#events-local-only]컬렉션의 여러 문서 수신 대기 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#listen_to_multiple_documents_in_a_collection]스냅샷 간 변경사항 보기 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#view_changes_between_snapshots]리스너 분리 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#detach_a_listener]수신 대기 오류 처리 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#handle_listen_errors]다음 단계 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#whats_next]
+
+실시간 업데이트 가져오기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+onSnapshot() 메서드로 문서를 리슨할 수 있습니다. 사용자가 제공하는 콜백이 최초로 호출될 때 단일 문서의 현재 콘텐츠로 문서 스냅샷이 즉시 생성됩니다. 그런 다음 콘텐츠가 변경될 때마다 콜백이 호출되어 문서 스냅샷을 업데이트합니다.참고: 실시간 리스너는 PHP 클라이언트 라이브러리에서 지원되지 않습니다.
+
+--- 탭: 웹 버전 9 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-9-modular] ---
+[https://shell.cloud.google.com/cloudshell/editor?show=ide&cloudshell_git_repo=https://github.com/firebase/snippets-web&cloudshell_open_in_editor=snippets/firestore-next/test-firestore/listen_document.js]
+import { doc, onSnapshot } from "firebase/firestore";
+
+const unsub = onSnapshot(doc(db, "cities", "SF"), (doc) => {
+console.log("Current data: ", doc.data());
+});
+listen_document.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/listen_document.js#L8-L12]
+
+--- 탭: 웹 버전 8 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-8-namespaced] ---
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").doc("SF")
+.onSnapshot((doc) => {
+console.log("Current data: ", doc.data());
+});
+test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L623-L626]
+
+--- 탭: Swift [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#swift] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+db.collection("cities").document("SF")
+.addSnapshotListener { documentSnapshot, error in
+guard let document = documentSnapshot else {
+print("Error fetching document: \(error!)")
+return
+}
+guard let data = document.data() else {
+print("Document data was empty.")
+return
+}
+print("Current data: \(data)")
+}
+ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L759-L770]
+
+--- 탭: Objective-C [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#objective-c] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+[[[self.db collectionWithPath:@"cities"] documentWithPath:@"SF"]
+addSnapshotListener:^(FIRDocumentSnapshot *snapshot, NSError *error) {
+if (snapshot == nil) {
+NSLog(@"Error fetching document: %@", error);
+return;
+}
+NSLog(@"Current data: %@", snapshot.data);
+}];
+ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L695-L702]
+
+--- 탭: Kotlin [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#kotlin-android] ---
+val docRef = db.collection("cities").document("SF")
+docRef.addSnapshotListener { snapshot, e ->
+if (e != null) {
+Log.w(TAG, "Listen failed.", e)
+return@addSnapshotListener
+}
+
+if (snapshot != null && snapshot.exists()) {
+Log.d(TAG, "Current data: ${snapshot.data}")
+} else {
+Log.d(TAG, "Current data: null")
+}
+}
+DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L524-L536]
+
+로컬 변경 이벤트
+
+앱에서 로컬로 쓰면 즉시 스냅샷 리스너가 호출됩니다.
+이는 '지연 시간 보정'이라는 중요한 기능 때문입니다.
+쓰기를 수행하면 데이터가 백엔드로 전송되기 전에 리스너에 새 데이터가 통보됩니다.
+
+검색된 문서의 metadata.hasPendingWrites 속성은 문서에 아직 백엔드에 쓰기 처리되지 않은 로컬 변경사항이 있는지 여부를 나타냅니다. 이 속성을 사용하여 스냅샷 리스너가 수신한 이벤트의 소스를 확인할 수 있습니다.
+
+--- 탭: 웹 버전 9 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-9-modular] ---
+import { doc, onSnapshot } from "firebase/firestore";
+
+const unsub = onSnapshot(doc(db, "cities", "SF"), (doc) => {
+const source = doc.metadata.hasPendingWrites ? "Local" : "Server";
+console.log(source, " data: ", doc.data());
+});
+listen_document_local.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/listen_document_local.js#L8-L13]
+
+--- 탭: 웹 버전 8 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-8-namespaced] ---
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").doc("SF")
+.onSnapshot((doc) => {
+var source = doc.metadata.hasPendingWrites ? "Local" : "Server";
+console.log(source, " data: ", doc.data());
+});
+test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L638-L642]
+
+--- 탭: Swift [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#swift] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+db.collection("cities").document("SF")
+.addSnapshotListener { documentSnapshot, error in
+guard let document = documentSnapshot else {
+print("Error fetching document: \(error!)")
+return
+}
+let source = document.metadata.hasPendingWrites ? "Local" : "Server"
+print("\(source) data: \(document.data() ?? [:])")
+}
+ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L776-L784]
+
+--- 탭: Objective-C [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#objective-c] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+[[[self.db collectionWithPath:@"cities"] documentWithPath:@"SF"]
+addSnapshotListener:^(FIRDocumentSnapshot *snapshot, NSError *error) {
+if (snapshot == nil) {
+NSLog(@"Error fetching document: %@", error);
+return;
+}
+NSString *source = snapshot.metadata.hasPendingWrites ? @"Local" : @"Server";
+NSLog(@"%@ data: %@", source, snapshot.data);
+}];
+ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L708-L716]
+
+--- 탭: Kotlin [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#kotlin-android] ---
+val docRef = db.collection("cities").document("SF")
+docRef.addSnapshotListener { snapshot, e ->
+if (e != null) {
+Log.w(TAG, "Listen failed.", e)
+return@addSnapshotListener
+}
+
+val source = if (snapshot != null && snapshot.metadata.hasPendingWrites()) {
+"Local"
+} else {
+"Server"
+}
+
+if (snapshot != null && snapshot.exists()) {
+Log.d(TAG, "$source data: ${snapshot.data}")
+} else {
+Log.d(TAG, "$source data: null")
+}
+}
+DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L542-L560]
+
+메타데이터 변경 이벤트
+
+문서, 컬렉션 또는 쿼리 변경사항을 리슨할 때 리스너에서 수신할 이벤트의 세분화 수준을 제어하는 옵션을 전달할 수 있습니다.
+
+기본적으로 메타데이터에만 영향을 미치는 변경사항은 리스너에 통보되지 않습니다.
+앱에서 새 문서를 쓰면 다음과 같은 일이 일어납니다.
+
+새 데이터로 변경 이벤트가 즉시 시작됩니다. 문서가 아직 백엔드에 쓰기 처리되지 않았으므로 '쓰기 대기 중' 플래그가 true입니다.
+문서가 백엔드에 쓰기 처리됩니다.
+백엔드가 클라이언트에 쓰기 완료를 통보합니다. 문서 데이터가 변경되지 않았지만 '쓰기 대기 중' 플래그가 이제 false이므로 메타데이터가 변경되었습니다.
+
+문서 또는 쿼리 메타데이터가 변경될 때 스냅샷 이벤트를 수신하려면 리스너를 연결할 때 리슨 옵션 객체를 전달합니다.
+참고: 다음 샘플과 같이 리스너 옵션을 전달할 수 있습니다.
+아래 설명 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#events-local-only]된 스냅샷 옵션에 대한 구성 인터페이스를 사용하여 메타데이터 변경에 대한 이벤트를 명시적으로 구성할 수도 있습니다. 자세한 내용은 Kotlin + KTX Android, Java Android, Swift, Objective-C, 웹 모듈식의 참고 문서를 참조하세요.
+
+--- 탭: 웹 버전 9 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-9-modular] ---
+import { doc, onSnapshot } from "firebase/firestore";
+
+const unsub = onSnapshot(
+doc(db, "cities", "SF"),
+{ includeMetadataChanges: true },
+(doc) => {
+// ...
+});
+listen_with_metadata.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/listen_with_metadata.js#L8-L15]
+
+--- 탭: 웹 버전 8 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-8-namespaced] ---
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").doc("SF")
+.onSnapshot({
+// Listen for document metadata changes
+includeMetadataChanges: true
+}, (doc) => {
+// ...
+});
+test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L654-L660]
+
+--- 탭: Swift [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#swift] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+// Listen to document metadata.
+db.collection("cities").document("SF")
+.addSnapshotListener(includeMetadataChanges: true) { documentSnapshot, error in
+// ...
+}
+ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L790-L794]
+
+--- 탭: Objective-C [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#objective-c] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+// Listen for metadata changes.
+[[[self.db collectionWithPath:@"cities"] documentWithPath:@"SF"]
+addSnapshotListenerWithIncludeMetadataChanges:YES
+listener:^(FIRDocumentSnapshot *snapshot, NSError *error) {
+// ...
+}];
+ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L722-L727]
+
+--- 탭: Kotlin [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#kotlin-android] ---
+// Listen for metadata changes to the document.
+val docRef = db.collection("cities").document("SF")
+docRef.addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, e ->
+// ...
+}
+DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L566-L570]
+참고: 쓰기가 완료된 시점만 파악하려면 hasPendingWrites를 사용하는 대신 완료 콜백을 리슨하면 됩니다.  JavaScript에서는 .then() 콜백을 연결하여 쓰기 작업에서 반환된 Promise를 사용하면 됩니다. Swift에서는 쓰기 함수에 완료 콜백을 전달합니다.
+로컬 변경사항에 대해서만 리스너 구성
+
+Native 모드의 Firestore 스냅샷 리스너는 로컬 캐시에서 초기 스냅샷을 가져오고 동시에 서버에서 해당 데이터를 가져옵니다.
+
+경우에 따라 서버에서 추가로 데이터 가져오기를 원하지 않을 수 있습니다. 클라이언트 SDK를 사용하면 로컬 캐시에 있는 데이터에 대해서만 리스너가 실행되도록 구성할 수 있습니다. 이렇게 하면 불필요한 서버 호출과 비용을 방지하고 로컬 데이터와 변형을 반영하는 클라이언트 측 캐시를 활용할 수 있습니다.
+
+여기에서는 클라이언트 코드에서 스냅샷 옵션을 설정하여 로컬 변경 사항만 수신할 수 있도록 합니다.
+
+--- 탭: 웹 버전 9 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-9-modular] ---
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+const unsubscribe = onSnapshot(
+doc(db, "cities", "SF"),
+{
+includeMetadataChanges: true,
+source:'cache'
+},
+(documentSnapshot) => {//…}
+);
+
+--- 탭: 웹 버전 8 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-8-namespaced] ---
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에서 업그레이드 [https://firebase.google.com/docs/web/modular-upgrade?hl=ko]하세요.
+// Not yet supported in the Web namespaced API
+
+--- 탭: Swift [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#swift] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+// Set up listener options
+let options = SnapshotListenOptions()
+.withSource(ListenSource.cache)
+.withIncludeMetadataChanges(true)
+db.collection("cities").document("SF")
+.addSnapshotListener(options: options) { documentSnapshot, error in
+// ...
+}
+
+--- 탭: Objective-C [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#objective-c] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+// Set up listener options
+FIRSnapshotListenOptions *options = [[FIRSnapshotListenOptions alloc] init];
+FIRSnapshotListenOptions *optionsWithSourceAndMetadata =
+[[options optionsWithIncludeMetadataChanges:YES]
+optionsWithSource:FIRListenSourceCache];
+[[[self.db collectionWithPath:@"cities"] documentWithPath:@"SF"]
+addSnapshotListenerWithOptions:optionsWithSourceAndMetadata
+listener: ^ (FIRDocumentSnapshot * snapshot, NSError * error) {
+//…
+}
+];
+
+--- 탭: Kotlin [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#kotlin-android] ---
+// Set up listener options
+val options = SnapshotListenOptions.Builder()
+.setMetadataChanges(MetadataChanges.INCLUDE)
+.setSource(ListenSource.CACHE)
+.build();
+db.collection("cities").document("SF")
+.addSnapshotListener(options) { snapshot, error ->
+//…
+}
+
+컬렉션의 여러 문서 수신 대기
+
+문서와 마찬가지로 get() 대신 onSnapshot()을 사용하여 쿼리 결과를 리슨할 수 있습니다. 이렇게 하면 쿼리 스냅샷이 만들어집니다. 예를 들어 주가 CA인 문서를 수신 대기하는 방법은 다음과 같습니다.
+
+--- 탭: 웹 버전 9 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-9-modular] ---
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+
+const q = query(collection(db, "cities"), where("state", "==", "CA"));
+const unsubscribe = onSnapshot(q, (querySnapshot) => {
+const cities = [];
+querySnapshot.forEach((doc) => {
+cities.push(doc.data().name);
+});
+console.log("Current cities in CA: ", cities.join(", "));
+});
+listen_multiple.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/listen_multiple.js#L8-L17]
+
+--- 탭: 웹 버전 8 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-8-namespaced] ---
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").where("state", "==", "CA")
+.onSnapshot((querySnapshot) => {
+var cities = [];
+querySnapshot.forEach((doc) => {
+cities.push(doc.data().name);
+});
+console.log("Current cities in CA: ", cities.join(", "));
+});
+test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L703-L710]
+
+--- 탭: Swift [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#swift] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+db.collection("cities").whereField("state", isEqualTo: "CA")
+.addSnapshotListener { querySnapshot, error in
+guard let documents = querySnapshot?.documents else {
+print("Error fetching documents: \(error!)")
+return
+}
+let cities = documents.compactMap { $0["name"] }
+print("Current cities in CA: \(cities)")
+}
+ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L840-L848]
+
+--- 탭: Objective-C [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#objective-c] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+[[[self.db collectionWithPath:@"cities"] queryWhereField:@"state" isEqualTo:@"CA"]
+addSnapshotListener:^(FIRQuerySnapshot *snapshot, NSError *error) {
+if (snapshot == nil) {
+NSLog(@"Error fetching documents: %@", error);
+return;
+}
+NSMutableArray *cities = [NSMutableArray array];
+for (FIRDocumentSnapshot *document in snapshot.documents) {
+[cities addObject:document.data[@"name"]];
+}
+NSLog(@"Current cities in CA: %@", cities);
+}];
+ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L778-L789]
+
+--- 탭: Kotlin [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#kotlin-android] ---
+db.collection("cities")
+.whereEqualTo("state", "CA")
+.addSnapshotListener { value, e ->
+if (e != null) {
+Log.w(TAG, "Listen failed.", e)
+return@addSnapshotListener
+}
+
+val cities = ArrayList<String>()
+for (doc in value!!) {
+doc.getString("name")?.let {
+cities.add(it)
+}
+}
+Log.d(TAG, "Current cites in CA: $cities")
+}
+DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L624-L639]
+
+스냅샷 핸들러는 문서의 추가, 삭제, 수정 등 쿼리 결과가 변경될 때마다 새 쿼리 스냅샷을 수신합니다.
+중요: 위 로컬 변경 이벤트 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#events-local-changes]의 설명대로 로컬 쓰기에 대한 이벤트는 즉시 수신됩니다. 리스너는 각 문서의 metadata.hasPendingWrites 필드를 사용하여 문서에 아직 백엔드에 쓰기 처리되지 않은 로컬 변경사항이 있는지 확인할 수 있습니다.
+스냅샷 간 변경사항 보기
+
+단순히 전체 쿼리 스냅샷을 사용하는 대신 쿼리 스냅샷 간에 실제로 변경된 쿼리 결과를 확인하는 것이 유용한 경우가 많습니다. 예를 들어 개별 문서가 추가, 삭제, 수정될 때 캐시를 유지해야 할 수 있습니다.
+
+--- 탭: 웹 버전 9 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-9-modular] ---
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+
+const q = query(collection(db, "cities"), where("state", "==", "CA"));
+const unsubscribe = onSnapshot(q, (snapshot) => {
+snapshot.docChanges().forEach((change) => {
+if (change.type === "added") {
+console.log("New city: ", change.doc.data());
+}
+if (change.type === "modified") {
+console.log("Modified city: ", change.doc.data());
+}
+if (change.type === "removed") {
+console.log("Removed city: ", change.doc.data());
+}
+});
+});
+listen_diffs.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/listen_diffs.js#L8-L23]
+
+--- 탭: 웹 버전 8 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-8-namespaced] ---
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").where("state", "==", "CA")
+.onSnapshot((snapshot) => {
+snapshot.docChanges().forEach((change) => {
+if (change.type === "added") {
+console.log("New city: ", change.doc.data());
+}
+if (change.type === "modified") {
+console.log("Modified city: ", change.doc.data());
+}
+if (change.type === "removed") {
+console.log("Removed city: ", change.doc.data());
+}
+});
+});
+test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L721-L734]
+
+--- 탭: Swift [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#swift] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+db.collection("cities").whereField("state", isEqualTo: "CA")
+.addSnapshotListener { querySnapshot, error in
+guard let snapshot = querySnapshot else {
+print("Error fetching snapshots: \(error!)")
+return
+}
+snapshot.documentChanges.forEach { diff in
+if (diff.type == .added) {
+print("New city: \(diff.document.data())")
+}
+if (diff.type == .modified) {
+print("Modified city: \(diff.document.data())")
+}
+if (diff.type == .removed) {
+print("Removed city: \(diff.document.data())")
+}
+}
+}
+ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L854-L871]
+
+--- 탭: Objective-C [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#objective-c] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+[[[self.db collectionWithPath:@"cities"] queryWhereField:@"state" isEqualTo:@"CA"]
+addSnapshotListener:^(FIRQuerySnapshot *snapshot, NSError *error) {
+if (snapshot == nil) {
+NSLog(@"Error fetching documents: %@", error);
+return;
+}
+for (FIRDocumentChange *diff in snapshot.documentChanges) {
+if (diff.type == FIRDocumentChangeTypeAdded) {
+NSLog(@"New city: %@", diff.document.data);
+}
+if (diff.type == FIRDocumentChangeTypeModified) {
+NSLog(@"Modified city: %@", diff.document.data);
+}
+if (diff.type == FIRDocumentChangeTypeRemoved) {
+NSLog(@"Removed city: %@", diff.document.data);
+}
+}
+}];
+ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L795-L812]
+
+--- 탭: Kotlin [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#kotlin-android] ---
+db.collection("cities")
+.whereEqualTo("state", "CA")
+.addSnapshotListener { snapshots, e ->
+if (e != null) {
+Log.w(TAG, "listen:error", e)
+return@addSnapshotListener
+}
+
+for (dc in snapshots!!.documentChanges) {
+when (dc.type) {
+DocumentChange.Type.ADDED -> Log.d(TAG, "New city: ${dc.document.data}")
+DocumentChange.Type.MODIFIED -> Log.d(TAG, "Modified city: ${dc.document.data}")
+DocumentChange.Type.REMOVED -> Log.d(TAG, "Removed city: ${dc.document.data}")
+}
+}
+}
+DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L645-L660]
+중요: 첫 번째 쿼리 스냅샷은 쿼리와 일치하는 모든 기존 문서에 대한 added 이벤트를 포함합니다. 쿼리의 초기 상태를 기준으로 쿼리 스냅샷을 현재 상태로 만든 변경사항 집합을 가져오기 때문입니다. 따라서 초기 상태를 처리하는 특수한 로직을 추가할 필요 없이 첫 번째 쿼리 스냅샷으로 수신된 변경사항에 따라 직접 UI에 데이터를 채울 수 있습니다.
+초기 상태는 서버에서 직접 가져오거나 로컬 캐시에서 가져올 수 있습니다. 로컬 캐시에 사용 가능한 상태가 있으면 쿼리 스냅샷에 우선 캐시된 데이터가 채워진 후, 클라이언트에서 서버의 상태를 따라잡았을 때 서버의 데이터로 업데이트됩니다.
+
+리스너 분리
+
+더 이상 데이터를 리슨할 필요가 없으면 이벤트 콜백이 호출되지 않도록 리스너를 분리해야 합니다. 이렇게 하면 클라이언트에서 업데이트 수신을 위한 대역폭 사용을 중지합니다. 예를 들면 다음과 같습니다.
+
+--- 탭: 웹 버전 9 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-9-modular] ---
+import { collection, onSnapshot } from "firebase/firestore";
+
+const unsubscribe = onSnapshot(collection(db, "cities"), () => {
+// Respond to data
+// ...
+});
+
+// Later ...
+
+// Stop listening to changes
+unsubscribe();
+detach_listener.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/detach_listener.js#L8-L18]
+
+--- 탭: 웹 버전 8 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-8-namespaced] ---
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+var unsubscribe = db.collection("cities")
+.onSnapshot(() => {
+// Respond to data
+// ...
+});
+
+// Later ...
+
+// Stop listening to changes
+unsubscribe();
+test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L744-L753]
+
+--- 탭: Swift [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#swift] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+let listener = db.collection("cities").addSnapshotListener { querySnapshot, error in
+// ...
+}
+
+// ...
+
+// Stop listening to changes
+listener.remove()
+ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L898-L906]
+
+--- 탭: Objective-C [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#objective-c] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+id<FIRListenerRegistration> listener = [[self.db collectionWithPath:@"cities"]
+addSnapshotListener:^(FIRQuerySnapshot *snapshot, NSError *error) {
+// ...
+}];
+
+// ...
+
+// Stop listening to changes
+[listener remove];
+ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L838-L846]
+
+--- 탭: Kotlin [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#kotlin-android] ---
+val query = db.collection("cities")
+val registration = query.addSnapshotListener { snapshots, e ->
+// ...
+}
+
+// ...
+
+// Stop listening to changes
+registration.remove()
+DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L689-L697]
+
+수신 대기 오류 처리
+
+보안 권한이 부족하거나 잘못된 쿼리를 리슨하는 등의 경우에 리슨이 실패할 수 있습니다. 올바른 쿼리 및 잘못된 쿼리 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#compound_queries]에 대해 자세히 알아보세요. 이러한 오류를 처리하려면 스냅샷 리스너를 연결할 때 오류 콜백을 제공합니다. 오류가 발생하면 리스너는 이벤트를 더 이상 수신하지 않으므로 리스너를 분리할 필요는 없습니다.
+
+--- 탭: 웹 버전 9 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-9-modular] ---
+import { collection, onSnapshot } from "firebase/firestore";
+
+const unsubscribe = onSnapshot(
+collection(db, "cities"),
+(snapshot) => {
+// ...
+},
+(error) => {
+// ...
+});
+handle_listen_errors.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/handle_listen_errors.js#L8-L17]
+
+--- 탭: 웹 버전 8 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#%EC%9B%B9-%EB%B2%84%EC%A0%84-8-namespaced] ---
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities")
+.onSnapshot((snapshot) => {
+// ...
+}, (error) => {
+// ...
+});
+test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L760-L765]
+
+--- 탭: Swift [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#swift] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+db.collection("cities")
+.addSnapshotListener { querySnapshot, error in
+if let error = error {
+print("Error retreiving collection: \(error)")
+}
+}
+ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L912-L917]
+
+--- 탭: Objective-C [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#objective-c] ---
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+[[self.db collectionWithPath:@"cities"]
+addSnapshotListener:^(FIRQuerySnapshot *snapshot, NSError *error) {
+if (error != nil) {
+NSLog(@"Error retreving collection: %@", error);
+}
+}];
+ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L852-L857]
+
+--- 탭: Kotlin [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko#kotlin-android] ---
+db.collection("cities")
+.addSnapshotListener { snapshots, e ->
+if (e != null) {
+Log.w(TAG, "listen:error", e)
+return@addSnapshotListener
+}
+
+for (dc in snapshots!!.documentChanges) {
+if (dc.type == DocumentChange.Type.ADDED) {
+Log.d(TAG, "New city: ${dc.document.data}")
+}
+}
+}
+DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L703-L715]
+
+다음 단계
+
+리스너에 간단한 쿼리 및 복합 쿼리 결합 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko]
+검색된 문서 정렬 및 제한 [https://cloud.google.com/firestore/native/docs/query-data/order-limit-data?hl=ko]
+리스너의 결제 이해 [https://cloud.google.com/firestore/native/docs/pricing?hl=ko#operations]
+
+도움이 되었나요?
+
+의견 보내기
