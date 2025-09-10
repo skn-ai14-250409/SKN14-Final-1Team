@@ -1,4 +1,4 @@
-# FILE: get_firebase_auth_data.py
+# FILE: get_firebase_auth_data.py (병렬 처리 및 안정성 강화 최종본)
 
 # -*- coding: utf-8 -*-
 import os
@@ -6,6 +6,7 @@ import re
 import time
 from collections import deque
 from urllib.parse import urljoin, urlparse, urlunparse, parse_qs, urlencode, urldefrag
+import multiprocessing
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -19,27 +20,27 @@ from selenium.common.exceptions import (
     WebDriverException,
 )
 
-# ========= 기본 설정 (Firebase / Firestore 전용) =========
+# ========= 기본 설정 (Firebase Auth 전용) =========
 OUTPUT_DIR = "firebase_auth_crawled_final"
 MAX_PAGES = 800
 CRAWL_DELAY_SEC = 1
 WAIT_SEC = 20
+RESTART_DRIVER_AFTER_PAGES = 50
+
+# --- ▼ 병렬 처리 설정 ▼ ---
+# 동시에 실행할 크롤러 프로세스 수 (컴퓨터의 CPU 코어 수에 맞춰 조절하세요)
+NUM_WORKERS = 4
+# --- ▲ 병렬 처리 설정 ▲ ---
 
 # ========= 크롤 제한 =========
 ALLOW_DOMAINS = {"firebase.google.com"}
-ALLOW_PATH_PREFIXES = (
-    "/docs/auth",
-)
-
-START_URLS = [
-    "https://firebase.google.com/docs/auth?hl=ko"
-]
+ALLOW_PATH_PREFIXES = ("/docs/auth",)
+START_URLS = ["https://firebase.google.com/docs/auth?hl=ko"]
 
 
-# ========= 유틸: URL 정규화/허용판정 =========
+# ========= 유틸 함수 (이전과 동일) =========
 def normalize_url(url: str) -> str:
-    if not url:
-        return ""
+    if not url: return ""
     url, _ = urldefrag(url)
     parsed = urlparse(url)
     scheme = "https"
@@ -48,22 +49,17 @@ def normalize_url(url: str) -> str:
     qs["hl"] = ["ko"]
     query = urlencode({k: v[-1] for k, v in qs.items()}, doseq=False)
     path = re.sub(r"//+", "/", parsed.path)
-    normalized = urlunparse((scheme, netloc, path, "", query, ""))
-    return normalized
+    return urlunparse((scheme, netloc, path, "", query, ""))
 
 
 def is_allowed(url: str) -> bool:
     try:
         parsed = urlparse(url)
-        if parsed.netloc not in ALLOW_DOMAINS:
-            return False
+        if parsed.netloc not in ALLOW_DOMAINS: return False
         path = parsed.path or "/"
-        disallow_substrings = [
-            "/products", "/pricing", "/support", "/contact", "/terms", "/about",
-            "/blog", "/events", "/press", "/jobs", "/partners"
-        ]
-        if any(s in path for s in disallow_substrings):
-            return False
+        disallow = ["/products", "/pricing", "/support", "/contact", "/terms", "/about", "/blog", "/events", "/press",
+                    "/jobs", "/partners"]
+        if any(s in path for s in disallow): return False
         return any(path.startswith(prefix) for prefix in ALLOW_PATH_PREFIXES)
     except Exception:
         return False
@@ -71,68 +67,48 @@ def is_allowed(url: str) -> bool:
 
 def safe_filename_from_url(url: str) -> str:
     parsed = urlparse(url)
-    base = (parsed.netloc + parsed.path).strip("/")
-    if not base:
-        base = "index"
-    if parsed.query:
-        base += "_" + re.sub(r"[^a-zA-Z0-9_=-]", "_", parsed.query)
-    base = re.sub(r'[/\\?%*:|"<>]', "_", base).strip("_")
-    if not base:
-        base = "page"
+    base = (parsed.netloc + parsed.path).strip("/") or "index"
+    if parsed.query: base += "_" + re.sub(r"[^a-zA-Z0-9_=-]", "_", parsed.query)
+    base = re.sub(r'[/\\?%*:|"<>]', "_", base).strip("_") or "page"
     return base + ".txt"
 
 
 def ensure_output_dir():
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
+    if not os.path.exists(OUTPUT_DIR): os.makedirs(OUTPUT_DIR)
 
 
-# ========= 드라이버/레이아웃 주입 =========
+# ========= 드라이버 및 콘텐츠 추출 함수 (이전과 동일) =========
 def create_driver(headless=True) -> webdriver.Chrome:
     chrome_options = Options()
-    # if headless:
-    #     chrome_options.add_argument("--headless=new")
+    # chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--lang=ko-KR")
-    chrome_options.add_argument("--window-size=3840,4000")
-    chrome_options.add_argument("--start-maximized")
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_experimental_option("prefs", {"profile.managed_default_content_settings.images": 2})
     service = ChromeService()
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    try:
-        driver.set_window_rect(width=3840, height=4000)
-        driver.maximize_window()
-    except Exception:
-        pass
-    return driver
+    return webdriver.Chrome(service=service, options=chrome_options)
 
 
 def inject_layout_override(driver):
     css = r"""
-@media screen and (max-width: 99999px) {
-  body[layout=docs] .devsite-main-content[has-book-nav],
-  body[layout=docs] .devsite-main-content[has-book-nav][has-sidebar] {
-    grid-template-columns: 269px 1fr 0 !important;
-  }
-  devsite-snackbar, devsite-toast, .devsite-overflow-tab { display: none !important; }
-  main.devsite-main-content, .devsite-article { max-width: 99999px !important; }
-}
-section[role='tabpanel'] { display: block !important; max-height: none !important; overflow: visible !important; }
-"""
-    js = """
-    var style = document.createElement('style');
-    style.type = 'text/css';
-    style.appendChild(document.createTextNode(arguments[0]));
-    document.head.appendChild(style);
+    @media screen and (max-width: 99999px) {
+      body[layout=docs] .devsite-main-content[has-book-nav],
+      body[layout=docs] .devsite-main-content[has-book-nav][has-sidebar] { grid-template-columns: 269px 1fr 0 !important; }
+      devsite-snackbar, devsite-toast, .devsite-overflow-tab { display: none !important; }
+      main.devsite-main-content, .devsite-article { max-width: 99999px !important; }
+    }
+    section[role='tabpanel'] { display: block !important; max-height: none !important; overflow: visible !important; }
     """
     try:
-        driver.execute_script(js, css)
+        driver.execute_script(
+            "var style=document.createElement('style');style.type='text/css';style.appendChild(document.createTextNode(arguments[0]));document.head.appendChild(style);",
+            css)
     except Exception:
         pass
 
 
-# ========= 콘텐츠 추출 =========
 def table_to_markdown(table_element):
     try:
         rows = table_element.find_elements(By.TAG_NAME, "tr")
@@ -142,9 +118,7 @@ def table_to_markdown(table_element):
             if not cells: continue
             cell_texts = [(cell.text or "").strip().replace('\n', ' ').replace('|', '\\|') for cell in cells]
             markdown_rows.append("| " + " | ".join(cell_texts) + " |")
-            if i == 0:
-                separator = "| " + " | ".join(["---"] * len(cell_texts)) + " |"
-                markdown_rows.append(separator)
+            if i == 0: markdown_rows.append("| " + " | ".join(["---"] * len(cell_texts)) + " |")
         return "\n".join(markdown_rows)
     except Exception:
         return ""
@@ -156,11 +130,9 @@ def convert_tables_to_markdown(driver, article):
         for table in tables:
             try:
                 markdown_table = table_to_markdown(table)
-                if markdown_table:
-                    driver.execute_script(
-                        "var table = arguments[0]; var pre = document.createElement('pre'); pre.textContent = arguments[1]; table.parentNode.replaceChild(pre, table);",
-                        table, markdown_table
-                    )
+                if markdown_table: driver.execute_script(
+                    "var table=arguments[0];var pre=document.createElement('pre');pre.textContent=arguments[1];table.parentNode.replaceChild(pre,table);",
+                    table, markdown_table)
             except StaleElementReferenceException:
                 continue
     except Exception:
@@ -175,9 +147,7 @@ def annotate_links_in_article(driver, article):
             if href and "javascript:void(0)" not in href:
                 try:
                     driver.execute_script(
-                        "arguments[0].textContent = arguments[0].textContent.trim() + ' [' + arguments[0].href + ']';",
-                        a
-                    )
+                        "arguments[0].textContent=arguments[0].textContent.trim()+' ['+arguments[0].href+']';", a)
                 except StaleElementReferenceException:
                     continue
     except Exception:
@@ -185,84 +155,47 @@ def annotate_links_in_article(driver, article):
 
 
 def clean_extracted_text(text: str) -> str:
-    if not text:
-        return ""
-    # 불필요한 공백 라인 정리
+    if not text: return ""
     lines = [line.strip() for line in text.split('\n')]
-    compacted_lines = []
-    prev_line_empty = True
+    compacted, prev_empty = [], True
     for line in lines:
         if line:
-            compacted_lines.append(line)
-            prev_line_empty = False
-        elif not prev_line_empty:
-            compacted_lines.append(line)
-            prev_line_empty = True
-    return '\n'.join(compacted_lines).strip()
+            compacted.append(line)
+            prev_empty = False
+        elif not prev_empty:
+            compacted.append(line)
+            prev_empty = True
+    return '\n'.join(compacted).strip()
 
 
 def extract_content_with_tabs(driver, article) -> str:
-    """
-    기사와 그 안의 모든 탭 콘텐츠를 추출합니다.
-    """
-    # 1. 불필요한 요소 제거 및 탭 그룹 위치에 플레이스홀더 삽입
-    base_text_script = """
+    script = """
         var article = arguments[0].cloneNode(true);
-        var selectorsToRemove = ['style', 'script', 'noscript', '.devsite-code-buttons', '.devsite-rating', '.devsite-article-meta'];
-        selectorsToRemove.forEach(sel => article.querySelectorAll(sel).forEach(el => el.remove()));
-        article.querySelectorAll('devsite-selector').forEach((group, idx) => {
-            var p = document.createElement('div');
-            p.textContent = `__TAB_GROUP_PLACEHOLDER_${idx}__`;
-            group.parentNode.replaceChild(p, group);
-        });
-        return article.textContent || '';
+        ['style','script','noscript','.devsite-code-buttons','.devsite-rating','.devsite-article-meta'].forEach(sel=>article.querySelectorAll(sel).forEach(el=>el.remove()));
+        article.querySelectorAll('devsite-selector').forEach((g,i)=>{var p=document.createElement('div');p.textContent=`__TAB_GROUP_${i}__`;g.parentNode.replaceChild(p,g);});
+        return article.textContent||'';
     """
-    final_text = driver.execute_script(base_text_script, article)
-
-    # 2. 각 탭 그룹을 순회하며 콘텐츠 추출
+    final_text = driver.execute_script(script, article)
     try:
-        tab_groups = article.find_elements(By.TAG_NAME, "devsite-selector")
-        for i, group in enumerate(tab_groups):
-            group_content = []
-
-            # 탭 버튼과 패널을 모두 찾음
+        for i, group in enumerate(article.find_elements(By.TAG_NAME, "devsite-selector")):
+            content = []
             tabs = group.find_elements(By.CSS_SELECTOR, "[role='tab']")
             panels = group.find_elements(By.CSS_SELECTOR, "[role='tabpanel']")
-
             panel_map = {p.get_attribute('id'): p for p in panels if p.get_attribute('id')}
-
             for tab in tabs:
                 tab_text = (tab.text or "").strip()
-                if not tab_text or tab_text == "더보기":
-                    continue
-
-                panel_id = tab.get_attribute('aria-controls')
-                panel = panel_map.get(panel_id)
-
+                if not tab_text or tab_text == "더보기": continue
+                panel = panel_map.get(tab.get_attribute('aria-controls'))
                 if panel:
-                    panel_content = (panel.text or "").strip()
-                    if panel_content:
-                        # 코드 블록을 마크다운 형식으로 감싸기
-                        code_blocks = panel.find_elements(By.CSS_SELECTOR, "pre.devsite-code-highlight, pre code")
-                        if code_blocks:
-                            extracted_codes = []
-                            for block in code_blocks:
-                                code_text = (block.text or "").strip()
-                                if code_text:
-                                    extracted_codes.append(f"```\n{code_text}\n```")
-                            panel_content = "\n".join(extracted_codes)
-
-                        group_content.append(f"--- 탭: {tab_text} ---\n{panel_content}")
-
-            if group_content:
-                final_text = final_text.replace(f"__TAB_GROUP_PLACEHOLDER_{i}__", "\n\n" + "\n\n".join(group_content))
-
+                    panel_content = "\n".join([f"```\n{(b.text or '').strip()}\n```" for b in
+                                               panel.find_elements(By.CSS_SELECTOR,
+                                                                   "pre.devsite-code-highlight, pre code") if
+                                               (b.text or '').strip()]) or (panel.text or "").strip()
+                    if panel_content: content.append(f"--- 탭: {tab_text} ---\n{panel_content}")
+            if content: final_text = final_text.replace(f"__TAB_GROUP_{i}__", "\n\n" + "\n\n".join(content))
     except Exception as e:
-        print(f"탭 추출 중 오류 발생: {e}")
-
-    # 플레이스홀더가 남아있으면 제거
-    final_text = re.sub(r'__TAB_GROUP_PLACEHOLDER_\d+__', '', final_text)
-    return final_text
+        print(f"탭 추출 오류: {e}")
+    return re.sub(r'__TAB_GROUP_\d+__', '', final_text)
 
 
 def extract_title_h1(driver) -> str:
@@ -272,7 +205,6 @@ def extract_title_h1(driver) -> str:
         return (driver.title or "").strip()
 
 
-# ========= 수집 유틸 =========
 def collect_sidebar_links(driver, wait) -> list:
     try:
         nav = wait.until(EC.presence_of_element_located((By.TAG_NAME, "devsite-book-nav")))
@@ -289,75 +221,97 @@ def collect_article_links(driver) -> list:
         return []
 
 
-# ========= 메인 크롤러 =========
-def crawl():
-    ensure_output_dir()
+# ========= 워커 프로세스가 실행할 함수 =========
+def crawl_worker(pid, url_queue, seen_urls, pages_done_counter):
     driver = create_driver(headless=True)
     wait = WebDriverWait(driver, WAIT_SEC)
-    q = deque()
-    seen = set()
+    pages_crawled_by_worker = 0
 
-    for s in START_URLS:
-        u = normalize_url(s)
-        if is_allowed(u):
-            q.append(u)
-            seen.add(u)
+    while True:
+        try:
+            url = url_queue.get()
+            if url is None:
+                break
 
-    pages_done = 0
-    try:
-        while q and pages_done < MAX_PAGES:
-            url = q.popleft()
-            print(f"\n[{pages_done + 1}/{MAX_PAGES}] GET {url}")
+            with pages_done_counter.get_lock():
+                if pages_done_counter.value >= MAX_PAGES:
+                    url_queue.put(None)
+                    break
+                pages_done_counter.value += 1
+                current_page_count = pages_done_counter.value
 
-            try:
-                driver.get(url)
-            except WebDriverException as e:
-                print(f"로드 실패: {e}")
-                continue
+            print(f"[Worker-{pid} | Page-{current_page_count}/{MAX_PAGES}] GET {url}")
 
+            driver.get(url)
             inject_layout_override(driver)
 
-            try:
-                article = wait.until(EC.presence_of_element_located((By.TAG_NAME, "article")))
-            except TimeoutException:
-                print("article 태그를 찾지 못해 스킵")
-                continue
+            article = wait.until(EC.presence_of_element_located((By.TAG_NAME, "article")))
 
             convert_tables_to_markdown(driver, article)
             annotate_links_in_article(driver, article)
 
             page_text = extract_content_with_tabs(driver, article)
             page_text = clean_extracted_text(page_text)
-
             title = extract_title_h1(driver)
 
-            filename = safe_filename_from_url(url)
-            filepath = os.path.join(OUTPUT_DIR, filename)
+            filepath = os.path.join(OUTPUT_DIR, safe_filename_from_url(url))
             with open(filepath, "w", encoding="utf-8") as f:
-                f.write(f"Source URL: {url}\n")
-                if title:
-                    f.write(f"Title: {title}\n")
-                f.write("\n" + page_text)
-            print(f"✅ Saved: {filepath}")
+                f.write(f"Source URL: {url}\nTitle: {title}\n\n{page_text}")
 
-            pages_done += 1
+            pages_crawled_by_worker += 1
+            if pages_crawled_by_worker % RESTART_DRIVER_AFTER_PAGES == 0:
+                print(f"[Worker-{pid}] 드라이버 재시작...")
+                driver.quit()
+                driver = create_driver(headless=True)
+                wait = WebDriverWait(driver, WAIT_SEC)
+
             time.sleep(CRAWL_DELAY_SEC)
 
             new_links = collect_sidebar_links(driver, wait) + collect_article_links(driver)
-            for raw_link in new_links:
-                abs_url = urljoin(url, raw_link)
-                norm_url = normalize_url(abs_url)
-                if norm_url and is_allowed(norm_url) and norm_url not in seen:
-                    seen.add(norm_url)
-                    q.append(norm_url)
+            for link in new_links:
+                norm_url = normalize_url(urljoin(url, link))
+                if norm_url and is_allowed(norm_url) and norm_url not in seen_urls:
+                    seen_urls[norm_url] = True
+                    url_queue.put(norm_url)
 
-        print(f"\n크롤 완료 — 저장한 페이지 수: {pages_done}")
-    except KeyboardInterrupt:
-        print("\n⛔️ 사용자가 크롤을 중단했습니다.")
-    except Exception as e:
-        print(f"\n예상치 못한 오류로 크롤을 종료합니다: {e}")
-    finally:
-        driver.quit()
+        except WebDriverException as e:
+            print(f"[Worker-{pid}] 드라이버 오류 발생: {e}. 재시작합니다.")
+            driver.quit()
+            driver = create_driver(headless=True)
+            wait = WebDriverWait(driver, WAIT_SEC)
+            url_queue.put(url)
+        except Exception as e:
+            print(f"[Worker-{pid}] URL {url} 처리 중 오류: {e}")
+            continue
+
+    driver.quit()
+
+
+# ========= 메인 프로세스 (작업 조율) =========
+def crawl():
+    ensure_output_dir()
+
+    manager = multiprocessing.Manager()
+    url_queue = manager.Queue()
+    seen_urls = manager.dict()
+    pages_done_counter = manager.Value('i', 0)
+
+    for url in START_URLS:
+        norm_url = normalize_url(url)
+        if is_allowed(norm_url) and norm_url not in seen_urls:
+            url_queue.put(norm_url)
+            seen_urls[norm_url] = True
+
+    processes = []
+    for i in range(NUM_WORKERS):
+        p = multiprocessing.Process(target=crawl_worker, args=(i + 1, url_queue, seen_urls, pages_done_counter))
+        processes.append(p)
+        p.start()
+
+    for p in processes:
+        p.join()
+
+    print(f"\n크롤 완료 — 저장한 페이지 수: {pages_done_counter.value}")
 
 
 if __name__ == "__main__":
