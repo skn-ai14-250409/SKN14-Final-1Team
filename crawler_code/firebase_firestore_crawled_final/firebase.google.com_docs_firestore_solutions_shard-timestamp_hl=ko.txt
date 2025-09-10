@@ -1,0 +1,539 @@
+Source URL: https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko
+Title: 샤딩된 타임스탬프
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+샤딩된 타임스탬프
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+컬렉션에 순차 색인이 생성된 값이 포함된 문서가 있으면 Cloud Firestore는 쓰기 속도를 초당 500회로 제한합니다. 이 페이지에서는 이 제한을 해결하기 위해 문서 필드를 샤딩하는 방법을 설명합니다. 먼저 '순차적으로 색인이 지정된 필드'를 정의하고 이 제한이 적용되는 조건을 알아보겠습니다.
+
+순차적으로 색인이 지정된 필드
+
+'순차적으로 색인이 지정된 필드'란 단조롭게 증가 또는 감소하는 색인이 지정된 필드가 포함된 문서 컬렉션을 의미합니다. 대부분의 경우 timestamp 필드이지만, 필드 값이 단조롭게 증가 또는 감소하는 경우 초당 500회의 쓰기 제한이 적용될 수 있습니다.
+
+예를 들어 앱이 다음과 같이 userid 값을 할당하는 경우 userid라는 색인 생성 필드가 있는 user 문서 컬렉션에 이 제한이 적용됩니다.
+
+1281, 1282, 1283, 1284, 1285, ...
+
+반면에 timestamp 필드에 이 제한이 적용되지 않는 경우도 있습니다. timestamp 필드가 임의로 분산된 값을 추적하면 쓰기 제한이 적용되지 않습니다. 필드가 단조롭게 증가 또는 감소한다는 사실 외에 필드의 실제 값은 중요하지 않습니다. 예를 들어 다음과 같이 단조롭게 증가하는 필드 값 집합에는 모두 쓰기 제한이 적용됩니다.
+
+100000, 100001, 100002, 100003, ...
+0, 1, 2, 3, ...
+
+timestamp 필드 샤딩
+
+앱에서 단조롭게 증가하는 timestamp 필드를 사용한다고 가정해 보겠습니다.
+앱이 어떤 쿼리에서도 timestamp 필드를 사용하지 않는다면 timestamp 필드의 색인을 생성하지 않고 초당 500회의 쓰기 제한을 제거할 수 있습니다. 쿼리에 timestamp 필드가 필요한 경우에는 샤딩된 타임스탬프를 사용하여 이 제한을 해결할 수 있습니다.
+
+shard 필드와 timestamp 필드를 함께 추가합니다. 1..n 중에서 고유한 값을 shard 필드에 사용하세요. 그러면 컬렉션에 대한 쓰기 제한이 500*n으로 증가하지만 n개의 쿼리를 집계해야 합니다.
+쓰기 로직을 업데이트하여 각 문서에 shard 값을 임의로 할당합니다.
+쿼리를 업데이트하여 샤딩된 결과 집합을 집계합니다.
+shard 필드 및 timestamp 필드 모두에 대해 단일 필드 색인 사용을 중지합니다. timestamp 필드가 포함된 기존의 복합 색인을 삭제합니다.
+복합 색인을 새로 만들어 업데이트된 쿼리를 지원합니다. 색인의 필드 순서가 중요하므로 shard 필드가 timestamp 필드 앞에 와야 합니다. timestamp 필드를 포함하는 색인에는 shard 필드도 포함되어야 합니다.
+
+쓰기 속도가 지속적으로 초당 500회가 넘는 경우에만 샤딩된 타임스탬프를 구현해야 합니다. 그렇지 않으면 조기에 최적화될 수 있습니다. timestamp 필드를 샤딩하면 초당 500회의 쓰기 제한이 제거되지만 클라이언트 측 쿼리 집계가 필요하다는 단점이 있습니다.
+
+다음 예시는 timestamp 필드를 샤딩하는 방법과 샤딩된 결과 집합을 쿼리하는 방법을 보여줍니다.
+
+데이터 모델 및 쿼리 예시
+
+예를 들어 통화, 보통주, ETF 같은 금융 상품을 거의 실시간으로 분석하는 앱이 있다고 가정해 보겠습니다. 이 앱은 다음과 같이 문서를 instruments 컬렉션에 씁니다.
+
+Node.js
+async function insertData() {
+const instruments = [
+{
+symbol: 'AAA',
+price: {
+currency: 'USD',
+micros: 34790000
+},
+exchange: 'EXCHG1',
+instrumentType: 'commonstock',
+timestamp: Timestamp.fromMillis(
+Date.parse('2019-01-01T13:45:23.010Z'))
+},
+{
+symbol: 'BBB',
+price: {
+currency: 'JPY',
+micros: 64272000000
+},
+exchange: 'EXCHG2',
+instrumentType: 'commonstock',
+timestamp: Timestamp.fromMillis(
+Date.parse('2019-01-01T13:45:23.101Z'))
+},
+{
+symbol: 'Index1 ETF',
+price: {
+currency: 'USD',
+micros: 473000000
+},
+exchange: 'EXCHG1',
+instrumentType: 'etf',
+timestamp: Timestamp.fromMillis(
+Date.parse('2019-01-01T13:45:23.001Z'))
+}
+];
+
+const batch = fs.batch();
+for (const inst of instruments) {
+const ref = fs.collection('instruments').doc();
+batch.set(ref, inst);
+}
+
+await batch.commit();
+}
+nonShardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-sharded-timestamp/nonShardedTimestamps.js#L11-L56]
+
+이 앱은 다음 쿼리를 실행하고 timestamp 필드에 따라 값을 정렬합니다.
+
+Node.js
+function createQuery(fieldName, fieldOperator, fieldValue, limit = 5) {
+return fs.collection('instruments')
+.where(fieldName, fieldOperator, fieldValue)
+.orderBy('timestamp', 'desc')
+.limit(limit)
+.get();
+}
+
+function queryCommonStock() {
+return createQuery('instrumentType', '==', 'commonstock');
+}
+
+function queryExchange1Instruments() {
+return createQuery('exchange', '==', 'EXCHG1');
+}
+
+function queryUSDInstruments() {
+return createQuery('price.currency', '==', 'USD');
+}
+nonShardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-sharded-timestamp/nonShardedTimestamps.js#L60-L79]
+insertData()
+.then(() => {
+const commonStock = queryCommonStock()
+.then(
+(docs) => {
+console.log('--- queryCommonStock: ');
+docs.forEach((doc) => {
+console.log(`doc = ${util.inspect(doc.data(), {depth: 4})}`);
+});
+}
+);
+const exchange1Instruments = queryExchange1Instruments()
+.then(
+(docs) => {
+console.log('--- queryExchange1Instruments: ');
+docs.forEach((doc) => {
+console.log(`doc = ${util.inspect(doc.data(), {depth: 4})}`);
+});
+}
+);
+const usdInstruments = queryUSDInstruments()
+.then(
+(docs) => {
+console.log('--- queryUSDInstruments: ');
+docs.forEach((doc) => {
+console.log(`doc = ${util.inspect(doc.data(), {depth: 4})}`);
+});
+}
+);
+return Promise.all([commonStock, exchange1Instruments, usdInstruments]);
+});nonShardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-sharded-timestamp/nonShardedTimestamps.js#L83-L113]
+
+조사 결과, 앱이 금융 상품에 대한 업데이트를 초당 1,000~1,500개 수신하는 것이 확인됩니다. 이것은 색인이 지정된 timestamp 필드가 있는 문서를 포함하는 컬렉션에 허용되는 초당 500회의 쓰기 제한을 훨씬 초과합니다. 쓰기 처리량을 늘리려면 3개의 샤드 값(MAX_INSTRUMENT_UPDATES/500 = 3)이 필요합니다. 이 예시에서는 x, y, z라는 샤드 값을 사용합니다. 샤드 값으로 숫자나 다른 문자를 사용해도 됩니다.
+
+shard 필드 추가
+
+shard 필드를 문서에 추가합니다. shard 필드를 값 x, y, z로 설정하여 컬렉션에 대한 쓰기 제한을 초당 1,500회로 늘립니다.
+
+Node.js
+// Define our 'K' shard values
+const shards = ['x', 'y', 'z'];
+// Define a function to help 'chunk' our shards for use in queries.
+// When using the 'in' query filter there is a max number of values that can be
+// included in the value. If our number of shards is higher than that limit
+// break down the shards into the fewest possible number of chunks.
+function shardChunks() {
+const chunks = [];
+let start = 0;
+while (start < shards.length) {
+const elements = Math.min(MAX_IN_VALUES, shards.length - start);
+const end = start + elements;
+chunks.push(shards.slice(start, end));
+start = end;
+}
+return chunks;
+}
+
+// Add a convenience function to select a random shard
+function randomShard() {
+return shards[Math.floor(Math.random() * Math.floor(shards.length))];
+}
+shardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-sharded-timestamp/shardedTimestamps.js#L12-L34]
+async function insertData() {
+const instruments = [
+{
+shard: randomShard(),  // add the new shard field to the document
+symbol: 'AAA',
+price: {
+currency: 'USD',
+micros: 34790000
+},
+exchange: 'EXCHG1',
+instrumentType: 'commonstock',
+timestamp: Timestamp.fromMillis(
+Date.parse('2019-01-01T13:45:23.010Z'))
+},
+{
+shard: randomShard(),  // add the new shard field to the document
+symbol: 'BBB',
+price: {
+currency: 'JPY',
+micros: 64272000000
+},
+exchange: 'EXCHG2',
+instrumentType: 'commonstock',
+timestamp: Timestamp.fromMillis(
+Date.parse('2019-01-01T13:45:23.101Z'))
+},
+{
+shard: randomShard(),  // add the new shard field to the document
+symbol: 'Index1 ETF',
+price: {
+currency: 'USD',
+micros: 473000000
+},
+exchange: 'EXCHG1',
+instrumentType: 'etf',
+timestamp: Timestamp.fromMillis(
+Date.parse('2019-01-01T13:45:23.001Z'))
+}
+];
+
+const batch = fs.batch();
+for (const inst of instruments) {
+const ref = fs.collection('instruments').doc();
+batch.set(ref, inst);
+}
+
+await batch.commit();
+}
+shardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-sharded-timestamp/shardedTimestamps.js#L38-L86]
+
+샤딩된 타임스탬프 쿼리
+
+shard 필드를 추가하려면 쿼리를 업데이트하여 샤딩된 결과를 집계해야 합니다.
+
+Node.js
+function createQuery(fieldName, fieldOperator, fieldValue, limit = 5) {
+// For each shard value, map it to a new query which adds an additional
+// where clause specifying the shard value.
+return Promise.all(shardChunks().map(shardChunk => {
+return fs.collection('instruments')
+.where('shard', 'in', shardChunk)  // new shard condition
+.where(fieldName, fieldOperator, fieldValue)
+.orderBy('timestamp', 'desc')
+.limit(limit)
+.get();
+}))
+// Now that we have a promise of multiple possible query results, we need
+// to merge the results from all of the queries into a single result set.
+.then((snapshots) => {
+// Create a new container for 'all' results
+const docs = [];
+snapshots.forEach((querySnapshot) => {
+querySnapshot.forEach((doc) => {
+// append each document to the new all container
+docs.push(doc);
+});
+});
+if (snapshots.length === 1) {
+// if only a single query was returned skip manual sorting as it is
+// taken care of by the backend.
+return docs;
+} else {
+// When multiple query results are returned we need to sort the
+// results after they have been concatenated.
+//
+// since we're wanting the `limit` newest values, sort the array
+// descending and take the first `limit` values. By returning negated
+// values we can easily get a descending value.
+docs.sort((a, b) => {
+const aT = a.data().timestamp;
+const bT = b.data().timestamp;
+const secondsDiff = aT.seconds - bT.seconds;
+if (secondsDiff === 0) {
+return -(aT.nanoseconds - bT.nanoseconds);
+} else {
+return -secondsDiff;
+}
+});
+return docs.slice(0, limit);
+}
+});
+}
+
+function queryCommonStock() {
+return createQuery('instrumentType', '==', 'commonstock');
+}
+
+function queryExchange1Instruments() {
+return createQuery('exchange', '==', 'EXCHG1');
+}
+
+function queryUSDInstruments() {
+return createQuery('price.currency', '==', 'USD');
+}
+shardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-sharded-timestamp/shardedTimestamps.js#L90-L149]
+insertData()
+.then(() => {
+const commonStock = queryCommonStock()
+.then(
+(docs) => {
+console.log('--- queryCommonStock: ');
+docs.forEach((doc) => {
+console.log(`doc = ${util.inspect(doc.data(), {depth: 4})}`);
+});
+}
+);
+const exchange1Instruments = queryExchange1Instruments()
+.then(
+(docs) => {
+console.log('--- queryExchange1Instruments: ');
+docs.forEach((doc) => {
+console.log(`doc = ${util.inspect(doc.data(), {depth: 4})}`);
+});
+}
+);
+const usdInstruments = queryUSDInstruments()
+.then(
+(docs) => {
+console.log('--- queryUSDInstruments: ');
+docs.forEach((doc) => {
+console.log(`doc = ${util.inspect(doc.data(), {depth: 4})}`);
+});
+}
+);
+return Promise.all([commonStock, exchange1Instruments, usdInstruments]);
+});shardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-sharded-timestamp/shardedTimestamps.js#L153-L183]
+
+색인 정의 업데이트
+
+초당 500회의 쓰기 제한을 제거하려면 timestamp 필드를 사용하는 기존의 단일 필드 색인 및 복합 색인을 삭제합니다.
+
+복합 색인 정의 삭제
+
+Firebase Console
+Firebase Console에서 Cloud Firestore 복합 색인 페이지를 엽니다.
+
+복합 색인으로 이동 [https://console.firebase.google.com/project/_/firestore/indexes?hl=ko]
+timestamp 필드가 포함된 색인 항목별로 more_vert 버튼과 삭제를 차례로 클릭합니다.
+
+GCP Console
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
+탐색 메뉴에서 색인을 클릭한 다음 복합 탭을 클릭합니다.
+필터 필드를 사용하여 timestamp 필드가 포함된 색인 정의를 검색합니다.
+이러한 색인 항목별로 more_vert 버튼과 삭제를 차례로 클릭합니다.
+
+Firebase CLI
+Firebase CLI를 아직 설정하지 않았으면 이 안내에 따라 CLI를 설치하고 firebase init 명령어를 실행 [https://firebase.google.com/docs/cli?hl=ko#install_the_firebase_cli]합니다. init 명령어 실행 시 Firestore: Deploy rules and create indexes for Firestore를 선택해야 합니다.
+설정 도중 Firebase CLI는 기존의 색인 정의를 기본적으로 firestore.indexes.json이라는 이름의 파일로 다운로드합니다.
+timestamp 필드가 포함된 색인 정의를 제거합니다. 예를 들면 다음과 같습니다.
+{
+"indexes": [
+// Delete composite index definition that contain the timestamp field
+{
+"collectionGroup": "instruments",
+"queryScope": "COLLECTION",
+"fields": [
+{
+"fieldPath": "exchange",
+"order": "ASCENDING"
+},
+{
+"fieldPath": "timestamp",
+"order": "DESCENDING"
+}
+]
+},
+{
+"collectionGroup": "instruments",
+"queryScope": "COLLECTION",
+"fields": [
+{
+"fieldPath": "instrumentType",
+"order": "ASCENDING"
+},
+{
+"fieldPath": "timestamp",
+"order": "DESCENDING"
+}
+]
+},
+{
+"collectionGroup": "instruments",
+"queryScope": "COLLECTION",
+"fields": [
+{
+"fieldPath": "price.currency",
+"order": "ASCENDING"
+},
+{
+"fieldPath": "timestamp",
+"order": "DESCENDING"
+}
+]
+},
+]
+}
+
+업데이트된 색인 정의를 배포합니다.
+firebase deploy --only firestore:indexes
+
+단일 필드 색인 정의 업데이트
+
+Firebase Console
+Firebase Console에서 Cloud Firestore 단일 필드 색인 페이지를 엽니다.
+
+단일 필드 색인으로 이동 [https://console.firebase.google.com/project/_/firestore/indexes/single-field/manage?hl=ko]
+예외 추가를 클릭합니다.
+컬렉션 ID로 instruments를 입력하고 필드 경로로 timestamp를 입력합니다.
+쿼리 범위에서는 컬렉션 및 컬렉션 그룹을 모두 선택합니다.
+다음을 클릭합니다.
+모든 색인 설정을 사용 중지됨으로 전환하고 저장을 클릭합니다.
+shard 필드에도 동일한 단계를 반복합니다.
+
+GCP Console
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
+탐색 메뉴에서 색인을 클릭한 후 단일 필드 탭을 클릭합니다.
+단일 필드 탭을 클릭합니다.
+예외 추가를 클릭합니다.
+컬렉션 ID로 instruments를 입력하고 필드 경로로 timestamp를 입력합니다.
+쿼리 범위에서는 컬렉션 및 컬렉션 그룹을 모두 선택합니다.
+다음을 클릭합니다.
+모든 색인 설정을 사용 중지됨으로 전환하고 저장을 클릭합니다.
+shard 필드에도 동일한 단계를 반복합니다.
+
+Firebase CLI
+색인 정의 파일의 fieldOverrides 섹션에 다음을 추가합니다.
+{
+"fieldOverrides": [
+// Disable single-field indexing for the timestamp field
+{
+"collectionGroup": "instruments",
+"fieldPath": "timestamp",
+"indexes": []
+},
+]
+}
+
+업데이트된 색인 정의를 배포합니다.
+firebase deploy --only firestore:indexes
+
+새 복합 색인 만들기
+
+timestamp가 포함된 이전의 모든 색인을 제거한 후에는 앱에 필요한 색인을 새로 정의해야 합니다. shard 필드를 포함하는 색인에는 timestamp 필드도 포함되어야 합니다. 예를 들어 위의 쿼리를 지원하려면 다음 색인을 추가해야 합니다.
+
+| 컬렉션 | 색인이 생성된 필드 | 쿼리 범위 |
+| --- | --- | --- |
+| instruments | arrow_downward shard, arrow_upward price.currency, arrow_downward timestamp | 컬렉션 |
+| instruments | arrow_downward shard, arrow_upward exchange, arrow_downward timestamp | 컬렉션 |
+| instruments | arrow_downward shard, arrow_upward instrumentType, arrow_downward timestamp | 컬렉션 |
+
+오류 메시지이러한 색인은 업데이트된 쿼리를 실행하여 빌드할 수 있습니다.
+
+각 쿼리는 Firebase Console에서 필요한 색인을 생성할 수 있는 링크가 포함된 오류 메시지를 반환합니다.
+Firebase CLI
+색인 정의 파일에 다음 색인을 추가합니다.
+{
+"indexes": [
+// New indexes for sharded timestamps
+{
+"collectionGroup": "instruments",
+"queryScope": "COLLECTION",
+"fields": [
+{
+"fieldPath": "shard",
+"order": "DESCENDING"
+},
+{
+"fieldPath": "exchange",
+"order": "ASCENDING"
+},
+{
+"fieldPath": "timestamp",
+"order": "DESCENDING"
+}
+]
+},
+{
+"collectionGroup": "instruments",
+"queryScope": "COLLECTION",
+"fields": [
+{
+"fieldPath": "shard",
+"order": "DESCENDING"
+},
+{
+"fieldPath": "instrumentType",
+"order": "ASCENDING"
+},
+{
+"fieldPath": "timestamp",
+"order": "DESCENDING"
+}
+]
+},
+{
+"collectionGroup": "instruments",
+"queryScope": "COLLECTION",
+"fields": [
+{
+"fieldPath": "shard",
+"order": "DESCENDING"
+},
+{
+"fieldPath": "price.currency",
+"order": "ASCENDING"
+},
+{
+"fieldPath": "timestamp",
+"order": "DESCENDING"
+}
+]
+},
+]
+}
+
+업데이트된 색인 정의를 배포합니다.
+firebase deploy --only firestore:indexes
+
+순차적으로 색인이 지정된 필드의 쓰기 제한 이해
+
+순차적으로 색인이 지정된 필드의 쓰기 속도 제한은 Cloud Firestore에서 색인 값을 저장하고 색인 쓰기를 조정하는 방법에 좌우됩니다. Cloud Firestore는 색인 쓰기별로 문서 이름과 각 색인이 지정된 필드의 값을 연결하는 키-값 항목을 정의합니다. Cloud Firestore는 이러한 색인 항목을 태블릿이라는 데이터 그룹으로 정리합니다. Cloud Firestore 서버마다 태블릿이 한 개 이상 있습니다. 특정 태블릿에 대한 쓰기 부하가 너무 높아지면 Cloud Firestore는 태블릿을 더 작은 태블릿으로 분할하고 서로 다른 Cloud Firestore 서버에 새 태블릿을 분산하여 수평으로 확장합니다.
+
+Cloud Firestore는 사전순으로 가까운 색인 항목을 동일한 태블릿에 배치합니다. timestamp 필드에서와 같이 태블릿의 색인 값들이 서로 너무 가까이에 있으면 Cloud Firestore에서 태블릿을 더 작은 태블릿으로 효율적으로 분할하지 못합니다. 이로 인해 단일 태블릿에서 너무 많은 트래픽을 수신하는 핫스팟이 생성되고 핫스팟에 대한 읽기 및 쓰기 작업 속도가 더 느려집니다.
+
+timestamp 필드를 샤딩하면 Cloud Firestore에서 워크로드를 여러 태블릿에 효율적으로 분할할 수 있습니다. timestamp 필드의 값은 서로 가깝게 유지되더라도 연결된 샤드 및 색인 값 덕분에 Cloud Firestore의 색인 항목 간 공간이 충분히 넓기 때문에 여러 태블릿으로 항목을 분할할 수 있습니다.
+
+다음 단계
+
+규모 확장을 위한 설계 권장사항 [https://firebase.google.com/docs/firestore/best-practices?hl=ko#designing_for_scale] 읽기
+단일 문서에 대한 쓰기 속도가 높은 경우 분산 카운터 [https://firebase.google.com/docs/firestore/solutions/counters?hl=ko] 참조
+Cloud Firestore의 표준 제한사항 [https://firebase.google.com/docs/firestore/quotas?hl=ko#limits] 참조
+
+의견 보내기

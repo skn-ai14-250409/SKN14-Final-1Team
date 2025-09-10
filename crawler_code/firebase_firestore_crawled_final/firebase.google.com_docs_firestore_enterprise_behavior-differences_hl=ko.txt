@@ -1,0 +1,164 @@
+Source URL: https://firebase.google.com/docs/firestore/enterprise/behavior-differences?hl=ko
+Title: 동작 차이
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+동작 차이
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+| Cloud Firestore Enterprise 버전에만 해당합니다. |
+| --- |
+
+이 페이지에서는 MongoDB 호환성을 갖춘 Cloud Firestore와 MongoDB 간의 동작 차이점을 설명합니다.
+
+MongoDB 버전에 따라 지원되는 기능의 분류는 다음을 참조하세요.
+
+지원되는 기능: 8.0 [https://firebase.google.com/docs/firestore/enterprise/supported-features-80?hl=ko]
+지원되는 기능: 7.0 [https://firebase.google.com/docs/firestore/enterprise/supported-features-70?hl=ko]
+지원되는 기능: 6.0 [https://firebase.google.com/docs/firestore/enterprise/supported-features-60?hl=ko]
+지원되는 기능: 5.0 [https://firebase.google.com/docs/firestore/enterprise/supported-features-50?hl=ko]
+
+연결 및 데이터베이스
+
+각 연결은 MongoDB 호환성을 갖춘 Cloud Firestore 단일 데이터베이스로 제한됩니다.
+데이터베이스에 연결하기 전에 데이터베이스를 만들어야 합니다.
+
+이름 지정
+
+데이터 모델의 일부 이름 지정에는 다음 차이점이 적용됩니다.
+
+컬렉션
+
+__.*__와 일치하는 컬렉션 이름은 지원되지 않습니다.
+
+필드
+
+__.*__와 일치하는 필드 이름은 지원되지 않습니다.
+빈 필드 이름은 지원되지 않습니다.
+
+문서
+
+최대 문서 크기는 4MiB입니다.
+필드의 최대 중첩 깊이는 20입니다. 각 배열 및 객체 유형 필드는 전체 심도에 1단계를 추가합니다.
+
+_id
+
+_id(최상위 필드) 문서는 ObjectId, 문자열 또는 64비트 정수여야 합니다. 다른 BSON 유형은 지원되지 않습니다.
+빈 문자열('')과 64비트 0(0L)은 지원되지 않습니다.
+
+값
+
+JavaScript, Symbol, DBPointer, Undefined BSON 유형은 지원되지 않습니다.
+
+날짜
+
+날짜 값은 [0001-01-01T00:00:00Z, 9999-12-31T23:59:59Z]에 속해야 합니다.
+
+Decimal128
+
+NaN, 양의 무한대, 음의 무한대 값은 쓰기 시 표준화됩니다.
+Decimal128에 대한 산술 연산은 지원되지 않습니다.
+
+실수
+
+NaN 값은 쓰기 시 표준화됩니다.
+
+정규 표현식
+
+정규 표현식 옵션은 유효해야 하며('i', 'm', 's', 'u' 또는 'x') 반복 없이 알파벳순으로 제공되어야 합니다.
+
+쿼리
+
+일반 정렬 순서(명시적 정렬이 없는 쿼리)가 삽입 순서 또는 _id 오름차순에 의한 순서와 일치하지 않습니다.
+
+집계
+
+집계는 250단계로 제한됩니다.
+$merge 및 $out 단계는 지원되지 않습니다. 지원되는 단계와 연산자의 전체 목록은 명령어 [https://firebase.google.com/docs/firestore/enterprise/behavior-differences?hl=ko#commands] 섹션을 참조하세요.
+$lookup 단계는 _id에 foreignField를 지정하는 것으로 제한됩니다.
+
+쓰기
+
+달러 기호('$')로 시작하는 이름의 문서는 update 또는 findAndModify의 삽입/업데이트(upsert) 기능을 사용하여 만들 수 없습니다.
+드라이버가 이 기능을 사용하려고 시도하지 않도록 연결 문자열에 retryWrites=false를 포함하세요(또는 드라이버에 적합한 메서드 사용).
+재시도 가능한 쓰기는 지원되지 않습니다.
+
+거래
+
+스냅샷 격리 및 직렬화 가능한 트랜잭션이 지원됩니다.
+기본적으로 트랜잭션은 스냅샷 격리와 함께 낙관적 동시 실행 제어를 사용합니다.
+
+읽기 문제
+
+MongoDB 호환성을 갖춘 Cloud Firestore는 snapshot , majority, linearizable 읽기 문제를 지원합니다. 기본값은 스냅샷 격리를 나타내는 snapshot입니다.
+
+애플리케이션에 엄격한 일관성이 필요하고 쓰기 편향 이상치를 방지해야 하는 경우 linearizable을 사용합니다. 다른 워크로드의 경우 snapshot을 사용하면 성능을 개선하고 트랜잭션 경합을 줄일 수 있습니다.
+
+쓰기 문제
+
+w: 'majority' 및 w: 1 쓰기 문제만 지원됩니다.
+
+읽기 환경설정
+
+primary, primaryPreferred, primary_preferred, secondary_preferred, nearest 읽기 문제만 지원됩니다.
+
+색인
+
+와일드 카드 색인은 지원되지 않습니다.
+MongoDB 호환성을 갖춘 Cloud Firestore는 _id에 색인을 자동으로 만들지는 않지만 _id 값이 컬렉션 내에서 고유하도록 보장합니다.
+멀티 키가 사용 설정되지 않은 색인은 쓰기 작업을 기반으로 멀티 키 색인 [https://firebase.google.com/docs/firestore/enterprise/index-overview?hl=ko#multi-key_indexes_for_array_values]으로 자동 변경되지 않습니다. 색인을 만들 때 멀티 키를 사용 설정해야 하며 이 옵션은 변경할 수 없습니다.
+
+오류
+
+오류 코드와 메시지는 MongoDB 호환성을 갖춘 Cloud Firestore와 MongoDB 간에 다를 수 있습니다.
+
+명령어
+
+다음 동작 차이는 특정 명령어에 적용됩니다.
+
+다음 표에 나열되지 않은 명령어는 지원되지 않습니다.
+maxTimeMS는 대부분의 명령어에서 허용되지만 무시될 수 있습니다.
+
+쿼리 및 쓰기
+
+| 명령어 | 지원되지 않는 필드 |
+| --- | --- |
+| find | comment readConcern max min returnKey showRecordId tailable oplogReplay noCursorTimeout awaitData allowPartialResults collation allowDiskUsage let |
+| aggregate | bypassDocumentValidation readConcern collation hint comment let |
+| insert | bypassDocumentValidation comment |
+| update | collation arrayFilters hint |
+| delete | comment write  delete 문 내:  collation hint |
+| findAndModify | fields bypassDocumentValidation collation arrayFilters hint comment let |
+| count | hint readConcern collation comment |
+| distinct | readConcern collation comment hint |
+| getMore | comment |
+| killCursors | (없음) |
+
+트랜잭션 및 세션
+
+| 명령어 | 지원되지 않는 필드 |
+| --- | --- |
+| commitTransaction | comment |
+| abortTransaction | comment |
+| endSessions | (없음) |
+
+관리
+
+| 명령어 | 지원되지 않는 필드 | 참고 |
+| --- | --- | --- |
+| listDatabases | authorizedDatabases comment | 제공된 경우 filter는 비어 있어야 합니다. |
+| listCollections | comment | 제공된 경우 authorizedCollections는 false여야 합니다. |
+| listIndexes | comment |  |
+| createCollection | timeseries expireAfterSeconds clusteredIndex changeStreamPreAndPostImages size max storageEngine validator validationLevel validationAction indexOptionDefaults viewOn pipeline collation writeConcern encryptedFields comment | 이 명령어는 노옵스(no-ops)입니다.  제공된 경우 capped는 false여야 합니다. |
+
+다음 단계
+
+빠른 시작: 데이터베이스 만들기 및 연결 [https://firebase.google.com/docs/firestore/enterprise/create-and-query-database?hl=ko] 실행하기
+지원되는 기능의 전체 목록은 지원되는 MongoDB 데이터 유형, 드라이버, 기능 [https://firebase.google.com/docs/firestore/enterprise/supported-data-types-drivers?hl=ko]을 참조하세요.
+
+의견 보내기
