@@ -1,4 +1,4 @@
-# FILE: get_firebase_auth_data.py (병렬 처리 및 안정성 강화 최종본)
+# FILE: get_firebase_auth_data.py (오류 수정 최종본)
 
 # -*- coding: utf-8 -*-
 import os
@@ -26,11 +26,7 @@ MAX_PAGES = 800
 CRAWL_DELAY_SEC = 1
 WAIT_SEC = 20
 RESTART_DRIVER_AFTER_PAGES = 50
-
-# --- ▼ 병렬 처리 설정 ▼ ---
-# 동시에 실행할 크롤러 프로세스 수 (컴퓨터의 CPU 코어 수에 맞춰 조절하세요)
 NUM_WORKERS = 4
-# --- ▲ 병렬 처리 설정 ▲ ---
 
 # ========= 크롤 제한 =========
 ALLOW_DOMAINS = {"firebase.google.com"}
@@ -38,7 +34,7 @@ ALLOW_PATH_PREFIXES = ("/docs/auth",)
 START_URLS = ["https://firebase.google.com/docs/auth?hl=ko"]
 
 
-# ========= 유틸 함수 (이전과 동일) =========
+# ========= 유틸 함수 =========
 def normalize_url(url: str) -> str:
     if not url: return ""
     url, _ = urldefrag(url)
@@ -68,7 +64,7 @@ def is_allowed(url: str) -> bool:
 def safe_filename_from_url(url: str) -> str:
     parsed = urlparse(url)
     base = (parsed.netloc + parsed.path).strip("/") or "index"
-    if parsed.query: base += "_" + re.sub(r"[^a-zA-Z0-9_=-]", "_", parsed.query)
+    if parsed.query: base += "_" + re.sub(r"[^a-zA-Z0--9_=-]", "_", parsed.query)
     base = re.sub(r'[/\\?%*:|"<>]', "_", base).strip("_") or "page"
     return base + ".txt"
 
@@ -77,7 +73,7 @@ def ensure_output_dir():
     if not os.path.exists(OUTPUT_DIR): os.makedirs(OUTPUT_DIR)
 
 
-# ========= 드라이버 및 콘텐츠 추출 함수 (이전과 동일) =========
+# ========= 드라이버 및 콘텐츠 추출 함수 =========
 def create_driver(headless=True) -> webdriver.Chrome:
     chrome_options = Options()
     # chrome_options.add_argument("--headless=new")
@@ -222,7 +218,7 @@ def collect_article_links(driver) -> list:
 
 
 # ========= 워커 프로세스가 실행할 함수 =========
-def crawl_worker(pid, url_queue, seen_urls, pages_done_counter):
+def crawl_worker(pid, url_queue, seen_urls, pages_done_counter, counter_lock):
     driver = create_driver(headless=True)
     wait = WebDriverWait(driver, WAIT_SEC)
     pages_crawled_by_worker = 0
@@ -233,7 +229,7 @@ def crawl_worker(pid, url_queue, seen_urls, pages_done_counter):
             if url is None:
                 break
 
-            with pages_done_counter.get_lock():
+            with counter_lock:
                 if pages_done_counter.value >= MAX_PAGES:
                     url_queue.put(None)
                     break
@@ -295,6 +291,7 @@ def crawl():
     url_queue = manager.Queue()
     seen_urls = manager.dict()
     pages_done_counter = manager.Value('i', 0)
+    counter_lock = manager.Lock()
 
     for url in START_URLS:
         norm_url = normalize_url(url)
@@ -304,7 +301,8 @@ def crawl():
 
     processes = []
     for i in range(NUM_WORKERS):
-        p = multiprocessing.Process(target=crawl_worker, args=(i + 1, url_queue, seen_urls, pages_done_counter))
+        p = multiprocessing.Process(target=crawl_worker,
+                                    args=(i + 1, url_queue, seen_urls, pages_done_counter, counter_lock))
         processes.append(p)
         p.start()
 
