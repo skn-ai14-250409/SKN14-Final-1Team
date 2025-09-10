@@ -1,0 +1,118 @@
+Source URL: https://firebase.google.com/docs/auth/unity/start?hl=ko
+Title: Unity에서 Firebase 인증 시작하기
+bookmark_border
+
+의견 보내기
+
+Unity에서 Firebase 인증 시작하기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/unity/start?hl=ko#before_you_begin]신규 사용자 가입 [https://firebase.google.com/docs/auth/unity/start?hl=ko#sign_up_new_users]기존 사용자 로그인 [https://firebase.google.com/docs/auth/unity/start?hl=ko#sign_in_existing_users]인증 상태 변경 이벤트 핸들러 설정 및 사용자 데이터 가져오기 [https://firebase.google.com/docs/auth/unity/start?hl=ko#set_an_authentication_state_change_event_handler_and_get_user_data]다음 단계 [https://firebase.google.com/docs/auth/unity/start?hl=ko#next_steps]
+
+Firebase Authentication을 사용하면 사용자가 게임에 로그인할 때 이메일 주소와 비밀번호를 통한 로그인 방법이나 Google 로그인, Facebook 로그인과 같은 제휴 ID 공급업체를 통한 로그인 등 1개 이상의 로그인 방법을 사용하여 로그인할 수 있습니다. 이 튜토리얼에서는 Firebase Authentication을 시작할 수 있도록 게임에 이메일 주소와 비밀번호를 통한 로그인을 추가하는 방법을 보여줍니다.
+
+시작하기 전에
+
+Firebase Authentication [https://firebase.google.com/docs/reference/unity/namespace/firebase/auth?hl=ko]을 사용하려면 먼저 다음 작업을 해야 합니다.
+
+Unity 프로젝트를 등록하고 Firebase를 사용하도록 구성합니다.
+
+Unity 프로젝트에서 현재 Firebase를 사용하고 있다면 이미 등록되어 Firebase용으로 구성된 것입니다.
+Unity 프로젝트가 없는 경우 샘플 앱 [https://github.com/google/mechahamster]을 다운로드하면 됩니다.
+
+Firebase Unity SDK [https://firebase.google.com/download/unity?hl=ko](특히 FirebaseAuth.unitypackage)를 Unity 프로젝트에 추가합니다.
+
+초기 설정 작업에 관한 자세한 안내는 Unity 프로젝트에 Firebase 추가 [https://firebase.google.com/docs/unity/setup?hl=ko#prerequisites]를 참조하세요.Unity 프로젝트에 Firebase를 추가할 때 Firebase Console [https://console.firebase.google.com/?hl=ko] 및 열려 있는 Unity 프로젝트 모두에서 작업을 수행해야 합니다. 예를 들어 Console에서 Firebase 구성 파일을 다운로드한 후 이 파일을 Unity 프로젝트로 이동하는 작업이 필요합니다.
+
+신규 사용자 가입
+
+신규 사용자가 자신의 이메일 주소와 비밀번호를 사용해 게임에 가입할 수 있는 양식을 만듭니다. 사용자가 양식을 작성하면 사용자가 입력한 이메일 주소와 비밀번호의 유효성을 검사한 후 CreateUserWithEmailAndPasswordAsync 메서드에 전달합니다.
+auth.CreateUserWithEmailAndPasswordAsync(email, password).ContinueWith(task => {
+if (task.IsCanceled) {
+Debug.LogError("CreateUserWithEmailAndPasswordAsync was canceled.");
+return;
+}
+if (task.IsFaulted) {
+Debug.LogError("CreateUserWithEmailAndPasswordAsync encountered an error: " + task.Exception);
+return;
+}
+
+// Firebase user has been created.
+Firebase.Auth.AuthResult result = task.Result;
+Debug.LogFormat("Firebase user created successfully: {0} ({1})",
+result.User.DisplayName, result.User.UserId);
+});
+
+기존 사용자 로그인
+
+기존 사용자가 자신의 이메일 주소와 비밀번호를 사용해 로그인할 수 있는 양식을 만듭니다. 사용자가 양식을 작성하면 SignInWithEmailAndPasswordAsync 메서드를 호출합니다.
+auth.SignInWithEmailAndPasswordAsync(email, password).ContinueWith(task => {
+if (task.IsCanceled) {
+Debug.LogError("SignInWithEmailAndPasswordAsync was canceled.");
+return;
+}
+if (task.IsFaulted) {
+Debug.LogError("SignInWithEmailAndPasswordAsync encountered an error: " + task.Exception);
+return;
+}
+
+Firebase.Auth.AuthResult result = task.Result;
+Debug.LogFormat("User signed in successfully: {0} ({1})",
+result.User.DisplayName, result.User.UserId);
+});
+
+인증 상태 변경 이벤트 핸들러 설정 및 사용자 데이터 가져오기
+
+로그인 및 로그아웃 이벤트에 응답하려면 전역 인증 객체에 이벤트 핸들러를 연결합니다. 사용자의 로그인 상태가 변경될 때마다 이 핸들러가
+호출됩니다. 인증 객체가 완전히 초기화되고 네트워크 호출이 완료된 후에만 핸들러가 실행되므로 전역 인증 객체는 로그인한 사용자에 대한 정보를 가져오기에 가장 적합한 위치입니다.
+
+FirebaseAuth 객체의 StateChanged 필드를 사용해 이벤트 핸들러를 등록합니다. 사용자가 로그인되면 이벤트 핸들러에서 사용자에 대한 정보를 가져올 수 있습니다.
+
+마지막으로 이 객체에 Destroy가 호출되면 자동으로 OnDestroy를 호출합니다. OnDestroy에서 인증 객체의 참조를 삭제합니다.
+void InitializeFirebase() {
+auth = Firebase.Auth.FirebaseAuth.DefaultInstance;
+auth.StateChanged += AuthStateChanged;
+AuthStateChanged(this, null);
+}
+
+void AuthStateChanged(object sender, System.EventArgs eventArgs) {
+if (auth.CurrentUser != user) {
+bool signedIn = user != auth.CurrentUser && auth.CurrentUser != null
+&& auth.CurrentUser.IsValid();
+if (!signedIn && user != null) {
+DebugLog("Signed out " + user.UserId);
+}
+user = auth.CurrentUser;
+if (signedIn) {
+DebugLog("Signed in " + user.UserId);
+displayName = user.DisplayName ?? "";
+emailAddress = user.Email ?? "";
+photoUrl = user.PhotoUrl ?? "";
+}
+}
+}
+
+void OnDestroy() {
+auth.StateChanged -= AuthStateChanged;
+auth = null;
+}
+
+다음 단계
+
+다른 ID 공급업체 및 익명 게스트 계정에 대한 지원을 추가하는 방법을 알아보세요.
+
+Google 로그인 [https://firebase.google.com/docs/auth/unity/google-signin?hl=ko]
+Facebook 로그인 [https://firebase.google.com/docs/auth/unity/facebook-login?hl=ko]
+Twitter 로그인 [https://firebase.google.com/docs/auth/unity/twitter-login?hl=ko]
+GitHub 로그인 [https://firebase.google.com/docs/auth/unity/github-auth?hl=ko]
+Microsoft 로그인 [https://firebase.google.com/docs/auth/cpp/microsoft-oauth?hl=ko]
+Yahoo 로그인 [https://firebase.google.com/docs/auth/cpp/yahoo-oauth?hl=ko]
+익명 로그인 [https://firebase.google.com/docs/auth/unity/anonymous-auth?hl=ko]
+전화 인증 [https://firebase.google.com/docs/auth/unity/phone-auth?hl=ko]
+
+의견 보내기

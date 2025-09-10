@@ -1,0 +1,173 @@
+Source URL: https://cloud.google.com/firestore/docs/best-practices?hl=ko
+Title: 권장사항
+bookmark_border
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+
+의견 보내기
+
+이 페이지의 내용데이터베이스 위치 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#database_location]문서 ID [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#document_ids]필드 이름 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#field_names]색인 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#indexes]쓰기 지연 시간 감소 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#reduce_write_latency]색인 예외 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#index_exemptions]읽기 및 쓰기 작업 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#read_and_write_operations]트랜잭션 재시도 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#transactions_retries]실시간 업데이트 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#real-time_updates]규모 확장을 위한 설계 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#designing_for_scale]단일 문서 업데이트 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#updates_to_a_single_document]좁은 문서 범위에 대한 높은 읽기, 쓰기, 삭제 속도 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#high_read_write_and_delete_rates_to_a_narrow_document_range]삭제된 데이터 건너뛰기 피하기 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#avoid-skipping]트래픽 늘리기 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#ramping_up_traffic]개인 정보 보호 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#privacy]
+
+권장사항
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Firestore를 사용하는 애플리케이션을 빌드할 때 여기에 나열된 권장사항을 빠른 참조로 활용하세요.
+
+데이터베이스 위치
+
+데이터베이스 인스턴스를 만들 때 사용자 및 컴퓨팅 리소스와 가장 가까운 데이터베이스 위치 [https://cloud.google.com/firestore/native/docs/locations?hl=ko]를 선택하세요.
+광범위한 네트워크 홉을 사용할 경우 오류가 발생하기 쉬우며 쿼리 지연 시간이 길어집니다.
+
+애플리케이션의 가용성과 내구성을 극대화하려면 멀티 리전 위치 [https://cloud.google.com/firestore/native/docs/locations?hl=ko#location-mr]를 선택하고 중요한 컴퓨팅 리소스를 2개 이상의 리전에 배치합니다.
+
+비용을 절감하거나, 애플리케이션이 지연 시간에 민감하여 쓰기 지연 시간을 단축하거나, 다른 GCP 리소스와 위치를 공유 [https://cloud.google.com/about/locations/?hl=ko#products-available-by-region]하려면 리전 위치 [https://cloud.google.com/firestore/native/docs/locations?hl=ko#location-r]를 선택합니다.
+
+문서 ID
+
+문서 ID에 . 및 ..를 사용하지 않습니다.
+문서 ID에 슬래시(/)를 사용하지 않습니다.
+다음과 같이 단조롭게 증가하는 문서 ID를 사용하지 않습니다.
+
+Customer1, Customer2, Customer3, ...
+Product 1, Product 2, Product 3, ...
+
+이러한 순차 ID를 사용하면 지연 시간에 영향을 미치는 부하 집중 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#hotspots]이 발생할 수 있습니다.
+
+필드 이름
+
+다음과 같은 문자는 추가 이스케이프 처리가 필요하기 때문에 필드 이름에 사용하지 않습니다.
+
+. 마침표
+[ 왼쪽 대괄호
+] 오른쪽 대괄호
+* 별표
+` 역따옴표
+
+색인
+
+쓰기 지연 시간 감소
+
+쓰기 지연 시간에 가장 큰 영향을 미치는 요소는 색인 팬아웃입니다.  색인 팬아웃을 줄이기 위한 권장사항은 다음과 같습니다.
+
+컬렉션 수준 색인 예외 [https://cloud.google.com/firestore/native/docs/query-data/indexing?hl=ko#add_a_collection-level_exemption]를 설정합니다. 간단한 기본값은 내림차순 및 배열 색인을 사용 중지하는 것입니다. 또한 사용하지 않는 색인이 지정된 값을 삭제하면 스토리지 비용 [https://cloud.google.com/firestore/pricing?hl=ko#storage-size]도 줄어듭니다.
+트랜잭션에서 문서 수를 줄입니다.  많은 수의 문서를 작성하려면 원자적 배치 작성기 대신 일괄 작성기를 사용하는 것이 좋습니다.
+
+색인 예외
+
+대부분의 앱에서는 자동 색인 생성 및 오류 메시지 링크를 사용하여 색인을 관리할 수 있습니다. 하지만 다음과 같은 경우에는 단일 필드 예외 [https://cloud.google.com/firestore/docs/concepts/index-overview?hl=ko#single-field_index_exemptions]를 추가할 수 있습니다.
+
+| 케이스 | 설명 |
+| --- | --- |
+| 큰 문자열 필드 | 쿼리에 사용하지 않는 긴 문자열 값이 포함된 문자열 필드가 있는 경우 색인 생성에서 해당 필드를 제외하여 스토리지 비용을 줄일 수 있습니다. |
+| 순차 값이 있는 문서를 포함하는 컬렉션에 대한 높은 쓰기 속도 | 컬렉션의 문서 사이에 타임스탬프처럼 순차적으로 증가하거나 감소하는 필드의 색인을 생성하는 경우 컬렉션에 대한 최대 쓰기 속도는 초당 500회입니다. 순차 값이 있는 필드를 기준으로 쿼리하지 않는 경우 색인 생성에서 이 필드를 제외하여 이 한도를 우회할 수 있습니다. 예를 들어 쓰기 속도가 높은 IoT 사용 사례에서 타임스탬프 필드가 있는 문서가 포함된 컬렉션은 초당 500회 한도에 근접할 수 있습니다. |
+| TTL 필드 | TTL(수명) 정책을 사용하는 경우 TTL 필드는 타임스탬프여야 합니다. TTL 필드 색인 생성은 기본적으로 사용 설정되며 트래픽 속도가 빨라지면 성능에 영향을 줄 수 있습니다. TTL 필드에 단일 필드 예외를 추가하는 것이 좋습니다. |
+| 큰 배열 또는 맵 필드 | 큰 배열 또는 맵 필드는 문서당 색인 한도인 40,000개에 근접할 수 있습니다. 큰 배열 또는 맵 필드를 기준으로 쿼리하지 않는 경우 색인 생성에서 큰 배열 또는 맵 필드를 제외해야 합니다. |
+
+읽기 및 쓰기 작업
+
+앱에서 단일 문서를 업데이트할 수 있는 정확한 최대 속도는 워크로드에 따라 크게 달라집니다. 자세한 내용은 단일 문서 업데이트 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#updates_to_a_single_document]를 참조하세요.
+가능한 경우 동기식 호출 대신 비동기식 호출을 사용하세요.
+비동기식 호출은 지연 시간에 미치는 영향을 최소화합니다. 예를 들어 응답을 렌더링하기 전에 문서 조회 결과와 쿼리 결과를 필요로 하는 애플리케이션을 생각해 보세요. 조회 및 쿼리에 데이터 종속성이 없다면 쿼리를 실행하기 전에 조회가 완료될 때까지 동기식으로 대기할 필요가 없습니다.
+오프셋 대신 커서 [https://cloud.google.com/firestore/docs/query-data/query-cursors?hl=ko]를 사용하세요. 오프셋을 사용하면 건너뛴 문서가 애플리케이션에 반환되지는 않지만 내부적으로는 계속 검색됩니다. 건너뛴 문서는 쿼리의 지연 시간에 영향을 미치며 검색에 필요한 읽기 작업에 해당되는 비용이 애플리케이션에 청구됩니다.
+
+트랜잭션 재시도
+
+Firestore SDK 및 클라이언트 라이브러리 [https://cloud.google.com/firestore/docs/reference/libraries?hl=ko]는 일시적인 오류를 처리하기 위해 실패한 트랜잭션을 자동으로 재시도합니다. 애플리케이션이 SDK 대신 REST [https://cloud.google.com/firestore/docs/reference/rest?hl=ko] API 또는 RPC [https://cloud.google.com/firestore/docs/reference/rpc?hl=ko] API를 통해 Firestore에 직접 액세스하는 경우 트랜잭션 재시도를 구현하면 안정성을 높일 수 있습니다.
+
+실시간 업데이트
+
+실시간 업데이트와 관련된 권장사항은 대규모 실시간 쿼리 이해 [https://cloud.google.com/firestore/native/docs/real-time_queries_at_scale?hl=ko]를 참조하세요.
+
+규모 확장을 위한 설계
+
+다음 권장사항에서는 경합 문제가 발생하는 상황을 피하는 방법에 대해 설명합니다.
+
+단일 문서 업데이트
+
+앱을 설계할 때 앱이 단일 문서를 얼마나 빠르게 업데이트할지 고려하세요.
+워크로드 성능을 규정하는 가장 좋은 방법은 부하 테스트를 수행하는 것입니다. 앱에서 단일 문서를 업데이트할 수 있는 정확한 최대 속도는 워크로드에 따라 크게 달라집니다. 이러한 요소에는 쓰기 속도, 요청 간 경합, 영향을 받는 색인 수가 있습니다.
+
+문서 쓰기 작업은 문서 및 연결된 색인을 업데이트하고 Firestore는 동기식으로 복제본 쿼럼에 쓰기 작업을 적용합니다. 쓰기 속도가 충분히 높아지면 데이터베이스에 경합, 긴 지연 시간 또는 기타 오류가 발생합니다.
+
+좁은 문서 범위에 대한 높은 읽기, 쓰기, 삭제 속도
+
+사전순으로 가까운 문서 또는 애플리케이션에 대한 읽기 또는 쓰기 속도가 높아지면 경합 오류가 발생합니다. 이러한 문제를 부하 집중이라고 부르며 다음 중 하나라도 해당할 경우 애플리케이션에 부하 집중이 발생할 수 있습니다.
+
+매우 높은 속도 [https://cloud.google.com/firestore/native/docs/best-practices?hl=ko#ramping_up_traffic]로 신규 문서를 생성하면서 단조 증가하는 자체 ID를 할당하는 경우
+
+Firestore는 분산형 알고리즘을 사용하여 문서 ID를 할당합니다. 자동 문서 ID를 사용하여 새 문서를 만들면 쓰기 작업에 부하가 집중되지 않습니다.
+문서가 얼마 없는 컬렉션에서 매우 빠른 속도로 신규 문서를 생성하는 경우
+타임스탬프와 같이 단조롭게 증가하는 필드를 사용하는 신규 문서를 매우 빠른 속도로 생성하는 경우
+컬렉션에서 문서를 빠른 속도로 삭제하는 경우
+트래픽의 점진적 증가 없이 매우 빠른 속도로 데이터베이스에 쓰기 작업을 수행하는 경우
+
+삭제된 데이터 건너뛰기 피하기
+
+최근에 삭제된 데이터를 건너뛰는 쿼리를 피하세요. 초기 쿼리 결과가 최근에 삭제된 경우 쿼리가 많은 색인 항목을 건너뛰어야 할 수 있습니다.
+
+삭제된 대량의 데이터를 건너뛰어야 할 수 있는 워크로드의 예로는 큐에 저장된 가장 오래된 작업 항목을 찾으려고 시도하는 경우가 있습니다.  이러한 쿼리는 다음과 같을 수 있습니다.
+docs = db.collection('WorkItems').order_by('created').limit(100)
+delete_batch = db.batch()
+for doc in docs.stream():
+finish_work(doc)
+delete_batch.delete(doc.reference)
+delete_batch.commit()
+
+이 쿼리가 실행될 때마다 최근에 삭제된 문서에서 created 필드에 대한 색인 항목을 스캔합니다.  그 결과 쿼리 속도가 느려집니다.
+
+성능 개선을 위해서는 start_at 메서드를 사용하여 시작하기에 가장 좋은 위치를 찾습니다. 예를 들면 다음과 같습니다.
+completed_items = db.collection('CompletionStats').document('all stats').get()
+docs = db.collection('WorkItems').start_at(
+{'created': completed_items.get('last_completed')}).order_by(
+'created').limit(100)
+delete_batch = db.batch()
+last_completed = None
+for doc in docs.stream():
+finish_work(doc)
+delete_batch.delete(doc.reference)
+last_completed = doc.get('created')
+
+if last_completed:
+delete_batch.update(completed_items.reference,
+{'last_completed': last_completed})
+delete_batch.commit()
+
+참고: 위 예시에서는 높은 쓰기 속도에 반대되는 패턴인 단조롭게 증가하는 필드가 사용됩니다.
+
+트래픽 늘리기
+
+새 컬렉션 또는 사전순으로 가까운 문서에 대한 트래픽을 점진적으로 늘려 Firestore가 트래픽 증가에 맞춰 문서를 준비할 수 있는 충분한 시간을 제공해야 합니다. 새 컬렉션인 경우에는 최대 작업 수를 초당 500개로 제한하고 5분마다 50%씩 트래픽을 늘리는 것이 좋습니다.  쓰기 트래픽도 마찬가지로 늘릴 수 있지만 Firestore 표준 한도 [https://cloud.google.com/firestore/quotas?hl=ko#writes_and_transactions]에 유의하세요. 작업이 키 범위 전반에 걸쳐 비교적 균등하게 분산되도록 해야 합니다. 이를 '500/50/5' 법칙이라고 부릅니다.
+
+새 컬렉션으로 트래픽 이전
+
+점진적인 증가는 컬렉션 간에 앱 트래픽을 이전할 때 특히 중요합니다. 이 같은 이전은 기존 컬렉션에서 읽기 작업을 수행하면 간단하게 처리할 수 있습니다. 문서가 존재하지 않을 경우 새 컬렉션에서 읽어옵니다. 하지만 이 경우 새 컬렉션에 있는 사전순으로 가까운 문서에 대한 트래픽이 갑자기 증가할 수 있습니다. 특히 포함된 문서가 적으면 Firestore가 트래픽 증가에 맞춰 새 컬렉션을 효율적으로 준비하지 못할 수 있습니다.
+
+동일한 컬렉션에 포함된 여러 문서의 문서 ID를 변경할 경우에도 유사한 문제가 발생할 수 있습니다.
+
+새 컬렉션으로 트래픽을 이전할 때 가장 좋은 전략은 데이터 모델에 따라 달라집니다. 아래에서는 병렬 읽기로 알려진 예시 전략을 소개합니다. 이 전략이 내 데이터에 효과가 있는지 여부는 스스로 판단해야 합니다. 마이그레이션 도중 병렬 작업이 비용에 미치는 영향을 중요하게 고려하세요.
+
+병렬 읽기
+
+트래픽을 새 컬렉션으로 이전할 때 병렬 읽기를 구현하려면 먼저 기존 컬렉션에서 읽기 작업을 수행합니다. 문서가 누락되어 있다면 새 컬렉션에서 읽어옵니다. 부재 문서 읽기 속도가 높으면 부하 집중으로 이어질 수 있으므로 점차적으로 로드를 늘려야 합니다. 기존 문서를 새 컬렉션에 복사한 후 기존 문서를 삭제하는 전략이 좋습니다. Firestore에서 새 컬렉션에 대한 트래픽을 처리할 수 있도록 병렬 읽기를 점진적으로 늘립니다.
+
+새 컬렉션에 대한 읽기 또는 쓰기를 점차적으로 늘릴 때는 사용자 ID의 확정 해시를 사용하여 새 문서에 쓰기 작업을 시도하는 사용자를 임의 비율로 선택하는 전략을 사용하면 됩니다. 사용자 ID 해시의 결과가 함수 또는 사용자 행동에 의해 왜곡되지 않았는지 확인하세요.
+
+한편 기존 문서의 모든 데이터를 새 컬렉션에 복사하는 일괄 작업을 실행합니다. 일괄 작업 수행 시 부하 집중을 방지하려면 연속 문서 ID에 쓰기 작업을 수행하면 안 됩니다. 일괄 작업이 완료되면 새 컬렉션에서만 읽기가 가능해집니다.
+
+이 전략을 개선하려면 사용자를 한 번에 소량 배치씩 이전하면 됩니다.
+사용자 문서에 해당 사용자의 마이그레이션 상태를 추적하는 필드를 추가하고,
+사용자 ID의 해시에 근거하여 마이그레이션할 사용자 배치를 선택합니다. 일괄 작업을 사용해 해당 사용자 배치의 문서를 마이그레이션하고 마이그레이션 도중에 사용자에 병렬 읽기를 사용합니다.
+
+마이그레이션 진행 중에 기존 항목과 신규 항목 모두에 이중 쓰기를 수행하지 않으면 롤백을 쉽게 수행할 수 없으며, 이렇게 하면 Firestore 비용이 증가합니다.
+
+개인 정보 보호
+
+Cloud Project ID에 민감한 정보를 저장하지 않도록 유의하세요. Cloud Project ID는 프로젝트 수명 이후에도 보관될 수 있습니다.
+데이터 규정 준수 권장사항에 따라 민감한 정보는 문서 이름과 문서 필드 이름에 저장하지 않는 것이 좋습니다.
+
+의견 보내기

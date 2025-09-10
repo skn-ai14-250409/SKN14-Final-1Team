@@ -1,0 +1,867 @@
+Source URL: https://cloud.google.com/firestore/docs/extend-with-functions-2nd-gen?hl=ko
+Title: Cloud Run Functions를 사용하여 이벤트 트리거로 Cloud Run 확장
+bookmark_border
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+
+의견 보내기
+
+이 페이지의 내용시작하기 전에 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#before_you_begin]필요한 역할 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#required-roles]Firestore 데이터베이스 설정 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#set_up_your_database]Firestore 트리거 함수 작성 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#write-a-firestore-function]이벤트 유형 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#event_types]트리거 이벤트 필터 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#trigger_event_filters]함수 코드 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#function_code]이벤트 구조 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#event_structures]함수 트리거 만들기 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#trigger-functions]예시 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#examples]예 1: Hello Firestore 함수 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#hello_firestore_function]예시 2: 대문자로 변환 함수 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#convert_to_uppercase_function]함수 제한사항 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#limitations_for_functions]
+
+Cloud Run Functions를 사용하여 이벤트 트리거로 Cloud Run 확장
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Cloud Run 함수를 사용하면 Cloud Run 데이터베이스의 변경으로 트리거되는 이벤트를 처리하는 코드를 배포할 수 있습니다. 이렇게 하면 자체 서버를 실행하지 않고도 서버 측 기능을 추가할 수 있습니다.
+참고: 이 기능은 Firebase용 Cloud Functions(2세대)를 통해서도 사용할 수 있습니다. Firebase SDK를 사용하는 예시를 보려면 Firebase용 Cloud Functions (2세대)로 Cloud Run 확장 [https://firebase.google.com/docs/firestore/extend-with-functions-2nd-gen?hl=ko]을 참고하세요.
+
+이 가이드에서는 Firestore 이벤트에서 Cloud Run 함수의 트리거를 만드는 방법을 설명합니다.
+
+Firestore 데이터베이스의 이벤트에서 Cloud Run 함수를 트리거할 수 있습니다. 트리거되면 함수는 Firestore API 및 클라이언트 라이브러리 [https://cloud.google.com/firestore/docs/apis?hl=ko]를 통해 이러한 이벤트에 대한 응답으로 Firestore 데이터베이스를 읽고 업데이트합니다.
+
+Firestore 이벤트가 Cloud Run 함수를 트리거하는 프로세스는 다음 단계로 구성됩니다.
+
+서비스는 특정 문서가 변경될 때까지 기다립니다.
+변경되면 서비스가 트리거되어 태스크를 수행합니다.
+서비스는 영향을 받는 문서의 스냅샷이 있는 데이터 객체를 수신합니다.
+write 또는 update 이벤트의 경우 데이터 객체에는 이벤트 트리거 전후의 문서 상태를 나타내는 스냅샷이 포함됩니다.
+
+시작하기 전에
+
+설정 [https://cloud.google.com/run/docs/setup?hl=ko] 페이지에 설명된 대로 Cloud Run용 새 프로젝트를 설정했는지 확인합니다.
+Artifact Registry, Cloud Build, Cloud Run Admin API, Eventarc, Firestore Cloud Logging, Pub/Sub API를 사용 설정합니다.
+
+API 사용 설정 [https://console.cloud.google.com/flows/enableapi?apiid=cloudbuild.googleapis.com%2Cartifactregistry.googleapis.com%2Ceventarc.googleapis.com%2Crun.googleapis.com%2Clogging.googleapis.com%2Cpubsub.googleapis.com%2Cfirestore.googleapis.com&hl=ko]
+
+필요한 역할
+
+개발자나 관리자가 배포자 계정과 트리거 ID에 권한을 부여해야 합니다. 선택적으로 Pub/Sub 서비스 에이전트에 다음 IAM 역할을 부여합니다.
+
+배포자 계정에 필요한 역할
+
+Firestore 이벤트에서 트리거하는 데 필요한 권한을 얻으려면 관리자에게 프로젝트에 대한 다음 IAM 역할을 부여해 달라고 요청하세요.
+
+Cloud Build 편집자 [https://cloud.google.com/iam/docs/roles-permissions/cloudbuild?hl=ko#cloudbuild.builds.editor](roles/cloudbuild.builds.editor)
+
+Cloud Run 관리자 [https://cloud.google.com/iam/docs/roles-permissions/run?hl=ko#run.admin](roles/run.admin)
+
+Datastore 소유자 [https://cloud.google.com/iam/docs/roles-permissions/firestore?hl=ko#datastore.owner](roles/datastore.owner)
+
+Eventarc 관리자 [https://cloud.google.com/iam/docs/roles-permissions/eventarc?hl=ko#eventarc.admin](roles/eventarc.admin)
+
+로그 뷰 접근자 [https://cloud.google.com/iam/docs/roles-permissions/logging?hl=ko#logging.viewAccessor] (roles/logging.viewAccessor)
+
+프로젝트 IAM 관리자 [https://cloud.google.com/iam/docs/roles-permissions/resourcemanager?hl=ko#resourcemanager.projectIamAdmin](roles/resourcemanager.projectIamAdmin)
+
+서비스 계정 관리자 [https://cloud.google.com/iam/docs/roles-permissions/iam?hl=ko#iam.serviceAccountAdmin](roles/iam.serviceAccountAdmin)
+
+서비스 계정 사용자 [https://cloud.google.com/iam/docs/roles-permissions/iam?hl=ko#iam.serviceAccountUser](roles/iam.serviceAccountUser)
+
+서비스 사용량 관리자 [https://cloud.google.com/iam/docs/roles-permissions/serviceusage?hl=ko#serviceusage.serviceUsageAdmin](roles/serviceusage.serviceUsageAdmin)
+
+역할 부여에 대한 자세한 내용은 프로젝트, 폴더, 조직에 대한 액세스 관리 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+
+커스텀 역할 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]이나 다른 사전 정의된 역할 [https://cloud.google.com/iam/docs/roles-overview?hl=ko#predefined]을 통해 필요한 권한을 얻을 수도 있습니다.
+
+기본적으로 Cloud Build 권한에는 Artifact Registry 아티팩트를 업로드하고 다운로드할 수 있는 권한이 포함되어 있습니다 [https://cloud.google.com/artifact-registry/docs/access-control?hl=ko#gcp].
+
+트리거 ID에 필요한 역할
+
+테스트 목적으로 Eventarc 트리거에 연결할 때 트리거의 ID를 나타내기 위해 Compute Engine 기본 서비스 계정 [https://cloud.google.com/iam/docs/service-account-types?hl=ko#default]을 기록해 둡니다. 이 서비스 계정은 Compute Engine을 사용하는 Google Cloud 서비스를 사용 설정하거나 사용한 후에 다음 이메일 형식으로 자동 생성됩니다.
+PROJECT_NUMBER-compute@developer.gserviceaccount.com
+여기에서 PROJECT_NUMBER를 Google Cloud프로젝트 번호로 바꿉니다. Google Cloud 콘솔의 시작 [https://console.cloud.google.com/welcome?hl=ko] 페이지에서 또는 다음 명령어를 실행하여 프로젝트 번호를 찾을 수 있습니다.
+gcloud projects describe PROJECT_ID --format='value(projectNumber)'
+프로덕션 환경의 경우 새 서비스 계정을 만들고 [https://cloud.google.com/iam/docs/service-accounts-create?hl=ko] 필요한 최소한의 권한 [https://cloud.google.com/iam/docs/best-practices-service-accounts?hl=ko#limit-service-account-privileges]을 포함하고 최소 권한 [https://cloud.google.com/iam/docs/using-iam-securely?hl=ko#least_privilege] 원칙을 따르는 하나 이상의 IAM 역할을 부여하는 것이 좋습니다.
+참고:
+
+iam.automaticIamGrantsForDefaultServiceAccounts 조직 정책 제약조건 [https://cloud.google.com/resource-manager/docs/organization-policy/restricting-service-accounts?hl=ko#disable_service_account_default_grants]은 편집자 역할이 기본 서비스 계정에 자동으로 부여되지 않도록 합니다. 2024년 5월 3일 이후에 조직을 만든 경우 기본적으로 이 제약조건이 적용됩니다.
+
+이 제약조건을 적용하여 자동 역할 부여를 사용 중지하는 것이 좋습니다. 자동 역할 부여를 중지한 경우 기본 서비스 계정에 부여할 역할을 결정한 후 직접 이러한 역할을 부여 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]해야 합니다.
+
+기본 서비스 계정에 이미 편집자 역할이 있으면 편집자 역할을 권한이 더 낮은 역할로 바꾸는 것이 좋습니다.서비스 계정 역할을 안전하게 수정하려면 정책 시뮬레이터 [https://cloud.google.com/policy-intelligence/docs/simulate-iam-policies?hl=ko]를 사용하여 변경사항의 영향을 확인한 후 적절한 역할을 부여하고 취소 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]합니다.
+
+기본적으로 Cloud Run 서비스는 프로젝트 소유자, 프로젝트 편집자, Cloud Run 관리자 및 호출자만 호출할 수 있습니다.
+개발자는 서비스별로 액세스를 제어 [https://cloud.google.com/run/docs/securing/managing-access?hl=ko#control-service-or-job-access]할 수 있지만, 테스트 목적으로 Compute Engine 서비스 계정에 Google Cloud 프로젝트에서 Cloud Run 호출자 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#run.invoker](run.invoker)을 부여하세요. 이렇게 하면 프로젝트의 모든 Cloud Run 서비스 및 작업에 대한 역할을 부여하게 됩니다.
+gcloud projects add-iam-policy-binding PROJECT_ID \
+--member=serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com \
+--role=roles/run.invoker
+Cloud Run 호출자 역할을 부여하지 않고 인증된 Cloud Run 서비스에 대한 트리거를 만들어도 트리거가 성공적으로 생성되며 활성화됩니다. 하지만 트리거가 예상한 대로 작동하지 않고 다음과 비슷한 메시지가 로그에 표시됩니다.
+The request was not authenticated. Either allow
+unauthenticated invocations or set the proper Authorization header.
+
+프로젝트의 Eventarc 이벤트 수신자 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#eventarc.eventReceiver](roles/eventarc.eventReceiver)을 Compute Engine 기본 서비스 계정에 부여하세요. 그려면 Eventarc 트리거가 이벤트 제공자로부터 이벤트를 수신할 수 있습니다.
+gcloud projects add-iam-policy-binding PROJECT_ID \
+--member=serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com \
+--role=roles/eventarc.eventReceiver
+
+Pub/Sub 서비스 에이전트의 선택적 역할
+
+2021년 4월 8일 이전에 Cloud Pub/Sub 서비스 에이전트를 사용 설정하여 인증된 Pub/Sub 푸시 요청을 지원한 경우 서비스 계정 토큰 생성자 역할 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#iam.serviceAccountTokenCreator](roles/iam.serviceAccountTokenCreator)을 서비스 에이전트에 부여합니다. 그렇지 않으면 기본적으로 이 역할이 부여됩니다.
+gcloud projects add-iam-policy-binding PROJECT_ID \
+--member=serviceAccount:service-PROJECT_NUMBER@gcp-sa-pubsub.iam.gserviceaccount.com \
+--role=roles/iam.serviceAccountTokenCreator
+
+Firestore 데이터베이스 설정
+
+서비스를 배포하기 전에 Firestore 데이터베이스를 만들어야 합니다.
+
+Firestore 페이지 [https://console.cloud.google.com/firestore/databases?hl=ko]로 이동합니다.
+Firestore 데이터베이스 만들기를 선택합니다.
+데이터베이스 이름 지정 필드에 데이터베이스 ID를 입력합니다(예: firestore-db).
+구성 옵션 섹션에서 Firestore 네이티브가 기본적으로 선택되어 있으며 해당 보안 규칙도 함께 선택됩니다.
+위치 유형에서 리전을 선택하고 데이터베이스가 상주할 리전을 선택합니다. 이 선택은 되돌릴 수 없습니다.
+데이터베이스 만들기를 클릭합니다.
+
+Firestore 데이터 모델 [https://cloud.google.com/firestore/docs/data-model?hl=ko]은 문서가 포함된 컬렉션으로 구성됩니다. 각 문서에는 키-값 쌍이 들어 있습니다.
+
+Firestore 트리거 함수 작성
+
+Firestore 이벤트에 응답하는 함수를 작성하려면 배포 중에 다음을 지정할 수 있도록 준비합니다.
+
+트리거 이벤트 유형 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#event_types]
+함수와 연결된 문서를 선택하는 트리거 이벤트 필터 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#trigger_event_filters]
+실행할 함수 코드 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#function_code]
+
+이벤트 유형
+
+Firestore는 create, update, delete, write 이벤트를 지원합니다. write 이벤트는 문서에 대한 모든 수정사항을 포함합니다.
+
+| 이벤트 유형 | 트리거 |
+| --- | --- |
+| google.cloud.firestore.document.v1.created(기본) | 문서를 처음으로 기록할 때 트리거됩니다. |
+| google.cloud.firestore.document.v1.updated | 이미 존재하는 문서에서 값이 변경되었을 때 트리거됩니다. |
+| google.cloud.firestore.document.v1.deleted | 데이터가 있는 문서가 삭제되면 트리거됩니다. |
+| google.cloud.firestore.document.v1.written | 문서가 생성, 업데이트 또는 삭제되면 트리거됩니다. |
+| google.cloud.firestore.document.v1.created.withAuthContext | created와 동일하지만 인증 정보를 추가합니다. |
+| google.cloud.firestore.document.v1.updated.withAuthContext | updated와 동일하지만 인증 정보를 추가합니다. |
+| google.cloud.firestore.document.v1.deleted.withAuthContext | deleted와 동일하지만 인증 정보를 추가합니다. |
+| google.cloud.firestore.document.v1.written.withAuthContext | written와 동일하지만 인증 정보를 추가합니다. |
+참고: 트리거를 문서 수준에서 설정합니다. 특정 필드나 컬렉션의 변경으로 활성화되는 트리거를 만들 수 없습니다.
+와일드 카드는 중괄호를 사용하여 트리거에 작성됩니다(예: projects/YOUR_PROJECT_ID/databases/(default)/documents/collection/{document_wildcard}).
+
+트리거 이벤트 필터
+
+서비스를 트리거하려면 리슨할 문서 경로를 지정합니다. 문서 경로는 서비스와 동일한 Google Cloud 프로젝트에 있어야 합니다.
+
+다음은 유효한 문서 경로의 몇 가지 예시입니다.
+
+users/marie: 단일 문서 /users/marie를 모니터링합니다.
+users/{username}: 모든 사용자 문서를 모니터링합니다. 와일드 카드를 사용하면 컬렉션의 모든 문서를 모니터링할 수 있습니다.
+users/{username}/addresses/home: 모든 사용자의 집 주소 문서를 모니터링합니다.
+users/{username}/addresses/{addressId}: 모든 주소 문서를 모니터링합니다.
+users/{user=**}: 모든 사용자 문서와 /users/userID/address/home 또는 /users/userID/phone/work 등 각 사용자 문서에 포함된 하위 컬렉션의 문서를 모니터링합니다.
+users/{username}/addresses: 잘못된 주소 경로입니다. 문서가 아닌 하위 컬렉션 addresses를 나타냅니다.
+
+와일드 카드 및 파라미터
+
+모니터링할 특정 문서를 모르면 문서 ID 대신 {wildcard}를 사용합니다.
+
+users/{username}은 모든 사용자 문서에 대한 변경을 리슨합니다.
+
+이 예시에서 users의 문서에서 필드가 변경되면 필드는 {username}라는 와일드 카드와 일치합니다.
+
+users의 문서에 하위 컬렉션 [https://cloud.google.com/firestore/docs/concepts/structure-data?hl=ko#subcollections]이 있고, 이 하위 컬렉션 문서 중 하나에서 필드가 변경되면 {username} 와일드 카드가 트리거되지 않습니다. 하위 컬렉션의 이벤트에도 응답하려는 경우 다중 세그먼트 와일드 카드 {username=**}을 사용합니다.
+
+와일드 카드 일치는 문서 경로에서 추출됩니다. 원하는 만큼 와일드 카드를 정의하여 명시적 컬렉션 또는 문서 ID를 대체할 수 있습니다. {username=**}과 같이 최대 한 개의 다중 세그먼트 와일드 카드를 사용할 수 있습니다.
+
+함수 코드
+
+Firestore Native 모드 이벤트를 사용하여 Cloud Run 함수를 트리거하는 방법은 예시 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#examples]를 참고하세요.
+
+소스에 proto 종속 항목 포함
+
+함수의 소스 디렉터리에 Cloud Run data.proto [https://github.com/googleapis/google-cloudevents/blob/main/proto/google/events/cloud/firestore/v1/data.proto] 파일을 포함해야 합니다. 이 파일은 소스 디렉터리에 포함해야 하는 다음 proto를 가져옵니다.
+
+google/protobuf/struct.proto [https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/struct.proto]
+google/protobuf/timestamp.proto [https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/timestamp.proto]
+google/type/latlng.proto [https://github.com/googleapis/googleapis/blob/master/google/type/latlng.proto]
+
+종속 항목에 동일한 디렉터리 구조를 사용합니다. 예를 들어 struct.proto를 google/protobuf 내에 배치합니다.
+
+이러한 파일은 이벤트 데이터를 디코딩하기 위해 필요합니다. 함수 소스에 이러한 파일이 포함되지 않으면 실행 시 오류가 반환됩니다.
+
+이벤트 속성
+
+각 이벤트에는 이벤트가 트리거된 시간과 같은 이벤트 정보가 포함된 데이터 속성 [https://cloud.google.com/eventarc/docs/workflows/cloudevents?hl=ko#payload-format]이 포함됩니다.
+Cloud Run은 이벤트와 관련된 데이터베이스 및 문서에 대한 추가 데이터를 추가합니다. 다음과 같이 이러한 속성에 액세스할 수 있습니다.
+
+--- 탭: 자바 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#%EC%9E%90%EB%B0%94] ---
+logger.info("Function triggered by event on: " + event.getSource());
+logger.info("Event type: " + event.getType());
+logger.info("Event time " + event.getTime());
+logger.info("Event project: " + event.getExtension("project"));
+logger.info("Event location: " + event.getExtension("location"));
+logger.info("Database name: " + event.getExtension("database"));
+logger.info("Database document: " + event.getExtension("document"));
+// For withAuthContext events
+logger.info("Auth information: " + event.getExtension("authid"));
+logger.info("Auth information: " + event.getExtension("authtype"));
+
+--- 탭: Node.js [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#node.js] ---
+console.log(`Function triggered by event on: ${cloudEvent.source}`);
+console.log(`Event type: ${cloudEvent.type}`);
+console.log(`Event time: ${cloudEvent.time}`);
+console.log(`Event project: ${cloudEvent.project}`);
+console.log(`Event location: ${cloudEvent.location}`);
+console.log(`Database name: ${cloudEvent.database}`);
+console.log(`Document name: ${cloudEvent.document}`);
+// For withAuthContext events
+console.log(`Auth information: ${cloudEvent.authid}`);
+console.log(`Auth information: ${cloudEvent.authtype}`);
+
+--- 탭: Python [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#python] ---
+print(f"Function triggered by change to: {cloud_event['source']}")
+print(f"Event type: {cloud_event['type']}")
+print(f"Event time: {cloud_event['time']}")
+print(f"Event project: {cloud_event['project']}")
+print(f"Location: {cloud_event['location']}")
+print(f"Database name: {cloud_event['database']}")
+print(f"Document: {cloud_event['document']}")
+// For withAuthContext events
+print(f"Auth information: {cloud_event['authid']}")
+print(f"Auth information: {cloud_event['authtype']}")
+
+이벤트 구조
+
+이 트리거는 다음과 유사한 이벤트로 서비스를 호출합니다.
+{
+"oldValue": { // Update and Delete operations only
+A Document [https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents?hl=ko] object containing a pre-operation document snapshot
+},
+"updateMask": { // Update operations only
+A DocumentMask [https://firebase.google.com/docs/firestore/reference/rest/v1/DocumentMask?hl=ko] object that lists changed fields.
+},
+"value": {
+// A Document [https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents?hl=ko] object containing a post-operation document snapshot
+}
+}
+
+각 Document 객체에는 Value 객체가 하나 이상 포함됩니다. 유형 참조는 Value 문서 [https://cloud.google.com/firestore/docs/reference/rest/v1/Value?hl=ko]를 참조하세요.
+
+함수 트리거 만들기
+
+선택한 도구 사용에 관한 안내를 보려면 해당 탭을 클릭하세요.
+
+--- 탭: 콘솔 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔을 사용하여 함수를 만들 때 함수에 트리거를 추가할 수도 있습니다. 함수 트리거를 만들려면 다음 단계를 수행합니다.
+Google Cloud 콘솔에서 Cloud Run으로 이동합니다.
+Cloud Run으로 이동 [https://console.cloud.google.com/run?hl=ko]
+함수 작성을 클릭하고 함수 세부정보를 입력합니다. 배포 중에 함수를 구성하는 방법에 대한 자세한 내용은 함수 배포 [https://cloud.google.com/run/docs/deploy-functions?hl=ko#console]를 참조하세요.
+트리거 섹션에서 트리거 추가를 클릭합니다.
+Firestore 트리거를 선택합니다.
+Eventarc 트리거 창에서 다음과 같이 트리거 세부정보를 수정합니다.
+트리거 이름 필드에 트리거 이름을 입력하거나 기본 이름을 사용합니다.
+목록에서 트리거 유형을 선택합니다.
+Google 소스를 선택하면 Pub/Sub, Cloud Storage, Firestore, 기타 Google 이벤트 제공자의 트리거를 지정할 수 있습니다.
+서드 파티를 선택하면 Eventarc 소스를 제공하는 Google 이외의 제공자와 통합할 수 있습니다. 자세한 내용은 Eventarc의 서드 파티 이벤트 [https://cloud.google.com/eventarc/docs/third-parties/third-parties-overview?hl=ko]를 참조하세요.
+이벤트 제공자 목록에서 Firestore를 선택하여 함수를 트리거할 수 있는 이벤트 유형을 제공하는 제품을 선택합니다. 이벤트 제공자 목록은 이벤트 제공자 및 대상 [https://cloud.google.com/eventarc/docs/event-providers-targets?hl=ko]을 참조하세요.
+이벤트 유형 목록에서 type=google.cloud.firestore.document.v1.created를 선택합니다. 트리거 구성은 지원되는 이벤트 유형에 따라 다릅니다. 자세한 내용은 이벤트 유형 [https://cloud.google.com/eventarc/docs/event-types?hl=ko]을 참조하세요.
+필터 섹션에서 데이터베이스, 작업, 속성 값을 선택하거나 기본 선택사항을 사용합니다.
+리전 필드가 사용 설정된 경우 Eventarc 트리거 위치 [https://cloud.google.com/eventarc/docs/overview?hl=ko#trigger-location]를 선택합니다. 일반적으로 Eventarc 트리거 위치는 이벤트를 모니터링하려는 Google Cloud 리소스 위치와 일치해야 합니다. 대부분의 시나리오에서는 함수도 동일한 리전에 배포해야 합니다. Eventarc 트리거 위치에 대한 자세한 내용은 Eventarc 위치 이해 [https://cloud.google.com/eventarc/docs/understand-locations?hl=ko]를 참조하세요.
+서비스 계정 필드에서 서비스 계정을 선택합니다. Eventarc 트리거는 함수를 호출할 때 ID로 사용할 서비스 계정에 연결됩니다. Eventarc 트리거의 서비스 계정은 함수 호출 권한이 있어야 합니다. 기본적으로 Cloud Run은 Compute Engine 기본 서비스 계정 [https://cloud.google.com/compute/docs/access/service-accounts?hl=ko#default_service_account]을 사용합니다.
+선택적으로 수신 요청을 전송할 서비스 URL 경로를 지정합니다. 이는 트리거의 이벤트가 전송되어야 하는 대상 서비스의 상대 경로입니다. 예를 들면 /, /route, route, route/subroute입니다.
+필수 필드를 작성했으면 트리거 저장을 클릭합니다.
+
+--- 탭: gcloud [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#gcloud] ---
+```
+gcloud run deploy
+FUNCTION \
+--source . \
+--function
+FUNCTION_ENTRYPOINT \
+--base-image
+BASE_IMAGE_ID \
+--region
+REGION
+```
+```
+gcloud eventarc triggers create
+TRIGGER_NAME  \
+--location=
+EVENTARC_TRIGGER_LOCATION \
+--destination-run-service=
+FUNCTION  \
+--destination-run-region=
+REGION \
+--event-filters="type=google.cloud.firestore.document.v1.created" \
+--service-account=
+PROJECT_NUMBER-compute@developer.gserviceaccount.com
+```
+
+--- 탭: Terraform [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#terraform] ---
+Cloud Run 함수의 Eventarc 트리거를 만들려면 Terraform을 사용하여 트리거 만들기 [https://cloud.google.com/eventarc/docs/creating-triggers-terraform?hl=ko]를 참조하세요.
+예시
+
+다음 예에서는 기본 모드 이벤트에서 Firestore를 사용하여 Cloud Run 함수를 트리거하는 방법을 설명합니다.
+
+예 1: Hello Firestore 함수
+
+다음 샘플은 트리거하는 Firestore 이벤트의 필드를 출력합니다.
+
+--- 탭: Node.js [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#node.js] ---
+```
+/**
+* Cloud Event Function triggered by a change to a Firestore document.
+*/
+const functions = require('@google-cloud/functions-framework');
+const protobuf = require('protobufjs');
+
+functions.cloudEvent('helloFirestore', async cloudEvent => {
+console.log(`Function triggered by event on: ${cloudEvent.source}`);
+console.log(`Event type: ${cloudEvent.type}`);
+
+console.log('Loading protos...');
+const root = await protobuf.load('data.proto');
+const DocumentEventData = root.lookupType(
+'google.events.cloud.firestore.v1.DocumentEventData'
+);
+
+console.log('Decoding data...');
+const firestoreReceived = DocumentEventData.decode(cloudEvent.data);
+
+console.log('\nOld value:');
+console.log(JSON.stringify(firestoreReceived.oldValue, null, 2));
+
+console.log('\nNew value:');
+console.log(JSON.stringify(firestoreReceived.value, null, 2));
+});
+```
+
+--- 탭: Python [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#python] ---
+```
+from cloudevents.http import CloudEvent
+import functions_framework
+from google.events.cloud import firestore
+
+@functions_framework.cloud_event
+def hello_firestore(cloud_event: CloudEvent) -> None:
+"""Triggers by a change to a Firestore document.
+
+Args:
+cloud_event: cloud event with information on the firestore event trigger
+"""
+firestore_payload = firestore.DocumentEventData()
+firestore_payload._pb.ParseFromString(cloud_event.data)
+
+print(f"Function triggered by change to: {cloud_event['source']}")
+
+print("\nOld value:")
+print(firestore_payload.old_value)
+
+print("\nNew value:")
+print(firestore_payload.value)
+```
+
+--- 탭: Go [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#go] ---
+```
+// Package hellofirestore contains a Cloud Event Function triggered by a Cloud Firestore event.
+package hellofirestore
+
+import (
+"context"
+"fmt"
+
+"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+"github.com/cloudevents/sdk-go/v2/event"
+"github.com/googleapis/google-cloudevents-go/cloud/firestoredata"
+"google.golang.org/protobuf/proto"
+)
+
+func init() {
+functions.CloudEvent("helloFirestore", HelloFirestore)
+}
+
+// HelloFirestore is triggered by a change to a Firestore document.
+func HelloFirestore(ctx context.Context, event event.Event) error {
+var data firestoredata.DocumentEventData
+
+// If you omit `DiscardUnknown`, protojson.Unmarshal returns an error
+// when encountering a new or unknown field.
+options := proto.UnmarshalOptions{
+DiscardUnknown: true,
+}
+err := options.Unmarshal(event.Data(), &data)
+
+if err != nil {
+return fmt.Errorf("proto.Unmarshal: %w", err)
+}
+
+fmt.Printf("Function triggered by change to: %v\n", event.Source())
+fmt.Printf("Old value: %+v\n", data.GetOldValue())
+fmt.Printf("New value: %+v\n", data.GetValue())
+return nil
+}
+```
+
+--- 탭: Java [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#java] ---
+```
+import com.google.cloud.functions.CloudEventsFunction;
+import com.google.events.cloud.firestore.v1.DocumentEventData [https://cloud.google.com/java/docs/reference/google-cloudevent-types/latest/com.google.events.cloud.firestore.v1.DocumentEventData.html?hl=ko];
+import com.google.protobuf.InvalidProtocolBufferException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.InvalidProtocolBufferException.html?hl=ko];
+import io.cloudevents.CloudEvent;
+import java.util.logging.Logger;
+
+public class FirebaseFirestore implements CloudEventsFunction {
+private static final Logger logger = Logger.getLogger(FirebaseFirestore.class.getName());
+
+@Override
+public void accept(CloudEvent event) throws InvalidProtocolBufferException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.InvalidProtocolBufferException.html?hl=ko] {
+DocumentEventData [https://cloud.google.com/java/docs/reference/google-cloudevent-types/latest/com.google.events.cloud.firestore.v1.DocumentEventData.html?hl=ko] firestoreEventData = DocumentEventData [https://cloud.google.com/java/docs/reference/google-cloudevent-types/latest/com.google.events.cloud.firestore.v1.DocumentEventData.html?hl=ko]
+.parseFrom(event.getData().toBytes());
+
+logger.info("Function triggered by event on: " + event.getSource());
+logger.info("Event type: " + event.getType());
+
+logger.info("Old value:");
+logger.info(firestoreEventData.getOldValue [https://cloud.google.com/java/docs/reference/google-cloudevent-types/latest/com.google.events.cloud.firestore.v1.DocumentEventData.html?hl=ko#com_google_events_cloud_firestore_v1_DocumentEventData_getOldValue__]().toString());
+
+logger.info("New value:");
+logger.info(firestoreEventData.getValue [https://cloud.google.com/java/docs/reference/google-cloudevent-types/latest/com.google.events.cloud.firestore.v1.DocumentEventData.html?hl=ko#com_google_events_cloud_firestore_v1_DocumentEventData_getValue__]().toString());
+}
+}
+```
+
+--- 탭: C# [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#c] ---
+```
+using CloudNative.CloudEvents;
+using Google.Cloud.Functions.Framework;
+using Google.Events.Protobuf.Cloud.Firestore.V1;
+using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace FirebaseFirestore;
+
+public class Function : ICloudEventFunction<DocumentEventData>
+{
+private readonly ILogger _logger;
+
+public Function(ILogger<Function> logger) =>
+_logger = logger;
+
+public Task HandleAsync(CloudEvent cloudEvent, DocumentEventData data, CancellationToken cancellationToken)
+{
+_logger.LogInformation("Function triggered by event on {subject}", cloudEvent.Subject);
+_logger.LogInformation("Event type: {type}", cloudEvent.Type);
+MaybeLogDocument("Old value", data.OldValue);
+MaybeLogDocument("New value", data.Value);
+
+// In this example, we don't need to perform any asynchronous operations, so the
+// method doesn't need to be declared async.
+return Task.CompletedTask;
+}
+
+/// <summary>
+/// Logs the names and values of the fields in a document in a very simplistic way.
+/// </summary>
+private void MaybeLogDocument(string message, Document document)
+{
+if (document is null)
+{
+return;
+}
+
+// ConvertFields converts the Firestore representation into a .NET-friendly
+// representation.
+IReadOnlyDictionary<string, object> fields = document.ConvertFields();
+var fieldNamesAndTypes = fields
+.OrderBy(pair => pair.Key)
+.Select(pair => $"{pair.Key}: {pair.Value}");
+_logger.LogInformation(message + ": {fields}", string.Join(", ", fieldNamesAndTypes));
+}
+}
+```
+함수 배포하기
+
+Hello Firestore 함수를 배포하려면 다음 명령어를 실행합니다.
+
+아직 설정하지 않았다면 Firestore 데이터베이스 [https://cloud.google.com/run/docs/triggering/firestore-triggers?hl=ko#set_up_your_database]를 설정합니다.
+
+함수를 배포하려면 함수 트리거 만들기 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#trigger-functions]를 참고하세요.
+
+함수 테스트
+
+Hello Firestore 함수를 테스트하려면 Firestore 데이터베이스 [https://cloud.google.com/run/docs/triggering/firestore-triggers?hl=ko#set_up_your_database]에 users라는 컬렉션을 설정합니다.
+
+Google Cloud 콘솔에서 Firestore 데이터베이스 페이지로 이동합니다.
+
+Firestore로 이동 [https://console.cloud.google.com/firestore/data?hl=ko]
+컬렉션 시작을 클릭합니다.
+users를 컬렉션 ID로 지정합니다.
+컬렉션의 첫 번째 문서 추가를 시작하려면 첫 번째 문서 추가에서 자동 생성된 문서 ID를 수락합니다.
+문서에 대한 필드를 하나 이상 추가하고 이름과 값을 지정합니다.
+예를 들어 필드 이름에 username을 입력하고 필드 값에 rowan을 입력합니다.
+완료했으면 저장을 클릭합니다.
+
+이 작업은 새 문서를 만들어 함수를 트리거합니다.
+함수가 트리거되었는지 확인하려면 Google Cloud 콘솔 Cloud Run 개요 페이지 [https://console.cloud.google.com/run?hl=ko]에서 함수의 연결된 이름을 클릭하여 서비스 세부정보 페이지를 엽니다.
+로그 탭을 선택하고 다음 문자열을 찾습니다.
+
+Function triggered by change to: //firestore.googleapis.com/projects/your-project-id/databases/(default)'
+
+예시 2: 대문자로 변환 함수
+
+다음 예시에서는 사용자가 추가한 값을 검색하고 해당 위치의 문자열을 대문자로 변환한 후 해당 값을 대문자 문자열로 바꿉니다.
+
+--- 탭: Node.js [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#node.js] ---
+```
+const functions = require('@google-cloud/functions-framework');
+const Firestore = require('@google-cloud/firestore [https://cloud.google.com/nodejs/docs/reference/firestore/latest/overview.html?hl=ko]');
+const protobuf = require('protobufjs');
+
+const firestore = new Firestore [https://cloud.google.com/nodejs/docs/reference/firestore/latest/firestore/firestore.html?hl=ko]({
+projectId: process.env.GOOGLE_CLOUD_PROJECT,
+});
+
+// Converts strings added to /messages/{pushId}/original to uppercase
+functions.cloudEvent('makeUpperCase', async cloudEvent => {
+console.log('Loading protos...');
+const root = await protobuf.load('data.proto');
+const DocumentEventData = root.lookupType(
+'google.events.cloud.firestore.v1.DocumentEventData'
+);
+
+console.log('Decoding data...');
+const firestoreReceived = DocumentEventData.decode(cloudEvent.data);
+
+const resource = firestoreReceived.value.name;
+const affectedDoc = firestore.doc(resource.split('/documents/')[1]);
+
+const curValue = firestoreReceived.value.fields.original.stringValue;
+const newValue = curValue.toUpperCase();
+
+if (curValue === newValue) {
+// Value is already upper-case
+// Don't perform a(nother) write to avoid infinite loops
+console.log('Value is already upper-case.');
+return;
+}
+
+console.log(`Replacing value: ${curValue} --> ${newValue}`);
+affectedDoc.set({
+original: newValue,
+});
+});
+```
+
+--- 탭: Python [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#python] ---
+```
+from cloudevents.http import CloudEvent
+import functions_framework
+from google.cloud import firestore
+from google.events.cloud import firestore as firestoredata
+
+client = firestore.Client [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.client.Client.html?hl=ko]()
+
+# Converts strings added to /messages/{pushId}/original to uppercase
+@functions_framework.cloud_event
+def make_upper_case(cloud_event: CloudEvent) -> None:
+firestore_payload = firestoredata.DocumentEventData()
+firestore_payload._pb.ParseFromString(cloud_event.data)
+
+path_parts = firestore_payload.value.name.split("/")
+separator_idx = path_parts.index("documents")
+collection_path = path_parts[separator_idx + 1]
+document_path = "/".join(path_parts[(separator_idx + 2) :])
+
+print(f"Collection path: {collection_path}")
+print(f"Document path: {document_path}")
+
+affected_doc = client.collection [https://cloud.google.com/python/docs/reference/firestore/latest/google.cloud.firestore_v1.client.Client.html?hl=ko#google_cloud_firestore_v1_client_Client_collection](collection_path).document(document_path)
+
+cur_value = firestore_payload.value.fields["original"].string_value
+new_value = cur_value.upper()
+
+if cur_value != new_value:
+print(f"Replacing value: {cur_value} --> {new_value}")
+affected_doc.set({"original": new_value})
+else:
+# Value is already upper-case
+# Don't perform a second write (which can trigger an infinite loop)
+print("Value is already upper-case.")
+```
+
+--- 탭: Go [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#go] ---
+```
+// Package upper contains a Firestore Cloud Function.
+package upper
+
+import (
+"context"
+"errors"
+"fmt"
+"log"
+"os"
+"strings"
+
+"cloud.google.com/go/firestore"
+firebase "firebase.google.com/go/v4"
+"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+"github.com/cloudevents/sdk-go/v2/event"
+"github.com/googleapis/google-cloudevents-go/cloud/firestoredata"
+"google.golang.org/protobuf/proto"
+)
+
+// set the GOOGLE_CLOUD_PROJECT environment variable when deploying.
+var projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+
+// client is a Firestore client, reused between function invocations.
+var client *firestore.Client
+
+func init() {
+// Use the application default credentials.
+conf := &firebase.Config{ProjectID: projectID}
+
+// Use context.Background() because the app/client should persist across
+// invocations.
+ctx := context.Background()
+
+app, err := firebase.NewApp(ctx, conf)
+if err != nil {
+log.Fatalf("firebase.NewApp: %v", err)
+}
+
+client, err = app.Firestore(ctx)
+if err != nil {
+log.Fatalf("app.Firestore: %v", err)
+}
+
+// Register cloud event function
+functions.CloudEvent("MakeUpperCase", MakeUpperCase)
+}
+
+// MakeUpperCase is triggered by a change to a Firestore document. It updates
+// the `original` value of the document to upper case.
+func MakeUpperCase(ctx context.Context, e event.Event) error {
+var data firestoredata.DocumentEventData
+
+// If you omit `DiscardUnknown`, protojson.Unmarshal returns an error
+// when encountering a new or unknown field.
+options := proto.UnmarshalOptions{
+DiscardUnknown: true,
+}
+err := options.Unmarshal(e.Data [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_DocumentSnapshot_Data](), &data)
+
+if err != nil {
+return fmt.Errorf("proto.Unmarshal: %w", err)
+}
+
+if data.GetValue [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/apiv1/firestorepb.html?hl=ko#cloud_google_com_go_firestore_apiv1_firestorepb_StructuredQuery_FieldFilter_GetValue]() == nil {
+return errors.New("Invalid message: 'Value' not present")
+}
+
+fullPath := strings.Split(data.GetValue [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/apiv1/firestorepb.html?hl=ko#cloud_google_com_go_firestore_apiv1_firestorepb_StructuredQuery_FieldFilter_GetValue]().GetName(), "/documents/")[1]
+pathParts := strings.Split(fullPath, "/")
+collection := pathParts[0]
+doc := strings.Join(pathParts[1:], "/")
+
+var originalStringValue string
+if v, ok := data.GetValue [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/apiv1/firestorepb.html?hl=ko#cloud_google_com_go_firestore_apiv1_firestorepb_StructuredQuery_FieldFilter_GetValue]().GetFields()["original"]; ok {
+originalStringValue = v.GetStringValue [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/apiv1/firestorepb.html?hl=ko#cloud_google_com_go_firestore_apiv1_firestorepb_Value_GetStringValue]()
+} else {
+return errors.New("Document did not contain field \"original\"")
+}
+
+newValue := strings.ToUpper(originalStringValue)
+if originalStringValue == newValue {
+log.Printf("%q is already upper case: skipping", originalStringValue)
+return nil
+}
+log.Printf("Replacing value: %q -> %q", originalStringValue, newValue)
+
+newDocumentEntry := map[string]string{"original": newValue}
+_, err = client.Collection(collection).Doc(doc).Set(ctx, newDocumentEntry)
+if err != nil {
+return fmt.Errorf("Set: %w", err)
+}
+return nil
+}
+```
+
+--- 탭: Java [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#java] ---
+```
+import com.google.cloud.firestore.Firestore [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.Firestore.html?hl=ko];
+import com.google.cloud.firestore.FirestoreOptions [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.FirestoreOptions.html?hl=ko];
+import com.google.cloud.firestore.SetOptions [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.SetOptions.html?hl=ko];
+import com.google.cloud.functions.CloudEventsFunction;
+import com.google.events.cloud.firestore.v1.DocumentEventData [https://cloud.google.com/java/docs/reference/google-cloudevent-types/latest/com.google.events.cloud.firestore.v1.DocumentEventData.html?hl=ko];
+import com.google.events.cloud.firestore.v1.Value [https://cloud.google.com/java/docs/reference/google-cloudevent-types/latest/com.google.events.cloud.firestore.v1.Value.html?hl=ko];
+import com.google.protobuf.InvalidProtocolBufferException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.InvalidProtocolBufferException.html?hl=ko];
+import io.cloudevents.CloudEvent;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.logging.Logger;
+
+public class FirebaseFirestoreReactive implements CloudEventsFunction {
+private static final Logger logger = Logger.getLogger(FirebaseFirestoreReactive.class.getName());
+private final Firestore [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.Firestore.html?hl=ko] firestore;
+
+private static final String FIELD_KEY = "original";
+private static final String APPLICATION_PROTOBUF = "application/protobuf";
+
+public FirebaseFirestoreReactive() {
+this(FirestoreOptions [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.FirestoreOptions.html?hl=ko].getDefaultInstance().getService());
+}
+
+public FirebaseFirestoreReactive(Firestore [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.Firestore.html?hl=ko] firestore) {
+this.firestore = firestore;
+}
+
+@Override
+public void accept(CloudEvent event)
+throws InvalidProtocolBufferException [https://cloud.google.com/java/docs/reference/protobuf/latest/com.google.protobuf.InvalidProtocolBufferException.html?hl=ko], InterruptedException, ExecutionException {
+if (event.getData() == null) {
+logger [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.telemetry.MetricsUtil.html?hl=ko#com_google_cloud_firestore_telemetry_MetricsUtil_logger].warning("No data found in event!");
+return;
+}
+
+if (!event.getDataContentType().equals(APPLICATION_PROTOBUF)) {
+logger [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.telemetry.MetricsUtil.html?hl=ko#com_google_cloud_firestore_telemetry_MetricsUtil_logger].warning(String.format("Found unexpected content type %s, expected %s",
+event.getDataContentType(),
+APPLICATION_PROTOBUF));
+return;
+}
+
+DocumentEventData [https://cloud.google.com/java/docs/reference/google-cloudevent-types/latest/com.google.events.cloud.firestore.v1.DocumentEventData.html?hl=ko] firestoreEventData = DocumentEventData [https://cloud.google.com/java/docs/reference/google-cloudevent-types/latest/com.google.events.cloud.firestore.v1.DocumentEventData.html?hl=ko]
+.parseFrom(event.getData().toBytes [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.Blob.html?hl=ko#com_google_cloud_firestore_Blob_toBytes__]());
+
+// Get the fields from the post-operation document snapshot
+// https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents#Document
+Map<String, Value> fields = firestoreEventData.getValue [https://cloud.google.com/java/docs/reference/google-cloudevent-types/latest/com.google.events.cloud.firestore.v1.DocumentEventData.html?hl=ko#com_google_events_cloud_firestore_v1_DocumentEventData_getValue__]().getFieldsMap();
+if (!fields.containsKey(FIELD_KEY)) {
+logger [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.telemetry.MetricsUtil.html?hl=ko#com_google_cloud_firestore_telemetry_MetricsUtil_logger].warning("Document does not contain original field");
+return;
+}
+String currValue = fields.get(FIELD_KEY).getStringValue();
+String newValue = currValue.toUpperCase();
+
+if (currValue.equals(newValue)) {
+logger [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.telemetry.MetricsUtil.html?hl=ko#com_google_cloud_firestore_telemetry_MetricsUtil_logger].info("Value is already upper-case");
+return;
+}
+
+// Retrieve the document name from the resource path:
+// projects/{project_id}/databases/{database_id}/documents/{document_path}
+String affectedDoc = firestoreEventData.getValue [https://cloud.google.com/java/docs/reference/google-cloudevent-types/latest/com.google.events.cloud.firestore.v1.DocumentEventData.html?hl=ko#com_google_events_cloud_firestore_v1_DocumentEventData_getValue__]()
+.getName()
+.split("/documents/")[1]
+.replace("\"", "");
+
+logger [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.telemetry.MetricsUtil.html?hl=ko#com_google_cloud_firestore_telemetry_MetricsUtil_logger].info(String.format("Replacing values: %s --> %s", currValue, newValue));
+
+// Wait for the async call to complete
+this.firestore
+.document(affectedDoc)
+.set(Map.of(FIELD_KEY, newValue), SetOptions [https://cloud.google.com/java/docs/reference/google-cloud-firestore/latest/com.google.cloud.firestore.SetOptions.html?hl=ko].merge())
+.get();
+}
+}
+```
+
+--- 탭: C# [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#c] ---
+```
+using CloudNative.CloudEvents;
+using Google.Cloud.Firestore [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.html?hl=ko];
+using Google.Cloud.Functions.Framework;
+using Google.Cloud.Functions.Hosting;
+using Google.Events.Protobuf.Cloud.Firestore.V1;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.EssentialContacts.V1/latest/Microsoft.Extensions.DependencyInjection.html?hl=ko];
+using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace FirestoreReactive;
+
+public class Startup : FunctionsStartup
+{
+public override void ConfigureServices(WebHostBuilderContext context, IServiceCollection services) =>
+services.AddSingleton(FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_]());
+}
+
+// Register the startup class to provide the Firestore dependency.
+[FunctionsStartup(typeof(Startup))]
+public class Function : ICloudEventFunction<DocumentEventData>
+{
+private readonly ILogger _logger;
+private readonly FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] _firestoreDb;
+
+public Function(ILogger<Function> logger, FirestoreDb firestoreDb) =>
+(_logger, _firestoreDb) = (logger, firestoreDb);
+
+public async Task HandleAsync(CloudEvent cloudEvent, DocumentEventData data, CancellationToken [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Transaction.html?hl=ko#Google_Cloud_Firestore_Transaction_CancellationToken] cancellationToken)
+{
+// Get the recently-written value. This expression will result in a null value
+// if any of the following is true:
+// - The event doesn't contain a "new" document
+// - The value doesn't contain a field called "original"
+// - The "original" field isn't a string
+string currentValue = data.Value [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Value.html?hl=ko]?.ConvertFields().GetValueOrDefault("original") as string;
+if (currentValue is null)
+{
+_logger.LogWarning($"Event did not contain a suitable document");
+return;
+}
+
+string newValue = currentValue.ToUpperInvariant();
+if (newValue == currentValue)
+{
+_logger.LogInformation("Value is already upper-cased; no replacement necessary");
+return;
+}
+
+// The CloudEvent subject is "documents/x/y/...".
+// The Firestore SDK FirestoreDb.Document method expects a reference relative to
+// "documents" (so just the "x/y/..." part). This may be simplified over time.
+if (cloudEvent.Subject is null || !cloudEvent.Subject.StartsWith("documents/"))
+{
+_logger.LogWarning("CloudEvent subject is not a document reference.");
+return;
+}
+string documentPath = cloudEvent.Subject.Substring("documents/".Length [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Blob.html?hl=ko#Google_Cloud_Firestore_Blob_Length]);
+
+_logger.LogInformation("Replacing '{current}' with '{new}' in '{path}'", currentValue, newValue, documentPath);
+await _firestoreDb.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Document_System_String_](documentPath).UpdateAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_UpdateAsync_System_Collections_Generic_IDictionary_Google_Cloud_Firestore_FieldPath_System_Object__Google_Cloud_Firestore_Precondition_System_Threading_CancellationToken_]("original", newValue, cancellationToken: cancellationToken);
+}
+}
+```참고: 함수를 트리거하는 Firestore 문서를 업데이트하면 후속 updated 이벤트가 생성될 수 있으며, 이 함수는 함수 내에 무한 루프로 누적될 수 있습니다. 이 문제를 해결하려면 업데이트를 무시하는 트리거 유형(예: created)을 사용하거나 기본 값이 변경된 경우에만 Firestore에 쓰도록 함수를 구성합니다.
+함수 배포하기
+
+Convert to Uppercase 함수를 배포하려면 다음 명령어를 실행합니다.
+
+아직 설정하지 않았다면 Firestore 데이터베이스 [https://cloud.google.com/run/docs/triggering/firestore-triggers?hl=ko#set_up_your_database]를 설정합니다.
+
+함수를 배포하려면 함수 트리거 만들기 [https://cloud.google.com/firestore/native/docs/extend-with-cloud-run-functions?hl=ko#trigger-functions]를 참고하세요.
+
+함수 테스트
+
+방금 배포한 Convert to Uppercase 함수를 테스트하려면 Firestore 데이터베이스 [https://cloud.google.com/run/docs/triggering/firestore-triggers?hl=ko#set_up_your_database]에서 messages라는 컬렉션을 설정하세요.
+
+Google Cloud 콘솔에서 Firestore 데이터베이스 페이지로 이동합니다.
+
+Firestore로 이동 [https://console.cloud.google.com/firestore/data?hl=ko]
+컬렉션 시작을 클릭합니다.
+messages를 컬렉션 ID로 지정합니다.
+컬렉션의 첫 번째 문서 추가를 시작하려면 첫 번째 문서 추가에서 자동 생성된 문서 ID를 수락합니다.
+배포된 함수를 트리거하려면 필드 이름이 original이고 필드 값이 minka인 문서를 추가합니다.
+문서를 저장하면 값 필드의 소문자가 대문자로 변환됩니다.
+
+나중에 소문자를 포함하도록 필드 값을 수정하면 함수가 다시 트리거되어 모든 소문자가 대문자로 변환됩니다.
+
+함수 제한사항
+
+순서는 보장되지 않습니다. 급격하게 변경하면 예기치 않은 순서로 함수 호출이 트리거될 수 있습니다.
+이벤트는 최소 1회 전송되지만 하나의 이벤트에 함수가 여러 번 호출될 수 있습니다. 정확히 한 번에 처리하는 메커니즘에 의존하지 말고 멱등 함수 [https://cloud.google.com/blog/products/serverless/cloud-functions-pro-tips-building-idempotent-functions?hl=ko]를 작성하세요.
+트리거는 단일 데이터베이스와 연결됩니다. 여러 데이터베이스와 일치하는 트리거를 만들 수 없습니다.
+데이터베이스를 삭제해도 해당 데이터베이스의 트리거가 자동으로 삭제되지 않습니다. 트리거가 이벤트 제공을 중지하지만 트리거를 삭제 [https://cloud.google.com/eventarc/docs/managing-triggers?hl=ko#trigger-delete]하기 전까지 계속 존재합니다.
+
+도움이 되었나요?
+
+의견 보내기

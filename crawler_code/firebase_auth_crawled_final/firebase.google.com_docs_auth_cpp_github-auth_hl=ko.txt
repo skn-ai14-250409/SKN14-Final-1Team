@@ -1,0 +1,157 @@
+Source URL: https://firebase.google.com/docs/auth/cpp/github-auth?hl=ko
+Title: GitHub와 C++를 사용하여 인증
+bookmark_border
+
+의견 보내기
+
+GitHub와 C++를 사용하여 인증
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/cpp/github-auth?hl=ko#before_you_begin]firebase::auth::Auth 클래스 액세스 [https://firebase.google.com/docs/auth/cpp/github-auth?hl=ko#access_the_firebaseauthauth_class]Firebase 인증 [https://firebase.google.com/docs/auth/cpp/github-auth?hl=ko#authenticate_with_firebase]Future에 콜백 등록하기 [https://firebase.google.com/docs/auth/cpp/github-auth?hl=ko#register_a_callback_on_a_future]다음 단계 [https://firebase.google.com/docs/auth/cpp/github-auth?hl=ko#next_steps]
+
+앱에 GitHub 인증을 통합하여 사용자가 GitHub 계정을 통해 Firebase에 인증하도록 할 수 있습니다.
+
+시작하기 전에
+
+C++ 프로젝트에 Firebase를 추가합니다. [https://firebase.google.com/docs/cpp/setup?hl=ko#note_select_platform]
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다.
+로그인 방법 탭에서 GitHub 제공업체를 사용 설정합니다.
+해당 제공업체의 개발자 콘솔에서 제공되는 클라이언트 ID 및 클라이언트 보안 비밀번호를 제공업체 구성에 추가합니다.
+
+GitHub에서 개발자 애플리케이션으로 앱을 등록 [https://github.com/settings/applications/new]하고 앱의 OAuth 2.0 클라이언트 ID와 클라이언트 보안 비밀번호를 가져옵니다.
+GitHub 앱 구성 [https://github.com/settings/developers]의 앱 설정 페이지에서 Firebase OAuth 리디렉션 URI(예: my-app-12345.firebaseapp.com/__/auth/handler)가 승인 콜백 URL로 설정되어 있는지 확인합니다.
+
+저장을 클릭합니다.
+
+firebase::auth::Auth 클래스 액세스Auth 클래스는 모든 API 호출에 대한 게이트웨이입니다.
+Auth 및 App 헤더 파일을 추가합니다.
+#include "firebase/app.h"
+#include "firebase/auth.h"
+
+초기화 코드에서 firebase::App [https://firebase.google.com/docs/reference/cpp/class/firebase/app?hl=ko] 클래스를 만듭니다.#if defined(__ANDROID__)
+firebase::App* app =
+firebase::App::Create(firebase::AppOptions(), my_jni_env, my_activity);
+#else
+firebase::App* app = firebase::App::Create(firebase::AppOptions());
+#endif  // defined(__ANDROID__)
+
+firebase::App의 firebase::auth::Auth 클래스를 획득합니다.
+App과 Auth는 일대일 매핑 관계입니다.
+firebase::auth::Auth* auth = firebase::auth::Auth::GetAuth(app);
+
+Firebase 인증
+
+Android [https://firebase.google.com/docs/auth/android/github-auth?hl=ko#authenticate_with_firebase] 및 iOS+ [https://firebase.google.com/docs/auth/ios/github-auth?hl=ko#authenticate_with_firebase] 안내에 따라 로그인한 GitHub 사용자의 토큰을 가져옵니다.
+
+사용자가 정상적으로 로그인한 후에 토큰을 Firebase 사용자 인증 정보로 교환하고 Firebase 사용자 인증 정보를 사용해 Firebase에 인증합니다.
+firebase::auth::Credential credential =
+firebase::auth::GitHubAuthProvider::GetCredential(token);
+firebase::Future<firebase::auth::AuthResult> result =
+auth->SignInAndRetrieveDataWithCredential(credential);
+
+프로그램에 정기적으로 실행되는 업데이트 루프(예: 초당 30회 또는 60회)가 있는 경우 다음과 같이 Auth::SignInAndRetrieveDataWithCredentialLastResult를 사용해 업데이트 시마다 한 번씩 결과를 확인할 수 있습니다.firebase::Future<firebase::auth::AuthResult> result =
+auth->SignInAndRetrieveDataWithCredentialLastResult();
+if (result.status() == firebase::kFutureStatusComplete) {
+if (result.error() == firebase::auth::kAuthErrorNone) {
+firebase::auth::AuthResult auth_result = *result.result();
+printf("Sign in succeeded for `%s`\n",
+auth_result.user.display_name().c_str());
+} else {
+printf("Sign in failed with error '%s'\n", result.error_message());
+}
+}
+또는 프로그램이 이벤트 기반이라면 Future에 콜백을 등록 [https://firebase.google.com/docs/auth/cpp/github-auth?hl=ko#register_callback_on_future]하는 것이 나을 수도 있습니다.
+
+Future에 콜백 등록하기
+
+일부 프로그램에는 초당 30회 또는 60회 호출되는 Update 함수가 있습니다.
+예를 들면 상당수의 게임들이 이 모델을 따릅니다. 이런 프로그램은 LastResult 함수를 호출하여 비동기 호출을 폴링할 수 있습니다.
+
+하지만 프로그램이 이벤트 기반일 경우 콜백 함수를 등록하는 것이 나을 수도 있습니다.
+콜백 함수는 Future 완료 시에 호출됩니다.
+
+void OnCreateCallback(const firebase::Future<firebase::auth::User*>& result,
+void* user_data) {
+// The callback is called when the Future enters the `complete` state.
+assert(result.status() == firebase::kFutureStatusComplete);
+
+// Use `user_data` to pass-in program context, if you like.
+MyProgramContext* program_context = static_cast<MyProgramContext*>(user_data);
+
+// Important to handle both success and failure situations.
+if (result.error() == firebase::auth::kAuthErrorNone) {
+firebase::auth::User* user = *result.result();
+printf("Create user succeeded for email %s\n", user->email().c_str());
+
+// Perform other actions on User, if you like.
+firebase::auth::User::UserProfile profile;
+profile.display_name = program_context->display_name;
+user->UpdateUserProfile(profile);
+
+} else {
+printf("Created user failed with error '%s'\n", result.error_message());
+}
+}
+
+void CreateUser(firebase::auth::Auth* auth) {
+// Callbacks work the same for any firebase::Future.
+firebase::Future<firebase::auth::AuthResult> result =
+auth->CreateUserWithEmailAndPasswordLastResult();
+
+// `&my_program_context` is passed verbatim to OnCreateCallback().
+result.OnCompletion(OnCreateCallback, &my_program_context);
+}
+
+원한다면 콜백 함수는 람다 함수도 가능합니다.
+
+void CreateUserUsingLambda(firebase::auth::Auth* auth) {
+// Callbacks work the same for any firebase::Future.
+firebase::Future<firebase::auth::AuthResult> result =
+auth->CreateUserWithEmailAndPasswordLastResult();
+
+// The lambda has the same signature as the callback function.
+result.OnCompletion(
+[](const firebase::Future<firebase::auth::User*>& result,
+void* user_data) {
+// `user_data` is the same as &my_program_context, below.
+// Note that we can't capture this value in the [] because std::function
+// is not supported by our minimum compiler spec (which is pre C++11).
+MyProgramContext* program_context =
+static_cast<MyProgramContext*>(user_data);
+
+// Process create user result...
+(void)program_context;
+},
+&my_program_context);
+}
+
+다음 단계
+
+사용자가 처음으로 로그인하면 신규 사용자 계정이 생성되고 사용자가 로그인할 때 사용한 사용자 인증 정보(사용자 이름과 비밀번호, 전화번호 또는 인증 제공업체 정보)에 연결됩니다. 이 신규 계정은 Firebase 프로젝트에 저장되며 사용자의 로그인 방법과 무관하게 프로젝트 내의 모든 앱에서 사용자를 식별하는 데 사용할 수 있습니다.
+
+앱의 firebase::auth::User [https://firebase.google.com/docs/reference/cpp/class/firebase/auth/user?hl=ko] 객체에서 사용자의 기본 프로필 정보를 가져올 수 있습니다.
+
+firebase::auth::User user = auth->current_user();
+if (user.is_valid()) {
+std::string name = user.display_name();
+std::string email = user.email();
+std::string photo_url = user.photo_url();
+// The user's ID, unique to the Firebase project.
+// Do NOT use this value to authenticate with your backend server,
+// if you have one. Use firebase::auth::User::Token() instead.
+std::string uid = user.uid();
+}
+
+Firebase Realtime Database와 Cloud Storage 보안 규칙 [https://firebase.google.com/docs/database/security/user-security?hl=ko]의 auth 변수에서 로그인한 사용자의 고유 사용자 ID를 가져온 후 이 ID를 통해 사용자가 액세스할 수 있는 데이터를 관리할 수 있습니다.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결 [https://firebase.google.com/docs/auth/cpp/account-linking?hl=ko]하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+
+사용자를 로그아웃시키려면 SignOut() [https://firebase.google.com/docs/reference/cpp/class/firebase/auth/auth?hl=ko#signout]을 호출합니다.
+auth->SignOut();
+
+의견 보내기

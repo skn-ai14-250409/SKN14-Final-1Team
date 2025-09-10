@@ -1,0 +1,235 @@
+Source URL: https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko
+Title: Android에서 익명으로 Firebase에 인증
+bookmark_border
+
+의견 보내기
+
+Android에서 익명으로 Firebase에 인증
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#before-you-begin]Firebase에 익명으로 인증 [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#authenticate-with-firebase-anonymously]익명 계정을 영구 계정으로 전환 [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#convert-an-anonymous-account-to-a-permanent-account]자동 정리 [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#auto-cleanup]다음 단계 [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#next-steps]
+
+Firebase Authentication을 사용하면 임시 익명 계정을 생성 및 사용하여 Firebase에 인증할 수 있습니다. 이 임시 익명 계정을 통해 아직 앱에 가입하지 않은 사용자들도 보안 규칙으로 보호받는 데이터를 사용할 수 있습니다. 익명 사용자가 앱에 가입하기로 결정하면 이 사용자의 로그인 인증 정보를 해당 익명 계정에 연결 [https://firebase.google.com/docs/auth/android/account-linking?hl=ko]하여 사용자가 추후 세션에서도 보호받는 데이터를 계속 사용하도록 할 수 있습니다.
+
+시작하기 전에
+
+아직 추가하지 않았다면 Android 프로젝트에 Firebase를 추가 [https://firebase.google.com/docs/android/setup?hl=ko]합니다.
+
+모듈(앱 수준) Gradle 파일(일반적으로 <project>/<app-module>/build.gradle.kts 또는 <project>/<app-module>/build.gradle)에서 Android용 Firebase Authentication 라이브러리의 종속 항목을 추가합니다. 라이브러리 버전 관리 제어에는 Firebase Android BoM [https://firebase.google.com/docs/android/learn-more?hl=ko#bom]을 사용하는 것이 좋습니다.
+
+dependencies {
+// Import the BoM for the Firebase platform
+implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
+
+// Add the dependency for the Firebase Authentication library
+// When using the BoM, you don't specify versions in Firebase library dependencies
+implementation("com.google.firebase:firebase-auth")
+}
+
+Firebase Android BoM [https://firebase.google.com/docs/android/learn-more?hl=ko#bom]을 사용하면 앱에서 항상 호환되는 Firebase Android 라이브러리 버전만 사용합니다.
+
+(대안)
+BoM을 사용하지 않고 Firebase 라이브러리 종속 항목을 추가합니다.
+
+Firebase BoM을 사용하지 않도록 선택한 경우에는 종속 항목 줄에 각 Firebase 라이브러리 버전을 지정해야 합니다.
+앱에서 여러 Firebase 라이브러리를 사용하는 경우 모든 버전이 호환되도록 BoM을 사용하여 라이브러리 버전을 관리하는 것이 좋습니다.
+
+dependencies {
+// Add the dependency for the Firebase Authentication library
+// When NOT using the BoM, you must specify versions in Firebase library dependencies
+implementation("com.google.firebase:firebase-auth:24.0.1")
+}
+
+아직 Firebase 프로젝트에 앱을 연결하지 않았다면 Firebase Console [https://console.firebase.google.com/?hl=ko]에서 연결합니다.
+다음과 같이 익명 인증을 사용 설정합니다.
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다.
+로그인 방법 페이지에서 익명 로그인 방법을 사용 설정합니다.
+선택사항: 프로젝트를 Firebase Authentication with Identity Platform [https://firebase.google.com/auth?hl=ko#identity-platform]으로 업그레이드한 경우 자동 정리를 사용 설정할 수 있습니다. 이 설정을 사용하면 30일이 지난 익명 계정은 자동으로 삭제됩니다. 자동 정리가 사용 설정된 프로젝트에서는 익명 인증이 더 이상 사용량 한도 또는 결제 할당량에 포함되지 않습니다. 자동 정리 [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#auto-cleanup]를 참조하세요.
+
+Firebase에 익명으로 인증
+
+로그아웃 상태의 사용자가 Firebase에 인증이 필요한 앱 기능을 사용할 때 다음 절차를 밟으면 사용자를 익명으로 로그인시킬 수 있습니다.
+
+다음과 같이 작업의 onCreate 메서드에서 FirebaseAuth 객체의 공유 인스턴스를 가져옵니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#kotlin-android] ---
+private lateinit var auth: FirebaseAuth
+// ...
+// Initialize Firebase Auth
+auth = Firebase.auth
+AnonymousAuthActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/AnonymousAuthActivity.kt#L25-L26]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#java-android] ---
+private FirebaseAuth mAuth;
+// ...
+// Initialize Firebase Auth
+mAuth = FirebaseAuth.getInstance();
+AnonymousAuthActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/AnonymousAuthActivity.java#L49-L50]
+
+활동을 초기화할 때 사용자가 현재 로그인되어 있는지 확인합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#kotlin-android] ---
+public override fun onStart() {
+super.onStart()
+// Check if user is signed in (non-null) and update UI accordingly.
+val currentUser = auth.currentUser
+updateUI(currentUser)
+}
+AnonymousAuthActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/AnonymousAuthActivity.kt#L31-L36]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#java-android] ---
+@Override
+public void onStart() {
+super.onStart();
+// Check if user is signed in (non-null) and update UI accordingly.
+FirebaseUser currentUser = mAuth.getCurrentUser();
+updateUI(currentUser);
+}
+AnonymousAuthActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/AnonymousAuthActivity.java#L55-L61]
+
+마지막으로 signInAnonymously를 호출하여 익명 사용자로 로그인 처리합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#kotlin-android] ---
+auth.signInAnonymously()
+.addOnCompleteListener(this) { task ->
+if (task.isSuccessful) {
+// Sign in success, update UI with the signed-in user's information
+Log.d(TAG, "signInAnonymously:success")
+val user = auth.currentUser
+updateUI(user)
+} else {
+// If sign in fails, display a message to the user.
+Log.w(TAG, "signInAnonymously:failure", task.exception)
+Toast.makeText(
+baseContext,
+"Authentication failed.",
+Toast.LENGTH_SHORT,
+).show()
+updateUI(null)
+}
+}
+AnonymousAuthActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/AnonymousAuthActivity.kt#L41-L58]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#java-android] ---
+mAuth.signInAnonymously()
+.addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+if (task.isSuccessful()) {
+// Sign in success, update UI with the signed-in user's information
+Log.d(TAG, "signInAnonymously:success");
+FirebaseUser user = mAuth.getCurrentUser();
+updateUI(user);
+} else {
+// If sign in fails, display a message to the user.
+Log.w(TAG, "signInAnonymously:failure", task.getException());
+Toast.makeText(AnonymousAuthActivity.this, "Authentication failed.",
+Toast.LENGTH_SHORT).show();
+updateUI(null);
+}
+}
+});
+AnonymousAuthActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/AnonymousAuthActivity.java#L66-L83]로그인이 성공하면 getCurrentUser 메서드로 사용자의 계정 데이터를 가져올 수 있습니다.
+프로젝트 악용을 방지하기 위해 Firebase에서는 짧은 시간 동안 같은 IP 주소에서 이메일/비밀번호 및 익명 방식으로 애플리케이션에 새로 가입할 수 있는 횟수를 제한합니다. Firebase Console [https://console.firebase.google.com/project/_/authentication/providers?hl=ko]에서 이 할당량의 한시적 변경을 요청하거나 예약할 수 있습니다.
+
+익명 계정을 영구 계정으로 전환
+
+익명 사용자가 앱에 가입하면 사용자가 가입 전에 하던 작업을 신규 계정에서 이어서 하게 할 수 있습니다. 예를 들면 사용자가 가입 전에 장바구니에 담은 물품이 신규 계정의 장바구니에 나타나도록 할 수 있습니다. 그러려면 다음 절차를 완료하세요.
+
+사용자가 가입하면 사용자가 선택한 인증 제공업체의 로그인 과정을 진행하되 FirebaseAuth.signInWith 메서드 호출 전까지만 진행합니다. 예를 들어 사용자의 Google ID 토큰, Facebook 액세스
+토큰 또는 이메일 주소와 비밀번호를 가져옵니다.
+
+다음과 같이 새로운 인증 제공업체의 AuthCredential을 가져옵니다.
+
+Google 로그인
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#kotlin-android] ---
+val credential = GoogleAuthProvider.getCredential(googleIdToken, null)
+MainActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L394-L394]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#java-android] ---
+AuthCredential credential = GoogleAuthProvider.getCredential(googleIdToken, null);
+MainActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L479-L479]
+Facebook 로그인
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#kotlin-android] ---
+val credential = FacebookAuthProvider.getCredential(token.token)
+MainActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L401-L401]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#java-android] ---
+AuthCredential credential = FacebookAuthProvider.getCredential(token.getToken());
+MainActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L487-L487]
+이메일-비밀번호 로그인
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#kotlin-android] ---
+val credential = EmailAuthProvider.getCredential(email, password)
+MainActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L409-L409]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#java-android] ---
+AuthCredential credential = EmailAuthProvider.getCredential(email, password);
+MainActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L495-L495]
+
+다음과 같이 로그인한 사용자의 linkWithCredential 메서드에 AuthCredential 객체를 전달합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#kotlin-android] ---
+auth.currentUser!!.linkWithCredential(credential)
+.addOnCompleteListener(this) { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "linkWithCredential:success")
+val user = task.result?.user
+updateUI(user)
+} else {
+Log.w(TAG, "linkWithCredential:failure", task.exception)
+Toast.makeText(
+baseContext,
+"Authentication failed.",
+Toast.LENGTH_SHORT,
+).show()
+updateUI(null)
+}
+}
+AnonymousAuthActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/AnonymousAuthActivity.kt#L66-L81]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/anonymous-auth?hl=ko#java-android] ---
+mAuth.getCurrentUser().linkWithCredential(credential)
+.addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+if (task.isSuccessful()) {
+Log.d(TAG, "linkWithCredential:success");
+FirebaseUser user = task.getResult().getUser();
+updateUI(user);
+} else {
+Log.w(TAG, "linkWithCredential:failure", task.getException());
+Toast.makeText(AnonymousAuthActivity.this, "Authentication failed.",
+Toast.LENGTH_SHORT).show();
+updateUI(null);
+}
+}
+});
+AnonymousAuthActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/AnonymousAuthActivity.java#L91-L106]
+
+linkWithCredential 호출이 성공하면 사용자의 신규 계정에서 익명 계정의 Firebase 데이터에 액세스할 수 있습니다.이 방법은 임의의 계정 2개를 연결 [https://firebase.google.com/docs/auth/android/account-linking?hl=ko]할 때도 사용할 수 있습니다.자동 정리
+
+프로젝트를 Firebase Authentication with Identity Platform [https://firebase.google.com/docs/auth?hl=ko#identity-platform]으로 업그레이드한 경우 Firebase Console에서 자동 정리를 사용 설정할 수 있습니다. 이 기능을 사용 설정하면 Firebase에서 30일이 지난 익명 계정을 자동으로 삭제할 수 있습니다. 자동 정리가 사용 설정된 프로젝트에서는 익명 인증이 사용량 한도 또는 결제 할당량에 포함되지 않습니다.
+
+자동 정리를 사용 설정한 후 만든 익명 계정은 생성 후 30일이 지나면 언제든지 자동으로 삭제될 수 있습니다.
+기존 익명 계정은 자동 정리를 사용 설정한 후 30일이 지나면 자동으로 삭제될 수 있습니다.
+자동 정리를 사용 중지해도 삭제 예약된 익명 계정은 삭제가 예약된 상태로 유지됩니다.
+익명 계정을 로그인 방법에 연결하여 '업그레이드'할 경우 계정이 자동으로 삭제되지 않습니다.
+
+이 기능을 사용 설정하기 전에 영향을 받는 사용자 수를 확인하고 프로젝트를 Firebase Authentication with Identity Platform [https://firebase.google.com/docs/auth?hl=ko#identity-platform]으로 업그레이드한 경우 Cloud Logging [https://cloud.google.com/logging/docs?hl=ko]에서 is_anon으로 필터링할 수 있습니다.
+
+다음 단계
+
+이제 사용자가 Firebase에 인증할 수 있으므로 Firebase 규칙 [https://firebase.google.com/docs/database/security?hl=ko#section-authorization]을 사용하여 Firebase 데이터베이스의 데이터에 대한 액세스를 제어할 수 있습니다.
+
+도움이 되었나요?
+
+의견 보내기

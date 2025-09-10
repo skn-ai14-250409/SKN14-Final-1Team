@@ -1,0 +1,354 @@
+Source URL: https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko
+Title: 제휴 ID 및 소셜 로그인
+bookmark_border
+
+의견 보내기
+
+제휴 ID 및 소셜 로그인
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용Google [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#google]Google Play 게임즈(Android만 해당) [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#games]Facebook [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#facebook]Apple [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#apple]Apple 인증 토큰 취소 [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#revoke-apple]Apple Game Center(Apple만 해당) [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#games]Microsoft [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#microsoft]Twitter [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#twitter]GitHub [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#github]Yahoo [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#yahoo]
+
+소셜 인증은 다단계 인증 흐름으로, 사용자를 계정에 로그인 처리하거나 기존 계정과 연결할 수 있게 해줍니다.
+
+네이티브 플랫폼과 웹은 모두 사용자 인증 정보를 만든 후 signInWithCredential 또는 linkWithCredential 메서드에 전달할 수 있게 지원합니다. 웹 플랫폼에서는 팝업 또는 리디렉션을 통해 인증 프로세스를 트리거할 수 있습니다.
+
+Google
+
+Firebase에서 Google 로그인을 사용할 때는 대부분의 구성이 이미 설정되어 있지만 머신의 SHA1 키를 Android에서 사용 가능하도록 구성할 필요가 있습니다. 인증 문서 [https://developers.google.com/android/guides/client-auth?hl=ko]에서 키를 생성하는 방법을 확인할 수 있습니다.
+
+Firebase Console [https://console.firebase.google.com/project/_/authentication/providers?hl=ko]에서 'Google' 로그인 제공업체가 사용 설정되어 있어야 합니다.
+
+사용자가 이미 계정에 수동으로 등록된 후에 Google로 로그인하면 신뢰할 수 있는 제공업체의 Firebase 인증 개념으로 인해 인증 제공업체가 Google로 자동 변경됩니다. 자세한 내용은 여기 [https://groups.google.com/g/firebase-talk/c/ms_NVQem_Cw/m/8g7BFk1IAAAJ?hl=ko]에서 확인할 수 있습니다.
+
+--- 탭: iOS+ 및 Android [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#ios+-%EB%B0%8F-android] ---
+```
+import 'package:google_sign_in/google_sign_in.dart';
+
+Future<UserCredential> signInWithGoogle() async {
+// Trigger the authentication flow
+final GoogleSignInAccount? googleUser = await GoogleSignIn.instance.authenticate();
+
+// Obtain the auth details from the request
+final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+
+// Create a new credential
+final credential = GoogleAuthProvider.credential(idToken: googleAuth.idToken);
+
+// Once signed in, return the UserCredential
+return await FirebaseAuth.instance.signInWithCredential(credential);
+}
+```
+
+--- 탭: 웹 [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#%EC%9B%B9] ---
+```
+GoogleAuthProvider googleProvider = GoogleAuthProvider();
+
+googleProvider.addScope('https://www.googleapis.com/auth/contacts.readonly');
+googleProvider.setCustomParameters({
+'login_hint': 'user@example.com'
+});
+```
+```
+Future<UserCredential> signInWithGoogle() async {
+// Create a new provider
+GoogleAuthProvider googleProvider = GoogleAuthProvider();
+
+googleProvider.addScope('https://www.googleapis.com/auth/contacts.readonly');
+googleProvider.setCustomParameters({
+'login_hint': 'user@example.com'
+});
+
+// Once signed in, return the UserCredential
+return await FirebaseAuth.instance.signInWithPopup(googleProvider);
+
+// Or use signInWithRedirect
+// return await FirebaseAuth.instance.signInWithRedirect(googleProvider);
+}
+```
+Google Play 게임즈(Android만 해당)
+
+Firebase Console [https://console.firebase.google.com/project/_/authentication/providers?hl=ko]에서 'Play 게임즈' 로그인 제공업체가 사용 설정되어 있어야 합니다.
+Play 게임즈 Firebase 프로젝트 설정 [https://firebase.google.com/docs/auth/android/play-games?hl=ko#set-up-firebase-project]에 대한 안내를 따르세요.
+
+Firebase 앱에서 Play 게임즈 서비스 구성 안내 [https://firebase.google.com/docs/auth/android/play-games?hl=ko#configure-play-games-with-firebase-info]를 따르세요.
+Future<void> _signInWithPlayGames() async {
+// Get server auth code from 3rd party provider
+// See PR description for details on how you might get the server auth code:
+// https://github.com/firebase/flutterfire/pull/12201#issue-2100392487
+final serverAuthCode = '...';
+final playGamesCredential = PlayGamesAuthProvider.credential(
+serverAuthCode: serverAuthCode);
+
+await FirebaseAuth.instance
+.signInWithCredential(playGamesCredential);
+}
+
+Facebook
+
+시작하기 전에 Facebook 개발자 앱 [https://developers.facebook.com/apps/]을 설정하고 설정 절차에 따라 Facebook 로그인을 사용 설정합니다.
+
+Facebook 앱 ID와 보안 비밀이 설정된 Firebase Console [https://console.firebase.google.com/project/_/authentication/providers?hl=ko]에서 'Facebook' 로그인 제공업체가 사용 설정되어 있어야 합니다.
+
+--- 탭: iOS+ 및 Android [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#ios+-%EB%B0%8F-android] ---
+```
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+
+Future<UserCredential> signInWithFacebook() async {
+// Trigger the sign-in flow
+final LoginResult loginResult = await FacebookAuth.instance.login();
+
+// Create a credential from the access token
+final OAuthCredential facebookAuthCredential = FacebookAuthProvider.credential(loginResult.accessToken.token);
+
+// Once signed in, return the UserCredential
+return FirebaseAuth.instance.signInWithCredential(facebookAuthCredential);
+}
+```
+
+--- 탭: 웹 [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#%EC%9B%B9] ---
+```
+FacebookAuthProvider facebookProvider = FacebookAuthProvider();
+
+facebookProvider.addScope('email');
+facebookProvider.setCustomParameters({
+'display': 'popup',
+});
+```
+```
+Future<UserCredential> signInWithFacebook() async {
+// Create a new provider
+FacebookAuthProvider facebookProvider = FacebookAuthProvider();
+
+facebookProvider.addScope('email');
+facebookProvider.setCustomParameters({
+'display': 'popup',
+});
+
+// Once signed in, return the UserCredential
+return await FirebaseAuth.instance.signInWithPopup(facebookProvider);
+
+// Or use signInWithRedirect
+// return await FirebaseAuth.instance.signInWithRedirect(facebookProvider);
+}
+```참고: 사용자가 Facebook으로 로그인하는 경우 Firebase는 User.isEmailVerified 속성을 true로 설정하지 않습니다. 사용자가 이메일을 확인하는 제공업체를 사용하여 로그인하는 경우(예: Google 로그인) 이는 true로 설정됩니다.
+자세한 내용은 이 문제 [https://github.com/firebase/flutterfire/issues/4612#issuecomment-782107867]를 참조하세요.
+Apple
+
+--- 탭: iOS+ [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#ios+] ---
+시작하기 전에 Apple로 로그인을 구성 [https://firebase.google.com/docs/auth/ios/apple?hl=ko#configure-sign-in-with-apple]하고 Apple을 로그인 제공업체로 사용 설정 [https://firebase.google.com/docs/auth/ios/apple?hl=ko#enable-apple-as-a-sign-in-provider]합니다.
+그런 다음 Runner 앱에 'Apple로 로그인' 기능이 있는지 확인합니다.
+
+--- 탭: Android [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#android] ---
+시작하기 전에 Apple로 로그인을 구성 [https://firebase.google.com/docs/auth/android/apple?hl=ko#configure_sign_in_with_apple]하고 Apple을 로그인 제공업체로 사용 설정 [https://firebase.google.com/docs/auth/android/apple?hl=ko#enable-apple-as-a-sign-in-provider]합니다.
+
+--- 탭: 웹 [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#%EC%9B%B9] ---
+시작하기 전에 Apple로 로그인을 구성 [https://firebase.google.com/docs/auth/web/apple?hl=ko#configure-sign-in-with-apple]하고 Apple을 로그인 제공업체로 사용 설정 [https://firebase.google.com/docs/auth/web/apple?hl=ko#enable-apple-as-a-sign-in-provider]합니다.import 'package:firebase_auth/firebase_auth.dart';
+
+Future<UserCredential> signInWithApple() async {
+final appleProvider = AppleAuthProvider();
+if (kIsWeb) {
+await FirebaseAuth.instance.signInWithPopup(appleProvider);
+} else {
+await FirebaseAuth.instance.signInWithProvider(appleProvider);
+}
+}
+
+Apple 플랫폼 로그인만 해당
+
+iOS+ 플랫폼에서는 다음 방법을 사용하여 Apple에 로그인할 수도 있습니다.
+// Implement a function that generates a nonce. See iOS documentation for how to create a nonce:
+// https://firebase.google.com/docs/auth/ios/apple#sign_in_with_apple_and_authenticate_with_firebase
+String rawNonce = createNonce();
+// Create a SHA-256 hash of the nonce. Consider using the `crypto` package from the pub.dev registry.
+String hashSHA256String = createHashSHA256String(rawNonce);
+// Use the hash of the nonce to get the idToken. Consider using the `sign_in_with_apple` plugin from the pub.dev registry.
+String idToken = await getIdToken();
+
+final fullName = AppleFullPersonName(
+familyName: 'Name',
+givenName: 'Your',
+);
+// Use the `rawNonce` and `idToken` to get the credential
+final credential = AppleAuthProvider.credentialWithIDToken(
+idToken,
+rawNonce,
+fullName,
+);
+
+await FirebaseAuth.instance.signInWithCredential(credential);
+
+Apple 인증 토큰 취소
+
+Apple 플랫폼에서 Apple에 로그인하면 revokeTokenWithAuthorizationCode() API를 사용하여 Apple 인증 토큰을 취소하는 데 사용할 수 있는 승인 코드가 반환됩니다.
+import 'package:firebase_auth/firebase_auth.dart';
+
+Future<UserCredential> signInWithApple() async {
+final appleProvider = AppleAuthProvider();
+
+UserCredential userCredential = await FirebaseAuth.instance.signInWithPopup(appleProvider);
+// Keep the authorization code returned from Apple platforms
+String? authCode = userCredential.additionalUserInfo?.authorizationCode;
+// Revoke Apple auth token
+await FirebaseAuth.instance.revokeTokenWithAuthorizationCode(authCode!);
+}
+
+Apple Game Center(Apple만 해당)
+
+Firebase Console [https://console.firebase.google.com/project/_/authentication/providers?hl=ko]에서 'Game Center' 로그인 제공업체가 사용 설정되었는지 확인합니다.
+Game Center Firebase 프로젝트 설정 [https://firebase.google.com/docs/auth/ios/game-center?hl=ko#before_you_begin]에 대한 안내를 따르세요.
+
+Firebase Game Center 사용자 인증 정보를 발급하고 Firebase를 통해 로그인하려면 먼저 Game Center에 로그인해야 합니다. 이를 수행하는 방법은 다음 안내를 참조하세요 [https://firebase.google.com/docs/auth/ios/game-center?hl=ko#integrate_game_center_sign-in_into_your_game].
+Future<void> _signInWithGameCenter() async {
+final credential = GameCenterAuthProvider.credential();
+await FirebaseAuth.instance
+.signInWithCredential(credential);
+}
+
+Microsoft
+
+--- 탭: iOS+ [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#ios+] ---
+시작하기 전에 iOS용 Microsoft 로그인을 구성 [https://firebase.google.com/docs/auth/ios/microsoft-oauth?hl=ko#before_you_begin]하고 실행기에 커스텀 URL 스킴(1단계) [https://firebase.google.com/docs/auth/ios/microsoft-oauth?hl=ko#handle_the_sign-in_flow_with_the_firebase_sdk]을 추가합니다.
+
+--- 탭: Android [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#android] ---
+시작하기 전에 Android용 Microsoft 로그인을 구성 [https://firebase.google.com/docs/auth/android/microsoft-oauth?hl=ko#before_you_begin]하세요.
+앱의 SHA-1 디지털 지문을 추가해야 합니다.
+
+--- 탭: 웹 [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#%EC%9B%B9] ---
+시작하기 전에 웹용 Microsoft 로그인을 구성 [https://firebase.google.com/docs/auth/web/microsoft-oauth?hl=ko#configure-sign-in-with-apple]하세요.import 'package:firebase_auth/firebase_auth.dart';
+
+Future<UserCredential> signInWithMicrosoft() async {
+final microsoftProvider = MicrosoftAuthProvider();
+if (kIsWeb) {
+await FirebaseAuth.instance.signInWithPopup(microsoftProvider);
+} else {
+await FirebaseAuth.instance.signInWithProvider(microsoftProvider);
+}
+}
+
+Twitter
+
+Firebase Console [https://console.firebase.google.com/project/_/authentication/providers?hl=ko]에서 '트위터' 로그인 제공업체가 사용 설정되었고 API 키와 API 비밀번호가 설정되었는지 확인합니다. 트위터 앱 구성 [https://apps.twitter.com/]의 앱 설정 페이지에서 Firebase OAuth 리디렉션 URI(예: my-app-12345.firebaseapp.com/__/auth/handler)가 승인 콜백 URL로 설정되어 있는지 확인합니다.
+
+앱에 따라 승격된 API 액세스 [https://developer.twitter.com/en/portal/products/elevated]를 요청해야 할 수도 있습니다.
+
+--- 탭: iOS+ [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#ios+] ---
+iOS 가이드 1단계 [https://firebase.google.com/docs/auth/ios/twitter-login?hl=ko#handle_the_sign-in_flow_with_the_firebase_sdk]에 설명된 대로 커스텀 URL 스킴을 구성해야 합니다.
+
+--- 탭: Android [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#android] ---
+아직 앱의 SHA-1 디지털 지문을 지정하지 않았다면 Firebase Console의 설정 페이지 [https://console.firebase.google.com/project/_/settings/general/?hl=ko]에서 지정합니다. 앱의 SHA-1 디지털 지문을 얻는 방법에 대한 자세한 내용은 클라이언트 인증 [https://developers.google.com/android/guides/client-auth?hl=ko]을 참조하세요.
+
+--- 탭: 웹 [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#%EC%9B%B9] ---
+즉시 사용할 수 있습니다.import 'package:firebase_auth/firebase_auth.dart';
+
+Future<void> _signInWithTwitter() async {
+TwitterAuthProvider twitterProvider = TwitterAuthProvider();
+
+if (kIsWeb) {
+await FirebaseAuth.instance.signInWithPopup(twitterProvider);
+} else {
+await FirebaseAuth.instance.signInWithProvider(twitterProvider);
+}
+}
+
+GitHub
+
+GitHub 개발자 설정 [https://github.com/settings/developers]에 OAuth 앱이 설정되어 있고, Firebase Console [https://console.firebase.google.com/project/_/authentication/providers?hl=ko]에 'GitHub' 로그인 제공업체가 사용 설정되어 있으며, 클라이언트 ID와 보안 비밀이 설정되어 있고, GitHub 앱에 콜백 URL이 설정되어 있는지 확인합니다.
+
+--- 탭: iOS+ 및 Android [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#ios+-%EB%B0%8F-android] ---
+```
+Future<UserCredential> signInWithGitHub() async {
+// Create a new provider
+GithubAuthProvider githubProvider = GithubAuthProvider();
+
+return await FirebaseAuth.instance.signInWithProvider(githubProvider);
+}
+```
+
+--- 탭: 웹 [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#%EC%9B%B9] ---
+```
+Future<UserCredential> signInWithGitHub() async {
+// Create a new provider
+GithubAuthProvider githubProvider = GithubAuthProvider();
+
+// Once signed in, return the UserCredential
+return await FirebaseAuth.instance.signInWithPopup(githubProvider);
+
+// Or use signInWithRedirect
+// return await FirebaseAuth.instance.signInWithRedirect(githubProvider);
+}
+```
+Yahoo
+
+Firebase Console [https://console.firebase.google.com/project/_/authentication/providers?hl=ko]에서 'Yahoo' 로그인 제공업체가 사용 설정되어 있고 API 키와 API 비밀번호가 설정되어 있어야 합니다. 또한 Firebase OAuth 리디렉션 URI(예: my-app-12345.firebaseapp.com/__/auth/handler)가 앱의 Yahoo 개발자 네트워크 구성에서 리디렉션 URI로 설정되어 있는지 확인합니다.
+
+--- 탭: iOS+ [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#ios+] ---
+시작하기 전에 iOS용 Yahoo 로그인을 구성 [https://firebase.google.com/docs/auth/ios/yahoo-oauth?hl=ko#before_you_begin]하고 실행기에 커스텀 URL 스킴(1단계) [https://firebase.google.com/docs/auth/ios/yahoo-oauth?hl=ko#handle_the_sign-in_flow_with_the_firebase_sdk]을 추가합니다.
+
+--- 탭: Android [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#android] ---
+시작하기 전에 Android용 Yahoo 로그인을 구성 [https://firebase.google.com/docs/auth/android/yahoo-oauth?hl=ko#before_you_begin]하세요.
+앱의 SHA-1 디지털 지문을 추가해야 합니다.
+
+--- 탭: 웹 [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko#%EC%9B%B9] ---
+즉시 사용할 수 있습니다.import 'package:firebase_auth/firebase_auth.dart';
+
+Future<UserCredential> signInWithYahoo() async {
+final yahooProvider = YahooAuthProvider();
+if (kIsWeb) {
+await _auth.signInWithPopup(yahooProvider);
+} else {
+await _auth.signInWithProvider(yahooProvider);
+}
+}
+
+OAuth 액세스 토큰 사용
+
+AuthProvider를 사용하면 다음 요청을 통해 제공업체와 연결된 액세스 토큰을 가져올 수 있습니다.
+final appleProvider = AppleAuthProvider();
+
+final user = await FirebaseAuth.instance.signInWithProvider(appleProvider);
+final accessToken = user.credential?.accessToken;
+
+// You can send requests with the `accessToken`
+
+인증 제공업체 연결
+
+제공업체를 현재 사용자에게 연결하려면 다음 메서드를 사용하면 됩니다.
+await FirebaseAuth.instance.signInAnonymously();
+
+final appleProvider = AppleAuthProvider();
+
+if (kIsWeb) {
+await FirebaseAuth.instance.currentUser?.linkWithPopup(appleProvider);
+
+// You can also use `linkWithRedirect`
+} else {
+await FirebaseAuth.instance.currentUser?.linkWithProvider(appleProvider);
+}
+
+// You're anonymous user is now upgraded to be able to connect with Sign In With Apple
+
+제공업체 재인증
+
+최근 로그인한 적이 있어야 진행할 수 있는 중요한 작업에 대해 새로운 사용자 인증 정보를 검색하는 데 사용할 수 있는 reauthenticateWithProvider와 동일한 패턴을 사용하면 됩니다.
+final appleProvider = AppleAuthProvider();
+
+if (kIsWeb) {
+await FirebaseAuth.instance.currentUser?.reauthenticateWithPopup(appleProvider);
+
+// Or you can reauthenticate with a redirection
+// await FirebaseAuth.instance.currentUser?.reauthenticateWithRedirect(appleProvider);
+} else {
+await FirebaseAuth.instance.currentUser?.reauthenticateWithProvider(appleProvider);
+}
+
+// You can now perform sensitive operations
+
+도움이 되었나요?
+
+의견 보내기

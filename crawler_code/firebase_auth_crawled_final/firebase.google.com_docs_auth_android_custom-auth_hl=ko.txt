@@ -1,0 +1,164 @@
+Source URL: https://firebase.google.com/docs/auth/android/custom-auth?hl=ko
+Title: Android에서 커스텀 인증 시스템을 사용하여 Firebase에 인증
+bookmark_border
+
+의견 보내기
+
+Android에서 커스텀 인증 시스템을 사용하여 Firebase에 인증
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko#before-you-begin]Firebase 인증 [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko#authenticate-with-firebase]다음 단계 [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko#next-steps]
+
+사용자가 정상적으로 로그인할 때 커스텀 서명 토큰을 발행하도록 인증 서버를 수정하면 Firebase Authentication에 커스텀 인증 시스템을 통합할 수 있습니다. 그러면 앱이 이 토큰을 받아 Firebase 인증에 사용합니다.
+
+시작하기 전에
+
+아직 추가하지 않았다면 Android 프로젝트에 Firebase를 추가 [https://firebase.google.com/docs/android/setup?hl=ko]합니다.
+
+모듈(앱 수준) Gradle 파일(일반적으로 <project>/<app-module>/build.gradle.kts 또는 <project>/<app-module>/build.gradle)에서 Android용 Firebase Authentication 라이브러리의 종속 항목을 추가합니다. 라이브러리 버전 관리 제어에는 Firebase Android BoM [https://firebase.google.com/docs/android/learn-more?hl=ko#bom]을 사용하는 것이 좋습니다.
+
+dependencies {
+// Import the BoM for the Firebase platform
+implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
+
+// Add the dependency for the Firebase Authentication library
+// When using the BoM, you don't specify versions in Firebase library dependencies
+implementation("com.google.firebase:firebase-auth")
+}
+
+Firebase Android BoM [https://firebase.google.com/docs/android/learn-more?hl=ko#bom]을 사용하면 앱에서 항상 호환되는 Firebase Android 라이브러리 버전만 사용합니다.
+
+(대안)
+BoM을 사용하지 않고 Firebase 라이브러리 종속 항목을 추가합니다.
+
+Firebase BoM을 사용하지 않도록 선택한 경우에는 종속 항목 줄에 각 Firebase 라이브러리 버전을 지정해야 합니다.
+앱에서 여러 Firebase 라이브러리를 사용하는 경우 모든 버전이 호환되도록 BoM을 사용하여 라이브러리 버전을 관리하는 것이 좋습니다.
+
+dependencies {
+// Add the dependency for the Firebase Authentication library
+// When NOT using the BoM, you must specify versions in Firebase library dependencies
+implementation("com.google.firebase:firebase-auth:24.0.1")
+}
+
+다음과 같이 프로젝트의 서버 키를 가져옵니다.
+
+프로젝트 설정의 서비스 계정 [https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk?hl=ko]
+페이지로 이동합니다.
+서비스 계정 페이지의 Firebase Admin SDK 섹션 하단에서
+새 비공개 키 생성을 클릭합니다.
+새 서비스 계정의 공개 키/비공개 키 쌍이 자동으로 컴퓨터에
+저장됩니다. 이 파일을 인증 서버에 복사합니다.
+
+Firebase 인증
+
+다음과 같이 로그인 작업의 onCreate 메서드에서 FirebaseAuth 객체의 공유 인스턴스를 가져옵니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko#kotlin-android] ---
+private lateinit var auth: FirebaseAuth
+// ...
+// Initialize Firebase Auth
+auth = Firebase.auth
+CustomAuthActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/CustomAuthActivity.kt#L27-L28]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko#java-android] ---
+private FirebaseAuth mAuth;
+// ...
+// Initialize Firebase Auth
+mAuth = FirebaseAuth.getInstance();
+CustomAuthActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/CustomAuthActivity.java#L48-L49]
+
+활동을 초기화할 때 사용자가 현재 로그인되어 있는지 확인합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko#kotlin-android] ---
+public override fun onStart() {
+super.onStart()
+// Check if user is signed in (non-null) and update UI accordingly.
+val currentUser = auth.currentUser
+updateUI(currentUser)
+}
+CustomAuthActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/CustomAuthActivity.kt#L33-L38]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko#java-android] ---
+@Override
+public void onStart() {
+super.onStart();
+// Check if user is signed in (non-null) and update UI accordingly.
+FirebaseUser currentUser = mAuth.getCurrentUser();
+updateUI(currentUser);
+}
+CustomAuthActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/CustomAuthActivity.java#L54-L60]
+
+사용자가 앱에 로그인하면 사용자의 로그인 인증 정보(예: 사용자 이름과 비밀번호)를 인증 서버로 전송하세요. 서버가 사용자 인증 정보를 확인하여 정보가 유효하면 커스텀 토큰 [https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ko]을 반환합니다.
+
+인증 서버에서 커스텀 토큰을 받은 후 다음과 같이 이 토큰을 signInWithCustomToken에 전달하여 사용자를 로그인 처리합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko#kotlin-android] ---
+customToken?.let {
+auth.signInWithCustomToken(it)
+.addOnCompleteListener(this) { task ->
+if (task.isSuccessful) {
+// Sign in success, update UI with the signed-in user's information
+Log.d(TAG, "signInWithCustomToken:success")
+val user = auth.currentUser
+updateUI(user)
+} else {
+// If sign in fails, display a message to the user.
+Log.w(TAG, "signInWithCustomToken:failure", task.exception)
+Toast.makeText(
+baseContext,
+"Authentication failed.",
+Toast.LENGTH_SHORT,
+).show()
+updateUI(null)
+}
+}
+}
+CustomAuthActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/CustomAuthActivity.kt#L44-L63]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko#java-android] ---
+mAuth.signInWithCustomToken(mCustomToken)
+.addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+if (task.isSuccessful()) {
+// Sign in success, update UI with the signed-in user's information
+Log.d(TAG, "signInWithCustomToken:success");
+FirebaseUser user = mAuth.getCurrentUser();
+updateUI(user);
+} else {
+// If sign in fails, display a message to the user.
+Log.w(TAG, "signInWithCustomToken:failure", task.getException());
+Toast.makeText(CustomAuthActivity.this, "Authentication failed.",
+Toast.LENGTH_SHORT).show();
+updateUI(null);
+}
+}
+});
+CustomAuthActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/CustomAuthActivity.java#L65-L82]로그인이 성공하면 AuthStateListener에서 getCurrentUser 메서드로 사용자의 계정 데이터를 가져올 수 있습니다.
+
+다음 단계
+
+사용자가 처음으로 로그인하면 신규 사용자 계정이 생성되고 사용자가 로그인할 때 사용한 사용자 인증 정보(사용자 이름과 비밀번호, 전화번호 또는 인증 제공업체 정보)에 연결됩니다. 이 신규 계정은 Firebase 프로젝트의 일부로 저장되며 사용자의 로그인 방법에 관계없이 프로젝트 내 모든 앱에서 사용자를 식별하는 데 사용될 수 있습니다.
+
+앱의 FirebaseUser [https://firebase.google.com/docs/reference/android/com/google/firebase/auth/FirebaseUser?hl=ko] 객체에서 사용자의 기본 프로필 정보를 가져올 수 있습니다. 사용자 관리 [https://firebase.google.com/docs/auth/android/manage-users?hl=ko]를 참조하세요.
+
+Firebase Realtime Database와 Cloud Storage 보안 규칙 [https://firebase.google.com/docs/database/security/user-security?hl=ko]의 auth 변수에서 로그인한 사용자의 고유 사용자 ID를 가져온 후 이 ID를 통해 사용자가 액세스할 수 있는 데이터를 관리할 수 있습니다.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결 [https://firebase.google.com/docs/auth/android/account-linking?hl=ko]하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+
+사용자를 로그아웃시키려면 signOut [https://firebase.google.com/docs/reference/android/com/google/firebase/auth/FirebaseAuth?hl=ko#signOut()]을 호출합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko#kotlin-android] ---
+Firebase.auth.signOut()
+MainActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L415-L415]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/custom-auth?hl=ko#java-android] ---
+FirebaseAuth.getInstance().signOut();
+MainActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L501-L501]
+
+의견 보내기

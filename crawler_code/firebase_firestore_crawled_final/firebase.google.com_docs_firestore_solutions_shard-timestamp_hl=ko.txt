@@ -1,5 +1,6 @@
 Source URL: https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko
 Title: 샤딩된 타임스탬프
+bookmark_border
 
 이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
 
@@ -7,9 +8,13 @@ Title: 샤딩된 타임스탬프
 
 샤딩된 타임스탬프
 
+bookmark_borderbookmark
+
 컬렉션을 사용해 정리하기
 
 내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용timestamp 필드 샤딩 [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#sharding_a_timestamp_field]데이터 모델 및 쿼리 예시 [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#example_data_model_and_queries]shard 필드 추가 [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#adding_a_shard_field]샤딩된 타임스탬프 쿼리 [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#querying_the_sharded_timestamp]색인 정의 업데이트 [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#update_index_definitions]새 복합 색인 만들기 [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#create_new_composite_indexes]순차적으로 색인이 지정된 필드의 쓰기 제한 이해 [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#understanding_the_write_limit_for_sequential_indexed_fields]다음 단계 [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#whats_next]
 
 컬렉션에 순차 색인이 생성된 값이 포함된 문서가 있으면 Cloud Firestore는 쓰기 속도를 초당 500회로 제한합니다. 이 페이지에서는 이 제한을 해결하기 위해 문서 필드를 샤딩하는 방법을 설명합니다. 먼저 '순차적으로 색인이 지정된 필드'를 정의하고 이 제한이 적용되는 조건을 알아보겠습니다.
 
@@ -45,7 +50,7 @@ shard 필드 및 timestamp 필드 모두에 대해 단일 필드 색인 사용�
 
 예를 들어 통화, 보통주, ETF 같은 금융 상품을 거의 실시간으로 분석하는 앱이 있다고 가정해 보겠습니다. 이 앱은 다음과 같이 문서를 instruments 컬렉션에 씁니다.
 
-Node.js
+--- 탭: Node.js [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#node.js] ---
 async function insertData() {
 const instruments = [
 {
@@ -95,7 +100,7 @@ nonShardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb
 
 이 앱은 다음 쿼리를 실행하고 timestamp 필드에 따라 값을 정렬합니다.
 
-Node.js
+--- 탭: Node.js [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#node.js] ---
 function createQuery(fieldName, fieldOperator, fieldValue, limit = 5) {
 return fs.collection('instruments')
 .where(fieldName, fieldOperator, fieldValue)
@@ -146,7 +151,8 @@ console.log(`doc = ${util.inspect(doc.data(), {depth: 4})}`);
 }
 );
 return Promise.all([commonStock, exchange1Instruments, usdInstruments]);
-});nonShardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-sharded-timestamp/nonShardedTimestamps.js#L83-L113]
+});
+nonShardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-sharded-timestamp/nonShardedTimestamps.js#L83-L113]
 
 조사 결과, 앱이 금융 상품에 대한 업데이트를 초당 1,000~1,500개 수신하는 것이 확인됩니다. 이것은 색인이 지정된 timestamp 필드가 있는 문서를 포함하는 컬렉션에 허용되는 초당 500회의 쓰기 제한을 훨씬 초과합니다. 쓰기 처리량을 늘리려면 3개의 샤드 값(MAX_INSTRUMENT_UPDATES/500 = 3)이 필요합니다. 이 예시에서는 x, y, z라는 샤드 값을 사용합니다. 샤드 값으로 숫자나 다른 문자를 사용해도 됩니다.
 
@@ -154,7 +160,7 @@ shard 필드 추가
 
 shard 필드를 문서에 추가합니다. shard 필드를 값 x, y, z로 설정하여 컬렉션에 대한 쓰기 제한을 초당 1,500회로 늘립니다.
 
-Node.js
+--- 탭: Node.js [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#node.js] ---
 // Define our 'K' shard values
 const shards = ['x', 'y', 'z'];
 // Define a function to help 'chunk' our shards for use in queries.
@@ -232,7 +238,7 @@ shardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c
 
 shard 필드를 추가하려면 쿼리를 업데이트하여 샤딩된 결과를 집계해야 합니다.
 
-Node.js
+--- 탭: Node.js [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#node.js] ---
 function createQuery(fieldName, fieldOperator, fieldValue, limit = 5) {
 // For each shard value, map it to a new query which adds an additional
 // where clause specifying the shard value.
@@ -323,7 +329,8 @@ console.log(`doc = ${util.inspect(doc.data(), {depth: 4})}`);
 }
 );
 return Promise.all([commonStock, exchange1Instruments, usdInstruments]);
-});shardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-sharded-timestamp/shardedTimestamps.js#L153-L183]
+});
+shardedTimestamps.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-sharded-timestamp/shardedTimestamps.js#L153-L183]
 
 색인 정의 업데이트
 
@@ -331,25 +338,21 @@ return Promise.all([commonStock, exchange1Instruments, usdInstruments]);
 
 복합 색인 정의 삭제
 
-Firebase Console
+--- 탭: Firebase Console [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#firebase-console] ---
 Firebase Console에서 Cloud Firestore 복합 색인 페이지를 엽니다.
-
 복합 색인으로 이동 [https://console.firebase.google.com/project/_/firestore/indexes?hl=ko]
 timestamp 필드가 포함된 색인 항목별로 more_vert 버튼과 삭제를 차례로 클릭합니다.
 
-GCP Console
+--- 탭: GCP Console [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#gcp-console] ---
 Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
-
 데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
 데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
 탐색 메뉴에서 색인을 클릭한 다음 복합 탭을 클릭합니다.
 필터 필드를 사용하여 timestamp 필드가 포함된 색인 정의를 검색합니다.
 이러한 색인 항목별로 more_vert 버튼과 삭제를 차례로 클릭합니다.
 
-Firebase CLI
-Firebase CLI를 아직 설정하지 않았으면 이 안내에 따라 CLI를 설치하고 firebase init 명령어를 실행 [https://firebase.google.com/docs/cli?hl=ko#install_the_firebase_cli]합니다. init 명령어 실행 시 Firestore: Deploy rules and create indexes for Firestore를 선택해야 합니다.
-설정 도중 Firebase CLI는 기존의 색인 정의를 기본적으로 firestore.indexes.json이라는 이름의 파일로 다운로드합니다.
-timestamp 필드가 포함된 색인 정의를 제거합니다. 예를 들면 다음과 같습니다.
+--- 탭: Firebase CLI [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#firebase-cli] ---
+```
 {
 "indexes": [
 // Delete composite index definition that contain the timestamp field
@@ -397,15 +400,14 @@ timestamp 필드가 포함된 색인 정의를 제거합니다. 예를 들면 �
 },
 ]
 }
-
-업데이트된 색인 정의를 배포합니다.
+```
+```
 firebase deploy --only firestore:indexes
-
+```
 단일 필드 색인 정의 업데이트
 
-Firebase Console
+--- 탭: Firebase Console [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#firebase-console] ---
 Firebase Console에서 Cloud Firestore 단일 필드 색인 페이지를 엽니다.
-
 단일 필드 색인으로 이동 [https://console.firebase.google.com/project/_/firestore/indexes/single-field/manage?hl=ko]
 예외 추가를 클릭합니다.
 컬렉션 ID로 instruments를 입력하고 필드 경로로 timestamp를 입력합니다.
@@ -414,9 +416,8 @@ Firebase Console에서 Cloud Firestore 단일 필드 색인 페이지를 엽니�
 모든 색인 설정을 사용 중지됨으로 전환하고 저장을 클릭합니다.
 shard 필드에도 동일한 단계를 반복합니다.
 
-GCP Console
+--- 탭: GCP Console [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#gcp-console] ---
 Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
-
 데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
 데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
 탐색 메뉴에서 색인을 클릭한 후 단일 필드 탭을 클릭합니다.
@@ -428,8 +429,8 @@ Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
 모든 색인 설정을 사용 중지됨으로 전환하고 저장을 클릭합니다.
 shard 필드에도 동일한 단계를 반복합니다.
 
-Firebase CLI
-색인 정의 파일의 fieldOverrides 섹션에 다음을 추가합니다.
+--- 탭: Firebase CLI [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#firebase-cli] ---
+```
 {
 "fieldOverrides": [
 // Disable single-field indexing for the timestamp field
@@ -440,10 +441,10 @@ Firebase CLI
 },
 ]
 }
-
-업데이트된 색인 정의를 배포합니다.
+```
+```
 firebase deploy --only firestore:indexes
-
+```
 새 복합 색인 만들기
 
 timestamp가 포함된 이전의 모든 색인을 제거한 후에는 앱에 필요한 색인을 새로 정의해야 합니다. shard 필드를 포함하는 색인에는 timestamp 필드도 포함되어야 합니다. 예를 들어 위의 쿼리를 지원하려면 다음 색인을 추가해야 합니다.
@@ -454,11 +455,12 @@ timestamp가 포함된 이전의 모든 색인을 제거한 후에는 앱에 필
 | instruments | arrow_downward shard, arrow_upward exchange, arrow_downward timestamp | 컬렉션 |
 | instruments | arrow_downward shard, arrow_upward instrumentType, arrow_downward timestamp | 컬렉션 |
 
-오류 메시지이러한 색인은 업데이트된 쿼리를 실행하여 빌드할 수 있습니다.
-
+--- 탭: 오류 메시지 [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#%EC%98%A4%EB%A5%98-%EB%A9%94%EC%8B%9C%EC%A7%80] ---
+이러한 색인은 업데이트된 쿼리를 실행하여 빌드할 수 있습니다.
 각 쿼리는 Firebase Console에서 필요한 색인을 생성할 수 있는 링크가 포함된 오류 메시지를 반환합니다.
-Firebase CLI
-색인 정의 파일에 다음 색인을 추가합니다.
+
+--- 탭: Firebase CLI [https://firebase.google.com/docs/firestore/solutions/shard-timestamp?hl=ko#firebase-cli] ---
+```
 {
 "indexes": [
 // New indexes for sharded timestamps
@@ -518,10 +520,10 @@ Firebase CLI
 },
 ]
 }
-
-업데이트된 색인 정의를 배포합니다.
+```
+```
 firebase deploy --only firestore:indexes
-
+```
 순차적으로 색인이 지정된 필드의 쓰기 제한 이해
 
 순차적으로 색인이 지정된 필드의 쓰기 속도 제한은 Cloud Firestore에서 색인 값을 저장하고 색인 쓰기를 조정하는 방법에 좌우됩니다. Cloud Firestore는 색인 쓰기별로 문서 이름과 각 색인이 지정된 필드의 값을 연결하는 키-값 항목을 정의합니다. Cloud Firestore는 이러한 색인 항목을 태블릿이라는 데이터 그룹으로 정리합니다. Cloud Firestore 서버마다 태블릿이 한 개 이상 있습니다. 특정 태블릿에 대한 쓰기 부하가 너무 높아지면 Cloud Firestore는 태블릿을 더 작은 태블릿으로 분할하고 서로 다른 Cloud Firestore 서버에 새 태블릿을 분산하여 수평으로 확장합니다.
@@ -535,5 +537,7 @@ timestamp 필드를 샤딩하면 Cloud Firestore에서 워크로드를 여러 �
 규모 확장을 위한 설계 권장사항 [https://firebase.google.com/docs/firestore/best-practices?hl=ko#designing_for_scale] 읽기
 단일 문서에 대한 쓰기 속도가 높은 경우 분산 카운터 [https://firebase.google.com/docs/firestore/solutions/counters?hl=ko] 참조
 Cloud Firestore의 표준 제한사항 [https://firebase.google.com/docs/firestore/quotas?hl=ko#limits] 참조
+
+도움이 되었나요?
 
 의견 보내기

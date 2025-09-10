@@ -1,0 +1,97 @@
+Source URL: https://firebase.google.com/docs/auth/flutter/anonymous-auth?hl=ko
+Title: Firebase에 익명으로 인증
+bookmark_border
+
+의견 보내기
+
+Firebase에 익명으로 인증
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에Firebase에 익명으로 인증익명 계정을 영구 계정으로 전환다음 단계
+
+Firebase 인증을 사용해 임시 익명 계정을 생성하고 사용할 수 있습니다. 이 임시 익명 계정을 통해 아직 앱에 가입하지 않은 사용자들도 보안 규칙으로 보호받는 데이터를 사용할 수 있습니다. 익명 사용자가 앱에 가입하기로 결정하면
+이 사용자의 로그인 인증 정보를 해당 익명 계정에 연결 [https://firebase.google.com/docs/auth/flutter/account-linking?hl=ko]하여 사용자가 추후 세션에서도 보호받는 데이터를 계속 사용할 수 있습니다.
+
+시작하기 전에
+
+아직 수행하지 않았다면 시작하기 [https://firebase.google.com/docs/auth/flutter/start?hl=ko] 가이드의 단계를 따르세요.
+익명 로그인을 사용 설정합니다.
+
+Firebase Console의 인증 섹션에서 로그인 방법 [https://console.firebase.google.com/project/_/authentication/providers?hl=ko] 페이지를 엽니다.
+로그인 방법 페이지에서 익명 로그인 방법을 사용 설정하고 저장을 클릭합니다.
+
+Firebase에 익명으로 인증
+
+로그아웃 상태의 사용자가 Firebase 인증이 필요한 앱 기능을 사용할 때 signInAnonymously()를 호출하면 사용자를 익명으로 로그인 처리합니다.
+try {
+final userCredential =
+await FirebaseAuth.instance.signInAnonymously();
+print("Signed in with temporary account.");
+} on FirebaseAuthException catch (e) {
+switch (e.code) {
+case "operation-not-allowed":
+print("Anonymous auth hasn't been enabled for this project.");
+break;
+default:
+print("Unknown error.");
+}
+}
+참고: 프로젝트 악용을 방지하기 위해 Firebase에서는 짧은 시간 동안 같은 IP 주소에서 이메일/비밀번호 및 익명 방식으로 애플리케이션에 새로 가입할 수 있는 횟수를 제한합니다. Firebase Console [https://console.firebase.google.com/project/_/authentication/providers?hl=ko]에서 이 할당량의 한시적 변경을 요청하거나 예약할 수 있습니다.
+익명 계정을 영구 계정으로 전환
+
+익명 사용자가 앱에 가입하면 사용자가 가입 전에 하던 작업을 신규 계정에서 이어서 하게 할 수 있습니다. 예를 들면 사용자가 가입 전에 장바구니에 담은 물품이 신규 계정의 장바구니에 나타나도록 할 수 있습니다. 그러려면 다음 절차를 완료하세요.
+
+사용자가 가입하면 사용자가 선택한 인증 제공업체의 로그인 과정을 진행하되 signInWith 메서드 호출 전까지만 진행합니다. 예를 들어 사용자의 Google ID 토큰, Facebook 액세스 토큰 또는 이메일 주소와 비밀번호를 가져옵니다.
+다음과 같이 새로운 인증 제공업체의 Credential 객체를 가져옵니다.
+// Google Sign-in
+final credential = GoogleAuthProvider.credential(idToken: idToken);
+
+// Email and password sign-in
+final credential =
+EmailAuthProvider.credential(email: emailAddress, password: password);
+
+// Etc.
+
+다음과 같이 로그인한 사용자의 linkWithCredential() 메서드에 Credential 객체를 전달합니다.
+try {
+final userCredential = await FirebaseAuth.instance.currentUser
+?.linkWithCredential(credential);
+} on FirebaseAuthException catch (e) {
+switch (e.code) {
+case "provider-already-linked":
+print("The provider has already been linked to the user.");
+break;
+case "invalid-credential":
+print("The provider's credential is not valid.");
+break;
+case "credential-already-in-use":
+print("The account corresponding to the credential already exists, "
+"or is already linked to a Firebase User.");
+break;
+// See the API reference for the full list of error codes.
+default:
+print("Unknown error.");
+}
+```
+
+linkWithCredential() 호출이 성공하면 사용자의 신규 계정에서 익명 계정의 Firebase 데이터에 액세스할 수 있습니다.
+참고: 이 방법은 임의의 계정 2개를 연결 [https://firebase.google.com/docs/auth/flutter/account-linking?hl=ko]할 때도 사용할 수 있습니다.
+다음 단계
+
+사용자가 새 계정을 만들면 이 계정이 Firebase 프로젝트의 일부로 저장되며, 사용자가 사용한 로그인 방법과 관계없이 프로젝트의 모든 앱에서 사용자 식별에 사용될 수 있습니다.
+
+앱의 User 객체에서 사용자의 기본 프로필 정보를 가져올 수 있습니다. 사용자 관리 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko]를 참조하세요.
+
+Firebase 실시간 데이터베이스와 Cloud Storage 보안 규칙의 auth 변수에서 로그인한 사용자의 고유 사용자 ID를 가져온 후 이 ID를 사용해 사용자가 액세스할 수 있는 데이터를 관리할 수 있습니다.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결 [https://firebase.google.com/docs/auth/flutter/account-linking?hl=ko]하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+
+사용자를 로그아웃시키려면 signOut()을 호출합니다.
+await FirebaseAuth.instance.signOut();
+
+의견 보내기

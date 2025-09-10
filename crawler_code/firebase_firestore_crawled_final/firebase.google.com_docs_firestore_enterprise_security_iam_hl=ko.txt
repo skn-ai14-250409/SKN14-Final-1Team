@@ -1,0 +1,237 @@
+Source URL: https://firebase.google.com/docs/firestore/enterprise/security/iam?hl=ko
+Title: Identity and Access Management(IAM)
+bookmark_border
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+Identity and Access Management(IAM)
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용권한 및 역할 [https://firebase.google.com/docs/firestore/enterprise/security/iam?hl=ko#permissions_and_roles]API 메서드에 필요한 권한 [https://firebase.google.com/docs/firestore/enterprise/security/iam?hl=ko#required_permissions_for_api_methods]사전 정의된 역할 [https://firebase.google.com/docs/firestore/enterprise/security/iam?hl=ko#predefined_roles]커스텀 역할 [https://firebase.google.com/docs/firestore/enterprise/security/iam?hl=ko#custom-roles]권한 [https://firebase.google.com/docs/firestore/enterprise/security/iam?hl=ko#permissions]역할 변경 지연 시간 [https://firebase.google.com/docs/firestore/enterprise/security/iam?hl=ko#role_change_latency]Cloud Firestore IAM 관리 [https://firebase.google.com/docs/firestore/enterprise/security/iam?hl=ko#managing_iam]조건부 액세스 권한 구성 [https://firebase.google.com/docs/firestore/enterprise/security/iam?hl=ko#conditions]다음 단계 [https://firebase.google.com/docs/firestore/enterprise/security/iam?hl=ko#whats_next]
+
+Identity and Access Management(IAM)로 리소스에 대한 액세스를 관리합니다.
+IAM을 사용하면 특정 Google Cloud 리소스에 대한 더욱 세분화된 액세스 권한을 부여하고 다른 리소스에 대한 무단 액세스를 방지할 수 있습니다. 이 페이지에서는 Cloud Firestore의 IAM 권한과 역할을 설명합니다. IAM에 대한 자세한 내용은 IAM 문서 [https://cloud.google.com/iam/docs/?hl=ko]를 참조하세요.
+
+IAM은 최소 권한의 보안 원칙 [https://wikipedia.org/wiki/Principle_of_least_privilege]을 채택하여 리소스에 대해 필요한 액세스 권한만 부여할 수 있게 해줍니다.
+
+IAM을 사용하면 IAM 정책을 설정하여 어떠한 리소스에 대해 누구(사용자)에게 어떠한(역할) 권한이 있는지를 제어할 수 있습니다.
+IAM 정책은 사용자에게 역할을 한 개 이상 부여하여 특정 권한을 부여합니다. 예를 들어 datastore.indexAdmin 역할을 부여받은 사용자는 색인을 생성, 수정, 삭제, 나열 또는 볼 수 있습니다.
+
+권한 및 역할
+
+이 섹션에는 Cloud Firestore에서 지원하는 권한과 역할이 요약되어 있습니다.
+참고: 일부 Cloud Firestore 권한은 표준 IAM 모델 권한과 다릅니다. 예를 들어 IAM 모델에서 datastore.databases.get 권한을 사용하면 데이터베이스 객체를 반환할 수 있고 Cloud Firestore에서 datastore.databases.get 권한을 사용하면 트랜잭션을 시작하거나 롤백할 수 있습니다. 데이터베이스 객체 정보를 가져오려면 datastore.databases.getMetadata 권한을 사용하세요.
+API 메서드에 필요한 권한
+
+다음 표에서는 각 작업을 수행하려는 호출자가 가져야 하는 권한을
+보여줍니다.
+
+| 메서드 | 필수 권한 |
+| --- | --- |
+| projects.databases.MongoDBCompatible |
+| ListDatabases | datastore.databases.getMetadata |
+| ListIndexes | datastore.indexes.list |
+| Find | datastore.entities.get datastore.entities.list |
+| Aggregate | datastore.entities.get datastore.entities.list |
+| GetMore | 커서를 만든 호출에 필요한 것과 동일한 권한입니다. |
+| ListCollections | datastore.entities.list |
+| Count | datastore.entities.list |
+| Distinct | datastore.entities.get datastore.entities.list |
+| CommitTransaction | datastore.databases.get |
+| AbortTransaction | datastore.databases.get |
+| EndSessions | datastore.databases.get |
+| KillCursors | datastore.databases.get |
+| Insert | datastore.entities.create |
+| Update | datastore.entities.get datastore.entities.list datastore.entities.update datastore.entities.create(삽입/업데이트(upsert)만 해당) |
+| FindAndModify | datastore.entities.get datastore.entities.list datastore.entities.update(대체 또는 업데이트만 해당) datastore.entities.create(삽입/업데이트(upsert)만 해당) datastore.entities.delete(삭제만 해당) |
+| CreateCollection | datastore.entities.create |
+| projects.databases.indexes |
+| create | datastore.indexes.create |
+| delete | datastore.indexes.delete |
+| get | datastore.indexes.get |
+| list | datastore.indexes.list |
+| projects.databases |
+| create | datastore.databases.create |
+| delete | datastore.databases.delete |
+| get | datastore.databases.getMetadata |
+| list | datastore.databases.list |
+| patch | datastore.databases.update |
+| 복원 | datastore.backups.restoreDatabase |
+| clone | datastore.databases.clone | 데이터베이스를 클론합니다. clone 요청에 tags 값이 포함된 경우 다음 추가 권한이 필요합니다. datastore.databases.createTagBinding 바인딩을 나열하여 태그 바인딩이 성공적으로 설정되었는지 확인하려면 다음 추가 권한이 필요합니다. datastore.databases.listTagBindings datastore.databases.listEffectiveTags |
+| projects.locations |
+| get | datastore.locations.get |
+| list | datastore.locations.list |
+| projects.databases.backupschedules |
+| get | datastore.backupSchedules.get |
+| list | datastore.backupSchedules.list |
+| create | datastore.backupSchedules.create |
+| update | datastore.backupSchedules.update |
+| delete | datastore.backupSchedules.delete |
+| projects.locations.backups |
+| get | datastore.backups.get |
+| list | datastore.backups.list |
+| delete | datastore.backups.delete |
+| projects.databases.usercreds |
+| get | datastore.userCreds.get |
+| list | datastore.userCreds.list |
+| create | datastore.userCreds.create |
+| enable | datastore.userCreds.update |
+| disable | datastore.userCreds.update |
+| resetPassword | datastore.userCreds.update |
+| delete | datastore.userCreds.delete |
+
+사전 정의된 역할
+
+IAM을 사용하면 Cloud Firestore의 모든 API 메서드에서 API를 요청하는 계정에 리소스를 사용할 수 있는 적절한 권한이 있어야 합니다. 권한을 부여하려면 사용자, 그룹 또는 서비스 계정에 역할을 부여하는 정책을 설정합니다. 프로젝트 사용자에게 기본 역할인 소유자, 편집자, 뷰어 [https://cloud.google.com/iam/docs/understanding-roles?hl=ko#primitive_roles] 외에도 Cloud Firestore 역할을 부여할 수 있습니다.
+
+다음 표에는 Cloud Firestore IAM 역할이 나열되어 있습니다. 사용자, 그룹 또는 서비스 계정에 여러 역할을 부여할 수 있습니다.
+
+| 역할 | 권한 | 설명 |
+| --- | --- | --- |
+| roles/datastore.owner | appengine.applications.get  datastore.*  resourcemanager.projects.get resourcemanager.projects.list | Cloud Firestore에 대한 전체 액세스 권한입니다. |
+| roles/datastore.user | appengine.applications.get  datastore.databases.get datastore.databases.getMetadata datastore.databases.list datastore.entities.* datastore.indexes.list datastore.namespaces.get datastore.namespaces.list datastore.statistics.get datastore.statistics.list  resourcemanager.projects.get resourcemanager.projects.list | Cloud Firestore 데이터베이스의 데이터에 대한 읽기/쓰기 액세스 권한입니다. 애플리케이션 개발자 및 서비스 계정용입니다. |
+| roles/datastore.viewer | appengine.applications.get  datastore.databases.get datastore.databases.getMetadata datastore.databases.list datastore.entities.get datastore.entities.list datastore.indexes.get datastore.indexes.list datastore.namespaces.get datastore.namespaces.list datastore.statistics.get datastore.statistics.list  resourcemanager.projects.get resourcemanager.projects.list | Cloud Firestore 리소스에 대한 읽기 액세스 권한입니다. |
+| roles/datastore.indexAdmin | appengine.applications.get  datastore.databases.getMetadata  datastore.indexes.*  datastore.operations.list datastore.operations.get resourcemanager.projects.get resourcemanager.projects.list | 색인 정의를 관리할 수 있는 전체 액세스 권한입니다. |
+| roles/datastore.backupSchedulesViewer | datastore.backupSchedules.get datastore.backupSchedules.list | Cloud Firestore 데이터베이스의 백업 일정에 대한 읽기 액세스 권한입니다. |
+| roles/datastore.backupSchedulesAdmin | datastore.backupSchedules.get datastore.backupSchedules.list datastore.backupSchedules.create datastore.backupSchedules.update datastore.backupSchedules.delete datastore.databases.list datastore.databases.getMetadata | Cloud Firestore 데이터베이스의 백업 일정에 대한 전체 액세스 권한입니다. |
+| roles/datastore.backupsViewer | datastore.backups.get datastore.backups.list | Cloud Firestore 위치의 백업 정보에 대한 읽기 액세스 권한입니다. |
+| roles/datastore.backupsAdmin | datastore.backups.get datastore.backups.list datastore.backups.delete | Cloud Firestore 위치의 백업에 대한 전체 액세스 권한입니다. |
+| roles/datastore.restoreAdmin | datastore.backups.get datastore.backups.list datastore.backups.restoreDatabase datastore.databases.list datastore.databases.create datastore.databases.getMetadata datastore.operations.list datastore.operations.get | Cloud Firestore 백업을 새 데이터베이스로 복원할 수 있습니다. 이 역할은 백업에서 복원할 필요 없이 새 데이터베이스를 만들 수 있는 기능도 제공합니다. |
+| roles/datastore.cloneAdmin | datastore.databases.clone datastore.databases.list datastore.databases.create datastore.databases.getMetadata datastore.operations.list datastore.operations.get | Cloud Firestore 데이터베이스를 새 데이터베이스로 클론할 수 있습니다. 이 역할은 클론하지 않고도 새 데이터베이스를 만들 수 있는 기능도 제공합니다. |
+| roles/datastore.statisticsViewer | resourcemanager.projects.get resourcemanager.projects.list datastore.databases.getMetadata datastore.insights.get datastore.keyVisualizerScans.get datastore.keyVisualizerScans.list datastore.statistics.list datastore.statistics.get | 인사이트, 통계, Key Visualizer 스캔에 대한 읽기 액세스 권한입니다. |
+| roles/datastore.userCredsViewer | datastore.userCreds.get datastore.userCreds.list | Cloud Firestore 데이터베이스의 사용자 인증 정보에 대한 읽기 액세스 권한입니다. |
+| roles/datastore.userCredsAdmin | datastore.userCreds.get datastore.userCreds.list datastore.userCreds.create datastore.userCreds.update datastore.userCreds.delete datastore.databases.list datastore.databases.getMetadata | Cloud Firestore 데이터베이스의 사용자 인증 정보에 대한 전체 액세스 권한입니다. |
+
+커스텀 역할
+
+사전 정의된 역할로 비즈니스 요구 사항이 해결되지 않는 경우, 권한을 지정하여 자신만의 커스텀 역할을 정의할 수 있습니다.
+
+커스텀 역할 알아보기 [https://cloud.google.com/iam/docs/understanding-custom-roles?hl=ko]
+커스텀 역할 생성 및 관리 [https://cloud.google.com/iam/docs/creating-custom-roles?hl=ko]
+
+태그를 만들고 관리하는 데 필요한 역할
+
+태그가 생성 또는 복원 작업에 표시되는 경우 일부 역할이 필요합니다. 데이터베이스 리소스에 연결하기 전에 태그 키-값 쌍을 만드는 방법에 대한 자세한 내용은 태그 만들기 및 관리 [https://cloud.google.com/resource-manager/docs/tags/tags-creating-and-managing?hl=ko]를 참조하세요.
+
+다음 권한이 필요합니다.
+
+태그 보기
+
+datastore.databases.listTagBindings
+datastore.databases.listEffectiveTags
+
+리소스의 태그 관리
+
+태그 값을 연결할 데이터베이스 리소스에 다음 권한이 필요합니다.
+
+datastore.databases.createTagBinding
+
+권한
+
+다음 표에는 Cloud Firestore에서 지원하는 권한이 나와 있습니다.
+
+| 데이터베이스 권한 이름 | 설명 |  |
+| --- | --- | --- |
+| datastore.databases.get | 트랜잭션을 시작하거나 롤백합니다. |  |
+| datastore.databases.getMetadata | 데이터베이스에서 메타데이터를 읽습니다. |  |
+| datastore.databases.list | 프로젝트의 데이터베이스를 나열합니다. |  |
+| datastore.databases.create | 데이터베이스를 만듭니다. |  |
+| datastore.databases.update | 데이터베이스를 업데이트합니다. |  |
+| datastore.databases.delete | 데이터베이스를 삭제합니다. |  |
+| datastore.databases.clone | 데이터베이스를 클론합니다. |  |
+| datastore.databases.createTagBinding | 데이터베이스의 태그 바인딩을 만듭니다. |  |
+| datastore.databases.deleteTagBinding | 데이터베이스의 태그 바인딩을 삭제합니다. |  |
+| datastore.databases.listTagBindings | 데이터베이스의 모든 태그 바인딩을 나열합니다. |  |
+| datastore.databases.listEffectiveTagBindings | 데이터베이스의 유효한 태그 바인딩을 나열합니다. |  |
+| 항목 권한 이름 | 설명 |  |
+| datastore.entities.create | 문서를 만듭니다. |  |
+| datastore.entities.delete | 문서를 삭제합니다. |  |
+| datastore.entities.get | 문서를 읽습니다. |  |
+| datastore.entities.list | 프로젝트의 문서 이름을 나열합니다. (문서 데이터에 액세스하려면 datastore.entities.get가 필요합니다.) |  |
+| datastore.entities.update | 문서를 업데이트합니다. |  |
+| 색인 권한 이름 | 설명 |  |
+| datastore.indexes.create | 색인을 만듭니다. |  |
+| datastore.indexes.delete | 색인을 삭제합니다. |  |
+| datastore.indexes.get | 색인에서 메타데이터를 읽습니다. |  |
+| datastore.indexes.list | 프로젝트의 색인을 나열합니다. |  |
+| datastore.indexes.update | 색인을 업데이트합니다. |  |
+| 작업 권한 이름 | 설명 |  |
+| datastore.operations.cancel | 장기 실행 작업을 취소합니다. |  |
+| datastore.operations.delete | 장기 실행 작업을 삭제합니다. |  |
+| datastore.operations.get | 장기 실행 작업의 최신 상태를 가져옵니다. |  |
+| datastore.operations.list | 장기 실행 작업을 나열합니다. |  |
+| 프로젝트 권한 이름 | 설명 |  |
+| resourcemanager.projects.get | 프로젝트의 리소스를 찾아봅니다. |  |
+| resourcemanager.projects.list | 소유한 프로젝트를 나열합니다. |  |
+| 위치 권한 이름 | 설명 |  |
+| datastore.locations.get | 데이터베이스 위치에 대한 세부정보를 가져옵니다. 새 데이터베이스를 만드는 데 필요합니다. |  |
+| datastore.locations.list | 사용 가능한 데이터베이스 위치를 나열합니다. 새 데이터베이스를 만드는 데 필요합니다. |  |
+| Key Visualizer 권한 이름 | 설명 |  |
+| datastore.keyVisualizerScans.get | Key Visualizer 스캔에 대한 세부정보를 가져옵니다. |  |
+| datastore.keyVisualizerScans.list | 사용 가능한 Key Visualizer 스캔을 나열합니다. |  |
+| 백업 일정 권한 이름 | 설명 |  |
+| datastore.backupSchedules.get | 백업 일정에 대한 세부정보를 가져옵니다. |  |
+| datastore.backupSchedules.list | 사용 가능한 백업 일정을 나열합니다. |  |
+| datastore.backupSchedules.create | 백업 일정을 만듭니다. |  |
+| datastore.backupSchedules.update | 백업 일정을 업데이트합니다. |  |
+| datastore.backupSchedules.delete | 백업 일정을 삭제합니다. |  |
+| 백업 권한 이름 | 설명 |  |
+| datastore.backups.get | 백업에 대한 세부정보를 가져옵니다. |  |
+| datastore.backups.list | 사용 가능한 백업을 나열합니다. |  |
+| datastore.backups.delete | 백업을 삭제합니다. |  |
+| datastore.backups.restoreDatabase | 백업에서 데이터베이스를 복원합니다. |  |
+| 인사이트 권한 이름 | 설명 |  |
+| datastore.insights.get | 리소스의 인사이트를 가져옵니다. |  |
+| 사용자 인증 정보 권한 이름 | 설명 |  |
+| datastore.userCreds.get | 사용자 인증 정보에 대한 세부정보를 가져옵니다. |  |
+| datastore.userCreds.list | 사용 가능한 사용자 인증 정보를 나열합니다. |  |
+| datastore.userCreds.create | 사용자 인증 정보를 만듭니다. |  |
+| datastore.userCreds.update | 사용자 인증 정보를 사용 설정 또는 사용 중지하거나 사용자 비밀번호를 재설정합니다. |  |
+| datastore.userCreds.delete | 사용자 인증 정보를 삭제합니다. |  |
+
+역할 변경 지연 시간
+
+Cloud Firestore는 IAM 권한을 5분간 캐시하므로 역할 변경이 적용되기까지 최대 5분이 걸립니다.
+
+Cloud Firestore IAM 관리
+
+Google Cloud 콘솔, IAM API 또는 gcloud 명령줄 도구를 사용하여 IAM 정책을 가져오고 설정할 수 있습니다. 자세한 내용은 프로젝트 구성원에게 액세스 권한 부여, 변경, 취소 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]를 참조하세요.
+
+조건부 액세스 권한 구성
+
+IAM 조건 [https://cloud.google.com/iam/docs/conditions-overview?hl=ko]을 사용하면 조건부 액세스 제어를 정의하고 적용할 수 있습니다.
+
+예를 들어 다음 조건은 지정된 날짜까지 주 구성원에게 datastore.user 역할을 할당합니다.
+{
+"role": "roles/datastore.user",
+"members": [
+"user:travis@example.com"
+],
+"condition": {
+"title": "Expires_December_1_2023",
+"description": "Expires on December 1, 2023",
+"expression":
+"request.time < timestamp('2023-12-01T00:00:00.000Z')"
+}
+}
+
+임시 액세스를 위한 IAM 조건을 정의하는 방법은 임시 액세스 구성 [https://cloud.google.com/iam/docs/configuring-temporary-access?hl=ko]을 참조하세요.
+
+하나 이상의 데이터베이스에 액세스하기 위해 IAM 조건을 구성하는 방법을 알아보려면 데이터베이스 액세스 조건 구성 [https://firebase.google.com/docs/firestore/enterprise/create-databases?hl=ko#configure_per-database_access_permissions]을 참조하세요.
+
+다음 단계
+
+IAM [https://cloud.google.com/iam/docs/?hl=ko] 자세히 알아보기
+IAM 역할 부여 [https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ko]
+인증 [https://firebase.google.com/docs/firestore/enterprise/connect?hl=ko] 알아보기
+
+도움이 되었나요?
+
+의견 보내기

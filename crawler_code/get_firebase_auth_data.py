@@ -1,10 +1,9 @@
-# FILE: get_firebase_auth_data.py (오류 수정 최종본)
+# FILE: get_firebase_auth_data.py (데드락 문제 해결 최종본)
 
 # -*- coding: utf-8 -*-
 import os
 import re
 import time
-from collections import deque
 from urllib.parse import urljoin, urlparse, urlunparse, parse_qs, urlencode, urldefrag
 import multiprocessing
 
@@ -34,7 +33,7 @@ ALLOW_PATH_PREFIXES = ("/docs/auth",)
 START_URLS = ["https://firebase.google.com/docs/auth?hl=ko"]
 
 
-# ========= 유틸 함수 =========
+# ... (이전과 동일한 모든 헬퍼 함수들: normalize_url, is_allowed, etc.) ...
 def normalize_url(url: str) -> str:
     if not url: return ""
     url, _ = urldefrag(url)
@@ -64,10 +63,7 @@ def is_allowed(url: str) -> bool:
 def safe_filename_from_url(url: str) -> str:
     parsed = urlparse(url)
     base = (parsed.netloc + parsed.path).strip("/") or "index"
-    # --- ▼▼▼ 여기가 수정된 부분입니다 ▼▼▼ ---
-    # 0-- 를 0-9 로 수정하여 정규표현식 오류 해결
     if parsed.query: base += "_" + re.sub(r"[^a-zA-Z0-9_=-]", "_", parsed.query)
-    # --- ▲▲▲ 여기가 수정된 부분입니다 ▲▲▲ ---
     base = re.sub(r'[/\\?%*:|"<>]', "_", base).strip("_") or "page"
     return base + ".txt"
 
@@ -76,7 +72,6 @@ def ensure_output_dir():
     if not os.path.exists(OUTPUT_DIR): os.makedirs(OUTPUT_DIR)
 
 
-# ========= 드라이버 및 콘텐츠 추출 함수 =========
 def create_driver(headless=True) -> webdriver.Chrome:
     chrome_options = Options()
     # chrome_options.add_argument("--headless=new")
@@ -220,7 +215,6 @@ def collect_article_links(driver) -> list:
         return []
 
 
-# ========= 워커 프로세스가 실행할 함수 =========
 def crawl_worker(pid, url_queue, seen_urls, pages_done_counter, counter_lock):
     driver = create_driver(headless=True)
     wait = WebDriverWait(driver, WAIT_SEC)
@@ -234,8 +228,7 @@ def crawl_worker(pid, url_queue, seen_urls, pages_done_counter, counter_lock):
 
             with counter_lock:
                 if pages_done_counter.value >= MAX_PAGES:
-                    url_queue.put(None)
-                    break
+                    break  # MAX_PAGES에 도달하면 루프 탈출
                 pages_done_counter.value += 1
                 current_page_count = pages_done_counter.value
 
@@ -243,12 +236,10 @@ def crawl_worker(pid, url_queue, seen_urls, pages_done_counter, counter_lock):
 
             driver.get(url)
             inject_layout_override(driver)
-
             article = wait.until(EC.presence_of_element_located((By.TAG_NAME, "article")))
 
             convert_tables_to_markdown(driver, article)
             annotate_links_in_article(driver, article)
-
             page_text = extract_content_with_tabs(driver, article)
             page_text = clean_extracted_text(page_text)
             title = extract_title_h1(driver)
@@ -272,26 +263,30 @@ def crawl_worker(pid, url_queue, seen_urls, pages_done_counter, counter_lock):
                 if norm_url and is_allowed(norm_url) and norm_url not in seen_urls:
                     seen_urls[norm_url] = True
                     url_queue.put(norm_url)
-
         except WebDriverException as e:
             print(f"[Worker-{pid}] 드라이버 오류 발생: {e}. 재시작합니다.")
-            driver.quit()
-            driver = create_driver(headless=True)
+            driver.quit();
+            driver = create_driver(headless=True);
             wait = WebDriverWait(driver, WAIT_SEC)
             url_queue.put(url)
         except Exception as e:
             print(f"[Worker-{pid}] URL {url} 처리 중 오류: {e}")
             continue
+        finally:
+            # --- ▼▼▼ 여기가 수정된 부분입니다 (1/2) ▼▼▼ ---
+            # 작업이 성공하든 실패하든, 큐에 작업이 끝났다고 알려줌
+            url_queue.task_done()
+            # --- ▲▲▲ 여기가 수정된 부분입니다 (1/2) ▲▲▲ ---
 
     driver.quit()
 
 
-# ========= 메인 프로세스 (작업 조율) =========
 def crawl():
     ensure_output_dir()
 
+    # multiprocessing.Manager 대신 JoinableQueue 사용
     manager = multiprocessing.Manager()
-    url_queue = manager.Queue()
+    url_queue = multiprocessing.JoinableQueue()
     seen_urls = manager.dict()
     pages_done_counter = manager.Value('i', 0)
     counter_lock = manager.Lock()
@@ -306,8 +301,17 @@ def crawl():
     for i in range(NUM_WORKERS):
         p = multiprocessing.Process(target=crawl_worker,
                                     args=(i + 1, url_queue, seen_urls, pages_done_counter, counter_lock))
-        processes.append(p)
         p.start()
+        processes.append(p)
+
+    # --- ▼▼▼ 여기가 수정된 부분입니다 (2/2) ▼▼▼ ---
+    # 큐의 모든 작업이 task_done()으로 처리될 때까지 기다림
+    url_queue.join()
+
+    # 모든 작업이 끝났으므로, 워커들에게 종료 신호(None)를 보냄
+    for _ in range(NUM_WORKERS):
+        url_queue.put(None)
+    # --- ▲▲▲ 여기가 수정된 부분입니다 (2/2) ▲▲▲ ---
 
     for p in processes:
         p.join()

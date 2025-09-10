@@ -1,0 +1,196 @@
+Source URL: https://firebase.google.com/docs/auth/admin/manage-mfa-users?hl=ko
+Title: 다단계 사용자 관리
+bookmark_border
+
+의견 보내기
+
+다단계 사용자 관리
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/admin/manage-mfa-users?hl=ko#before_you_begin]사용자 가져오기 [https://firebase.google.com/docs/auth/admin/manage-mfa-users?hl=ko#getting_users]사용자 나열 [https://firebase.google.com/docs/auth/admin/manage-mfa-users?hl=ko#listing_users]사용자 만들기 [https://firebase.google.com/docs/auth/admin/manage-mfa-users?hl=ko#creating_a_user]사용자 업데이트 [https://firebase.google.com/docs/auth/admin/manage-mfa-users?hl=ko#updating_a_user]새 보조 단계 추가 [https://firebase.google.com/docs/auth/admin/manage-mfa-users?hl=ko#adding_a_new_secondary_factor]보조 단계 삭제 [https://firebase.google.com/docs/auth/admin/manage-mfa-users?hl=ko#removing_a_secondary_factor]
+
+이 문서에서는 Firebase Admin SDK를 사용하여 다중 인증 사용자를 프로그래매틱 방식으로 관리하는 방법을 보여줍니다. 다중 인증 사용자를 관리할 때는 1단계 사용자 [https://firebase.google.com/docs/auth/admin/manage-users?hl=ko]에 비해 더 많은 사용자 속성에 액세스할 수 있습니다.
+
+시작하기 전에
+
+Node.js Admin SDK를 설치합니다 [https://firebase.google.com/docs/admin/setup?hl=ko]. 다른 Admin SDK 언어는 현재 지원되지 않습니다.
+
+사용자 가져오기
+
+UserRecord 객체에서 등록된 두 번째 단계 목록과 같은 사용자의 다단계 관련 데이터를 검색할 수 있습니다. 사용자 레코드를 가져오려면 getUser() 또는 getUserByEmail()을 호출합니다.
+
+아래 예시는 다단계 등록 사용자를 보여줍니다.
+// console.log(userRecord.toJSON());
+{
+uid: 'some-uid',
+displayName: 'John Doe',
+email: 'johndoe@gmail.com',
+photoURL: 'http://www.example.com/12345678/photo.png',
+emailVerified: true,
+phoneNumber: '+11234567890',
+// Set this user as admin.
+customClaims: {admin: true},
+// User with Google provider.
+providerData: [{
+uid: 'google-uid',
+email: 'johndoe@gmail.com',
+displayName: 'John Doe',
+photoURL: 'http://www.example.com/12345678/photo.png',
+providerId: 'google.com'
+}],
+multiFactor: {
+enrolledFactors: [
+// 2FA with SMS as 2nd factor.
+{
+uid: '53HG4HG45HG8G04GJ40J4G3J',
+phoneNumber: '+16505551234',
+displayName: 'Work phone',
+enrollmentTime: 'Fri, 22 Sep 2017 01:49:58 GMT',
+factorId: 'phone',
+},
+],
+},
+};
+
+사용자 나열
+
+아래 코드는 모든 사용자를 나열하고 보조 단계가 등록되어 있는지 확인하는 방법을 보여줍니다.
+admin.auth().listUsers(1000, nextPageToken)
+.then((listUsersResult) => {
+listUsersResult.users.forEach((userRecord) => {
+// Multi-factor enrolled users second factors can be retrieved via:
+if (userRecord.multiFactor) {
+userRecord.multiFactor.enrolledFactors.forEach((enrolledFactor) => {
+console.log(userRecord.uid, enrolledFactor.toJSON());
+});
+}
+});
+})
+.catch((error) => {
+console.log('Error listing users:', error);
+});
+
+사용자는 uid에 따라 일괄적으로 반환됩니다. 각 결과 배치에는 사용자 목록과 함께 다음 배치를 가져오는 데 사용되는 다음 페이지 토큰이 들어 있습니다.
+모든 사용자가 나열되면 pageToken이 반환되지 않습니다.
+
+maxResult 필드는 최대 배치 크기를 지정합니다. 기본값 및 최댓값은 1,000입니다.
+
+사용자 만들기
+
+createUser()를 호출하여 새 사용자를 만듭니다. 보조 단계가 있는 신규 사용자는 확인된 이메일 주소(emailVerified를 true로 설정)를 가지고 있고 지원되는 첫 번째 단계를 사용하여 로그인해야 합니다. 사용자당 최대 5개의 보조 단계가 허용됩니다.
+
+이 예시에는 2가지 보조 단계가 있는 신규 사용자를 만드는 방법이 나와 있습니다.
+admin.auth().createUser({
+uid: '123456789',
+email: 'user@example.com',
+emailVerified: true,
+password: 'password',
+multiFactor: {
+enrolledFactors: [
+// When creating users with phone second factors, the uid and
+// enrollmentTime should not be specified. These will be provisioned by
+// the Auth server.
+// Primary second factor.
+{
+phoneNumber: '+16505550001',
+displayName: 'Corp phone',
+factorId: 'phone',
+},
+// Backup second factor.
+{
+phoneNumber: '+16505550002',
+displayName: 'Personal phone',
+factorId: 'phone'
+},
+],
+},
+})
+.then((userRecord) => {
+console.log(userRecord.multiFactor.enrolledFactors);
+})
+.catch((error) => {
+console.log(error);
+});
+
+사용자 업데이트
+
+기존 사용자를 업데이트하려면 updateUser()를 호출합니다.
+admin.auth().updateUser(uid: '123456789', {
+multiFactor: {
+enrolledFactors: [
+{
+// uid will be auto-generated.
+phoneNumber: '+16505550003',
+displayName: 'Spouse\'s phone',
+factorId: 'phone',
+},
+{
+// uid can also be specified. This is useful if a new second factor is added and an
+// existing enrolled second factor is kept unmodified.
+uid: 'existing-enrolled-mfa-uid',
+phoneNumber: '+16505550004',
+displayName: 'Personal phone',
+factorId: 'phone',
+},
+{
+phoneNumber: '+16505550005',
+displayName: 'Backup phone',
+factorId: 'phone',
+// Enrollment time can also be explicitly specified.
+enrollmentTime: new Date().toUTCString(),
+},
+],
+},
+})
+.then((userRecord) => {
+console.log(userRecord.multiFactor.enrolledFactors);
+})
+.catch((error) => {
+console.log(error);
+});
+
+새 보조 단계 추가
+
+enrolledFactors 목록으로 updateUser()를 호출하면 사용자의 현재 보조 단계가 삭제됩니다. 기존 보조 단계를 유지하면서 새로운 보조 단계를 추가하려면 먼저 사용자를 조회한 다음 목록에 새로운 단계를 추가합니다.
+function enrollSecondFactor(userId, secondFactorPhoneNumber, secondFactorDisplayName) {
+return admin.auth().getUser(userId)
+.then((userRecord) => {
+const updatedList = (userRecord.multiFactor &&
+userRecord.multiFactor.toJSON().enrolledFactors) || [];
+updatedList.push({
+phoneNumber: secondFactorPhoneNumber,
+displayName: secondFactorDisplayName,
+factorId: 'phone',
+});
+return admin.auth().updateUser(userRecord.uid, {
+multiFactor: {
+enrolledFactors: updatedList,
+},
+});
+})
+.catch((error) => {
+console.log(error);
+});
+}
+
+보조 단계 삭제
+
+다중 인증(MFA)에서 사용자를 완전히 등록 해제하려면 enrolledFactors를 null 또는 빈 배열로 설정합니다.
+admin.auth().updateUser(uid: '123456789', {
+multiFactor: {
+enrolledFactors: null,
+},
+})
+.then((userRecord) => {
+console.log(userRecord.multiFactor);
+})
+.catch((error) => {
+console.log(error);
+});
+
+의견 보내기
