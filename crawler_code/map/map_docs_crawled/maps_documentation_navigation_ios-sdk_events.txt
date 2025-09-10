@@ -1,0 +1,70 @@
+Source URL: https://developers.google.com/maps/documentation/navigation/ios-sdk/events
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+iOS [https://developers.google.com/maps/ios?hl=ko]
+Navigation SDK for iOS [https://developers.google.com/maps/documentation/navigation/ios-sdk?hl=ko]
+의견 보내기
+탐색 이벤트 리슨
+알림: GMSNavigatorDelegate 및 GMSRoadSnappedLocationProviderDelegate 프로토콜은 iOS용 Navigation SDK 버전 2.0에서 지원 중단되었습니다. 대체에 관한 자세한 내용은 출시 노트 [https://developers.google.com/maps/documentation/navigation/ios-sdk/release-notes?hl=ko]를 참고하세요.
+이 가이드를 사용하여 사용자가 경로를 따라 이동할 때 변경되는 다양한 이벤트를 앱이 수신 대기하고 이에 응답하도록 지원하세요. 이 가이드에서는 경로 정의가 아닌 경로를 따라 발생하는 이벤트에 응답하는 방법만 다룹니다.
+개요
+iOS용 Navigation SDK는 사용자의 위치, 경로의 조건, 중요한 시간 및 거리 데이터와 관련된 리스너를 제공합니다. 지도의 뷰 컨트롤러에서 앱은 GMSRoadSnappedLocationProviderListener [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Protocols/GMSRoadSnappedLocationProviderListener?hl=ko] 및 GMSNavigatorListener [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Protocols/GMSNavigatorListener?hl=ko] 리스너의 프로토콜을 채택해야 합니다.
+다음 목록은 탐색 이벤트에 사용할 수 있는 리스너 메서드를 보여줍니다.
+GMSNavigatorListener.didArriveAtWaypoint [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Protocols/GMSNavigatorListener?hl=ko#-navigator:didarriveatwaypoint:]: 목적지에 도달하면 트리거됩니다.
+GMSNavigatorListener.navigatorDidChangeRoute [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Protocols/GMSNavigatorListener?hl=ko#-navigatordidchangeroute:]: 경로가 변경될 때 트리거됩니다.
+GMSNavigatorListener.didUpdateRemainingTime [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Protocols/GMSNavigatorListener?hl=ko#-navigator:didupdateremainingtime:]: 안내가 활성 상태인 동안 다음 대상까지의 시간이 변경되면 반복적으로 호출됩니다.
+GMSNavigatorListener.didUpdateRemainingDistance [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Protocols/GMSNavigatorListener?hl=ko#-navigator:didupdateremainingdistance:]: 안내가 활성 상태일 때 다음 목적지까지의 거리가 변경됨에 따라 반복적으로 호출됩니다.
+GMSNavigatorListener.didUpdateDelayCategory [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Protocols/GMSNavigatorListener?hl=ko#-navigator:didupdatedelaycategory:]: 안내가 활성 상태일 때 다음 목적지까지의 지연 카테고리가 변경될 때 호출됩니다.
+GMSNavigatorListener.didChangeSuggestedLightingMode [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Protocols/GMSNavigatorListener?hl=ko#-navigator:didchangesuggestedlightingmode:]: 예상 조명 조건이 업데이트될 때 트리거됩니다. 예를 들어 사용자의 현재 위치에 밤이 되면 조명이 변경됩니다.
+GMSNavigatorListener.didUpdateSpeedingPercentage [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Protocols/GMSNavigatorListener?hl=ko#-navigator:didupdatespeedingpercentage:]: 운전자가 제한 속도를 초과할 때 트리거됩니다.
+GMSRoadSnappedLocationProviderListener.didUpdateLocation [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Protocols/GMSRoadSnappedLocationProviderListener?hl=ko#-locationprovider:didupdatelocation:]은 사용자의 위치가 변경될 때 반복적으로 호출됩니다.
+참고: 앱 설계에 이 가이드의 범위를 벗어나는 이벤트 처리가 필요한 경우 iOS용 Maps SDK의 GMSMapViewDelegate 프로토콜을 사용하는 것이 좋습니다. 이 프로토콜을 사용하면 카메라 변경이나 관심 지점과의 근접성과 같은 다른 이벤트를 리슨할 수 있습니다. 자세한 내용은 이벤트 [https://developers.google.com/maps/documentation/ios-sdk/events?hl=ko]를 참고하세요.
+코드 보기
+필수 프로토콜 준수 선언
+탐색 메서드를 구현하기 전에 뷰 컨트롤러가 다음 프로토콜을 채택해야 합니다.
+탐색 프로토콜을 채택한 후 리스너를 뷰 컨트롤러에 설정합니다. 예를 들어 viewDidLoad() 메서드에 다음 코드를 추가할 수 있습니다.
+위치 업데이트 수신 또는 중지
+지도에 사용자의 진행 상황을 표시하려면 위치 업데이트가 필요합니다.
+location 인스턴스는 다음 속성을 노출합니다.
+위치 속성 설명
+고도 현재 고도입니다.
+coordinate.latitude 현재 도로에 스냅된 위도 좌표입니다.
+coordinate.longitude 현재 도로에 스냅된 경도 좌표입니다.
+강의 현재 방향(도)입니다.
+속도 현재 속도입니다.
+타임스탬프 현재 측정 날짜/시간입니다.
+주의: 위치 업데이트는 배터리 수명에 영향을 줄 수 있으므로 필요할 때만 업데이트를 사용 설정하세요. stopUpdatingLocation [https://developers.google.com/maps/documentation/navigation/ios-sdk/reference/objc/Classes/GMSRoadSnappedLocationProvider?hl=ko#-stopupdatinglocation] 함수를 호출합니다.
+지속적인 위치 업데이트를 수신하려면 mapView.roadSnappedLocationProvider.startUpdatingLocation를 호출하고 GMSRoadSnappedLocationProviderListener를 사용하여 didUpdateLocation 이벤트를 처리합니다.
+다음은 startUpdatingLocation를 호출하는 예를 보여줍니다.
+다음 코드는 didUpdateLocation 이벤트를 처리하는 GMSRoadSnappedLocationProviderListener를 만듭니다.
+앱이 백그라운드에 있을 때 위치 업데이트를 수신하려면 allowsBackgroundLocationUpdates을 true로 설정하세요.
+도착 이벤트 감지
+앱은 didArriveAtWaypoint 이벤트를 사용하여 목적지에 도달한 시점을 감지합니다. continueToNextDestination()를 호출한 다음 안내를 다시 사용 설정하여 안내를 재개하고 다음 경유지로 이동할 수 있습니다. 앱은 continueToNextDestination()를 호출한 후에 안내를 다시 사용 설정해야 합니다.
+앱이 continueToNextDestination를 호출한 후에는 탐색기에 이전 대상에 관한 데이터가 더 이상 없습니다. 경로 구간에 관한 정보를 분석하려면 continueToNextDestination()를 호출하기 전에 내비게이터에서 정보를 가져와야 합니다.
+다음 코드 예는 didArriveAtWaypoint 이벤트를 처리하는 방법을 보여줍니다.
+경로 변경 업데이트 수신
+경로가 변경될 때마다 알림을 받으려면 navigatorDidChangeRoute 이벤트를 처리하는 메서드를 만듭니다. GMSNavigator의 routeLegs 및 currentRouteLeg 속성을 사용하여 새 경로에 액세스할 수 있습니다.
+목적지까지 걸리는 시간 업데이트 수신
+지속적인 예상 도착 시간 업데이트를 받으려면 didUpdateRemainingTime 이벤트를 처리하는 메서드를 만드세요. time 매개변수는 다음 목적지에 도달할 때까지의 예상 시간을 초 단위로 제공합니다.
+다음 목적지까지의 예상 시간의 최소 변경사항을 설정하려면 GMSNavigator에서 timeUpdateThreshold 속성을 설정하세요. 값은 초 단위로 지정됩니다. 이 속성이 설정되지 않으면 서비스는 기본값인 1초를 사용합니다.
+목적지까지의 거리 업데이트 수신
+목적지까지의 거리를 지속적으로 업데이트하려면 didUpdateRemainingDistance 이벤트를 처리하는 메서드를 만드세요. distance 매개변수는 다음 목적지까지의 예상 거리를 미터 단위로 제공합니다.
+다음 목적지까지의 예상 거리의 최소 변경사항을 설정하려면 GMSNavigator에서 distanceUpdateThreshold 속성을 설정합니다 (값은 미터로 지정됨). 이 속성이 설정되지 않으면 서비스는 기본값인 1미터를 사용합니다.
+교통정보 업데이트 받기
+나머지 경로의 교통 흐름을 지속적으로 업데이트하려면 didUpdateDelayCategory 이벤트를 처리하는 메서드를 만듭니다. delayCategoryToNextDestination 호출은 0~3 값을 제공하는 GMSNavigationDelayCategory를 반환합니다. 카테고리 업데이트는 앱 사용자의 현재 위치를 기반으로 합니다. 트래픽 데이터를 사용할 수 없는 경우 GMSNavigationDelayCategory은 0을 반환합니다. 1~3 숫자는 가벼운 흐름에서 심한 흐름으로 증가하는 것을 나타냅니다.
+GMSNavigationDelayCategory 속성은 다음과 같은 지연 수준을 노출합니다.
+지연 카테고리 설명
+GMSNavigationDelayCategoryNoData 0 - 사용할 수 없음, 교통 또는 :
+경로를
+GMSNavigationDelayCategoryHeavy 1 - 무거움
+GMSNavigationDelayCategoryMedium 2 - 중간
+GMSNavigationDelayCategoryLight 3 - 조명
+과속 업데이트 받기
+운전자가 제한 속도를 초과할 때 업데이트를 받으려면 didUpdateSpeedingPercentage 이벤트를 처리하는 메서드를 만드세요.
+추천 조명 모드 변경
+조명의 예상 변화에 관한 업데이트를 받으려면 didChangeSuggestedLightingMode 이벤트를 처리하는 메서드를 만듭니다.
+의견 보내기

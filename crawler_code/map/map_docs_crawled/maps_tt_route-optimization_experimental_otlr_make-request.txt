@@ -1,0 +1,76 @@
+Source URL: https://developers.google.com/maps/tt/route-optimization/experimental/otlr/make-request
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Route Optimization API [https://developers.google.com/maps/tt/route-optimization/experimental/overview?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+가이드 [https://developers.google.com/maps/documentation/route-optimization?hl=ko]
+단일 비차단형 Optimization API 메서드
+이 제품 또는 기능은 실험용(GA 이전) 버전입니다. GA 이전 제품과 기능에 대한 지원이 제한될 수 있으며 GA 이전 제품과 기능의 변경사항이 다른 GA 이전 버전과 호환되지 않을 수 있습니다. GA 이전 버전 제품 또는 서비스에는 Google Maps Platform 서비스별 약관 [https://cloud.google.com/maps-platform/terms/maps-service-terms?hl=ko]이 적용됩니다. 자세한 내용은 출시 단계 설명 [https://developers.google.com/maps/launch-stages?hl=ko]을 참고하세요.
+이 가이드에서는 사용자가 차단되지 않는 단일 최적화 요청을 할 수 있는 OptimizeToursLongRunning [https://developers.google.com/maps/tt/route-optimization/experimental/otlr/reference/rpc/google.maps.routeoptimization.v1?hl=ko#google.maps.routeoptimization.v1.RouteOptimization.OptimizeToursLongRunning] 및 OptimizeToursUri [https://developers.google.com/maps/tt/route-optimization/experimental/otlr/reference/rpc/google.maps.routeoptimization.v1?hl=ko#google.maps.routeoptimization.v1.RouteOptimization.OptimizeToursUri] API 메서드의 실험적 출시를 소개합니다. 비차단 최적화에서 사용자는 GetOperation [https://developers.google.com/maps/documentation/route-optimization/reference/rpc/google.longrunning?hl=ko#google.longrunning.Operations.GetOperation]를 호출하여 최적화 상태를 참조하는 데 사용할 수 있는 메서드에서 Operation 프로토를 빠르게 수신합니다. 자세한 내용은 장기 실행 작업 [https://developers.google.com/maps/documentation/route-optimization/sync-vs-async?hl=ko#long_running_operations]을 참고하세요.
+이러한 비차단 메서드는 최적화가 실행되는 동안 클라이언트가 서버에 대한 연결을 유지할 필요가 없으므로 차단 OptimizeTours [https://developers.google.com/maps/documentation/route-optimization/reference/rpc/google.maps.routeoptimization.v1?hl=ko#google.maps.routeoptimization.v1.RouteOptimization.OptimizeTours] 메서드보다 안정성 이점을 제공합니다. 또한 각 최적화가 단일 장기 실행 작업 (LRO)과 연결되어 있으므로 이러한 새 메서드를 사용하면 BatchOptimizeTours [https://developers.google.com/maps/documentation/route-optimization/reference/rpc/google.maps.routeoptimization.v1?hl=ko#google.maps.routeoptimization.v1.RouteOptimization.BatchOptimizeTours]에 비해 실패를 더 쉽게 디버그할 수 있습니다.
+최적화 요청을 인라인으로 처리하려는 사용자는 OptimizeToursLongRunning [https://developers.google.com/maps/tt/route-optimization/experimental/otlr/reference/rpc/google.maps.routeoptimization.v1?hl=ko#google.maps.routeoptimization.v1.RouteOptimization.OptimizeToursLongRunning] 메서드를 사용할 수 있고, 요청과 읽기 응답을 Google Cloud Storage를 사용하여 업로드하려는 사용자는 OptimizeToursUri [https://developers.google.com/maps/tt/route-optimization/experimental/otlr/reference/rpc/google.maps.routeoptimization.v1?hl=ko#google.maps.routeoptimization.v1.RouteOptimization.OptimizeToursUri] 메서드를 사용할 수 있습니다.
+OptimizeToursLongRunning
+예: OptimizeToursLongRunning 요청하기
+요청하기 전에 다음 매개변수를 환경에 적합한 값으로 바꿉니다.
+OAuth 사용 [https://developers.google.com/maps/documentation/route-optimization/oauth-token?hl=ko]에 설명된 대로 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/provide-credentials-adc?hl=ko]가 구성되어 있는지 확인합니다.
+PROJECT_NUMBER_OR_ID를 클라우드 프로젝트 번호 또는 ID로 설정합니다.
+다음 명령어는 Route Optimization API에 OptimizeToursLongRunning 요청을 전송하고 이와 연결된 작업 ID를 수신합니다. GetOperation [https://developers.google.com/maps/documentation/route-optimization/reference/rpc/google.longrunning?hl=ko#google.longrunning.Operations.GetOperation] 메서드를 사용하여 작업 상태를 쿼리할 수 있습니다. 작업이 완료되면 메타데이터에 최종 OptimizeToursResponse [https://developers.google.com/maps/tt/route-optimization/experimental/otlr/reference/rpc/google.maps.routeoptimization.v1?hl=ko#optimizetoursresponse]도 포함됩니다.
+curl -X POST 'https://routeoptimization.googleapis.com/v1/projects/PROJECT_NUMBER_OR_ID:optimizeToursLongRunning' \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
+--data @- <<EOM
+{
+  "model": {
+    "shipments": [
+      {
+        "pickups": [
+          {
+            "arrivalLocation": {
+              "latitude": 37.42506261000996,
+              "longitude": -122.09535511930135
+            }
+          }
+        ],
+        "deliveries": [
+          {
+            "arrivalLocation": {
+              "latitude": 37.42421503206021,
+              "longitude": -122.09526063135228
+            }
+          }
+        ]
+      }
+    ],
+    "vehicles": [
+      {
+        "travelMode": "DRIVING",
+        "costPerKilometer": 1.0
+      }
+    ],
+  }
+}
+EOM
+참고: 이 예에서는 --data @-를 사용하여 표준 입력에서 요청을 읽습니다. --data @Filename을 사용하여 파일에서 읽습니다.
+OptimizeToursUri
+BatchOptimizeTours와 마찬가지로 OptimizeToursUri [https://developers.google.com/maps/tt/route-optimization/experimental/otlr/reference/rpc/google.maps.routeoptimization.v1?hl=ko#google.maps.routeoptimization.v1.RouteOptimization.OptimizeToursUri]를 사용하여 Google Cloud Storage에 최적화 요청과 응답을 계속 저장할 수 있습니다. Cloud Storage URI는 OptimizeToursUri 요청 메시지에 지정해야 합니다. 반환된 Operation 상태는 제출된 단일 OptimizeToursRequest에만 연결됩니다.
+예: OptimizeToursUri 요청하기
+요청하기 전에 다음 매개변수를 환경에 적합한 값으로 바꿉니다.
+OAuth 사용 [https://developers.google.com/maps/documentation/route-optimization/oauth-token?hl=ko]에 설명된 대로 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/provide-credentials-adc?hl=ko]가 구성되어 있는지 확인합니다.
+PROJECT_NUMBER_OR_ID를 클라우드 프로젝트 번호 또는 ID로 설정합니다.
+다음 명령어는 Route Optimization API에 OptimizeToursUri 요청을 전송하고 이와 연결된 작업 ID를 수신합니다. GetOperation [https://developers.google.com/maps/documentation/route-optimization/reference/rpc/google.longrunning?hl=ko#google.longrunning.Operations.GetOperation] 메서드를 사용하여 작업 상태를 쿼리합니다. 작업이 완료되면 OptimizeToursResponse [https://developers.google.com/maps/tt/route-optimization/experimental/otlr/reference/rpc/google.maps.routeoptimization.v1?hl=ko#optimizetoursresponse]이 요청에 제공된 출력 URI 경로에 원격으로 저장됩니다.
+curl -X POST 'https://routeoptimization.googleapis.com/v1/projects/PROJECT_NUMBER_OR_ID:optimizeToursUri' \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
+--data @- <<EOM
+{
+  "input": {
+    "uri": "gs://bucket/path/input/object.json"
+  },
+  "output": {
+    "uri": "gs://bucket/path/output/object.json"
+  }
+}
+EOM
+참고: 이 예에서는 --data @-를 사용하여 표준 입력에서 요청을 읽습니다. --data @Filename을 사용하여 파일에서 읽습니다.

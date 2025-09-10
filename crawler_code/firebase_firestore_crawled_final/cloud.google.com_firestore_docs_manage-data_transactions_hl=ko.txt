@@ -1,0 +1,1340 @@
+Source URL: https://cloud.google.com/firestore/docs/manage-data/transactions?hl=ko
+Title: 트랜잭션 및 일괄 쓰기
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+
+의견 보내기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+트랜잭션 및 일괄 쓰기
+
+Firestore는 데이터의 원자적 읽기 및 쓰기 작업을 지원합니다. 원자적 작업 집합에서는 모든 작업이 성공하거나 아니면 모두 적용되지 않습니다. Firestore에는 다음과 같은 두 가지 유형의 원자적 작업이 있습니다.
+
+트랜잭션: 트랜잭션 [https://cloud.google.com/firestore/native/docs/manage-data/transactions?hl=ko#transactions]이란 1개 이상의 문서에 대한 읽기 및 쓰기 작업의 집합입니다.
+일괄 쓰기: 일괄 쓰기 [https://cloud.google.com/firestore/native/docs/manage-data/transactions?hl=ko#batched-writes]란 1개 이상의 문서에 대한 쓰기 작업의 집합입니다.
+
+트랜잭션을 사용한 데이터 업데이트
+
+Firestore 클라이언트 라이브러리를 사용하여 작업 여러 개를 단일 트랜잭션으로 그룹화할 수 있습니다. 트랜잭션은 필드 값을 현재 값 또는 다른 필드 값에 따라 업데이트하려는 경우에 유용합니다.
+
+트랜잭션은 get() 작업 여러 개와 이어서 수행되는 set(), update(), delete()와 같은 쓰기 작업 여러 개로 구성됩니다. 동시 수정의 경우 Firestore는 전체 트랜잭션을 다시 실행합니다. 예를 들어 한 트랜잭션에서 문서를 읽고 다른 클라이언트가 이 문서를 수정할 경우 Firestore는 이 트랜잭션을 다시 시도합니다. 이 기능을 통해 트랜잭션이 일관된 최신 데이터로 실행됩니다.
+
+트랜잭션은 쓰기를 부분적으로 적용하지 않습니다. 모든 쓰기는 트랜잭션을 성공적으로 마칠 때 실행됩니다.
+
+트랜잭션을 사용할 때는 다음을 참고하세요.
+
+읽기 작업은 쓰기 작업 전에 이루어져야 합니다.
+트랜잭션에서 읽는 문서에서 동시에 수정이 이뤄지는 경우 트랜잭션을 호출하는 함수(트랜잭션 함수)가 여러 번 실행될 수 있습니다.
+트랜잭션 함수가 애플리케이션 상태를 직접 수정하면 안 됩니다.
+클라이언트가 오프라인 상태면 트랜잭션이 실패합니다.
+
+다음 예시에서는 트랜잭션을 만들고 실행하는 방법을 보여줍니다.
+
+웹 버전 9
+import { runTransaction } from "firebase/firestore";
+
+try {
+await runTransaction(db, async (transaction) => {
+const sfDoc = await transaction.get(sfDocRef);
+if (!sfDoc.exists()) {
+throw "Document does not exist!";
+}
+
+const newPopulation = sfDoc.data().population + 1;
+transaction.update(sfDocRef, { population: newPopulation });
+});
+console.log("Transaction successfully committed!");
+} catch (e) {
+console.log("Transaction failed: ", e);
+}transaction.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/transaction.js#L8-L23]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+// Create a reference to the SF doc.
+var sfDocRef = db.collection("cities").doc("SF");
+
+// Uncomment to initialize the doc.
+// sfDocRef.set({ population: 0 });
+
+return db.runTransaction((transaction) => {
+// This code may get re-run multiple times if there are conflicts.
+return transaction.get(sfDocRef).then((sfDoc) => {
+if (!sfDoc.exists) {
+throw "Document does not exist!";
+}
+
+// Add one person to the city population.
+// Note: this could be done without a transaction
+//       by updating the population using FieldValue.increment()
+var newPopulation = sfDoc.data().population + 1;
+transaction.update(sfDocRef, { population: newPopulation });
+});
+}).then(() => {
+console.log("Transaction successfully committed!");
+}).catch((error) => {
+console.log("Transaction failed: ", error);
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L525-L548]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let sfReference = db.collection("cities").document("SF")
+
+do {
+let _ = try await db.runTransaction({ (transaction, errorPointer) -> Any? in
+let sfDocument: DocumentSnapshot
+do {
+try sfDocument = transaction.getDocument(sfReference)
+} catch let fetchError as NSError {
+errorPointer?.pointee = fetchError
+return nil
+}
+
+guard let oldPopulation = sfDocument.data()?["population"] as? Int else {
+let error = NSError(
+domain: "AppErrorDomain",
+code: -1,
+userInfo: [
+NSLocalizedDescriptionKey: "Unable to retrieve population from snapshot \(sfDocument)"
+]
+)
+errorPointer?.pointee = error
+return nil
+}
+
+// Note: this could be done without a transaction
+//       by updating the population using FieldValue.increment()
+transaction.updateData(["population": oldPopulation + 1], forDocument: sfReference)
+return nil
+})
+print("Transaction successfully committed!")
+} catch {
+print("Transaction failed: \(error)")
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L510-L542]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRDocumentReference *sfReference =
+[[self.db collectionWithPath:@"cities"] documentWithPath:@"SF"];
+[self.db runTransactionWithBlock:^id (FIRTransaction *transaction, NSError **errorPointer) {
+FIRDocumentSnapshot *sfDocument = [transaction getDocument:sfReference error:errorPointer];
+if (*errorPointer != nil) { return nil; }
+
+if (![sfDocument.data[@"population"] isKindOfClass:[NSNumber class]]) {
+*errorPointer = [NSError errorWithDomain:@"AppErrorDomain" code:-1 userInfo:@{
+NSLocalizedDescriptionKey: @"Unable to retreive population from snapshot"
+}];
+return nil;
+}
+NSInteger oldPopulation = [sfDocument.data[@"population"] integerValue];
+
+// Note: this could be done without a transaction
+//       by updating the population using FieldValue.increment()
+[transaction updateData:@{ @"population": @(oldPopulation + 1) } forDocument:sfReference];
+
+return nil;
+} completion:^(id result, NSError *error) {
+if (error != nil) {
+NSLog(@"Transaction failed: %@", error);
+} else {
+NSLog(@"Transaction successfully committed!");
+}
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L463-L488]
+
+KotlinAndroid
+val sfDocRef = db.collection("cities").document("SF")
+
+db.runTransaction { transaction ->
+val snapshot = transaction.get(sfDocRef)
+
+// Note: this could be done without a transaction
+//       by updating the population using FieldValue.increment()
+val newPopulation = snapshot.getDouble("population")!! + 1
+transaction.update(sfDocRef, "population", newPopulation)
+
+// Success
+null
+}.addOnSuccessListener { Log.d(TAG, "Transaction success!") }
+.addOnFailureListener { e -> Log.w(TAG, "Transaction failure.", e) }DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L413-L426]
+
+자바Android
+final DocumentReference sfDocRef = db.collection("cities").document("SF");
+
+db.runTransaction(new Transaction.Function<Void>() {
+@Override
+public Void apply(@NonNull Transaction transaction) throws FirebaseFirestoreException {
+DocumentSnapshot snapshot = transaction.get(sfDocRef);
+
+// Note: this could be done without a transaction
+//       by updating the population using FieldValue.increment()
+double newPopulation = snapshot.getDouble("population") + 1;
+transaction.update(sfDocRef, "population", newPopulation);
+
+// Success
+return null;
+}
+}).addOnSuccessListener(new OnSuccessListener<Void>() {
+@Override
+public void onSuccess(Void aVoid) {
+Log.d(TAG, "Transaction success!");
+}
+})
+.addOnFailureListener(new OnFailureListener() {
+@Override
+public void onFailure(@NonNull Exception e) {
+Log.w(TAG, "Transaction failure.", e);
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L533-L559]
+
+Dart
+final sfDocRef = db.collection("cities").doc("SF");
+db.runTransaction((transaction) async {
+final snapshot = await transaction.get(sfDocRef);
+// Note: this could be done without a transaction
+//       by updating the population using FieldValue.increment()
+final newPopulation = snapshot.get("population") + 1;
+transaction.update(sfDocRef, {"population": newPopulation});
+}).then(
+(value) => print("DocumentSnapshot successfully updated!"),
+onError: (e) => print("Error updating document $e"),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L297-L307]
+
+자바
+
+// Initialize doc
+final DocumentReference docRef = db.collection("cities").document("SF");
+City city = new City("SF");
+city.setCountry("USA");
+city.setPopulation(860000L);
+docRef.set(city).get();
+
+// run an asynchronous transaction
+ApiFuture<Void> futureTransaction =
+db.runTransaction(
+transaction -> {
+// retrieve document and increment population field
+DocumentSnapshot snapshot = transaction.get(docRef).get();
+long oldPopulation = snapshot.getLong("population");
+transaction.update(docRef, "population", oldPopulation + 1);
+return null;
+});
+// block on transaction operation using transaction.get()ManageDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/ManageDataSnippets.java#L340-L357]
+
+Python
+
+transaction = db.transaction()
+city_ref = db.collection("cities").document("SF")
+
+@firestore.transactional
+def update_in_transaction(transaction, city_ref):
+snapshot = city_ref.get(transaction=transaction)
+transaction.update(city_ref, {"population": snapshot.get("population") + 1})
+
+update_in_transaction(transaction, city_ref)snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L395-L403]
+
+Python(비동기)
+
+transaction = db.transaction()
+city_ref = db.collection("cities").document("SF")
+
+@firestore.async_transactional
+async def update_in_transaction(transaction, city_ref):
+snapshot = await city_ref.get(transaction=transaction)
+transaction.update(city_ref, {"population": snapshot.get("population") + 1})
+
+await update_in_transaction(transaction, city_ref)snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L389-L397]
+
+C++
+DocumentReference sf_doc_ref = db->Collection("cities").Document("SF");
+db->RunTransaction([sf_doc_ref](Transaction& transaction,
+std::string& out_error_message) -> Error {
+Error error = Error::kErrorOk;
+
+DocumentSnapshot snapshot =
+transaction.Get(sf_doc_ref, &error, &out_error_message);
+
+// Note: this could be done without a transaction by updating the
+// population using FieldValue::Increment().
+std::int64_t new_population =
+snapshot.Get("population").integer_value() + 1;
+transaction.Update(
+sf_doc_ref,
+{{"population", FieldValue::Integer(new_population)}});
+
+return Error::kErrorOk;
+}).OnCompletion([](const Future<void>& future) {
+if (future.error() == Error::kErrorOk) {
+std::cout << "Transaction success!" << std::endl;
+} else {
+std::cout << "Transaction failure: " << future.error_message() << std::endl;
+}
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L352-L375]
+
+Node.js
+
+// Initialize document
+const cityRef = db.collection('cities').doc('SF');
+await cityRef.set({
+name: 'San Francisco',
+state: 'CA',
+country: 'USA',
+capital: false,
+population: 860000
+});
+
+try {
+await db.runTransaction(async (t) => {
+const doc = await t.get(cityRef);
+
+// Add one person to the city population.
+// Note: this could be done without a transaction
+//       by updating the population using FieldValue.increment()
+const newPopulation = doc.data().population + 1;
+t.update(cityRef, {population: newPopulation});
+});
+
+console.log('Transaction success!');
+} catch (e) {
+console.log('Transaction failure:', e);
+}index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L370-L394]
+
+Go
+
+import (
+"context"
+"log"
+
+"cloud.google.com/go/firestore"
+)
+
+func runSimpleTransaction(ctx context.Context, client *firestore.Client) error {
+// ...
+
+ref := client.Collection("cities").Doc("SF")
+err := client.RunTransaction [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_Client_RunTransaction](ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+doc, err := tx.Get(ref) // tx.Get, NOT ref.Get!
+if err != nil {
+return err
+}
+pop, err := doc.DataAt [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_DocumentSnapshot_DataAt]("population")
+if err != nil {
+return err
+}
+return tx.Set(ref, map[string]interface{}{
+"population": pop.(int64) + 1,
+}, firestore.MergeAll [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_MergeAll])
+})
+if err != nil {
+// Handle any errors appropriately in this section.
+log.Printf("An error has occurred: %s", err)
+}
+
+return err
+}
+save_transaction_document_update.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/save_transaction_document_update.go#L18-L59]
+
+PHP
+
+$cityRef = $db->collection('samples/php/cities')->document('SF');
+$db->runTransaction(function (Transaction $transaction) use ($cityRef) {
+$snapshot = $transaction->snapshot($cityRef);
+$newPopulation = $snapshot['population'] + 1;
+$transaction->update($cityRef, [
+['path' => 'population', 'value' => $newPopulation]
+]);
+});transaction_document_update.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/transaction_document_update.php#L41-L48]
+
+Unity
+DocumentReference cityRef = db.Collection("cities").Document("SF");
+db.RunTransactionAsync(transaction =>
+{
+return transaction.GetSnapshotAsync(cityRef).ContinueWith((snapshotTask) =>
+{
+DocumentSnapshot snapshot = snapshotTask.Result;
+long newPopulation = snapshot.GetValue<long>("Population") + 1;
+Dictionary<string, object> updates = new Dictionary<string, object>
+{
+{ "Population", newPopulation}
+};
+transaction.Update(cityRef, updates);
+});
+});
+
+C#
+
+DocumentReference cityRef = db.Collection("cities").Document("SF");
+await db.RunTransactionAsync(async transaction =>
+{
+DocumentSnapshot snapshot = await transaction.GetSnapshotAsync(cityRef);
+long newPopulation = snapshot.GetValue<long>("Population") + 1;
+Dictionary<string, object> updates = new Dictionary<string, object>
+{
+{ "Population", newPopulation}
+};
+transaction.Update(cityRef, updates);
+});Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/TransactionsAndBatchedWrites/Program.cs#L38-L48]
+
+Ruby
+
+city_ref = firestore.doc "#{collection_path}/SF"
+
+firestore.transaction do |tx|
+new_population = tx.get(city_ref).data[:population] + 1
+puts "New population is #{new_population}."
+tx.update city_ref, { population: new_population }
+endtransactions_and_batched_writes.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/transactions_and_batched_writes.rb#L23-L29]
+
+트랜잭션 외부에서 정보 전달
+
+트랜잭션 함수에서 애플리케이션 상태를 수정하면 안 됩니다. 수정 시 트랜잭션 함수가 여러 번 실행될 수 있고 UI 스레드에서의 실행이 보장되지 않아 동시 실행 문제가 발생합니다. 대신 트랜잭션 함수 외부에서 필요한 정보를 전달하세요. 다음 예시는 이전 예시를 바탕으로 빌드한 것으로, 트랜잭션 외부에서 정보를 전달하는 방법을 보여줍니다.
+
+웹 버전 9
+import { doc, runTransaction } from "firebase/firestore";
+
+// Create a reference to the SF doc.
+const sfDocRef = doc(db, "cities", "SF");
+
+try {
+const newPopulation = await runTransaction(db, async (transaction) => {
+const sfDoc = await transaction.get(sfDocRef);
+if (!sfDoc.exists()) {
+throw "Document does not exist!";
+}
+
+const newPop = sfDoc.data().population + 1;
+if (newPop <= 1000000) {
+transaction.update(sfDocRef, { population: newPop });
+return newPop;
+} else {
+return Promise.reject("Sorry! Population is too big");
+}
+});
+
+console.log("Population increased to ", newPopulation);
+} catch (e) {
+// This will be a "population is too big" error.
+console.error(e);
+}transaction_promise.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/transaction_promise.js#L8-L33]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+// Create a reference to the SF doc.
+var sfDocRef = db.collection("cities").doc("SF");
+
+db.runTransaction((transaction) => {
+return transaction.get(sfDocRef).then((sfDoc) => {
+if (!sfDoc.exists) {
+throw "Document does not exist!";
+}
+
+var newPopulation = sfDoc.data().population + 1;
+if (newPopulation <= 1000000) {
+transaction.update(sfDocRef, { population: newPopulation });
+return newPopulation;
+} else {
+return Promise.reject("Sorry! Population is too big.");
+}
+});
+}).then((newPopulation) => {
+console.log("Population increased to ", newPopulation);
+}).catch((err) => {
+// This will be an "population is too big" error.
+console.error(err);
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L555-L577]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let sfReference = db.collection("cities").document("SF")
+
+do {
+let object = try await db.runTransaction({ (transaction, errorPointer) -> Any? in
+let sfDocument: DocumentSnapshot
+do {
+try sfDocument = transaction.getDocument(sfReference)
+} catch let fetchError as NSError {
+errorPointer?.pointee = fetchError
+return nil
+}
+
+guard let oldPopulation = sfDocument.data()?["population"] as? Int else {
+let error = NSError(
+domain: "AppErrorDomain",
+code: -1,
+userInfo: [
+NSLocalizedDescriptionKey: "Unable to retrieve population from snapshot \(sfDocument)"
+]
+)
+errorPointer?.pointee = error
+return nil
+}
+
+// Note: this could be done without a transaction
+//       by updating the population using FieldValue.increment()
+let newPopulation = oldPopulation + 1
+guard newPopulation <= 1000000 else {
+let error = NSError(
+domain: "AppErrorDomain",
+code: -2,
+userInfo: [NSLocalizedDescriptionKey: "Population \(newPopulation) too big"]
+)
+errorPointer?.pointee = error
+return nil
+}
+
+transaction.updateData(["population": newPopulation], forDocument: sfReference)
+return newPopulation
+})
+print("Population increased to \(object!)")
+} catch {
+print("Error updating population: \(error)")
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L548-L591]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRDocumentReference *sfReference =
+[[self.db collectionWithPath:@"cities"] documentWithPath:@"SF"];
+[self.db runTransactionWithBlock:^id (FIRTransaction *transaction, NSError **errorPointer) {
+FIRDocumentSnapshot *sfDocument = [transaction getDocument:sfReference error:errorPointer];
+if (*errorPointer != nil) { return nil; }
+
+if (![sfDocument.data[@"population"] isKindOfClass:[NSNumber class]]) {
+*errorPointer = [NSError errorWithDomain:@"AppErrorDomain" code:-1 userInfo:@{
+NSLocalizedDescriptionKey: @"Unable to retreive population from snapshot"
+}];
+return nil;
+}
+NSInteger population = [sfDocument.data[@"population"] integerValue];
+
+population++;
+if (population >= 1000000) {
+*errorPointer = [NSError errorWithDomain:@"AppErrorDomain" code:-2 userInfo:@{
+NSLocalizedDescriptionKey: @"Population too big"
+}];
+return @(population);
+}
+
+[transaction updateData:@{ @"population": @(population) } forDocument:sfReference];
+
+return nil;
+} completion:^(id result, NSError *error) {
+if (error != nil) {
+NSLog(@"Transaction failed: %@", error);
+} else {
+NSLog(@"Population increased to %@", result);
+}
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L494-L525]
+
+KotlinAndroid
+val sfDocRef = db.collection("cities").document("SF")
+
+db.runTransaction { transaction ->
+val snapshot = transaction.get(sfDocRef)
+val newPopulation = snapshot.getDouble("population")!! + 1
+if (newPopulation <= 1000000) {
+transaction.update(sfDocRef, "population", newPopulation)
+newPopulation
+} else {
+throw FirebaseFirestoreException(
+"Population too high",
+FirebaseFirestoreException.Code.ABORTED,
+)
+}
+}.addOnSuccessListener { result ->
+Log.d(TAG, "Transaction success: $result")
+}.addOnFailureListener { e ->
+Log.w(TAG, "Transaction failure.", e)
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L432-L450]
+
+자바Android
+final DocumentReference sfDocRef = db.collection("cities").document("SF");
+
+db.runTransaction(new Transaction.Function<Double>() {
+@Override
+public Double apply(@NonNull Transaction transaction) throws FirebaseFirestoreException {
+DocumentSnapshot snapshot = transaction.get(sfDocRef);
+double newPopulation = snapshot.getDouble("population") + 1;
+if (newPopulation <= 1000000) {
+transaction.update(sfDocRef, "population", newPopulation);
+return newPopulation;
+} else {
+throw new FirebaseFirestoreException("Population too high",
+FirebaseFirestoreException.Code.ABORTED);
+}
+}
+}).addOnSuccessListener(new OnSuccessListener<Double>() {
+@Override
+public void onSuccess(Double result) {
+Log.d(TAG, "Transaction success: " + result);
+}
+})
+.addOnFailureListener(new OnFailureListener() {
+@Override
+public void onFailure(@NonNull Exception e) {
+Log.w(TAG, "Transaction failure.", e);
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L565-L591]
+
+Dart
+final sfDocRef = db.collection("cities").doc("SF");
+db.runTransaction((transaction) {
+return transaction.get(sfDocRef).then((sfDoc) {
+final newPopulation = sfDoc.get("population") + 1;
+transaction.update(sfDocRef, {"population": newPopulation});
+return newPopulation;
+});
+}).then(
+(newPopulation) => print("Population increased to $newPopulation"),
+onError: (e) => print("Error updating document $e"),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L315-L325]
+
+자바
+
+final DocumentReference docRef = db.collection("cities").document("SF");
+ApiFuture<String> futureTransaction =
+db.runTransaction(
+transaction -> {
+DocumentSnapshot snapshot = transaction.get(docRef).get();
+Long newPopulation = snapshot.getLong("population") + 1;
+// conditionally update based on current population
+if (newPopulation <= 1000000L) {
+transaction.update(docRef, "population", newPopulation);
+return "Population increased to " + newPopulation;
+} else {
+throw new Exception("Sorry! Population is too big.");
+}
+});
+// Print information retrieved from transaction
+System.out.println(futureTransaction.get());ManageDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/ManageDataSnippets.java#L373-L388]
+
+Python
+
+transaction = db.transaction()
+city_ref = db.collection("cities").document("SF")
+
+@firestore.transactional
+def update_in_transaction(transaction, city_ref):
+snapshot = city_ref.get(transaction=transaction)
+new_population = snapshot.get("population") + 1
+
+if new_population < 1000000:
+transaction.update(city_ref, {"population": new_population})
+return True
+else:
+return False
+
+result = update_in_transaction(transaction, city_ref)
+if result:
+print("Population updated")
+else:
+print("Sorry! Population is too big.")snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L410-L428]
+
+Python(비동기)
+
+transaction = db.transaction()
+city_ref = db.collection("cities").document("SF")
+
+@firestore.async_transactional
+async def update_in_transaction(transaction, city_ref):
+snapshot = await city_ref.get(transaction=transaction)
+new_population = snapshot.get("population") + 1
+
+if new_population < 1000000:
+transaction.update(city_ref, {"population": new_population})
+return True
+else:
+return False
+
+result = await update_in_transaction(transaction, city_ref)
+if result:
+print("Population updated")
+else:
+print("Sorry! Population is too big.")snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L404-L422]
+
+C++
+// This is not yet supported.
+
+Node.js
+
+const cityRef = db.collection('cities').doc('SF');
+try {
+const res = await db.runTransaction(async t => {
+const doc = await t.get(cityRef);
+const newPopulation = doc.data().population + 1;
+if (newPopulation <= 1000000) {
+await t.update(cityRef, { population: newPopulation });
+return `Population increased to ${newPopulation}`;
+} else {
+throw 'Sorry! Population is too big.';
+}
+});
+console.log('Transaction success', res);
+} catch (e) {
+console.log('Transaction failure:', e);
+}index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L400-L415]
+
+Go
+
+import (
+"context"
+"errors"
+"log"
+
+"cloud.google.com/go/firestore"
+)
+
+func infoTransaction(ctx context.Context, client *firestore.Client) (int64, error) {
+var updatedPop int64
+ref := client.Collection("cities").Doc("SF")
+err := client.RunTransaction [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_Client_RunTransaction](ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+doc, err := tx.Get(ref)
+if err != nil {
+return err
+}
+pop, err := doc.DataAt [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_DocumentSnapshot_DataAt]("population")
+if err != nil {
+return err
+}
+newpop := pop.(int64) + 1
+if newpop <= 1000000 {
+err := tx.Set(ref, map[string]interface{}{
+"population": newpop,
+}, firestore.MergeAll [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_MergeAll])
+if err == nil {
+updatedPop = newpop
+}
+return err
+}
+return errors.New("population is too big")
+})
+if err != nil {
+// Handle any errors in an appropriate way, such as returning them.
+log.Printf("An error has occurred: %s", err)
+}
+return updatedPop, err
+}
+save_transaction_document_update_conditional.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/save_transaction_document_update_conditional.go#L18-L57]
+
+PHP
+
+$cityRef = $db->collection('samples/php/cities')->document('SF');
+$transactionResult = $db->runTransaction(function (Transaction $transaction) use ($cityRef) {
+$snapshot = $transaction->snapshot($cityRef);
+$newPopulation = $snapshot['population'] + 1;
+if ($newPopulation <= 1000000) {
+$transaction->update($cityRef, [
+['path' => 'population', 'value' => $newPopulation]
+]);
+return true;
+} else {
+return false;
+}
+});
+
+if ($transactionResult) {
+printf('Population updated successfully.' . PHP_EOL);
+} else {
+printf('Sorry! Population is too big.' . PHP_EOL);
+}transaction_document_update_conditional.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/transaction_document_update_conditional.php#L41-L59]
+
+Unity
+DocumentReference cityRef = db.Collection("cities").Document("SF");
+db.RunTransactionAsync(transaction =>
+{
+return transaction.GetSnapshotAsync(cityRef).ContinueWith((task) =>
+{
+long newPopulation = task.Result.GetValue<long>("Population") + 1;
+if (newPopulation <= 1000000)
+{
+Dictionary<string, object> updates = new Dictionary<string, object>
+{
+{ "Population", newPopulation}
+};
+transaction.Update(cityRef, updates);
+return true;
+}
+else
+{
+return false;
+}
+});
+}).ContinueWith((transactionResultTask) =>
+{
+if (transactionResultTask.Result)
+{
+Console.WriteLine("Population updated successfully.");
+}
+else
+{
+Console.WriteLine("Sorry! Population is too big.");
+}
+});
+
+C#
+
+DocumentReference cityRef = db.Collection("cities").Document("SF");
+bool transactionResult = await db.RunTransactionAsync(async transaction =>
+{
+DocumentSnapshot snapshot = await transaction.GetSnapshotAsync(cityRef);
+long newPopulation = snapshot.GetValue<long>("Population") + 1;
+if (newPopulation <= 1000000)
+{
+Dictionary<string, object> updates = new Dictionary<string, object>
+{
+{ "Population", newPopulation}
+};
+transaction.Update(cityRef, updates);
+return true;
+}
+else
+{
+return false;
+}
+});
+
+if (transactionResult)
+{
+Console.WriteLine("Population updated successfully.");
+}
+else
+{
+Console.WriteLine("Sorry! Population is too big.");
+}Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/TransactionsAndBatchedWrites/Program.cs#L57-L84]
+
+Ruby
+
+city_ref = firestore.doc "#{collection_path}/SF"
+
+updated = firestore.transaction do |tx|
+new_population = tx.get(city_ref).data[:population] + 1
+if new_population < 1_000_000
+tx.update city_ref, { population: new_population }
+true
+end
+end
+
+if updated
+puts "Population updated!"
+else
+puts "Sorry! Population is too big."
+endtransactions_and_batched_writes.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/transactions_and_batched_writes.rb#L40-L54]
+
+트랜잭션 실패
+
+트랜잭션에 실패하는 이유는 다음과 같습니다.
+
+트랜잭션에서 쓰기 작업 다음에 읽기 작업이 포함되어 있습니다.
+읽기 작업은 항상 쓰기 작업 전에 이루어져야 합니다.
+트랜잭션이 트랜잭션 외부에서 수정된 문서를 읽습니다.
+이 경우 트랜잭션이 자동으로 다시 실행됩니다. 트랜잭션은 제한된 횟수만큼 다시 시도됩니다.
+트랜잭션이 최대 요청 크기인 10MiB를 초과했습니다.
+
+트랜잭션 크기는 문서의 크기 및 트랜잭션에 의해 수정된 색인 항목에 따라 다릅니다. 삭제 작업의 경우 이 크기에는 대상 문서의 크기와 작업에 대한 응답으로 삭제된 색인 항목의 크기가 포함됩니다.
+트랜잭션이 잠금 기한(20초)을 초과했습니다. Firestore는 트랜잭션이 제때 완료되지 않으면 자동으로 잠금을 해제합니다.
+
+실패한 트랜잭션은 오류를 반환하며 데이터베이스에 아무것도 쓰지 않습니다. 트랜잭션을 롤백할 필요는 없습니다. Firestore에서 자동으로 수행됩니다.
+
+일괄 쓰기
+
+작업 집합에서 문서를 읽을 필요가 없는 경우 set(), update() 또는 delete() 작업의 조합을 포함하는 단일 배치로 여러 쓰기 작업을 실행할 수 있습니다.
+일괄 처리의 각 작업은 Firestore 사용량에 별도로 포함됩니다. 쓰기 배치는 원자적으로 완료되며 여러 문서에 쓸 수 있습니다. 다음 예시에서는 쓰기 배치를 작성하고 커밋하는 방법을 보여줍니다.
+
+웹 버전 9
+import { writeBatch, doc } from "firebase/firestore";
+
+// Get a new write batch
+const batch = writeBatch(db);
+
+// Set the value of 'NYC'
+const nycRef = doc(db, "cities", "NYC");
+batch.set(nycRef, {name: "New York City"});
+
+// Update the population of 'SF'
+const sfRef = doc(db, "cities", "SF");
+batch.update(sfRef, {"population": 1000000});
+
+// Delete the city 'LA'
+const laRef = doc(db, "cities", "LA");
+batch.delete(laRef);
+
+// Commit the batch
+await batch.commit();write_batch.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/write_batch.js#L8-L26]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+// Get a new write batch
+var batch = db.batch();
+
+// Set the value of 'NYC'
+var nycRef = db.collection("cities").doc("NYC");
+batch.set(nycRef, {name: "New York City"});
+
+// Update the population of 'SF'
+var sfRef = db.collection("cities").doc("SF");
+batch.update(sfRef, {"population": 1000000});
+
+// Delete the city 'LA'
+var laRef = db.collection("cities").doc("LA");
+batch.delete(laRef);
+
+// Commit the batch
+batch.commit().then(() => {
+// ...
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L270-L290]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// Get new write batch
+let batch = db.batch()
+
+// Set the value of 'NYC'
+let nycRef = db.collection("cities").document("NYC")
+batch.setData([:], forDocument: nycRef)
+
+// Update the population of 'SF'
+let sfRef = db.collection("cities").document("SF")
+batch.updateData(["population": 1000000 ], forDocument: sfRef)
+
+// Delete the city 'LA'
+let laRef = db.collection("cities").document("LA")
+batch.deleteDocument(laRef)
+
+// Commit the batch
+do {
+try await batch.commit()
+print("Batch write succeeded.")
+} catch {
+print("Error writing batch: \(error)")
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L597-L618]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// Get new write batch
+FIRWriteBatch *batch = [self.db batch];
+
+// Set the value of 'NYC'
+FIRDocumentReference *nycRef =
+[[self.db collectionWithPath:@"cities"] documentWithPath:@"NYC"];
+[batch setData:@{} forDocument:nycRef];
+
+// Update the population of 'SF'
+FIRDocumentReference *sfRef =
+[[self.db collectionWithPath:@"cities"] documentWithPath:@"SF"];
+[batch updateData:@{ @"population": @1000000 } forDocument:sfRef];
+
+// Delete the city 'LA'
+FIRDocumentReference *laRef =
+[[self.db collectionWithPath:@"cities"] documentWithPath:@"LA"];
+[batch deleteDocument:laRef];
+
+// Commit the batch
+[batch commitWithCompletion:^(NSError * _Nullable error) {
+if (error != nil) {
+NSLog(@"Error writing batch %@", error);
+} else {
+NSLog(@"Batch write succeeded.");
+}
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L531-L556]
+
+KotlinAndroid
+val nycRef = db.collection("cities").document("NYC")
+val sfRef = db.collection("cities").document("SF")
+val laRef = db.collection("cities").document("LA")
+
+// Get a new write batch and commit all write operations
+db.runBatch { batch ->
+// Set the value of 'NYC'
+batch.set(nycRef, City())
+
+// Update the population of 'SF'
+batch.update(sfRef, "population", 1000000L)
+
+// Delete the city 'LA'
+batch.delete(laRef)
+}.addOnCompleteListener {
+// ...
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L456-L472]
+
+자바Android
+// Get a new write batch
+WriteBatch batch = db.batch();
+
+// Set the value of 'NYC'
+DocumentReference nycRef = db.collection("cities").document("NYC");
+batch.set(nycRef, new City());
+
+// Update the population of 'SF'
+DocumentReference sfRef = db.collection("cities").document("SF");
+batch.update(sfRef, "population", 1000000L);
+
+// Delete the city 'LA'
+DocumentReference laRef = db.collection("cities").document("LA");
+batch.delete(laRef);
+
+// Commit the batch
+batch.commit().addOnCompleteListener(new OnCompleteListener<Void>() {
+@Override
+public void onComplete(@NonNull Task<Void> task) {
+// ...
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L597-L618]
+
+Dart
+// Get a new write batch
+final batch = db.batch();
+
+// Set the value of 'NYC'
+var nycRef = db.collection("cities").doc("NYC");
+batch.set(nycRef, {"name": "New York City"});
+
+// Update the population of 'SF'
+var sfRef = db.collection("cities").doc("SF");
+batch.update(sfRef, {"population": 1000000});
+
+// Delete the city 'LA'
+var laRef = db.collection("cities").doc("LA");
+batch.delete(laRef);
+
+// Commit the batch
+batch.commit().then((_) {
+// ...
+});firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L331-L349]
+
+자바
+
+// Get a new write batch
+WriteBatch batch = db.batch();
+
+// Set the value of 'NYC'
+DocumentReference nycRef = db.collection("cities").document("NYC");
+batch.set(nycRef, new City());
+
+// Update the population of 'SF'
+DocumentReference sfRef = db.collection("cities").document("SF");
+batch.update(sfRef, "population", 1000000L);
+
+// Delete the city 'LA'
+DocumentReference laRef = db.collection("cities").document("LA");
+batch.delete(laRef);
+
+// asynchronously commit the batch
+ApiFuture<List<WriteResult>> future = batch.commit();
+// ...
+// future.get() blocks on batch commit operation
+for (WriteResult result : future.get()) {
+System.out.println("Update time : " + result.getUpdateTime());
+}ManageDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/ManageDataSnippets.java#L399-L420]
+
+Python
+
+batch = db.batch()
+
+# Set the data for NYC
+nyc_ref = db.collection("cities").document("NYC")
+batch.set(nyc_ref, {"name": "New York City"})
+
+# Update the population for SF
+sf_ref = db.collection("cities").document("SF")
+batch.update(sf_ref, {"population": 1000000})
+
+# Delete DEN
+den_ref = db.collection("cities").document("DEN")
+batch.delete(den_ref)
+
+# Commit the batch
+batch.commit()snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L435-L450]
+
+Python(비동기)
+
+batch = db.batch()
+
+# Set the data for NYC
+nyc_ref = db.collection("cities").document("NYC")
+batch.set(nyc_ref, {"name": "New York City"})
+
+# Update the population for SF
+sf_ref = db.collection("cities").document("SF")
+batch.update(sf_ref, {"population": 1000000})
+
+# Delete DEN
+den_ref = db.collection("cities").document("DEN")
+batch.delete(den_ref)
+
+# Commit the batch
+await batch.commit()snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L429-L444]
+
+C++
+// Get a new write batch
+WriteBatch batch = db->batch();
+
+// Set the value of 'NYC'
+DocumentReference nyc_ref = db->Collection("cities").Document("NYC");
+batch.Set(nyc_ref, {});
+
+// Update the population of 'SF'
+DocumentReference sf_ref = db->Collection("cities").Document("SF");
+batch.Update(sf_ref, {{"population", FieldValue::Integer(1000000)}});
+
+// Delete the city 'LA'
+DocumentReference la_ref = db->Collection("cities").Document("LA");
+batch.Delete(la_ref);
+
+// Commit the batch
+batch.Commit().OnCompletion([](const Future<void>& future) {
+if (future.error() == Error::kErrorOk) {
+std::cout << "Write batch success!" << std::endl;
+} else {
+std::cout << "Write batch failure: " << future.error_message() << std::endl;
+}
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L315-L337]
+
+Node.js
+
+// Get a new write batch
+const batch = db.batch();
+
+// Set the value of 'NYC'
+const nycRef = db.collection('cities').doc('NYC');
+batch.set(nycRef, {name: 'New York City'});
+
+// Update the population of 'SF'
+const sfRef = db.collection('cities').doc('SF');
+batch.update(sfRef, {population: 1000000});
+
+// Delete the city 'LA'
+const laRef = db.collection('cities').doc('LA');
+batch.delete(laRef);
+
+// Commit the batch
+await batch.commit();index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L423-L439]
+
+Go
+
+import (
+"context"
+"log"
+
+"cloud.google.com/go/firestore"
+)
+
+func batchWrite(ctx context.Context, client *firestore.Client) error {
+// Get a new write batch.
+batch := client.Batch [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_Client_Batch]()
+
+// Set the value of "NYC".
+nycRef := client.Collection("cities").Doc("NYC")
+batch.Set(nycRef, map[string]interface{}{
+"name": "New York City",
+})
+
+// Update the population of "SF".
+sfRef := client.Collection("cities").Doc("SF")
+batch.Set(sfRef, map[string]interface{}{
+"population": 1000000,
+}, firestore.MergeAll [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_MergeAll])
+
+// Delete the city "LA".
+laRef := client.Collection("cities").Doc("LA")
+batch.Delete(laRef)
+
+// Commit the batch.
+_, err := batch.Commit(ctx)
+if err != nil {
+// Handle any errors in an appropriate way, such as returning them.
+log.Printf("An error has occurred: %s", err)
+}
+
+return err
+}
+save_data_batch_writes.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/save_data_batch_writes.go#L18-L55]
+
+PHP
+
+$batch = $db->batch();
+
+# Set the data for NYC
+$nycRef = $db->collection('samples/php/cities')->document('NYC');
+$batch->set($nycRef, [
+'name' => 'New York City'
+]);
+
+# Update the population for SF
+$sfRef = $db->collection('samples/php/cities')->document('SF');
+$batch->update($sfRef, [
+['path' => 'population', 'value' => 1000000]
+]);
+
+# Delete LA
+$laRef = $db->collection('samples/php/cities')->document('LA');
+$batch->delete($laRef);
+
+# Commit the batch
+$batch->commit();data_batch_writes.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/data_batch_writes.php#L40-L59]
+
+Unity
+WriteBatch batch = db.StartBatch();
+
+// Set the data for NYC
+DocumentReference nycRef = db.Collection("cities").Document("NYC");
+Dictionary<string, object> nycData = new Dictionary<string, object>
+{
+{ "name", "New York City" }
+};
+batch.Set(nycRef, nycData);
+
+// Update the population for SF
+DocumentReference sfRef = db.Collection("cities").Document("SF");
+Dictionary<string, object> updates = new Dictionary<string, object>
+{
+{ "Population", 1000000}
+};
+batch.Update(sfRef, updates);
+
+// Delete LA
+DocumentReference laRef = db.Collection("cities").Document("LA");
+batch.Delete(laRef);
+
+// Commit the batch
+batch.CommitAsync();
+
+C#
+
+WriteBatch batch = db.StartBatch();
+
+// Set the data for NYC
+DocumentReference nycRef = db.Collection("cities").Document("NYC");
+Dictionary<string, object> nycData = new Dictionary<string, object>
+{
+{ "name", "New York City" }
+};
+batch.Set(nycRef, nycData);
+
+// Update the population for SF
+DocumentReference sfRef = db.Collection("cities").Document("SF");
+Dictionary<string, object> updates = new Dictionary<string, object>
+{
+{ "Population", 1000000}
+};
+batch.Update(sfRef, updates);
+
+// Delete LA
+DocumentReference laRef = db.Collection("cities").Document("LA");
+batch.Delete(laRef);
+
+// Commit the batch
+await batch.CommitAsync();Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/TransactionsAndBatchedWrites/Program.cs#L92-L115]
+
+Ruby
+
+firestore.batch do |b|
+# Set the data for NYC
+b.set "#{collection_path}/NYC", { name: "New York City" }
+
+# Update the population for SF
+b.update "#{collection_path}/SF", { population: 1_000_000 }
+
+# Delete LA
+b.delete "#{collection_path}/LA"
+endtransactions_and_batched_writes.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/transactions_and_batched_writes.rb#L64-L73]
+
+일괄 쓰기는 트랜잭션과 마찬가지로 원자적으로 수행됩니다. 하지만 트랜잭션과 달리, 실패 사례를 줄이기 위해 읽은 문서를 수정되지 않은 상태로 유지할 필요가 없습니다. 재시도나 너무 많은 재시도로 인한 실패가 발생하지 않습니다. 일괄 쓰기는 사용자 기기가 오프라인 상태여도 실행됩니다.
+
+수백 개의 문서가 포함된 일괄 쓰기에는 많은 색인 업데이트가 필요할 수 있으며 트랜잭션 크기 한도가 초과될 수 있습니다. 이 경우 배치당 문서 수를 줄이세요. 많은 수의 문서를 작성하려면 일괄 작성기 또는 동시 개별 쓰기를 사용하는 것이 좋습니다.
+참고: 대량 데이터 입력의 경우 동시에 로드되는 개별 쓰기를 지원하는 서버 클라이언트 라이브러리 [https://cloud.google.com/firestore/docs/reference/libraries?hl=ko#server_client_libraries]를 사용하세요. 일괄 쓰기의 성능은 직렬화된 쓰기보다 우수하지만 동시 로드 쓰기보다는 떨어집니다. 대량 데이터 작업에는 모바일/웹 SDK가 아니라 서버 클라이언트 라이브러리를 사용해야 합니다.
+원자적 작업에 대한 데이터 검증
+
+모바일/웹 클라이언트 라이브러리의 경우 Firestore 보안 규칙 [https://cloud.google.com/firestore/native/docs/security/get-started?hl=ko]을 사용하여 데이터 유효성을 검사할 수 있습니다. 이를 통해 관련 문서를 항상 원자적으로 업데이트하고 트랜잭션 또는 일괄 쓰기에 포함할 수 있습니다.
+일련의 작업이 완료된 후 Firestore가 작업을 커밋하기 전에 getAfter() [https://firebase.google.com/docs/reference/rules/rules.firestore?hl=ko#.getAfter] 보안 규칙 함수를 사용하여 문서 상태에 액세스하고 유효성을 검사합니다.
+
+예를 들어 cities 예시의 데이터베이스에 countries 컬렉션도 포함되어 있다고 가정해 보겠습니다. 각 country 문서는 last_updated 필드를 사용하여 해당 국가와 관련된 임의의 도시가 마지막으로 업데이트된 시간을 추적합니다. 다음 보안 규칙에서는 city 문서를 업데이트하면 관련 국가의 last_updated 필드 또한 원자적으로 업데이트되도록 지정합니다.
+
+service cloud.firestore {
+match /databases/{database}/documents {
+// If you update a city doc, you must also
+// update the related country's last_updated field.
+match /cities/{city} {
+allow write: if request.auth != null &&
+getAfter(
+/databases/$(database)/documents/countries/$(request.resource.data.country)
+).data.last_updated == request.time;
+}
+
+match /countries/{country} {
+allow write: if request.auth != null;
+}
+}
+}
+
+보안 규칙 제한
+
+트랜잭션 또는 일괄 쓰기의 보안 규칙에는 배치의 각 단일 문서 작업에 적용되는 기본 10개 호출 제한 외에 전체 원자적 작업에 대한 20개 문서 액세스 호출 제한 [https://cloud.google.com/firestore/native/docs/quotas?hl=ko#security_rules]이 적용됩니다.
+
+예를 들어 채팅 애플리케이션에 다음과 같은 규칙을 사용한다고 가정해 보겠습니다.
+
+service cloud.firestore {
+match /databases/{db}/documents {
+function prefix() {
+return /databases/{db}/documents;
+}
+match /chatroom/{roomId} {
+allow read, write: if request.auth != null && roomId in get(/$(prefix())/users/$(request.auth.uid)).data.chats
+|| exists(/$(prefix())/admins/$(request.auth.uid));
+}
+match /users/{userId} {
+allow read, write: if request.auth != null && request.auth.uid == userId
+|| exists(/$(prefix())/admins/$(request.auth.uid));
+}
+match /admins/{userId} {
+allow read, write: if request.auth != null && exists(/$(prefix())/admins/$(request.auth.uid));
+}
+}
+}
+
+아래의 스니펫은 몇 가지 데이터 액세스 패턴에 사용되는 문서 액세스 호출 수를 보여줍니다.
+
+// 0 document access calls used, because the rules evaluation short-circuits
+// before the exists() call is invoked.
+db.collection('user').doc('myuid').get(...);
+
+// 1 document access call used. The maximum total allowed for this call
+// is 10, because it is a single document request.
+db.collection('chatroom').doc('mygroup').get(...);
+
+// Initializing a write batch...
+var batch = db.batch();
+
+// 2 document access calls used, 10 allowed.
+var group1Ref = db.collection("chatroom").doc("group1");
+batch.set(group1Ref, {msg: "Hello, from Admin!"});
+
+// 1 document access call used, 10 allowed.
+var newUserRef = db.collection("users").doc("newuser");
+batch.update(newUserRef, {"lastSignedIn": new Date()});
+
+// 1 document access call used, 10 allowed.
+var removedAdminRef = db.collection("admin").doc("otheruser");
+batch.delete(removedAdminRef);
+
+// The batch used a total of 2 + 1 + 1 = 4 document access calls, out of a total
+// 20 allowed.
+batch.commit();
+
+대량 쓰기 및 일괄 쓰기로 인한 지연 시간 문제, 중복 트랜잭션으로 인한 오류, 기타 문제를 해결하는 방법에 대한 자세한 내용은 문제해결 페이지 [https://cloud.google.com/firestore/docs/troubleshooting?hl=ko]를 참조하세요.
+
+의견 보내기
