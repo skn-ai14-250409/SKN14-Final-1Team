@@ -33,7 +33,10 @@ def to_meta_value(v):
     except Exception:
         return str(v)
 
+BATCH = 200
 docs, ids, metadatas = [], [], []
+inserted = 0
+
 with open(JSONL_PATH, "r", encoding="utf-8") as f:
     for idx, line in enumerate(f, start=1):
         line = line.strip()
@@ -59,11 +62,16 @@ with open(JSONL_PATH, "r", encoding="utf-8") as f:
         ids.append(_id)
         metadatas.append(meta)
 
-        if idx % 50 == 0:
-            print(f"지금까지 {idx}개 처리 완료")
+        if idx % BATCH == 0:
+            collection.upsert(documents=docs, metadatas=metadatas, ids=ids)
+            inserted += len(ids)
+            print(f"[UPSERT] 누적 DB 반영: {inserted}개", flush=True)
+            docs, ids, metadatas = [], [], []
 
 if docs:
     collection.upsert(documents=docs, metadatas=metadatas, ids=ids)
+    inserted += len(ids)
+    print(f"[UPSERT] 누적 DB 반영: {inserted}개", flush=True)
 
 print(f"업서트 완료: {len(ids)}개")
-print(f"컬렉션 총 문서 수: {collection.count()}")
+print(f"[COUNT] 현재 컬렉션 문서 수: {collection.count()}", flush=True)
