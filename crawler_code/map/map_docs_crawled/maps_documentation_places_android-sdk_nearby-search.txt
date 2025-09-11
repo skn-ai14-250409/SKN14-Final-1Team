@@ -1,0 +1,179 @@
+Source URL: https://developers.google.com/maps/documentation/places/android-sdk/nearby-search
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+홈 [https://developers.google.com/?hl=ko]
+제품 [https://developers.google.com/products?hl=ko]
+Google Maps Platform [https://developers.google.com/maps?hl=ko]
+문서 [https://developers.google.com/maps/documentation?hl=ko]
+Android [https://developers.google.com/maps/android?hl=ko]
+Places SDK for Android [https://developers.google.com/maps/documentation/places/android-sdk/overview?hl=ko]
+가이드 [https://developers.google.com/maps/documentation/places/android-sdk?hl=ko]
+의견 보내기
+주변 검색 (신규)
+플랫폼 선택: Android [https://developers.google.com/maps/documentation/places/android-sdk/nearby-search?hl=ko] iOS [https://developers.google.com/maps/documentation/places/ios-sdk/nearby-search?hl=ko] JavaScript [https://developers.google.com/maps/documentation/javascript/nearby-search?hl=ko] 웹 서비스 [https://developers.google.com/maps/documentation/places/web-service/nearby-search?hl=ko]
+유럽 경제 지역 (EEA) 개발자
+주변 검색(신규) 요청은 검색할 지역을 입력으로 사용합니다. 이 지역은 원의 중심점의 위도 및 경도 좌표와 반지름(미터)으로 정의된 원으로 지정됩니다. 요청은 지정된 검색 영역 내에서 일치하는 장소 목록을 반환하며, 각 장소는 Place [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/Place?hl=ko] 객체로 표시됩니다.
+기본적으로 응답에는 검색 영역 내의 모든 유형의 장소가 포함됩니다. 선택적으로 응답에 명시적으로 포함하거나 제외할 장소 유형 목록을 지정하여 응답을 필터링할 수 있습니다. 예를 들어 'restaurant', 'bakery', 'cafe' 유형의 장소만 응답에 포함하거나 'school' 유형의 장소를 모두 제외하도록 지정할 수 있습니다.
+참고: Nearby Search (신규)는 Android용 Places SDK 버전 3.5.0 이상에서 사용할 수 있습니다. 자세한 내용은 SDK 버전 선택 [https://developers.google.com/maps/documentation/places/android-sdk/choose-sdk?hl=ko]을 참고하세요. 버전 4.0.0에 추가된 Kotlin API 사용에 관한 자세한 내용은 참조 개요 [https://developers.google.com/maps/documentation/places/android-sdk/reference?hl=ko]를 참고하세요.
+Nearby Search (신규) 요청
+요청 매개변수를 정의하는 SearchNearbyRequest [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest?hl=ko#SearchNearbyRequest()] 객체를 전달하여 PlacesClient.searchNearby [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/PlacesClient?hl=ko#searchNearby]를 호출하여 Nearby Search (New) 요청을 합니다.
+SearchNearbyRequest 객체는 요청에 필요한 모든 필수 및 선택적 매개변수를 지정합니다. 필수 매개변수는 다음과 같습니다.
+Place 객체에서 반환할 필드 목록입니다(필드 마스크라고도 함). 필드 목록에 필드를 하나 이상 지정하지 않거나 필드 목록을 생략하면 호출에서 오류가 반환됩니다.
+검색 영역의 위치 제한입니다. 위도/경도 쌍과 반지름 값(미터)으로 정의됩니다.
+이 예시 인근 검색 요청은 응답 Place 객체에 검색 결과의 각 Place 객체에 대한 장소 필드 Place.Field.ID 및 Place.Field.DISPLAY_NAME가 포함되어 있음을 지정합니다. 또한 'restaurant' 및 'cafe' 유형의 장소만 반환하고 'pizza_restaurant' 및 'american_restaurant' 유형의 장소는 제외하도록 응답을 필터링합니다.
+// Define a list of fields to include in the response for each returned place.
+final List<Place.Field> placeFields = Arrays.asList(Place.Field.ID, Place.Field.DISPLAY_NAME);
+
+// Define the search area as a 1000 meter diameter circle in New York, NY.
+LatLng center = new LatLng(40.7580, -73.9855);
+CircularBounds circle = CircularBounds.newInstance(center, /* radius = */ 1000);
+
+// Define a list of types to include.
+final List<String> includedTypes = Arrays.asList("restaurant", "cafe");
+// Define a list of types to exclude.
+final List<String> excludedTypes = Arrays.asList("pizza_restaurant", "american_restaurant");
+
+// Use the builder to create a SearchNearbyRequest object.
+final SearchNearbyRequest searchNearbyRequest =
+SearchNearbyRequest.builder(/* location restriction = */ circle, placeFields)
+    .setIncludedTypes(includedTypes)
+    .setExcludedTypes(excludedTypes)
+    .setMaxResultCount(10)
+    .build());
+
+// Call placesClient.searchNearby() to perform the search.
+// Define a response handler to process the returned List of Place objects.
+placesClient.searchNearby(searchNearbyRequest)
+    .addOnSuccessListener(response -> {
+      List<Place> places = response.getPlaces();
+    });
+참고: PlacesClient 초기화에 관한 자세한 내용은 Places API 클라이언트 초기화 [https://developers.google.com/maps/documentation/places/android-sdk/config?hl=ko#connect-client]를 참고하세요.
+CancellationToken [https://developers.google.com/android/reference/com/google/android/gms/tasks/CancellationToken?hl=ko]을 사용하여 요청 클래스 (예: FetchPlaceRequest)에 대한 요청을 취소할 수 있습니다. 취소는 최선의 방식으로 이루어집니다. 취소 요청이 발행되면 응답이 반환되지 않습니다. 취소 토큰을 발급해도 특정 요청이 취소된다고 보장할 수 없으며, 응답이 반환되지 않더라도 요청에 대한 요금이 청구될 수 있습니다.
+주변 검색 (신규) 응답
+SearchNearbyResponse [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyResponse?hl=ko] 클래스는 검색 요청의 응답을 나타냅니다. SearchNearbyResponse 객체에는 다음이 포함됩니다.
+일치하는 모든 장소를 나타내는 Place 객체 목록입니다. 일치하는 장소당 하나의 Place 객체가 있습니다.
+각 Place 객체에는 요청에 전달된 필드 목록으로 정의된 필드만 포함됩니다.
+예를 들어 요청에서 필드 목록을 다음과 같이 정의했습니다.
+// Define a list of fields to include in the response for each returned place.
+final List<Place.Field> placeFields = Arrays.asList(Place.Field.ID, Place.Field.NAME);
+이 필드 목록은 응답의 각 Place 객체에 일치하는 각 장소의 장소 ID와 이름만 포함된다는 것을 의미합니다. 그런 다음 Place.getId() 및 Place.getName() 메서드를 사용하여 각 Place 객체의 필드에 액세스할 수 있습니다.
+Place 객체에서 데이터에 액세스하는 다른 예는 장소 객체 데이터 필드 액세스 [https://developers.google.com/maps/documentation/places/android-sdk/place-details?hl=ko#access-place-object-data-fields]를 참고하세요.
+필수 매개변수
+SearchNearbyRequest [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest?hl=ko] 객체를 사용하여 검색에 필요한 매개변수를 지정합니다.
+필드 목록
+장소 세부정보를 요청할 때는 장소의 Place 객체에서 반환할 데이터를 필드 마스크로 지정해야 합니다. 필드 마스크를 정의하려면 Place.Field [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/Place.Field?hl=ko]에서 SearchNearbyRequest 객체로 값 배열을 전달합니다. 필드 마스크를 사용하면 불필요한 데이터의 요청을 방지하여 불필요한 처리에 드는 시간과 요금을 막을 수 있습니다.
+다음 필드 중 하나 이상을 지정합니다.
+다음 필드는 Nearby Search Pro SKU [https://developers.google.com/maps/documentation/places/android-sdk/usage-and-billing?hl=ko#nearbysearch-pro-sku]를 트리거합니다.
+Place.Field.ADDRESS_COMPONENTS
+Place.Field.BUSINESS_STATUS
+Place.Field.ADDRESS
+Place.Field.DISPLAY_NAME >*
+    * 지원이 중단된 Place.Field.NAME 대신 사용하세요.
+Place.Field.ICON_BACKGROUND_COLOR
+Place.Field.ICON_MASK_URL*
+    * 지원 중단된 Place.Field.ICON_URL 대신 사용하세요.
+Place.Field.ID
+Place.Field.LAT_LNG
+Place.Field.PHOTO_METADATAS
+Place.Field.PLUS_CODE
+Place.Field.PRIMARY_TYPE
+Place.Field.PRIMARY_TYPE_DISPLAY_NAME
+Place.Field.RESOURCE_NAME
+Place.Field.TYPES
+Place.Field.UTC_OFFSET
+Place.Field.VIEWPORT
+Place.Field.WHEELCHAIR_ACCESSIBLE_ENTRANCE
+다음 필드는 Nearby Search Enterprise SKU [https://developers.google.com/maps/documentation/places/android-sdk/usage-and-billing?hl=ko#nearby-search-ent-sku]를 트리거합니다.
+Place.Field.CURRENT_OPENING_HOURS
+Place.Field.CURRENT_SECONDARY_OPENING_HOURS
+Place.Field.INTERNATIONAL_PHONE_NUMBER*
+    * 지원 중단된 Place.Field.PHONE_NUMBER 대신 사용하세요.
+Place.Field.NATIONAL_PHONE_NUMBER
+Place.Field.OPENING_HOURS
+Place.Field.PRICE_LEVEL
+Place.Field.RATING
+Place.Field.SECONDARY_OPENING_HOURS
+Place.Field.USER_RATING_COUNT*
+    * 지원 중단된 Place.Field.USER_RATINGS_TOTAL 대신 사용하세요.
+Place.Field.WEBSITE_URI
+다음 필드는 Nearby Search Enterprise Plus SKU [https://developers.google.com/maps/documentation/places/android-sdk/usage-and-billing?hl=ko#nearby-search-ent-plus-sku]를 트리거합니다.
+Place.Field.ALLOWS_DOGS
+Place.Field.CURBSIDE_PICKUP
+Place.Field.DELIVERY
+Place.Field.DINE_IN
+Place.Field.EDITORIAL_SUMMARY
+Place.Field.EV_CHARGE_OPTIONS
+Place.Field.FUEL_OPTIONS
+Place.Field.GOOD_FOR_CHILDREN
+Place.Field.GOOD_FOR_GROUPS
+Place.Field.GOOD_FOR_WATCHING_SPORTS
+Place.Field.LIVE_MUSIC
+Place.Field.MENU_FOR_CHILDREN
+Place.Field.OUTDOOR_SEATING
+Place.Field.PARKING_OPTIONS
+Place.Field.PAYMENT_OPTIONS
+Place.Field.RESERVABLE
+Place.Field.RESTROOM
+Place.Field.REVIEWS
+Place.Field.SERVES_BEER
+Place.Field.SERVES_BREAKFAST
+Place.Field.SERVES_BRUNCH
+Place.Field.SERVES_COCKTAILS
+Place.Field.SERVES_COFFEE
+Place.Field.SERVES_DESSERT
+Place.Field.SERVES_DINNER
+Place.Field.SERVES_LUNCH
+Place.Field.SERVES_VEGETARIAN_FOOD
+Place.Field.SERVES_WINE
+Place.Field.TAKEOUT
+참고: Android용 Places SDK 버전 4.0에서는 여러 장소 데이터 필드가 지원 중단되고 새 필드가 추가되었습니다. 자세한 내용은 Android용 Places SDK 4.0의 새로운 장소 데이터 필드로 이전 [https://developers.google.com/maps/documentation/places/android-sdk/migrate-place-data-fields?hl=ko]을 참고하세요.
+필드 목록 매개변수를 설정하려면 SearchNearbyRequest 객체를 빌드할 때 setPlaceFields() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest.Builder?hl=ko#public-abstract-searchnearbyrequest.builder-setplacefields-listplace.field-placefields] 메서드를 호출합니다.
+다음 예시에서는 요청에 의해 반환되는 Place 객체에 Place.Field.ID 및 Place.Field.DISPLAY_NAME 필드가 포함되도록 지정하는 두 필드 값의 목록을 정의합니다.
+// Define a list of fields to include in the response for each returned place.
+final List<Place.Field> placeFields = Arrays.asList(Place.Field.ID, Place.Field.DISPLAY_NAME);
+위치 제한
+검색할 영역을 정의하는 LocationRestriction [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/model/LocationRestriction?hl=ko] 객체입니다. 중심점과 반지름(미터)으로 정의된 원으로 지정됩니다. 반지름은 0.0보다 크고 50000.0 이하이어야 합니다. 반지름이 너무 작으면 ZERO_RESULTS가 응답으로 반환됩니다.
+위치 제한 매개변수를 설정하려면 SearchNearbyRequest 객체를 빌드할 때 setLocationRestriction() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest.Builder?hl=ko#setLocationRestriction(com.google.android.libraries.places.api.model.LocationRestriction)] 메서드를 호출합니다.
+선택적 매개변수
+SearchNearbyRequest [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest?hl=ko] 객체를 사용하여 검색의 선택적 매개변수를 지정합니다.
+유형 및 기본 유형
+검색 결과를 필터링하는 데 사용되는 표 A [https://developers.google.com/maps/documentation/places/android-sdk/place-types?hl=ko#table-a]의 유형 목록을 지정할 수 있습니다. 각 유형 제한 카테고리에서 최대 50개의 유형을 지정할 수 있습니다.
+참고: 표 B [https://developers.google.com/maps/documentation/places/android-sdk/place-types?hl=ko#table-b]의 값은 응답에서만 반환됩니다. 표 B [https://developers.google.com/maps/documentation/places/android-sdk/place-types?hl=ko#table-b]의 값을 필터로 사용할 수 없습니다.
+장소에는 표 A [https://developers.google.com/maps/documentation/places/android-sdk/place-types?hl=ko#table-a] 유형 중 단일 기본 유형만 연결할 수 있습니다. 예를 들어 기본 유형은 "mexican_restaurant" 또는 "steak_house"일 수 있습니다. includedPrimaryTypes 및 excludedPrimaryTypes를 사용하여 장소의 기본 유형에 따라 결과를 필터링합니다.
+장소에는 표 A [https://developers.google.com/maps/documentation/places/android-sdk/place-types?hl=ko#table-a]의 유형에서 여러 유형 값이 연결될 수도 있습니다. 예를 들어 레스토랑에는 "seafood_restaurant", "restaurant", "food", "point_of_interest", "establishment" 유형이 있을 수 있습니다. includedTypes 및 excludedTypes를 사용하여 장소와 연결된 유형 목록의 결과를 필터링합니다.
+"restaurant" 또는 "hotel"과 같은 일반적인 기본 유형을 지정하면 응답에 지정된 유형보다 더 구체적인 기본 유형이 있는 장소가 포함될 수 있습니다. 예를 들어 기본 유형 "restaurant"을 포함하도록 지정합니다. 그러면 응답에 기본 유형이 "restaurant"인 장소가 포함될 수 있지만, 응답에 "chinese_restaurant" 또는 "seafood_restaurant"와 같은 더 구체적인 기본 유형이 있는 장소가 포함될 수도 있습니다.
+여러 유형 제한이 지정된 검색의 경우 모든 제한을 충족하는 장소만 반환됩니다. 예를 들어 includedTypes = Arrays.asList("restaurant") 및 excludedPrimaryTypes = Arrays.asList("steak_house")을 지정하면 반환된 장소에서 "restaurant" 관련 서비스를 제공하지만 기본적으로 "steak_house"로 운영되지는 않습니다.
+요청에서 includedTypes, excludedTypes, includedPrimaryTypes, excludedPrimaryTypes를 생략하면 검색에서 위치 제한 경계 내의 모든 유형의 장소를 반환합니다.
+includedTypes 및 excludedTypes 사용 방법의 예는 주변 검색 (신규) 요청 [https://developers.google.com/maps/documentation/places/android-sdk/nearby-search?hl=ko#about_request]을 참고하세요.
+포함된 유형
+검색할 표 A [https://developers.google.com/maps/documentation/places/android-sdk/place-types?hl=ko#table-a]의 장소 유형 목록입니다. 이 매개변수를 생략하면 모든 유형의 장소가 반환됩니다.
+포함된 유형 매개변수를 설정하려면 SearchNearbyRequest 객체를 빌드할 때 setIncludedTypes() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest.Builder?hl=ko#setIncludedTypes(java.util.List%3Cjava.lang.String%3E)] 메서드를 호출합니다.
+제외된 유형
+검색에서 제외할 표 A [https://developers.google.com/maps/documentation/places/android-sdk/place-types?hl=ko#table-a]의 장소 유형 목록입니다.
+요청에 includedTypes (예: "school")와 excludedTypes (예: "primary_school")를 모두 지정하면 응답에 "school"로 분류되지만 "primary_school"로는 분류되지 않는 장소가 포함됩니다. 응답에는 includedTypes 중 하나 이상과 일치하고 excludedTypes와 일치하지 않는 장소가 포함됩니다.
+includedTypes과 excludedTypes에 모두 표시되는 유형과 같이 충돌하는 유형이 있으면 INVALID_REQUEST 오류가 반환됩니다.
+제외된 유형 매개변수를 설정하려면 SearchNearbyRequest 객체를 빌드할 때 setExcludedTypes() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest.Builder?hl=ko#setExcludedTypes(java.util.List%3Cjava.lang.String%3E)] 메서드를 호출합니다.
+포함된 기본 유형
+검색에 포함할 표 A [https://developers.google.com/maps/documentation/places/android-sdk/place-types?hl=ko#table-a]의 기본 장소 유형 목록입니다.
+포함된 기본 유형 매개변수를 설정하려면 SearchNearbyRequest 객체를 빌드할 때 setIncludedPrimaryTypes() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest.Builder?hl=ko#setIncludedPrimaryTypes(java.util.List%3Cjava.lang.String%3E)] 메서드를 호출합니다.
+제외된 기본 유형
+검색에서 제외할 표 A [https://developers.google.com/maps/documentation/places/android-sdk/place-types?hl=ko#table-a]의 기본 장소 유형 목록입니다.
+includedPrimaryTypes과 excludedPrimaryTypes에 모두 표시되는 유형과 같이 충돌하는 기본 유형이 있으면 INVALID_ARGUMENT 오류가 반환됩니다.
+제외된 기본 유형 매개변수를 설정하려면 SearchNearbyRequest 객체를 빌드할 때 setExcludedPrimaryTypes() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest.Builder?hl=ko#setExcludedPrimaryTypes(java.util.List%3Cjava.lang.String%3E)] 메서드를 호출합니다.
+최대 결과 수
+반환할 최대 장소 결과 수를 지정합니다. 1~20 (기본값) 사이여야 합니다.
+최대 결과 수 매개변수를 설정하려면 SearchNearbyRequest 객체를 빌드할 때 setMaxResultCount() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest.Builder?hl=ko#setMaxResultCount(java.lang.Integer)] 메서드를 호출합니다.
+순위 환경설정
+사용할 순위 유형입니다. 이 매개변수를 생략하면 결과가 인기도에 따라 순위가 지정됩니다. 다음 중 하나일 수 있습니다.
+POPULARITY (기본값) 인기도를 기준으로 결과를 정렬합니다.
+DISTANCE 지정된 위치로부터의 거리의 오름차순으로 결과를 정렬합니다.
+순위 선호도 매개변수를 설정하려면 SearchNearbyRequest 객체를 빌드할 때 setRankPreference() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest.Builder?hl=ko#setRankPreference(com.google.android.libraries.places.api.net.SearchNearbyRequest.RankPreference)] 메서드를 호출합니다.
+지역 코드
+대답의 형식을 지정하는 데 사용되는 지역 코드입니다. 2자리 CLDR 코드 [https://www.unicode.org/cldr/charts/latest/supplemental/territory_language_information.html] 값으로 지정됩니다. 기본값은 없습니다.
+응답의 FORMATTED_ADDRESS 필드의 국가 이름이 regionCode와 일치하면 국가 코드가 FORMATTED_ADDRESS에서 생략됩니다.
+대부분의 CLDR 코드는 ISO 3166-1 코드와 동일하지만 일부 주목할 만한 예외가 있습니다. 예를 들어 영국의 ccTLD는 'uk' (.co.uk)이지만 ISO 3166-1 코드는 'gb' (기술적으로 '그레이트브리튼 및 북아일랜드 연합 왕국'의 법인)입니다. 이 매개변수는 관련 법규에 따라 결과에 영향을 미칠 수 있습니다.
+지역 코드 매개변수를 설정하려면 SearchNearbyRequest 객체를 빌드할 때 setRegionCode() [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/SearchNearbyRequest.Builder?hl=ko#setRegionCode(java.lang.String)] 메서드를 호출합니다.
+앱에 특성 표시
+앱에서 PlacesClient [https://developers.google.com/maps/documentation/places/android-sdk/reference/com/google/android/libraries/places/api/net/PlacesClient?hl=ko]에서 가져온 정보(예: 사진, 리뷰)를 표시하는 경우, 앱은 필수 저작자 표시도 표시해야 합니다.
+자세한 내용은 Android용 Places SDK 정책 [https://developers.google.com/maps/documentation/places/android-sdk/policies?hl=ko]을 참고하세요.
+의견 보내기

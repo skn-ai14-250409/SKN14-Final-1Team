@@ -1,0 +1,171 @@
+Source URL: https://firebase.google.com/docs/firestore/cmek?hl=ko
+Title: 고객 관리 암호화 키(CMEK)
+bookmark_border
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+고객 관리 암호화 키(CMEK)
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용기능 [https://firebase.google.com/docs/firestore/cmek?hl=ko#key-features]가격 책정 [https://firebase.google.com/docs/firestore/cmek?hl=ko#pricing]CMEK로 보호되는 대상 [https://firebase.google.com/docs/firestore/cmek?hl=ko#cmek-protects]사용할 수 없는 키 상태의 처리 방법 [https://firebase.google.com/docs/firestore/cmek?hl=ko#how_an_unavailable_key_status_is_handled]키 순환 고려사항 [https://firebase.google.com/docs/firestore/cmek?hl=ko#key-rotation]외부 키 고려사항 [https://firebase.google.com/docs/firestore/cmek?hl=ko#external-keys]백업 및 복원 [https://firebase.google.com/docs/firestore/cmek?hl=ko#backup_and_restore]클론 [https://firebase.google.com/docs/firestore/cmek?hl=ko#clone]키 추적 [https://firebase.google.com/docs/firestore/cmek?hl=ko#key_tracking]CMEK 및 키 가용성 [https://firebase.google.com/docs/firestore/cmek?hl=ko#cmek_and_key_availability]제한사항 [https://firebase.google.com/docs/firestore/cmek?hl=ko#limitations]데이터가 CMEK 보호 데이터베이스에서 이동하는 방법 [https://firebase.google.com/docs/firestore/cmek?hl=ko#how_data_can_leave_cmek-protected_databases]다음 단계 [https://firebase.google.com/docs/firestore/cmek?hl=ko#whats-next]
+
+기본적으로 Cloud Firestore의 모든 저장 데이터는 Google의 기본 암호화 [https://cloud.google.com/security/encryption/default-encryption?hl=ko#googles_default_encryption]를 사용하여 암호화됩니다. Cloud Firestore은 사용자의 추가 작업 없이 이 암호화를 처리하고 관리합니다.
+
+데이터를 보호하는 키와 관련된 특정 규정 준수 또는 규제 요구사항이 있으면 Cloud Firestore에 고객 관리 암호화 키(CMEK)를 사용할 수 있습니다. 이렇게 하면 Google이 데이터를 보호하는 암호화 키를 관리하는 것이 아니라 Cloud Key Management Service(Cloud KMS) [https://cloud.google.com/kms?hl=ko]에서 사용자가 제어하고 관리하는 키를 사용해 Cloud Firestore 데이터베이스가 보호됩니다.
+
+이 페이지에서는 Cloud Firestore용 CMEK에 대해 설명합니다. CMEK를 사용 설정하는 시기와 이유를 포함한 일반적인 CMEK에 대한 자세한 내용은 다음 Cloud KMS 문서를 참조하세요.
+
+고객 관리 암호화 키(CMEK) [https://cloud.google.com/kms/docs/cmek?hl=ko]
+CMEK 사용 권장사항 [https://cloud.google.com/kms/docs/cmek-best-practices?hl=ko]
+
+Cloud Firestore로 CMEK 관련 태스크를 수행하는 방법은 CMEK 사용 [https://firebase.google.com/docs/firestore/use-cmek?hl=ko]을 참조하세요.
+참고: 이 출시 버전 액세스에 대한 자세한 내용은 액세스 요청 양식 [https://docs.google.com/forms/d/e/1FAIpQLSfKs8wJf4IXu1NizvfyU2vT59JDbdPvkehMVZ2ab5l_aDLIIA/viewform?resourcekey=0-O15dlRFvA0JIDmh6VFUEcA&hl=ko]을 참조하세요.
+기능
+
+데이터 제어: CMEK를 사용하면 KMS 키를 관리할 수 있습니다. Cloud Firestore 데이터베이스에서 저장 데이터를 암호화하는 데 사용되는 키를 순환, 사용 중지, 폐기할 수 있습니다.
+성능: CMEK는 Cloud Firestore SLA [https://cloud.google.com/firestore/sla?hl=ko]에 영향을 미치지 않습니다.
+감사 가능성: Cloud KMS에 감사 로깅을 사용 설정 [https://cloud.google.com/logging/docs/audit/configure-data-access?hl=ko#config-console-enable]하면 키에 대한 모든 작업이 Cloud Logging에서 로깅되고 표시됩니다.
+조직 정책 제약조건: CMEK 조직 정책 제약조건 [https://cloud.google.com/resource-manager/docs/organization-policy/org-policy-constraints?hl=ko]을 사용하면 조직이 보유한 Cloud Firestore 데이터베이스에 대한 암호화 규정 준수 요구사항을 지정할 수 있습니다.
+
+가격 책정
+
+Cloud KMS는 키 및 해당 키를 사용하여 수행된 암호화 작업에 대한 비용을 청구합니다. 자세한 내용은 Cloud KMS 가격 책정 [https://cloud.google.com/kms/pricing?hl=ko]을 참조하세요.
+
+Cloud Firestore가 암호화 또는 복호화 작업을 수행할 때 Cloud KMS 키를 요청하면 작업 비용이 청구됩니다.
+고객 관리 키의 암호화/복호화 작업은 5분마다 실행되며 데이터베이스 요청과 동기화되지 않습니다. Cloud Firestore가 생성할 것으로 예상되는 암호화 작업의 수를 고려하면 비용이 일반적으로 낮습니다. Cloud 감사 로그의 비용이 추가로 지출되지만, 예상되는 암호화 작업 수를 고려하면 일반적으로 낮을 것으로 예측됩니다.
+
+CMEK로 보호되는 데이터베이스를 사용하는 데 따른 추가적인 Cloud Firestore 비용은 없으며 Cloud Firestore 가격 책정 [https://cloud.google.com/firestore/pricing?hl=ko]이 계속 적용됩니다.
+
+데이터베이스의 키를 취소하면 키를 사용할 수 있었던 마지막 날짜의 크기를 기준으로 스토리지 비용이 청구됩니다. 데이터베이스가 삭제되거나 키를 다시 사용할 수 있을 때까지 해당 데이터베이스 크기의 스토리지 비용이 계속 발생합니다.
+
+CMEK로 보호되는 대상
+
+Cloud Firestore CMEK 보호 데이터베이스를 만들면 Cloud KMS 키가 저장 데이터를 보호하는 데 사용됩니다. 여기에는 색인 및 백업을 비롯하여 디스크나 플래시 드라이브에 저장하는 데이터가 포함됩니다. 일부 예외가 적용됩니다. 다음 데이터 유형은 CMEK 키가 아닌 Google 기본 암호화로 암호화됩니다.
+
+전송 중 데이터 또는 메모리에 있는 데이터
+데이터베이스 메타데이터
+
+사용할 수 없는 키 상태의 처리 방법
+
+모든 데이터 요청에 암호화 및 복호화 작업이 실행되는 것은 아닙니다. 대신, Cloud Firestore 시스템은 5분마다 Cloud KMS를 폴링하여 키를 아직 사용할 수 있는지 확인한 다음 키를 사용할 수 있으면 암호화 및 복호화 작업을 수행합니다.
+
+시스템에서 키를 사용할 수 없음을 감지하면 10분 이내에 읽기, 쓰기, 쿼리를 포함해 Cloud Firestore 데이터베이스에 대한 모든 후속 호출에 The customer-managed encryption key required by the requested
+resource is not accessible 메시지와 함께 FAILED_PRECONDITION 오류가 반환됩니다.
+
+데이터베이스에 TTL(수명) 정책 [https://firebase.google.com/docs/firestore/ttl?hl=ko]이 있고 키를 사용할 수 없을 때 만료 시간이 초과되면 키가 복구될 때까지 TTL을 통한 데이터 삭제 [https://firebase.google.com/docs/firestore/ttl?hl=ko#ttl_deletion]가 지연됩니다. 데이터베이스에 진행 중인 장기 실행 작업이 있으면 다음과 같은 영향을 받습니다.
+
+데이터 import [https://firebase.google.com/docs/firestore/manage-data/export-import?hl=ko#import_data] 또는 내보내기 [https://firebase.google.com/docs/firestore/manage-data/export-import?hl=ko#export_data] 작업이 진행되지 않고 Failed로 표시됩니다. 키가 복구되어도 실패한 작업은 재시도되지 않습니다.
+색인 빌드 [https://firebase.google.com/docs/firestore/query-data/indexing?hl=ko#index_build_time] 작업 및 새 TTL 정책을 사용 설정 [https://firebase.google.com/docs/firestore/ttl?hl=ko#ttl_policy_enablement_duration]하는 작업이 진행되지 않습니다. 키가 복구되면 중지된 작업이 재시도됩니다.
+
+Cloud Firestore가 키에 액세스할 수 없도록 의도적으로 조치된 경우 키를 사용할 수 없는 것으로 간주됩니다. 여기에는 다음이 포함됩니다.
+
+사용 중인 키 버전을 사용 중지 [https://cloud.google.com/kms/docs/enable-disable?hl=ko#disable] 또는 폐기 [https://cloud.google.com/kms/docs/destroy-restore?hl=ko]. 키 버전을 폐기할 때는 복구 불가한 데이터 손실이 발생할 수 있으므로 [https://cloud.google.com/kms/docs/destroy-restore?hl=ko#understand-risks] 주의해야 합니다.
+Cloud Firestore 서비스 계정에서 키에 액세스할 수 있는 권한 삭제 [https://cloud.google.com/kms/docs/iam?hl=ko#revoking_access_to_a_resource].
+
+키가 복구되면 폴링 작업이 키를 다시 사용할 수 있음을 감지합니다. 액세스는 일반적으로 몇 분 이내에 다시 사용 설정되지만 드물게 몇 시간까지 걸릴 수 있습니다. 키 사용 중지 또는 폐기와 같은 Cloud KMS 키에 대한 일부 작업은 전파되는 데 최대 3시간 [https://cloud.google.com/kms/docs/consistency?hl=ko]이 걸릴 수 있습니다. Cloud Firestore는 변경사항이 Cloud KMS에 적용될 때까지 변경사항을 감지하지 않습니다.
+
+키 복구에는 상황에 따라 다음 단계가 포함됩니다.
+
+사용 중지된 키 버전을 다시 사용 설정 [https://cloud.google.com/kms/docs/enable-disable?hl=ko#enable]합니다.
+폐기된 키 버전을 복원 [https://cloud.google.com/kms/docs/destroy-restore?hl=ko#restore]합니다.
+키 버전은 영구적으로 폐기되기 전에 우선 폐기가 예약됩니다. 키 버전의 폐기가 예약된 기간 동안에만 키를 복원할 수 있습니다. 이미 영구적으로 삭제된 키는 복원할 수 없습니다.
+키에 액세스할 수 있는 Cloud Firestore 서비스 에이전트 권한을 다시 부여 [https://cloud.google.com/kms/docs/iam?hl=ko#granting_roles_on_a_resource]합니다.
+
+경고: 키를 7일 넘게 사용할 수 없어서는 안 됩니다.
+키를 7일 이상 사용할 수 없는 CMEK로 보호되는 데이터베이스는 삭제될 수 있습니다. 키를 사용할 수 없는 경우 7일 제한을 초과하여 데이터를 보존하려면 필요한 보관 기간으로 Cloud Firestore CMEK 데이터베이스의 백업을 사용 설정하는 것이 좋습니다. 키를 취소하기 전에 백업을 생성했는지 확인합니다. 백업을 생성하려면 유효한 키가 필요하기 때문입니다. 백업에는 추가 요금이 적용됩니다. 백업 가격 세부정보는 Cloud Firestore 가격 책정 [https://firebase.google.com/docs/firestore/pricing?hl=ko]을 참고하세요.
+키 순환 고려사항
+
+CMEK 키를 순환하면 Cloud Firestore가 CMEK 키의 최신 기본 버전으로 데이터베이스를 다시 암호화합니다. 재암호화 프로세스 중에 이전 키 버전과 새 키 버전을 모두 사용할 수 있도록 합니다. 다시 암호화가 완료되면 이전 버전의 CMEK 키를 사용 중지하거나 삭제해도 데이터베이스에 대한 액세스가 사용 중지되지 않습니다. 새 기본 키 버전으로 암호화되어 있기 때문입니다.
+
+또한 데이터베이스 보호를 위해 사용되는 키 버전도 확인할 수 있습니다.
+자세한 내용은 사용 중인 키 보기 [https://firebase.google.com/docs/firestore/use-cmek?hl=ko#view-key]를 참조하세요.
+
+외부 키 고려사항
+
+Cloud EKM 키를 사용하는 경우 Google은 외부 키 관리 파트너 시스템에서 외부 관리 키의 가용성을 제어 할 수 없습니다.
+
+외부 관리 키를 사용할 수 없으면 Cloud Firestore는 최대 1시간 동안 최선의 방식으로 전체 데이터베이스 작업을 계속 지원합니다.
+
+1시간 후에도 Cloud Firestore가 Cloud KMS에 연결할 수 없으면 Cloud Firestore가 사전적인 조치로 데이터베이스를 오프라인으로 전환합니다. 데이터베이스를 호출하면 추가 세부정보가 포함된 FAILED_PRECONDITION 오류가 표시되면서 실패합니다.
+
+외부 키 사용에 대한 자세한 내용은 Cloud External Key Manager 문서 [https://cloud.google.com/kms/docs/ekm?hl=ko#considerations]를 참조하세요.
+주의: 데이터베이스가 7일 이상 연속으로 사용 중지된 상태로 유지되면 Cloud Firestore에서 자동으로 삭제할 수 있습니다. 영구적인 데이터 손실을 방지하기 위해서는 외부 키를 너무 오랫동안 액세스되지 않는 상태로 두지 않아야 합니다.경고: 외부 키가 삭제되고 이를 복구할 수 없으면 해당 키로 암호화된 모든 Cloud Firestore 데이터베이스에 영구적으로 액세스할 수 없습니다.
+백업 및 복원
+
+백업은 백업을 생성한 데이터베이스와 동일한 암호화 메커니즘을 사용합니다. CMEK 보호 Cloud Firestore 데이터베이스에서 백업을 만들면 백업을 만들 때 사용된 기본 키 버전으로 백업을 암호화합니다.
+
+Cloud Firestore는 백업 일정을 사용 설정한 시점으로부터 24시간이 지난 후에 CMEK 데이터베이스의 첫 번째 백업을 만듭니다.
+참고: 백업을 만든 후에는 Cloud KMS 키를 순환하더라도 키 및 키 버전을 수정할 수 없습니다.
+Cloud Firestore 백업에 대한 자세한 내용은 데이터 백업 및 복원 [https://firebase.google.com/docs/firestore/backups?hl=ko]을 참고하세요.
+
+백업에서 복원된 데이터베이스는 기본적으로 백업과 동일한 암호화 메커니즘을 사용합니다. 데이터베이스를 복원할 때 다음 방법 중 하나로 다른 암호화 유형을 지정할 수 있습니다.
+
+새로 지정된 키로 CMEK 데이터베이스로 복원합니다.
+Google의 기본 암호화 [https://cloud.google.com/security/encryption/default-encryption?hl=ko#googles_default_encryption]를 사용하는 CMEK가 아닌 데이터베이스로 복원합니다.
+백업과 동일한 암호화를 사용하는 데이터베이스로 복원합니다.
+
+백업에서 Cloud Firestore 데이터베이스를 복원하는 방법에 대한 자세한 내용은 데이터베이스 백업에서 데이터 복원 [https://firebase.google.com/docs/firestore/backups?hl=ko#restore_data_from_a_database_backup]을 참고하세요. 백업에서 CMEK 보호 Cloud Firestore 데이터베이스를 복원하는 방법에 대한 자세한 내용은 CMEK 보호 데이터베이스 복원 [https://firebase.google.com/docs/firestore/use-cmek?hl=ko#restore_a_cmek-protected_database]을 참조하세요.
+
+클론
+
+프리뷰
+
+- Database cloning
+
+이 기능에는 서비스별 약관 [https://firebase.google.com/terms/service-terms?hl=ko#1]의 일반 서비스 약관 섹션에 있는 'GA 이전 제공 서비스 약관'이 적용됩니다.
+
+GA 이전 기능은 '있는 그대로' 제공되며 지원이 제한될 수 있습니다.
+
+자세한 내용은 출시 단계 설명 [https://firebase.google.com/products?hl=ko#product-launch-stages]을 참조하세요.
+
+기본적으로 다른 데이터베이스에서 클론된 데이터베이스는 소스 데이터베이스와 동일한 암호화 메커니즘을 사용합니다. 데이터베이스를 클론할 때 다음 방법 중 하나로 다른 암호화 유형을 지정할 수 있습니다.
+
+새로 지정된 키를 사용하여 CMEK 데이터베이스로 클론합니다.
+Google의 기본 암호화 [https://cloud.google.com/security/encryption/default-encryption?hl=ko#googles_default_encryption]를 사용하는 CMEK가 아닌 데이터베이스로 클론합니다.
+(기본값) 소스 데이터베이스와 동일한 암호화를 사용하는 데이터베이스로 클론합니다.
+
+Cloud Firestore 데이터베이스 클론에 대한 자세한 내용은 데이터베이스 클론 [https://firebase.google.com/docs/firestore/use-pitr?hl=ko#clone]을 참조하세요. CMEK 보호 Cloud Firestore 데이터베이스 클론에 대한 자세한 내용은 CMEK 보호 데이터베이스 클론 [https://firebase.google.com/docs/firestore/use-cmek?hl=ko#clone-cmek-db]을 참조하세요.
+
+키 추적
+
+키 추적을 사용하여 키가 보호하는 리소스(예: Cloud Firestore 데이터베이스)를 볼 수 있습니다. 키 추적에 대한 자세한 내용은 키 사용량 보기 [https://cloud.google.com/kms/docs/view-key-usage?hl=ko]를 참조하세요.
+
+CMEK 및 키 가용성
+
+키를 사용할 수 없거나 사용 중지된 경우 CMEK 지원 데이터베이스에서 발생할 수 있는 다음 동작에 유의하세요.
+
+PITR 설정은 CMEK로 암호화되지 않은 데이터베이스 메타데이터이므로 키를 사용할 수 없는 경우에도 CMEK 지원 데이터베이스에서 Cloud Firestore PITR 설정을 변경할 수 있습니다.
+사용할 수 없는 키가 있는 CMEK 데이터베이스는 삭제할 수 있습니다.
+CMEK 지원 데이터베이스를 만들면 사용 중지된 키가 Google Cloud 콘솔의 사용 가능한 키 목록에 표시되지 않습니다. 사용 중지된 키를 수동으로 입력하면 데이터베이스 생성 프로세스가 FAILED_PRECONDITION 오류 400과 함께 실패합니다.
+
+제한사항
+
+CMEK로 보호되는 데이터베이스의 키는 변경할 수 없습니다. 키를 순환, 사용 설정, 사용 중지할 수 있습니다.
+CMEK로 보호되는 데이터베이스는 색인 데이터가 아닌 항목 및 문서 데이터에 대해서만 Key Visualizer [https://cloud.google.com/firestore/docs/key-visualizer?hl=ko]를 지원합니다.
+기존 데이터베이스에서는 CMEK를 사용 설정할 수 없습니다. CMEK는 새 데이터베이스에서만 사용 설정할 수 있으며 데이터베이스를 만들 때 사용 설정해야 합니다. 기존의 CMEK가 아닌 데이터베이스에 있는 데이터를 CMEK로 보호되는 데이터베이스로 마이그레이션하려면 데이터를 내보낸 후 새 CMEK로 보호되는 데이터베이스로 데이터를 가져오세요. CMEK가 아닌 데이터베이스에서 CMEK 데이터베이스로 데이터를 복원하거나 클론할 수도 있습니다.
+Cloud Firestore는 CMEK로 보호되는 데이터베이스 중 일부만 지원합니다.
+Cloud Functions(1세대) 통합에서는 CMEK 보호가 지원되지 않습니다.
+CMEK 보호를 사용하려면 Cloud Run Functions Firestore 트리거(2세대) [https://cloud.google.com/functions/docs/calling/cloud-firestore?hl=ko]를 사용하세요.
+
+데이터가 CMEK 보호 데이터베이스에서 이동하는 방법
+
+애플리케이션에서 복사한 데이터는 사용자가 임의의 방식으로 저장할 수 있습니다. Cloud Firestore 데이터에 액세스하는 모든 애플리케이션에는 적절한 보안 제어가 필요하며, 이를 통해 적절한 승인을 받은 사용자만 데이터에 액세스할 수 있습니다.
+
+자세한 내용은 보안 규칙 [https://firebase.google.com/docs/firestore/security/get-started?hl=ko] 및 IAM [https://firebase.google.com/docs/firestore/security/iam?hl=ko]을 참고하세요.
+
+백업 및 복원 [https://firebase.google.com/docs/firestore/backups?hl=ko], 클론 [https://firebase.google.com/docs/firestore/use-pitr?hl=ko#clone] 또는 가져오기 [https://firebase.google.com/docs/firestore/manage-data/export-import?hl=ko#import_data] 및 내보내기 [https://firebase.google.com/docs/firestore/manage-data/export-import?hl=ko#export_data]를 사용하여 CMEK로 보호되는 데이터베이스의 데이터를 CMEK가 아닌 데이터베이스로 이동할 수 있습니다. 적절한 IAM 제어 [https://firebase.google.com/docs/firestore/security/iam?hl=ko]를 사용하여 승인된 사용자에게만 이러한 작업에 대한 권한을 부여하세요. 또한 CMEK 조직 정책 제약조건 [https://cloud.google.com/resource-manager/docs/organization-policy/org-policy-constraints?hl=ko]을 사용하여 복원 또는 클론으로 생성된 데이터베이스와 가져오기에 사용되는 Cloud Storage 버킷이 CMEK로 보호되도록 요구할 수 있습니다.
+
+다음 단계
+
+Cloud Firestore에서 CMEK를 사용하는 방법 알아보기 [https://firebase.google.com/docs/firestore/use-cmek?hl=ko]
+
+도움이 되었나요?
+
+의견 보내기

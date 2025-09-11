@@ -1,0 +1,381 @@
+Source URL: https://firebase.google.com/docs/firestore/solutions/aggregation?hl=ko
+Title: 쓰기-시간 집계
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+쓰기-시간 집계
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Cloud Firestore의 쿼리를 사용하면 대규모 컬렉션에서 문서를 찾을 수 있습니다. 컬렉션의 속성을 전반적으로 파악하려면 컬렉션의 데이터를 집계하면 됩니다.
+
+읽기 시간 또는 쓰기 시간에 데이터를 집계할 수 있습니다.
+
+읽기 시간 집계는 요청 시 결과를 계산합니다.
+Cloud Firestore는 읽기 시간에 count(), sum(), average() 집계 쿼리를 지원합니다. 읽기 시간 집계 쿼리는 쓰기 시간 집계보다 앱에 더 쉽게 추가할 수 있습니다. 집계 쿼리에 대한 자세한 내용은 집계 쿼리로 데이터 요약 [https://firebase.google.com/docs/firestore/query-data/aggregation-queries?hl=ko]을 참조하세요.
+쓰기 시간 집계는 앱이 관련 쓰기 작업을 수행할 때마다 결과를 계산합니다. 쓰기 시간 집계는 구현해야 할 작업이 더 많지만 다음 이유 중 하나로 읽기 시간 집계 대신 사용할 수도 있습니다.
+
+실시간 업데이트에 대한 집계 결과를 리슨하려고 합니다.
+count(), sum(), average() 집계 쿼리는 실시간 업데이트를 지원하지 않습니다.
+집계 결과를 클라이언트 측 캐시에 저장하려고 합니다.
+count(), sum(), average() 집계 쿼리는 캐싱을 지원하지 않습니다.
+각 사용자에 대해 수만 개의 문서에서 데이터를 집계하고 비용을 고려합니다. 문서 수가 적을수록 읽기 시간 집계 비용이 감소합니다. 집계에 있는 문서 수가 많으면 쓰기 시간 집계 비용이 감소할 수 있습니다.
+
+클라이언트 측 트랜잭션 또는 Cloud Functions를 사용해서 쓰기 시간 집계를 구현할 수 있습니다. 다음 섹션에서는 쓰기 시간 집계를 구현하는 방법을 설명합니다.
+
+솔루션: 클라이언트 측 트랜잭션을 사용한 쓰기 시간 집계
+
+맛집 정보를 제공하는 지역 정보 추천 앱을 가정해 보겠습니다.
+다음 쿼리는 특정 레스토랑의 평점을 모두 검색합니다.
+
+웹db.collection("restaurants")
+.doc("arinell-pizza")
+.collection("ratings")
+.get();test.solution-aggregation.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.solution-aggregation.js#L31-L34]
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+do {
+let snapshot = try await db.collection("restaurants")
+.document("arinell-pizza")
+.collection("ratings")
+.getDocuments()
+print(snapshot)
+} catch {
+print(error)
+}SolutionAggregationViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/SolutionAggregationViewController.swift#L49-L57]
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRQuery *query = [[[self.db collectionWithPath:@"restaurants"]
+documentWithPath:@"arinell-pizza"] collectionWithPath:@"ratings"];
+[query getDocumentsWithCompletion:^(FIRQuerySnapshot * _Nullable snapshot,
+NSError * _Nullable error) {
+// ...
+}];FIRSolutionAggregationViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/FIRSolutionAggregationViewController.m#L64-L69]
+Kotlin db.collection("restaurants")
+.document("arinell-pizza")
+.collection("ratings")
+.get()SolutionAggregation.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/SolutionAggregation.kt#L31-L34]
+Java db.collection("restaurants")
+.document("arinell-pizza")
+.collection("ratings")
+.get();SolutionAggregation.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/SolutionAggregation.java#L44-L47]
+
+모든 평점을 가져와서 집계 정보를 계산하는 대신 이 정보를 레스토랑 문서
+자체에 저장할 수 있습니다.
+
+웹var arinellDoc = {
+name: 'Arinell Pizza',
+avgRating: 4.65,
+numRatings: 683
+};test.solution-aggregation.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.solution-aggregation.js#L5-L9]
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+struct Restaurant {
+
+let name: String
+let avgRating: Float
+let numRatings: Int
+
+}
+
+let arinell = Restaurant(name: "Arinell Pizza", avgRating: 4.65, numRatings: 683)SolutionAggregationViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/SolutionAggregationViewController.swift#L27-L35]
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+@interface FIRRestaurant : NSObject
+
+@property (nonatomic, readonly) NSString *name;
+@property (nonatomic, readonly) float averageRating;
+@property (nonatomic, readonly) NSInteger ratingCount;
+
+- (instancetype)initWithName:(NSString *)name
+averageRating:(float)averageRating
+ratingCount:(NSInteger)ratingCount;
+
+@end
+
+@implementation FIRRestaurant
+
+- (instancetype)initWithName:(NSString *)name
+averageRating:(float)averageRating
+ratingCount:(NSInteger)ratingCount {
+self = [super init];
+if (self != nil) {
+_name = name;
+_averageRating = averageRating;
+_ratingCount = ratingCount;
+}
+return self;
+}
+
+@endFIRSolutionAggregationViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/FIRSolutionAggregationViewController.m#L22-L48]
+Kotlin data class Restaurant(
+// default values required for use with "toObject"
+internal var name: String = "",
+internal var avgRating: Double = 0.0,
+internal var numRatings: Int = 0,
+)
+val arinell = Restaurant("Arinell Pizza", 4.65, 683)SolutionAggregation.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/SolutionAggregation.kt#L25-L25]
+Java public class Restaurant {
+String name;
+double avgRating;
+int numRatings;
+
+public Restaurant(String name, double avgRating, int numRatings) {
+this.name = name;
+this.avgRating = avgRating;
+this.numRatings = numRatings;
+}
+}
+Restaurant arinell = new Restaurant("Arinell Pizza", 4.65, 683);SolutionAggregation.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/SolutionAggregation.java#L38-L38]
+
+이러한 집계를 일관성 있게 유지하려면 하위 컬렉션에 새 평점이
+추가될 때마다 업데이트해야 합니다. 일관성을 유지하는 방법 중 하나는
+단일 트랜잭션에서 추가와 업데이트를 수행하는 것입니다.
+
+웹function addRating(restaurantRef, rating) {
+// Create a reference for a new rating, for use inside the transaction
+var ratingRef = restaurantRef.collection('ratings').doc();
+
+// In a transaction, add the new rating and update the aggregate totals
+return db.runTransaction((transaction) => {
+return transaction.get(restaurantRef).then((res) => {
+if (!res.exists) {
+throw "Document does not exist!";
+}
+
+// Compute new number of ratings
+var newNumRatings = res.data().numRatings + 1;
+
+// Compute new average rating
+var oldRatingTotal = res.data().avgRating * res.data().numRatings;
+var newAvgRating = (oldRatingTotal + rating) / newNumRatings;
+
+// Commit to Firestore
+transaction.update(restaurantRef, {
+numRatings: newNumRatings,
+avgRating: newAvgRating
+});
+transaction.set(ratingRef, { rating: rating });
+});
+});
+}test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L1104-L1130]
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+func addRatingTransaction(restaurantRef: DocumentReference, rating: Float) async {
+let ratingRef: DocumentReference = restaurantRef.collection("ratings").document()
+
+do {
+let _ = try await db.runTransaction({ (transaction, errorPointer) -> Any? in
+do {
+let restaurantDocument = try transaction.getDocument(restaurantRef).data()
+guard var restaurantData = restaurantDocument else { return nil }
+
+// Compute new number of ratings
+let numRatings = restaurantData["numRatings"] as! Int
+let newNumRatings = numRatings + 1
+
+// Compute new average rating
+let avgRating = restaurantData["avgRating"] as! Float
+let oldRatingTotal = avgRating * Float(numRatings)
+let newAvgRating = (oldRatingTotal + rating) / Float(newNumRatings)
+
+// Set new restaurant info
+restaurantData["numRatings"] = newNumRatings
+restaurantData["avgRating"] = newAvgRating
+
+// Commit to Firestore
+transaction.setData(restaurantData, forDocument: restaurantRef)
+transaction.setData(["rating": rating], forDocument: ratingRef)
+} catch {
+// Error getting restaurant data
+// ...
+}
+
+return nil
+})
+} catch {
+// ...
+}
+}SolutionAggregationViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/SolutionAggregationViewController.swift#L62-L97]
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+- (void)addRatingTransactionWithRestaurantReference:(FIRDocumentReference *)restaurant
+rating:(float)rating {
+FIRDocumentReference *ratingReference =
+[[restaurant collectionWithPath:@"ratings"] documentWithAutoID];
+
+[self.db runTransactionWithBlock:^id (FIRTransaction *transaction,
+NSError **errorPointer) {
+FIRDocumentSnapshot *restaurantSnapshot =
+[transaction getDocument:restaurant error:errorPointer];
+
+if (restaurantSnapshot == nil) {
+return nil;
+}
+
+NSMutableDictionary *restaurantData = [restaurantSnapshot.data mutableCopy];
+if (restaurantData == nil) {
+return nil;
+}
+
+// Compute new number of ratings
+NSInteger ratingCount = [restaurantData[@"numRatings"] integerValue];
+NSInteger newRatingCount = ratingCount + 1;
+
+// Compute new average rating
+float averageRating = [restaurantData[@"avgRating"] floatValue];
+float newAverageRating = (averageRating * ratingCount + rating) / newRatingCount;
+
+// Set new restaurant info
+
+restaurantData[@"numRatings"] = @(newRatingCount);
+restaurantData[@"avgRating"] = @(newAverageRating);
+
+// Commit to Firestore
+[transaction setData:restaurantData forDocument:restaurant];
+[transaction setData:@{@"rating": @(rating)} forDocument:ratingReference];
+return nil;
+} completion:^(id  _Nullable result, NSError * _Nullable error) {
+// ...
+}];
+}FIRSolutionAggregationViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/FIRSolutionAggregationViewController.m#L74-L113]
+Kotlin private fun addRating(restaurantRef: DocumentReference, rating: Float): Task<Void> {
+// Create reference for new rating, for use inside the transaction
+val ratingRef = restaurantRef.collection("ratings").document()
+
+// In a transaction, add the new rating and update the aggregate totals
+return db.runTransaction { transaction ->
+val restaurant = transaction.get(restaurantRef).toObject<Restaurant>()!!
+
+// Compute new number of ratings
+val newNumRatings = restaurant.numRatings + 1
+
+// Compute new average rating
+val oldRatingTotal = restaurant.avgRating * restaurant.numRatings
+val newAvgRating = (oldRatingTotal + rating) / newNumRatings
+
+// Set new restaurant info
+restaurant.numRatings = newNumRatings
+restaurant.avgRating = newAvgRating
+
+// Update restaurant
+transaction.set(restaurantRef, restaurant)
+
+// Update rating
+val data = hashMapOf<String, Any>(
+"rating" to rating,
+)
+transaction.set(ratingRef, data, SetOptions.merge())
+
+null
+}
+}SolutionAggregation.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/SolutionAggregation.kt#L39-L69]
+Java private Task<Void> addRating(final DocumentReference restaurantRef, final float rating) {
+// Create reference for new rating, for use inside the transaction
+final DocumentReference ratingRef = restaurantRef.collection("ratings").document();
+
+// In a transaction, add the new rating and update the aggregate totals
+return db.runTransaction(new Transaction.Function<Void>() {
+@Override
+public Void apply(@NonNull Transaction transaction) throws FirebaseFirestoreException {
+Restaurant restaurant = transaction.get(restaurantRef).toObject(Restaurant.class);
+
+// Compute new number of ratings
+int newNumRatings = restaurant.numRatings + 1;
+
+// Compute new average rating
+double oldRatingTotal = restaurant.avgRating * restaurant.numRatings;
+double newAvgRating = (oldRatingTotal + rating) / newNumRatings;
+
+// Set new restaurant info
+restaurant.numRatings = newNumRatings;
+restaurant.avgRating = newAvgRating;
+
+// Update restaurant
+transaction.set(restaurantRef, restaurant);
+
+// Update rating
+Map<String, Object> data = new HashMap<>();
+data.put("rating", rating);
+transaction.set(ratingRef, data, SetOptions.merge());
+
+return null;
+}
+});
+}SolutionAggregation.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/SolutionAggregation.java#L52-L84]
+
+트랜잭션을 사용하면 집계 데이터와 내부 컬렉션의 일관성이
+유지됩니다. Cloud Firestore의 트랜잭션에 관한 자세한 내용은 트랜잭션 및 일괄 쓰기 [https://firebase.google.com/docs/firestore/manage-data/transactions?hl=ko]를 참조하세요.
+
+제한사항
+
+위 솔루션은 Cloud Firestore 클라이언트 라이브러리를 사용한 데이터 집계를 보여주지만 다음과 같은 제한사항에 유의해야 합니다.
+
+보안 - 클라이언트 측 트랜잭션을 사용하려면 데이터베이스의 집계 데이터를 업데이트할 권한을 클라이언트에 부여해야 합니다. 고급 보안 규칙을 작성하여 이 방식의 위험을 줄일 수는 있지만, 상황에 따라 이 방법이 적절하지 않을 수도 있습니다.
+오프라인 지원 - 사용자 기기가 오프라인 상태이면 클라이언트 측 트랜잭션이 실패합니다. 이런 경우에는 앱에서 이 사례를 처리하고 적절한 시간에 다시 시도해야 합니다.
+성능 - 트랜잭션에 읽기, 쓰기, 업데이트 작업이 여러 개 포함되어 있으면 Cloud Firestore 백엔드에 여러 번 요청해야 할 수 있습니다. 휴대기기에서는 상당한 시간이 걸릴 수 있습니다.
+쓰기 속도 - Cloud Firestore 문서는 초당 최대 한 번만 업데이트될 수 있으므로 이 솔루션은 자주 업데이트되는 집계에는 작동하지 않을 수 있습니다. 또한 트랜잭션 외부에서 수정된 문서를 읽는 경우 일정 횟수 이상 재시도 [https://firebase.google.com/docs/firestore/manage-data/transactions?hl=ko#transactions]한 후 실패합니다. 더 자주 업데이트해야 하는 집계와 관련된 해결 방법은 분산 카운터 [https://firebase.google.com/docs/firestore/solutions/counters?hl=ko]를 참조하세요.
+
+솔루션: Cloud Functions를 사용한 쓰기 시간 집계
+
+애플리케이션에 클라이언트 측 트랜잭션이 적합하지 않으면 Cloud 함수 [https://firebase.google.com/docs/firestore/extend-with-functions?hl=ko]를 사용하여 레스토랑 평점이 새로 추가될 때마다 집계 정보를 업데이트할 수 있습니다.
+
+Node.jsexports.aggregateRatings = functions.firestore
+.document('restaurants/{restId}/ratings/{ratingId}')
+.onWrite(async (change, context) => {
+// Get value of the newly added rating
+const ratingVal = change.after.data().rating;
+
+// Get a reference to the restaurant
+const restRef = db.collection('restaurants').doc(context.params.restId);
+
+// Update aggregations in a transaction
+await db.runTransaction(async (transaction) => {
+const restDoc = await transaction.get(restRef);
+
+// Compute new number of ratings
+const newNumRatings = restDoc.data().numRatings + 1;
+
+// Compute new average rating
+const oldRatingTotal = restDoc.data().avgRating * restDoc.data().numRatings;
+const newAvgRating = (oldRatingTotal + ratingVal) / newNumRatings;
+
+// Update restaurant info
+transaction.update(restRef, {
+avgRating: newAvgRating,
+numRatings: newNumRatings
+});
+});
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/solution-aggregation/functions/index.js#L7-L33]
+
+이 솔루션은 클라이언트에서 호스팅 함수로 작업 부담을 옮기므로
+모바일 앱에서 트랜잭션이 완료되기를 기다리지 않고 평점을 추가할 수
+있습니다. Cloud 함수에서 실행되는 코드에는 보안 규칙이 적용되지
+않으므로 합산 데이터에 대한 쓰기 권한을 클라이언트에 부여할 필요가
+없습니다.
+
+제한사항
+
+집계에 Cloud 함수를 사용하면 클라이언트 측 트랜잭션에 따르는 몇 가지 문제를 방지할 수 있지만 여기에는 또 다른 제한사항이 있습니다.
+
+비용 - 평점을 추가할 때마다 Cloud 함수가 호출되므로 비용이 증가할 수 있습니다. 자세한 내용은 Cloud Functions 가격 책정 페이지 [https://cloud.google.com/functions/pricing?hl=ko]를 참조하세요.
+지연 시간 - 집계 작업을 Cloud 함수로 옮기면 Cloud 함수 실행이 완료되고 클라이언트에 새 데이터가 전송되기 전까지는 앱에서 업데이트된 데이터를 확인할 수 없습니다. Cloud 함수의 속도에 따라 로컬에서 트랜잭션을 실행하는 것보다 시간이 오래 걸릴 수 있습니다.
+쓰기 속도 - Cloud Firestore 문서는 초당 최대 한 번만 업데이트될 수 있으므로 이 솔루션은 자주 업데이트되는 집계에는 작동하지 않을 수 있습니다. 또한 트랜잭션 외부에서 수정된 문서를 읽는 경우 일정 횟수 이상 재시도 [https://firebase.google.com/docs/firestore/manage-data/transactions?hl=ko#transactions]한 후 실패합니다. 더 자주 업데이트해야 하는 집계와 관련된 해결 방법은 분산 카운터 [https://firebase.google.com/docs/firestore/solutions/counters?hl=ko]를 참조하세요.
+
+의견 보내기

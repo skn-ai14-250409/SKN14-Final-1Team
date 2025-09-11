@@ -1,0 +1,95 @@
+Source URL: https://firebase.google.com/docs/auth/flutter/errors?hl=ko
+Title: 오류 처리
+bookmark_border
+
+의견 보내기
+
+오류 처리
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용account-exists-with-different-credential 오류 처리 [https://firebase.google.com/docs/auth/flutter/errors?hl=ko#handling_account-exists-with-different-credential_errors]
+
+Firebase 인증 SDK는 인증 방법을 사용하여 발생할 수 있는 다양한 오류를 포착하는 간단한 방법을 제공합니다. Flutter용 SDK는 FirebaseAuthException 클래스를 통해 이러한 오류를 노출합니다.
+
+최소한 code 및 message가 제공되지만 경우에 따라 이메일 주소 및 사용자 인증 정보와 같은 추가 속성도 제공됩니다. 예를 들어 사용자가 이메일과 비밀번호로 로그인하려고 하면 발생하는 오류를 명시적으로 포착할 수 있습니다.
+try {
+await FirebaseAuth.instance.signInWithEmailAndPassword(
+email: "barry.allen@example.com",
+password: "SuperSecretPassword!"
+);
+} on FirebaseAuthException catch  (e) {
+print('Failed with error code: ${e.code}');
+print(e.message);
+}
+
+각 방법은 인증 호출 유형에 따라 다양한 오류 코드와 메시지를 제공합니다. Reference API [https://pub.dev/documentation/firebase_auth/latest/]는 각 방법의 오류에 관한 최신 세부정보를 제공합니다.
+
+too-many-requests 또는 operation-not-allowed 같은 다른 오류는 Firebase 인증 할당량에 도달하거나 특정 인증 제공업체를 사용 설정하지 않은 경우에 발생할 수 있습니다.
+
+account-exists-with-different-credential 오류 처리
+
+Firebase Console [https://console.firebase.google.com/project/_/authentication/providers?hl=ko]에서 이메일 주소당 계정 1개를 사용 설정한 경우 다른 Firebase 사용자의 제공업체(예: Facebook)에 이미 존재하는 이메일을 사용하여 Google과 같은 제공업체에 로그인을 시도하면 AuthCredential 클래스(Google ID 토큰)와 함께 auth/account-exists-with-different-credential 오류가 발생합니다.
+원하는 제공업체로의 로그인 과정을 완료하려면 먼저 사용자가 기존 제공업체(예: Facebook)에 로그인한 후 신규 제공업체의 AuthCredential(Google ID 토큰)에 연결해야 합니다.
+FirebaseAuth auth = FirebaseAuth.instance;
+
+// Create a credential from a Google Sign-in Request
+var googleAuthCredential = GoogleAuthProvider.credential(accessToken: 'xxxx');
+
+try {
+// Attempt to sign in the user in with Google
+await auth.signInWithCredential(googleAuthCredential);
+} on FirebaseAuthException catch (e) {
+if (e.code == 'account-exists-with-different-credential') {
+// The account already exists with a different credential
+String email = e.email;
+AuthCredential pendingCredential = e.credential;
+
+// Fetch a list of what sign-in methods exist for the conflicting user
+List<String> userSignInMethods = await auth.fetchSignInMethodsForEmail(email);
+
+// If the user has several sign-in methods,
+// the first method in the list will be the "recommended" method to use.
+if (userSignInMethods.first == 'password') {
+// Prompt the user to enter their password
+String password = '...';
+
+// Sign the user in to their account with the password
+UserCredential userCredential = await auth.signInWithEmailAndPassword(
+email: email,
+password: password,
+);
+
+// Link the pending credential with the existing account
+await userCredential.user.linkWithCredential(pendingCredential);
+
+// Success! Go back to your application flow
+return goToApplication();
+}
+
+// Since other providers are now external, you must now sign the user in with another
+// auth provider, such as Facebook.
+if (userSignInMethods.first == 'facebook.com') {
+// Create a new Facebook credential
+String accessToken = await triggerFacebookAuthentication();
+var facebookAuthCredential = FacebookAuthProvider.credential(accessToken);
+
+// Sign the user in with the credential
+UserCredential userCredential = await auth.signInWithCredential(facebookAuthCredential);
+
+// Link the pending credential with the existing account
+await userCredential.user.linkWithCredential(pendingCredential);
+
+// Success! Go back to your application flow
+return goToApplication();
+}
+
+// Handle other OAuth providers...
+}
+}
+
+의견 보내기

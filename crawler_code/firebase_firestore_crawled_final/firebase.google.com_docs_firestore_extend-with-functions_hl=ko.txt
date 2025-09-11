@@ -1,0 +1,258 @@
+Source URL: https://firebase.google.com/docs/firestore/extend-with-functions?hl=ko
+Title: Cloud Functions로 Cloud Firestore 확장
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+Cloud Functions로 Cloud Firestore 확장
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Cloud Functions를 사용하면 Node.js 코드를 배포하여 Cloud Firestore 데이터베이스의 변경을 통해 트리거되는 이벤트를 처리할 수 있습니다. 덕분에 자체 서버를 실행하지 않고도 앱에 서버 측 기능을 쉽게 추가할 수 있습니다.
+
+사용 사례의 예시를 보려면 Cloud Functions로 무엇을 할 수 있나요? [https://firebase.google.com/docs/functions/use-cases?hl=ko]를 참조하세요. 또는 Firebase Functions 샘플 [https://github.com/firebase/functions-samples] GitHub 저장소를 참조하세요.
+
+Cloud Firestore 함수 트리거
+
+Cloud Functions for Firebase SDK는 특정 Cloud Firestore 이벤트에 연결된 핸들러를 만들 수 있는 functions.firestore [https://firebase.google.com/docs/reference/functions/firebase-functions.firestore?hl=ko] 객체를 내보냅니다.
+
+| 이벤트 유형 | 트리거 |
+| --- | --- |
+| onCreate | 문서를 처음으로 기록할 때 트리거됩니다. |
+| onUpdate | 이미 존재하는 문서에서 값이 변경되었을 때 트리거됩니다. |
+| onDelete | 데이터가 있는 문서가 삭제되면 트리거됩니다. |
+| onWrite | onCreate, onUpdate 또는 onDelete가 트리거될 때 트리거됩니다. |
+참고: Cloud Firestore 이벤트는 문서 변경 시에만 트리거됩니다. 데이터가 변경되지 않는 Cloud Firestore 문서를 업데이트(노옵스(no-ops) 쓰기)할 때에는 업데이트 또는 쓰기 이벤트가 생성되지 않습니다. 특정 필드에 이벤트를 추가할 수 없습니다.
+Cloud Functions for Firebase가 사용 설정된 프로젝트가 없으면 시작하기: 첫 번째 Firebase Functions 작성 및 배포 [https://firebase.google.com/docs/functions/get-started?hl=ko]를 읽고 Cloud Functions for Firebase 프로젝트를 구성 및 설정하세요.
+
+Cloud Firestore 트리거 함수 작성
+
+함수 트리거 정의
+
+Cloud Firestore 트리거를 정의하려면 문서 경로와 이벤트 유형을 지정합니다.
+
+Node.jsconst functions = require('firebase-functions');
+
+exports.myFunction = functions.firestore
+.document('my-collection/{docId}')
+.onWrite((change, context) => { /* ... */ });
+
+문서 경로는 특정 문서 [https://firebase.google.com/docs/firestore/extend-with-functions?hl=ko#specific-documents] 또는 와일드 카드 패턴 [https://firebase.google.com/docs/firestore/extend-with-functions?hl=ko#wildcards-parameters]을 참조할 수 있습니다.
+중요: 문서 경로 끝에 슬래시가 없어야 합니다.
+단일 문서 지정
+
+다음 함수를 사용하면 특정 문서의 모든 변경에 이벤트를 트리거할 수 있습니다.
+
+Node.js// Listen for any change on document `marie` in collection `users`
+exports.myFunctionName = functions.firestore
+.document('users/marie').onWrite((change, context) => {
+// ... Your code here
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/extend-with-functions/functions/index.js#L5-L9]
+
+와일드 카드를 사용한 문서 그룹 지정
+
+특정 컬렉션의 문서 등 한 문서 그룹에 트리거를 연결하려면 문서 ID 대신 {wildcard}를 사용하면 됩니다.
+
+Node.js// Listen for changes in all documents in the 'users' collection
+exports.useWildcard = functions.firestore
+.document('users/{userId}')
+.onWrite((change, context) => {
+// If we set `/users/marie` to {name: "Marie"} then
+// context.params.userId == "marie"
+// ... and ...
+// change.after.data() == {name: "Marie"}
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/extend-with-functions/functions/index.js#L138-L146]
+
+이 예시에서는 users의 문서에서 필드가 하나라도 변경되면 userId라는 와일드 카드와 일치시킵니다.
+
+users의 문서에 하위 컬렉션이 있고, 이 하위 컬렉션 문서 중 하나에서 필드가 변경되면 userId 와일드 카드가 트리거되지 않습니다.
+
+와일드 카드 일치는 문서 경로에서 추출되어 context.params에 저장됩니다.
+개수 제한 없이 원하는 만큼 와일드 카드를 정의하여 명시적인 컬렉션 또는 문서 ID를 대체할 수 있습니다. 예를 들면 다음과 같습니다.
+
+Node.js// Listen for changes in all documents in the 'users' collection and all subcollections
+exports.useMultipleWildcards = functions.firestore
+.document('users/{userId}/{messageCollectionId}/{messageId}')
+.onWrite((change, context) => {
+// If we set `/users/marie/incoming_messages/134` to {body: "Hello"} then
+// context.params.userId == "marie";
+// context.params.messageCollectionId == "incoming_messages";
+// context.params.messageId == "134";
+// ... and ...
+// change.after.data() == {body: "Hello"}
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/extend-with-functions/functions/index.js#L152-L162]
+참고: 와일드 카드를 사용할 때도 트리거는 항상 문서를 가리켜야 합니다.
+예를 들어 {messageCollectionId}는 컬렉션이므로 users/{userId}/{messageCollectionId}는 유효하지 않습니다. 그러나 {messageId}가 항상 문서를 가리키므로 users/{userId}/{messageCollectionId}/{messageId}는 유효합니다.
+이벤트 트리거
+
+새 문서가 생성될 때 함수 트리거
+
+와일드 카드 [https://firebase.google.com/docs/firestore/extend-with-functions?hl=ko#wildcards-parameters]와 함께 onCreate() 핸들러를 사용하면 컬렉션에 새 문서가 생성될 때마다 함수를 트리거하여 실행할 수 있습니다.
+다음은 새 사용자 프로필이 추가될 때마다 createUser를 호출하는 함수의 예시입니다.
+
+Node.jsexports.createUser = functions.firestore
+.document('users/{userId}')
+.onCreate((snap, context) => {
+// Get an object representing the document
+// e.g. {'name': 'Marie', 'age': 66}
+const newValue = snap.data();
+
+// access a particular field as you would any JS property
+const name = newValue.name;
+
+// perform desired operations ...
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/extend-with-functions/functions/index.js#L15-L26]
+
+문서가 업데이트될 때 함수 트리거
+
+와일드 카드 [https://firebase.google.com/docs/firestore/extend-with-functions?hl=ko#wildcards-parameters]와 함께 onUpdate() 함수를 사용하면 문서가 업데이트될 때 함수를 트리거하여 실행할 수 있습니다. 다음은 사용자가 프로필을 변경하면 updateUser를 호출하는 함수의 예시입니다.
+
+Node.jsexports.updateUser = functions.firestore
+.document('users/{userId}')
+.onUpdate((change, context) => {
+// Get an object representing the document
+// e.g. {'name': 'Marie', 'age': 66}
+const newValue = change.after.data();
+
+// ...or the previous value before this update
+const previousValue = change.before.data();
+
+// access a particular field as you would any JS property
+const name = newValue.name;
+
+// perform desired operations ...
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/extend-with-functions/functions/index.js#L32-L46]
+
+문서가 삭제될 때 함수 트리거
+
+와일드 카드 [https://firebase.google.com/docs/firestore/extend-with-functions?hl=ko#wildcards-parameters]와 함께 onDelete() 함수를 사용하면 문서가 삭제될 때 함수를 트리거할 수 있습니다. 다음은 사용자가 자신의 사용자 프로필을 삭제하면 deleteUser를 호출하는 함수의 예시입니다.
+
+Node.jsexports.deleteUser = functions.firestore
+.document('users/{userID}')
+.onDelete((snap, context) => {
+// Get an object representing the document prior to deletion
+// e.g. {'name': 'Marie', 'age': 66}
+const deletedValue = snap.data();
+
+// perform desired operations ...
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/extend-with-functions/functions/index.js#L52-L60]
+
+문서의 모든 변경사항에 대해 함수 트리거
+
+실행되는 이벤트 유형에 관계없이 Cloud Firestore 문서의 모든 변경사항을 수신 대기하려면 와일드 카드 [https://firebase.google.com/docs/firestore/extend-with-functions?hl=ko#wildcards-parameters]와 함께 onWrite() 함수를 사용합니다. 다음은 사용자가 생성, 업데이트 또는 삭제될 때 modifyUser를 호출하는 함수의 예시입니다.
+
+Node.jsexports.modifyUser = functions.firestore
+.document('users/{userID}')
+.onWrite((change, context) => {
+// Get an object with the current document value.
+// If the document does not exist, it has been deleted.
+const document = change.after.exists ? change.after.data() : null;
+
+// Get an object with the previous document value (for update or delete)
+const oldDocument = change.before.data();
+
+// perform desired operations ...
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/extend-with-functions/functions/index.js#L66-L77]
+
+데이터 읽기 및 쓰기
+
+함수가 트리거되면 이벤트와 관련된 데이터 스냅샷이 제공됩니다. 이 스냅샷을 사용하면 이벤트를 트리거한 문서에 읽기 또는 쓰기를 수행하거나 Firebase Admin SDK를 사용해 데이터베이스의 다른 부분에 액세스할 수 있습니다.
+
+이벤트 데이터
+
+데이터 읽기
+
+함수가 트리거될 때 업데이트된 문서의 데이터 또는 업데이트되기 전의 데이터를 가져와야 할 수 있습니다. 이전 데이터를 가져오려면 업데이트 전의 문서 스냅샷을 포함하는 change.before.data()를 사용합니다.
+마찬가지로 change.after.data()는 업데이트 후의 문서 스냅샷 상태를 포함합니다.
+
+Node.jsexports.updateUser2 = functions.firestore
+.document('users/{userId}')
+.onUpdate((change, context) => {
+// Get an object representing the current document
+const newValue = change.after.data();
+
+// ...or the previous value before this update
+const previousValue = change.before.data();
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/extend-with-functions/functions/index.js#L83-L91]
+
+다른 객체와 마찬가지로 속성에 액세스할 수 있습니다. 또는 get 함수를 사용하여 특정 필드에 액세스할 수 있습니다.
+
+Node.js// Fetch data using standard accessors
+const age = snap.data().age;
+const name = snap.data()['name'];
+
+// Fetch data using built in accessor
+const experience = snap.get('experience');index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/extend-with-functions/functions/index.js#L97-L102]
+
+데이터 쓰기
+
+각 함수 호출은 Cloud Firestore 데이터베이스의 특정 문서와 연결됩니다. 함수로 반환되는 스냅샷의 ref 속성에 있는 DocumentReference로 이 문서에 액세스할 수 있습니다.
+
+Cloud Firestore Node.js SDK [https://firebase.google.com/docs/firestore/quickstart?hl=ko]에서 제공하는 이 DocumentReference에는 update(), set(), remove() 등의 메서드가 포함되므로 함수를 트리거한 문서를 손쉽게 수정할 수 있습니다.
+
+Node.js// Listen for updates to any `user` document.
+exports.countNameChanges = functions.firestore
+.document('users/{userId}')
+.onUpdate((change, context) => {
+// Retrieve the current and previous value
+const data = change.after.data();
+const previousData = change.before.data();
+
+// We'll only update if the name has changed.
+// This is crucial to prevent infinite loops.
+if (data.name == previousData.name) {
+return null;
+}
+
+// Retrieve the current count of name changes
+let count = data.name_change_count;
+if (!count) {
+count = 0;
+}
+
+// Then return a promise of a set operation to update the count
+return change.after.ref.set({
+name_change_count: count + 1
+}, {merge: true});
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/extend-with-functions/functions/index.js#L108-L132]
+참고: 함수를 트리거한 동일한 문서에 데이터를 기록하면 무한 루프가 생성될 위험이 있습니다. 변경할 필요가 없는 경우 함수를 안전하게 종료하도록 주의하시기 바랍니다.
+트리거 이벤트 외부의 데이터
+
+Cloud Functions는 프로젝트의 서비스 계정으로 승인되기 때문에 신뢰할 수 있는 환경에서 실행됩니다. Firebase Admin SDK [https://firebase.google.com/docs/reference/admin?hl=ko]를 사용해 읽기 및 쓰기를 수행할 수 있습니다.
+
+Node.jsconst admin = require('firebase-admin');
+admin.initializeApp();
+
+const db = admin.firestore();
+
+exports.writeToFirestore = functions.firestore
+.document('some/doc')
+.onWrite((change, context) => {
+db.doc('some/otherdoc').set({ ... });
+});
+
+참고: Cloud Functions에서 수행되는 읽기 및 쓰기는 보안 규칙으로 제어되지 않으며 데이터베이스의 모든 부분에 액세스할 수 있습니다.
+제한사항
+
+Cloud Functions용 Cloud Firestore 트리거의 다음 제한사항에 유의하세요.
+
+Cloud Functions(1세대)는 Firestore 기본 모드의 기존 '(기본값)' 데이터베이스를 기본 요건으로 합니다. Cloud Firestore 이름이 지정된 데이터베이스 또는 Datastore 모드는 지원하지 않습니다. 이 경우 Cloud Functions(2세대)를 사용하여 이벤트를 구성하세요.
+순서는 보장되지 않습니다. 급격하게 변경하면 예기치 않은 순서로 함수 호출이 트리거될 수 있습니다.
+이벤트는 최소 1회 전송되지만 하나의 이벤트에 함수가 여러 번 호출될 수 있습니다. 정확히 한 번에 처리하는 메커니즘에 의존하지 말고 멱등 함수 [https://cloud.google.com/blog/products/serverless/cloud-functions-pro-tips-building-idempotent-functions?hl=ko]를 작성하세요.
+Datastore 모드의 Cloud Firestore [https://cloud.google.com/firestore/docs/firestore-or-datastore?hl=ko]에는 Cloud Functions(2세대)가 필요합니다. Cloud Functions(1세대)는 Datastore 모드를 지원하지 않습니다.
+트리거는 단일 데이터베이스와 연결됩니다. 여러 데이터베이스와 일치하는 트리거를 만들 수 없습니다.
+데이터베이스를 삭제해도 해당 데이터베이스의 트리거가 자동으로 삭제되지 않습니다. 트리거가 이벤트 제공을 중지하지만 트리거를 삭제 [https://cloud.google.com/eventarc/docs/managing-triggers?hl=ko#trigger-delete]하기 전까지 계속 존재합니다.
+일치하는 이벤트가 최대 요청 크기 [https://cloud.google.com/functions/quotas?hl=ko#resource_limits]를 초과하면 이벤트가 Cloud Functions(1세대)로 전달되지 않을 수 있습니다.요청 크기로 인해 전송되지 않은 이벤트는 플랫폼 로그 [https://cloud.google.com/logging/docs/api/platform-logs?hl=ko]에 로깅되고 프로젝트의 로그 사용량에 반영됩니다.
+이러한 로그는 로그 탐색기에서 '크기가 1세대... 한도를 초과하여 Cloud 함수에 이벤트를 전송할 수 없음'이라는 error 심각도의 메시지와 함께 확인할 수 있습니다. functionName 필드 아래에서 함수 이름을 찾을 수 있습니다. receiveTimestamp 필드가 지금부터 1시간 이내인 경우 타임스탬프 전후의 스냅샷과 함께 해당 문서를 읽어 실제 이벤트 콘텐츠를 추론할 수 있습니다.
+이러한 주기를 피하려면 다음을 수행하면 됩니다.
+
+Cloud Functions(2세대)로 마이그레이션 및 업그레이드
+문서 크기 줄이기
+문제의 Cloud Functions 삭제
+
+제외 [https://cloud.google.com/logging/docs/routing/overview?hl=ko#exclusions]를 사용하여 로깅 자체를 사용 중지할 수 있지만 그래도 문제가 되는 이벤트가 전송되지 않습니다.
+
+의견 보내기

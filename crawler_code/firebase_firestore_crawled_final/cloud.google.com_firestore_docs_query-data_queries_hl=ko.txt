@@ -1,0 +1,3965 @@
+Source URL: https://cloud.google.com/firestore/docs/query-data/queries?hl=ko
+Title: 데이터 쿼리 및 필터링
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+
+의견 보내기
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용예시 데이터간단한 쿼리쿼리 실행쿼리 연산자같지 않음(!=)배열 멤버십in, not-in, array-contains-any복합(AND) 쿼리쿼리 OR회제한사항컬렉션 그룹 쿼리쿼리 성능 설명쿼리 제한사항OR 쿼리 한도orderBy 및 존재 여부다음 단계
+
+데이터 쿼리 및 필터링
+
+Firestore는 컬렉션 또는 컬렉션 그룹에서 검색할 문서를 지정할 수 있는 강력한 쿼리 기능을 제공합니다. 데이터 가져오기 [https://cloud.google.com/firestore/native/docs/query-data/get-data?hl=ko] 및 실시간 업데이트 가져오기 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko]의 설명대로 이러한 쿼리를 get() 또는 addSnapshotListener()와 함께 사용할 수도 있습니다.참고: 코드 샘플에서는 여러 언어를 다루지만 샘플을 설명하는 텍스트는 웹 메서드 이름을 참조합니다.예시 데이터
+
+우선 도시에 관한 데이터를 작성하고 다양한 방식으로 이 데이터를 불러오는 방법에 대해 살펴보세요.
+
+웹 버전 9
+import { collection, doc, setDoc } from "firebase/firestore";
+
+const citiesRef = collection(db, "cities");
+
+await setDoc(doc(citiesRef, "SF"), {
+name: "San Francisco", state: "CA", country: "USA",
+capital: false, population: 860000,
+regions: ["west_coast", "norcal"] });
+await setDoc(doc(citiesRef, "LA"), {
+name: "Los Angeles", state: "CA", country: "USA",
+capital: false, population: 3900000,
+regions: ["west_coast", "socal"] });
+await setDoc(doc(citiesRef, "DC"), {
+name: "Washington, D.C.", state: null, country: "USA",
+capital: true, population: 680000,
+regions: ["east_coast"] });
+await setDoc(doc(citiesRef, "TOK"), {
+name: "Tokyo", state: null, country: "Japan",
+capital: true, population: 9000000,
+regions: ["kanto", "honshu"] });
+await setDoc(doc(citiesRef, "BJ"), {
+name: "Beijing", state: null, country: "China",
+capital: true, population: 21500000,
+regions: ["jingjinji", "hebei"] });example_data.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/example_data.js#L8-L31]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+var citiesRef = db.collection("cities");
+
+citiesRef.doc("SF").set({
+name: "San Francisco", state: "CA", country: "USA",
+capital: false, population: 860000,
+regions: ["west_coast", "norcal"] });
+citiesRef.doc("LA").set({
+name: "Los Angeles", state: "CA", country: "USA",
+capital: false, population: 3900000,
+regions: ["west_coast", "socal"] });
+citiesRef.doc("DC").set({
+name: "Washington, D.C.", state: null, country: "USA",
+capital: true, population: 680000,
+regions: ["east_coast"] });
+citiesRef.doc("TOK").set({
+name: "Tokyo", state: null, country: "Japan",
+capital: true, population: 9000000,
+regions: ["kanto", "honshu"] });
+citiesRef.doc("BJ").set({
+name: "Beijing", state: null, country: "China",
+capital: true, population: 21500000,
+regions: ["jingjinji", "hebei"] });test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L402-L423]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let citiesRef = db.collection("cities")
+
+citiesRef.document("SF").setData([
+"name": "San Francisco",
+"state": "CA",
+"country": "USA",
+"capital": false,
+"population": 860000,
+"regions": ["west_coast", "norcal"]
+])
+citiesRef.document("LA").setData([
+"name": "Los Angeles",
+"state": "CA",
+"country": "USA",
+"capital": false,
+"population": 3900000,
+"regions": ["west_coast", "socal"]
+])
+citiesRef.document("DC").setData([
+"name": "Washington D.C.",
+"country": "USA",
+"capital": true,
+"population": 680000,
+"regions": ["east_coast"]
+])
+citiesRef.document("TOK").setData([
+"name": "Tokyo",
+"country": "Japan",
+"capital": true,
+"population": 9000000,
+"regions": ["kanto", "honshu"]
+])
+citiesRef.document("BJ").setData([
+"name": "Beijing",
+"country": "China",
+"capital": true,
+"population": 21500000,
+"regions": ["jingjinji", "hebei"]
+])ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L628-L666]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRCollectionReference *citiesRef = [self.db collectionWithPath:@"cities"];
+[[citiesRef documentWithPath:@"SF"] setData:@{
+@"name": @"San Francisco",
+@"state": @"CA",
+@"country": @"USA",
+@"capital": @(NO),
+@"population": @860000,
+@"regions": @[@"west_coast", @"norcal"]
+}];
+[[citiesRef documentWithPath:@"LA"] setData:@{
+@"name": @"Los Angeles",
+@"state": @"CA",
+@"country": @"USA",
+@"capital": @(NO),
+@"population": @3900000,
+@"regions": @[@"west_coast", @"socal"]
+}];
+[[citiesRef documentWithPath:@"DC"] setData:@{
+@"name": @"Washington D.C.",
+@"country": @"USA",
+@"capital": @(YES),
+@"population": @680000,
+@"regions": @[@"east_coast"]
+}];
+[[citiesRef documentWithPath:@"TOK"] setData:@{
+@"name": @"Tokyo",
+@"country": @"Japan",
+@"capital": @(YES),
+@"population": @9000000,
+@"regions": @[@"kanto", @"honshu"]
+}];
+[[citiesRef documentWithPath:@"BJ"] setData:@{
+@"name": @"Beijing",
+@"country": @"China",
+@"capital": @(YES),
+@"population": @21500000,
+@"regions": @[@"jingjinji", @"hebei"]
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L566-L603]
+
+KotlinAndroid
+val cities = db.collection("cities")
+
+val data1 = hashMapOf(
+"name" to "San Francisco",
+"state" to "CA",
+"country" to "USA",
+"capital" to false,
+"population" to 860000,
+"regions" to listOf("west_coast", "norcal"),
+)
+cities.document("SF").set(data1)
+
+val data2 = hashMapOf(
+"name" to "Los Angeles",
+"state" to "CA",
+"country" to "USA",
+"capital" to false,
+"population" to 3900000,
+"regions" to listOf("west_coast", "socal"),
+)
+cities.document("LA").set(data2)
+
+val data3 = hashMapOf(
+"name" to "Washington D.C.",
+"state" to null,
+"country" to "USA",
+"capital" to true,
+"population" to 680000,
+"regions" to listOf("east_coast"),
+)
+cities.document("DC").set(data3)
+
+val data4 = hashMapOf(
+"name" to "Tokyo",
+"state" to null,
+"country" to "Japan",
+"capital" to true,
+"population" to 9000000,
+"regions" to listOf("kanto", "honshu"),
+)
+cities.document("TOK").set(data4)
+
+val data5 = hashMapOf(
+"name" to "Beijing",
+"state" to null,
+"country" to "China",
+"capital" to true,
+"population" to 21500000,
+"regions" to listOf("jingjinji", "hebei"),
+)
+cities.document("BJ").set(data5)DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L721-L771]
+
+자바Android
+CollectionReference cities = db.collection("cities");
+
+Map<String, Object> data1 = new HashMap<>();
+data1.put("name", "San Francisco");
+data1.put("state", "CA");
+data1.put("country", "USA");
+data1.put("capital", false);
+data1.put("population", 860000);
+data1.put("regions", Arrays.asList("west_coast", "norcal"));
+cities.document("SF").set(data1);
+
+Map<String, Object> data2 = new HashMap<>();
+data2.put("name", "Los Angeles");
+data2.put("state", "CA");
+data2.put("country", "USA");
+data2.put("capital", false);
+data2.put("population", 3900000);
+data2.put("regions", Arrays.asList("west_coast", "socal"));
+cities.document("LA").set(data2);
+
+Map<String, Object> data3 = new HashMap<>();
+data3.put("name", "Washington D.C.");
+data3.put("state", null);
+data3.put("country", "USA");
+data3.put("capital", true);
+data3.put("population", 680000);
+data3.put("regions", Arrays.asList("east_coast"));
+cities.document("DC").set(data3);
+
+Map<String, Object> data4 = new HashMap<>();
+data4.put("name", "Tokyo");
+data4.put("state", null);
+data4.put("country", "Japan");
+data4.put("capital", true);
+data4.put("population", 9000000);
+data4.put("regions", Arrays.asList("kanto", "honshu"));
+cities.document("TOK").set(data4);
+
+Map<String, Object> data5 = new HashMap<>();
+data5.put("name", "Beijing");
+data5.put("state", null);
+data5.put("country", "China");
+data5.put("capital", true);
+data5.put("population", 21500000);
+data5.put("regions", Arrays.asList("jingjinji", "hebei"));
+cities.document("BJ").set(data5);DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L930-L975]
+
+Dart
+final cities = db.collection("cities");
+final data1 = <String, dynamic>{
+"name": "San Francisco",
+"state": "CA",
+"country": "USA",
+"capital": false,
+"population": 860000,
+"regions": ["west_coast", "norcal"]
+};
+cities.doc("SF").set(data1);
+
+final data2 = <String, dynamic>{
+"name": "Los Angeles",
+"state": "CA",
+"country": "USA",
+"capital": false,
+"population": 3900000,
+"regions": ["west_coast", "socal"],
+};
+cities.doc("LA").set(data2);
+
+final data3 = <String, dynamic>{
+"name": "Washington D.C.",
+"state": null,
+"country": "USA",
+"capital": true,
+"population": 680000,
+"regions": ["east_coast"]
+};
+cities.doc("DC").set(data3);
+
+final data4 = <String, dynamic>{
+"name": "Tokyo",
+"state": null,
+"country": "Japan",
+"capital": true,
+"population": 9000000,
+"regions": ["kanto", "honshu"]
+};
+cities.doc("TOK").set(data4);
+
+final data5 = <String, dynamic>{
+"name": "Beijing",
+"state": null,
+"country": "China",
+"capital": true,
+"population": 21500000,
+"regions": ["jingjinji", "hebei"],
+};
+cities.doc("BJ").set(data5);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L619-L668]
+
+자바
+
+CollectionReference cities = db.collection("cities");
+List<ApiFuture<WriteResult>> futures = new ArrayList<>();
+futures.add(
+cities
+.document("SF")
+.set(
+new City(
+"San Francisco",
+"CA",
+"USA",
+false,
+860000L,
+Arrays.asList("west_coast", "norcal"))));
+futures.add(
+cities
+.document("LA")
+.set(
+new City(
+"Los Angeles",
+"CA",
+"USA",
+false,
+3900000L,
+Arrays.asList("west_coast", "socal"))));
+futures.add(
+cities
+.document("DC")
+.set(
+new City(
+"Washington D.C.", null, "USA", true, 680000L, Arrays.asList("east_coast"))));
+futures.add(
+cities
+.document("TOK")
+.set(
+new City(
+"Tokyo", null, "Japan", true, 9000000L, Arrays.asList("kanto", "honshu"))));
+futures.add(
+cities
+.document("BJ")
+.set(
+new City(
+"Beijing",
+null,
+"China",
+true,
+21500000L,
+Arrays.asList("jingjinji", "hebei"))));
+// (optional) block on documents successfully added
+ApiFutures.allAsList(futures).get();QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L55-L103]
+
+Python
+class City:
+def __init__(self, name, state, country, capital=False, population=0, regions=[]):
+self.name = name
+self.state = state
+self.country = country
+self.capital = capital
+self.population = population
+self.regions = regions
+
+@staticmethod
+def from_dict(source):
+# ...
+
+def to_dict(self):
+# ...
+
+def __repr__(self):
+return f"City(\
+name={self.name}, \
+country={self.country}, \
+population={self.population}, \
+capital={self.capital}, \
+regions={self.regions}\
+)"
+cities_ref = db.collection("cities")
+cities_ref.document("BJ").set(
+City("Beijing", None, "China", True, 21500000, ["hebei"]).to_dict()
+)
+cities_ref.document("SF").set(
+City(
+"San Francisco", "CA", "USA", False, 860000, ["west_coast", "norcal"]
+).to_dict()
+)
+cities_ref.document("LA").set(
+City(
+"Los Angeles", "CA", "USA", False, 3900000, ["west_coast", "socal"]
+).to_dict()
+)
+cities_ref.document("DC").set(
+City("Washington D.C.", None, "USA", True, 680000, ["east_coast"]).to_dict()
+)
+cities_ref.document("TOK").set(
+City("Tokyo", None, "Japan", True, 9000000, ["kanto", "honshu"]).to_dict()
+)snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L152-L171]
+
+Python(비동기)
+class City:
+def __init__(self, name, state, country, capital=False, population=0, regions=[]):
+self.name = name
+self.state = state
+self.country = country
+self.capital = capital
+self.population = population
+self.regions = regions
+
+@staticmethod
+def from_dict(source):
+# ...
+
+def to_dict(self):
+# ...
+
+def __repr__(self):
+return f"City(\
+name={self.name}, \
+country={self.country}, \
+population={self.population}, \
+capital={self.capital}, \
+regions={self.regions}\
+)"
+cities_ref = db.collection("cities")
+await cities_ref.document("BJ").set(
+City("Beijing", None, "China", True, 21500000, ["hebei"]).to_dict()
+)
+await cities_ref.document("SF").set(
+City(
+"San Francisco", "CA", "USA", False, 860000, ["west_coast", "norcal"]
+).to_dict()
+)
+await cities_ref.document("LA").set(
+City(
+"Los Angeles", "CA", "USA", False, 3900000, ["west_coast", "socal"]
+).to_dict()
+)
+await cities_ref.document("DC").set(
+City("Washington D.C.", None, "USA", True, 680000, ["east_coast"]).to_dict()
+)
+await cities_ref.document("TOK").set(
+City("Tokyo", None, "Japan", True, 9000000, ["kanto", "honshu"]).to_dict()
+)snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L148-L167]
+
+C++
+CollectionReference cities = db->Collection("cities");
+
+cities.Document("SF").Set({
+{"name", FieldValue::String("San Francisco")},
+{"state", FieldValue::String("CA")},
+{"country", FieldValue::String("USA")},
+{"capital", FieldValue::Boolean(false)},
+{"population", FieldValue::Integer(860000)},
+{"regions", FieldValue::Array({FieldValue::String("west_coast"),
+FieldValue::String("norcal")})},
+});
+
+cities.Document("LA").Set({
+{"name", FieldValue::String("Los Angeles")},
+{"state", FieldValue::String("CA")},
+{"country", FieldValue::String("USA")},
+{"capital", FieldValue::Boolean(false)},
+{"population", FieldValue::Integer(3900000)},
+{"regions", FieldValue::Array({FieldValue::String("west_coast"),
+FieldValue::String("socal")})},
+});
+
+cities.Document("DC").Set({
+{"name", FieldValue::String("Washington D.C.")},
+{"state", FieldValue::Null()},
+{"country", FieldValue::String("USA")},
+{"capital", FieldValue::Boolean(true)},
+{"population", FieldValue::Integer(680000)},
+{"regions",
+FieldValue::Array({FieldValue::String("east_coast")})},
+});
+
+cities.Document("TOK").Set({
+{"name", FieldValue::String("Tokyo")},
+{"state", FieldValue::Null()},
+{"country", FieldValue::String("Japan")},
+{"capital", FieldValue::Boolean(true)},
+{"population", FieldValue::Integer(9000000)},
+{"regions", FieldValue::Array({FieldValue::String("kanto"),
+FieldValue::String("honshu")})},
+});
+
+cities.Document("BJ").Set({
+{"name", FieldValue::String("Beijing")},
+{"state", FieldValue::Null()},
+{"country", FieldValue::String("China")},
+{"capital", FieldValue::Boolean(true)},
+{"population", FieldValue::Integer(21500000)},
+{"regions", FieldValue::Array({FieldValue::String("jingjinji"),
+FieldValue::String("hebei")})},
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L429-L479]
+
+Node.js
+
+const citiesRef = db.collection('cities');
+
+await citiesRef.doc('SF').set({
+name: 'San Francisco', state: 'CA', country: 'USA',
+capital: false, population: 860000,
+regions: ['west_coast', 'norcal']
+});
+await citiesRef.doc('LA').set({
+name: 'Los Angeles', state: 'CA', country: 'USA',
+capital: false, population: 3900000,
+regions: ['west_coast', 'socal']
+});
+await citiesRef.doc('DC').set({
+name: 'Washington, D.C.', state: null, country: 'USA',
+capital: true, population: 680000,
+regions: ['east_coast']
+});
+await citiesRef.doc('TOK').set({
+name: 'Tokyo', state: null, country: 'Japan',
+capital: true, population: 9000000,
+regions: ['kanto', 'honshu']
+});
+await citiesRef.doc('BJ').set({
+name: 'Beijing', state: null, country: 'China',
+capital: true, population: 21500000,
+regions: ['jingjinji', 'hebei']
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L451-L477]
+
+Go
+
+cities := []struct {
+id string
+c  City
+}{
+{
+id: "SF",
+c: City{Name: "San Francisco", State: "CA", Country: "USA",
+Capital: false, Population: 860000,
+Regions: []string{"west_coast", "norcal"}},
+},
+{
+id: "LA",
+c: City{Name: "Los Angeles", State: "CA", Country: "USA",
+Capital: false, Population: 3900000,
+Regions: []string{"west_coast", "socal"}},
+},
+{
+id: "DC",
+c: City{Name: "Washington D.C.", Country: "USA",
+Capital: true, Population: 680000,
+Regions: []string{"east_coast"}},
+},
+{
+id: "TOK",
+c: City{Name: "Tokyo", Country: "Japan",
+Capital: true, Population: 9000000,
+Regions: []string{"kanto", "honshu"}},
+},
+{
+id: "BJ",
+c: City{Name: "Beijing", Country: "China",
+Capital: true, Population: 21500000,
+Regions: []string{"jingjinji", "hebei"}},
+},
+}
+for _, c := range cities {
+if _, err := client.Collection("cities").Doc(c.id).Set(ctx, c.c); err != nil {
+return err
+}
+}query.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/query.go#L29-L68]
+
+PHP
+
+$citiesRef = $db->collection('samples/php/cities');
+$citiesRef->document('SF')->set([
+'name' => 'San Francisco',
+'state' => 'CA',
+'country' => 'USA',
+'capital' => false,
+'population' => 860000,
+'density' => 18000,
+'regions' => ['west_coast', 'norcal']
+]);
+$citiesRef->document('LA')->set([
+'name' => 'Los Angeles',
+'state' => 'CA',
+'country' => 'USA',
+'capital' => false,
+'population' => 3900000,
+'density' => 8000,
+'regions' => ['west_coast', 'socal']
+]);
+$citiesRef->document('DC')->set([
+'name' => 'Washington D.C.',
+'state' => null,
+'country' => 'USA',
+'capital' => true,
+'population' => 680000,
+'density' => 11000,
+'regions' => ['east_coast']
+]);
+$citiesRef->document('TOK')->set([
+'name' => 'Tokyo',
+'state' => null,
+'country' => 'Japan',
+'capital' => true,
+'population' => 9000000,
+'density' => 16000,
+'regions' => ['kanto', 'honshu']
+]);
+$citiesRef->document('BJ')->set([
+'name' => 'Beijing',
+'state' => null,
+'country' => 'China',
+'capital' => true,
+'population' => 21500000,
+'density' => 3500,
+'regions' => ['jingjinji', 'hebei']
+]);
+printf('Added example cities data to the cities collection.' . PHP_EOL);query_filter_dataset.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_filter_dataset.php#L40-L86]
+
+Unity
+CollectionReference citiesRef = db.Collection("cities");
+citiesRef.Document("SF").SetAsync(new Dictionary<string, object>(){
+{ "Name", "San Francisco" },
+{ "State", "CA" },
+{ "Country", "USA" },
+{ "Capital", false },
+{ "Population", 860000 },
+{ "Regions", new ArrayList{"west_coast", "norcal"} }
+});
+citiesRef.Document("LA").SetAsync(new Dictionary<string, object>(){
+{ "Name", "Los Angeles" },
+{ "State", "CA" },
+{ "Country", "USA" },
+{ "Capital", false },
+{ "Population", 3900000 },
+{ "Regions", new ArrayList{"west_coast", "socal"} }
+});
+citiesRef.Document("DC").SetAsync(new Dictionary<string, object>(){
+{ "Name", "Washington D.C." },
+{ "State", null },
+{ "Country", "USA" },
+{ "Capital", true },
+{ "Population", 680000 },
+{ "Regions", new ArrayList{"east_coast"} }
+});
+citiesRef.Document("TOK").SetAsync(new Dictionary<string, object>(){
+{ "Name", "Tokyo" },
+{ "State", null },
+{ "Country", "Japan" },
+{ "Capital", true },
+{ "Population", 9000000 },
+{ "Regions", new ArrayList{"kanto", "honshu"} }
+});
+citiesRef.Document("BJ").SetAsync(new Dictionary<string, object>(){
+{ "Name", "Beijing" },
+{ "State", null },
+{ "Country", "China" },
+{ "Capital", true },
+{ "Population", 21500000 },
+{ "Regions", new ArrayList{"jingjinji", "hebei"} }
+});
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+await citiesRef.Document("SF").SetAsync(new Dictionary<string, object>
+{
+{ "Name", "San Francisco" },
+{ "State", "CA" },
+{ "Country", "USA" },
+{ "Capital", false },
+{ "Population", 860000 },
+{ "Density", 18000 },
+{ "Regions", new[] {"west_coast", "norcal"} }
+});
+await citiesRef.Document("LA").SetAsync(new Dictionary<string, object>
+{
+{ "Name", "Los Angeles" },
+{ "State", "CA" },
+{ "Country", "USA" },
+{ "Capital", false },
+{ "Population", 3900000 },
+{ "Density", 8300 },
+{ "Regions", new[] {"west_coast", "socal"} }
+});
+await citiesRef.Document("DC").SetAsync(new Dictionary<string, object>
+{
+{ "Name", "Washington D.C." },
+{ "State", null },
+{ "Country", "USA" },
+{ "Capital", true },
+{ "Population", 680000 },
+{ "Density", 11300 },
+{ "Regions", new[] {"east_coast"} }
+});
+await citiesRef.Document("TOK").SetAsync(new Dictionary<string, object>
+{
+{ "Name", "Tokyo" },
+{ "State", null },
+{ "Country", "Japan" },
+{ "Capital", true },
+{ "Population", 9000000 },
+{ "Density", 16000 },
+{ "Regions", new[] {"kanto", "honshu"} }
+});
+await citiesRef.Document("BJ").SetAsync(new Dictionary<string, object>
+{
+{ "Name", "Beijing" },
+{ "State", null },
+{ "Country", "China" },
+{ "Capital", true },
+{ "Population", 21500000 },
+{ "Density", 3500 },
+{ "Regions", new[] {"jingjinji", "hebei"} }
+});
+Console.WriteLine("Added example cities data to the cities collection.");Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/QueryData/Program.cs#L54-L105]
+
+Ruby
+
+cities_ref = firestore.col collection_path
+cities_ref.doc("SF").set(
+{
+name:       "San Francisco",
+state:      "CA",
+country:    "USA",
+capital:    false,
+density:    18_000,
+population: 860_000,
+regions:    ["west_coast", "norcal"]
+}
+)
+cities_ref.doc("LA").set(
+{
+name:       "Los Angeles",
+state:      "CA",
+country:    "USA",
+capital:    false,
+density:    8_300,
+population: 3_900_000,
+regions:    ["west_coast", "socal"]
+}
+)
+cities_ref.doc("DC").set(
+{
+name:       "Washington D.C.",
+state:      nil,
+country:    "USA",
+capital:    true,
+density:    11_300,
+population: 680_000,
+regions:    ["east_coast"]
+}
+)
+cities_ref.doc("TOK").set(
+{
+name:       "Tokyo",
+state:      nil,
+country:    "Japan",
+capital:    true,
+density:    16_000,
+population: 9_000_000,
+regions:    ["kanto", "honshu"]
+}
+)
+cities_ref.doc("BJ").set(
+{
+name:       "Beijing",
+state:      nil,
+country:    "China",
+capital:    true,
+density:    3_500,
+population: 21_500_000,
+regions:    ["jingjinji", "hebei"]
+}
+)query_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L23-L78]
+
+간단한 쿼리
+
+다음 쿼리는 주가 CA인 모든 도시를 반환합니다.
+
+웹 버전 9
+// Create a reference to the cities collection
+import { collection, query, where } from "firebase/firestore";
+const citiesRef = collection(db, "cities");
+
+// Create a query against the collection.
+const q = query(citiesRef, where("state", "==", "CA"));simple_queries.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/simple_queries.js#L8-L13]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+// Create a reference to the cities collection
+var citiesRef = db.collection("cities");
+
+// Create a query against the collection.
+var query = citiesRef.where("state", "==", "CA");test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L840-L844]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// Create a reference to the cities collection
+let citiesRef = db.collection("cities")
+
+// Create a query against the collection.
+let query = citiesRef.whereField("state", isEqualTo: "CA")ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L927-L931]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+// Create a reference to the cities collection
+FIRCollectionReference *citiesRef = [self.db collectionWithPath:@"cities"];
+// Create a query against the collection.
+FIRQuery *query = [citiesRef queryWhereField:@"state" isEqualTo:@"CA"];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L867-L870]
+
+KotlinAndroid
+// Create a reference to the cities collection
+val citiesRef = db.collection("cities")
+
+// Create a query against the collection.
+val query = citiesRef.whereEqualTo("state", "CA")DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L843-L847]
+
+자바Android
+// Create a reference to the cities collection
+CollectionReference citiesRef = db.collection("cities");
+
+// Create a query against the collection.
+Query query = citiesRef.whereEqualTo("state", "CA");DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1037-L1041]
+
+Dart
+// Create a reference to the cities collection
+final citiesRef = db.collection("cities");
+
+// Create a query against the collection.
+final query = citiesRef.where("state", isEqualTo: "CA");firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L674-L678]
+
+자바
+
+// Create a reference to the cities collection
+CollectionReference cities = db.collection("cities");
+// Create a query against the collection.
+Query query = cities.whereEqualTo("state", "CA");
+// retrieve  query results asynchronously using query.get()
+ApiFuture<QuerySnapshot> querySnapshot = query.get();
+
+for (DocumentSnapshot document : querySnapshot.get().getDocuments()) {
+System.out.println(document.getId());
+}QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L135-L144]
+
+Python
+
+# Create a reference to the cities collection
+cities_ref = db.collection("cities")
+
+# Create a query against the collection
+query_ref = cities_ref.where(filter=FieldFilter("state", "==", "CA"))snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L457-L461]
+
+Python(비동기)
+
+# Create a reference to the cities collection
+cities_ref = db.collection("cities")
+
+# Create a query against the collection
+query_ref = cities_ref.where(filter=FieldFilter("state", "==", "CA"))snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L451-L455]
+
+C++
+CollectionReference cities_ref = db->Collection("cities");
+// Create a query against the collection.
+Query query_ca =
+cities_ref.WhereEqualTo("state", FieldValue::String("CA"));snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L804-L807]
+
+Node.js
+
+// Create a reference to the cities collection
+const citiesRef = db.collection('cities');
+
+// Create a query against the collection
+const queryRef = citiesRef.where('state', '==', 'CA');index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L571-L575]
+
+Go
+
+query := client.Collection("cities").Where("state", "==", "CA")query.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/query.go#L82-L82]
+
+PHP
+
+$citiesRef = $db->collection('samples/php/cities');
+$query = $citiesRef->where('state', '=', 'CA');
+$snapshot = $query->documents();
+foreach ($snapshot as $document) {
+printf('Document %s returned by query state=CA' . PHP_EOL, $document->id());
+}query_filter_eq_string.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_filter_eq_string.php#L40-L45]
+
+Unity
+CollectionReference citiesRef = db.Collection("cities");
+Query query = citiesRef.WhereEqualTo("State", "CA");
+query.GetSnapshotAsync().ContinueWithOnMainThread((querySnapshotTask) =>
+{
+foreach (DocumentSnapshot documentSnapshot in querySnapshotTask.Result.Documents)
+{
+Debug.Log(String.Format("Document {0} returned by query State=CA", documentSnapshot.Id));
+}
+});
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+Query query = citiesRef.WhereEqualTo("State", "CA");
+QuerySnapshot querySnapshot = await query.GetSnapshotAsync();
+foreach (DocumentSnapshot documentSnapshot in querySnapshot.Documents)
+{
+Console.WriteLine("Document {0} returned by query State=CA", documentSnapshot.Id);
+}Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/QueryData/Program.cs#L138-L144]
+
+Ruby
+
+cities_ref = firestore.col collection_path
+
+query = cities_ref.where "state", "=", "CA"
+
+query.get do |city|
+puts "Document #{city.document_id} returned by query state=CA."
+endquery_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L89-L95]
+
+다음 쿼리는 모든 주도를 반환합니다.
+
+웹 버전 9
+import { collection, query, where } from "firebase/firestore";
+const citiesRef = collection(db, "cities");
+
+const q = query(citiesRef, where("capital", "==", true));simple_queries_again.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/simple_queries_again.js#L8-L11]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+var citiesRef = db.collection("cities");
+
+var query = citiesRef.where("capital", "==", true);test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L850-L852]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let capitalCities = db.collection("cities").whereField("capital", isEqualTo: true)ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L953-L953]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRQuery *capitalCities =
+[[self.db collectionWithPath:@"cities"] queryWhereField:@"capital" isEqualTo:@YES];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L889-L890]
+
+KotlinAndroid
+val capitalCities = db.collection("cities").whereEqualTo("capital", true)DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L851-L851]
+
+자바Android
+Query capitalCities = db.collection("cities").whereEqualTo("capital", true);DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1045-L1045]
+
+Dart
+final capitalcities =
+db.collection("cities").where("capital", isEqualTo: true);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L684-L685]
+
+자바
+
+// Create a reference to the cities collection
+CollectionReference cities = db.collection("cities");
+// Create a query against the collection.
+Query query = cities.whereEqualTo("capital", true);
+// retrieve  query results asynchronously using query.get()
+ApiFuture<QuerySnapshot> querySnapshot = query.get();
+
+for (DocumentSnapshot document : querySnapshot.get().getDocuments()) {
+System.out.println(document.getId());
+}QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L114-L123]
+
+Python
+
+cities_ref = db.collection("cities")
+
+query = cities_ref.where(filter=FieldFilter("capital", "==", True))snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L470-L472]
+
+Python(비동기)
+
+cities_ref = db.collection("cities")
+
+query = cities_ref.where(filter=FieldFilter("capital", "==", True))snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L464-L466]
+
+C++
+Query capital_cities = db->Collection("cities").WhereEqualTo(
+"capital", FieldValue::Boolean(true));snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L812-L813]
+
+Node.js
+
+// Create a reference to the cities collection
+const citiesRef = db.collection('cities');
+
+// Create a query against the collection
+const allCapitalsRes = citiesRef.where('capital', '==', true);index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L586-L590]
+
+Go
+
+query := client.Collection("cities").Where("capital", "==", true)query.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/query.go#L75-L75]
+
+PHP
+
+$citiesRef = $db->collection('samples/php/cities');
+$query = $citiesRef->where('capital', '=', true);
+$snapshot = $query->documents();
+foreach ($snapshot as $document) {
+printf('Document %s returned by query capital=true' . PHP_EOL, $document->id());
+}query_filter_eq_boolean.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_filter_eq_boolean.php#L40-L45]
+
+Unity
+CollectionReference citiesRef = db.Collection("cities");
+Query query = citiesRef.WhereEqualTo("Capital", true);
+query.GetSnapshotAsync().ContinueWithOnMainThread((querySnapshotTask) =>
+{
+foreach (DocumentSnapshot documentSnapshot in querySnapshotTask.Result.Documents)
+{
+Debug.Log(String.Format("Document {0} returned by query Capital=true", documentSnapshot.Id));
+}
+});
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+Query query = citiesRef.WhereEqualTo("Capital", true);
+QuerySnapshot querySnapshot = await query.GetSnapshotAsync();
+foreach (DocumentSnapshot documentSnapshot in querySnapshot.Documents)
+{
+Console.WriteLine("Document {0} returned by query Capital=true", documentSnapshot.Id);
+}Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/QueryData/Program.cs#L152-L158]
+
+Ruby
+
+cities_ref = firestore.col collection_path
+
+query = cities_ref.where "capital", "=", true
+
+query.get do |city|
+puts "Document #{city.document_id} returned by query capital=true."
+endquery_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L105-L111]
+
+쿼리 실행
+
+쿼리 객체를 만든 후 get() 함수를 사용하여 결과를 검색합니다.
+
+웹 버전 9
+import { collection, query, where, getDocs } from "firebase/firestore";
+
+const q = query(collection(db, "cities"), where("capital", "==", true));
+
+const querySnapshot = await getDocs(q);
+querySnapshot.forEach((doc) => {
+// doc.data() is never undefined for query doc snapshots
+console.log(doc.id, " => ", doc.data());
+});get_multiple.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/get_multiple.js#L8-L16]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+db.collection("cities").where("capital", "==", true)
+.get()
+.then((querySnapshot) => {
+querySnapshot.forEach((doc) => {
+// doc.data() is never undefined for query doc snapshots
+console.log(doc.id, " => ", doc.data());
+});
+})
+.catch((error) => {
+console.log("Error getting documents: ", error);
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L672-L682]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+do {
+let querySnapshot = try await db.collection("cities").whereField("capital", isEqualTo: true)
+.getDocuments()
+for document in querySnapshot.documents {
+print("\(document.documentID) => \(document.data())")
+}
+} catch {
+print("Error getting documents: \(error)")
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L800-L808]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[[[self.db collectionWithPath:@"cities"] queryWhereField:@"capital" isEqualTo:@(YES)]
+getDocumentsWithCompletion:^(FIRQuerySnapshot *snapshot, NSError *error) {
+if (error != nil) {
+NSLog(@"Error getting documents: %@", error);
+} else {
+for (FIRDocumentSnapshot *document in snapshot.documents) {
+NSLog(@"%@ => %@", document.documentID, document.data);
+}
+}
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L733-L742]
+
+KotlinAndroid
+db.collection("cities")
+.whereEqualTo("capital", true)
+.get()
+.addOnSuccessListener { documents ->
+for (document in documents) {
+Log.d(TAG, "${document.id} => ${document.data}")
+}
+}
+.addOnFailureListener { exception ->
+Log.w(TAG, "Error getting documents: ", exception)
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L576-L586]
+
+자바Android
+db.collection("cities")
+.whereEqualTo("capital", true)
+.get()
+.addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+@Override
+public void onComplete(@NonNull Task<QuerySnapshot> task) {
+if (task.isSuccessful()) {
+for (QueryDocumentSnapshot document : task.getResult()) {
+Log.d(TAG, document.getId() + " => " + document.getData());
+}
+} else {
+Log.d(TAG, "Error getting documents: ", task.getException());
+}
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L741-L755]
+
+Dart
+db.collection("cities").where("capital", isEqualTo: true).get().then(
+(querySnapshot) {
+print("Successfully completed");
+for (var docSnapshot in querySnapshot.docs) {
+print('${docSnapshot.id} => ${docSnapshot.data()}');
+}
+},
+onError: (e) => print("Error completing: $e"),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L475-L483]
+
+자바
+
+// asynchronously retrieve multiple documents
+ApiFuture<QuerySnapshot> future = db.collection("cities").whereEqualTo("capital", true).get();
+// future.get() blocks on response
+List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+for (DocumentSnapshot document : documents) {
+System.out.println(document.getId() + " => " + document.toObject(City.class));
+}RetrieveDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/RetrieveDataSnippets.java#L151-L157]
+
+Python
+
+# Note: Use of CollectionRef stream() is prefered to get()
+docs = (
+db.collection("cities")
+.where(filter=FieldFilter("capital", "==", True))
+.stream()
+)
+
+for doc in docs:
+print(f"{doc.id} => {doc.to_dict()}")snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L241-L249]
+
+Python(비동기)
+
+# Note: Use of CollectionRef stream() is prefered to get()
+docs = (
+db.collection("cities")
+.where(filter=FieldFilter("capital", "==", True))
+.stream()
+)
+
+async for doc in docs:
+print(f"{doc.id} => {doc.to_dict()}")snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L236-L244]
+
+C++
+db->Collection("cities")
+.WhereEqualTo("capital", FieldValue::Boolean(true))
+.Get()
+.OnCompletion([](const Future<QuerySnapshot>& future) {
+if (future.error() == Error::kErrorOk) {
+for (const DocumentSnapshot& document :
+future.result()->documents()) {
+std::cout << document << std::endl;
+}
+} else {
+std::cout << "Error getting documents: " << future.error_message()
+<< std::endl;
+}
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L560-L573]
+
+Node.js
+
+const citiesRef = db.collection('cities');
+const snapshot = await citiesRef.where('capital', '==', true).get();
+if (snapshot.empty) {
+console.log('No matching documents.');
+return;
+}
+
+snapshot.forEach(doc => {
+console.log(doc.id, '=>', doc.data());
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L532-L541]
+
+Go
+
+import (
+"context"
+"fmt"
+
+"cloud.google.com/go/firestore"
+"google.golang.org/api/iterator"
+)
+
+func multipleDocs(ctx context.Context, client *firestore.Client) error {
+fmt.Println("All capital cities:")
+iter := client.Collection("cities").Where [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_Query_Where]("capital", "==", true).Documents(ctx)
+for {
+doc, err := iter.Next()
+if err == iterator.Done {
+break
+}
+if err != nil {
+return err
+}
+fmt.Println(doc.Data [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_DocumentSnapshot_Data]())
+}
+return nil
+}
+retrieve_data_query.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/retrieve_data_query.go#L18-L42]
+
+PHP
+
+PHP
+
+Firestore에 인증하려면 애플리케이션 기본 사용자 인증 정보를 설정합니다.
+자세한 내용은 로컬 개발 환경의 인증 설정 [https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment?hl=ko]을 참조하세요.
+
+$citiesRef = $db->collection('samples/php/cities');
+$query = $citiesRef->where('capital', '=', true);
+$documents = $query->documents();
+foreach ($documents as $document) {
+if ($document->exists()) {
+printf('Document data for document %s:' . PHP_EOL, $document->id());
+print_r($document->data());
+printf(PHP_EOL);
+} else {
+printf('Document %s does not exist!' . PHP_EOL, $document->id());
+}
+}
+
+Unity
+Query capitalQuery = db.Collection("cities").WhereEqualTo("Capital", true);
+capitalQuery.GetSnapshotAsync().ContinueWithOnMainThread(task => {
+QuerySnapshot capitalQuerySnapshot = task.Result;
+foreach (DocumentSnapshot documentSnapshot in capitalQuerySnapshot.Documents) {
+Debug.Log(String.Format("Document data for {0} document:", documentSnapshot.Id));
+Dictionary<string, object> city = documentSnapshot.ToDictionary();
+foreach (KeyValuePair<string, object> pair in city) {
+Debug.Log(String.Format("{0}: {1}", pair.Key, pair.Value));
+}
+
+// Newline to separate entries
+Debug.Log("");
+};
+});
+
+C#
+
+Query capitalQuery = db.Collection("cities").WhereEqualTo("Capital", true);
+QuerySnapshot capitalQuerySnapshot = await capitalQuery.GetSnapshotAsync();
+foreach (DocumentSnapshot documentSnapshot in capitalQuerySnapshot.Documents)
+{
+Console.WriteLine("Document data for {0} document:", documentSnapshot.Id);
+Dictionary<string, object> city = documentSnapshot.ToDictionary();
+foreach (KeyValuePair<string, object> pair in city)
+{
+Console.WriteLine("{0}: {1}", pair.Key, pair.Value);
+}
+Console.WriteLine("");
+}Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/GetData/Program.cs#L153-L164]
+
+Ruby
+
+cities_ref = firestore.col collection_path
+
+query = cities_ref.where "capital", "=", true
+
+query.get do |city|
+puts "#{city.document_id} data: #{city.data}."
+endget_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/get_data.rb#L96-L102]
+
+쿼리 결과 검색에 대한 자세한 내용은 데이터 가져오기 [https://cloud.google.com/firestore/native/docs/query-data/get-data?hl=ko]를 참조하세요. 쿼리에 리스너를 추가 [https://cloud.google.com/firestore/native/docs/query-data/listen?hl=ko]하면 현재 결과를 가져오고 향후 업데이트도 수신할 수 있습니다.
+
+쿼리 연산자
+
+where() 메서드는 필터링할 필드, 비교 연산자, 값의 3가지 매개변수를 사용합니다. Firestore는 다음과 같은 비교 연산자를 지원합니다.
+
+< 미만
+<= 작거나 같음
+== 같음
+> 보다 큼
+>= 이상
+!= 같지 않음 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#not_equal]
+array-contains [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#array_membership]
+array-contains-any [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#in_and_array-contains-any]
+in [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#in_and_array-contains-any]
+not-in [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#in_and_array-contains-any]
+
+참고: Apple, Android, 자바의 경우 메서드에서 명시적으로 비교 연산자의 이름이 지정됩니다.
+예를 들면 다음과 같습니다.
+
+웹 버전 9
+const stateQuery = query(citiesRef, where("state", "==", "CA"));
+const populationQuery = query(citiesRef, where("population", "<", 100000));
+const nameQuery = query(citiesRef, where("name", ">=", "San Francisco"));example_filters.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/example_filters.js#L8-L10]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+const stateQuery = citiesRef.where("state", "==", "CA");
+const populationQuery = citiesRef.where("population", "<", 100000);
+const nameQuery = citiesRef.where("name", ">=", "San Francisco");test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L859-L861]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let stateQuery = citiesRef.whereField("state", isEqualTo: "CA")
+let populationQuery = citiesRef.whereField("population", isLessThan: 100000)
+let nameQuery = citiesRef.whereField("name", isGreaterThanOrEqualTo: "San Francisco")ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L945-L947]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRQuery *stateQuery = [citiesRef queryWhereField:@"state" isEqualTo:@"CA"];
+FIRQuery *populationQuery = [citiesRef queryWhereField:@"population" isLessThan:@100000];
+FIRQuery *nameQuery = [citiesRef queryWhereField:@"name" isGreaterThanOrEqualTo:@"San Francisco"];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L881-L883]
+
+KotlinAndroid
+val stateQuery = citiesRef.whereEqualTo("state", "CA")
+val populationQuery = citiesRef.whereLessThan("population", 100000)
+val nameQuery = citiesRef.whereGreaterThanOrEqualTo("name", "San Francisco")DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L855-L857]
+
+자바Android
+Query stateQuery = citiesRef.whereEqualTo("state", "CA");
+Query populationQuery = citiesRef.whereLessThan("population", 100000);
+Query nameQuery = citiesRef.whereGreaterThanOrEqualTo("name", "San Francisco");DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1049-L1051]
+
+Dart
+final citiesRef = db.collection("cities");
+final stateQuery = citiesRef.where("state", isEqualTo: "CA");
+final populationQuery = citiesRef.where("population", isLessThan: 100000);
+final nameQuery = citiesRef.where("name", isEqualTo: "San Francisco");firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L700-L703]
+
+자바
+
+Query stateQuery = cities.whereEqualTo("state", "CA");
+Query populationQuery = cities.whereLessThan("population", 1000000L);
+Query nameQuery = cities.whereGreaterThanOrEqualTo("name", "San Francisco");QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L159-L161]
+
+Python
+
+cities_ref = db.collection("cities")
+
+cities_ref.where(filter=FieldFilter("state", "==", "CA"))
+cities_ref.where(filter=FieldFilter("population", "<", 1000000))
+cities_ref.where(filter=FieldFilter("name", ">=", "San Francisco"))snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L481-L485]
+
+Python(비동기)
+
+cities_ref = db.collection("cities")
+
+cities_ref.where(filter=FieldFilter("state", "==", "CA"))
+cities_ref.where(filter=FieldFilter("population", "<", 1000000))
+cities_ref.where(filter=FieldFilter("name", ">=", "San Francisco"))snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L475-L479]
+
+C++
+cities_ref.WhereEqualTo("state", FieldValue::String("CA"));
+cities_ref.WhereLessThan("population", FieldValue::Integer(100000));
+cities_ref.WhereGreaterThanOrEqualTo("name",
+FieldValue::String("San Francisco"));snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L853-L856]
+
+Node.js
+
+const stateQueryRes = await citiesRef.where('state', '==', 'CA').get();
+const populationQueryRes = await citiesRef.where('population', '<', 1000000).get();
+const nameQueryRes = await citiesRef.where('name', '>=', 'San Francisco').get();index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L594-L596]
+
+Go
+
+countryQuery := cities.Where("state", "==", "CA")
+popQuery := cities.Where("population", "<", 1000000)
+cityQuery := cities.Where("name", ">=", "San Francisco")query.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/query.go#L90-L92]
+
+PHP
+
+$stateQuery = $citiesRef->where('state', '=', 'CA');
+$populationQuery = $citiesRef->where('population', '>', 1000000);
+$nameQuery = $citiesRef->where('name', '>=', 'San Francisco');query_filter_single_examples.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_filter_single_examples.php#L41-L43]
+
+Unity
+Query stateQuery = citiesRef.WhereEqualTo("State", "CA");
+Query populationQuery = citiesRef.WhereGreaterThan("Population", 1000000);
+Query nameQuery = citiesRef.WhereGreaterThanOrEqualTo("Name", "San Francisco");
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+Query stateQuery = citiesRef.WhereEqualTo("State", "CA");
+Query populationQuery = citiesRef.WhereGreaterThan("Population", 1000000);
+Query nameQuery = citiesRef.WhereGreaterThanOrEqualTo("Name", "San Francisco");Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/QueryData/Program.cs#L166-L169]
+
+Ruby
+
+state_query      = cities_ref.where "state", "=", "CA"
+population_query = cities_ref.where "population", ">", 1_000_000
+name_query       = cities_ref.where "name", ">=", "San Francisco"query_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L123-L125]
+
+같지 않음(!=)
+
+지정된 필드가 존재하고 비교 값과 일치하지 않는 문서를 반환하려면 같지 않음(!=) 연산자를 사용합니다. 예를 들면 다음과 같습니다.
+
+웹 버전 9
+const notCapitalQuery = query(citiesRef, where("capital", "!=", false));simple_query_not_equal.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/simple_query_not_equal.js#L8-L8]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+citiesRef.where("capital", "!=", false);test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L865-L865]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let notEqualQuery = citiesRef.whereField("capital", isNotEqualTo: false)ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L935-L935]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+query = [citiesRef queryWhereField:@"capital" isNotEqualTo:@NO];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L873-L873]
+
+KotlinAndroid
+val notCapitalQuery = citiesRef.whereNotEqualTo("capital", false)DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L861-L861]
+
+자바Android
+Query notCapitalQuery = citiesRef.whereNotEqualTo("capital", false);DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1055-L1055]
+
+Dart
+final citiesRef = db.collection("cities");
+final notCapitals = citiesRef.where("capital", isNotEqualTo: true);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L709-L710]
+
+자바
+
+CollectionReference citiesRef = db.collection("cities");
+
+Query query = citiesRef.whereNotEqualTo("capital", false);QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L578-L580]
+
+Python
+// Snippet not yet available
+
+C++
+cities_ref.WhereNotEqualTo("capital", FieldValue::Boolean(false));
+
+Node.js
+
+const capitalNotFalseRes = await citiesRef.where('capital', '!=', false).get();index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L600-L600]
+
+Go
+// Snippet not yet available
+
+PHP
+
+$stateQuery = $citiesRef->where('capital', '!=', false);query_filter_not_eq.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_filter_not_eq.php#L41-L41]
+
+Unity
+Query query = citiesRef.WhereNotEqualTo("capital", false);
+Query query = citiesRef.WhereNotEqualTo("capital", false);
+
+C#
+// Snippet not yet available
+
+Ruby
+
+cities_ref = firestore.col collection_path
+query = cities_ref.where "capital", "!=", falsequery_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L239-L240]
+
+이 쿼리는 capital 필드에 false 또는 null 이외의 값이 포함된 모든 city 문서를 반환합니다. 여기에는 capital 필드 값이 true이거나 null 이외의 모든 비부울 값과 일치하는 city 문서가 포함됩니다.
+
+이 쿼리는 capital 필드가 없는 city 문서를 반환하지 않습니다. 같지 않음(!=)과 not-in 쿼리는 지정된 필드가 없는 문서를 제외합니다.
+
+빈 문자열(""), null, NaN(숫자 아님)을 포함하는 어떤 값으로든 설정되면 필드가 존재합니다. x != null이 undefined로 평가되므로 null 필드 값은 != 절과 일치하지 않습니다.
+경고: != 쿼리 절은 컬렉션의 많은 문서와 일치할 수 있습니다. 반환되는 개수 또는 결과를 제어하려면 제한 절 [https://cloud.google.com/firestore/native/docs/query-data/order-limit-data?hl=ko] 또는 쿼리를 페이지로 나누기 [https://cloud.google.com/firestore/native/docs/query-data/query-cursors?hl=ko#paginate_a_query]를 사용하세요.
+제한사항
+
+!= 쿼리에는 다음과 같은 제한사항이 있습니다.
+
+지정된 필드가 있는 문서만 쿼리와 일치할 수 있습니다.
+not-in과 !=을 복합 쿼리에 결합할 수 없습니다.
+
+배열 멤버십
+
+array-contains 연산자를 사용하면 배열 값 기준으로 필터링할 수 있습니다. 예를 들면 다음과 같습니다.
+
+웹 버전 9
+import { query, where } from "firebase/firestore";
+const q = query(citiesRef, where("regions", "array-contains", "west_coast"));array_contains_filter.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/array_contains_filter.js#L8-L9]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+citiesRef.where("regions", "array-contains", "west_coast");test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L872-L872]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+citiesRef
+.whereField("regions", arrayContains: "west_coast")ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L962-L963]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[citiesRef queryWhereField:@"state" arrayContains:@"west_coast"];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L898-L898]
+
+KotlinAndroid
+val citiesRef = db.collection("cities")
+
+citiesRef.whereArrayContains("regions", "west_coast")DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L867-L869]
+
+자바Android
+CollectionReference citiesRef = db.collection("cities");
+
+citiesRef.whereArrayContains("regions", "west_coast");DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1061-L1063]
+
+Dart
+final citiesRef = db.collection("cities");
+final westCoastcities =
+citiesRef.where("regions", arrayContains: "west_coast");firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L716-L718]
+
+자바
+
+CollectionReference citiesRef = db.collection("cities");
+Query westCoastQuery = citiesRef.whereArrayContains("regions", "west_coast");QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L177-L178]
+
+Python
+
+cities_ref = db.collection("cities")
+
+query = cities_ref.where(
+filter=FieldFilter("regions", "array_contains", "west_coast")
+)snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L256-L260]
+
+Python(비동기)
+
+cities_ref = db.collection("cities")
+
+query = cities_ref.where(
+filter=FieldFilter("regions", "array_contains", "west_coast")
+)snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L251-L255]
+
+C++
+CollectionReference cities_ref = db->Collection("cities");
+
+cities_ref.WhereArrayContains("region", FieldValue::String("west_coast"));snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L872-L874]
+
+Node.js
+
+const westCoastCities = citiesRef.where('regions', 'array-contains',
+'west_coast').get();index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L613-L614]
+
+Go
+
+query := cities.Where("regions", "array-contains", "west_coast").Documents(ctx)query.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/query.go#L284-L284]
+
+PHP
+
+$containsQuery = $citiesRef->where('regions', 'array-contains', 'west_coast');query_filter_array_contains.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_filter_array_contains.php#L41-L41]
+
+Unity
+CollectionReference citiesRef = db.Collection("cities");
+Query arrayContainsQuery = citiesRef.WhereArrayContains("region", "west_coast");
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+Query query = citiesRef.WhereArrayContains("Regions", "west_coast");Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/QueryData/Program.cs#L192-L193]
+
+Ruby
+
+cities_ref = firestore.col collection_path
+cities = cities_ref.where "regions", "array-contains", "west_coast"query_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L281-L282]
+
+이 쿼리는 모든 city 문서를 반환합니다. 여기에서 regions 필드는 west_coast를 포함하는 배열입니다. 배열에 쿼리하는 값의 인스턴스가 여러 개 있으면 문서가 결과에 한 번만 포함됩니다.
+
+논리합(or 그룹)당 최대 1개의 array-contains 절을 사용할 수 있습니다.
+동일한 논리합에서 array-contains와 array-contains-any를 결합할 수 없습니다.
+
+in, not-in, array-contains-any
+
+in 연산자를 사용하여 같은 필드에서 등호(==) 절을 최대 30개 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#in_not-in_array-contains-any_limits]까지 논리적 OR과 결합합니다. in 쿼리는 지정된 필드가 비교 값과 일치하는 문서를 반환합니다.
+예를 들면 다음과 같습니다.
+
+웹 버전 9
+import { query, where } from "firebase/firestore";
+
+const q = query(citiesRef, where('country', 'in', ['USA', 'Japan']));in_filter.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/in_filter.js#L8-L10]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+citiesRef.where('country', 'in', ['USA', 'Japan']);test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L887-L887]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let citiesRef = db.collection("cities")
+
+citiesRef.whereField("country", in: ["USA", "Japan"])ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L1069-L1071]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRCollectionReference *citiesRef = [self.db collectionWithPath:@"cities"];
+
+[citiesRef queryWhereField:@"country" in:@[@"USA", @"Japan"]];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L985-L987]
+
+KotlinAndroid
+val citiesRef = db.collection("cities")
+
+citiesRef.whereIn("country", listOf("USA", "Japan"))DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L883-L885]
+
+자바Android
+CollectionReference citiesRef = db.collection("cities");
+
+citiesRef.whereIn("country", Arrays.asList("USA", "Japan"));DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1077-L1079]
+
+Dart
+final citiesRef = db.collection("cities");
+final cities = citiesRef.where("country", whereIn: ["USA", "Japan"]);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L724-L725]
+
+자바
+
+CollectionReference citiesRef = db.collection("cities");
+
+Query query = citiesRef.whereIn("country", Arrays.asList("USA", "Japan"));QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L558-L560]
+
+Python
+
+cities_ref = db.collection("cities")
+
+query = cities_ref.where(filter=FieldFilter("country", "in", ["USA", "Japan"]))
+return querysnippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L919-L922]
+
+Python(비동기)
+
+cities_ref = db.collection("cities")
+
+query = cities_ref.where(filter=FieldFilter("country", "in", ["USA", "Japan"]))
+return querysnippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L769-L772]
+
+C++
+CollectionReference cities_ref = db->Collection("cities");
+
+cities_ref.WhereIn("country", std::vector<FieldValue> {
+FieldValue::String("USA"),
+FieldValue::String("Japan")
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L886-L891]
+
+Node.js
+
+const usaOrJapan = await citiesRef.where('country', 'in', ['USA', 'Japan']).get();index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L633-L633]
+
+Go
+
+cities := client.Collection("cities")
+query := cities.Where("country", "in", []string{"USA", "Japan"}).Documents(ctx)query.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/query.go#L263-L264]
+
+PHP
+
+$rangeQuery = $citiesRef->where('country', 'in', ['USA', 'Japan']);query_filter_in.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_filter_in.php#L41-L41]
+
+Unity
+CollectionReference citiesRef = db.Collection("cities");
+List countriesList = new List<object>() {"USA", "Japan"};
+
+Query whereInQuery = citiesRef.WhereIn("country", countriesList);
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+Query query = citiesRef.WhereIn("Country", new[] { "USA", "Japan" });Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/QueryData/Program.cs#L220-L221]
+
+Ruby
+
+cities_ref = firestore.col collection_path
+usr_or_japan = cities_ref.where "country", "in", ["USA", "Japan"]query_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L211-L212]
+
+이 쿼리는 country 필드가 USA 또는 Japan으로 설정된 모든 city 문서를 반환합니다. 예시 데이터에서는 여기에 SF, LA, DC, TOK 문서가 포함됩니다.
+
+not-in
+
+not-in 연산자를 사용하여 동일한 필드에서 같지 않은(!=) 절을 최대 10개까지 논리적 AND와 결합합니다. not-in 쿼리는 지정된 필드가 존재하고 null이 아니며 어떤 비교 값과도 일치하지 않는 문서를 반환합니다. 예를 들면 다음과 같습니다.
+
+웹 버전 9
+import { query, where } from "firebase/firestore";
+
+const q = query(citiesRef, where('country', 'not-in', ['USA', 'Japan']));not_in_filter.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/not_in_filter.js#L8-L10]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+citiesRef.where('country', 'not-in', ['USA', 'Japan']);test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L891-L891]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+citiesRef.whereField("country", notIn: ["USA", "Japan"])ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L1079-L1079]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[citiesRef queryWhereField:@"country" notIn:@[@"USA", @"Japan"]];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L995-L995]
+
+KotlinAndroid
+citiesRef.whereNotIn("country", listOf("USA", "Japan"))DocSnippets.kt [https://github.com/firebase/snippets-android/blob/fe812e0c289c579a281d86a1c54be5c798fe6a4c/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L855-L855]
+
+자바Android
+citiesRef.whereNotIn("country", Arrays.asList("USA", "Japan"));DocSnippets.java [https://github.com/firebase/snippets-android/blob/fe812e0c289c579a281d86a1c54be5c798fe6a4c/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1056-L1056]
+
+Dart
+final citiesRef = db.collection("cities");
+final cities = citiesRef.where("country", whereNotIn: ["USA", "Japan"]);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L731-L732]
+
+자바
+
+CollectionReference citiesRef = db.collection("cities");
+
+Query query = citiesRef.whereNotIn("country", Arrays.asList("USA", "Japan"));QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L587-L589]
+
+Python
+// Snippet not yet available
+
+C++
+cities_ref.WhereNotIn("country", std::vector<FieldValue> {
+FieldValue::String("USA"),
+FieldValue::String("Japan")
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L895-L898]
+
+Node.js
+
+const notUsaOrJapan = await citiesRef.where('country', 'not-in', ['USA', 'Japan']).get();index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L637-L637]
+
+Go
+// Snippet not yet available
+
+PHP
+
+$stateQuery = $citiesRef->where(
+'country',
+\Google\Cloud\Firestore\V1\StructuredQuery\FieldFilter\Operator::NOT_IN,
+['USA', 'Japan']
+);query_filter_not_in.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_filter_not_in.php#L41-L45]
+
+Unity
+Query query = citiesRef.WhereNotIn(new FieldPath("country"), new List<string>{"USA", "Japan"});
+Query query = citiesRef.WhereNotIn("country", new List<object>(){"USA", "Japan"});
+
+C#
+// Snippet not yet available
+
+Ruby
+
+cities_ref = firestore.col collection_path
+usr_or_japan = cities_ref.where "country", "not_in", ["USA", "Japan"]query_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L253-L254]
+
+이 쿼리는 country 필드가 존재하고 USA, Japan 또는 null로 설정되지 않은 모든 city 문서를 반환합니다. 예시 데이터에서는 여기에 London 및 Hong Kong 문서가 포함됩니다.
+
+not-in 쿼리는 지정된 필드가 없는 문서를 제외합니다. 빈 문자열(""), null, NaN(숫자 아님)을 포함하는 어떤 값으로든 설정되면 필드가 존재합니다. x != null은 undefined로 평가됩니다. null을 비교 값 중 하나로 가지고 있는 not-in 쿼리는 어떤 문서와도 일치하지 않습니다.
+경고: not-in 쿼리 절은 컬렉션의 많은 문서와 일치할 수 있습니다. 반환되는 개수 또는 결과를 제어하려면 제한 절 [https://cloud.google.com/firestore/native/docs/query-data/order-limit-data?hl=ko] 또는 쿼리를 페이지로 나누기 [https://cloud.google.com/firestore/native/docs/query-data/query-cursors?hl=ko#paginate_a_query]를 사용하세요.
+array-contains-any
+
+마찬가지로 array-contains-any 연산자를 사용하여 같은 필드에서 array-contains 절을 최대 30개 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#in_not-in_array-contains-any_limits]까지 논리적 OR과 결합합니다. array-contains-any 쿼리는 문서를 반환합니다. 여기서 지정된 필드는 비교 값이 1개 이상 포함된 배열입니다.
+
+웹 버전 9
+import { query, where } from "firebase/firestore";
+
+const q = query(citiesRef,
+where('regions', 'array-contains-any', ['west_coast', 'east_coast']));array_contains_any_filter.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/array_contains_any_filter.js#L8-L11]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+citiesRef.where('regions', 'array-contains-any',
+['west_coast', 'east_coast']);test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L879-L880]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let citiesRef = db.collection("cities")
+citiesRef.whereField("regions", arrayContainsAny: ["west_coast", "east_coast"])ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L1062-L1063]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRCollectionReference *citiesRef = [self.db collectionWithPath:@"cities"];
+
+[citiesRef queryWhereField:@"regions" arrayContainsAny:@[@"west_coast", @"east_coast"]];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L977-L979]
+
+KotlinAndroid
+val citiesRef = db.collection("cities")
+
+citiesRef.whereArrayContainsAny("regions", listOf("west_coast", "east_coast"))DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L875-L877]
+
+자바Android
+CollectionReference citiesRef = db.collection("cities");
+
+citiesRef.whereArrayContainsAny("regions", Arrays.asList("west_coast", "east_coast"));DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1069-L1071]
+
+Dart
+final citiesRef = db.collection("cities");
+final cities = citiesRef
+.where("regions", arrayContainsAny: ["west_coast", "east_coast"]);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L738-L740]
+
+자바
+
+CollectionReference citiesRef = db.collection("cities");
+
+Query query =
+citiesRef.whereArrayContainsAny("regions", Arrays.asList("west_coast", "east_coast"));QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L548-L551]
+
+Python
+
+cities_ref = db.collection("cities")
+
+query = cities_ref.where(
+filter=FieldFilter(
+"regions", "array_contains_any", ["west_coast", "east_coast"]
+)
+)
+return querysnippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L906-L913]
+
+Python(비동기)
+
+cities_ref = db.collection("cities")
+
+query = cities_ref.where(
+filter=FieldFilter(
+"regions", "array_contains_any", ["west_coast", "east_coast"]
+)
+)
+return querysnippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L756-L763]
+
+C++
+CollectionReference cities_ref = db->Collection("cities");
+
+cities_ref.WhereArrayContainsAny("region", std::vector<FieldValue> {
+FieldValue::String("west_coast"),
+FieldValue::String("east_coast")
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L909-L914]
+
+Node.js
+
+const coastalCities = await citiesRef.where('regions', 'array-contains-any',
+['west_coast', 'east_coast']).get();index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L623-L624]
+
+Go
+
+cities := client.Collection("cities")
+query := cities.Where("regions", "array-contains-any", []string{"west_coast", "east_coast"}).Documents(ctx)query.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/query.go#L293-L294]
+
+PHP
+
+$containsQuery = $citiesRef->where('regions', 'array-contains-any', ['west_coast', 'east_coast']);query_filter_array_contains_any.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_filter_array_contains_any.php#L41-L41]
+
+Unity
+Query query = citiesRef.WhereArrayContainsAny(
+"regions",
+new List<object>()
+{
+new List<object>(){"west_coast"},
+new List<object>(){"east_coast"}});
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+Query query = citiesRef.WhereArrayContainsAny("Regions", new[] { "west_coast", "east_coast" });Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/QueryData/Program.cs#L206-L207]
+
+Ruby
+
+cities_ref = firestore.col collection_path
+costal_cities = cities_ref.where "regions", "array-contains-any", ["west_coast", "east_coast"]query_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L267-L268]
+
+이 쿼리는 모든 city 문서를 반환합니다. 여기서 regions 필드는 west_coast 또는 east_coast가 포함된 배열입니다. 예시 데이터에서는 여기에 SF, LA, DC 문서가 포함됩니다.
+
+중복되는 array-contains-any의 결과가 삭제됩니다. 문서의 배열 필드가 비교 값 두 개 이상과 일치하더라도 결과 집합에는 문서가 한 번만 포함됩니다.
+
+array-contains-any는 항상 배열 데이터 유형 기준으로 필터링합니다. 예를 들어 위 쿼리는 배열 대신 regions 필드가 west_coast 문자열인 city 문서를 반환하지 않습니다.
+
+배열 값을 in의 비교 값으로 사용할 수 있지만 array-contains-any와 달리 절은 배열의 길이, 순서, 값과 정확하게 일치합니다. 예를 들면 다음과 같습니다.
+
+웹 버전 9
+import { query, where } from "firebase/firestore";
+
+const q = query(citiesRef, where('regions', 'in', [['west_coast'], ['east_coast']]));in_filter_with_array.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/in_filter_with_array.js#L8-L10]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+citiesRef.where('regions', 'in',
+[['west_coast'], ['east_coast']]);test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L895-L896]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+citiesRef.whereField("regions", in: [["west_coast"], ["east_coast"]])ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L1075-L1075]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[citiesRef queryWhereField:@"regions" in:@[@[@"west_coast"], @[@"east_coast"]]];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L991-L991]
+
+KotlinAndroid
+citiesRef.whereIn("regions", listOf(arrayOf("west_coast"), arrayOf("east_coast")))DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L893-L893]
+
+자바Android
+citiesRef.whereIn("regions", Arrays.asList(new String[]{"west_coast"}, new String[]{"east_coast"}));DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1087-L1087]
+
+Dart
+final citiesRef = db.collection("cities");
+final cities = citiesRef.where("regions", whereIn: [
+["west_coast"],
+["east_coast"]
+]);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L746-L750]
+
+자바
+
+CollectionReference citiesRef = db.collection("cities");
+
+Query query =
+citiesRef.whereIn(
+"regions", Arrays.asList(Arrays.asList("west_coast"), Arrays.asList("east_coast")));QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L567-L571]
+
+Python
+
+cities_ref = db.collection("cities")
+
+query = cities_ref.where(
+filter=FieldFilter("regions", "in", [["west_coast"], ["east_coast"]])
+)
+return querysnippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L928-L933]
+
+Python(비동기)
+
+cities_ref = db.collection("cities")
+
+query = cities_ref.where(
+filter=FieldFilter("regions", "in", [["west_coast"], ["east_coast"]])
+)
+return querysnippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L778-L783]
+
+C++
+cities_ref.WhereIn("region", std::vector<FieldValue> {
+FieldValue::String("west_coast"),
+FieldValue::String("east_coast")
+});snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L918-L921]
+
+Node.js
+
+const exactlyOneCoast = await citiesRef.where('regions', 'in',
+[['west_coast', 'east_coast']]).get();index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L641-L642]
+
+Go
+
+cities := client.Collection("cities")
+query := cities.Where("regions", "in", [][]string{{"west_coast"}, {"east_coast"}}).Documents(ctx)query.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/query.go#L273-L274]
+
+PHP
+
+$rangeQuery = $citiesRef->where('regions', 'in', [['west_coast'], ['east_coast']]);query_filter_in_with_array.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_filter_in_with_array.php#L41-L41]
+
+Unity
+Query query = citiesRef.WhereIn(new FieldPath("regions"), new List<string>{"west_coast", "east_coast"});
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+Query query = citiesRef.WhereIn("Regions",
+new[] { new[] { "west_coast" }, new[] { "east_coast" } });Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/QueryData/Program.cs#L234-L236]
+
+Ruby
+
+cities_ref = firestore.col collection_path
+exactly_one_cost = cities_ref.where "regions", "in", [["west_coast"], ["east_coast"]]query_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L225-L226]
+
+이 쿼리는 모든 city 문서를 반환합니다. 여기서 regions 필드는 west_coast 또는 east_coast의 요소 하나가 정확하게 포함된 배열입니다.
+예시 데이터에서는 DC 문서만 ["east_coast"]의 regions 필드에 해당합니다. 그러나 regions 필드가 ["west_coast", "norcal"]이므로 SF 문서가 일치하지 않습니다.
+
+제한사항
+
+in, not-in, array-contains-any의 다음 제한사항에 유의하세요.
+
+Firestore는 or, in, array-contains-any 연산자를 통해 논리적 OR 쿼리를 지원합니다. 이러한 쿼리는 쿼리의 논리합 표준형에 따른 분리 30개 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#limits_on_or_queries]로 제한됩니다.
+논리합(or 그룹)당 최대 1개의 array-contains 절을 사용할 수 있습니다.
+동일한 논리합에서 array-contains와 array-contains-any를 결합할 수 없습니다.
+not-in과 !=을 결합할 수 없습니다.
+not-in은 비교 값을 최대 10개까지 지원합니다.
+
+복합(AND) 쿼리
+
+여러 등호 연산자(== 또는 array-contains)를 연결하여 제약조건을 논리 AND와 결합할 수 있습니다. 하지만 등호 연산자와 부등호 연산자(<, <=, >, !=)를 결합하는 복합 색인 [https://cloud.google.com/firestore/native/docs/query-data/indexing?hl=ko]을 만들어야 합니다.
+
+웹 버전 9
+import { query, where } from "firebase/firestore";
+
+const q1 = query(citiesRef, where("state", "==", "CO"), where("name", "==", "Denver"));
+const q2 = query(citiesRef, where("state", "==", "CA"), where("population", "<", 1000000));chain_filters.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/chain_filters.js#L8-L11]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+const q1 = citiesRef.where("state", "==", "CO").where("name", "==", "Denver");
+const q2 = citiesRef.where("state", "==", "CA").where("population", "<", 1000000);test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L903-L904]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+citiesRef
+.whereField("state", isEqualTo: "CO")
+.whereField("name", isEqualTo: "Denver")
+citiesRef
+.whereField("state", isEqualTo: "CA")
+.whereField("population", isLessThan: 1000000)ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L971-L976]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[[citiesRef queryWhereField:@"state" isEqualTo:@"CO"]
+queryWhereField:@"name" isGreaterThanOrEqualTo:@"Denver"];
+[[citiesRef queryWhereField:@"state" isEqualTo:@"CA"]
+queryWhereField:@"population" isLessThan:@1000000];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L905-L908]
+
+KotlinAndroid
+citiesRef.whereEqualTo("state", "CO").whereEqualTo("name", "Denver")
+citiesRef.whereEqualTo("state", "CA").whereLessThan("population", 1000000)DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L901-L902]
+
+자바Android
+citiesRef.whereEqualTo("state", "CO").whereEqualTo("name", "Denver");
+citiesRef.whereEqualTo("state", "CA").whereLessThan("population", 1000000);DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1095-L1096]
+
+Dart
+final citiesRef = db.collection("cities");
+citiesRef
+.where("state", isEqualTo: "CO")
+.where("name", isEqualTo: "Denver");
+citiesRef
+.where("state", isEqualTo: "CA")
+.where("population", isLessThan: 1000000);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L756-L762]
+
+자바
+
+Query chainedQuery1 = cities.whereEqualTo("state", "CO").whereEqualTo("name", "Denver");QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L194-L194]
+
+Python
+
+cities_ref = db.collection("cities")
+
+denver_query = cities_ref.where(filter=FieldFilter("state", "==", "CO")).where(
+filter=FieldFilter("name", "==", "Denver")
+)
+large_us_cities_query = cities_ref.where(
+filter=FieldFilter("state", "==", "CA")
+).where(filter=FieldFilter("population", ">", 1000000))snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L494-L501]
+
+Python(비동기)
+
+cities_ref = db.collection("cities")
+
+denver_query = cities_ref.where(filter=FieldFilter("state", "==", "CO")).where(
+filter=FieldFilter("name", "==", "Denver")
+)
+large_us_cities_query = cities_ref.where(
+filter=FieldFilter("state", "==", "CA")
+).where(filter=FieldFilter("population", ">", 1000000))snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L486-L493]
+
+C++
+cities_ref.WhereEqualTo("state", FieldValue::String("CO"))
+.WhereEqualTo("name", FieldValue::String("Denver"));
+cities_ref.WhereEqualTo("state", FieldValue::String("CA"))
+.WhereLessThan("population", FieldValue::Integer(1000000));snippets.cpp [https://github.com/firebase/snippets-cpp/blob/778b6bcc8e8e8fcabb1c2e3a8d11ab51a26aa77b/firestore/android/FirestoreSnippetsCpp/app/src/main/cpp/snippets.cpp#L1013-L1016]
+
+Node.js
+
+citiesRef.where('state', '==', 'CO').where('name', '==', 'Denver');
+citiesRef.where('state', '==', 'CA').where('population', '<', 1000000);index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L719-L719]
+
+Go
+
+denverQuery := cities.Where("name", "==", "Denver").Where("state", "==", "CO")
+caliQuery := cities.Where("state", "==", "CA").Where("population", "<=", 1000000)
+query := cities.Where("country", "==", "USA").Where("population", ">", 5000000)query.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/query.go#L115-L115]
+
+PHP
+
+$chainedQuery = $citiesRef
+->where('state', '=', 'CA')
+->where('name', '=', 'San Francisco');query_filter_compound_multi_eq.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_filter_compound_multi_eq.php#L41-L43]
+
+Unity
+Query chainedQuery = citiesRef
+.WhereEqualTo("State", "CA")
+.WhereEqualTo("Name", "San Francisco");
+
+C#
+
+CollectionReference citiesRef = db.Collection("cities");
+Query chainedQuery = citiesRef
+.WhereEqualTo("State", "CA")
+.WhereEqualTo("Name", "San Francisco");Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/QueryData/Program.cs#L275-L278]
+
+Ruby
+
+chained_query = cities_ref.where("state", "=", "CA").where("name", "=", "San Francisco")query_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L145-L145]
+
+쿼리 OR회
+
+제약 조건을 논리적 OR과 결합할 수 있습니다. 예를 들면 다음과 같습니다.
+
+웹 버전 9
+const q = query(citiesRef,
+or(where('capital', '==', true),
+where('population', '>=', 1000000)
+)
+);
+
+웹 버전 8
+지원되지 않음
+
+Swift
+let query = db.collection("cities").whereFilter(Filter.orFilter([
+Filter.whereField("capital", isEqualTo: true),
+Filter.whereField("population", isGreaterThanOrEqualTo: 1000000);
+]))
+
+Objective-C
+FIRCollectionReference *collection = [self.db collectionWithPath:@"cities"];
+FIRQuery *query = [collection queryWhereFilter:[FIRFilter orFilterWithFilters:@[
+[FIRFilter filterWhereField:@"capital" isEqualTo:@YES],
+[FIRFilter filterWhereField:@"population" isGreaterThanOrEqualTo:@1000000]
+]]];
+
+KotlinAndroid
+val query = collection.where(Filter.or(
+Filter.equalTo("capital", true),
+Filter.greaterThanOrEqualTo("population", 1000000)
+))
+
+자바Android
+Query query = collection.where(Filter.or(
+Filter.equalTo("capital", true),
+Filter.greaterThanOrEqualTo("population", 1000000)
+));
+
+Dart
+var query = db.collection("cities").where(
+Filter.or(
+Filter("capital", isEqualTo: true),
+Filter("population", isGreaterThan: 1000000),
+),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L845-L850]
+
+Java
+스니펫 사용 불가
+
+Python
+
+from google.cloud.firestore_v1.base_query import FieldFilter, Or
+
+col_ref = client.collection("cities")
+# Execute the query
+query = col_ref.where(
+filter=Or(
+[
+FieldFilter("capital", "==", True),
+FieldFilter("population", ">", 1_000_000),
+]
+)
+)
+docs = query.stream()query_filter_or.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/query_filter_or.py#L18-L30]
+
+Python(비동기)
+스니펫 사용 불가
+
+C++
+스니펫 사용 불가
+
+Node.js
+const bigCities = await citiesRef
+.where(
+Filter.or(
+Filter.where('capital', '==', true),
+Filter.where('population', '>=', 1000000)
+)
+)
+.get();index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L659-L666]
+
+Go
+
+import (
+"context"
+"fmt"
+"io"
+
+firestore "cloud.google.com/go/firestore"
+"google.golang.org/api/iterator"
+)
+
+func queryFilterOr(w io.Writer, projectId string) error {
+// Instantiate a client
+ctx := context.Background()
+client, err := firestore.NewClient(ctx, projectId)
+if err != nil {
+return err
+}
+// always be sure to close the client to release resources
+defer client.Close()
+
+q1 := firestore.PropertyFilter [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_PropertyFilter]{
+Path:     "birthYear",
+Operator: "==",
+Value:    1906,
+}
+
+q2 := firestore.PropertyFilter [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_PropertyFilter]{
+Path:     "birthYear",
+Operator: "==",
+Value:    1815,
+}
+
+orFilter := firestore.OrFilter [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_OrFilter]{
+Filters: []firestore.EntityFilter [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_EntityFilter]{q1, q2},
+}
+
+orQuery := client.Collection("users").WhereEntity [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_Query_WhereEntity](orFilter)
+it := orQuery.Documents(ctx)
+if err != nil {
+return err
+}
+
+fmt.Fprint(w, "Individual documents:\n")
+for {
+doc, err := it.Next()
+if err == iterator.Done {
+break
+}
+if err != nil {
+return fmt.Errorf("documents iterator: %w", err)
+}
+fmt.Fprintf(w, "%s: %s", doc.Ref.ID, doc.Data [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_DocumentSnapshot_Data]()["birthYear"])
+}
+
+return nil
+}
+query_filter_or.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/query_filter_or.go#L18-L73]
+
+PHP
+스니펫 사용 불가
+
+Unity
+Query query = citiesRef.Where(Filter.Or(
+Filter.EqualTo("State", "CA"),
+Filter.GreaterThanOrEqualTo("population", 1000000)
+));
+query.GetSnapshotAsync().ContinueWithOnMainThread((querySnapshotTask) =>
+{
+foreach (DocumentSnapshot documentSnapshot in querySnapshotTask.Result.Documents)
+{
+Debug.Log(String.Format("Document {0} returned by query State=CA or population >= {1}", documentSnapshot.Id, 1000000));
+}
+});
+
+C#
+스니펫 사용 불가
+
+Ruby
+스니펫 사용 불가
+
+Firestore는 복합 색인을 사용하여 OR 쿼리를 제공합니다. 색인이 쿼리를 지원하지 않는 경우 Firestore는 데이터베이스에 대한 추가 색인을 제안 [https://cloud.google.com/firestore/native/docs/query-data/indexing?hl=ko#create_a_missing_index_through_an_error_message]합니다.
+
+OR 쿼리와 복합 쿼리를 결합하여 OR 및 AND 작업의 조합을 필터링할 수 있습니다. 예를 들면 다음과 같습니다.
+
+웹 버전 9
+const q = query(collection(db, "cities"), and(
+where('state', '==', 'CA'),
+or(
+where('capital', '==', true),
+where('population', '>=', 1000000)
+)
+));test.firestore.js [https://github.com/firebase/snippets-web/blob/7e4874cadf21d09e72a034d061abf390e8049f81/firestore-next/test.firestore.js#L1097-L1103]
+
+웹 버전 8
+지원되지 않음
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let query = db.collection("cities").whereFilter(Filter.andFilter([
+Filter.whereField("state", isEqualTo: "CA"),
+Filter.orFilter([
+Filter.whereField("capital", isEqualTo: true),
+Filter.whereField("population", isGreaterThanOrEqualTo: 1000000)
+])
+]))ViewController.swift [https://github.com/firebase/snippets-ios/blob/4bdc4fb545979a2406891fea7a95b2ccd8e0b43d/firestore/swift/firestore-smoketest/ViewController.swift#L1288-L1294]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRCollectionReference *collection = [self.db collectionWithPath:@"cities"];
+FIRQuery *query = [collection queryWhereFilter:[FIRFilter andFilterWithFilters:@[
+[FIRFilter filterWhereField:@"state" isEqualTo:@"CA"],
+[FIRFilter orFilterWithFilters:@[
+[FIRFilter filterWhereField:@"capital" isEqualTo:@YES],
+[FIRFilter filterWhereField:@"population" isGreaterThanOrEqualTo:@1000000]
+]]
+]]];ViewController.m [https://github.com/firebase/snippets-ios/blob/4bdc4fb545979a2406891fea7a95b2ccd8e0b43d/firestore/objc/firestore-smoketest-objc/ViewController.m#L1205-L1212]
+
+KotlinAndroid
+val query = collection.where(Filter.and(
+Filter.equalTo("state", "CA"),
+Filter.or(
+Filter.equalTo("capital", true),
+Filter.greaterThanOrEqualTo("population", 1000000)
+)
+))DocSnippets.kt [https://github.com/firebase/snippets-android/blob/3a2fc21b7bf1a0d6d2fe48571de507e2c249b1f4/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L1114-L1120]
+
+자바Android
+Query query = collection.where(Filter.and(
+Filter.equalTo("state", "CA"),
+Filter.or(
+Filter.equalTo("capital", true),
+Filter.greaterThanOrEqualTo("population", 1000000)
+)
+));DocSnippets.java [https://github.com/firebase/snippets-android/blob/3a2fc21b7bf1a0d6d2fe48571de507e2c249b1f4/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1342-L1348]
+
+Dart
+var query = db.collection("cities").where(
+Filter.and(
+Filter("state", isEqualTo: "CA"),
+Filter.or(
+Filter("capital", isEqualTo: true),
+Filter("population", isGreaterThan: 1000000),
+),
+),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L856-L864]
+
+Java
+스니펫 사용 불가
+
+Python
+스니펫 사용 불가
+
+Python(비동기)
+스니펫 사용 불가
+
+C++
+스니펫 사용 불가
+
+Node.js
+const bigCitiesInCalifornia = await citiesRef
+.where('state', '==', 'CA')
+.where(
+Filter.or(
+Filter.where('capital', '==', true),
+Filter.where('population', '>=', 1000000)
+)
+)
+.get();index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L670-L678]
+
+Go
+스니펫 사용 불가
+
+PHP
+스니펫 사용 불가
+
+Unity
+Query query = citiesRef.Where(Filter.And(
+Filter.EqualTo("state", "CA"),
+Filter.Or(
+Filter.EqualTo("capital", true),
+Filter.GreaterThanOrEqualTo("population", 1000000)
+)
+));
+
+C#
+스니펫 사용 불가
+
+Ruby
+스니펫 사용 불가
+
+제한사항
+
+or 쿼리에는 다음과 같은 제한사항이 있습니다.
+
+Firestore는 쿼리의 논리합 표준형을 기반으로 최대 30개의 분리 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#limits_on_or_queries]로 쿼리를 제한합니다.
+여러 OR 그룹의 AND를 수행할 때 이 한도에 도달할 가능성이 높습니다.
+동일한 쿼리에서 not-in과 in, array-contains-any 또는 or을 결합할 수 없습니다.
+
+제한사항에 대한 자세한 설명은 쿼리 제한사항 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#query_limitations]을 참조하세요.
+
+컬렉션 그룹 쿼리
+
+컬렉션 그룹은 ID가 동일한 모든 컬렉션으로 구성됩니다. 기본적으로 쿼리는 데이터베이스의 단일 컬렉션에서 결과를 검색합니다. 단일 컬렉션 대신 컬렉션 그룹에서 문서를 검색하려면 컬렉션 그룹 쿼리를 사용하세요.
+
+예를 들어 각 도시에 명소 하위 컬렉션을 추가하여 landmarks 컬렉션 그룹을 만들 수 있습니다.
+
+웹 버전 9
+import { collection, addDoc } from "firebase/firestore";
+
+const citiesRef = collection(db, 'cities');
+
+await Promise.all([
+addDoc(collection(citiesRef, 'SF', 'landmarks'), {
+name: 'Golden Gate Bridge',
+type: 'bridge'
+}),
+addDoc(collection(citiesRef, 'SF', 'landmarks'), {
+name: 'Legion of Honor',
+type: 'museum'
+}),
+addDoc(collection(citiesRef, 'LA', 'landmarks'), {
+name: 'Griffith Park',
+type: 'park'
+}),
+addDoc(collection(citiesRef, 'LA', 'landmarks'), {
+name: 'The Getty',
+type: 'museum'
+}),
+addDoc(collection(citiesRef, 'DC', 'landmarks'), {
+name: 'Lincoln Memorial',
+type: 'memorial'
+}),
+addDoc(collection(citiesRef, 'DC', 'landmarks'), {
+name: 'National Air and Space Museum',
+type: 'museum'
+}),
+addDoc(collection(citiesRef, 'TOK', 'landmarks'), {
+name: 'Ueno Park',
+type: 'park'
+}),
+addDoc(collection(citiesRef, 'TOK', 'landmarks'), {
+name: 'National Museum of Nature and Science',
+type: 'museum'
+}),
+addDoc(collection(citiesRef, 'BJ', 'landmarks'), {
+name: 'Jingshan Park',
+type: 'park'
+}),
+addDoc(collection(citiesRef, 'BJ', 'landmarks'), {
+name: 'Beijing Ancient Observatory',
+type: 'museum'
+})
+]);fs_collection_group_query_data_setup.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/fs_collection_group_query_data_setup.js#L8-L53]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+var citiesRef = db.collection('cities');
+
+var landmarks = Promise.all([
+citiesRef.doc('SF').collection('landmarks').doc().set({
+name: 'Golden Gate Bridge',
+type: 'bridge'
+}),
+citiesRef.doc('SF').collection('landmarks').doc().set({
+name: 'Legion of Honor',
+type: 'museum'
+}),
+citiesRef.doc('LA').collection('landmarks').doc().set({
+name: 'Griffith Park',
+type: 'park'
+}),
+citiesRef.doc('LA').collection('landmarks').doc().set({
+name: 'The Getty',
+type: 'museum'
+}),
+citiesRef.doc('DC').collection('landmarks').doc().set({
+name: 'Lincoln Memorial',
+type: 'memorial'
+}),
+citiesRef.doc('DC').collection('landmarks').doc().set({
+name: 'National Air and Space Museum',
+type: 'museum'
+}),
+citiesRef.doc('TOK').collection('landmarks').doc().set({
+name: 'Ueno Park',
+type: 'park'
+}),
+citiesRef.doc('TOK').collection('landmarks').doc().set({
+name: 'National Museum of Nature and Science',
+type: 'museum'
+}),
+citiesRef.doc('BJ').collection('landmarks').doc().set({
+name: 'Jingshan Park',
+type: 'park'
+}),
+citiesRef.doc('BJ').collection('landmarks').doc().set({
+name: 'Beijing Ancient Observatory',
+type: 'museum'
+})
+]);test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L1039-L1082]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+let citiesRef = db.collection("cities")
+
+var data = ["name": "Golden Gate Bridge", "type": "bridge"]
+citiesRef.document("SF").collection("landmarks").addDocument(data: data)
+
+data = ["name": "Legion of Honor", "type": "museum"]
+citiesRef.document("SF").collection("landmarks").addDocument(data: data)
+
+data = ["name": "Griffith Park", "type": "park"]
+citiesRef.document("LA").collection("landmarks").addDocument(data: data)
+
+data = ["name": "The Getty", "type": "museum"]
+citiesRef.document("LA").collection("landmarks").addDocument(data: data)
+
+data = ["name": "Lincoln Memorial", "type": "memorial"]
+citiesRef.document("DC").collection("landmarks").addDocument(data: data)
+
+data = ["name": "National Air and Space Museum", "type": "museum"]
+citiesRef.document("DC").collection("landmarks").addDocument(data: data)
+
+data = ["name": "Ueno Park", "type": "park"]
+citiesRef.document("TOK").collection("landmarks").addDocument(data: data)
+
+data = ["name": "National Museum of Nature and Science", "type": "museum"]
+citiesRef.document("TOK").collection("landmarks").addDocument(data: data)
+
+data = ["name": "Jingshan Park", "type": "park"]
+citiesRef.document("BJ").collection("landmarks").addDocument(data: data)
+
+data = ["name": "Beijing Ancient Observatory", "type": "museum"]
+citiesRef.document("BJ").collection("landmarks").addDocument(data: data)ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L672-L702]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+FIRCollectionReference *citiesRef = [self.db collectionWithPath:@"cities"];
+
+NSDictionary *data = @{@"name": @"Golden Gate Bridge", @"type": @"bridge"};
+[[[citiesRef documentWithPath:@"SF"] collectionWithPath:@"landmarks"] addDocumentWithData:data];
+
+data = @{@"name": @"Legion of Honor", @"type": @"museum"};
+[[[citiesRef documentWithPath:@"SF"] collectionWithPath:@"landmarks"] addDocumentWithData:data];
+
+data = @{@"name": @"Griffith Park", @"type": @"park"};
+[[[citiesRef documentWithPath:@"LA"] collectionWithPath:@"landmarks"] addDocumentWithData:data];
+
+data = @{@"name": @"The Getty", @"type": @"museum"};
+[[[citiesRef documentWithPath:@"LA"] collectionWithPath:@"landmarks"] addDocumentWithData:data];
+
+data = @{@"name": @"Lincoln Memorial", @"type": @"memorial"};
+[[[citiesRef documentWithPath:@"DC"] collectionWithPath:@"landmarks"] addDocumentWithData:data];
+
+data = @{@"name": @"National Air and Space Museum", @"type": @"museum"};
+[[[citiesRef documentWithPath:@"DC"] collectionWithPath:@"landmarks"] addDocumentWithData:data];
+
+data = @{@"name": @"Ueno Park", @"type": @"park"};
+[[[citiesRef documentWithPath:@"TOK"] collectionWithPath:@"landmarks"] addDocumentWithData:data];
+
+data = @{@"name": @"National Museum of Nature and Science", @"type": @"museum"};
+[[[citiesRef documentWithPath:@"TOK"] collectionWithPath:@"landmarks"] addDocumentWithData:data];
+
+data = @{@"name": @"Jingshan Park", @"type": @"park"};
+[[[citiesRef documentWithPath:@"BJ"] collectionWithPath:@"landmarks"] addDocumentWithData:data];
+
+data = @{@"name": @"Beijing Ancient Observatory", @"type": @"museum"};
+[[[citiesRef documentWithPath:@"BJ"] collectionWithPath:@"landmarks"] addDocumentWithData:data];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L609-L639]
+
+KotlinAndroid
+val citiesRef = db.collection("cities")
+
+val ggbData = mapOf(
+"name" to "Golden Gate Bridge",
+"type" to "bridge",
+)
+citiesRef.document("SF").collection("landmarks").add(ggbData)
+
+val lohData = mapOf(
+"name" to "Legion of Honor",
+"type" to "museum",
+)
+citiesRef.document("SF").collection("landmarks").add(lohData)
+
+val gpData = mapOf(
+"name" to "Griffth Park",
+"type" to "park",
+)
+citiesRef.document("LA").collection("landmarks").add(gpData)
+
+val tgData = mapOf(
+"name" to "The Getty",
+"type" to "museum",
+)
+citiesRef.document("LA").collection("landmarks").add(tgData)
+
+val lmData = mapOf(
+"name" to "Lincoln Memorial",
+"type" to "memorial",
+)
+citiesRef.document("DC").collection("landmarks").add(lmData)
+
+val nasaData = mapOf(
+"name" to "National Air and Space Museum",
+"type" to "museum",
+)
+citiesRef.document("DC").collection("landmarks").add(nasaData)
+
+val upData = mapOf(
+"name" to "Ueno Park",
+"type" to "park",
+)
+citiesRef.document("TOK").collection("landmarks").add(upData)
+
+val nmData = mapOf(
+"name" to "National Musuem of Nature and Science",
+"type" to "museum",
+)
+citiesRef.document("TOK").collection("landmarks").add(nmData)
+
+val jpData = mapOf(
+"name" to "Jingshan Park",
+"type" to "park",
+)
+citiesRef.document("BJ").collection("landmarks").add(jpData)
+
+val baoData = mapOf(
+"name" to "Beijing Ancient Observatory",
+"type" to "musuem",
+)
+citiesRef.document("BJ").collection("landmarks").add(baoData)DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L777-L837]
+
+자바Android
+CollectionReference citiesRef = db.collection("cities");
+
+Map<String, Object> ggbData = new HashMap<>();
+ggbData.put("name", "Golden Gate Bridge");
+ggbData.put("type", "bridge");
+citiesRef.document("SF").collection("landmarks").add(ggbData);
+
+Map<String, Object> lohData = new HashMap<>();
+lohData.put("name", "Legion of Honor");
+lohData.put("type", "museum");
+citiesRef.document("SF").collection("landmarks").add(lohData);
+
+Map<String, Object> gpData = new HashMap<>();
+gpData.put("name", "Griffith Park");
+gpData.put("type", "park");
+citiesRef.document("LA").collection("landmarks").add(gpData);
+
+Map<String, Object> tgData = new HashMap<>();
+tgData.put("name", "The Getty");
+tgData.put("type", "museum");
+citiesRef.document("LA").collection("landmarks").add(tgData);
+
+Map<String, Object> lmData = new HashMap<>();
+lmData.put("name", "Lincoln Memorial");
+lmData.put("type", "memorial");
+citiesRef.document("DC").collection("landmarks").add(lmData);
+
+Map<String, Object> nasaData = new HashMap<>();
+nasaData.put("name", "National Air and Space Museum");
+nasaData.put("type", "museum");
+citiesRef.document("DC").collection("landmarks").add(nasaData);
+
+Map<String, Object> upData = new HashMap<>();
+upData.put("name", "Ueno Park");
+upData.put("type", "park");
+citiesRef.document("TOK").collection("landmarks").add(upData);
+
+Map<String, Object> nmData = new HashMap<>();
+nmData.put("name", "National Museum of Nature and Science");
+nmData.put("type", "museum");
+citiesRef.document("TOK").collection("landmarks").add(nmData);
+
+Map<String, Object> jpData = new HashMap<>();
+jpData.put("name", "Jingshan Park");
+jpData.put("type", "park");
+citiesRef.document("BJ").collection("landmarks").add(jpData);
+
+Map<String, Object> baoData = new HashMap<>();
+baoData.put("name", "Beijing Ancient Observatory");
+baoData.put("type", "museum");
+citiesRef.document("BJ").collection("landmarks").add(baoData);DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L981-L1031]
+
+Dart
+final citiesRef = db.collection("cities");
+
+final ggbData = {"name": "Golden Gate Bridge", "type": "bridge"};
+citiesRef.doc("SF").collection("landmarks").add(ggbData);
+
+final lohData = {"name": "Legion of Honor", "type": "museum"};
+citiesRef.doc("SF").collection("landmarks").add(lohData);
+
+final gpData = {"name": "Griffth Park", "type": "park"};
+citiesRef.doc("LA").collection("landmarks").add(gpData);
+
+final tgData = {"name": "The Getty", "type": "museum"};
+citiesRef.doc("LA").collection("landmarks").add(tgData);
+
+final lmData = {"name": "Lincoln Memorial", "type": "memorial"};
+citiesRef.doc("DC").collection("landmarks").add(lmData);
+
+final nasaData = {
+"name": "National Air and Space Museum",
+"type": "museum"
+};
+citiesRef.doc("DC").collection("landmarks").add(nasaData);
+
+final upData = {"name": "Ueno Park", "type": "park"};
+citiesRef.doc("TOK").collection("landmarks").add(upData);
+
+final nmData = {
+"name": "National Musuem of Nature and Science",
+"type": "museum"
+};
+citiesRef.doc("TOK").collection("landmarks").add(nmData);
+
+final jpData = {"name": "Jingshan Park", "type": "park"};
+citiesRef.doc("BJ").collection("landmarks").add(jpData);
+
+final baoData = {"name": "Beijing Ancient Observatory", "type": "musuem"};
+citiesRef.doc("BJ").collection("landmarks").add(baoData);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L790-L826]
+
+자바
+
+CollectionReference cities = db.collection("cities");
+
+final List<ApiFuture<WriteResult>> futures =
+Arrays.asList(
+cities
+.document("SF")
+.collection("landmarks")
+.document()
+.set(
+new HashMap<String, String>() {
+{
+put("name", "Golden Gate Bridge");
+put("type", "bridge");
+}
+}),
+cities
+.document("SF")
+.collection("landmarks")
+.document()
+.set(
+new HashMap<String, String>() {
+{
+put("name", "Legion of Honor");
+put("type", "museum");
+}
+}),
+cities
+.document("LA")
+.collection("landmarks")
+.document()
+.set(
+new HashMap<String, String>() {
+{
+put("name", "Griffith Park");
+put("type", "park");
+}
+}),
+cities
+.document("LA")
+.collection("landmarks")
+.document()
+.set(
+new HashMap<String, String>() {
+{
+put("name", "The Getty");
+put("type", "museum");
+}
+}),
+cities
+.document("DC")
+.collection("landmarks")
+.document()
+.set(
+new HashMap<String, String>() {
+{
+put("name", "Lincoln Memorial");
+put("type", "memorial");
+}
+}),
+cities
+.document("DC")
+.collection("landmarks")
+.document()
+.set(
+new HashMap<String, String>() {
+{
+put("name", "National Air and Space Museum");
+put("type", "museum");
+}
+}),
+cities
+.document("TOK")
+.collection("landmarks")
+.document()
+.set(
+new HashMap<String, String>() {
+{
+put("name", "Ueno Park");
+put("type", "park");
+}
+}),
+cities
+.document("TOK")
+.collection("landmarks")
+.document()
+.set(
+new HashMap<String, String>() {
+{
+put("name", "National Museum of Nature and Science");
+put("type", "museum");
+}
+}),
+cities
+.document("BJ")
+.collection("landmarks")
+.document()
+.set(
+new HashMap<String, String>() {
+{
+put("name", "Jingshan Park");
+put("type", "park");
+}
+}),
+cities
+.document("BJ")
+.collection("landmarks")
+.document()
+.set(
+new HashMap<String, String>() {
+{
+put("name", "Beijing Ancient Observatory");
+put("type", "museum");
+}
+}));
+final List<WriteResult> landmarks = ApiFutures.allAsList(futures).get();QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L418-L532]
+
+Python
+
+cities = db.collection("cities")
+
+sf_landmarks = cities.document("SF").collection("landmarks")
+sf_landmarks.document().set({"name": "Golden Gate Bridge", "type": "bridge"})
+sf_landmarks.document().set({"name": "Legion of Honor", "type": "museum"})
+la_landmarks = cities.document("LA").collection("landmarks")
+la_landmarks.document().set({"name": "Griffith Park", "type": "park"})
+la_landmarks.document().set({"name": "The Getty", "type": "museum"})
+dc_landmarks = cities.document("DC").collection("landmarks")
+dc_landmarks.document().set({"name": "Lincoln Memorial", "type": "memorial"})
+dc_landmarks.document().set(
+{"name": "National Air and Space Museum", "type": "museum"}
+)
+tok_landmarks = cities.document("TOK").collection("landmarks")
+tok_landmarks.document().set({"name": "Ueno Park", "type": "park"})
+tok_landmarks.document().set(
+{"name": "National Museum of Nature and Science", "type": "museum"}
+)
+bj_landmarks = cities.document("BJ").collection("landmarks")
+bj_landmarks.document().set({"name": "Jingshan Park", "type": "park"})
+bj_landmarks.document().set(
+{"name": "Beijing Ancient Observatory", "type": "museum"}
+)snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L868-L890]
+
+Python(비동기)
+
+cities = db.collection("cities")
+
+sf_landmarks = cities.document("SF").collection("landmarks")
+await sf_landmarks.document().set({"name": "Golden Gate Bridge", "type": "bridge"})
+await sf_landmarks.document().set({"name": "Legion of Honor", "type": "museum"})
+la_landmarks = cities.document("LA").collection("landmarks")
+await la_landmarks.document().set({"name": "Griffith Park", "type": "park"})
+await la_landmarks.document().set({"name": "The Getty", "type": "museum"})
+dc_landmarks = cities.document("DC").collection("landmarks")
+await dc_landmarks.document().set({"name": "Lincoln Memorial", "type": "memorial"})
+await dc_landmarks.document().set(
+{"name": "National Air and Space Museum", "type": "museum"}
+)
+tok_landmarks = cities.document("TOK").collection("landmarks")
+await tok_landmarks.document().set({"name": "Ueno Park", "type": "park"})
+await tok_landmarks.document().set(
+{"name": "National Museum of Nature and Science", "type": "museum"}
+)
+bj_landmarks = cities.document("BJ").collection("landmarks")
+await bj_landmarks.document().set({"name": "Jingshan Park", "type": "park"})
+await bj_landmarks.document().set(
+{"name": "Beijing Ancient Observatory", "type": "museum"}
+)snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L718-L740]
+
+C++
+// Get a new write batch
+WriteBatch batch = db->batch();
+
+DocumentReference sf_ref = db->Collection("cities").Document("SF");
+batch.Set(sf_ref,{{"name", FieldValue::String("Golden Gate Bridge")}, {"type", FieldValue::String("bridge")}});
+batch.Set(sf_ref,{{"name", FieldValue::String("Legion of Honor")}, {"type", FieldValue::String("museum")}});
+
+DocumentReference la_ref = db->Collection("cities").Document("LA");
+batch.Set(la_ref,{{"name", FieldValue::String("Griffith Park")}, {"type", FieldValue::String("park")}});
+batch.Set(la_ref,{{"name", FieldValue::String("The Getty")}, {"type", FieldValue::String("museum")}});
+
+DocumentReference dc_ref = db->Collection("cities").Document("DC");
+batch.Set(dc_ref,{{"name", FieldValue::String("Lincoln Memorial")}, {"type", FieldValue::String("memorial")}});
+batch.Set(dc_ref,{{"name", FieldValue::String("National Air and Space Museum")}, {"type", FieldValue::String("museum")}});
+
+DocumentReference tok_ref = db->Collection("cities").Document("TOK");
+batch.Set(tok_ref,{{"name", FieldValue::String("Ueno Park")}, {"type", FieldValue::String("park")}});
+batch.Set(tok_ref,{{"name", FieldValue::String("National Museum of Nature and Science")}, {"type", FieldValue::String("museum")}});
+
+DocumentReference bj_ref = db->Collection("cities").Document("BJ");
+batch.Set(bj_ref,{{"name", FieldValue::String("Jingshan Park")}, {"type", FieldValue::String("park")}});
+batch.Set(bj_ref,{{"name", FieldValue::String("Beijing Ancient Observatory")}, {"type", FieldValue::String("museum")}});
+
+// Commit the batch
+batch.Commit().OnCompletion([](const Future<void>& future) {
+if (future.error() == Error::kErrorOk) {
+std::cout << "Write batch success!" << std::endl;
+} else {
+std::cout << "Write batch failure: " << future.error_message() << std::endl;
+}
+});
+
+Node.js
+
+const citiesRef = db.collection('cities');
+
+await citiesRef.doc('SF').collection('landmarks').doc().set({
+name: 'Golden Gate Bridge',
+type: 'bridge'
+});
+await citiesRef.doc('SF').collection('landmarks').doc().set({
+name: 'Legion of Honor',
+type: 'museum'
+});
+await citiesRef.doc('LA').collection('landmarks').doc().set({
+name: 'Griffith Park',
+type: 'park'
+});
+await citiesRef.doc('LA').collection('landmarks').doc().set({
+name: 'The Getty',
+type: 'museum'
+});
+await citiesRef.doc('DC').collection('landmarks').doc().set({
+name: 'Lincoln Memorial',
+type: 'memorial'
+});
+await citiesRef.doc('DC').collection('landmarks').doc().set({
+name: 'National Air and Space Museum',
+type: 'museum'
+});
+await citiesRef.doc('TOK').collection('landmarks').doc().set({
+name: 'Ueno Park',
+type: 'park'
+});
+await citiesRef.doc('TOK').collection('landmarks').doc().set({
+name: 'National Museum of Nature and Science',
+type: 'museum'
+});
+await citiesRef.doc('BJ').collection('landmarks').doc().set({
+name: 'Jingshan Park',
+type: 'park'
+});
+await citiesRef.doc('BJ').collection('landmarks').doc().set({
+name: 'Beijing Ancient Observatory',
+type: 'museum'
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L820-L861]
+
+Go
+
+import (
+"context"
+"fmt"
+
+"cloud.google.com/go/firestore"
+)
+
+// collectionGroupSetup sets up a collection group to query.
+func collectionGroupSetup(projectID, cityCollection string) error {
+ctx := context.Background()
+
+client, err := firestore.NewClient(ctx, projectID)
+if err != nil {
+return fmt.Errorf("firestore.NewClient: %w", err)
+}
+defer client.Close()
+
+landmarks := []struct {
+city, name, t string
+}{
+{"SF", "Golden Gate Bridge", "bridge"},
+{"SF", "Legion of Honor", "museum"},
+{"LA", "Griffith Park", "park"},
+{"LA", "The Getty", "museum"},
+{"DC", "Lincoln Memorial", "memorial"},
+{"DC", "National Air and Space Museum", "museum"},
+{"TOK", "Ueno Park", "park"},
+{"TOK", "National Museum of Nature and Science", "museum"},
+{"BJ", "Jingshan Park", "park"},
+{"BJ", "Beijing Ancient Observatory", "museum"},
+}
+
+cities := client.Collection(cityCollection)
+for _, l := range landmarks {
+if _, err := cities.Doc(l.city).Collection("landmarks").NewDoc [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_CollectionRef_NewDoc]().Set(ctx, map[string]string{
+"name": l.name,
+"type": l.t,
+}); err != nil {
+return fmt.Errorf("Set: %w", err)
+}
+}
+
+return nil
+}
+collection_group_setup.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/collection_group_setup.go#L18-L62]
+
+PHP
+
+$citiesRef = $db->collection('samples/php/cities');
+$citiesRef->document('SF')->collection('landmarks')->newDocument()->set([
+'name' => 'Golden Gate Bridge',
+'type' => 'bridge'
+]);
+$citiesRef->document('SF')->collection('landmarks')->newDocument()->set([
+'name' => 'Legion of Honor',
+'type' => 'museum'
+]);
+$citiesRef->document('LA')->collection('landmarks')->newDocument()->set([
+'name' => 'Griffith Park',
+'type' => 'park'
+]);
+$citiesRef->document('LA')->collection('landmarks')->newDocument()->set([
+'name' => 'The Getty',
+'type' => 'museum'
+]);
+$citiesRef->document('DC')->collection('landmarks')->newDocument()->set([
+'name' => 'Lincoln Memorial',
+'type' => 'memorial'
+]);
+$citiesRef->document('DC')->collection('landmarks')->newDocument()->set([
+'name' => 'National Air and Space Museum',
+'type' => 'museum'
+]);
+$citiesRef->document('TOK')->collection('landmarks')->newDocument()->set([
+'name' => 'Ueno Park',
+'type' => 'park'
+]);
+$citiesRef->document('TOK')->collection('landmarks')->newDocument()->set([
+'name' => 'National Museum of Nature and Science',
+'type' => 'museum'
+]);
+$citiesRef->document('BJ')->collection('landmarks')->newDocument()->set([
+'name' => 'Jingshan Park',
+'type' => 'park'
+]);
+$citiesRef->document('BJ')->collection('landmarks')->newDocument()->set([
+'name' => 'Beijing Ancient Observatory',
+'type' => 'museum'
+]);
+print('Added example landmarks collections to the cities collection.' . PHP_EOL);query_collection_group_dataset.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_collection_group_dataset.php#L41-L82]
+
+Unity
+List<Task<DocumentReference>> futures =
+new List<Task<DocumentReference>>(){
+citiesRef
+.Document("SF")
+.Collection("landmarks")
+.AddAsync(
+new Dictionary<string, object>()
+{
+{"name", "Golden Gate Bridge"},
+{"type", "bridge"},
+}
+),
+citiesRef
+.Document("SF")
+.Collection("landmarks")
+.AddAsync(
+new Dictionary<string, object>()
+{
+{"name", "Legion of Honor"},
+{"type", "museum"},
+}
+),
+citiesRef
+.Document("LA")
+.Collection("landmarks")
+.AddAsync(
+new Dictionary<string, object>()
+{
+{"name", "Griffith Park"},
+{"type", "park"},
+}
+),
+citiesRef
+.Document("LA")
+.Collection("landmarks")
+.AddAsync(
+new Dictionary<string, object>()
+{
+{"name", "The Getty"},
+{"type", "museum"},
+}
+),
+citiesRef
+.Document("DC")
+.Collection("landmarks")
+.AddAsync(
+new Dictionary<string, object>()
+{
+{"name", "Lincoln Memorial"},
+{"type", "memorial"},
+}
+),
+citiesRef
+.Document("DC")
+.Collection("landmarks")
+.AddAsync(
+new Dictionary<string, object>()
+{
+{"name", "National Air and Space Museum"},
+{"type", "museum"},
+}
+),
+citiesRef
+.Document("TOK")
+.Collection("landmarks")
+.AddAsync(
+new Dictionary<string, object>()
+{
+{"name", "Ueno Park"},
+{"type", "park"},
+}
+),
+citiesRef
+.Document("TOK")
+.Collection("landmarks")
+.AddAsync(
+new Dictionary<string, object>()
+{
+{"name", "National Museum of Nature and Science"},
+{"type", "museum"},
+}
+),
+citiesRef
+.Document("BJ")
+.Collection("landmarks")
+.AddAsync(
+new Dictionary<string, object>()
+{
+{"name", "Jingshan Park"},
+{"type", "park"},
+}
+),
+citiesRef
+.Document("BJ")
+.Collection("landmarks")
+.AddAsync(
+new Dictionary<string, object>()
+{
+{"name", "Beijing Ancient Observatory"},
+{"type", "museum"},
+}
+)};
+DocumentReference[] landmarks = Task.WhenAll(futures).Result;
+
+C#
+
+// Copyright(c) 2017 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not
+// use this file except in compliance with the License. You may obtain a copy of
+// the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations under
+// the License.
+
+using Google.Cloud.Firestore [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.html?hl=ko];
+using Google.Cloud.Firestore.Admin.V1 [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.Admin.V1/latest/Google.Cloud.Firestore.Admin.V1.html?hl=ko];
+using Google.Protobuf.WellKnownTypes [https://cloud.google.com/dotnet/docs/reference/Google.Protobuf/latest/Google.Protobuf.WellKnownTypes.html?hl=ko];
+using Grpc.Core [https://cloud.google.com/dotnet/docs/reference/Grpc.Core/latest/Grpc.Core.html?hl=ko];
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using static Google.Cloud.Firestore.Admin.V1.Index.Types;
+
+namespace GoogleCloudSamples
+{
+public class QueryData
+{
+public static string Usage = @"Usage:
+C:\> dotnet run command YOUR_PROJECT_ID
+
+Where command is one of
+query-create-examples
+create-query-state
+create-query-capital
+simple-queries
+array-contains-query
+array-contains-any-query
+in-query
+in-query-array
+collection-group-query
+subcollection-query
+chained-query
+composite-index-chained-query
+range-query
+multiple-inequalities
+";
+private static async Task QueryCreateExamples(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+// Note: the extra braces here are just to allow multiple citiesRef local variables.
+{
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("SF").SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new Dictionary<string, object>
+{
+{ "Name", "San Francisco" },
+{ "State", "CA" },
+{ "Country", "USA" },
+{ "Capital", false },
+{ "Population", 860000 },
+{ "Density", 18000 },
+{ "Regions", new[] {"west_coast", "norcal"} }
+});
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("LA").SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new Dictionary<string, object>
+{
+{ "Name", "Los Angeles" },
+{ "State", "CA" },
+{ "Country", "USA" },
+{ "Capital", false },
+{ "Population", 3900000 },
+{ "Density", 8300 },
+{ "Regions", new[] {"west_coast", "socal"} }
+});
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("DC").SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new Dictionary<string, object>
+{
+{ "Name", "Washington D.C." },
+{ "State", null },
+{ "Country", "USA" },
+{ "Capital", true },
+{ "Population", 680000 },
+{ "Density", 11300 },
+{ "Regions", new[] {"east_coast"} }
+});
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("TOK").SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new Dictionary<string, object>
+{
+{ "Name", "Tokyo" },
+{ "State", null },
+{ "Country", "Japan" },
+{ "Capital", true },
+{ "Population", 9000000 },
+{ "Density", 16000 },
+{ "Regions", new[] {"kanto", "honshu"} }
+});
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("BJ").SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new Dictionary<string, object>
+{
+{ "Name", "Beijing" },
+{ "State", null },
+{ "Country", "China" },
+{ "Capital", true },
+{ "Population", 21500000 },
+{ "Density", 3500 },
+{ "Regions", new[] {"jingjinji", "hebei"} }
+});
+Console.WriteLine("Added example cities data to the cities collection.");
+}
+
+{
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("SF").Collection("landmarks").Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Document.html?hl=ko]()
+.SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new { Name = "Golden Gate Bridge", Type = "bridge" });
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("SF").Collection("landmarks").Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Document.html?hl=ko]()
+.SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new { Name = "Legion of Honor", Type = "museum" });
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("LA").Collection("landmarks").Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Document.html?hl=ko]()
+.SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new { Name = "Griffith Park", Type = "park" });
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("DC").Collection("landmarks").Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Document.html?hl=ko]()
+.SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new { Name = "Lincoln Memorial", Type = "memorial" });
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("DC").Collection("landmarks").Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Document.html?hl=ko]()
+.SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new { Name = "National Air And Space Museum", Type = "museum" });
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("TOK").Collection("landmarks").Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Document.html?hl=ko]()
+.SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new { Name = "Ueno Park", Type = "park" });
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("TOK").Collection("landmarks").Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Document.html?hl=ko]()
+.SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new { Name = "National Museum of Nature and Science", Type = "museum" });
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("BJ").Collection("landmarks").Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Document.html?hl=ko]()
+.SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new { Name = "Jingshan Park", Type = "park" });
+await citiesRef.Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko#Google_Cloud_Firestore_CollectionReference_Document]("BJ").Collection("landmarks").Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Document.html?hl=ko]()
+.SetAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentReference.html?hl=ko#Google_Cloud_Firestore_DocumentReference_SetAsync_System_Object_Google_Cloud_Firestore_SetOptions_System_Threading_CancellationToken_](new { Name = "Beijing Ancient Observatory", Type = "museum" });
+}
+}
+
+private static async Task CreateQueryState(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] query = citiesRef.WhereEqualTo [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereEqualTo_Google_Cloud_Firestore_FieldPath_System_Object_]("State", "CA");
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await query.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in querySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query State=CA", documentSnapshot.Id);
+}
+}
+
+private static async Task CreateQueryCapital(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] query = citiesRef.WhereEqualTo [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereEqualTo_Google_Cloud_Firestore_FieldPath_System_Object_]("Capital", true);
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await query.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in querySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query Capital=true", documentSnapshot.Id);
+}
+}
+
+private static async Task SimpleQueries(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] stateQuery = citiesRef.WhereEqualTo [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereEqualTo_Google_Cloud_Firestore_FieldPath_System_Object_]("State", "CA");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] populationQuery = citiesRef.WhereGreaterThan [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereGreaterThan_Google_Cloud_Firestore_FieldPath_System_Object_]("Population", 1000000);
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] nameQuery = citiesRef.WhereGreaterThanOrEqualTo [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereGreaterThanOrEqualTo_Google_Cloud_Firestore_FieldPath_System_Object_]("Name", "San Francisco");
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] stateQuerySnapshot = await stateQuery.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in stateQuerySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query State=CA", documentSnapshot.Id);
+}
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] populationQuerySnapshot = await populationQuery.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in populationQuerySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query Population>1000000", documentSnapshot.Id);
+}
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] nameQuerySnapshot = await nameQuery.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in nameQuerySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query Name>=San Francisco", documentSnapshot.Id);
+}
+}
+
+private static async Task ArrayContainsQuery(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] query = citiesRef.WhereArrayContains [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereArrayContains_Google_Cloud_Firestore_FieldPath_System_Object_]("Regions", "west_coast");
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await query.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in querySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query 'Regions array_contains west_coast'", documentSnapshot.Id);
+}
+}
+
+private static async Task ArrayContainsAnyQuery(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] query = citiesRef.WhereArrayContainsAny [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereArrayContainsAny_Google_Cloud_Firestore_FieldPath_System_Collections_IEnumerable_]("Regions", new[] { "west_coast", "east_coast" });
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await query.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in querySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query 'Regions array_contains_any {{west_coast, east_coast}}'", documentSnapshot.Id);
+}
+}
+
+private static async Task InQueryWithoutArray(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] query = citiesRef.WhereIn [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereIn_Google_Cloud_Firestore_FieldPath_System_Collections_IEnumerable_]("Country", new[] { "USA", "Japan" });
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await query.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in querySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query 'Country in {{USA, Japan}}'", documentSnapshot.Id);
+}
+}
+
+private static async Task InQueryWithArray(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] query = citiesRef.WhereIn [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereIn_Google_Cloud_Firestore_FieldPath_System_Collections_IEnumerable_]("Regions",
+new[] { new[] { "west_coast" }, new[] { "east_coast" } });
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await query.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in querySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query 'Regions in {{west_coast}}, {{east_coast}}'", documentSnapshot.Id);
+}
+}
+
+private static async Task CollectionGroupQuery(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] museums = db.CollectionGroup [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_CollectionGroup_System_String_]("landmarks").WhereEqualTo [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereEqualTo_Google_Cloud_Firestore_FieldPath_System_Object_]("Type", "museum");
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await museums.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] document in querySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine($"{document.Reference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko#Google_Cloud_Firestore_DocumentSnapshot_Reference].Path}: {document.GetValue<string>("Name")}");
+}
+}
+
+private static async Task SubcollectionQuery(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] landmarks = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities").Document [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Document.html?hl=ko]("SF").Collection("landmarks");
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await landmarks.GetSnapshotAsync();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] document in querySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine($"{document.Reference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko#Google_Cloud_Firestore_DocumentSnapshot_Reference].Path}: {document.GetValue<string>("Name")}");
+}
+}
+
+private static async Task ChainedQuery(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] chainedQuery = citiesRef
+.WhereEqualTo [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereEqualTo_Google_Cloud_Firestore_FieldPath_System_Object_]("State", "CA")
+.WhereEqualTo [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereEqualTo_Google_Cloud_Firestore_FieldPath_System_Object_]("Name", "San Francisco");
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await chainedQuery.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in querySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query State=CA and Name=San Francisco", documentSnapshot.Id);
+}
+}
+
+private static async Task CompositeIndexChainedQuery(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] chainedQuery = citiesRef
+.WhereEqualTo [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereEqualTo_Google_Cloud_Firestore_FieldPath_System_Object_]("State", "CA")
+.WhereLessThan [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereLessThan_Google_Cloud_Firestore_FieldPath_System_Object_]("Population", 1000000);
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await chainedQuery.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in querySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query State=CA and Population<1000000", documentSnapshot.Id);
+}
+}
+
+private static async Task RangeQuery(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] rangeQuery = citiesRef
+.WhereGreaterThanOrEqualTo [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereGreaterThanOrEqualTo_Google_Cloud_Firestore_FieldPath_System_Object_]("State", "CA")
+.WhereLessThanOrEqualTo [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereLessThanOrEqualTo_Google_Cloud_Firestore_FieldPath_System_Object_]("State", "IN");
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await rangeQuery.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in querySnapshot.Documents [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko#Google_Cloud_Firestore_QuerySnapshot_Documents])
+{
+Console.WriteLine("Document {0} returned by query CA<=State<=IN", documentSnapshot.Id);
+}
+}
+
+private static async Task MultipleInequalitiesQuery(string project)
+{
+FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko] db = FirestoreDb [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Create_System_String_Google_Cloud_Firestore_V1_FirestoreClient_](project);
+FirestoreAdminClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.Admin.V1/latest/Google.Cloud.Firestore.Admin.V1.FirestoreAdminClient.html?hl=ko] adminClient = FirestoreAdminClient [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.Admin.V1/latest/Google.Cloud.Firestore.Admin.V1.FirestoreAdminClient.html?hl=ko].Create [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.Admin.V1/latest/Google.Cloud.Firestore.Admin.V1.FirestoreAdminClient.html?hl=ko#Google_Cloud_Firestore_Admin_V1_FirestoreAdminClient_Create]();
+var index = new Google.Cloud.Firestore.Admin.V1.Index
+{
+Fields =
+{
+new IndexField { FieldPath = "Density", Order = IndexField.Types.Order.Ascending },
+new IndexField { FieldPath = "Population", Order = IndexField.Types.Order.Ascending }
+},
+QueryScope = QueryScope.Collection
+};
+
+// We speculatively try to create the index, and just ignore an error of it already existing.
+try
+{
+var lro = await adminClient.CreateIndexAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.Admin.V1/latest/Google.Cloud.Firestore.Admin.V1.FirestoreAdminClient.html?hl=ko#Google_Cloud_Firestore_Admin_V1_FirestoreAdminClient_CreateIndexAsync_Google_Cloud_Firestore_Admin_V1_CollectionGroupName_Google_Cloud_Firestore_Admin_V1_Index_Google_Api_Gax_Grpc_CallSettings_](new CollectionGroupName [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.Admin.V1/latest/Google.Cloud.Firestore.Admin.V1.CollectionGroupName.html?hl=ko](db.ProjectId [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_ProjectId], db.DatabaseId [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_DatabaseId], "cities"), index);
+await lro.PollUntilCompletedAsync();
+}
+catch (RpcException [https://cloud.google.com/dotnet/docs/reference/Grpc.Core/latest/Grpc.Core.RpcException.html?hl=ko] ex) when (ex.StatusCode [https://cloud.google.com/dotnet/docs/reference/Grpc.Core/latest/Grpc.Core.StatusCode.html?hl=ko] == StatusCode [https://cloud.google.com/dotnet/docs/reference/Grpc.Core/latest/Grpc.Core.StatusCode.html?hl=ko].AlreadyExists [https://cloud.google.com/dotnet/docs/reference/Grpc.Core/latest/Grpc.Core.StatusCode.html?hl=ko#Grpc_Core_StatusCode_AlreadyExists])
+{
+// Assume the index is okay.
+}
+
+CollectionReference [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.CollectionReference.html?hl=ko] citiesRef = db.Collection [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.FirestoreDb.html?hl=ko#Google_Cloud_Firestore_FirestoreDb_Collection_System_String_]("cities");
+Query [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko] query = citiesRef
+.WhereGreaterThan [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereGreaterThan_Google_Cloud_Firestore_FieldPath_System_Object_]("Population", 1000000)
+.WhereLessThan [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_WhereLessThan_Google_Cloud_Firestore_FieldPath_System_Object_]("Density", 10000);
+QuerySnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.QuerySnapshot.html?hl=ko] querySnapshot = await query.GetSnapshotAsync [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Query.html?hl=ko#Google_Cloud_Firestore_Query_GetSnapshotAsync_System_Threading_CancellationToken_]();
+foreach (DocumentSnapshot [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.DocumentSnapshot.html?hl=ko] documentSnapshot in querySnapshot)
+{
+var name = documentSnapshot.GetValue<string>("Name");
+var population = documentSnapshot.GetValue<int>("Population");
+var density = documentSnapshot.GetValue<int>("Density");
+Console.WriteLine($"City '{name}' returned by query. Population={population}; Density={density}");
+}
+}
+
+public static void Main(string[] args)
+{
+if (args.Length [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Blob.html?hl=ko#Google_Cloud_Firestore_Blob_Length] < 2)
+{
+Console.Write [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Write.html?hl=ko](Usage);
+return;
+}
+string command = args[0].ToLower();
+string project = string.Join(" ",
+new ArraySegment<string>(args, 1, args.Length [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore/latest/Google.Cloud.Firestore.Blob.html?hl=ko#Google_Cloud_Firestore_Blob_Length] - 1));
+switch (command)
+{
+case "query-create-examples":
+QueryCreateExamples(project).Wait();
+break;
+
+case "create-query-state":
+CreateQueryState(project).Wait();
+break;
+
+case "create-query-capital":
+CreateQueryCapital(project).Wait();
+break;
+
+case "simple-queries":
+SimpleQueries(project).Wait();
+break;
+
+case "array-contains-query":
+ArrayContainsQuery(project).Wait();
+break;
+
+case "array-contains-any-query":
+ArrayContainsAnyQuery(project).Wait();
+break;
+
+case "in-query":
+InQueryWithoutArray(project).Wait();
+break;
+
+case "in-query-array":
+InQueryWithArray(project).Wait();
+break;
+
+case "collection-group-query":
+CollectionGroupQuery(project).Wait();
+break;
+
+case "subcollection-query":
+SubcollectionQuery(project).Wait();
+break;
+
+case "chained-query":
+ChainedQuery(project).Wait();
+break;
+
+case "composite-index-chained-query":
+CompositeIndexChainedQuery(project).Wait();
+break;
+
+case "range-query":
+RangeQuery(project).Wait();
+break;
+
+case "multiple-inequalities":
+MultipleInequalitiesQuery(project).Wait();
+break;
+
+default:
+Console.Write [https://cloud.google.com/dotnet/docs/reference/Google.Cloud.Firestore.V1/latest/Google.Cloud.Firestore.V1.Write.html?hl=ko](Usage);
+return;
+}
+}
+}
+}
+Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/QueryData/Program.cs]
+
+Ruby
+
+cities_ref = firestore.col collection_path
+
+sf_landmarks = cities_ref.document("SF").collection("landmarks")
+sf_landmarks.document.set(
+{
+name: "Golden Gate Bridge",
+type: "bridge"
+}
+)
+sf_landmarks.document.set(
+{
+name: "Legion of Honor",
+type: "museum"
+}
+)
+
+la_landmarks = cities_ref.document("LA").collection("landmarks")
+la_landmarks.document.set(
+{
+name: "Griffith Park",
+type: "park"
+}
+)
+la_landmarks.document.set(
+{
+name: "The Getty",
+type: "museum"
+}
+)
+
+dc_landmarks = cities_ref.document("DC").collection("landmarks")
+dc_landmarks.document.set(
+{
+name: "Lincoln Memorial",
+type: "memorial"
+}
+)
+dc_landmarks.document.set(
+{
+name: "National Air and Space Museum",
+type: "museum"
+}
+)
+
+tok_landmarks = cities_ref.document("TOK").collection("landmarks")
+tok_landmarks.document.set(
+{
+name: "Ueno Park",
+type: "park"
+}
+)
+tok_landmarks.document.set(
+{
+name: "National Museum of Nature and Science",
+type: "museum"
+}
+)
+
+bj_landmarks = cities_ref.document("BJ").collection("landmarks")
+bj_landmarks.document.set(
+{
+name: "Jingshan Park",
+type: "park"
+}
+)
+bj_landmarks.document.set(
+{
+name: "Beijing Ancient Observatory",
+type: "museum"
+}
+)query_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L295-L365]
+
+앞에서 설명한 단순 쿼리와 복합 쿼리를 사용하여 한 도시의 landmarks 하위 컬렉션을 쿼리할 수 있지만 모든 도시의 landmarks 컬렉션에서 결과를 한 번에 검색할 수도 있습니다.
+
+landmarks 컬렉션 그룹은 ID가 landmarks인 모든 컬렉션으로 구성되며, 컬렉션 그룹 쿼리를 사용하여 쿼리할 수 있습니다. 예를 들어 이 컬렉션 그룹 쿼리는 모든 도시의 모든 museum 명소를 검색합니다.
+
+웹 버전 9
+import { collectionGroup, query, where, getDocs } from "firebase/firestore";
+
+const museums = query(collectionGroup(db, 'landmarks'), where('type', '==', 'museum'));
+const querySnapshot = await getDocs(museums);
+querySnapshot.forEach((doc) => {
+console.log(doc.id, ' => ', doc.data());
+});fs_collection_group_query.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/firestore-next/test-firestore/fs_collection_group_query.js#L8-L14]
+
+웹 버전 8
+
+트리 쉐이킹 작업이 가능한 모듈식 웹 API에 대해 자세히 알아보고 [https://firebase.google.com/docs/web/learn-more?hl=ko#modular-version] 네임스페이스화된 API에 비해 갖는 이점을 살펴보세요.
+var museums = db.collectionGroup('landmarks').where('type', '==', 'museum');
+museums.get().then((querySnapshot) => {
+querySnapshot.forEach((doc) => {
+console.log(doc.id, ' => ', doc.data());
+});
+});test.firestore.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firestore/test.firestore.js#L1089-L1094]
+
+Swift
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+db.collectionGroup("landmarks").whereField("type", isEqualTo: "museum").getDocuments { (snapshot, error) in
+// ...
+}ViewController.swift [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/swift/firestore-smoketest/ViewController.swift#L1241-L1245]
+
+Objective-C
+
+참고: 이 제품은 watchOS 및 앱 클립 대상에서 사용할 수 없습니다.
+
+[[[self.db collectionGroupWithID:@"landmarks"] queryWhereField:@"type" isEqualTo:@"museum"]
+getDocumentsWithCompletion:^(FIRQuerySnapshot *snapshot, NSError *error) {
+// ...
+}];ViewController.m [https://github.com/firebase/snippets-ios/blob/cdce007fedb3bb90dd3a70ce03066178236e1deb/firestore/objc/firestore-smoketest-objc/ViewController.m#L1153-L1157]
+
+KotlinAndroid
+db.collectionGroup("landmarks").whereEqualTo("type", "museum").get()
+.addOnSuccessListener { queryDocumentSnapshots ->
+// ...
+}DocSnippets.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/kotlin/DocSnippets.kt#L1025-L1032]
+
+자바Android
+db.collectionGroup("landmarks").whereEqualTo("type", "museum").get()
+.addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+@Override
+public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+// ...
+}
+});DocSnippets.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/firestore/app/src/main/java/com/google/example/firestore/DocSnippets.java#L1225-L1235]
+
+Dart
+db
+.collectionGroup("landmarks")
+.where("type", isEqualTo: "museum")
+.get()
+.then(
+(res) => print("Successfully completed"),
+onError: (e) => print("Error completing: $e"),
+);firestore.dart [https://github.com/firebase/snippets-flutter/blob/f674af111fe63779c39e79699f7d269231f77563/packages/firebase_snippets_app/lib/snippets/firestore.dart#L832-L839]
+
+자바
+
+final Query museums = db.collectionGroup("landmarks").whereEqualTo("type", "museum");
+final ApiFuture<QuerySnapshot> querySnapshot = museums.get();
+for (DocumentSnapshot document : querySnapshot.get().getDocuments()) {
+System.out.println(document.getId());
+}QueryDataSnippets.java [https://github.com/googleapis/java-firestore/blob/02c1372447e22b3e635f5997ce9a6113144b3734/samples/snippets/src/main/java/com/example/firestore/snippets/QueryDataSnippets.java#L536-L540]
+
+Python
+
+museums = db.collection_group("landmarks").where(
+filter=FieldFilter("type", "==", "museum")
+)
+docs = museums.stream()
+for doc in docs:
+print(f"{doc.id} => {doc.to_dict()}")snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-client/snippets.py#L894-L899]
+
+Python(비동기)
+
+museums = db.collection_group("landmarks").where(
+filter=FieldFilter("type", "==", "museum")
+)
+docs = museums.stream()
+async for doc in docs:
+print(f"{doc.id} => {doc.to_dict()}")snippets.py [https://github.com/GoogleCloudPlatform/python-docs-samples/blob/5426f6198e20bb76f4b0d005d2e2f26449b4f5d8/firestore/cloud-async-client/snippets.py#L744-L749]
+
+C++
+db->CollectionGroup("landmarks")
+.WhereEqualTo("type", FieldValue::String("museum")).Get()
+.OnCompletion([](const firebase::Future<QuerySnapshot>& future) {
+if (future.error() == Error::kErrorOk) {
+for (const DocumentSnapshot& document : future.result()->documents()) {
+std::cout << document << std::endl;
+}
+} else {
+std::cout << "Error getting documents: " << future.error_message()
+<< std::endl;
+}
+});
+
+Node.js
+
+const querySnapshot = await db.collectionGroup('landmarks').where('type', '==', 'museum').get();
+querySnapshot.forEach((doc) => {
+console.log(doc.id, ' => ', doc.data());
+});index.js [https://github.com/firebase/snippets-node/blob/f1869eeb97c2bbb713aff3deb5a67666da7bcb6b/firestore/main/index.js#L865-L868]
+
+Go
+
+import (
+"context"
+"fmt"
+"io"
+
+"cloud.google.com/go/firestore"
+"google.golang.org/api/iterator"
+)
+
+// collectionGroupQuery runs a collection group query over the data created by
+// collectionGroupSetup.
+func collectionGroupQuery(w io.Writer, projectID string) error {
+ctx := context.Background()
+
+client, err := firestore.NewClient(ctx, projectID)
+if err != nil {
+return fmt.Errorf("firestore.NewClient: %w", err)
+}
+defer client.Close()
+
+it := client.CollectionGroup [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_Client_CollectionGroup]("landmarks").Where [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_Query_Where]("type", "==", "museum").Documents(ctx)
+for {
+doc, err := it.Next()
+if err == iterator.Done {
+break
+}
+if err != nil {
+return fmt.Errorf("documents iterator: %w", err)
+}
+fmt.Fprintf(w, "%s: %s", doc.Ref.ID, doc.Data [https://cloud.google.com/go/docs/reference/cloud.google.com/go/firestore/latest/index.html?hl=ko#cloud_google_com_go_firestore_DocumentSnapshot_Data]()["name"])
+}
+
+return nil
+}
+collection_group_query.go [https://github.com/GoogleCloudPlatform/golang-samples/blob/1420c71e05f2a1aef5eb07e90da7294ffe82a75c/firestore/collection_group_query.go#L18-L52]
+
+PHP
+
+$museums = $db->collectionGroup('landmarks')->where('type', '==', 'museum');
+foreach ($museums->documents() as $document) {
+printf('%s => %s' . PHP_EOL, $document->id(), $document->data()['name']);
+}query_collection_group_filter_eq.php [https://github.com/GoogleCloudPlatform/php-docs-samples/blob/5be36a7311875e7635e96a0cd9072cfb425c9e84/firestore/src/query_collection_group_filter_eq.php#L43-L46]
+
+Unity
+Query museums = db.CollectionGroup("landmarks").WhereEqualTo("type", "museum");
+museums.GetSnapshotAsync().ContinueWithOnMainThread((querySnapshotTask) =>
+{
+foreach (DocumentSnapshot documentSnapshot in querySnapshotTask.Result.Documents)
+{
+Debug.Log(String.Format("Document {0} returned by query State=CA", documentSnapshot.Id));
+}
+});
+
+C#
+
+Query museums = db.CollectionGroup("landmarks").WhereEqualTo("Type", "museum");
+QuerySnapshot querySnapshot = await museums.GetSnapshotAsync();
+foreach (DocumentSnapshot document in querySnapshot.Documents)
+{
+Console.WriteLine($"{document.Reference.Path}: {document.GetValue<string>("Name")}");
+}Program.cs [https://github.com/GoogleCloudPlatform/dotnet-docs-samples/blob/2b9c8d16206d43588f8f135a85ff3589ba7046b9/firestore/api/QueryData/Program.cs#L249-L254]
+
+Ruby
+
+museums = firestore.collection_group("landmarks").where("type", "==", "museum")
+museums.get do |museum|
+puts "#{museum[:type]} name is #{museum[:name]}."
+endquery_data.rb [https://github.com/googleapis/google-cloud-ruby/blob/17e1723270824384f648d9a49a2edd6f6647ff6f/google-cloud-firestore/samples/query_data.rb#L369-L372]
+
+컬렉션 그룹 쿼리를 사용하기 전에 컬렉션 그룹 쿼리를 지원하는 색인을 만들어야 합니다.
+오류 메시지, Console 또는 Firebase CLI를 통해 색인을 생성할 수 있습니다 [https://cloud.google.com/firestore/native/docs/query-data/indexing?hl=ko].
+
+웹 및 모바일 SDK의 경우 컬렉션 그룹 쿼리를 허용하는 규칙을 생성 [https://cloud.google.com/firestore/native/docs/security/rules-query?hl=ko#secure_and_query_documents_based_on_collection_groups]해야 합니다.
+
+쿼리 성능 설명
+
+Native 모드의 Firestore를 사용하면 백엔드에서 쿼리의 성능을 측정하고 백엔드 쿼리 실행에 대한 자세한 성능 통계를 수신합니다.
+
+Query Explain 결과는 쿼리가 실행되는 방식을 이해하는 데 도움이 되므로 비효율성과 서버 측 병목 현상이 발생할 가능성이 있는 위치를 보여줍니다.
+
+자세한 내용은 Query Explain 가이드 [https://cloud.google.com/firestore/native/docs/query-explain?hl=ko]를 참조하세요.
+
+쿼리 제한사항
+
+다음 목록에는 Firestore 쿼리 제한사항이 요약되어 있습니다.
+
+Firestore는 or, in, array-contains-any 연산자를 통해 논리적 OR 쿼리를 지원합니다. 이러한 쿼리는 쿼리의 논리합 표준형에 따른 분리 30개 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#limits_on_or_queries]로 제한됩니다.
+논리합(or 그룹)당 최대 1개의 array-contains 절을 사용할 수 있습니다.
+동일한 논리합에서 array-contains와 array-contains-any를 결합할 수 없습니다.
+동일한 쿼리에서 not-in과 in, array-contains-any 또는 or을 결합할 수 없습니다.
+쿼리당 하나의 not-in 또는 !=만 허용됩니다.
+not-in은 비교 값을 최대 10개까지 지원합니다.
+쿼리에서 필터, 정렬 순서, 상위 문서 경로(하위 컬렉션은 1, 루트 컬렉션은 0)의 합이 100을 초과할 수 없습니다. 이는 쿼리의 논리합 표준형 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#disjunctive_normal_form]을 기반으로 계산됩니다.
+필드에 비균등 필터가 있는 쿼리는 해당 필드를 기준으로 정렬하고 해당 필드의 존재를 필터링 [https://cloud.google.com/firestore/native/docs/query-data/queries?hl=ko#orderby_and_existence]합니다.
+
+OR 쿼리 한도
+
+Firestore는 쿼리의 계산 비용이 너무 많아지지 않도록 결합할 수 있는 AND 및 OR 절 수를 제한합니다.
+이 한도를 적용하기 위해 Firestore는 논리적 OR 작업을 수행하는 쿼리(or,in, array-contains-any)를 논리합 표준형 [https://en.wikipedia.org/wiki/Disjunctive_normal_form](AND의 OR라고도 알려짐)으로 변환합니다. Firestore는 논리합 표준형을 기반으로 최대 30개의 분리로 쿼리를 제한합니다.
+
+논리합 표준형
+
+Firestore는 다음 두 규칙을 적용하여 쿼리를 논리합 표준형으로 변환합니다.
+
+Flatten
+
+주어진 조건 A, B, C:
+
+A and (B and C) => A and B and C
+분산법 [https://en.wikipedia.org/wiki/Distributive_property]
+
+주어진 조건 A, B, C, D:
+
+A and (B or  C) => (A and B) or (A and C)
+(A or B) and (C or D) => (A and C) or (A and D) or (B and C) or (B and D)
+
+이러한 규칙을 in 및 array-contains-any 쿼리에 적용할 때 이러한 연산자가 OR의 약칭이라는 것을 유념하세요. 예를 들어 a in [1,2]는 a = 1 OR a = 2의 약칭입니다.
+경고: 논리합 논리형의 배수적 특성으로 인해 여러 OR 그룹의 AND를 수행할 때 한도에 도달할 가능성이 높습니다.
+다음 예는 여러 쿼리에 대한 분리 횟수를 보여줍니다.
+
+| 쿼리 | 분리 횟수 |
+| --- | --- |
+| query(collectionRef, where("a", "==", 1)) | 1 |
+| query(collectionRef, or( where("a", "==", 1), where("b", "==", 2) )) | 2 |
+| query(collectionRef,         or( and( where("a", "==", 1), where("c", "==", 3) ),             and( where("a", "==", 1), where("d", "==", 4) ),             and( where("b", "==", 2), where("c", "==", 3) ),             and( where("b", "==", 2), where("d", "==", 4) )         )       ) | 4 |
+| query(collectionRef,         and( or( where("a", "==", 1), where("b", "==", 2) ),              or( where("c", "==", 3), where("d", "==", 4) )         )       ) | 4 이 쿼리의 논리합 표준형은 위의 쿼리와 동일합니다. |
+| query(collectionRef, where("a", "in", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) ) | 10 |
+| query(collectionRef,         and( where("a", "in", [1, 2, 3, 4, 5]),              where("b", "in", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])         )       ) | 50 이 쿼리는 30개의 분리 한도를 초과하므로 오류를 반환합니다. |
+| query(collectionRef,         or( where("a", "in", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),             where("b", "in", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])         )       ) | 20 |
+| query(collectionRef,         and( where("a", "in", [1, 2, 3, 4, 5]),              or( where("b", "==", 2),                  where("c", "==", 3)              )         )       ) | 10 |
+
+orderBy 및 존재 여부
+
+특정 필드를 기준으로 쿼리를 정렬할 때 쿼리는 정렬 기준 필드가 있는 문서만 반환할 수 있습니다.
+
+예를 들어 다음 쿼리는 쿼리 필터를 충족하더라도 population 필드가 설정되지 않은 문서를 반환하지 않습니다.
+
+Java
+db.collection("cities").whereEqualTo("country", “USA”).orderBy(“population”);
+
+관련 효과는 부등식에 적용됩니다. 필드에 부등식 필터가 있는 쿼리는 해당 필드를 기준으로 한 정렬도 포함합니다. 다음 쿼리는 해당 문서에 country = USA가 있더라도 population 필드가 없는 문서를 반환하지 않습니다. 이 문제를 해결하려면 각 정렬마다 별도의 쿼리를 실행하거나 정렬하는 모든 필드에 값을 할당할 수 있습니다.
+
+Java
+db.collection(“cities”).where(or(“country”, USA”), greaterThan(“population”, 250000));
+
+위 쿼리는 부등식에 대한 묵시적 정렬 기준을 포함하며 다음과 같습니다.
+
+Java
+db.collection(“cities”).where(or(“country”, USA”), greaterThan(“population”, 250000)).orderBy(“population”);
+
+다음 단계
+
+쿼리 결과에서 데이터의 순서를 지정하고 제한 [https://cloud.google.com/firestore/native/docs/query-data/order-limit-data?hl=ko]하는 방법 알아보기
+결과 계산 [https://cloud.google.com/firestore/native/docs/query-data/aggregation-queries?hl=ko]만 할 때 읽기 요금 절약하기
+
+의견 보내기

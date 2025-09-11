@@ -1,0 +1,243 @@
+Source URL: https://firebase.google.com/docs/auth/web/openid-connect?hl=ko
+Title: 웹 앱에서 OpenID Connect를 사용하여 인증
+bookmark_border
+
+의견 보내기
+
+웹 앱에서 OpenID Connect를 사용하여 인증
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#before_you_begin]Firebase SDK로 로그인 과정 처리 [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#handle_the_sign-in_flow_with_the_firebase_sdk]수동으로 로그인 과정 처리 [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#manual]
+
+Firebase Authentication with Identity Platform으로 업그레이드한 경우 원하는 OpenID Connect(OIDC) 규정 준수 제공업체를 사용하여 Firebase에 사용자를 인증할 수 있습니다. 이렇게 하면 Firebase가 기본적으로 지원하지 않는 ID 제공업체를 사용할 수 있습니다.
+
+시작하기 전에
+
+OIDC 제공업체를 사용하여 사용자를 로그인하도록 하려면 우선 제공업체에서 일부 정보를 수집해야 합니다.
+
+클라이언트 ID: 앱을 식별하는 제공업체의 고유한 문자열입니다. 지원하는 플랫폼별로 다른 클라이언트 ID를 할당할 수 있습니다.
+이 값은 제공업체에서 발급한 ID 토큰의 aud 클레임 값 중 하나입니다.
+클라이언트 보안 비밀번호: 제공업체가 클라이언트 ID의 소유권을 확인하는 데 사용하는 보안 비밀 문자열입니다. 모든 클라이언트 ID에 대해 일치하는 클라이언트 보안 비밀번호가 필요합니다.
+이 값은 인증 코드 흐름을 사용하는 경우에만 필요하며 Google에서는 적극 권장합니다.
+발급기관: 제공업체를 식별하는 문자열입니다. 이 값은 /.well-known/openid-configuration이 추가될 때 제공업체의 OIDC 탐색 문서가 위치하는 URL이어야 합니다. 예를 들어 발급기관이 https://auth.example.com인 경우 탐색 문서를 https://auth.example.com/.well-known/openid-configuration에서 사용할 수 있어야 합니다.
+
+위 정보가 있으면 Firebase 프로젝트의 로그인 제공업체로 OpenID Connect를 사용 설정합니다.
+
+JavaScript 프로젝트에 Firebase를 추가합니다 [https://firebase.google.com/docs/web/setup?hl=ko].
+Firebase Authentication with Identity Platform으로 업그레이드하지 않은 경우 업그레이드합니다. OpenID Connect 인증은 업그레이드된 프로젝트에서만 사용할 수 있습니다.
+Firebase Console의 로그인 제공업체 [https://console.firebase.google.com/project/_/authentication/providers?hl=ko] 페이지에서 새 제공업체 추가를 클릭한 다음 OpenID Connect를 클릭합니다.
+승인 코드 흐름을 사용할지 또는 암시적 권한 부여 흐름을 사용할지 선택합니다.
+
+제공업체가 지원하는 경우 항상 코드 흐름을 사용해야 합니다. 암시적 흐름은 보안 수준이 낮으므로 사용하지 않는 것이 좋습니다.
+이 제공업체에 이름을 지정합니다. 생성된 제공업체 ID를 기록해 둡니다(예: oidc.example-provider). 앱에 로그인 코드를 추가할 때 이 ID가 필요합니다.
+클라이언트 ID와 클라이언트 보안 비밀번호, 제공업체의 발급기관 문자열을 지정합니다.
+이 값은 제공업체에서 할당한 값과 정확하게 일치해야 합니다.
+변경사항을 저장합니다.
+
+Firebase SDK로 로그인 과정 처리
+
+OIDC 제공업체를 사용하여 Firebase에 사용자를 인증하는 가장 쉬운 방법은 Firebase SDK로 전체 로그인 과정을 처리하는 것입니다.
+
+Firebase JavaScript SDK로 로그인 과정을 처리하려면 다음 단계를 따르세요.
+
+Firebase Console에서 가져온 제공업체 ID를 사용하여 OAuthProvider의 인스턴스를 만듭니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-modular-api] ---
+```
+import { OAuthProvider } from "firebase/auth";
+
+const provider = new OAuthProvider('oidc.example-provider');
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-namespaced-api] ---
+```
+var provider = new firebase.auth.OAuthProvider('oidc.example-provider');
+```
+선택사항: OAuth 요청과 함께 전송하고자 하는 커스텀 OAuth 매개변수를 추가로 지정합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-modular-api] ---
+```
+provider.setCustomParameters({
+// Target specific email with login hint.
+login_hint: 'user@example.com'
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-namespaced-api] ---
+```
+provider.setCustomParameters({
+// Target specific email with login hint.
+login_hint: 'user@example.com'
+});
+```
+지원되는 매개변수는 제공업체에 문의하세요.
+Firebase에서 요구하는 매개변수는 setCustomParameters와 함께 전달할 수 없습니다. 이러한 매개변수는 client_id, response_type, redirect_uri, state, scope, response_mode입니다.
+선택사항: 인증 제공업체에 요청하고자 하는 기본 프로필 범위를 넘는 OAuth 2.0 범위를 추가로 지정합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-modular-api] ---
+```
+provider.addScope('mail.read');
+provider.addScope('calendars.read');
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-namespaced-api] ---
+```
+provider.addScope('mail.read');
+provider.addScope('calendars.read');
+```
+OAuth 제공업체 객체를 사용해 Firebase로 인증합니다.
+
+사용자를 제공업체의 로그인 페이지로 리디렉션하거나 팝업 브라우저 창에서 로그인 페이지를 열 수 있습니다.
+
+리디렉션 흐름
+
+signInWithRedirect()를 호출하여 제공업체 로그인 페이지로 리디렉션합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-modular-api] ---
+```
+import { getAuth, signInWithRedirect } from "firebase/auth";
+
+const auth = getAuth();
+signInWithRedirect(auth, provider);
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-namespaced-api] ---
+```
+firebase.auth().signInWithRedirect(provider);
+```
+사용자가 로그인을 완료하고 앱으로 돌아간 후에 getRedirectResult()를 호출하여 로그인 결과를 가져올 수 있습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-modular-api] ---
+```
+import { getAuth, getRedirectResult, OAuthProvider } from "firebase/auth";
+
+const auth = getAuth();
+getRedirectResult(auth)
+.then((result) => {
+// User is signed in.
+// IdP data available in result.additionalUserInfo.profile.
+
+// Get the OAuth access token and ID Token
+const credential = OAuthProvider.credentialFromResult(result);
+const accessToken = credential.accessToken;
+const idToken = credential.idToken;
+})
+.catch((error) => {
+// Handle error.
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-namespaced-api] ---
+```
+firebase.auth().getRedirectResult()
+.then((result) => {
+// IdP data available in result.additionalUserInfo.profile.
+// ...
+
+/** @type {firebase.auth.OAuthCredential} */
+var credential = result.credential;
+
+// OAuth access and id tokens can also be retrieved:
+var accessToken = credential.accessToken;
+var idToken = credential.idToken;
+})
+.catch((error) => {
+// Handle error.
+});
+```
+팝업 흐름
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-modular-api] ---
+```
+import { getAuth, signInWithPopup, OAuthProvider } from "firebase/auth";
+
+const auth = getAuth();
+signInWithPopup(auth, provider)
+.then((result) => {
+// User is signed in.
+// IdP data available using getAdditionalUserInfo(result)
+
+// Get the OAuth access token and ID Token
+const credential = OAuthProvider.credentialFromResult(result);
+const accessToken = credential.accessToken;
+const idToken = credential.idToken;
+})
+.catch((error) => {
+// Handle error.
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-namespaced-api] ---
+```
+firebase.auth().signInWithPopup(provider)
+.then((result) => {
+// IdP data available in result.additionalUserInfo.profile.
+// ...
+
+/** @type {firebase.auth.OAuthCredential} */
+var credential = result.credential;
+
+// OAuth access and id tokens can also be retrieved:
+var accessToken = credential.accessToken;
+var idToken = credential.idToken;
+})
+.catch((error) => {
+// Handle error.
+});
+```
+위의 예시는 로그인 과정에 중점을 두고 있지만 동일한 패턴으로 linkWithRedirect()와 linkWithPopup()을 사용하여 OIDC 제공업체를 기존 사용자에 연결하고 reauthenticateWithRedirect() 및 reauthenticateWithPopup()을 사용하여 사용자를 다시 인증할 수 있습니다. 이는 최신 로그인이 필요한 민감한 작업에서 새로운 사용자 인증 정보를 검색하는 데 사용할 수 있습니다.
+
+수동으로 로그인 과정 처리
+
+앱에 OpenID Connect 로그인 과정을 이미 구현한 경우 ID 토큰을 직접 사용하여 Firebase에 인증할 수 있습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-modular-api] ---
+```
+import { getAuth, signInWithCredential, OAuthProvider } from "firebase/auth";
+
+const provider = new OAuthProvider("oidc.example-provider");
+const credential = provider.credential({
+idToken: idToken,
+});
+signInWithCredential(getAuth(), credential)
+.then((result) => {
+// User is signed in.
+// IdP data available in result.additionalUserInfo.profile.
+
+// Get the OAuth access token and ID Token
+const credential = OAuthProvider.credentialFromResult(result);
+const accessToken = credential.accessToken;
+const idToken = credential.idToken;
+})
+.catch((error) => {
+// Handle error.
+});
+```
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/openid-connect?hl=ko#web-namespaced-api] ---
+```
+const provider = new OAuthProvider("oidc.example-provider");
+const credential = provider.credential({
+idToken: idToken,
+});
+firebase.auth().signInWithCredential(credential)
+.then((result) => {
+// User is signed in.
+// IdP data available in result.additionalUserInfo.profile.
+
+// Get the OAuth access token and ID Token
+const credential = OAuthProvider.credentialFromResult(result);
+const accessToken = credential.accessToken;
+const idToken = credential.idToken;
+})
+.catch((error) => {
+// Handle error.
+});
+```
+
+의견 보내기

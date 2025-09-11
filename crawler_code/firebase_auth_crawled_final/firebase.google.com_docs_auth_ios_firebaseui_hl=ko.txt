@@ -1,0 +1,462 @@
+Source URL: https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko
+Title: FirebaseUI로 손쉽게 iOS 앱에 로그인 추가
+bookmark_border
+
+의견 보내기
+
+FirebaseUI로 손쉽게 iOS 앱에 로그인 추가
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#before_you_begin]로그인 방법 설정 [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#set_up_sign-in_methods]이메일 주소 및 비밀번호 [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#email_address_and_password]이메일 링크 인증 [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#email_link_authentication]Apple [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#apple]Google [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#google]Facebook [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#facebook]Twitter [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#twitter]전화번호 [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#phone_number]로그인 [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#sign_in]로그아웃 [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#sign_out]맞춤설정 [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#customization]다음 단계 [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#next-steps]
+
+FirebaseUI [https://github.com/firebase/firebaseui-ios]는 Firebase 인증 SDK를 바탕으로 구축된 라이브러리이며 앱에서 사용할 수 있는 삽입형 UI 흐름을 제공합니다. FirebaseUI의 장점은 다음과 같습니다.
+
+여러 제공업체: 이메일/비밀번호, 이메일 링크, 전화 인증, Google 로그인, Facebook 로그인, Twitter 로그인을 위한 로그인 흐름을 제공합니다.
+계정 관리: 계정 생성 및 비밀번호 재설정과 같은 계정 관리 작업을 처리하는 흐름을 제공합니다.
+익명 계정 연결: 익명 계정을 ID 공급업체에 자동으로 연결하는 흐름을 제공합니다.
+맞춤설정 가능: 앱에 맞게 FirebaseUI의 디자인을 맞춤설정할 수 있습니다. 또한 FirebaseUI는 오픈소스이므로 프로젝트를 가져와 내 요구사항에 정확하게 맞춰 맞춤설정할 수 있습니다.
+
+시작하기 전에
+
+참고: Firebase는 CocoaPods와 Swift Package Manager를 모두 지원합니다. Swift Package Manager [https://firebase.google.com/docs/ios/swift-package-manager?hl=ko]를 사용하여 Firebase를 설정한 경우 Podfile 수정 및 pod 명령어 실행과 같은 CocoaPods 관련 단계를 건너뛸 수 있습니다.
+
+Apple 프로젝트에 Firebase를 추가합니다 [https://firebase.google.com/docs/ios/setup?hl=ko].
+Podfile에 FirebaseUI를 추가합니다.
+pod 'FirebaseUI'
+
+원하는 경우 사용할 인증 구성요소와 제공업체만 추가할 수 있습니다.
+pod 'FirebaseUI/Auth'
+
+pod 'FirebaseUI/Google'
+pod 'FirebaseUI/Facebook'
+pod 'FirebaseUI/OAuth' # Used for Sign in with Apple, Twitter, etc
+pod 'FirebaseUI/Phone'
+
+아직 Firebase 프로젝트에 앱을 연결하지 않았다면 Firebase Console [https://console.firebase.google.com/?hl=ko]에서 연결합니다.
+
+로그인 방법 설정
+
+사용자 로그인에 Firebase를 사용하려면 먼저 지원하려는 로그인 방법을 사용 설정하고
+구성해야 합니다.
+
+이메일 주소 및 비밀번호
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 열고 이메일과 비밀번호 인증을 사용 설정합니다.
+
+이메일 링크 인증
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다. 로그인 방법 탭에서 이메일/비밀번호 제공업체를 사용 설정합니다. 이메일 링크 로그인을 사용하려면 이메일 또는 비밀번호 로그인이 사용 설정되어야 합니다.
+같은 섹션에서 이메일 링크(비밀번호가 없는 로그인) 로그인 방법을 사용 설정하고 저장을 클릭합니다.
+FIREmailLinkAuthSignInMethod로 FUIEmailAuth 인스턴스를 초기화하면 이메일 링크 로그인을 사용 설정할 수 있습니다. handleCodeInApp이 true로 설정된 유효한 FIRActionCodeSettings 객체도 제공해야 합니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+```
+var actionCodeSettings = ActionCodeSettings()
+actionCodeSettings.url = URL(string: "https://example.firebasestorage.app")
+actionCodeSettings.handleCodeInApp = true
+actionCodeSettings.setAndroidPackageName("com.firebase.example", installIfNotAvailable: false, minimumVersion: "12")
+
+let provider = FUIEmailAuth(authUI: FUIAuth.defaultAuthUI()!,
+signInMethod: FIREmailLinkAuthSignInMethod,
+forceSameDevice: false,
+allowNewEmailAccounts: true,
+actionCodeSetting: actionCodeSettings)
+```
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+```
+FIRActionCodeSettings *actionCodeSettings = [[FIRActionCodeSettings alloc] init];
+actionCodeSettings.URL = [NSURL URLWithString:@"https://example.firebasestorage.app"];
+actionCodeSettings.handleCodeInApp = YES;
+[actionCodeSettings setAndroidPackageName:@"com.firebase.example"
+installIfNotAvailable:NO
+minimumVersion:@"12"];
+
+id<FUIAuthProvider> provider = [[FUIEmailAuth alloc] initWithAuthUI:[FUIAuth defaultAuthUI]
+signInMethod:FIREmailLinkAuthSignInMethod
+forceSameDevice:NO
+allowNewEmailAccounts:YES
+actionCodeSetting:actionCodeSettings];
+```
+
+또한 초기화 메서드에 전달할 URL을 허용해야 합니다.
+이 URL을 허용하려면 Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다. 로그인 방법 탭에 있는 승인된 도메인에 해당 URL을 추가합니다.
+딥 링크가 포착되면 이를 처리할 수 있도록 인증 UI로 전달해야 합니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+```
+FUIAuth.defaultAuthUI()!.handleOpen(url, sourceApplication: sourceApplication)
+```
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+```
+[[FUIAuth defaultAuthUI] handleOpenURL:url sourceApplication:sourceApplication];
+```
+
+FirebaseUI-iOS의 이메일 링크 로그인은 FirebaseUI-Android [https://github.com/firebase/FirebaseUI-Android/tree/master/auth#configuring-email-link-sign-in] 및 FirebaseUI-web [https://github.com/firebase/firebaseui-web#email-link-authentication]과 호환되므로 FirebaseUI-Android에서 흐름을 시작한 사용자가 링크를 열고 FirebaseUI-web으로 로그인을 완료할 수 있습니다. 이와 역순으로 진행되는 흐름 역시 가능합니다.
+
+Apple
+
+Firebase Apple 계정으로 로그인 [https://firebase.google.com/docs/auth/ios/apple?hl=ko] 가이드의 시작하기 전에 및 Apple의 익명 처리된 데이터 요구사항 준수 섹션을 따르세요.
+Apple 계정으로 로그인 기능을 자격 파일에 추가합니다.
+Apple 로그인용으로 구성된 OAuth 제공업체 인스턴스를 초기화합니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+provider = FUIOAuth.appleAuthProvider()
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+FUIOAuth *provider = [FUIOAuth appleAuthProvider];
+
+Google
+
+이 튜토리얼 [https://firebase.google.com/docs/auth/ios/google-signin?hl=ko]을 사용하여 Google 로그인 설정
+
+Facebook
+
+Facebook의 시작하기 페이지 [https://developers.facebook.com/docs/ios/getting-started]에 따라 Facebook 로그인 SDK를 설정합니다.
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 열고 Facebook을 사용 설정합니다. Facebook 로그인을 사용 설정하려면 Facebook 앱 ID와 앱 비밀번호(Facebook 개발자 콘솔에서 확인 가능)를 입력해야 합니다.
+프로젝트 설정 > 기능 화면에서 Xcode 프로젝트에 키체인 공유를 사용 설정합니다.
+Xcode 프로젝트에서 fbFACEBOOK_APP_ID를 URL 스키마로 추가합니다.
+Info.plist 파일에 Facebook 앱 ID와 표시 이름을 추가합니다.
+
+| 키 | 값 |
+| --- | --- |
+| FacebookAppID | FACEBOOK_APP_ID(예: 1234567890) |
+| FacebookDisplayName | 앱의 이름 |
+다음과 같이 Facebook 제공업체 인스턴스를 초기화합니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+provider = FUIFacebookAuth(authUI: FUIAuth.defaultAuthUI())
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+FUIFacebookAuth *provider = [[FUIFacebookAuth alloc] initWithAuthUI:[FUIAuth defaultAuthUI]];
+Facebook Limited Login [https://developers.facebook.com/docs/facebook-login/limited-login/ios]을 사용하려면 FUIFacebookAuth 인스턴스에서 useLimitedLogin 속성을 설정합니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+provider.useLimitedLogin = true
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+provider.useLimitedLogin = YES;
+
+Twitter
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 열고 Twitter를 사용 설정합니다. Twitter 로그인을 사용 설정하려면 Twitter 애플리케이션 관리 콘솔에서 확인할 수 있는 Twitter API 고객 키와 비밀번호를 입력해야 합니다.
+Twitter 로그인용으로 구성된 OAuth 제공업체 인스턴스를 초기화합니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+provider = FUIOAuth.twitterAuthProvider()
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+FUIOAuth *provider = [FUIOAuth twitterAuthProvider];
+
+전화번호
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 열고 전화번호 로그인을 사용 설정합니다.
+Firebase에서 전화번호 로그인 요청이 내 앱에서 발생한 것인지 확인할 수 있어야 합니다. 확인 방법 중 하나는 APN 알림을 통해 확인하는 것입니다. 자세한 내용은 앱 인증 사용 설정 [https://firebase.google.com/docs/auth/ios/phone-auth?hl=ko#enable-app-verification]을 참조하세요.
+
+Firebase Authentication와 함께 사용하기 위해 APN 알림을 사용 설정하는 방법은 다음과 같습니다.
+
+Xcode에서 프로젝트에 푸시 알림을 사용 설정 [http://help.apple.com/xcode/mac/current/#/dev11b059073?sub=dev73a37248c]합니다.
+
+Firebase에 APNs 인증 키를 업로드합니다.
+아직 APNs 인증 키가 없다면 Apple Developer Member Center [https://developer.apple.com/membercenter/index.action]에서 만드세요.
+
+Firebase Console 프로젝트 내에서 톱니바퀴 아이콘을 선택하고 프로젝트 설정을 선택한 다음 클라우드 메시징 탭을 선택합니다.
+
+iOS 앱 구성의 APN 인증 키에서 업로드를 클릭하여 개발 인증 키, 프로덕션 인증 키 또는 둘 다를 업로드합니다. 최소 하나 이상이 필요합니다.
+
+키를 저장한 위치로 이동하여 키를 선택하고 열기를 클릭합니다. 해당하는 키 ID(Apple Developer Member Center [https://developer.apple.com/membercenter/index.action]에서 확인 가능)를 추가하고 업로드를 클릭합니다.
+
+APN 인증서가 이미 있다면 인증서를 대신 업로드할 수 있습니다.
+
+기기에서 APN 알림을 수신할 수 없으면 Firebase에서 reCAPTCHA를
+사용하여 요청을 확인합니다.
+
+reCAPTCHA 인증을 사용 설정하려면 Xcode에서 다음을 수행합니다.
+
+왼쪽 트리 보기에서 프로젝트 이름을 더블클릭하여 프로젝트 구성을 엽니다. 대상 섹션에서 앱을 선택하고 정보 탭을 선택한 후 URL 유형 섹션을 펼칩니다.
+
++ 버튼을 클릭하고 인코딩된 앱 ID를 URL 스키마로 추가합니다. 인코딩된 앱 ID는 Firebase Console의 일반 설정 [https://console.firebase.google.com/project/_/settings/general/?hl=ko] 페이지에 있는 iOS 앱 섹션에서 찾을 수 있습니다. 다른 필드는 비워 둡니다.
+완성된 구성은 다음과 같은 형태이며 애플리케이션별 값이 적용됩니다.
+
+선택사항: Firebase에서는 메서드 재구성을 사용하여 앱의 APN 토큰을 자동으로 가져오고, Firebase가 사용자 모르게 앱으로 전송하는 푸시 알림을 처리하고, 인증 중에 reCAPTCHA 인증 페이지의 커스텀 스키마 리디렉션을 자동으로 가로챕니다.
+
+재구성을 사용하지 않으려면 Firebase SDK 인증 문서의 부록: 재구성 없이 전화번호 로그인 사용 [https://firebase.google.com/docs/auth/ios/phone-auth?hl=ko#appendix-using-phone-sign-in-without-swizzling]을
+참조하세요.
+
+로그인
+
+FirebaseUI 로그인 흐름을 시작하려면 먼저 FirebaseUI를 초기화합니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+```
+import FirebaseAuthUI
+
+/* ... */
+
+FirebaseApp.configure()
+let authUI = FUIAuth.defaultAuthUI()
+// You need to adopt a FUIAuthDelegate protocol to receive callback
+authUI.delegate = self
+```
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+```
+@import FirebaseAuthUI;
+
+...
+
+[FIRApp configure];
+FUIAuth *authUI = [FUIAuth defaultAuthUI];
+// You need to adopt a FUIAuthDelegate protocol to receive callback
+authUI.delegate = self;
+```
+그런 다음 지원하고자 하는 로그인 방법을 사용하도록 FirebaseUI를 구성합니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+```
+import FirebaseAuthUI
+import FirebaseFacebookAuthUI
+import FirebaseGoogleAuthUI
+import FirebaseOAuthUI
+import FirebasePhoneAuthUI
+
+let providers: [FUIAuthProvider] = [
+FUIGoogleAuth(),
+FUIFacebookAuth(),
+FUITwitterAuth(),
+FUIPhoneAuth(authUI:FUIAuth.defaultAuthUI()),
+]
+self.authUI.providers = providers
+```
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+```
+@import FirebaseAuthUI;
+@import FirebaseFacebookAuthUI;
+@import FirebaseGoogleAuthUI;
+@import FirebaseOAuthUI;
+@import FirebasePhoneAuthUI;
+
+...
+
+NSArray<id<FUIAuthProvider>> *providers = @[
+[[FUIGoogleAuth alloc] init],
+[[FUIFacebookAuth alloc] init],
+[[FUITwitterAuth alloc] init],
+[[FUIPhoneAuth alloc] initWithAuthUI:[FUIAuth defaultAuthUI]]
+];
+_authUI.providers = providers;
+```
+Google 또는 Facebook 로그인을 사용 설정했다면 Google 및 Facebook 로그인
+흐름의 결과에 대한 핸들러를 구현합니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+```
+func application(_ app: UIApplication, open url: URL,
+options: [UIApplicationOpenURLOptionsKey : Any]) -> Bool {
+let sourceApplication = options[UIApplicationOpenURLOptionsKey.sourceApplication] as! String?
+if FUIAuth.defaultAuthUI()?.handleOpen(url, sourceApplication: sourceApplication) ?? false {
+return true
+}
+// other URL handling goes here.
+return false
+}
+```
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+```
+- (BOOL)application:(UIApplication *)app
+openURL:(NSURL *)url
+options:(NSDictionary *)options {
+NSString *sourceApplication = options[UIApplicationOpenURLOptionsSourceApplicationKey];
+return [[FUIAuth defaultAuthUI] handleOpenURL:url sourceApplication:sourceApplication];
+}
+```
+마지막으로 FUIAuth에서 AuthViewController의 인스턴스를 가져옵니다. 그런 다음 앱의 첫 번째 뷰 컨트롤러로 표시하거나 앱의 다른 뷰 컨트롤러로 표시할 수 있습니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+```
+let authViewController = authUI.authViewController()
+```
+```
+let phoneProvider = FUIAuth.defaultAuthUI().providers.first as! FUIPhoneAuth
+phoneProvider.signIn(withPresenting: currentlyVisibleController, phoneNumber: nil)
+```
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+```
+UINavigationController *authViewController = [authUI authViewController];
+```
+```
+FUIPhoneAuth *phoneProvider = [FUIAuth defaultAuthUI].providers.firstObject;
+[phoneProvider signInWithPresentingViewController:currentlyVisibleController phoneNumber:nil];
+```
+인증 보기를 표시하고 사용자가 로그인한 후 결과가 didSignInWithUser:error: 메서드의 FirebaseUI 인증 대리자에게 반환됩니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+```
+func authUI(_ authUI: FUIAuth, didSignInWith user: FIRUser?, error: Error?) {
+// handle user and error as necessary
+}
+```
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+```
+- (void)authUI:(FUIAuth *)authUI
+didSignInWithUser:(nullable FIRUser *)user
+error:(nullable NSError *)error {
+// Implement this method to handle signed in user or error if any.
+}
+```
+로그아웃
+
+FirebaseUI는 Firebase 인증은 물론 모든 소셜 ID 공급업체에서 로그아웃시키는 편리한 방법을 제공합니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+```
+authUI.signOut()
+```
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+```
+[authUI signOut];
+```
+맞춤설정
+
+FirebaseUI의 보기 컨트롤러를 서브클래스로 만들고 FUIAuth의 대리자 메서드에서 지정하면 로그인 화면을 맞춤설정할 수 있습니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+```
+func authPickerViewController(forAuthUI authUI: FUIAuth) -> FUIAuthPickerViewController {
+return FUICustomAuthPickerViewController(nibName: "FUICustomAuthPickerViewController",
+bundle: Bundle.main,
+authUI: authUI)
+}
+
+func emailEntryViewController(forAuthUI authUI: FUIAuth) -> FUIEmailEntryViewController {
+return FUICustomEmailEntryViewController(nibName: "FUICustomEmailEntryViewController",
+bundle: Bundle.main,
+authUI: authUI)
+}
+
+func passwordRecoveryViewController(forAuthUI authUI: FUIAuth, email: String) -> FUIPasswordRecoveryViewController {
+return FUICustomPasswordRecoveryViewController(nibName: "FUICustomPasswordRecoveryViewController",
+bundle: Bundle.main,
+authUI: authUI,
+email: email)
+}
+
+func passwordSignInViewController(forAuthUI authUI: FUIAuth, email: String) -> FUIPasswordSignInViewController {
+return FUICustomPasswordSignInViewController(nibName: "FUICustomPasswordSignInViewController",
+bundle: Bundle.main,
+authUI: authUI,
+email: email)
+}
+
+func passwordSignUpViewController(forAuthUI authUI: FUIAuth, email: String) -> FUIPasswordSignUpViewController {
+return FUICustomPasswordSignUpViewController(nibName: "FUICustomPasswordSignUpViewController",
+bundle: Bundle.main,
+authUI: authUI,
+email: email)
+}
+
+func passwordVerificationViewController(forAuthUI authUI: FUIAuth, email: String, newCredential: AuthCredential) -> FUIPasswordVerificationViewController {
+return FUICustomPasswordVerificationViewController(nibName: "FUICustomPasswordVerificationViewController",
+bundle: Bundle.main,
+authUI: authUI,
+email: email,
+newCredential: newCredential)
+}
+```
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+```
+- (FUIAuthPickerViewController *)authPickerViewControllerForAuthUI:(FUIAuth *)authUI {
+return [[FUICustomAuthPickerViewController alloc] initWithNibName:@"FUICustomAuthPickerViewController"
+bundle:[NSBundle mainBundle]
+authUI:authUI];
+}
+
+- (FUIEmailEntryViewController *)emailEntryViewControllerForAuthUI:(FUIAuth *)authUI {
+return [[FUICustomEmailEntryViewController alloc] initWithNibName:@"FUICustomEmailEntryViewController"
+bundle:[NSBundle mainBundle]
+authUI:authUI];
+
+}
+
+- (FUIPasswordSignInViewController *)passwordSignInViewControllerForAuthUI:(FUIAuth *)authUI
+email:(NSString *)email {
+return [[FUICustomPasswordSignInViewController alloc] initWithNibName:@"FUICustomPasswordSignInViewController"
+bundle:[NSBundle mainBundle]
+authUI:authUI
+email:email];
+
+}
+
+- (FUIPasswordSignUpViewController *)passwordSignUpViewControllerForAuthUI:(FUIAuth *)authUI
+email:(NSString *)email {
+return [[FUICustomPasswordSignUpViewController alloc] initWithNibName:@"FUICustomPasswordSignUpViewController"
+bundle:[NSBundle mainBundle]
+authUI:authUI
+email:email];
+
+}
+
+- (FUIPasswordRecoveryViewController *)passwordRecoveryViewControllerForAuthUI:(FUIAuth *)authUI
+email:(NSString *)email {
+return [[FUICustomPasswordRecoveryViewController alloc] initWithNibName:@"FUICustomPasswordRecoveryViewController"
+bundle:[NSBundle mainBundle]
+authUI:authUI
+email:email];
+
+}
+
+- (FUIPasswordVerificationViewController *)passwordVerificationViewControllerForAuthUI:(FUIAuth *)authUI
+email:(NSString *)email
+newCredential:(FIRAuthCredential *)newCredential {
+return [[FUICustomPasswordVerificationViewController alloc] initWithNibName:@"FUICustomPasswordVerificationViewController"
+bundle:[NSBundle mainBundle]
+authUI:authUI
+email:email
+newCredential:newCredential];
+}
+```
+계정 생성 화면에 연결되는 앱의 서비스 약관 URL을 맞춤설정할 수
+있습니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+```
+let kFirebaseTermsOfService = URL(string: "https://example.com/terms")!
+authUI.tosurl = kFirebaseTermsOfService
+```
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+```
+authUI.TOSURL = [NSURL URLWithString:@"https://example.com/terms"];
+```
+마지막으로 맞춤 번들을 지정하여 사용자에게 표시되는 메시지를 맞춤설정할 수
+있습니다.
+
+--- 탭: Swift [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#swift] ---
+```
+authUI.customStringsBundle = NSBundle.mainBundle() // Or any custom bundle.
+```
+
+--- 탭: Objective-C [https://firebase.google.com/docs/auth/ios/firebaseui?hl=ko#objective-c] ---
+```
+authUI.customStringsBundle = [NSBundle mainBundle]; // Or any custom bundle.
+```
+다음 단계
+
+FirebaseUI 사용 및 맞춤설정에 관한 자세한 내용은 GitHub의 리드미 [https://github.com/firebase/FirebaseUI-iOS/blob/master/Auth/README.md] 파일을 참조하세요.
+FirebaseUI에서 발견한 문제를 신고하려면 GitHub Issue Tracker [https://github.com/firebase/FirebaseUI-iOS/issues]를 사용하세요.
+
+도움이 되었나요?
+
+의견 보내기

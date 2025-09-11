@@ -1,0 +1,69 @@
+Source URL: https://firebase.google.com/docs/firestore/enterprise/optimize-query-performance?hl=ko
+Title: 쿼리 성능 최적화
+bookmark_border
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+쿼리 성능 최적화
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용결과 수 제한 [https://firebase.google.com/docs/firestore/enterprise/optimize-query-performance?hl=ko#limit_the_number_of_results]결과 문서 크기 제한 [https://firebase.google.com/docs/firestore/enterprise/optimize-query-performance?hl=ko#limit_the_result_document_size]색인 사용 [https://firebase.google.com/docs/firestore/enterprise/optimize-query-performance?hl=ko#use_indexes]쿼리에서 색인을 사용하고 있는지 확인 [https://firebase.google.com/docs/firestore/enterprise/optimize-query-performance?hl=ko#identify_if_the_query_is_using_an_index]사용된 색인을 최적화할 수 있는지 확인 [https://firebase.google.com/docs/firestore/enterprise/optimize-query-performance?hl=ko#identify_if_the_index_used_can_be_optimized]색인 만들기 [https://firebase.google.com/docs/firestore/enterprise/optimize-query-performance?hl=ko#create_indexes]쿼리 힌트 사용 [https://firebase.google.com/docs/firestore/enterprise/optimize-query-performance?hl=ko#use_query_hint]
+
+| Cloud Firestore Enterprise 버전에만 해당합니다. |
+| --- |
+
+느린 쿼리 문제를 해결하려면 Query Explain [https://firebase.google.com/docs/firestore/enterprise/query-explain?hl=ko]을 사용하여 쿼리 실행 계획과 런타임 실행 프로필을 가져옵니다. 다음 섹션에서는 실행 프로필에 따라 쿼리 성능을 최적화하기 위해 취할 수 있는 단계를 설명합니다.
+
+결과 수 제한
+
+실행 트리에서 반환된 레코드 필드를 사용하여 쿼리가 많은 문서를 반환하는지 확인합니다. $limit 절을 사용하여 반환되는 문서 수를 제한하는 것이 좋습니다. 이렇게 하면 네트워크를 통해 클라이언트에 반환될 때 결과의 직렬화된 바이트 크기가 줄어듭니다. Limit 노드 앞에 MajorSort 노드가 있는 경우 쿼리 엔진은 Limit 및 MajorSort 노드를 병합하고 전체 인메모리 구체화 및 정렬을 TopN 정렬로 대체하여 쿼리의 메모리 요구사항을 줄일 수 있습니다.
+
+결과 문서 크기 제한
+
+불필요한 필드를 가져오지 않도록 $project 절을 사용하여 반환되는 문서의 크기를 제한하는 것이 좋습니다. 이렇게 하면 중간 결과 처리의 컴퓨팅 및 메모리 비용과 네트워크를 통해 클라이언트에 반환될 때 결과의 직렬화된 바이트 크기를 줄일 수 있습니다. 쿼리에서 참조되는 모든 필드가 일반 색인(멀티 키 아님)으로 처리되는 경우 쿼리가 색인 검색으로 완전히 처리되어 기본 스토리지에서 문서를 가져올 필요가 없습니다.
+
+색인 사용
+
+다음 안내에 따라 색인을 설정하고 최적화하세요.
+
+쿼리에서 색인을 사용하고 있는지 확인
+
+실행 트리의 리프 노드를 확인하여 쿼리에서 색인을 사용하고 있는지 확인할 수 있습니다. 실행 트리의 리프 노드가 TableScan 노드 [https://firebase.google.com/docs/firestore/enterprise/query-explain?hl=ko#tablescan]인 경우 쿼리가 색인을 사용하지 않고 기본 스토리지에서 문서를 스캔하고 있음을 의미합니다. 색인이 사용 중인 경우 실행 트리의 리프 노드에 색인의 색인 ID와 색인 필드가 표시됩니다.
+
+사용된 색인을 최적화할 수 있는지 확인
+
+색인은 쿼리 엔진이 기본 스토리지에서 가져와야 하는 문서 수를 줄일 수 있거나 필드 순서가 쿼리의 정렬 요구사항을 충족할 수 있는 경우 쿼리에 유용합니다.
+
+쿼리에 색인이 사용되지만 쿼리 엔진이 여전히 많은 문서를 가져와서 삭제하는 경우(많은 레코드를 반환하는 스캔 노드와 적은 레코드를 반환하는 필터 노드 [https://firebase.google.com/docs/firestore/enterprise/query-explain-reference?hl=ko#filter]로 식별됨) 색인을 사용하여 충족된 쿼리 조건자가 선택적이지 않다는 신호입니다. 더 적합한 색인을 만들려면 색인 만들기 [https://firebase.google.com/docs/firestore/enterprise/optimize-query-performance?hl=ko#create_indexes]를 참고하세요.
+
+쿼리에 멀티 키가 아닌 색인이 사용되지만 쿼리 엔진이 여전히 쿼리 실행 트리의 MajorSort 노드 [https://firebase.google.com/docs/firestore/enterprise/query-explain-reference?hl=ko#majorsort]로 식별되는 결과 집합의 메모리 내 재정렬을 실행하는 경우, 이는 사용된 색인이 쿼리의 정렬 요구사항을 제공하는 데 사용될 수 없다는 신호입니다. 더 적합한 색인을 만들려면 다음 섹션을 참고하세요.
+
+색인 만들기
+
+색인 관리 문서를 따라 색인을 만듭니다 [https://firebase.google.com/docs/firestore/enterprise/indexing?hl=ko].
+쿼리에서 색인을 사용할 수 있도록 하려면 다음 순서로 필드가 있는 일반(멀티 키 아님) 색인을 만드세요.
+
+등호 연산자에 사용될 모든 필드입니다.
+쿼리 간 재사용 가능성을 극대화하려면 쿼리 간 등호 연산자에서 필드가 발생하는 빈도의 내림차순으로 필드를 정렬합니다.
+정렬할 모든 필드(동일한 순서)입니다.
+범위 또는 부등호 연산자에 사용될 필드입니다(쿼리 제약 조건 선택성의 내림차순).
+색인의 쿼리 일부로 반환될 필드: 색인에 이러한 필드를 포함하면 색인이 쿼리를 처리하고 기본 스토리지에서 문서를 가져오지 않아도 됩니다.
+
+배열 필드의 필터링 및 정렬이 포함된 쿼리의 경우 멀티 키 색인을 만드는 것이 좋습니다.
+
+쿼리 힌트 사용
+
+쿼리에 더 적합한 색인을 만들었지만 쿼리 엔진에서 해당 색인을 사용하지 않는 경우 쿼리 힌트를 사용하여 쿼리 엔진의 색인 환경설정을 재정의할 수 있습니다.
+
+Query Explain으로 실행된 쿼리의 출력에 대한 자세한 내용은 쿼리 실행 참조 [https://firebase.google.com/docs/firestore/enterprise/query-explain-reference?hl=ko]를 참고하세요.
+
+도움이 되었나요?
+
+의견 보내기

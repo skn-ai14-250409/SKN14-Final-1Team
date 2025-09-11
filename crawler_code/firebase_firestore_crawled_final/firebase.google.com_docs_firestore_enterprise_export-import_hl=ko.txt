@@ -1,0 +1,357 @@
+Source URL: https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko
+Title: 데이터 가져오기 및 내보내기
+bookmark_border
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+데이터 가져오기 및 내보내기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#before_you_begin]서비스 에이전트 권한 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#service_agent_permissions]서비스 에이전트 이름 보기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#view_service_agent_name]프로젝트에 gcloud 설정 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#set_up_gcloud_for_your_project]데이터 가져오기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#import_data]내보내기에서 모든 문서 가져오기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#import_all_documents_from_an_export]특정 컬렉션 가져오기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#import_specific_collections]PITR 데이터가 포함된 내보내기에서 가져오기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#import_from_an_export_with_pitr_data]데이터 내보내기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#export_data]모든 문서 내보내기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#export_all_documents]특정 컬렉션 내보내기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#export_specific_collections]PITR 타임스탬프에서 내보내기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#export-pitr]내보내기/가져오기 작업 관리 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#manage_export_and_import_operations]내보내기/가져오기 작업 모두 나열 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#list_all_export_and_import_operations]작업 상태 확인 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#check_operation_status]작업 취소 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#cancel_an_operation]작업 삭제 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#delete_an_operation]내보내기/가져오기 작업 결제 및 가격 책정 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#billing]내보내기/가져오기 비용 보기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#viewing_export_and_import_costs]BigQuery로 내보내기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#export_to_bigquery]BigQuery 열 한도 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#column-limit]내보내기 형식 및 메타데이터 파일 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#export_format_and_metadata_files]메타데이터 파일 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#metadata_files]
+
+| Cloud Firestore Enterprise 버전에만 해당합니다. |
+| --- |
+
+관리형 내보내기/가져오기 서비스를 사용하면 실수로 삭제한 데이터를 복원하고 오프라인 처리를 위해 데이터를 내보낼 수 있습니다. 모든 문서를 내보내거나 특정 컬렉션만 지정하여 내보낼 수 있습니다. 마찬가지로 내보내기한 모든 데이터를 가져오거나 특정 컬렉션만 지정하여 가져오는 것도 가능합니다. MongoDB 호환성을 갖춘 한 Cloud Firestore 데이터베이스에서 내보낸 데이터를 MongoDB 호환성을 갖춘 다른 Cloud Firestore 데이터베이스로 가져올 수 있습니다. 또한 MongoDB 호환성을 갖춘 Cloud Firestore 내보내기를 BigQuery로 로드 [https://cloud.google.com/bigquery/docs/loading-data-cloud-firestore?hl=ko]할 수 있습니다.
+
+이 페이지에서는 관리형 내보내기/가져오기 서비스와 Cloud Storage [https://cloud.google.com/storage/?hl=ko]를 사용하여 MongoDB 호환성을 갖춘 Cloud Firestore 문서를 내보내고 가져오는 방법을 설명합니다. MongoDB 호환성을 갖춘 Cloud Firestore 관리형 내보내기/가져오기 관리 서비스는 gcloud [https://cloud.google.com/sdk/gcloud/?hl=ko] 명령줄 도구 및 MongoDB 호환성을 갖춘 Cloud Firestore API(REST [https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases?hl=ko], RPC [https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.admin.v1?hl=ko])를 통해 사용할 수 있습니다.
+주의: MongoDB 호환성을 갖춘 Cloud Firestore에서 데이터를 내보내면 내보낸 문서당 하나의 읽기 작업이 수행됩니다. 그러나 이러한 읽기는 Console의 사용량 섹션에 표시되지 않습니다. 예상치 못한 요금이 청구되지 않도록 반복 내보내기를 설정하기 전에 이 사항을 이해해야 합니다.
+시작하기 전에
+
+내보내기/가져오기 관리 서비스를 사용하려면 먼저 다음 작업을 완료해야 합니다.
+
+Google Cloud 프로젝트에 결제를 사용 설정합니다. [https://cloud.google.com/billing/docs/how-to/modify-project?hl=ko] 결제가 사용 설정된 Google Cloud 프로젝트에만 내보내기 및 가져오기 기능을 사용할 수 있습니다.
+
+MongoDB 호환성을 갖춘 Cloud Firestore 데이터베이스 위치 [https://firebase.google.com/docs/firestore/enterprise/locations?hl=ko#project_location_setting]와 가까운 위치에 프로젝트에 사용할 Cloud Storage 버킷을 생성 [https://cloud.google.com/storage/docs/creating-buckets?hl=ko]합니다. 내보내기/가져오기 작업에는 요청자 지불 버킷을 사용할 수 없습니다.
+
+계정에 MongoDB 호환성을 갖춘 Cloud Firestore와 Cloud Storage에 필요한 권한이 있는지 확인합니다. 프로젝트 소유자인 계정에는 필요한 권한이 있습니다. 그렇지 않은 경우 다음 역할은 내보내기/가져오기 작업과 Cloud Storage 액세스에 필요한 권한을 부여합니다.
+
+MongoDB 호환성을 갖춘 Cloud Firestore 역할: [https://firebase.google.com/docs/firestore/enterprise/security/iam?hl=ko#roles]
+Owner, Cloud Datastore Owner 또는  Cloud Datastore Import Export Admin
+참고: 이러한 Datastore 역할은 MongoDB 호환성을 갖춘 Cloud Firestore의 권한도 부여합니다.
+
+Cloud Storage 역할: [https://cloud.google.com/storage/docs/access-control/iam-roles?hl=ko]
+Owner 또는 Storage Admin
+
+서비스 에이전트 권한
+
+내보내기 및 가져오기 작업은 Cloud Firestore 서비스 에이전트를 사용하여 Cloud Storage 작업을 승인합니다. Cloud Firestore 서비스 에이전트는 다음 이름 지정 규칙을 사용합니다.
+
+Cloud Firestore 서비스 에이전트
+service-PROJECT_NUMBER@gcp-sa-firestore.iam.gserviceaccount.com
+
+서비스 에이전트에 대한 자세한 내용은 서비스 에이전트 [https://cloud.google.com/iam/docs/service-agents?hl=ko]를 참조하세요.
+참고: 이전에는 Cloud Firestore에서 Cloud Firestore 서비스 에이전트 대신 App Engine 기본 서비스 계정을 사용했습니다. 데이터베이스에서 여전히 App Engine 서비스 계정을 사용하여 데이터를 가져오거나 내보내는 경우 서비스별 Cloud Firestore 서비스 에이전트로 마이그레이션 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#service_agent_migration]하는 것이 좋습니다.
+Google Cloud 콘솔에서 가져오기 및 내보내기 작업에서 사용하는 계정을 확인 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#view_service_agent_name]할 수 있습니다.
+
+VPC 서비스 제어를 사용하는 경우 서비스별 Cloud Firestore 서비스 에이전트를 사용하여 가져오기 및 내보내기 작업을 온전히 보호해야 합니다. VPC 서비스 제어가 App Engine 서비스 계정과 호환되지 않습니다.
+Cloud Firestore 서비스 에이전트는 내보내기 또는 가져오기 작업에 사용되는 Cloud Storage 버킷에 액세스해야 합니다. 만약 Cloud Storage 버킷이 Cloud Firestore 데이터베이스와 같은  프로젝트에 있으면 기본적으로 Cloud Firestore 서비스 에이전트가 버킷에 액세스할 수 있습니다
+
+Cloud Storage 버킷이 다른 프로젝트에 있으면 Cloud Firestore 서비스 에이전트에 Cloud Storage 버킷에 대한 액세스 권한을 부여해야 합니다.
+
+서비스 에이전트에 역할 할당
+
+gsutil [https://cloud.google.com/storage/docs/gsutil?hl=ko] 명령줄 도구를 사용하면 아래 역할 중 하나를 할당할 수 있습니다. 예를 들어 스토리지 관리자 역할을 Cloud Firestore 서비스 에이전트에 할당하려면 다음을 실행합니다.
+
+gsutil iam ch serviceAccount:service-PROJECT_NUMBER@gcp-sa-firestore.iam.gserviceaccount.com:roles/storage.admin \
+gs://[BUCKET_NAME]
+
+PROJECT_NUMBER를 Cloud Firestore 서비스 에이전트 이름을 지정하는 데 사용되는 프로젝트 번호로 바꿉니다. 서비스 에이전트 이름을 보려면 서비스 에이전트 이름 보기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#view_service_agent_name]를 참조하세요.
+
+또는 Google Cloud 콘솔을 사용하여 이 역할을 할당 [https://cloud.google.com/storage/docs/access-control/using-iam-permissions?hl=ko#bucket-add]할 수 있습니다.
+
+서비스 에이전트 이름 보기
+
+Google Cloud 콘솔의 가져오기/내보내기 페이지에서 가져오기 및 내보내기 작업이 요청을 승인하는 데 사용하는 계정을 볼 수 있습니다. 데이터베이스에서 Cloud Firestore 서비스 에이전트 또는 기존 App Engine 서비스 계정을 사용하는지도 확인할 수 있습니다.
+
+가져오기/내보내기 작업 실행 계정 라벨 옆에 있는 승인 계정을 확인합니다.
+
+서비스 에이전트는 내보내기 또는 가져오기 작업에 사용할 Cloud Storage 버킷의 Storage Admin 역할이 필요합니다.
+
+프로젝트에 gcloud 설정
+
+Google Cloud Console 또는 gcloud 명령줄 도구를 통해 가져오기 및 내보내기 작업을 시작할 수 있습니다. gcloud를 사용하려면 다음 방법 중 사용하여 명령줄 도구를 설정하고 프로젝트에 연결합니다.
+
+Cloud Shell [https://cloud.google.com/shell/?hl=ko]을 사용하여 Google Cloud 콘솔에서 gcloud에 액세스합니다.
+
+Cloud Shell 시작 [https://console.cloud.google.com/?cloudshell=true&hl=ko]
+
+gcloud가 올바른 프로젝트에 구성되어 있는지 확인합니다.
+gcloud config set project [PROJECT_ID]
+
+Google Cloud SDK를 설치하고 초기화합니다. [https://cloud.google.com/sdk/docs/quickstarts?hl=ko]
+
+데이터 가져오기
+
+Cloud Storage에서 파일을 내보냈다면 그 파일의 문서를 사용자의 프로젝트 또는 다른 프로젝트로 다시 가져올 수 있습니다. 가져오기 작업에 대한 다음 사항을 유의하세요.
+
+데이터를 가져오면 필수 색인이 데이터베이스의 현재 색인 정의를 사용하여 업데이트됩니다. 내보내기에는 색인 정의가 포함되지 않습니다.
+가져오기를 수행하면 새 문서 ID를 할당하지 않고 내보낼 때 캡처된 ID를 사용합니다. 문서를 가져올 때 문서의 ID가 유지되어 ID 충돌을 방지합니다. ID가 같은 문서가 이미 있는 경우에 가져오기를 수행하면 기존 문서를 덮어씁니다.
+가져오기의 영향을 받지 않는 데이터베이스의 문서는 가져오기 후에도 데이터베이스에 남아있게 됩니다.
+.overall_export_metadata 파일 이름은 상위 폴더 이름과 일치해야 합니다.
+
+gs://BUCKET_NAME/OPTIONAL_NAMESPACE_PATH/PARENT_FOLDER_NAME/PARENT_FOLDER_NAME.overall_export_metadata
+
+내보내기의 출력 파일을 이동하거나 복사하는 경우 PARENT_FOLDER_NAME 및 .overall_export_metadata 파일 이름을 동일하게 유지합니다.
+하위 컬렉션이 MongoDB 호환성을 갖춘 Cloud Firestore에서 지원되지 않으므로 하위 컬렉션이 있는 내보내기에서 MongoDB 호환성을 갖춘 Cloud Firestore 데이터베이스로 가져오기가 실패합니다.
+BSON 유형은 Cloud Firestore Standard 버전에서 지원되지 않으므로 BSON 유형이 포함된 내보내기에서 Cloud Firestore Standard 버전 데이터베이스로 가져오면 실패합니다.
+MongoDB 호환성을 갖춘 Cloud Firestore 데이터베이스로 가져오기는 기본이 아닌 네임스페이스(Datastore API)의 데이터를 가져올 수 없습니다.
+
+기본이 아닌 네임스페이스가 포함된 데이터 파일에서 MongoDB 호환성을 갖춘 Cloud Firestore 데이터베이스로 가져오기는 내보내기 작업에 기본 네임스페이스가 있는 --namespace-ids [https://cloud.google.com/sdk/gcloud/reference/firestore/export?hl=ko#--namespace-ids] 필터가 포함된 경우에만 허용됩니다. 기본 네임스페이스의 데이터만 가져옵니다.
+
+내보내기에서 모든 문서 가져오기
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/datastore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스를 선택합니다.
+탐색 메뉴에서 가져오기/내보내기를 클릭합니다.
+가져오기를 클릭합니다.
+파일 이름 필드에 완료된 내보내기 작업에서 .overall_export_metadata 파일의 파일 이름을 입력합니다. 찾아보기 버튼을 사용하면 파일을 선택할 수 있습니다.
+가져오기를 클릭합니다.
+콘솔이 가져오기/내보내기 페이지로 돌아갑니다. 작업이 성공적으로 시작되면 최근 가져오기/내보내기 페이지에 항목이 추가됩니다. 실패하면 페이지에 오류 메시지가 표시됩니다.
+
+--- 탭: gcloud [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#gcloud] ---
+이전 내보내기 작업에서 문서를 가져오려면 firestore import [https://cloud.google.com/sdk/gcloud/reference/firestore/import?hl=ko] 명령어를 사용합니다.
+gcloud firestore import gs://
+[BUCKET_NAME]/
+[EXPORT_PREFIX]/ --database=
+[DATABASE]
+다음을 바꿉니다.
+BUCKET_NAME/EXPORT_PREFIX: 내보내기 파일의 위치입니다.
+DATABASE: 데이터베이스 이름입니다.
+예를 들면 다음과 같습니다.
+gcloud firestore import gs://my-bucket/2017-05-25T23:54:39_76544/ --database='cymbal'
+Google Cloud 콘솔의 Cloud Storage 브라우저에서 내보내기 파일의 위치를 확인할 수 있습니다.
+Cloud Storage 브라우저 열기 [https://console.cloud.google.com/storage/browser?hl=ko]
+가져오기 작업을 시작하면 터미널을 닫아도 작업이 취소되지 않습니다. 작업 취소 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#cancel_an_operation]를 참조하세요.
+특정 컬렉션 가져오기
+참고: 특정 컬렉션을 가져오려면 특정 컬렉션을 내보낸 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#export_specific_collections] 내보내기 작업의 출력을 사용해야 합니다.
+
+--- 탭: Google Cloud Console [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#google-cloud-console] ---
+Console에서 특정 컬렉션을 선택할 수 없습니다. 대신 gcloud를 사용하세요.
+
+--- 탭: gcloud [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#gcloud] ---
+내보내기 파일 집합에서 특정 컬렉션만 가져오려면 --collection-ids [https://cloud.google.com/sdk/gcloud/reference/firestore/import?hl=ko#FLAGS] 플래그를 사용합니다. 이 작업은 컬렉션 ID가 지정된 컬렉션만 가져옵니다. --database 플래그를 사용하여 데이터베이스 이름을 지정합니다.
+특정 컬렉션의 내보내기만 특정 컬렉션 가져오기를 지원합니다. 모든 문서 내보내기에서는 특정 컬렉션을 가져올 수 없습니다.
+gcloud firestore import gs://
+[BUCKET_NAME]/
+[EXPORT_PREFIX]/ \
+--collection-ids=
+[COLLECTION_ID_1],
+[COLLECTION_ID_2] \
+--database=
+[DATABASE]
+PITR 데이터가 포함된 내보내기에서 가져오기
+
+모든 문서 가져오기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#import_all_documents_from_an_export] 또는 특정 컬렉션 가져오기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#import_specific_collections]와 동일한 단계에 따라 PITR 데이터를 가져옵니다. 데이터베이스에 이미 문서가 있으면 덮어쓰게 됩니다.
+
+데이터 내보내기
+
+내보내기 작업은 데이터베이스의 문서를 Cloud Storage 버킷의 파일 집합에 복사합니다. 내보내기는 내보내기 시작 시간에 생성된 정확한 데이터베이스 스냅샷이 아닙니다. 내보내기에는 작업 실행 중에 수행된 변경 사항이 포함될 수 있습니다.
+
+참고: 다음 작업을 진행하려는 경우 특정 컬렉션을 내보내야 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#export_specific_collections] 합니다.특정 컬렉션만 가져오기 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#import_specific_collections]
+MongoDB 호환성을 갖춘 Cloud Firestore 데이터를 BigQuery에 로드 [https://cloud.google.com/bigquery/docs/loading-data-cloud-firestore?hl=ko]
+
+모든 문서 내보내기
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/datastore/databases?hl=ko]
+데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
+탐색 메뉴에서 가져오기/내보내기를 클릭합니다.
+내보내기를 클릭합니다.
+전체 데이터베이스 내보내기 옵션을 클릭합니다.
+데이터베이스의 현재 상태 내보내기를 선택하여 현재 데이터를 내보냅니다.
+대상 섹션에서 Cloud Storage 버킷의 이름을 입력하거나 찾아보기 버튼을 사용하여 버킷을 선택합니다.
+내보내기를 클릭합니다.
+콘솔이 가져오기/내보내기 페이지로 돌아갑니다. 작업이 성공적으로 시작되면 최근 가져오기/내보내기 페이지에 항목이 추가됩니다. 실패하면 페이지에 오류 메시지가 표시됩니다.
+
+--- 탭: gcloud [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#gcloud] ---
+firestore export [https://cloud.google.com/sdk/gcloud/reference/firestore/export?hl=ko] 명령어를 사용하여 데이터베이스의 모든 문서를 내보내고 [BUCKET_NAME]을 Cloud Storage 버킷 이름으로 바꿉니다. 작업이 완료될 때까지 gcloud 도구가 대기하는 것을 방지하려면 --async 플래그를 추가합니다.
+gcloud firestore export gs://
+[BUCKET_NAME] \
+--database=
+[DATABASE]
+다음을 바꿉니다.
+BUCKET_NAME: 버킷 이름 뒤에 파일 프리픽스를 추가하여 내보내기를 구성합니다(예: BUCKET_NAME/my-exports-folder/export-name). 파일 프리픽스를 지정하지 않은 경우 내보내기 관리 서비스는 현재 타임스탬프를 기준으로 파일 프리픽스를 하나 만듭니다.
+DATABASE: 문서를 내보낼 데이터베이스의 이름입니다.
+내보내기 작업을 시작하면 터미널을 닫아도 작업이 취소되지 않습니다. 작업 취소 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#cancel_an_operation]를 참조하세요.
+특정 컬렉션 내보내기
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/datastore/databases?hl=ko]
+데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
+탐색 메뉴에서 가져오기/내보내기를 클릭합니다.
+내보내기를 클릭합니다.
+하나 이상의 컬렉션 그룹 내보내기 옵션을 클릭합니다. 드롭다운 메뉴를 사용하여 하나 이상의 컬렉션을 선택합니다.
+데이터베이스의 현재 상태 내보내기를 선택하여 현재 데이터를 내보냅니다.
+대상 섹션에서 Cloud Storage 버킷의 이름을 입력하거나 찾아보기 버튼을 사용하여 버킷을 선택합니다.
+내보내기를 클릭합니다.
+콘솔이 가져오기/내보내기 페이지로 돌아갑니다. 작업이 성공적으로 시작되면 최근 가져오기/내보내기 페이지에 항목이 추가됩니다. 실패하면 페이지에 오류 메시지가 표시됩니다.
+
+--- 탭: gcloud [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#gcloud] ---
+특정 컬렉션을 내보내려면 --collection-ids [https://cloud.google.com/sdk/gcloud/reference/firestore/export?hl=ko#FLAGS] 플래그를 사용합니다. 이 작업은 컬렉션 ID가 지정된 컬렉션만 내보냅니다.
+gcloud firestore export gs://
+[BUCKET_NAME] \
+--collection-ids=
+[COLLECTION_ID_1],
+[COLLECTION_ID_2] \
+--database=
+[DATABASE]
+예를 들어 ratings, reviews, outlets와 같은 추가 컬렉션을 포함하도록 foo 데이터베이스에 restaurants 컬렉션을 설계할 수 있습니다. 특정 컬렉션 restaurants 및 reviews를 내보내려면 명령어가 다음과 같아야 합니다.
+gcloud firestore export gs://[BUCKET_NAME] \
+--collection-ids=restaurants,reviews \
+--database='cymbal'
+PITR 타임스탬프에서 내보내기
+
+PITR 데이터 [https://firebase.google.com/docs/firestore/enterprise/pitr?hl=ko]에서 Cloud Storage로 데이터베이스를 내보낼 수 있습니다.
+타임스탬프가 지난 7일 이내의 1분 타임스탬프이고 earliestVersionTime 이후인 PITR 데이터를 내보낼 수 있습니다. 데이터가 더 이상 지정된 타임스탬프에 없으면 내보내기 작업이 실패합니다.
+
+PITR 내보내기 작업은 모든 문서 내보내기 및 특정 컬렉션 내보내기를 포함한 모든 필터를 지원합니다.
+
+PITR 데이터를 내보내기 전에 다음 사항에 유의하세요.
+
+RFC 3339 형식 [https://developers.google.com/protocol-buffers/docs/reference/google.protobuf?hl=ko#google.protobuf.Timestamp]으로 타임스탬프를 지정합니다. 예를 들면 2020-09-01T23:59:30.234233Z입니다.
+지정한 타임스탬프가 지난 7일 이내의 1분 타임스탬프여야 하지만 earliestVersionTime 이전이어야 합니다. 지정된 타임스탬프에 데이터가 더 이상 존재하지 않으면 오류가 발생합니다.
+실패한 PITR 내보내기에 대해서는 요금이 청구되지 않습니다.
+
+--- 탭: 콘솔 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스를 선택합니다.
+탐색 메뉴에서 가져오기/내보내기를 클릭합니다.
+내보내기를 클릭합니다.
+전체 데이터베이스 또는 특정 컬렉션만 내보내도록 내보내기 소스를 구성합니다.
+내보낼 데이터베이스의 상태 선택 섹션에서 이전 시점에서 내보내기를 선택합니다.
+내보내기에 사용할 스냅샷 시간을 선택합니다.
+대상 섹션에서 Cloud Storage 버킷의 이름을 입력하거나 찾아보기 버튼을 사용하여 버킷을 선택합니다.
+내보내기를 클릭합니다.
+콘솔이 가져오기/내보내기 페이지로 돌아갑니다. 작업이 성공적으로 시작되면 최근 가져오기/내보내기 페이지에 항목이 추가됩니다. 실패하면 페이지에 오류 메시지가 표시됩니다.
+
+--- 탭: gcloud [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#gcloud] ---
+gcloud firestore export [https://cloud.google.com/sdk/gcloud/reference/firestore/export?hl=ko] 명령어를 사용하여 PITR 데이터 [https://firebase.google.com/docs/firestore/enterprise/pitr?hl=ko]에서 Cloud Storage로 데이터베이스를 내보낼 수 있습니다.
+snapshot-time 파라미터를 복구 타임스탬프로 지정하여 데이터베이스를 내보냅니다. 다음 명령어를 실행하여 데이터베이스를 버킷으로 내보냅니다.
+gcloud firestore export gs://[BUCKET_NAME_PATH] \
+--snapshot-time=[
+PITR_TIMESTAMP]
+여기서 PITR_TIMESTAMP는 분 단위의 PITR 타임스탬프입니다(예: 2023-05-26T10:20:00.00Z).
+--collection-ids [https://cloud.google.com/sdk/gcloud/reference/firestore/export?hl=ko#--collection-ids] 플래그를 추가하여 특정 컬렉션을 내보냅니다.
+
+내보내기/가져오기 작업 관리
+
+내보내기 또는 가져오기 작업을 시작한 후 MongoDB 호환성을 갖춘 Cloud Firestore는 작업에 고유한 이름을 할당합니다. 이 작업 이름을 사용하면 작업을 삭제 또는 취소하거나 상태를 확인할 수 있습니다.
+
+작업 이름은 다음 예시와 같이 projects/[PROJECT_ID]/databases/[DATABASE_ID]/operations/로 시작합니다.
+
+projects/my-project/databases/my-database/operations/ASA1MTAwNDQxNAgadGx1YWZlZAcSeWx0aGdpbi1zYm9qLW5pbWRhEgopEg
+
+describe, cancel, delete 명령어에 작업 이름을 지정할 때 프리픽스는 제외할 수 있습니다.
+
+내보내기/가져오기 작업 모두 나열
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 가져오기/내보내기 페이지에서 최근 내보내기 및 가져오기 작업 목록을 볼 수 있습니다.
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/datastore/databases?hl=ko]
+데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
+탐색 메뉴에서 가져오기/내보내기를 클릭합니다.
+
+--- 탭: gcloud [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#gcloud] ---
+operations list [https://cloud.google.com/sdk/gcloud/reference/firestore/operations/list?hl=ko] 명령어를 사용하면 모든 실행 중인 작업과 최근에 완료된 내보내기/가져오기 작업을 볼 수 있습니다.
+gcloud firestore operations list
+작업 상태 확인
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 가져오기/내보내기 페이지에서 최근 내보내기 또는 가져오기 작업의 상태를 볼 수 있습니다.
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/datastore/databases?hl=ko]
+데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
+탐색 메뉴에서 가져오기/내보내기를 클릭합니다.
+
+--- 탭: gcloud [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#gcloud] ---
+내보내기 또는 가져오기 작업의 상태를 표시하려면 operations describe [https://cloud.google.com/sdk/gcloud/reference/firestore/operations/describe?hl=ko] 명령어를 사용하세요.
+gcloud firestore operations describe [OPERATION_NAME]
+완료 시간 예상
+
+장기 실행 작업의 상태를 요청하면 workEstimated 및 workCompleted 측정항목이 반환됩니다. 이러한 각 측정항목은 바이트 수와 항목 수 단위로 반환됩니다.
+
+workEstimated는 작업에서 처리할 것으로 예상되는 총 바이트 및 문서 수를 나타냅니다. MongoDB 호환성을 갖춘 Cloud Firestore가 예상치를 산출하지 못하는 경우 이 측정항목이 생략될 수 있습니다.
+workCompleted는 지금까지 처리된 바이트 및 문서 수를 나타냅니다.
+작업이 완료된 후 이 값은 실제로 처리된 총 바이트 및 문서 수를 나타내며 workEstimated 값보다 클 수 있습니다.
+
+workCompleted를 workEstimated로 나누면 예상 진행도를 대략적으로 추정할 수 있습니다. 이 예상치는 통계 수집이 지연되어 정확하지 않을 수 있습니다.
+
+작업 취소
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔의 가져오기/내보내기 페이지에서 실행 중인 내보내기 또는 가져오기 작업을 취소할 수 있습니다.
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/datastore/databases?hl=ko]
+데이터베이스 목록에서 필요한 데이터베이스를 선택합니다.
+탐색 메뉴에서 가져오기/내보내기를 클릭합니다.
+최근 내보내기/가져오기 테이블의 현재 실행 중인 작업에는 완료 열에 취소 버튼이 포함됩니다. 작업을 중지하려면 취소 버튼을 클릭합니다. 버튼이 취소 중 메시지로 변경된 다음 작업이 완전히 중지되면 취소됨으로 변경됩니다.
+
+--- 탭: gcloud [https://firebase.google.com/docs/firestore/enterprise/export-import?hl=ko#gcloud] ---
+operations cancel [https://cloud.google.com/sdk/gcloud/reference/firestore/operations/cancel?hl=ko] 명령어를 사용하면 진행 중인 작업을 중지할 수 있습니다.
+gcloud firestore operations cancel [OPERATION_NAME]
+실행 중인 작업을 취소해도 이미 진행된 작업은 취소되지 않습니다. 취소된 내보내기 작업은 Cloud Storage에 이미 내보낸 문서를 그대로 두고 취소된 가져오기 작업은 데이터베이스에 이미 수행된 업데이트를 그대로 둡니다. 일부만 완료된 내보내기는 가져올 수 없습니다.
+
+작업 삭제
+
+최근 작업 목록에서 작업을 삭제하려면 gcloud firestore operations delete [https://cloud.google.com/sdk/gcloud/reference/firestore/operations/delete?hl=ko] 명령어를 사용하세요. 이 명령어로 Cloud Storage에서 내보내기 파일이 삭제되지는 않습니다.
+
+gcloud firestore operations delete [OPERATION_NAME]
+
+내보내기/가져오기 작업 결제 및 가격 책정
+
+관리형 내보내기 및 가져오기 서비스를 사용하기 전에 Google Cloud 프로젝트의 결제를 사용 설정해야 합니다.
+
+내보내기/가져오기 작업은 MongoDB 호환성을 갖춘 Cloud Firestore 가격 책정 [https://firebase.google.com/pricing?hl=ko]에 나와 있는 요금에 따라 읽기 단위 및 쓰기 단위의 요금이 청구됩니다.
+
+Cloud Storage에 저장된 출력 파일은 Cloud Storage 데이터 스토리지 비용 [https://cloud.google.com/storage/pricing?hl=ko]으로 계산됩니다.
+
+내보내기 또는 가져오기 작업은 완료 후까지 Google Cloud 예산 [https://cloud.google.com/billing/docs/how-to/budgets?hl=ko] 알림을 트리거하지 않습니다. 내보내기/가져오기 작업은 콘솔의 사용량 섹션에 표시되는 사용량에는 영향을 미치지 않습니다.
+
+내보내기/가져오기 비용 보기
+
+내보내기/가져오기 작업은 청구 작업에 goog-firestoremanaged:exportimport 라벨을 적용합니다. Cloud Billing 보고서 페이지 [https://cloud.google.com/billing/docs/how-to/reports?hl=ko#getting_started]에서 이 라벨을 사용하여 가져오기/내보내기 작업과 관련된 비용을 볼 수 있습니다.
+
+참고: 2020년 9월 8일 이전에 실행된 내보내기/가져오기 작업에는 goog-firestoremanaged 라벨이 적용되지 않았습니다.BigQuery로 내보내기
+
+collection-ids 필터를 지정한 경우에만 MongoDB 호환성을 갖춘 Cloud Firestore 내보내기에서 BigQuery로 데이터를 로드할 수 있습니다. MongoDB 호환 내보내기를 사용하여 Cloud Firestore에서 데이터 로드 [https://cloud.google.com/bigquery/docs/loading-data-cloud-firestore?hl=ko]를 참고하세요.
+
+MongoDB 호환성을 갖춘 Cloud Firestore 데이터를 BigQuery에 로드할 때 BSON 데이터 유형은 STRING 데이터 유형으로 표시됩니다.
+
+BigQuery 열 한도
+
+BigQuery는 테이블당 열을 10,000개로 제한합니다.
+MongoDB 호환성을 갖춘 Cloud Firestore 내보내기 작업은 각 컬렉션에 대한 BigQuery 테이블 스키마를 생성합니다. 이 스키마에서 컬렉션 내 각 고유 필드 이름은 스키마 열이 됩니다.
+
+컬렉션의 BigQuery 스키마가 10,000개 열을 초과하면 MongoDB 호환성을 갖춘 Cloud Firestore 내보내기 작업은 지도 필드를 바이트로 취급하여 열 한도를 넘지 않도록 합니다. 이 변환으로 10,000개 미만의 열을 가져오면 데이터를 BigQuery에 로드할 수 있지만 지도 필드 내의 하위 필드는 쿼리할 수 없습니다.
+열 수가 여전히 10,000개를 초과하면 내보내기 작업은 컬렉션에 대한 BigQuery 스키마를 생성하지 않으며 데이터를 BigQuery에 로드할 수 없습니다.
+
+내보내기 형식 및 메타데이터 파일
+
+관리형 내보내기의 출력은 LevelDB 로그 형식 [https://github.com/google/leveldb/blob/master/doc/log_format.md]을 사용합니다.
+
+메타데이터 파일
+
+내보내기 작업으로 지정한 컬렉션마다 메타데이터 파일이 생성됩니다. 일반적으로 메타데이터 파일의 이름은 ALL_NAMESPACES_KIND_[COLLECTION_GROUP_ID].export_metadata입니다.
+
+메타데이터 파일은 프로토콜 버퍼이며 protoc 프로토콜 컴파일러 [https://github.com/protocolbuffers/protobuf#readme]로 디코딩할 수 있습니다.
+예를 들어 메타데이터 파일을 디코딩하면 내보내기 파일에 포함된 컬렉션을 확인할 수 있습니다.
+
+protoc --decode_raw < export0.export_metadata
+
+도움이 되었나요?
+
+의견 보내기

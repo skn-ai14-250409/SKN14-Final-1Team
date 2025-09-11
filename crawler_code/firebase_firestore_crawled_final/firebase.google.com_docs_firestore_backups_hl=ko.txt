@@ -1,0 +1,371 @@
+Source URL: https://firebase.google.com/docs/firestore/backups?hl=ko
+Title: 데이터 백업 및 복원
+bookmark_border
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+데이터 백업 및 복원
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용백업 정보 [https://firebase.google.com/docs/firestore/backups?hl=ko#about_backups]비용 [https://firebase.google.com/docs/firestore/backups?hl=ko#costs]시작하기 전에 [https://firebase.google.com/docs/firestore/backups?hl=ko#before_you_begin]필요한 역할 [https://firebase.google.com/docs/firestore/backups?hl=ko#required_roles]백업 일정 만들기 및 관리 [https://firebase.google.com/docs/firestore/backups?hl=ko#create_and_manage_backup_schedules]백업 일정 만들기 [https://firebase.google.com/docs/firestore/backups?hl=ko#create_a_backup_schedule]백업 일정 나열 [https://firebase.google.com/docs/firestore/backups?hl=ko#list_backup_schedules]백업 일정 설명 [https://firebase.google.com/docs/firestore/backups?hl=ko#describe_backup_schedule]백업 일정 업데이트 [https://firebase.google.com/docs/firestore/backups?hl=ko#update_a_backup_schedule]백업 일정 삭제 [https://firebase.google.com/docs/firestore/backups?hl=ko#delete_a_backup_schedule]백업 관리 [https://firebase.google.com/docs/firestore/backups?hl=ko#manage_backups]백업 표시 [https://firebase.google.com/docs/firestore/backups?hl=ko#list_backups]백업 설명 [https://firebase.google.com/docs/firestore/backups?hl=ko#describe_a_backup]백업 삭제 [https://firebase.google.com/docs/firestore/backups?hl=ko#delete_backup]데이터베이스 백업에서 데이터 복원 [https://firebase.google.com/docs/firestore/backups?hl=ko#restore_data_from_a_database_backup]
+
+| Cloud Firestore Standard 버전 및 Cloud Firestore Enterprise 버전에 해당합니다. |
+| --- |
+
+이 페이지에서는 MongoDB 호환성을 갖춘 Cloud Firestore의 예약된 백업 기능을 사용하는 방법을 설명합니다. 백업을 사용하여 애플리케이션 수준 데이터 손상이나 우발적인 데이터 삭제로부터 데이터를 보호하세요.
+
+백업을 사용하면 지정된 데이터베이스를 매일 또는 매주 백업하도록 백업 일정을 구성할 수 있습니다. 그런 다음 이러한 백업을 사용하여 데이터를 새 데이터베이스로 복원할 수 있습니다.
+
+백업 정보
+
+백업은 특정 시점의 일관된 데이터베이스 사본입니다.
+백업에는 해당 시점의 모든 데이터 및 색인 구성이 포함됩니다. 백업에 데이터베이스 TTL(수명) 정책 [https://firebase.google.com/docs/firestore/enterprise/ttl?hl=ko]은 포함되지 않습니다.
+백업은 소스 데이터베이스와 동일한 위치에 있습니다.
+
+백업은 보관 기간을 설정할 수 있으며 보관 기간이 만료되거나 백업을 삭제할 때까지 저장됩니다. 소스 데이터베이스를 삭제해도 관련 백업이 자동으로 삭제되지 않습니다.
+
+Cloud Firestore는 백업과 관련된 메타데이터 및 데이터베이스와 관련된 백업 일정을 저장합니다. Cloud Firestore는 데이터베이스의 모든 백업이 만료되거나 삭제될 때까지 이 메타데이터를 유지합니다.
+
+백업을 만들거나 보존해도 라이브 데이터베이스에서 읽기 또는 쓰기 성능에 영향을 주지 않습니다.
+
+비용
+
+백업을 사용하면 다음 항목에 대한 요금이 부과됩니다.
+
+각 백업에서 사용하는 스토리지 용량
+복원 작업의 경우 백업 크기에 따라 요금이 청구됨
+
+자세한 내용과 정확한 가격은 가격 책정 [https://firebase.google.com/docs/firestore/pricing?hl=ko] 페이지를 참조하세요.
+
+시작하기 전에
+
+이 기능을 사용하려면 Blaze 요금제 [https://firebase.google.com/docs/projects/billing/firebase-pricing-plans?hl=ko#blaze-pricing-plan]를 이용해야 합니다.
+
+필요한 역할
+
+백업 및 백업 일정을 관리하는 데 필요한 권한을 얻으려면 관리자에게 다음 Identity and Access Management 역할 중 하나 이상을 부여해 달라고 요청하세요.
+
+roles/datastore.owner: Cloud Firestore 데이터베이스에 대한 전체 액세스 권한입니다.
+roles/datastore.backupsAdmin: 백업에 대한 읽기 및 쓰기 액세스 권한입니다.
+roles/datastore.backupsViewer: 백업에 대한 읽기 액세스 권한입니다.
+roles/datastore.backupSchedulesAdmin: 백업 일정에 대한 읽기 및 쓰기 액세스 권한입니다.
+roles/datastore.backupSchedulesViewer: 백업 일정에 대한 읽기 액세스 권한입니다.
+roles/datastore.restoreAdmin: 복원 작업을 시작할 권한입니다.
+
+백업 일정 만들기 및 관리
+
+다음 예시는 백업 일정을 설정하는 방법을 보여줍니다. 데이터베이스마다 최대 1개의 일일 백업 일정과 주간 백업 일정을 구성할 수 있습니다. 다른 요일에 여러 주간 백업 일정을 구성할 수는 없습니다.
+
+정확한 백업 시간은 구성할 수 없습니다. 백업은 매일 다른 시간에 수행됩니다. 주간 백업 일정의 경우 백업을 수행할 요일을 구성할 수 있습니다.
+
+백업 일정 만들기
+
+다음 도구 중 하나를 사용하여 백업 일정을 만듭니다.
+
+일간 백업 일정 만들기
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/backups?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스의 행을 찾습니다. 예약된 백업 열에서 백업 일정이 있는지 여부에 따라 백업 보기 또는 설정 수정을 클릭합니다.
+수정을 클릭하여 재해 복구 설정을 수정합니다.
+일일 체크박스를 선택하고 보관 기간을 설정한 다음 저장을 클릭합니다.
+
+--- 탭: Firebase CLI [https://firebase.google.com/docs/firestore/backups?hl=ko#firebase-cli] ---
+데이터베이스의 백업 일정을 만들려면 firebase firestore:databases:backups:schedules 명령어를 사용합니다. 일일 백업 일정을 만들려면 --recurrence 플래그를 DAILY로 설정합니다.
+firebase firestore:backups:schedules:create \
+--database '
+DATABASE_ID' \
+--recurrence 'DAILY' \
+--retention
+RETENTION_PERIOD
+다음을 바꿉니다.
+DATABASE_ID: 백업할 데이터베이스의 ID입니다. 기본 데이터베이스의 경우 '(default)'로 설정합니다.
+RETENTION_PERIOD: 이 값을 최대 14주(14w)로 설정합니다.
+
+--- 탭: Terraform [https://firebase.google.com/docs/firestore/backups?hl=ko#terraform] ---
+일일 백업 일정을 만들려면 google_firestore_backup_schedule [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/firestore_backup_schedule] 리소스를 만듭니다.
+resource "google_firestore_backup_schedule" "daily-backup" {
+project  =
+PROJECT_ID
+database =
+DATABASE_ID
+
+retention =
+RETENTION_PERIOD_SECONDS
+
+daily_recurrence {}
+}
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트의 ID
+DATABASE_ID: 백업할 데이터베이스의 ID입니다. 기본 데이터베이스의 경우 '(default)'로 설정합니다.
+google_firestore_database [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/firestore_database] 유형의 Terraform 리소스에 대한 리소스 참조 [https://developer.hashicorp.com/terraform/language/expressions/references#resources]를 사용할 수도 있습니다.
+RETENTION_PERIOD_SECONDS: 값(초) 뒤에 's'가 와야 합니다. 최댓값은 8467200s(14주)입니다.
+
+주간 백업 일정 만들기
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/backups?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스의 행을 찾습니다. 예약된 백업 열에서 백업 일정이 있는지 여부에 따라 백업 보기 또는 설정 수정을 클릭합니다.
+수정을 클릭하여 재해 복구 설정을 수정합니다.
+주간 체크박스를 선택하고 백업 요일을 선택한 다음 보관 기간을 설정하고 저장을 클릭합니다.
+
+--- 탭: Firebase CLI [https://firebase.google.com/docs/firestore/backups?hl=ko#firebase-cli] ---
+주간 백업 일정을 만들려면 --recurrence 플래그를 WEEKLY로 설정합니다.
+firebase firestore:backups:schedules:create \
+--database '
+DATABASE_ID' \
+--recurrence 'WEEKLY' \
+--retention
+RETENTION_PERIOD
+--day-of-week
+DAY
+다음을 바꿉니다.
+DATABASE_ID: 백업할 데이터베이스의 ID입니다. 기본 데이터베이스의 경우 '(default)'로 설정합니다.
+RETENTION_PERIOD: 이 값을 최대 14주(14w)로 설정합니다.
+DAY: 백업을 수행할 요일입니다. 다음 중 하나로 설정합니다.
+일요일의 경우 SUNDAY
+월요일의 경우 MONDAY
+화요일의 경우 TUESDAY
+수요일의 경우 WEDNESDAY
+목요일의 경우 THURSDAY
+금요일의 경우 FRIDAY
+토요일의 경우 SATURDAY
+
+--- 탭: Terraform [https://firebase.google.com/docs/firestore/backups?hl=ko#terraform] ---
+주간 백업 일정을 만들려면 google_firestore_backup_schedule [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/firestore_backup_schedule] 리소스를 만듭니다.
+resource "google_firestore_backup_schedule" "weekly-backup" {
+project  =
+PROJECT_ID
+database =
+DATABASE_ID
+
+retention =
+RETENTION_PERIOD_SECONDS
+
+weekly_recurrence {
+day =
+DAY
+}
+}
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트의 ID
+DATABASE_ID: 백업할 데이터베이스의 ID입니다. 기본 데이터베이스의 경우 '(default)'로 설정합니다.
+google_firestore_database [https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/firestore_database] 유형의 Terraform 리소스에 대한 리소스 참조 [https://developer.hashicorp.com/terraform/language/expressions/references#resources]를 사용할 수도 있습니다.
+RETENTION_PERIOD_SECONDS: 값(초) 뒤에 's'가 와야 합니다. 최댓값은 8467200s(14주)입니다.
+DAY: 백업을 수행할 요일입니다. 다음 중 하나로 설정합니다.
+일요일의 경우 SUNDAY
+월요일의 경우 MONDAY
+화요일의 경우 TUESDAY
+수요일의 경우 WEDNESDAY
+목요일의 경우 THURSDAY
+금요일의 경우 FRIDAY
+토요일의 경우 SATURDAY
+
+백업 일정 나열
+
+데이터베이스의 모든 백업 일정을 나열하려면 다음 방법 중 하나를 사용합니다.
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/backups?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스의 행을 찾습니다. 예약된 백업 열에서 백업 일정이 있는지 여부에 따라 백업 보기 또는 설정 수정을 클릭합니다.
+재해 복구 페이지가 열립니다. 이 페이지에서는 백업 일정을 설명하고 사용 가능한 백업을 나열합니다.
+
+--- 탭: Firebase CLI [https://firebase.google.com/docs/firestore/backups?hl=ko#firebase-cli] ---
+firebase firestore:backups:schedules:list 명령어를 사용합니다.
+firebase firestore:backups:schedules:list \
+--database '
+DATABASE_ID'
+DATABASE_ID를 데이터베이스 ID로 바꿉니다. 기본 데이터베이스에는 '(default)'를 사용합니다.
+
+백업 일정 설명
+
+백업 일정에 대한 정보를 가져오려면 다음 방법 중 하나를 사용하세요.
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/backups?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스의 행을 찾습니다. 예약된 백업 열에서 백업 일정이 있는지 여부에 따라 백업 보기 또는 설정 수정을 클릭합니다.
+재해 복구 페이지가 열립니다. 이 페이지에서는 백업 일정을 설명하고 사용 가능한 백업을 나열합니다.
+
+--- 탭: gcloud [https://firebase.google.com/docs/firestore/backups?hl=ko#gcloud] ---
+gcloud firestore backups schedules describe [https://cloud.google.com/sdk/gcloud/reference/alpha/firestore/backups/schedules/describe?hl=ko] 명령어를 사용합니다.
+gcloud firestore backups schedules describe \
+--database='
+DATABASE_ID' \
+--backup-schedule=
+BACKUP_SCHEDULE_ID
+다음을 바꿉니다.
+DATABASE_ID: 백업할 데이터베이스의 ID입니다. 기본 데이터베이스의 경우 '(default)'로 설정합니다.
+BACKUP_SCHEDULE_ID: 백업 일정의 ID입니다. 모든 백업 일정을 나열 [https://firebase.google.com/docs/firestore/backups?hl=ko#list_backup_schedules]하면 각 백업 일정의 ID를 볼 수 있습니다.
+
+백업 일정 업데이트
+
+백업 일정의 보관 기간을 업데이트하려면 다음 방법 중 하나를 사용하세요.
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/backups?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스의 행을 찾습니다. 예약된 백업 열에서 백업 보기 또는 설정 수정을 클릭합니다.
+수정을 클릭하여 재해 복구 설정을 수정합니다.
+백업 일정 설정을 수정한 후 저장을 클릭합니다.
+
+--- 탭: Firebase CLI [https://firebase.google.com/docs/firestore/backups?hl=ko#firebase-cli] ---
+firebase firestore:backups:schedules:update 명령어를 사용합니다.
+firebase firestore:backups:schedules:update \
+BACKUP_SCHEDULE \
+--retention
+RETENTION_PERIOD
+다음을 바꿉니다.
+BACKUP_SCHEDULE: 백업 일정의 전체 리소스 이름입니다. 모든 백업 일정을 나열 [https://firebase.google.com/docs/firestore/backups?hl=ko#list_backup_schedules]하면 각 백업 일정의 이름을 볼 수 있습니다.
+RETENTION_PERIOD: 이 값을 최대 14주(14w)로 설정합니다.
+
+백업 일정의 보관 기간은 업데이트할 수 있지만 반복은 업데이트할 수 없습니다. 다른 반복이 있는 백업 일정이 필요한 경우 더 이상 필요하지 않은 이전 백업 일정을 삭제하고 원하는 반복으로 새 백업 일정을 만듭니다.
+
+백업 일정 삭제
+
+백업 일정을 삭제하려면 다음 방법 중 하나를 사용하세요.
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/backups?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스의 행을 찾습니다. 예약된 백업 열에서 백업 일정이 있는지 여부에 따라 백업 보기 또는 설정 수정을 클릭합니다.
+수정을 클릭하여 재해 복구 설정을 수정합니다.
+백업 일정 설정을 수정한 후 저장을 클릭합니다.
+
+--- 탭: Firebase CLI [https://firebase.google.com/docs/firestore/backups?hl=ko#firebase-cli] ---
+firebase firestore:backups:schedules:delete 명령어를 사용합니다.
+firebase firestore:backups:schedules:delete \
+BACKUP_SCHEDULE
+다음을 바꿉니다.
+BACKUP_SCHEDULE: 백업 일정의 전체 리소스 이름입니다. 모든 백업 일정을 나열 [https://firebase.google.com/docs/firestore/backups?hl=ko#list_backup_schedules]하면 각 백업 일정의 이름을 볼 수 있습니다.
+
+백업 일정을 삭제해도 이 일정으로 이미 만든 백업은 삭제되지 않습니다. 보관 기간이 지난 후 만료될 때까지 기다리거나 백업을 수동으로 삭제하려면 백업 삭제 [https://firebase.google.com/docs/firestore/backups?hl=ko#delete_backup]를 참조하세요.
+
+백업 관리
+
+백업 표시
+
+사용 가능한 백업을 나열하려면 다음 방법 중 하나를 사용합니다.
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/backups?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스의 행을 찾습니다. 예약된 백업 열에서 백업 일정이 있는지 여부에 따라 백업 보기 또는 설정 수정을 클릭합니다.
+수정을 클릭하여 재해 복구 설정을 수정합니다.
+백업 일정 설정을 수정한 후 저장을 클릭합니다.
+
+--- 탭: Firebase CLI [https://firebase.google.com/docs/firestore/backups?hl=ko#firebase-cli] ---
+firebase firestore:backups:list 명령어를 사용합니다.
+firebase firestore:backups:list
+특정 위치의 백업만 나열하려면 --location 플래그를 사용합니다.
+firebase firestore:backups:list \
+--location=
+LOCATION
+LOCATION을 MongoDB 호환성을 갖춘 Cloud Firestore 위치의 이름으로 바꿉니다.
+
+백업 설명
+
+백업 세부정보를 보려면 다음 방법 중 하나를 사용하세요.
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/backups?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스의 행을 찾습니다. 예약된 백업 열에서 백업 일정이 있는지 여부에 따라 백업 보기 또는 설정 수정을 클릭합니다.
+재해 복구 페이지가 열립니다. 이 페이지에서는 백업 일정을 설명하고 사용 가능한 백업을 나열합니다.
+
+--- 탭: Firebase CLI [https://firebase.google.com/docs/firestore/backups?hl=ko#firebase-cli] ---
+firebase firestore:backups:get 명령어를 사용합니다.
+firebase firestore:backups:get
+BACKUP
+다음을 바꿉니다.
+BACKUP: 백업의 전체 리소스 이름입니다. 모든 백업을 나열 [https://firebase.google.com/docs/firestore/backups?hl=ko#list_backups]하면 각 백업의 이름을 볼 수 있습니다.
+
+백업 삭제
+
+백업을 삭제하려면 다음 방법 중 하나를 사용하세요.
+경고: 삭제된 백업은 복구할 수 없습니다.
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/backups?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스의 행을 찾습니다. 예약된 백업 열에서 백업 일정이 있는지 여부에 따라 백업 보기 또는 설정 수정을 클릭합니다. 재해 복구 페이지가 열립니다. 이 페이지에서는 백업 일정을 설명하고 사용 가능한 백업을 나열합니다.
+백업 표에서 백업 행을 찾은 다음 작업 열에서 더보기(more_vert)를 클릭합니다. 삭제를 클릭합니다.
+텍스트 필드를 사용하여 작업을 확인하고 삭제를 클릭합니다.
+
+--- 탭: Firebase CLI [https://firebase.google.com/docs/firestore/backups?hl=ko#firebase-cli] ---
+firebase firestore:backups:delete 명령어를 사용합니다.
+firebase firestore:backups:delete \
+BACKUP
+다음을 바꿉니다.
+BACKUP: 백업의 전체 리소스 이름입니다. 모든 백업을 나열 [https://firebase.google.com/docs/firestore/backups?hl=ko#list_backups]하면 각 백업의 이름을 볼 수 있습니다.
+참고: Cloud Firestore는 백업과 관련된 메타데이터 및 데이터베이스와 관련된 백업 일정을 저장합니다. Cloud Firestore는 데이터베이스의 모든 백업이 만료되거나 삭제될 때까지 이 메타데이터를 유지합니다.
+데이터베이스 백업에서 데이터 복원
+
+복원 작업은 백업의 데이터를 MongoDB 호환성을 갖춘 Cloud Firestore의 새 데이터베이스에 씁니다.
+
+복원 작업을 시작하려면 다음 방법 중 하나를 사용하세요.
+
+--- 탭: Google Cloud 콘솔 [https://firebase.google.com/docs/firestore/backups?hl=ko#google-cloud-%EC%BD%98%EC%86%94] ---
+Google Cloud 콘솔에서 데이터베이스 페이지로 이동합니다.
+데이터베이스로 이동 [https://console.cloud.google.com/firestore/databases?hl=ko]
+데이터베이스 목록에서 데이터베이스의 행을 찾습니다. 예약된 백업 열에서 백업 일정이 있는지 여부에 따라 백업 보기 또는 설정 수정을 클릭합니다. 재해 복구 페이지가 열립니다. 이 페이지에서는 백업 일정을 설명하고 사용 가능한 백업을 나열합니다.
+백업 표에서 백업 행을 찾은 다음 작업 열에서 더보기(more_vert)를 클릭합니다. Cloud Shell을 사용하여 복원을 클릭합니다.
+선택한 백업에서 복원할 수 있는 gcloud CLI 명령어와 함께 Cloud Shell 패널이 열립니다. ID_OF_NEW_DATABASE를 데이터베이스의 ID로 바꾸고 명령어를 실행합니다.
+이 명령어를 실행하면 작업에 대한 자세한 정보가 포함된 응답이 반환됩니다. 데이터베이스 목록에 데이터베이스가 표시됩니다. 복원 작업은 다소 시간이 걸리며 데이터베이스에 액세스하기 전에 완료되어야 합니다.
+
+--- 탭: gcloud [https://firebase.google.com/docs/firestore/backups?hl=ko#gcloud] ---
+gcloud firestore databases restore [https://cloud.google.com/sdk/gcloud/reference/alpha/firestore/databases/restore?hl=ko] 명령어를 사용합니다.
+gcloud firestore databases restore \
+--source-backup=projects/
+PROJECT_ID/locations/
+LOCATION/backups/
+BACKUP_ID \
+--destination-database='
+DATABASE_ID \
+--tags=[
+KEY=
+VALUE]'
+다음을 바꿉니다.
+PROJECT_ID: 프로젝트 ID입니다.
+LOCATION: 데이터베이스 백업 위치와 복원된 데이터에 대해 생성된 새 데이터베이스의 위치입니다.
+BACKUP_ID: 백업의 ID입니다. 모든 백업을 나열 [https://firebase.google.com/docs/firestore/backups?hl=ko#list_backups]하면 각 백업의 ID를 볼 수 있습니다.
+DATABASE_ID: 새 데이터베이스의 데이터베이스 ID입니다. 이미 사용 중인 데이터베이스 ID는 사용할 수 없습니다.
+[KEY=VALUE]: 바인딩할 태그 KEY=VALUE 쌍의 선택적 목록입니다. 예를 들면 다음과 같습니다.
+--tags=123/environment=production,123/costCenter=marketing
+--tags=tagKeys/333=tagValues/444
+데이터베이스 모드는 백업의 모드와 일치합니다. 출력에는 metadata, name, response 구성요소가 포함됩니다.
+metadata:
+'@type': type.googleapis.com/google.firestore.admin.v1.RestoreDatabaseMetadata
+backup: projects/PROJECT_ID/locations/LOCATION/backups/BACKUP_ID
+database: projects/PROJECT_ID/databases/DATABASE_ID
+operationState: PROCESSING
+progressPercentage:
+completedWork: '20'
+estimatedWork: '100'
+startTime: '2023-12-06T14:20:17.398325Z'
+name: projects/PROJECT_ID/databases/DATABASE_ID/operations/operation_uuid
+response:
+'@type': type.googleapis.com/google.firestore.admin.v1.Database
+createTime: '2023-12-06T14:20:17.398325Z'
+name: projects/PROJECT_ID/databases/DATABASE_ID
+...
+metadata 필드에는 지금까지의 예상 복원 진행 상황을 자세히 설명하는 progressPercentage 구성요소와 복원의 전체 상태를 지정하는 operationState가 포함되어 있습니다. 이 정보를 다시 검색하려면 gcloud firestore operations list [https://cloud.google.com//sdk/gcloud/reference/firestore/operations/list?hl=ko]를 사용합니다.
+gcloud firestore operations list --database=
+DATABASE_ID
+또는 위에서 설명한 출력의 name 필드를 gcloud firestore operations describe [https://cloud.google.com/sdk/gcloud/reference/firestore/operations/describe?hl=ko]와 함께 사용합니다.
+gcloud firestore operations describe
+OPERATION_NAME
+
+도움이 되었나요?
+
+의견 보내기

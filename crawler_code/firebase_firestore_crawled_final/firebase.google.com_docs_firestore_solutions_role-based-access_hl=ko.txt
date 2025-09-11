@@ -1,0 +1,249 @@
+Source URL: https://firebase.google.com/docs/firestore/solutions/role-based-access?hl=ko
+Title: 사용자 및 그룹의 데이터 액세스 보안 설정
+bookmark_border
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+사용자 및 그룹의 데이터 액세스 보안 설정
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용솔루션: 역할 기반 액세스 제어데이터 구조규칙제한사항
+
+권한에 따라 사용자가 서로 다른 데이터를 읽고 쓸 수 있는 공동작업 앱이 많습니다. 예를 들어 문서 수정 앱에서는 원치 않는 액세스를 차단하고 소수의 사용자만 문서를 읽고 쓸 수 있도록 허용할 수 있습니다.
+
+참고: 서버 클라이언트 라이브러리는 모든 Cloud Firestore Security Rules를 우회하고 대신 Google 애플리케이션 기본 사용자 인증 정보 [https://cloud.google.com/docs/authentication/production?hl=ko]를 통해 인증합니다.
+서버 클라이언트 라이브러리, REST 또는 RPC API를 사용하는 경우 Cloud Firestore용 Identity and Access Management(IAM) [https://cloud.google.com/firestore/docs/security/iam?hl=ko]를 설정해야 합니다.
+
+솔루션: 역할 기반 액세스 제어
+
+Cloud Firestore의 데이터 모델과 커스텀 보안 규칙 [https://firebase.google.com/docs/firestore/security/get-started?hl=ko]을 활용하면 앱에서 역할 기반의 액세스 제어가 가능합니다.
+
+다음과 같은 보안 요구사항에 따라 사용자가 '스토리'와 '댓글'을 생성할 수 있는 공동작업 쓰기 애플리케이션을 개발한다고 가정해 보겠습니다.
+
+스토리마다 한 명의 소유자가 있으며 '작성자', '댓글 작성자', '독자'와 공유할 수 있습니다.
+독자는 스토리와 댓글을 볼 수만 있으며 아무 것도 수정할 수 없습니다.
+댓글 작성자는 독자의 모든 액세스 권한을 보유하며 스토리에 댓글도 추가할 수 있습니다.
+작성자는 댓글 작성자의 모든 액세스 권한을 보유하며 스토리 콘텐츠도 수정할 수 있습니다.
+소유자는 스토리를 모두 수정하고 다른 사용자의 액세스 권한을 제어할 수 있습니다.
+
+데이터 구조
+
+각 문서가 하나의 스토리에 해당하는 stories 컬렉션이 앱에 있다고 가정해 보겠습니다. 각 스토리에는 각 문서가 스토리의 댓글에 해당하는 comments 하위 컬렉션도 포함됩니다.
+
+액세스 역할을 추적하려면 역할에 대한 사용자 ID를 매핑하는 roles 입력란을 추가합니다.
+
+/stories/{storyid}
+{
+title: "A Great Story",
+content: "Once upon a time ...",
+roles: {
+alice: "owner",
+bob: "reader",
+david: "writer",
+jane: "commenter"
+// ...
+}
+}
+
+댓글에는 작성자의 사용자 ID 및 콘텐츠 입력란 2개만 포함됩니다.
+
+/stories/{storyid}/comments/{commentid}
+{
+user: "alice",
+content: "I think this is a great story!"
+}
+
+규칙
+
+데이터베이스에 사용자 역할이 기록되어 있다면 이제는 보안 규칙을 작성해 이를 검증해야 합니다. 이 규칙은 앱에서 Firebase 인증 [https://firebase.google.com/docs/auth/?hl=ko]을 사용한다고 가정하며 따라서 request.auth.uid 변수가 사용자 ID에 해당됩니다.
+
+1단계: 스토리 및 댓글에 대한 빈 규칙을 포함한 기본 규칙 파일부터 만듭니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /stories/{story} {
+// TODO: Story rules go here...
+
+match /comments/{comment} {
+// TODO: Comment rules go here...
+}
+}
+}
+}step1-invalid.rules [https://github.com/firebase/snippets-rules/blob/193c9e1d97dbb2c03979925b89bd8c94f65a5829/rules/solution-rbac/step1-invalid.rules]
+
+2단계: 소유자가 스토리를 완전히 제어할 수 있는 간단한 write 규칙을 추가합니다. 정의된 함수가 사용자의 역할과 새 문서의 유효성을 판단하도록 도와줍니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /stories/{story} {
+function isSignedIn() {
+return request.auth != null;
+}
+
+function getRole(rsc) {
+// Read from the "roles" map in the resource (rsc).
+return rsc.data.roles[request.auth.uid];
+}
+
+function isOneOfRoles(rsc, array) {
+// Determine if the user is one of an array of roles
+return isSignedIn() && (getRole(rsc) in array);
+}
+
+function isValidNewStory() {
+// Valid if story does not exist and the new story has the correct owner.
+return resource == null && isOneOfRoles(request.resource, ['owner']);
+}
+
+// Owners can read, write, and delete stories
+allow write: if isValidNewStory() || isOneOfRoles(resource, ['owner']);
+
+match /comments/{comment} {
+// ...
+}
+}
+}
+}step2.rules [https://github.com/firebase/snippets-rules/blob/193c9e1d97dbb2c03979925b89bd8c94f65a5829/rules/solution-rbac/step2.rules#L2-L34]
+
+3단계: 역할에 상관없이 모든 사용자가 스토리와 댓글을 읽을 수 있도록 허용하는 규칙을 작성합니다. 이전 단계에서 정의한 함수를 사용하여 간결하고 읽기 편한 규칙을 작성할 수 있습니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /stories/{story} {
+function isSignedIn() {
+return request.auth != null;
+}
+
+function getRole(rsc) {
+return rsc.data.roles[request.auth.uid];
+}
+
+function isOneOfRoles(rsc, array) {
+return isSignedIn() && (getRole(rsc) in array);
+}
+
+function isValidNewStory() {
+return resource == null
+&& request.resource.data.roles[request.auth.uid] == 'owner';
+}
+
+allow write: if isValidNewStory() || isOneOfRoles(resource, ['owner']);
+
+// Any role can read stories.
+allow read: if isOneOfRoles(resource, ['owner', 'writer', 'commenter', 'reader']);
+
+match /comments/{comment} {
+// Any role can read comments.
+allow read: if isOneOfRoles(get(/databases/$(database)/documents/stories/$(story)),
+['owner', 'writer', 'commenter', 'reader']);
+}
+}
+}
+}step3.rules [https://github.com/firebase/snippets-rules/blob/193c9e1d97dbb2c03979925b89bd8c94f65a5829/rules/solution-rbac/step3.rules]
+
+4단계: 스토리 작성자, 댓글 작성자, 소유자가 댓글을 게시할 수 있도록 허용합니다.
+이 규칙은 사용자들이 서로 댓글을 덮어쓰지 않도록 댓글의 owner가 요청하는 사용자와 일치하는지도 확인합니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /stories/{story} {
+function isSignedIn() {
+return request.auth != null;
+}
+
+function getRole(rsc) {
+return rsc.data.roles[request.auth.uid];
+}
+
+function isOneOfRoles(rsc, array) {
+return isSignedIn() && (getRole(rsc) in array);
+}
+
+function isValidNewStory() {
+return resource == null
+&& request.resource.data.roles[request.auth.uid] == 'owner';
+}
+
+allow write: if isValidNewStory() || isOneOfRoles(resource, ['owner'])
+allow read: if isOneOfRoles(resource, ['owner', 'writer', 'commenter', 'reader']);
+
+match /comments/{comment} {
+allow read: if isOneOfRoles(get(/databases/$(database)/documents/stories/$(story)),
+['owner', 'writer', 'commenter', 'reader']);
+
+// Owners, writers, and commenters can create comments. The
+// user id in the comment document must match the requesting
+// user's id.
+//
+// Note: we have to use get() here to retrieve the story
+// document so that we can check the user's role.
+allow create: if isOneOfRoles(get(/databases/$(database)/documents/stories/$(story)),
+['owner', 'writer', 'commenter'])
+&& request.resource.data.user == request.auth.uid;
+}
+}
+}
+}
+step4.rules [https://github.com/firebase/snippets-rules/blob/193c9e1d97dbb2c03979925b89bd8c94f65a5829/rules/solution-rbac/step4.rules]
+
+5단계: 작성자에게 스토리 콘텐츠를 수정할 수 있지만 스토리 역할을 수정하거나 문서의 다른 속성은 변경할 수 없는 권한을 부여합니다. 작성자는 스토리 업데이트만 가능하므로 스토리 write 규칙을 create, update, delete에 해당하는 규칙으로 각각 분할해야 합니다.
+service cloud.firestore {
+match /databases/{database}/documents {
+match /stories/{story} {
+function isSignedIn() {
+return request.auth != null;
+}
+
+function getRole(rsc) {
+return rsc.data.roles[request.auth.uid];
+}
+
+function isOneOfRoles(rsc, array) {
+return isSignedIn() && (getRole(rsc) in array);
+}
+
+function isValidNewStory() {
+return request.resource.data.roles[request.auth.uid] == 'owner';
+}
+
+function onlyContentChanged() {
+// Ensure that title and roles are unchanged and that no new
+// fields are added to the document.
+return request.resource.data.title == resource.data.title
+&& request.resource.data.roles == resource.data.roles
+&& request.resource.data.keys() == resource.data.keys();
+}
+
+// Split writing into creation, deletion, and updating. Only an
+// owner can create or delete a story but a writer can update
+// story content.
+allow create: if isValidNewStory();
+allow delete: if isOneOfRoles(resource, ['owner']);
+allow update: if isOneOfRoles(resource, ['owner'])
+|| (isOneOfRoles(resource, ['writer']) && onlyContentChanged());
+allow read: if isOneOfRoles(resource, ['owner', 'writer', 'commenter', 'reader']);
+
+match /comments/{comment} {
+allow read: if isOneOfRoles(get(/databases/$(database)/documents/stories/$(story)),
+['owner', 'writer', 'commenter', 'reader']);
+allow create: if isOneOfRoles(get(/databases/$(database)/documents/stories/$(story)),
+['owner', 'writer', 'commenter'])
+&& request.resource.data.user == request.auth.uid;
+}
+}
+}
+}
+step5.rules [https://github.com/firebase/snippets-rules/blob/193c9e1d97dbb2c03979925b89bd8c94f65a5829/rules/solution-rbac/step5.rules]
+
+제한사항
+
+위에 나온 솔루션은 보안 규칙을 통한 사용자 데이터 보호에 대해 다루지만 다음 제한사항을 알고 있어야 합니다.
+
+세분화: 위 예에서는 여러 역할(작성자 및 소유자)이 동일 문서에 대한 쓰기 액세스 권한을 갖지만 적용되는 제한사항이 서로 다릅니다.
+더 복잡한 문서에서는 관리가 어려울 수 있으므로 단일 문서를 각각 단일 역할이 소유한 여러 문서로 분할하는 것이 좋습니다.
+대규모 그룹: 대규모 또는 복잡한 그룹과의 공유가 필요하다면 역할이 대상 문서의 필드로 저장되는 것이 아니라 그룹 자체 컬렉션에 저장되는 시스템을 고려해 보세요.
+
+의견 보내기

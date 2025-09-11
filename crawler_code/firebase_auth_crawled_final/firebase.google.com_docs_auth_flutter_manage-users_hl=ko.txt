@@ -1,0 +1,171 @@
+Source URL: https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko
+Title: Firebase에서 사용자 관리하기
+bookmark_border
+
+의견 보내기
+
+Firebase에서 사용자 관리하기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용사용자 생성 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#create_a_user]사용자 프로필 가져오기 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#get_a_users_profile]제공업체별 사용자 프로필 정보 가져오기 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#get_a_users_provider-specific_profile_information]사용자 프로필 업데이트 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#update_a_users_profile]사용자 이메일 주소 설정 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#set_a_users_email_address]사용자에게 인증 메일 보내기 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#verify-email]사용자 비밀번호 설정 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#set_a_users_password]비밀번호 재설정 이메일 보내기 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#send_a_password_reset_email]사용자 삭제하기 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#delete_a_user]사용자 재인증 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#re-authenticate_a_user]사용자 계정 가져오기 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#import_user_accounts]
+
+사용자 생성
+
+Firebase 프로젝트에서 다음 4가지 방법으로 새 사용자를 만듭니다.
+
+createUserWithEmailAndPassword() 메서드를 호출합니다.
+Google 로그인, Facebook 로그인 또는 Apple과 같은 제휴 ID 공급업체 [https://firebase.google.com/docs/auth/flutter/federated-auth?hl=ko]를 사용하여 사용자를 처음으로 로그인 처리합니다.
+
+또한 Firebase Console [https://console.firebase.google.com/?hl=ko] '인증' 섹션의 '사용자' 페이지에서 비밀번호 인증을 사용하는 신규 사용자를 생성할 수도 있습니다.
+
+사용자 프로필 가져오기
+
+사용자의 프로필 정보를 가져오려면 User 속성을 사용합니다. 다음 세 가지 방법으로 현재 사용자를 나타내는 User 객체를 가져올 수 있습니다.
+
+authStateChanges, idTokenChanges, userChanges 스트림: 인증된 사용자가 없는 경우 리스너가 현재 User 또는 null을 수신합니다.
+FirebaseAuth.instance
+.authStateChanges()
+.listen((User? user) {
+if (user != null) {
+print(user.uid);
+}
+});
+
+앱이 시작되면 로컬 스토리지의 사용자 인증 정보(있는 경우)가 복원된 후 이벤트가 발생합니다. 즉, 사용자 상태가 초기화되면 항상 리스너가 호출됩니다. 그런 다음 인증 상태가 변경될 때마다 업데이트된 사용자 상태로 새 이벤트가 발생합니다.
+
+인증 상태를 수신 대기하면 이러한 인증 상태 변경사항에 반응하는 사용자 인터페이스를 빌드할 수 있습니다.
+authStateChanges().listen(...)은 위젯의 빌드 메서드 내부에 직접 배치하지 마세요. 다시 빌드할 때마다 새 구독이 생성되기 때문입니다. 인증 상태에 따라 UI를 업데이트해야 하는 경우 StreamBuilder를 사용하세요.
+StreamBuilder<User?>(
+stream: FirebaseAuth.instance.authStateChanges(),
+builder: (BuildContext context, AsyncSnapshot<User?> snapshot) {
+if (snapshot.hasError) {
+return const Text('Something went wrong');
+}
+
+if (snapshot.connectionState == ConnectionState.waiting) {
+return const Text("Loading...");
+}
+
+if (!snapshot.hasData) {
+return const SignInScreen();
+}
+
+final user = snapshot.data!;
+return HomeScreen(userId: user.uid);
+},
+)
+
+이 접근 방식을 사용하면 사용자의 인증 상태가 변경될 때 위젯 트리가 자동으로 다시 빌드됩니다.
+인증(signIn-) 메서드에서 반환하는 UserCredential 객체: UserCredential 객체에는 현재 User가 있는 user 속성이 포함되어 있습니다.
+final userCredential =
+await FirebaseAuth.instance.signInWithCredential(credential);
+final user = userCredential.user;
+print(user?.uid);
+
+FirebaseAuth 인스턴스의 currentUser 속성: 사용자가 현재 로그인되어 있다고 확신하는 경우 currentUser 속성에서 User에 액세스할 수 있습니다.
+if (FirebaseAuth.instance.currentUser != null) {
+print(FirebaseAuth.instance.currentUser?.uid);
+}
+
+currentUser가 null이 될 수 있는 이유는 2가지입니다.
+
+사용자가 로그인하지 않았습니다.
+인증 객체의 초기화가 완료되지 않았습니다. 리스너를 사용해 사용자의 로그인 상태를 추적하면 이러한 상황을 처리할 필요가 없습니다.
+
+제공업체별 사용자 프로필 정보 가져오기
+
+사용자에게 연결된 로그인 제공업체로부터 프로필 정보를 가져오려면 providerData 속성을 사용합니다. 예를 들면 다음과 같습니다.
+if (user != null) {
+for (final providerProfile in user.providerData) {
+// ID of the provider (google.com, apple.com, etc.)
+final provider = providerProfile.providerId;
+
+// UID specific to the provider
+final uid = providerProfile.uid;
+
+// Name, email address, and profile photo URL
+final name = providerProfile.displayName;
+final emailAddress = providerProfile.email;
+final profilePhoto = providerProfile.photoURL;
+}
+}
+
+사용자 프로필 업데이트
+
+사용자의 표시 이름 및 프로필 사진 URL 등의 기본 프로필 정보를 업데이트할 때는 update 메서드를 사용합니다. 예를 들면 다음과 같습니다.
+await user?.updateDisplayName("Jane Q. User");
+await user?.updatePhotoURL("https://example.com/jane-q-user/profile.jpg");
+
+사용자 이메일 주소 설정
+
+updateEmail() 메서드로 사용자의 이메일 주소를 설정할 수 있습니다. 예를 들면 다음과 같습니다.
+await user?.updateEmail("janeq@example.com");
+참고: 사용자의 이메일 주소를 설정하려면 사용자가 최근에 로그인한 적이 있어야 합니다.
+사용자 재인증하기 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#re-authenticate_a_user]를 참조하세요.
+사용자에게 인증 메일 보내기
+
+sendEmailVerification() 메서드로 사용자에게 주소 인증 메일을 보낼 수 있습니다. 예를 들면 다음과 같습니다.
+await user?.sendEmailVerification();
+
+또한 Firebase Console [https://console.firebase.google.com/?hl=ko] '인증' 섹션의 '이메일 템플릿' 페이지에서 비밀번호 재설정 이메일의 템플릿을 맞춤설정할 수 있습니다.
+Firebase 고객센터의 이메일 템플릿 [https://support.google.com/firebase/answer/7000714?hl=ko] 항목을 참조하세요.
+
+인증 메일을 보낼 때 연결 URL [https://firebase.google.com/docs/auth/flutter/passing-state-in-email-actions?hl=ko]을
+통해 상태를 전달하여 앱으로 다시 리디렉션할
+수도 있습니다.
+
+또한 이메일을 보내기 전에 인증 인스턴스의 언어 코드를 업데이트하면
+인증 메일을 현지화할 수 있습니다. 예를 들면 다음과 같습니다.
+await FirebaseAuth.instance.setLanguageCode("fr");
+await user?.sendEmailVerification();
+
+사용자 비밀번호 설정
+
+updatePassword() 메서드로 사용자의 비밀번호를 설정할 수 있습니다. 예를 들면 다음과 같습니다.
+await user?.updatePassword(newPassword);
+중요: 사용자의 이메일 주소를 설정하려면 사용자가 최근에 로그인한 적이 있어야 합니다.
+사용자 재인증하기 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#re-authenticate_a_user]를 참조하세요.
+비밀번호 재설정 이메일 보내기
+
+sendPasswordResetEmail() 메서드로 사용자에게 비밀번호 재설정 이메일을 보낼 수 있습니다. 예를 들면 다음과 같습니다.
+await FirebaseAuth.instance
+.sendPasswordResetEmail(email: "user@example.com");
+
+또한 Firebase Console [https://console.firebase.google.com/?hl=ko] '인증' 섹션의 '이메일 템플릿' 페이지에서 비밀번호 재설정 이메일의 템플릿을 맞춤설정할 수 있습니다.
+Firebase 고객센터의 이메일 템플릿 [https://support.google.com/firebase/answer/7000714?hl=ko] 항목을 참조하세요.
+
+비밀번호 재설정 이메일을 보낼 때 연결 URL [https://firebase.google.com/docs/auth/android/passing-state-in-email-actions?hl=ko]을 통해 상태를 전달하여 앱으로 다시 리디렉션할 수도 있습니다.
+
+또한 이메일을 보내기 전에 인증 인스턴스의 언어 코드를 업데이트하면
+비밀번호 재설정 이메일을 현지화할 수 있습니다. 예를 들면 다음과 같습니다.
+await FirebaseAuth.instance.setLanguageCode("fr");
+
+또한 Firebase Console에서 비밀번호 재설정 이메일을 보낼 수도 있습니다.
+
+사용자 삭제하기
+
+delete() 메서드로 사용자 계정을 삭제할 수 있습니다. 예를 들면 다음과 같습니다.
+await user?.delete();
+중요: 사용자의 이메일 주소를 설정하려면 사용자가 최근에 로그인한 적이 있어야 합니다.
+사용자 재인증하기 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#re-authenticate_a_user]를 참조하세요.
+또한 Firebase Console [https://console.firebase.google.com/?hl=ko] '인증' 섹션의 '사용자' 페이지에서 사용자를 삭제할 수도 있습니다.
+
+사용자 재인증
+
+계정 삭제 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#delete_a_user], 기본 이메일 주소 설정 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#set_a_users_email_address], 비밀번호 변경 [https://firebase.google.com/docs/auth/flutter/manage-users?hl=ko#set_a_users_password]과 같이 보안에 민감한 작업을 하려면 사용자가 최근에 로그인한 적이 있어야 합니다. 이런 작업을 수행할 때 사용자가 너무 오래전에 로그인했다면 작업이 실패하고 requires-recent-login 코드와 함께 FirebaseAuthException이 발생합니다.
+이때에는 사용자에게 새로운 로그인 인증 정보를 받은 다음 이 정보를 reauthenticate에 전달하여 사용자를 재인증해야 합니다. 예를 들면 다음과 같습니다.
+// Prompt the user to re-provide their sign-in credentials.
+// Then, use the credentials to reauthenticate:
+await user?.reauthenticateWithCredential(credential);
+
+사용자 계정 가져오기
+
+Firebase CLI의 auth:import [https://firebase.google.com/docs/cli/auth-import?hl=ko] 명령어를 사용하여 파일에서 Firebase 프로젝트로 사용자 계정을 가져올 수 있습니다. 예를 들면 다음과 같습니다.
+firebase auth:import users.json --hash-algo=scrypt --rounds=8 --mem-cost=14
+
+의견 보내기

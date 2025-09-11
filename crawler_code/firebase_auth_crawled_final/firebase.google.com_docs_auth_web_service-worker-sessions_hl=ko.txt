@@ -1,0 +1,436 @@
+Source URL: https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko
+Title: 서비스 워커로 세션 관리
+bookmark_border
+
+의견 보내기
+
+서비스 워커로 세션 관리
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용개요 [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#overview]서비스 워커 변경 [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#service_worker_changes]클라이언트 측 변경 [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#client_side_changes]서버 측 변경 [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#server_side_changes]결론 [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#conclusion]유용한 링크 [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#useful_links]
+
+Firebase Auth는 서비스 워커에서 세션 관리를 위해 Firebase ID 토큰을 감지하고 전달할 수 있는 기능을 지원합니다. 이는 다음과 같은 이점을 제공합니다.
+
+추가 작업 없이 서버의 모든 HTTP 요청에 ID 토큰을 전달할 수 있습니다.
+추가 왕복 또는 지연 없이 ID 토큰을 새로고침할 수 있습니다.
+백엔드 및 프런트엔드 동기화 세션을 지원합니다. 실시간 데이터베이스, Firestore 등의 Firebase 서비스와 SQL 데이터베이스 등 일부 외부 서버 측 리소스에 액세스해야 하는 애플리케이션에서 이 솔루션을 사용할 수 있습니다.
+또한 서비스 워커, 웹 워커 또는 공유 워커로 동일한 세션에 액세스할 수 있습니다.
+페이지마다 Firebase 인증 소스 코드를 포함할 필요가 없습니다(지연 시간 감소). 로드 및 초기화한 서비스 워커로 백그라운드에서 모든 클라이언트의 세션 관리를 처리합니다.
+
+개요
+
+Firebase 인증은 클라이언트 측 실행에 최적화되어 있습니다. 토큰은 웹 스토리지에 저장됩니다. 이에 따라 실시간 데이터베이스, Cloud Firestore, Cloud Storage 등 다른 Firebase 서비스와 쉽게 통합할 수 있습니다. 서버측의 세션 관리를 위해서는 ID 토큰을 검색해 서버에 전달해야 합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-modular-api] ---
+import { getAuth, getIdToken } from "firebase/auth";
+
+const auth = getAuth();
+getIdToken(auth.currentUser)
+.then((idToken) => {
+// idToken can be passed back to server.
+})
+.catch((error) => {
+// Error occurred.
+});
+auth_svc_get_idtoken.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/service-worker-sessions/auth_svc_get_idtoken.js#L8-L17]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-namespaced-api] ---
+firebase.auth().currentUser.getIdToken()
+.then((idToken) => {
+// idToken can be passed back to server.
+})
+.catch((error) => {
+// Error occurred.
+});
+service-worker-sessions.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/service-worker-sessions.js#L11-L17]
+
+하지만 이는 클라이언트에서 몇 가지 스크립트를 실행해 최신 ID 토큰을 가져온 후 요청 헤더, POST 본문 등을 통해 서버에 전달해야 함을 뜻합니다.
+
+확장이 힘들 수도 있으며 서버 측 세션 쿠키가 필요할 수 있습니다.
+ID 토큰은 세션 쿠키로 설정될 수 있지만 수명이 짧기 때문에 클라이언트에서 새로고쳐진 후 만료 시 새 쿠키로 설정되어야 합니다. 따라서 사용자가 한동안 사이트에 방문하지 않았으면 추가 왕복이 필요할 수 있습니다.
+
+Firebase 인증은 보다 전통적인 쿠키 기반의 세션 관리 솔루션 [https://firebase.google.com/docs/auth/admin/manage-sessions?hl=ko]을 제공합니다. 이 솔루션은 서버 측 httpOnly 쿠키 기반 애플리케이션에 적합하지만 클라이언트 토큰으로 이 솔루션을 관리하기는 더 어렵습니다. 특히, 다른 클라이언트 기반 Firebase 서비스도 사용해야 할 경우 서버 측 토큰이 동기화되지 않을 수 있습니다.
+
+하지만 서비스 워커를 사용하면 사용자 세션의 서버 측 사용 정보를 관리할 수 있습니다. 이는 다음과 같은 점에서 효과적입니다.
+
+서비스 워커는 현재 Firebase 인증 상태에 액세스할 수 있습니다. 현재 사용자 ID 토큰은 서비스 워커에서 검색할 수 있습니다. 토큰이 만료되면 클라이언트 SDK에서 새로고침하고 새 토큰을 반환합니다.
+서비스 워커가 가져오기 요청을 가로채 수정할 수 있습니다.
+
+서비스 워커 변경
+
+서비스 워커는 인증 라이브러리를 포함하고 사용자가 로그인한 경우 현재 ID 토큰을 가져올 수 있어야 합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-modular-api] ---
+import { initializeApp } from "firebase/app";
+import { getAuth, onAuthStateChanged, getIdToken } from "firebase/auth";
+
+// Initialize the Firebase app in the service worker script.
+initializeApp(config);
+
+/**
+* Returns a promise that resolves with an ID token if available.
+* @return {!Promise<?string>} The promise that resolves with an ID token if
+*     available. Otherwise, the promise resolves with null.
+*/
+const auth = getAuth();
+const getIdTokenPromise = () => {
+return new Promise((resolve, reject) => {
+const unsubscribe = onAuthStateChanged(auth, (user) => {
+unsubscribe();
+if (user) {
+getIdToken(user).then((idToken) => {
+resolve(idToken);
+}, (error) => {
+resolve(null);
+});
+} else {
+resolve(null);
+}
+});
+});
+};
+auth_svc_subscribe.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/service-worker-sessions/auth_svc_subscribe.js#L8-L35]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-namespaced-api] ---
+// Initialize the Firebase app in the service worker script.
+firebase.initializeApp(config);
+
+/**
+* Returns a promise that resolves with an ID token if available.
+* @return {!Promise<?string>} The promise that resolves with an ID token if
+*     available. Otherwise, the promise resolves with null.
+*/
+const getIdToken = () => {
+return new Promise((resolve, reject) => {
+const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+unsubscribe();
+if (user) {
+user.getIdToken().then((idToken) => {
+resolve(idToken);
+}, (error) => {
+resolve(null);
+});
+} else {
+resolve(null);
+}
+});
+});
+};
+service-worker-sessions.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/service-worker-sessions.js#L23-L46]
+
+앱 원본에 대한 모든 가져오기 요청을 가로채고 ID 토큰을 사용할 수 있는 경우 헤더를 통해 요청에 추가합니다. 서버 측 요청 헤더에 ID 토큰이 있는지 확인하고 이를 인증 및 처리합니다.
+서비스 워커 스크립트에서 가져오기 요청을 가로채고 수정합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-modular-api] ---
+const getOriginFromUrl = (url) => {
+// https://stackoverflow.com/questions/1420881/how-to-extract-base-url-from-a-string-in-javascript
+const pathArray = url.split('/');
+const protocol = pathArray[0];
+const host = pathArray[2];
+return protocol + '//' + host;
+};
+
+// Get underlying body if available. Works for text and json bodies.
+const getBodyContent = (req) => {
+return Promise.resolve().then(() => {
+if (req.method !== 'GET') {
+if (req.headers.get('Content-Type').indexOf('json') !== -1) {
+return req.json()
+.then((json) => {
+return JSON.stringify(json);
+});
+} else {
+return req.text();
+}
+}
+}).catch((error) => {
+// Ignore error.
+});
+};
+
+self.addEventListener('fetch', (event) => {
+/** @type {FetchEvent} */
+const evt = event;
+
+const requestProcessor = (idToken) => {
+let req = evt.request;
+let processRequestPromise = Promise.resolve();
+// For same origin https requests, append idToken to header.
+if (self.location.origin == getOriginFromUrl(evt.request.url) &&
+(self.location.protocol == 'https:' ||
+self.location.hostname == 'localhost') &&
+idToken) {
+// Clone headers as request headers are immutable.
+const headers = new Headers();
+req.headers.forEach((val, key) => {
+headers.append(key, val);
+});
+// Add ID token to header.
+headers.append('Authorization', 'Bearer ' + idToken);
+processRequestPromise = getBodyContent(req).then((body) => {
+try {
+req = new Request(req.url, {
+method: req.method,
+headers: headers,
+mode: 'same-origin',
+credentials: req.credentials,
+cache: req.cache,
+redirect: req.redirect,
+referrer: req.referrer,
+body,
+// bodyUsed: req.bodyUsed,
+// context: req.context
+});
+} catch (e) {
+// This will fail for CORS requests. We just continue with the
+// fetch caching logic below and do not pass the ID token.
+}
+});
+}
+return processRequestPromise.then(() => {
+return fetch(req);
+});
+};
+// Fetch the resource after checking for the ID token.
+// This can also be integrated with existing logic to serve cached files
+// in offline mode.
+evt.respondWith(getIdTokenPromise().then(requestProcessor, requestProcessor));
+});
+auth_svc_intercept.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/service-worker-sessions/auth_svc_intercept.js#L8-L81]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-namespaced-api] ---
+const getOriginFromUrl = (url) => {
+// https://stackoverflow.com/questions/1420881/how-to-extract-base-url-from-a-string-in-javascript
+const pathArray = url.split('/');
+const protocol = pathArray[0];
+const host = pathArray[2];
+return protocol + '//' + host;
+};
+
+// Get underlying body if available. Works for text and json bodies.
+const getBodyContent = (req) => {
+return Promise.resolve().then(() => {
+if (req.method !== 'GET') {
+if (req.headers.get('Content-Type').indexOf('json') !== -1) {
+return req.json()
+.then((json) => {
+return JSON.stringify(json);
+});
+} else {
+return req.text();
+}
+}
+}).catch((error) => {
+// Ignore error.
+});
+};
+
+self.addEventListener('fetch', (event) => {
+/** @type {FetchEvent} */
+const evt = event;
+
+const requestProcessor = (idToken) => {
+let req = evt.request;
+let processRequestPromise = Promise.resolve();
+// For same origin https requests, append idToken to header.
+if (self.location.origin == getOriginFromUrl(evt.request.url) &&
+(self.location.protocol == 'https:' ||
+self.location.hostname == 'localhost') &&
+idToken) {
+// Clone headers as request headers are immutable.
+const headers = new Headers();
+req.headers.forEach((val, key) => {
+headers.append(key, val);
+});
+// Add ID token to header.
+headers.append('Authorization', 'Bearer ' + idToken);
+processRequestPromise = getBodyContent(req).then((body) => {
+try {
+req = new Request(req.url, {
+method: req.method,
+headers: headers,
+mode: 'same-origin',
+credentials: req.credentials,
+cache: req.cache,
+redirect: req.redirect,
+referrer: req.referrer,
+body,
+// bodyUsed: req.bodyUsed,
+// context: req.context
+});
+} catch (e) {
+// This will fail for CORS requests. We just continue with the
+// fetch caching logic below and do not pass the ID token.
+}
+});
+}
+return processRequestPromise.then(() => {
+return fetch(req);
+});
+};
+// Fetch the resource after checking for the ID token.
+// This can also be integrated with existing logic to serve cached files
+// in offline mode.
+evt.respondWith(getIdToken().then(requestProcessor, requestProcessor));
+});
+service-worker-sessions.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/service-worker-sessions.js#L57-L130]
+
+그 결과, 인증된 모든 요청은 추가 처리 없이 항상 헤더에서 전달된 ID 토큰을 갖게 됩니다.
+
+서비스 워커가 인증 상태 변경사항을 감지하려면 서비스 워커를 로그인/가입 페이지에 설치해야 합니다. 브라우저가 닫힌 후에도 계속 작동하도록 서비스 워커가 번들로 묶여 있는지 확인합니다.
+
+설치 후 활성화되었을 때 서비스 워커에서 clients.claim()을 호출해야 현재 페이지의 컨트롤러로 설정될 수 있습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-modular-api] ---
+self.addEventListener('activate', (event) => {
+event.waitUntil(clients.claim());
+});
+auth_svc_listen_activate.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/service-worker-sessions/auth_svc_listen_activate.js#L8-L10]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-namespaced-api] ---
+self.addEventListener('activate', (event) => {
+event.waitUntil(clients.claim());
+});
+service-worker-sessions.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/service-worker-sessions.js#L136-L138]
+
+클라이언트 측 변경
+
+지원되는 경우 클라이언트측 로그인/가입 페이지에 서비스 워커를 설치해야 합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-modular-api] ---
+// Install servicerWorker if supported on sign-in/sign-up page.
+if ('serviceWorker' in navigator) {
+navigator.serviceWorker.register('/service-worker.js', {scope: '/'});
+}
+auth_svc_register.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/service-worker-sessions/auth_svc_register.js#L8-L11]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-namespaced-api] ---
+// Install servicerWorker if supported on sign-in/sign-up page.
+if ('serviceWorker' in navigator) {
+navigator.serviceWorker.register('/service-worker.js', {scope: '/'});
+}
+service-worker-sessions.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/service-worker-sessions.js#L144-L147]
+
+사용자가 로그인해 다른 페이지로 리디렉션될 때 리디렉션이 완료되기 전에 서비스 워커에서 헤더에 ID 토큰을 삽입할 수 있습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-modular-api] ---
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+
+// Sign in screen.
+const auth = getAuth();
+signInWithEmailAndPassword(auth, email, password)
+.then((result) => {
+// Redirect to profile page after sign-in. The service worker will detect
+// this and append the ID token to the header.
+window.location.assign('/profile');
+})
+.catch((error) => {
+// Error occurred.
+});
+auth_svc_sign_in_email.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/service-worker-sessions/auth_svc_sign_in_email.js#L8-L20]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#web-namespaced-api] ---
+// Sign in screen.
+firebase.auth().signInWithEmailAndPassword(email, password)
+.then((result) => {
+// Redirect to profile page after sign-in. The service worker will detect
+// this and append the ID token to the header.
+window.location.assign('/profile');
+})
+.catch((error) => {
+// Error occurred.
+});
+service-worker-sessions.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/service-worker-sessions.js#L153-L162]
+
+서버 측 변경
+
+서버 측 코드는 모든 요청의 ID 토큰을 감지할 수 있습니다. 이 동작은 Node.js용 Admin SDK 또는 FirebaseServerApp을 사용하는 웹 SDK에서 지원됩니다.
+
+--- 탭: Node.js [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#node.js] ---
+```
+// Server side code.
+const admin = require('firebase-admin');
+
+// The Firebase Admin SDK is used here to verify the ID token.
+admin.initializeApp();
+
+function getIdToken(req) {
+// Parse the injected ID token from the request header.
+const authorizationHeader = req.headers.authorization || '';
+const components = authorizationHeader.split(' ');
+return components.length > 1 ? components[1] : '';
+}
+
+function checkIfSignedIn(url) {
+return (req, res, next) => {
+if (req.url == url) {
+const idToken = getIdToken(req);
+// Verify the ID token using the Firebase Admin SDK.
+// User already logged in. Redirect to profile page.
+admin.auth().verifyIdToken(idToken).then((decodedClaims) => {
+// User is authenticated, user claims can be retrieved from
+// decodedClaims.
+// In this sample code, authenticated users are always redirected to
+// the profile page.
+res.redirect('/profile');
+}).catch((error) => {
+next();
+});
+} else {
+next();
+}
+};
+}
+
+// If a user is signed in, redirect to profile page.
+app.use(checkIfSignedIn('/'));
+service-worker-sessions.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/service-worker-sessions.js#L170-L205]
+```
+
+--- 탭: 웹 모듈식 API [https://firebase.google.com/docs/auth/web/service-worker-sessions?hl=ko#%EC%9B%B9-%EB%AA%A8%EB%93%88%EC%8B%9D-api] ---
+```
+import { initializeServerApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
+
+export default function MyServerComponent() {
+
+// Get relevant request headers (in Next.JS)
+const authIdToken = headers().get('Authorization')?.split('Bearer ')[1];
+
+// Initialize the FirebaseServerApp instance.
+const serverApp = initializeServerApp(firebaseConfig, { authIdToken });
+
+// Initialize Firebase Authentication using the FirebaseServerApp instance.
+const auth = getAuth(serverApp);
+
+if (auth.currentUser) {
+redirect('/profile');
+}
+
+// ...
+}
+firebaseserverapp.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/firebaseserverapp-next/firebaseserverapp.js#L3-L24]
+```
+결론
+
+또한 서비스 워커를 통해 ID 토큰이 설정되고 동일한 원본에서 실행되도록 서비스 워커가 제한되므로 엔드포인트를 호출하려는 다른 원본의 웹사이트가 서비스 워커를 호출하지 못하여 요청이 서버 관점에서 인증되지 않은 것으로 표시되어 CSRF의 위험이 없습니다.
+
+현재 모든 최신 주요 브라우저에서 서비스 워커를 지원하고 있지만 이전 브라우저 일부에서는 지원되지 않습니다. 따라서 서비스 워커를 사용할 수 없거나 서비스 워커를 지원하는 브라우저에서만 실행되도록 앱을 제한할 수 있는 경우 서버에 ID 토큰을 전달하기 위한 대체가 필요할 수 있습니다.
+
+서비스 워커는 단일 원본일 뿐이며 https 연결 또는 localhost를 통해 제공되는 웹사이트에만 설치됩니다.
+
+브라우저의 서비스 워커 지원에 대한 자세한 내용은 caniuse.com [https://caniuse.com/#feat=serviceworkers]을 참조하세요.
+
+유용한 링크
+
+세션 관리를 위한 서비스 워커 사용에 대한 자세한 내용은 GitHub의 샘플 앱 소스 코드 [https://github.com/FirebaseExtended/firebase-auth-service-worker-sessions]를 확인하세요.
+위의 배포된 샘플 앱은 https://auth-service-worker.appspot.com [https://auth-service-worker.appspot.com/?hl=ko]에서 제공됩니다.
+
+의견 보내기

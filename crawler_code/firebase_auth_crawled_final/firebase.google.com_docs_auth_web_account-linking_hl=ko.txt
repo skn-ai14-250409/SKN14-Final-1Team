@@ -1,0 +1,300 @@
+Source URL: https://firebase.google.com/docs/auth/web/account-linking?hl=ko
+Title: 자바스크립트에서 계정에 여러 인증 제공업체 연결하기
+bookmark_border
+
+의견 보내기
+
+자바스크립트에서 계정에 여러 인증 제공업체 연결하기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#before-you-begin]사용자 계정에 제휴 인증 제공업체의 사용자 인증 정보 연결 [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#link-federated-auth-provider-credentials-to-a-user-account]사용자 계정에 이메일 주소 및 비밀번호 사용자 인증 정보 연결 [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#link-email-address-and-password-credentials-to-a-user-account]인증 제공업체와 사용자 계정의 연결 해제 [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#unlink-an-auth-provider-from-a-user-account]문제 해결 [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#troubleshooting]
+
+중요: 일부 프로젝트에서 linkWithCredentials()가 제대로 작동하지 않는 알려진 문제 [https://github.com/firebase/firebase-js-sdk/issues/7675]가 있습니다. 해결 방법과 수정 상태는 문제 보고서에서 확인하세요.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+사용자가 로그인할 때 어떤 인증 제공업체를 사용하든 동일한 Firebase 사용자 ID로 본인 확인이 가능합니다. 예를 들어 비밀번호로 로그인한 사용자가 Google 계정을 연결하면 나중에 비밀번호와 Google 계정 중 어느 방법으로든 로그인할 수 있습니다. 또는 익명 사용자가 Facebook 계정을 연결하면 나중에 Facebook으로 로그인해서 앱을 계속 사용할 수 있습니다.
+
+시작하기 전에
+
+앱에 두 가지 이상의 인증 제공업체(익명 인증 포함)에 대한 지원을 추가하세요.
+
+사용자 계정에 제휴 인증 제공업체의 사용자 인증 정보 연결
+
+기존 사용자 계정에 Google 또는 Facebook과 같은 인증 제공업체의 사용자 인증 정보를 연결하는 방법은 다음과 같습니다.
+
+원하는 인증 제공업체 또는 인증 방법을 사용해 사용자를 로그인 처리합니다.
+사용자 계정에 연결할 제공업체에 해당하는 AuthProvider 객체를 가져옵니다. 예를 들면 다음과 같습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-modular-api] ---
+import { GoogleAuthProvider, FacebookAuthProvider, TwitterAuthProvider, GithubAuthProvider } from "firebase/auth";
+
+const googleProvider = new GoogleAuthProvider();
+const facebookProvider = new FacebookAuthProvider();
+const twitterProvider = new TwitterAuthProvider();
+const githubProvider = new GithubAuthProvider();
+auth_get_providers.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/link-multiple-accounts/auth_get_providers.js#L8-L13]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-namespaced-api] ---
+var googleProvider = new firebase.auth.GoogleAuthProvider();
+var facebookProvider = new firebase.auth.FacebookAuthProvider();
+var twitterProvider = new firebase.auth.TwitterAuthProvider();
+var githubProvider = new firebase.auth.GithubAuthProvider();
+link-multiple-accounts.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/link-multiple-accounts.js#L34-L37]
+
+연결하려는 제공업체의 계정으로 로그인하라는 메시지를 표시합니다. 팝업 창을
+띄우거나 제공업체의 로그인 페이지로 리디렉션하여
+사용자에게 로그인을 요청할 수 있습니다. 휴대기기의 경우 리디렉션을 사용하는 것이 바람직합니다.
+
+팝업 창을 사용하여 로그인하려면 linkWithPopup을 호출합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-modular-api] ---
+import { getAuth, linkWithPopup, GoogleAuthProvider } from "firebase/auth";
+const provider = new GoogleAuthProvider();
+
+const auth = getAuth();
+linkWithPopup(auth.currentUser, provider).then((result) => {
+// Accounts successfully linked.
+const credential = GoogleAuthProvider.credentialFromResult(result);
+const user = result.user;
+// ...
+}).catch((error) => {
+// Handle Errors here.
+// ...
+});
+auth_link_with_popup.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/link-multiple-accounts/auth_link_with_popup.js#L8-L20]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-namespaced-api] ---
+auth.currentUser.linkWithPopup(provider).then((result) => {
+// Accounts successfully linked.
+var credential = result.credential;
+var user = result.user;
+// ...
+}).catch((error) => {
+// Handle Errors here.
+// ...
+});
+link-multiple-accounts.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/link-multiple-accounts.js#L69-L77]
+
+제공업체의 로그인 페이지로 리디렉션해서 로그인하려면 linkWithRedirect를 호출합니다.
+`linkWithRedirect`를 사용할 때는 권장사항 [https://firebase.google.com/docs/auth/web/redirect-best-practices?hl=ko]을 따르세요.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-modular-api] ---
+import { getAuth, linkWithRedirect, GoogleAuthProvider } from "firebase/auth";
+const provider = new GoogleAuthProvider();
+
+const auth = getAuth();
+linkWithRedirect(auth.currentUser, provider)
+.then(/* ... */)
+.catch(/* ... */);
+auth_link_with_redirect.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/link-multiple-accounts/auth_link_with_redirect.js#L8-L14]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-namespaced-api] ---
+auth.currentUser.linkWithRedirect(provider)
+.then(/* ... */)
+.catch(/* ... */);
+link-multiple-accounts.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/link-multiple-accounts.js#L85-L87]
+
+사용자는 로그인한 후 내 페이지로 다시 리디렉션됩니다. 그러면 페이지가 로드될 때 getRedirectResult를 호출하여 로그인 결과를 검색할 수 있습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-modular-api] ---
+import { getRedirectResult } from "firebase/auth";
+getRedirectResult(auth).then((result) => {
+const credential = GoogleAuthProvider.credentialFromResult(result);
+if (credential) {
+// Accounts successfully linked.
+const user = result.user;
+// ...
+}
+}).catch((error) => {
+// Handle Errors here.
+// ...
+});
+auth_get_redirect_result.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/link-multiple-accounts/auth_get_redirect_result.js#L8-L19]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-namespaced-api] ---
+auth.getRedirectResult().then((result) => {
+if (result.credential) {
+// Accounts successfully linked.
+var credential = result.credential;
+var user = result.user;
+// ...
+}
+}).catch((error) => {
+// Handle Errors here.
+// ...
+});
+link-multiple-accounts.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/link-multiple-accounts.js#L91-L101]
+
+사용자가 정상적으로 로그인하면 제공업체의 사용자 계정이 Firebase 프로젝트의 사용자 계정에 연결됩니다.
+사용자 인증 정보가 다른 사용자 계정에 이미 연결되어 있으면 계정 연결에 실패합니다. 이 경우에는 앱에 맞게 중복 계정과
+관련 데이터를 병합하는 과정을 처리해야 합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-modular-api] ---
+import { getAuth, signInWithCredential, linkWithCredential, OAuthProvider } from "firebase/auth";
+
+// The implementation of how you store your user data depends on your application
+const repo = new MyUserDataRepo();
+
+// Get reference to the currently signed-in user
+const auth = getAuth();
+const prevUser = auth.currentUser;
+
+// Get the data which you will want to merge. This should be done now
+// while the app is still signed in as this user.
+const prevUserData = repo.get(prevUser);
+
+// Delete the user's data now, we will restore it if the merge fails
+repo.delete(prevUser);
+
+// Sign in user with the account you want to link to
+signInWithCredential(auth, newCredential).then((result) => {
+console.log("Sign In Success", result);
+const currentUser = result.user;
+const currentUserData = repo.get(currentUser);
+
+// Merge prevUser and currentUser data stored in Firebase.
+// Note: How you handle this is specific to your application
+const mergedData = repo.merge(prevUserData, currentUserData);
+
+const credential = OAuthProvider.credentialFromResult(result);
+return linkWithCredential(prevUser, credential)
+.then((linkResult) => {
+// Sign in with the newly linked credential
+const linkCredential = OAuthProvider.credentialFromResult(linkResult);
+return signInWithCredential(auth, linkCredential);
+})
+.then((signInResult) => {
+// Save the merged data to the new user
+repo.set(signInResult.user, mergedData);
+});
+}).catch((error) => {
+// If there are errors we want to undo the data merge/deletion
+console.log("Sign In Error", error);
+repo.set(prevUser, prevUserData);
+});
+auth_merge_accounts.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/link-multiple-accounts/auth_merge_accounts.js#L8-L49]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-namespaced-api] ---
+// The implementation of how you store your user data depends on your application
+var repo = new MyUserDataRepo();
+
+// Get reference to the currently signed-in user
+var prevUser = auth.currentUser;
+
+// Get the data which you will want to merge. This should be done now
+// while the app is still signed in as this user.
+var prevUserData = repo.get(prevUser);
+
+// Delete the user's data now, we will restore it if the merge fails
+repo.delete(prevUser);
+
+// Sign in user with the account you want to link to
+auth.signInWithCredential(newCredential).then((result) => {
+console.log("Sign In Success", result);
+var currentUser = result.user;
+var currentUserData = repo.get(currentUser);
+
+// Merge prevUser and currentUser data stored in Firebase.
+// Note: How you handle this is specific to your application
+var mergedData = repo.merge(prevUserData, currentUserData);
+
+return prevUser.linkWithCredential(result.credential)
+.then((linkResult) => {
+// Sign in with the newly linked credential
+return auth.signInWithCredential(linkResult.credential);
+})
+.then((signInResult) => {
+// Save the merged data to the new user
+repo.set(signInResult.user, mergedData);
+});
+}).catch((error) => {
+// If there are errors we want to undo the data merge/deletion
+console.log("Sign In Error", error);
+repo.set(prevUser, prevUserData);
+});
+link-multiple-accounts.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/link-multiple-accounts.js#L107-L143]
+
+사용자 계정에 이메일 주소 및 비밀번호 사용자 인증 정보 연결
+
+기존 사용자 계정에 이메일 주소 및 비밀번호 사용자 인증 정보를 추가하는 방법은
+다음과 같습니다.
+
+원하는 인증 제공업체 또는 인증 방법을 사용해 사용자를 로그인 처리합니다.
+사용자에게 이메일 주소와 새 비밀번호를 묻습니다.
+사용자가 제공한 이메일 주소와 비밀번호로 AuthCredential 객체를 만듭니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-modular-api] ---
+import { EmailAuthProvider } from "firebase/auth";
+
+const credential = EmailAuthProvider.credential(email, password);
+auth_make_email_credential.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/index/auth_make_email_credential.js#L8-L10]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-namespaced-api] ---
+var credential = firebase.auth.EmailAuthProvider.credential(email, password);
+link-multiple-accounts.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/link-multiple-accounts.js#L152-L152]
+
+다음과 같이 AuthCredential 객체를 로그인한 사용자의 linkWithCredential 메서드에 전달합니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-modular-api] ---
+import { getAuth, linkWithCredential } from "firebase/auth";
+
+const auth = getAuth();
+linkWithCredential(auth.currentUser, credential)
+.then((usercred) => {
+const user = usercred.user;
+console.log("Account linking success", user);
+}).catch((error) => {
+console.log("Account linking error", error);
+});
+auth_simple_link.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/link-multiple-accounts/auth_simple_link.js#L8-L17]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-namespaced-api] ---
+auth.currentUser.linkWithCredential(credential)
+.then((usercred) => {
+var user = usercred.user;
+console.log("Account linking success", user);
+}).catch((error) => {
+console.log("Account linking error", error);
+});
+link-multiple-accounts.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/link-multiple-accounts.js#L43-L49]
+
+사용자 인증 정보가 다른 사용자 계정에 이미 연결되어 있다면 linkWithCredential 호출이 실패합니다. 이 경우에는 앱에 맞게 계정과 관련 데이터를 병합하는 과정을 처리해야 합니다(위의 예시 참조).
+
+인증 제공업체와 사용자 계정의 연결 해제
+
+특정 인증 제공업체와 계정의 연결을 해제할 수 있습니다. 그러면 사용자가 더 이상 해당 제공업체로 로그인할 수 없게 됩니다.
+
+인증 제공업체와 사용자 계정의 연결을 해제하려면 제공업체 ID를 unlink 메서드에 전달합니다. 사용자 계정에 연결된 인증 제공업체의 제공업체 ID는 providerData 속성에서 가져올 수 있습니다.
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-modular-api] ---
+import { getAuth, unlink } from "firebase/auth";
+
+const auth = getAuth();
+unlink(auth.currentUser, providerId).then(() => {
+// Auth provider unlinked from account
+// ...
+}).catch((error) => {
+// An error happened
+// ...
+});
+auth_unlink_provider.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/snippets/auth-next/link-multiple-accounts/auth_unlink_provider.js#L8-L17]
+
+--- 탭: Web [https://firebase.google.com/docs/auth/web/account-linking?hl=ko#web-namespaced-api] ---
+user.unlink(providerId).then(() => {
+// Auth provider unlinked from account
+// ...
+}).catch((error) => {
+// An error happened
+// ...
+});
+link-multiple-accounts.js [https://github.com/firebase/snippets-web/blob/467eaa165dcbd9b3ab15711e76fa52237ba37f8b/auth/link-multiple-accounts.js#L160-L166]
+
+문제 해결
+여러 계정을 연결하려고 할 때 오류가 발생하면 인증된 이메일 주소에 관한 문서 [https://firebase.google.com/docs/auth/users?hl=ko#verified_email_addresses]를 참고하세요.
+
+의견 보내기

@@ -1,0 +1,78 @@
+Source URL: https://cloud.google.com/firestore/docs/eventarc?hl=ko
+Title: Eventarc로 이벤트 기반 아키텍처 만들기
+bookmark_border
+
+이 페이지는 Cloud Translation API [https://cloud.google.com/translate/?hl=ko]를 통해 번역되었습니다.
+
+의견 보내기
+
+이 페이지의 내용제한사항 [https://cloud.google.com/firestore/native/docs/eventarc?hl=ko#limitations]Eventarc 및 Firestore 위치 [https://cloud.google.com/firestore/native/docs/eventarc?hl=ko#locations]Cloud Run Functions 2세대와 1세대 간의 차이점 [https://cloud.google.com/firestore/native/docs/eventarc?hl=ko#differences_between_2nd_gen_and_1st_gen]Datastore 모드 및 Native 모드 이벤트 상호 운용성 [https://cloud.google.com/firestore/native/docs/eventarc?hl=ko#datastore_mode_and_native_mode_event_interoperability]이벤트 전환 [https://cloud.google.com/firestore/native/docs/eventarc?hl=ko#event_conversions]다음 단계 [https://cloud.google.com/firestore/native/docs/eventarc?hl=ko#whats_next]
+
+Eventarc로 이벤트 기반 아키텍처 만들기
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+Eventarc [https://cloud.google.com/eventarc/docs/overview?hl=ko] 및 Firestore를 사용하여 이벤트 기반 아키텍처 [https://cloud.google.com/eventarc/docs/event-driven-architectures?hl=ko]를 빌드할 수 있습니다.
+Eventarc용 Firestore 트리거는 데이터베이스의 특정 문서 변경 시 이벤트를 생성합니다. 트리거는 이벤트를 지원되는 대상 [https://cloud.google.com/eventarc/docs/event-providers-targets?hl=ko]으로 라우팅할 수 있습니다.
+
+Cloud 클라이언트 라이브러리 [https://cloud.google.com/firestore/docs/extend-with-functions-2nd-gen?hl=ko] 및 Firebase SDK [https://firebase.google.com/docs/firestore/extend-with-functions-2nd-gen?hl=ko]를 지원하는 Cloud Run Functions (2세대)
+Cloud Run [https://cloud.google.com/eventarc/docs/run/route-trigger-cloud-firestore?hl=ko]
+Google Kubernetes Engine [https://cloud.google.com/eventarc/docs/gke/route-trigger-cloud-firestore?hl=ko]
+Workflows [https://cloud.google.com/eventarc/docs/workflows/route-trigger-cloud-firestore?hl=ko]
+
+Eventarc는 분리된 마이크로서비스 간에 상태 변경 흐름(이벤트라고 함)을 관리하는 표준화된 솔루션을 제공합니다. 트리거된 Eventarc는 전송, 보안, 승인, 관측 가능성, 오류 처리를 관리하면서 이러한 이벤트를 다양한 대상으로 라우팅합니다.
+참고: Eventarc 이벤트는 CloudEvents [https://cloudevents.io/] 사양을 사용합니다.
+제한사항
+
+Eventarc용 Firestore 트리거의 다음 제한사항에 유의하세요.
+
+순서는 보장되지 않습니다. 급격하게 변경하면 예기치 않은 순서로 이벤트가 트리거될 수 있습니다.
+이벤트는 최소 1회 이상 전송됩니다.
+
+이벤트 핸들러가 멱등성을 갖는지 확인하고 이벤트가 두 번 이상 전송될 때 예기치 않은 결과 또는 부작용이 발생하지 않도록 합니다. 자세한 내용은 멱등 함수 빌드 [https://cloud.google.com/blog/products/serverless/cloud-functions-pro-tips-building-idempotent-functions?hl=ko]를 참조하세요.
+트리거는 단일 데이터베이스와 연결됩니다. 여러 데이터베이스와 일치하는 트리거를 만들 수 없습니다.
+데이터베이스를 삭제해도 해당 데이터베이스의 트리거가 자동으로 삭제되지 않습니다. 트리거가 이벤트 제공을 중지하지만 트리거를 삭제 [https://cloud.google.com/eventarc/docs/managing-triggers?hl=ko#trigger-delete]하기 전까지 계속 존재합니다. 데이터베이스를 다시 만드는 경우 이벤트 전송을 복원하려면 연결된 트리거도 삭제하고 다시 만들어야 합니다.
+
+Eventarc 및 Firestore 위치
+
+Eventarc는 기본 모드의 Firestore 이벤트 트리거에서 멀티 리전을 지원하지 않지만 멀티 리전 위치에서 Firestore 데이터베이스에 대한 트리거를 만들 수 있습니다. Eventarc는 Firestore 멀티 리전 위치를 다음 Eventarc 리전에 매핑합니다.
+
+| Firestore 멀티 리전 | Eventarc 리전 |
+| --- | --- |
+| nam5 | us-central1 |
+| eur3 | europe-west4 |
+
+Cloud Run Functions 2세대와 1세대 간의 차이점
+
+Cloud Run Functions (2세대)는 모든 런타임에 Eventarc 이벤트를 사용합니다.
+이전에는 Cloud Run Functions (1세대)에서 일부 런타임에만 [https://cloud.google.com/functions/docs/writing/write-event-driven-functions?hl=ko] Eventarc 이벤트를 사용했습니다.
+Eventarc 이벤트에는 Cloud Run Functions (1세대) [https://cloud.google.com/firestore/docs/extend-with-functions?hl=ko]과 다음과 같은 차이점이 있습니다.
+
+Eventarc용 Firestore 트리거는 Cloud Run Functions 외에도 추가 대상을 지원합니다. CloudEvents는 Cloud Run, GKE, Workflows를 포함하되 이에 국한되지 않는 여러 대상 [https://cloud.google.com/eventarc/docs/event-providers-targets?hl=ko]으로 라우팅할 수 있습니다.
+Eventarc용 Firestore 트리거는 데이터베이스 쓰기 작업이 시작될 때 트리거 정의를 가져오고 이 정의를 사용하여 Firestore에서 이벤트를 내보내야 하는지 결정합니다. 쓰기 작업은 실행 중에 발생할 수 있는 트리거 정의 변경사항을 고려하지 않습니다.
+
+Cloud Run Functions (1세대)는 데이터베이스 쓰기 평가 중에 트리거 정의를 검색하고 평가 중에 트리거 변경사항을 실행하면 Firestore에서 이벤트를 내보낼지 여부에 영향을 줄 수 있습니다.
+
+Datastore 모드 및 Native 모드 이벤트 상호 운용성
+
+Eventarc는 Datastore 모드와 Native 모드의 이벤트 트리거를 지원합니다. 이러한 이벤트 트리거를 두 데이터베이스 유형과 상호 운용할 수 있습니다.
+Native 모드 데이터베이스의 Firestore는 Datastore 이벤트를 수신하고 Datastore 모드의 Firestore 데이터베이스는 Native 모드 이벤트를 수신할 수 있습니다.
+
+이벤트 상호 운용성을 사용하면 서로 다른 유형의 Firestore 데이터베이스에서 Eventarc 코드를 공유할 수 있습니다.
+
+이벤트 전환
+
+Datastore 모드 데이터베이스에 Native 모드 이벤트 트리거를 적용하면 Eventarc에서 다음과 같은 변환을 수행합니다.
+
+항목의 네임스페이스는 이벤트의 PartitionId 속성에 저장됩니다.
+삽입된 항목은 Native 모드 map 유형으로 변환됩니다.
+
+다음 단계
+
+이벤트 기반 아키텍처 [https://cloud.google.com/eventarc/docs/event-driven-architectures?hl=ko]를 알아봅니다.
+
+의견 보내기

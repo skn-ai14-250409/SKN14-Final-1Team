@@ -1,0 +1,70 @@
+Source URL: https://firebase.google.com/docs/firestore/enterprise/audit-logging?hl=ko
+Title: Cloud Monitoring으로 데이터베이스 모니터링
+bookmark_border
+
+이제 MongoDB 호환성을 갖춘 Cloud Firestore Enterprise 버전을 사용할 수 있습니다. 자세히 알아보기 [https://firebase.google.com/docs/firestore/enterprise/mongodb-compatibility-overview?hl=ko]
+
+의견 보내기
+
+Cloud Monitoring으로 데이터베이스 모니터링
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용참고 [https://firebase.google.com/docs/firestore/enterprise/audit-logging?hl=ko#notes]서비스 이름 [https://firebase.google.com/docs/firestore/enterprise/audit-logging?hl=ko#service_name]권한 유형별 메서드 [https://firebase.google.com/docs/firestore/enterprise/audit-logging?hl=ko#permission-type]요청 호출자 식별 [https://firebase.google.com/docs/firestore/enterprise/audit-logging?hl=ko#identify_request_callers]
+
+| Cloud Firestore Enterprise 버전에만 해당합니다. |
+| --- |
+
+이 문서에서는 MongoDB 호환성을 갖춘 Cloud Firestore의 감사 로깅을 설명합니다. Google Cloud 서비스는 Google Cloud 리소스 내의 관리 및 액세스 활동을 기록하는 감사 로그를 생성합니다.
+
+Cloud 감사 로그에 대한 자세한 내용은 다음을 참조하세요.
+
+감사 로그 유형 [https://cloud.google.com/logging/docs/audit?hl=ko#types]
+감사 로그 항목 구조 [https://cloud.google.com/logging/docs/audit?hl=ko#audit_log_entry_structure]
+감사 로그 저장 및 라우팅 [https://cloud.google.com/logging/docs/audit?hl=ko#storing_and_routing_audit_logs]
+Cloud Logging 가격 책정 요약 [https://cloud.google.com/stackdriver/pricing?hl=ko#logs-pricing-summary]
+데이터 액세스 감사 로그 사용 설정 [https://cloud.google.com/logging/docs/audit/configure-data-access?hl=ko]
+
+참고
+
+감사 로깅을 구성할 때는 서비스 이름 datastore.googleapis.com을 사용하여 datastore.googleapis.com 및 firestore.googleapis.com.
+Once configured, logs for the Cloud Firestore with MongoDB compatibility API include the service namefirestore.googleapis.com`을 모두 구성하세요.
+
+DATA_READ 또는 DATA_WRITE 요청을 처리하는 데 걸린 시간을 보려면 AuditLog의 metadata 객체 내에 있는 processing_duration 필드를 확인합니다.
+processing_duration 필드는 데이터베이스가 요청을 처리하는 데 걸린 시간을 설명합니다. 이 값은 최종 사용자 지연 시간보다 작습니다. 특히 네트워크 오버헤드를 포함하지 않습니다.
+
+서비스 이름
+
+Cloud Firestore 감사 로그는 firestore.googleapis.com이라는 서비스 이름을 사용합니다.
+이 서비스에 대한 필터:
+protoPayload.serviceName="firestore.googleapis.com"
+
+권한 유형별 메서드
+
+각 IAM 권한에는 type 속성이 포함되며 그 값은 네 가지 값(ADMIN_READ, ADMIN_WRITE, DATA_READ, DATA_WRITE) 중 하나일 수 있는 열거형입니다. 메서드를 호출하면 Cloud Firestore에서 메서드를 수행하는 데 필요한 권한의 type 속성에 따라 범주가 달라지는 감사 로그를 생성합니다.
+
+DATA_READ, DATA_WRITE, ADMIN_READ의 type 속성 값을 가진 IAM 권한이 필요한 메서드는 데이터 액세스 [https://cloud.google.com/logging/docs/audit/configure-data-access?hl=ko] 감사 로그를 생성합니다.
+
+type 속성 값이 ADMIN_WRITE인 IAM 권한이 필요한 메서드는 관리자 활동 [https://cloud.google.com/logging/docs/audit?hl=ko#admin-activity] 감사 로그를 생성합니다.
+
+| 권한 유형 | 메서드 |
+| --- | --- |
+| ADMIN_READ | google.cloud.location.Locations.GetLocation google.cloud.location.Locations.ListLocations google.firestore.admin.v1.FirestoreAdmin.GetBackup google.firestore.admin.v1.FirestoreAdmin.GetBackupSchedule google.firestore.admin.v1.FirestoreAdmin.GetDatabase google.firestore.admin.v1.FirestoreAdmin.GetField google.firestore.admin.v1.FirestoreAdmin.GetIndex google.firestore.admin.v1.FirestoreAdmin.ListBackupSchedules google.firestore.admin.v1.FirestoreAdmin.ListBackups google.firestore.admin.v1.FirestoreAdmin.ListDatabases google.firestore.admin.v1.FirestoreAdmin.ListFields google.firestore.admin.v1.FirestoreAdmin.ListIndexes google.firestore.admin.v1beta1.FirestoreAdmin.GetIndex google.firestore.admin.v1.MongoDBCompatible.ListIndexes google.firestore.admin.v1.MongoDBCompatible.ListDatabases |
+| ADMIN_WRITE | google.firestore.admin.v1.FirestoreAdmin.CreateBackupSchedule google.firestore.admin.v1.FirestoreAdmin.CreateDatabase google.firestore.admin.v1.FirestoreAdmin.CreateIndex google.firestore.admin.v1.FirestoreAdmin.DeleteBackup google.firestore.admin.v1.FirestoreAdmin.DeleteBackupSchedule google.firestore.admin.v1.FirestoreAdmin.DeleteDatabase google.firestore.admin.v1.FirestoreAdmin.DeleteIndex google.firestore.admin.v1.FirestoreAdmin.RestoreDatabase google.firestore.admin.v1.FirestoreAdmin.UpdateBackupSchedule google.firestore.admin.v1.FirestoreAdmin.UpdateDatabase google.firestore.admin.v1.FirestoreAdmin.UpdateField google.longrunning.Operations.CancelOperation google.longrunning.Operations.DeleteOperation |
+| DATA_READ | google.firestore.v1.MongoDBCompatible.Find google.firestore.v1.MongoDBCompatible.Aggregate google.firestore.v1.MongoDBCompatible.GetMore google.firestore.v1.MongoDBCompatible.ListCollections google.firestore.v1.MongoDBCompatible.Count google.firestore.v1.MongoDBCompatible.Distinct google.firestore.v1.MongoDBCompatible.CommitTransaction google.firestore.v1.MongoDBCompatible.AbortTransaction google.firestore.v1.MongoDBCompatible.EndSessions google.firestore.v1.MongoDBCompatible.KillCursors |
+| DATA_WRITE | google.firestore.v1.MongoDBCompatible.Insert google.firestore.v1.MongoDBCompatible.Update google.firestore.v1.MongoDBCompatible.Delete google.firestore.v1.MongoDBCompatible.FindAndModify google.firestore.v1.MongoDBCompatible.CreateCollection |
+
+요청 호출자 식별
+
+감사 로그 항목에는 로깅 작업을 수행한 ID에 대한 정보가 포함됩니다. 요청 호출자를 식별하려면 AuditLog [https://cloud.google.com/logging/docs/reference/audit/auditlog/rest/Shared.Types/AuditLog?hl=ko] 객체 내에서 다음 필드를 참조하세요.
+
+호출자 ID는 AuthenticationInfo [https://cloud.google.com/logging/docs/reference/audit/auditlog/rest/Shared.Types/AuditLog?hl=ko#AuthenticationInfo] 필드에 보관됩니다. 여기에는 사용자의 principalEmail이 포함될 수 있습니다. 이 정보는 가끔 수정 [https://cloud.google.com/logging/docs/audit?hl=ko#user-id]됩니다.
+AuditLog 항목의 requestMetadata [https://cloud.google.com/logging/docs/reference/audit/auditlog/rest/Shared.Types/AuditLog?hl=ko#requestmetadata] 객체 내에 있는 callerIp 필드에는 호출자의 IP 주소가 포함됩니다.
+
+도움이 되었나요?
+
+의견 보내기

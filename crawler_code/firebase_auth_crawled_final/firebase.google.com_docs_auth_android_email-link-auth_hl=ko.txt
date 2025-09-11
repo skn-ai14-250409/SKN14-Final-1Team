@@ -1,0 +1,419 @@
+Source URL: https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko
+Title: Android에서 이메일 링크를 사용하여 Firebase에 인증
+bookmark_border
+
+의견 보내기
+
+Android에서 이메일 링크를 사용하여 Firebase에 인증
+
+bookmark_borderbookmark
+
+컬렉션을 사용해 정리하기
+
+내 환경설정을 기준으로 콘텐츠를 저장하고 분류하세요.
+
+이 페이지의 내용시작하기 전에 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#before_you_begin]Android 프로젝트 설정 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#setup-android-project]Firebase 프로젝트에서 이메일 링크 로그인 사용 설정 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#enable-email-login]사용자의 이메일 주소로 인증 링크 전송 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#send-auth-link]이메일 링크로 로그인 완료 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#complete_sign_in_with_the_email_link]보안 문제 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#security-concerns]Android 앱에서 로그인 완료 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#complete-android-signin]이메일 링크를 사용하여 연결/재인증 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#linkingre-authentication_with_email_link]지원 중단됨: Firebase Dynamic Links 기반 인증 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#dynamic-links-based-verification]지원 중단됨: 이메일-비밀번호 로그인과 이메일 링크 로그인 구별 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#differentiating_emailpassword_from_email_link]다음 단계 [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#next-steps]
+
+참고: Android SDK v23.2.0 및 iOS SDK 11.8.0 이전의 SDK 버전에서 이메일 링크 인증 및 작업의 기존 구현은 2025년 8월 25일에 종료되는 Firebase 동적 링크를 사용합니다.
+
+이 가이드는 이후 SDK 버전의 새로운 솔루션을 참조하도록 업데이트되었습니다.
+
+자세한 내용과 마이그레이션 안내는 Dynamic Links 지원 중단 FAQ [https://firebase.google.com/support/dynamic-links-faq?hl=ko#impacts-on-email-link-authentication]를 참조하세요.
+
+Firebase Authentication을 사용하면 로그인 링크를 이메일로 전송해서 사용자가 클릭하여 로그인하도록 할 수 있습니다. 이 과정에서 사용자의
+이메일 주소도 확인됩니다.
+
+이메일로 로그인하는 경우 다음과 같은 많은 이점이 있습니다.
+
+편리한 가입 및 로그인
+여러 애플리케이션에서 비밀번호 재사용에 따른 위험이 적음(재사용하면 아무리 보안등급이 높은 비밀번호라 해도 보안이 취약해질 수 있음)
+사용자를 인증하는 동시에 사용자가 이메일 주소의 합법적인
+소유자인지 확인 가능
+액세스 가능한 이메일 계정만 있으면 로그인 가능 전화번호 또는
+소셜 미디어 계정 소유를 필요로 하지 않음
+사용자가 모바일 기기에서 번거롭게 비밀번호를 입력하거나
+기억할 필요 없이 안전하게 로그인 가능
+이전에 이메일 식별자(비밀번호 또는 제휴)로 로그인한 기존 사용자는 이메일만 사용하여 로그인하도록 업그레이드 가능. 일례로 사용자가
+비밀번호를 기억하지 못하더라도 비밀번호를 재설정하지 않고 계속
+로그인할 수 있습니다.
+
+시작하기 전에
+
+Android 프로젝트 설정
+
+아직 추가하지 않았다면 Android 프로젝트에 Firebase를 추가 [https://firebase.google.com/docs/android/setup?hl=ko]합니다.
+
+모듈(앱 수준) Gradle 파일(일반적으로 <project>/<app-module>/build.gradle.kts 또는 <project>/<app-module>/build.gradle)에서 Android용 Firebase Authentication 라이브러리의 종속 항목을 추가합니다. 라이브러리 버전 관리 제어에는 Firebase Android BoM [https://firebase.google.com/docs/android/learn-more?hl=ko#bom]을 사용하는 것이 좋습니다.
+
+또한 Firebase Authentication을 설정하는 과정에서 앱에 Google Play 서비스 SDK를 추가해야 합니다.
+
+dependencies {
+// Import the BoM for the Firebase platform
+implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
+
+// Add the dependency for the Firebase Authentication library
+// When using the BoM, you don't specify versions in Firebase library dependencies
+implementation("com.google.firebase:firebase-auth")
+// Also add the dependency for the Google Play services library and specify its version
+implementation("com.google.android.gms:play-services-auth:21.4.0")
+}
+
+Firebase Android BoM [https://firebase.google.com/docs/android/learn-more?hl=ko#bom]을 사용하면 앱에서 항상 호환되는 Firebase Android 라이브러리 버전만 사용합니다.
+
+(대안)
+BoM을 사용하지 않고 Firebase 라이브러리 종속 항목을 추가합니다.
+
+Firebase BoM을 사용하지 않도록 선택한 경우에는 종속 항목 줄에 각 Firebase 라이브러리 버전을 지정해야 합니다.
+앱에서 여러 Firebase 라이브러리를 사용하는 경우 모든 버전이 호환되도록 BoM을 사용하여 라이브러리 버전을 관리하는 것이 좋습니다.
+
+dependencies {
+// Add the dependency for the Firebase Authentication library
+// When NOT using the BoM, you must specify versions in Firebase library dependencies
+implementation("com.google.firebase:firebase-auth:24.0.1")
+// Also add the dependency for the Google Play services library and specify its version
+implementation("com.google.android.gms:play-services-auth:21.4.0")
+}
+
+Firebase 프로젝트에서 이메일 링크 로그인 사용 설정
+
+이메일 링크로 사용자를 로그인 처리하려면 우선 Firebase 프로젝트에서 이메일 제공업체 및 이메일 링크 로그인 방법을 사용 설정해야 합니다.
+
+Firebase Console [https://console.firebase.google.com/?hl=ko]에서 인증 섹션을 엽니다.
+로그인 방법 탭에서 이메일/비밀번호 제공업체를 사용 설정합니다. 이메일
+링크 로그인을 사용하려면 이메일/비밀번호 로그인이 사용 설정되어야 합니다.
+같은 섹션에서 이메일 링크(비밀번호가 없는 로그인) 로그인을
+사용 설정합니다.
+저장을 클릭합니다.
+
+사용자의 이메일 주소로 인증 링크 전송
+
+이 인증 과정을 시작하려면 사용자에게 이메일 주소를 제공하도록 요청하는 인터페이스를 제시하고 sendSignInLinkToEmail을 호출하여 Firebase가 사용자의 이메일에 인증 링크를 전송하도록 요청합니다.
+
+Firebase에 이메일 링크를 만드는 방법에 대한 안내를 제공하는 ActionCodeSettings [https://firebase.google.com/docs/reference/android/com/google/firebase/auth/ActionCodeSettings?hl=ko] 객체를 만듭니다. 다음 필드를 설정합니다.
+
+url: 삽입할 딥 링크 및 함께 전달할 추가 상태입니다.
+승인된 도메인의 Firebase Console 목록에서 링크의 도메인을 허용 목록에 추가해야 하며 로그인 방법 탭(인증 -> 로그인 방법)으로 이동하여 확인할 수 있습니다. 사용자 기기에 앱이 설치되어 있지 않고 앱을 설치할 수 없는 경우에 인증 링크는 사용자를 이 URL로 리디렉션합니다.
+
+중요: 2025년 4월 28일 이후에 생성된 프로젝트에서는 Firebase Authentication에 더 이상 기본적으로 localhost가 승인된 도메인으로 포함되지 않습니다. 프로덕션 프로젝트에서는 localhost를 사용하지 않는 것이 좋습니다. localhost를 승인하는 경우 설정 페이지의 승인된 도메인에서 도메인 추가를 클릭하여 수동으로 추가할 수 있습니다.
+
+androidPackageName 및 iOSBundleId: Firebase Authentication이 Android 또는 Apple 기기에서 열리는 웹 전용 링크 또는 모바일 링크를 만들어야 하는지 결정하는 데 도움이 됩니다.
+handleCodeInApp: true로 설정합니다. 다른 대역 외 이메일 작업(비밀번호 재설정 및 이메일 인증)과 달리 이 로그인 작업은 항상 앱에서 완료해야 합니다. 그 이유는 인증 과정 마지막에 사용자가 로그인하고 사용자의 인증 상태를 앱에서 유지해야 하기 때문입니다.
+linkDomain: 프로젝트에 대해 커스텀 Hosting 링크 도메인이 정의된 경우 지정된 모바일 앱에서 링크를 열 때 사용할 도메인을 지정합니다. 그러지 않으면 기본 도메인이 자동으로 선택됩니다(예: PROJECT_ID.firebaseapp.com).
+dynamicLinkDomain: 지원 중단되었습니다. 이 파라미터를 지정하지 마세요.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#kotlin-android] ---
+val actionCodeSettings = actionCodeSettings {
+// URL you want to redirect back to. The domain (www.example.com) for this
+// URL must be whitelisted in the Firebase Console.
+url = "https://www.example.com/finishSignUp?cartId=1234"
+// This must be true
+handleCodeInApp = true
+setIOSBundleId("com.example.ios")
+setAndroidPackageName(
+"com.example.android",
+true, // installIfNotAvailable
+"12", // minimumVersion
+)
+}
+MainActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L277-L289]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#java-android] ---
+ActionCodeSettings actionCodeSettings =
+ActionCodeSettings.newBuilder()
+// URL you want to redirect back to. The domain (www.example.com) for this
+// URL must be whitelisted in the Firebase Console.
+.setUrl("https://www.example.com/finishSignUp?cartId=1234")
+// This must be true
+.setHandleCodeInApp(true)
+.setIOSBundleId("com.example.ios")
+.setAndroidPackageName(
+"com.example.android",
+true, /* installIfNotAvailable */
+"12"    /* minimumVersion */)
+.build();
+MainActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L336-L348]
+
+ActionCodeSettings에 대해 자세히 알아보려면 이메일 작업의 상태 전달 [https://firebase.google.com/docs/auth/android/passing-state-in-email-actions?hl=ko#passing_statecontinue_url_in_email_actions] 섹션을 참조하세요.
+사용자에게 이메일 주소 입력을 요청합니다.
+사용자의 이메일에 인증 링크를 전송하고 사용자가 같은 기기에서 이메일 로그인을 완료할 경우를 대비해 사용자의 이메일을 저장합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#kotlin-android] ---
+Firebase.auth.sendSignInLinkToEmail(email, actionCodeSettings)
+.addOnCompleteListener { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "Email sent.")
+}
+}
+MainActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L295-L300]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#java-android] ---
+FirebaseAuth auth = FirebaseAuth.getInstance();
+auth.sendSignInLinkToEmail(email, actionCodeSettings)
+.addOnCompleteListener(new OnCompleteListener<Void>() {
+@Override
+public void onComplete(@NonNull Task<Void> task) {
+if (task.isSuccessful()) {
+Log.d(TAG, "Email sent.");
+}
+}
+});
+MainActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L354-L363]
+
+이메일 링크로 로그인 완료
+
+보안 문제
+
+의도하지 않은 사용자나 기기를 통해 로그인 링크가 사용되는 것을
+방지하기 위해 Firebase Authentication에서는 로그인 과정을 완료할 때 사용자의 이메일
+주소를 입력해야 합니다. 로그인하려면 이 이메일 주소가 처음에 로그인 링크를 보낸 주소와 일치해야 합니다.
+
+링크를 요청한 기기와 같은 기기에서 로그인 링크를 여는 사용자를 위해 이 과정을
+간소화할 수 있습니다. 예를 들어 로그인 이메일을 보낼 때 SharedPreferences를
+사용하여 사용자의 이메일 주소를 로컬에 저장하면 됩니다. 그런 다음 이 이메일 주소를 사용하여 이 과정을 완료합니다.
+세션 인젝션의 위험이 있으므로 사용자의 이메일을
+리디렉션 URL 매개변수에서 전달해서는 안 되며 재사용해서도 안 됩니다.
+
+로그인이 완료되면 확인되지 않은 이전 로그인 메커니즘은 사용자에게서
+모두 삭제되고 기존 세션은 무효화됩니다.
+예를 들어 누군가가 이전에 같은 이메일과 비밀번호로 확인되지 않은 계정을 만든 경우 이 사용자의 비밀번호는 삭제됩니다. 이는 명의를 도용해 소유권을 주장하고 확인되지 않은 계정을 만들었던 사람이 이 이메일과 비밀번호로 다시 로그인하는 것을 방지하기 위해서입니다.
+
+또한 중개 서버에서 링크를 가로채지 않도록 프로덕션 단계에서 HTTPS URL을 사용해야 합니다.
+
+Android 앱에서 로그인 완료
+
+Firebase Authentication에서는 Firebase Hosting을 사용하여 모바일 기기로 이메일 링크를 보냅니다. 모바일 애플리케이션을 통해 로그인을 완료하는 경우
+애플리케이션에서 수신 애플리케이션 링크를 감지하고 이 링크에 포함된 딥 링크를
+파싱한 다음 로그인을 완료하도록 구성해야 합니다. 자세한 내용은 Android App Links 문서 [https://developer.android.com/training/app-links?hl=ko]를 참조하세요.
+
+Firebase Hosting 구성
+
+Firebase Authentication은 모바일 애플리케이션에서 열릴 링크를 보낼 때 Firebase Hosting [https://firebase.google.com/docs/hosting?hl=ko] 도메인을 사용합니다.
+기본 Firebase Hosting 도메인이 이미 구성되어 있습니다.
+
+Firebase Hosting 도메인을 구성합니다.
+
+Firebase Console에서 호스팅 [https://console.firebase.google.com/project/_/hosting/sites?hl=ko] 섹션을 엽니다.
+
+모바일 애플리케이션에서 열리는 이메일 링크에 기본 도메인을 사용하려면 기본 사이트로 이동하여 기본 Hosting 도메인을 기록합니다. 기본 Hosting 도메인의 형식은 일반적으로 다음과 같습니다.
+PROJECT_ID.firebaseapp.com.
+
+수신 링크를 가로채도록 앱을 구성할 때 이 값이 필요합니다.
+이메일 링크에 커스텀 도메인을 사용하려면 Firebase Hosting에 도메인을 등록 [https://firebase.google.com/docs/hosting/custom-domain?hl=ko]하여 링크의 도메인으로 사용할 수 있습니다.
+
+Android 애플리케이션을 구성합니다.
+
+Android 애플리케이션에서 이 링크를 처리하려면 Firebase Console 프로젝트 설정에서 앱의 패키지 이름을 지정해야 합니다. 또한 애플리케이션 인증서의 SHA-1 및 SHA-256을 제공해야 합니다.
+
+이러한 링크를 특정 활동으로 리디렉션하려면 AndroidManifest.xml 파일에 인텐트 필터를 구성해야 합니다. 인텐트 필터가 도메인의 이메일 링크를 인식합니다. AndroidManifest.xml 파일은 다음과 같습니다.
+<intent-filter android:autoVerify="true">
+<action android:name="android.intent.action.VIEW" />
+<category android:name="android.intent.category.BROWSABLE" />
+<category android:name="android.intent.category.DEFAULT" />
+<data
+android:scheme="https"
+android:host="<PROJECT_ID>.firebaseapp.com or your custom domain"
+android:pathPrefix="/__/auth/links" />
+</intent-filter>
+
+사용자가 지정한 스키마 및 호스트와 /__/auth/links 경로가 포함된 호스팅 링크를 열면 앱에서 이 인텐트 필터로 링크를 처리 [https://developer.android.com/training/app-links?hl=ko]하는 활동을 시작합니다.
+
+링크 확인 및 로그인
+
+위에 설명된 대로 링크를 수신하면 이메일 링크 인증을 위한 링크인지 확인하고 로그인을 완료합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#kotlin-android] ---
+val auth = Firebase.auth
+val intent = intent
+val emailLink = intent.data.toString()
+
+// Confirm the link is a sign-in with email link.
+if (auth.isSignInWithEmailLink(emailLink)) {
+// Retrieve this from wherever you stored it
+val email = "someemail@domain.com"
+
+// The client SDK will parse the code from the link for you.
+auth.signInWithEmailLink(email, emailLink)
+.addOnCompleteListener { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "Successfully signed in with email link!")
+val result = task.result
+// You can access the new user via result.getUser()
+// Additional user info profile *not* available via:
+// result.getAdditionalUserInfo().getProfile() == null
+// You can check if the user is new or existing:
+// result.getAdditionalUserInfo().isNewUser()
+} else {
+Log.e(TAG, "Error signing in with email link", task.exception)
+}
+}
+}
+MainActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L306-L330]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#java-android] ---
+FirebaseAuth auth = FirebaseAuth.getInstance();
+Intent intent = getIntent();
+String emailLink = intent.getData().toString();
+
+// Confirm the link is a sign-in with email link.
+if (auth.isSignInWithEmailLink(emailLink)) {
+// Retrieve this from wherever you stored it
+String email = "someemail@domain.com";
+
+// The client SDK will parse the code from the link for you.
+auth.signInWithEmailLink(email, emailLink)
+.addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+if (task.isSuccessful()) {
+Log.d(TAG, "Successfully signed in with email link!");
+AuthResult result = task.getResult();
+// You can access the new user via result.getUser()
+// Additional user info profile *not* available via:
+// result.getAdditionalUserInfo().getProfile() == null
+// You can check if the user is new or existing:
+// result.getAdditionalUserInfo().isNewUser()
+} else {
+Log.e(TAG, "Error signing in with email link", task.getException());
+}
+}
+});
+}
+MainActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L369-L396]
+
+Apple 애플리케이션에서 이메일 링크를 사용한 로그인 처리 방법을 자세히 알아보려면 Apple 플랫폼 가이드 [https://firebase.google.com/docs/auth/ios/email-link-auth?hl=ko]를 참조하세요.
+
+웹 애플리케이션에서 이메일 링크를 사용한 로그인 처리 방법을 알아보려면 웹 가이드 [https://firebase.google.com/docs/auth/web/email-link-auth?hl=ko]를 참조하세요.
+
+이메일 링크를 사용하여 연결/재인증
+
+기존 사용자에게도 이 인증 방법을 연결할 수 있습니다. 예를 들어
+이전에 전화번호 등 다른 제공업체로 인증된 사용자의 경우
+기존 사용자 계정에 이 로그인 방법을 추가할 수 있습니다.
+
+이 경우 작업 뒷부분이 달라집니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#kotlin-android] ---
+// Construct the email link credential from the current URL.
+val credential = EmailAuthProvider.getCredentialWithLink(email, emailLink)
+
+// Link the credential to the current user.
+Firebase.auth.currentUser!!.linkWithCredential(credential)
+.addOnCompleteListener { task ->
+if (task.isSuccessful) {
+Log.d(TAG, "Successfully linked emailLink credential!")
+val result = task.result
+// You can access the new user via result.getUser()
+// Additional user info profile *not* available via:
+// result.getAdditionalUserInfo().getProfile() == null
+// You can check if the user is new or existing:
+// result.getAdditionalUserInfo().isNewUser()
+} else {
+Log.e(TAG, "Error linking emailLink credential", task.exception)
+}
+}
+MainActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L336-L353]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#java-android] ---
+// Construct the email link credential from the current URL.
+AuthCredential credential =
+EmailAuthProvider.getCredentialWithLink(email, emailLink);
+
+// Link the credential to the current user.
+auth.getCurrentUser().linkWithCredential(credential)
+.addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+if (task.isSuccessful()) {
+Log.d(TAG, "Successfully linked emailLink credential!");
+AuthResult result = task.getResult();
+// You can access the new user via result.getUser()
+// Additional user info profile *not* available via:
+// result.getAdditionalUserInfo().getProfile() == null
+// You can check if the user is new or existing:
+// result.getAdditionalUserInfo().isNewUser()
+} else {
+Log.e(TAG, "Error linking emailLink credential", task.getException());
+}
+}
+});
+MainActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L404-L425]
+
+민감한 작업을 실행하기 전에 이메일 링크 사용자를 재인증하는 경우에도 사용할 수 있습니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#kotlin-android] ---
+// Construct the email link credential from the current URL.
+val credential = EmailAuthProvider.getCredentialWithLink(email, emailLink)
+
+// Re-authenticate the user with this credential.
+Firebase.auth.currentUser!!.reauthenticateAndRetrieveData(credential)
+.addOnCompleteListener { task ->
+if (task.isSuccessful) {
+// User is now successfully reauthenticated
+} else {
+Log.e(TAG, "Error reauthenticating", task.exception)
+}
+}
+MainActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L359-L370]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#java-android] ---
+// Construct the email link credential from the current URL.
+AuthCredential credential =
+EmailAuthProvider.getCredentialWithLink(email, emailLink);
+
+// Re-authenticate the user with this credential.
+auth.getCurrentUser().reauthenticateAndRetrieveData(credential)
+.addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+@Override
+public void onComplete(@NonNull Task<AuthResult> task) {
+if (task.isSuccessful()) {
+// User is now successfully reauthenticated
+} else {
+Log.e(TAG, "Error reauthenticating", task.getException());
+}
+}
+});
+MainActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L433-L448]
+
+하지만 원래의 사용자가 로그인하지 않은 다른 기기에서 인증 과정이 종료되면 이 인증 과정이 완료되지 않을 수 있습니다. 이러한 경우 같은 기기에서
+링크를 열도록 사용자에게 오류를 표시할 수 있습니다. 링크에 일부 상태를 전달하여
+작업 유형 및 사용자 UID에 대한 정보를 표시할 수 있습니다.
+
+지원 중단됨: Firebase Dynamic Links 기반 인증
+
+이메일 링크 인증은 이전에 Firebase Dynamic Links를 사용했으며 이 기능은 2025년 8월 25일에 종료 [https://firebase.google.com/support/dynamic-links-faq?hl=ko]됩니다.
+
+Firebase Authentication Android SDK v23.2.0 이상 및 Firebase BoM v33.9.0 이상에 대체 솔루션이 게시되었습니다.
+
+앱에서 이전 스타일 링크를 사용하는 경우 새 Firebase Hosting 기반 시스템으로 앱을 마이그레이션 [https://firebase.google.com/docs/auth/android/email-link-migration?hl=ko]해야 합니다.
+
+지원 중단됨: 이메일-비밀번호 로그인과 이메일 링크 로그인 구별
+
+2023년 9월 15일 이후에 프로젝트를 만든 경우 이메일 열거 보호가 기본적으로 사용 설정됩니다. 이 기능은 프로젝트의 사용자 계정 보안을 개선하지만, 이전에 식별자 우선 인증 과정을 구현하는 데 권장되었던 fetchSignInMethodsForEmail() 메서드는 사용 중지됩니다.
+
+프로젝트에서 이메일 열거 보호를 사용 중지할 수 있지만 그렇게 하지 않는 것이 좋습니다.
+
+자세한 내용은 이메일 열거 보호 [https://cloud.google.com/identity-platform/docs/admin/email-enumeration-protection?hl=ko]에 대한 문서를 참조하세요.
+
+다음 단계
+
+사용자가 처음으로 로그인하면 신규 사용자 계정이 생성되고 사용자가 로그인할 때 사용한 사용자 인증 정보(사용자 이름과 비밀번호, 전화번호 또는 인증 제공업체 정보)에 연결됩니다. 이 신규 계정은 Firebase 프로젝트의 일부로 저장되며 사용자의 로그인 방법에 관계없이 프로젝트 내 모든 앱에서 사용자를 식별하는 데 사용될 수 있습니다.
+
+앱의 FirebaseUser [https://firebase.google.com/docs/reference/android/com/google/firebase/auth/FirebaseUser?hl=ko] 객체에서 사용자의 기본 프로필 정보를 가져올 수 있습니다. 사용자 관리 [https://firebase.google.com/docs/auth/android/manage-users?hl=ko]를 참조하세요.
+
+Firebase Realtime Database와 Cloud Storage 보안 규칙 [https://firebase.google.com/docs/database/security/user-security?hl=ko]의 auth 변수에서 로그인한 사용자의 고유 사용자 ID를 가져온 후 이 ID를 통해 사용자가 액세스할 수 있는 데이터를 관리할 수 있습니다.
+
+인증 제공업체의 사용자 인증 정보를 기존 사용자 계정에 연결 [https://firebase.google.com/docs/auth/android/account-linking?hl=ko]하면 사용자가 여러 인증 제공업체를 통해 앱에 로그인할 수 있습니다.
+
+사용자를 로그아웃시키려면 signOut [https://firebase.google.com/docs/reference/android/com/google/firebase/auth/FirebaseAuth?hl=ko#signOut()]을 호출합니다.
+
+--- 탭: Kotlin [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#kotlin-android] ---
+Firebase.auth.signOut()
+MainActivity.kt [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/kotlin/MainActivity.kt#L415-L415]
+
+--- 탭: Java [https://firebase.google.com/docs/auth/android/email-link-auth?hl=ko#java-android] ---
+FirebaseAuth.getInstance().signOut();
+MainActivity.java [https://github.com/firebase/snippets-android/blob/b694d4dbd411d31be39655f47691c3e9f3529b03/auth/app/src/main/java/com/google/firebase/quickstart/auth/MainActivity.java#L501-L501]
+
+도움이 되었나요?
+
+의견 보내기
