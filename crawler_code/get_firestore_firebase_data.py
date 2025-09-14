@@ -20,7 +20,7 @@ from selenium.common.exceptions import (
 )
 
 # ========= 기본 설정 (Firebase / Firestore 전용) =========
-OUTPUT_DIR = "firebase_firestore_crawled_final"
+OUTPUT_DIR = "../GOOGLE_API_DATA/firebase_firestore_crawled"
 MAX_PAGES = 800
 CRAWL_DELAY_SEC = 1
 WAIT_SEC = 20
