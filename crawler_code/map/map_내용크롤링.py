@@ -16,7 +16,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException,
 # ================== 설정 ==================
 BASE_URL = "https://developers.google.com"
 INPUT_LIST = "map_discovery/_sidebar_links.txt"   # 디스커버리 1차 출력 파일
-OUTPUT_DIR = "map_docs_crawled"                   # 본문 저장 폴더
+OUTPUT_DIR = "../../GOOGLE_API_DATA/map_docs_crawled"  # 본문 저장 폴더
 HEADLESS = False                                  # 필요시 True
 WAIT_SEC = 20
 CRAWL_DELAY_SEC = 0.5

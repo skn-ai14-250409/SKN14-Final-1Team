@@ -10,7 +10,7 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # 파일이 저장된 디렉토리 경로
-files_dir = './firebase_firestore_crawled_final'
+files_dir = './firebase_firestore_crawled'
 
 
 # 질문-답변 및 출처 생성 함수 (한 번에 처리)
