@@ -74,7 +74,8 @@ LLM 활용 내부 고객 업무 효율성 향상을 위한 구글 API 전문 사
 
 ### [**아키텍쳐 이미지**]
 
-![img.png](image/architecture.png)
+<img width="1100" height="647" alt="시스템 아키텍처" src="https://github.com/user-attachments/assets/05f357ed-9120-4b1b-a99c-e1e7af3b46a6" />
+
 
 ### [**주요 구성 요소**]
 
