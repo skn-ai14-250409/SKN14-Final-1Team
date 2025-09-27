@@ -1,7 +1,7 @@
 # 🚀 SK네트웍스 Family AI 과정 14기 1팀 - Final Project
 
-## **❇️ 프로젝트명**  
-LLM 활용 내부 고객 업무 효율성 향상을 위한 구글 API 전문 사내 개발자 지원 AI 기반 문서 검색 시스템  
+## **❇️ 프로젝트명 : CodeNova**  
+LLM 활용 내부 고객 업무 효율성 향상을 위한 API 전문 사내 개발자 지원 AI 기반 문서 검색 시스템  
 
 ---
 
@@ -12,25 +12,27 @@ LLM 활용 내부 고객 업무 효율성 향상을 위한 구글 API 전문 사
 ---
 
 ## 📌 프로젝트 개요
-구글 API는 방대한 문서와 복잡한 구조로 인해 개발자가 필요한 정보를 신속하게 찾기 어렵습니다.  
+API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요한 정보를 신속하게 찾기 어렵습니다.  
 
 본 프로젝트는 **RAG + LLM 기반 문서 검색 시스템**을 구축하여 내부 개발자의 **검색 효율성**과 **업무 생산성**을 높이는 것을 목표로 합니다.  
 
-이 시스템은 아래와 같이 크게 **구글 API 전문 어시스턴트**과 **사내 내부 문서 전문 sLLM 챗봇**으로 구성됩니다.  
+이 시스템은 아래와 같이 크게 **API 전문 어시스턴트**과 **사내 내부 문서 전문 SLLM 챗봇**으로 구성됩니다.  
 
-- **구글 API 전문 어시스턴트**:  
-  - **OpenAI GPT-4o 기반 메인 챗봇**
-  > 구글 API Q&A, 예제 코드, 오류 해결 등 **구글 API 문서에 대한 전반적인 질의응답**을 지원하는 챗봇. 사용자가 질문을 입력하면 관련 문서를 벡터 DB에서 검색하여 최적의 답변을 제공합니다.  
+- **API 전문 어시스턴트**:  
+  - **OpenAI GPT-4o 기반 챗봇**
+  > API Q&A, 예제 코드, 오류 해결 등 **API 문서에 대한 전반적인 질의응답**을 지원하는 챗봇. 사용자가 질문을 입력하면 관련 문서를 벡터 DB에서 검색하여 최적의 답변을 제공합니다.  
 
-  - **구글 API 문서 검색**:  
-  >   **키워드 기반** 및 **의미 기반 검색**을 통해 구글 API 문서를 빠르게 찾을 수 있는 기능. 
+  - **API 문서 원문 검색**:  
+  > 사용자가 입력한 검색어에 대한 **의미 기반 검색**을 통해 API 문서 원문 링크를 빠르게 찾을 수 있는 기능. 
   > 
   > 사용자가 특정 키워드나 의미를 입력하면 관련 원문 링크를 제공하여 구체적인 정보에 쉽게 접근할 수 있게 합니다.  
 
 - **사내 내부 문서 전문 sLLM 챗봇**:  
-  > 사내 정책·규정·기술 자료를 검색할 수 있으며, **권한 기반 보안 필터**를 적용해 사용자의 직급과 부서에 맞는 문서만 열람 가능  
+  > 사내 정책·규정·기술 자료를 검색할 수 있으며, **권한 기반 보안 필터**를 적용해 사용자의 직급과 부서에 맞는 문서만 열람 가능하도록 합니다.
   >
-  > 또한, **사내 전용 말투·용어·보고체계**를 반영하여 내부 직원들이 친숙하고 실질적인 도움을 받을 수 있도록 최적화된 대화 경험 제공  
+  > 또한, **사내 전용 말투·용어·보고체계**를 반영하여 내부 직원들이 친숙하고 실질적인 도움을 받을 수 있도록 최적화된 대화 경험 제공합니다.
+  > 
+  > 그리고 사용자가 공손/친구 말투 중 선택할 수 있도록 하여, 원하는 형태의 챗봇 응답을 받을 수 있도록 하는 사용자 경험을 제공합니다. 
 
 
 ---
@@ -41,8 +43,8 @@ LLM 활용 내부 고객 업무 효율성 향상을 위한 구글 API 전문 사
 - **국내 AI 산업**: 2024년 6조 3,000억 원 (응용 소프트웨어 2조 6,700억 원, 최대 비중)
 
 ### 타겟 고객
-- 구글 API를 활용하는 **사내 개발자 / 엔지니어**
-- 구글 API 서비스 및 연동 솔루션 관련 부서
+- API(구글 등)를 활용하는 **사내 개발자 / 엔지니어**
+- API 연관 서비스 및 연동 솔루션 관련 부서
 
 ### 비즈니스 모델 (BM)
 - **구독형 라이선스**: 월/연 단위 과금, 기능별·사용자 수 차등 요금제
@@ -52,97 +54,167 @@ LLM 활용 내부 고객 업무 효율성 향상을 위한 구글 API 전문 사
 
 ## ⚙️ 기술 스택
 
-| 항목               | 내용                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| :----------------- |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Frontend**       | ![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white) ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white) ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black) |
-| **Backend**        | ![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white) ![Gunicorn](https://img.shields.io/badge/Gunicorn-6DA55F?style=for-the-badge&logo=gunicorn&logoColor=white) ![Uvicorn](https://img.shields.io/badge/Uvicorn-FFA500?style=for-the-badge&logo=uvicorn&logoColor=white) |
-| **DB**             | ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) ![Chroma](https://img.shields.io/badge/Chroma-4B8BEA?style=for-the-badge&logo=python&logoColor=white) |
-| **Infra**          | ![AWS](https://img.shields.io/badge/Amazon%20AWS-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white) |
-| **CI/CD**          | ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white) ![AWS Elastic Beanstalk](https://img.shields.io/badge/AWS%20Elastic%20Beanstalk-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white) |
-| **Embedding**      | ![BGE-M3](https://img.shields.io/badge/BGE--M3-000000?style=for-the-badge&logo=huggingface&logoColor=white) |
-| **LLM Model**      | ![GPT-4o](https://img.shields.io/badge/GPT--4o-4B91FF?style=for-the-badge&logo=openai&logoColor=white) ![LangGraph](https://img.shields.io/badge/LangGraph-1E90FF?style=for-the-badge&logo=graphviz&logoColor=white) |
-| **Collaboration**  | ![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white) ![Notion](https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white) ![Discord](https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white) |
-| **Development**    | ![VS Code](https://img.shields.io/badge/VS%20Code-007ACC?style=for-the-badge&logo=visual-studio-code&logoColor=white) ![PyCharm](https://img.shields.io/badge/PyCharm-000000?style=for-the-badge&logo=pycharm&logoColor=white) |
+| 항목                  | 내용                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+|:--------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Frontend**        | ![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white) ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white) ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black) |
+| **Backend**         | ![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white) ![Gunicorn](https://img.shields.io/badge/Gunicorn-6DA55F?style=for-the-badge&logo=gunicorn&logoColor=white) ![Uvicorn](https://img.shields.io/badge/Uvicorn-FFA500?style=for-the-badge&logo=uvicorn&logoColor=white) |
+| **DB**              | ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) ![Chroma](https://img.shields.io/badge/Chroma-4B8BEA?style=for-the-badge&logo=python&logoColor=white)                                                                                                                                                                                                                            |
+| **Infra**           | ![AWS](https://img.shields.io/badge/Amazon%20AWS-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white) ![S3](https://img.shields.io/badge/Amazon%20S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white) ![RunPod](https://img.shields.io/badge/RunPod-FF4500?style=for-the-badge&logo=cloudflare&logoColor=white) ![vLLM](https://img.shields.io/badge/vLLM-000000?style=for-the-badge&logo=lightning&logoColor=white) |
+| **CI/CD**           | ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white) ![AWS Elastic Beanstalk](https://img.shields.io/badge/AWS%20Elastic%20Beanstalk-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white)                                                                                                                                                         |
+| **Embedding Model** | ![BGE-M3](https://img.shields.io/badge/BGE--M3-000000?style=for-the-badge&logo=huggingface&logoColor=white)                                                                                                                                                                                                                                                                                                                         |
+| **LLM Model**       | ![GPT-4](https://img.shields.io/badge/GPT--4-4B91FF?style=for-the-badge&logo=openai&logoColor=white) ![Qwen3-8B](https://img.shields.io/badge/Qwen3--8B%20(on%20RunPod%20+%20vLLM)-FF6F00?style=for-the-badge&logo=alibabacloud&logoColor=white) |
+| **Orchestration**   | ![LangGraph](https://img.shields.io/badge/LangGraph-1E90FF?style=for-the-badge&logo=graphviz&logoColor=white) ![LangChain](https://img.shields.io/badge/LangChain-2E8B57?style=for-the-badge&logo=chainlink&logoColor=white) |
+| **Collaboration**   | ![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white) ![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white) ![Notion](https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white) ![Discord](https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white) |
+| **Development**     | ![VS Code](https://img.shields.io/badge/VS%20Code-007ACC?style=for-the-badge&logo=visual-studio-code&logoColor=white) ![PyCharm](https://img.shields.io/badge/PyCharm-000000?style=for-the-badge&logo=pycharm&logoColor=white) |
 
 ---
 
 ## ⚙️ 시스템 아키텍처
 
-> 본 시스템은 **Django** 기반 웹 애플리케이션과 여러 기능 모듈로 구성되며, **AWS Elastic Beanstalk** 환경에서 **Docker 컨테이너**로 배포됩니다. 
->
-> 전체 구성은 **백엔드**(Django-Gunicorn/Uvicorn, FastAPI), **Chroma Vector DB**(챗봇 RAG 데이터 검색용), **MySQL**(사용자 및 콘텐츠 저장)로 이루어져 있습니다.
+> 본 시스템은 Django 기반 웹 애플리케이션, FastAPI 서비스, LLM(OpenAI GPT-4), sLLM(Qwen3-8B 파인튜닝 모델)로 구성됩니다.  
+> 
+> 대부분의 애플리케이션은 **AWS Elastic Beanstalk** 환경에서 **Docker 컨테이너** 형태로 배포됩니다.  
+> 
+> 다만, **MySQL DB는 별도의 AWS EC2 인스턴스** 위에서 Docker 컨테이너로 운영됩니다.  
 
-### [**아키텍쳐 이미지**]
+---
 
-<img width="1100" height="647" alt="시스템 아키텍처" src="https://github.com/user-attachments/assets/05f357ed-9120-4b1b-a99c-e1e7af3b46a6" />
+### 🔹 주요 구성 요소
 
+1. **웹 애플리케이션 계층**
+   - **Django (Gunicorn/Uvicorn)**: 메인 백엔드 프레임워크, OpenAI GPT-4 API 연동
+   - **Nginx Proxy + Application Load Balancer (ALB)**: 외부 요청을 HTTPS/HTTP로 수신 후 Django 컨테이너로 전달
+   - **AWS Route53**: 도메인 관리 및 HTTPS 라우팅 (`https://code-nova.dev`, `http://sllm.code-nova.site`)
 
-### [**주요 구성 요소**]
+2. **데이터베이스 계층**
+   - **MySQL (별도 AWS EC2 인스턴스 내 Docker 컨테이너)**: 사용자 계정 정보, 채팅 내역, 커뮤니티 내용 등 저장
+   - **Chroma Vector DB**: 챗봇 RAG 검색용 벡터 데이터베이스
 
-#### 💠 **메인 챗봇 서비스**
-- 구글 API 사용법 Q&A, 예제 코드, 오류 해결, 관련 질문 추천, 대화내역 카드 저장 기능을 제공.  
-- **챗봇 호출**: **Django 서버** 내에서 **Gunicorn/Uvicorn**을 사용해 비동기 API 서버로 호출됩니다.
+3. **스토리지 계층**
+   - **AWS S3**: 채팅 이미지, 프로필 이미지 파일 저장소
 
-#### 💠 **사내 sLLM 챗봇**
-- **FastAPI 서버**를 **RUNPOD** 환경에서 구축하여 호출됩니다. 이 챗봇은 **사내 정책 및 규정**에 대한 질의응답을 제공합니다.
+4. **AI 모델 계층**
+   - **LLM (OpenAI GPT-4)**: 주 대화 모델로서 범용적인 질의응답 처리
+   - **sLLM (Qwen3-8B Fine-tuned, RunPod + vLLM)**: 파인튜닝된 도메인 특화 모델, RunPod GPU 환경에서 vLLM을 통해 서빙  
+   - **FastAPI 서비스**: sLLM inference API 제공 (Nginx Proxy와 연동)
 
-#### 💠 **CI/CD**
-- **GitHub Actions**와 **AWS Elastic Beanstalk**를 연동하여 **자동 배포** 파이프라인을 구축합니다.  
-- GitHub Actions를 통해 코드 변경 시 자동으로 빌드하고 테스트한 후, **AWS Elastic Beanstalk**에 배포됩니다.
+5. **CI/CD 파이프라인**
+   - **GitHub → DockerHub → AWS EB**
+   - 로컬 개발(예: PyCharm) 후 GitHub에 Push
+   - `main` 브랜치 Merge 시 **GitHub Actions**가 Docker Image를 빌드 및 DockerHub에 업로드
+   - Elastic Beanstalk이 최신 이미지를 Pull 받아 자동 배포
+---
 
-#### 💠 **백엔드 서버**
-- **Gunicorn**과 **Uvicorn**을 병행하여 동기 요청 처리(Django 전통 요청)와 비동기 요청 처리(챗봇, API 호출 등)를 최적화합니다.
+### [**아키텍처 다이어그램**]
 
-#### 💠 **데이터 저장 및 검색**
-- **Chroma Vector DB**: 구글 API 문서 및 사내 문서 검색을 위한 **챗봇 RAG용 벡터 DB**.
-- **MySQL**: 사용자 정보 및 콘텐츠 저장.
-
-#### 💠 **배포 및 운영**
-- **Docker 컨테이너**를 활용하여 AWS에서 배포 및 운영되며, 각 기능 모듈이 분리되어 효율적으로 동작합니다.
+<img width="1100" alt="시스템 아키텍처" src="https://github.com/user-attachments/assets/05f357ed-9120-4b1b-a99c-e1e7af3b46a6" />
 
 ---
 
 ## ✔️ 주요 기능
 
 ### **🌎 구글 API 전문 어시스턴트**
-- **OpenAI GPT-4o 기반 메인 챗봇**:  
-  > 구글 API Q&A, 예제 코드, 오류 해결 등 **구글 API 문서에 대한 전반적인 질의응답**을 지원하는 챗봇.
-  > 
-  > 사용자가 질문을 입력하면 관련 문서를 벡터 DB에서 검색하여 최적의 답변을 제공합니다.  
 
-- **구글 API 문서 검색**:  
-  > **키워드 기반** 및 **의미 기반 검색**을 통해 구글 API 문서를 빠르게 찾을 수 있는 기능. 
-  > 
-  > 사용자가 특정 키워드나 의미를 입력하면 관련 원문 링크를 제공하여 구체적인 정보에 쉽게 접근할 수 있게 합니다.  
+- **OpenAI GPT-4 기반 멀티모달 챗봇**:  
+  > 구글 API Q&A, 예제 코드, 오류 해결 등 **구글 API 문서 전반에 대한 질의응답**을 지원합니다.  
+  > 텍스트 입력뿐 아니라 **오류 코드 스니펫**이나 **API 관련 캡처 이미지**도 인식하여,  
+  > **API 사용법 / 오류 해결법 / 예시 코드**를 함께 제공합니다.  
+  > 또한 **이전 대화 맥락**을 반영하여 연속적인 대화에서도 정확한 답변을 유지합니다.  
+
+- **API 질문 분기 처리**:  
+  > 입력된 질문 유형에 따라 효율적으로 분기 처리합니다.  
+  > - **API 관련 질문** → 문서 검색 + GPT-4 기반 응답  
+  > - **일상 대화** → 일반 대화 모드로 응답  
+  > - **지원하지 않는 질문(예: GitFlow, 사내 업무 질문 등)** → "지원 범위 외 질문"으로 안내  
+
+- **음성 입력 지원 (Whisper 연동)**:  
+  > OpenAI **Whisper 모델**을 연동하여, 사용자의 **음성 입력을 실시간으로 텍스트 변환**하고  
+  > 변환된 내용을 기반으로 질의응답을 수행합니다.  
+
+- **구글 API 문서 검색 기능**:  
+  > **의미 기반 검색**을 통해 관련된 문서 원문을 빠르게 찾아 답변에 반영합니다.  
+  > 검색된 문서 중 **가장 유사도가 높은 Top N개 문서**를 사용자에게 제공하며,  
+  > **N 값은 사용자가 직접 조절 가능**합니다.  
+  > 또한 관련 원문 링크를 함께 제공하여, 세부 정보를 쉽게 확인할 수 있도록 지원합니다.
 
 ### **🧑‍💼 사내 문서 sLLM 챗봇**
+
+- **모델 및 학습 특성**:  
+  > **Qwen3-8B 모델**을 **LoRA 방식으로 파인튜닝**하여 구축된 챗봇입니다.  
+  > 학습 과정에서 **일상 대화**, **문서 검색 질의응답(RAG)**, **말투(공손/반말)**뿐만 아니라  
+  > **멀티턴 TOOL CALL 패턴**까지 반영하여, 대화 맥락을 고려한 자연스러운 응답이 가능합니다.  
+  > 사용자가 원하는 말투를 선택할 수 있도록 지원합니다.  
+
 - **내부 문서 검색 및 응답**:  
-  > **사내 문서 검색**과 관련된 질문에 답변하는 챗봇으로, **직급 및 권한에 따른 문서 접근 제어**를 통해 보안이 강화된 검색 환경을 제공합니다. 
-  > 
-  > 또한, **사내 말투**와 **용어**를 반영하여, 조직 내부의 커뮤니케이션에 맞는 톤과 스타일로 응답합니다.  
+  > **사내 문서 검색**과 관련된 질문은 **RAG 기반 검색**을 통해 정확한 답변을 제공합니다.  
+  > 이 과정에서 **직급 및 권한에 따른 문서 접근 제어**를 적용해 보안이 강화된 검색 환경을 보장합니다.  
+
+- **일상 대화 응답**:  
+  > 사내 문서 검색 이외의 **일상 질문**에 대해서는, 파인튜닝된 **Qwen3-8B 모델 자체**의 대화 능력을 활용하여 응답합니다.  
+
+- **커뮤니케이션 톤**:  
+  > **사내 말투와 용어**를 반영해 조직 내부 커뮤니케이션에 맞는 톤과 스타일로 응답하며,  
+  > 사용자 선택에 따라 **공손한 말투**와 **반말 톤** 모두 자연스럽게 지원합니다.
+
 
 ---
 
 ### **⚙️ 부가기능**
+
 - **대화 카드 저장**:  
-  > 팀 내에서 중요한 **코드 자산**이나 **API 사용 예시** 등을 **대화 카드**로 저장하여, 향후 필요한 시점에 재활용이 가능하도록 합니다. 이 기능은 팀 내 지식 관리와 코드 자산의 공유를 촉진시켜 업무 효율성을 높입니다.  
+  > 팀 내에서 중요한 **코드 자산**이나 **API 사용 예시** 등을 **대화 카드**로 저장할 수 있습니다.  
+  > 저장된 카드는 **마이페이지에서 확인 가능**하며, **채팅 보러가기** 기능을 통해 해당 카드가 속한 대화 세션으로 바로 이동할 수 있습니다.  
+  > 이를 통해 팀 내 지식 관리와 코드 자산 공유가 촉진되어 업무 효율성을 높입니다.  
 
 - **API 키 관리**:  
-  > API 키를 **저장, 수정, 삭제**할 수 있는 기능입니다. 사용자는 자신의 API 키를 저장하고 관리할 수 있습니다.
+  > API 키를 **저장, 수정, 삭제, 복사**할 수 있는 기능입니다.  
+  > 사용자는 자신의 API 키를 손쉽게 관리할 수 있습니다.
 
-- **커뮤니티** (개발 후순위):  
-  > 코드 예제, API 사용법, 문제 해결에 대한 **질의응답 커뮤니티** 기능을 제공합니다. 
-  > 
-  >사용자는 자신이 겪은 문제나 궁금증을 커뮤니티에 게시하고, 다른 개발자들로부터 도움을 받을 수 있습니다.
-  > 
-  > **고품질 게시글**은 벡터 DB에 주기적으로 업데이트되어, 챗봇이 향후 유사한 질문에 대해 더욱 정확하고 실용적인 답변을 제공할 수 있게 됩니다.
+- **커뮤니티**:  
+  > 사용자들이 **코드 예제, API 사용법, 문제 해결**뿐 아니라 **일상적인 주제**에 대해서도 자유롭게 의견을 나눌 수 있는 커뮤니티 기능을 제공합니다.  
+  > 이를 통해 개발자 간의 정보 공유는 물론, 친목 도모와 소통의 장으로도 활용할 수 있습니다.  
+  > 커뮤니티 내 **베스트 게시글**은 별도로 선별되어 게시판 상단에 노출됩니다.
 
 
 ---
 
 ## ♒ 프로젝트 User-Flow
 
-![img.png](image/userflow.png)
+![img_2.png](image/userflow.png)
+
+### 🧭 유저 플로우 정리
+
+1. **회원가입 및 승인**
+   - 신규 유저는 회원가입 후 `status: pending` 상태로 등록
+   - 관리자가 승인해야 로그인 가능
+
+2. **메인 내비게이션: 로그인 후 유저는 네 가지 주요 기능을 이용할 수 있음**
+   - **API 챗봇 (API Q&A)**
+   - **사내 문서 검색 sLLM**
+   - **마이페이지 (키 관리 / 카드 관리 / 내 정보 수정)**
+   - **커뮤니티 Q&A**
+
+3. **API 챗봇 (API Q&A)**
+   - 입력: 이미지 / 음성 / 텍스트
+   - 관련 문서 검색 (RAG) 및 응답 생성
+   - 답변 생성 후 대화 내용 표시
+   - 유저가 원하는 경우 **대화 카드 저장** 가능
+   - 저장된 카드는 마이페이지에서 확인 및 재접속 가능
+
+4. **사내 문서 검색 sLLM**
+   - 직급 및 권한 확인 후 문서 검색 가능
+   - RAG 기반 문서 답변 및 대화 내용 표시
+   - 필요 시 **대화 카드 자동 저장** 기능 지원
+
+5. **마이페이지**
+   - **API 키 관리** (등록 / 수정 / 삭제 / 복사)
+   - **대화 카드 관리** (목록 확인, 선택 시 해당 세션으로 이동)
+   - **내 정보 수정** 가능
+
+6. **커뮤니티 Q&A**
+   - 질문, 답변, 댓글, 좋아요 기능 제공
+   - **베스트 게시글**은 커뮤니티 상단에 노출
+   - 개발/코드뿐 아니라 **일상 관련 주제**도 지원 → 친목 도모 가능
 
 
 ## 🧠 모델링 계획
