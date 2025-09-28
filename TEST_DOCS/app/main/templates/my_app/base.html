@@ -1,0 +1,74 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CodeNova{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'my_app/css/style.css' %}">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="main-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <a href="{% url 'main:home' %}">CodeNova</a>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="{% url 'main:main-chatbot' %}">API 챗봇</a></li>
+                    <li><a href="{% url 'main:internal-docs' %}">사내 내부 문서 챗봇</a></li>
+                    <li><a href="{% url 'main:community-board' %}">커뮤니티 게시글</a></li>
+                </ul>
+            </nav>
+            {% if request.resolver_match.url_name == 'main-chatbot' or request.resolver_match.url_name == 'internal-docs' %}
+            <div class="chat-history">
+                <div class="chat-history__header">
+                    <button class="btn-new-chat" type="button">새 채팅</button>
+                </div>
+
+                <h3 id="sessionTitle" class="session-title">세션을 선택하세요</h3>
+
+                <ul id="sessionList" class="session-list">
+                {% for s in chat_sessions %}
+                    <li class="session-item">
+                        <button class="session-link" data-session-id="{{ s.id }}">{{ s.title }}</button>
+                        <button class="delete-btn" data-session-id="{{ s.id }}">×</button>
+                    </li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </aside>
+
+        <div class="content-wrapper">
+            <header class="top-header">
+                <div class="header-buttons">
+            {% if request.user.is_authenticated %}
+                {% if request.user.profile_image %}
+                    <img src="{{ request.user.profile_image }}" alt="프로필 이미지" class="avatar" >
+                {% else %}
+                    <img src="{{ request.user.profile_image }}" alt="기본 프로필" class="avatar" >
+                {% endif %}
+            {% endif %}
+                    <span>
+                        {{ request.user.name }} / {{ request.user.get_rank_display }}
+                        {% if request.user.department %}
+                        / {{ request.user.get_department_display }}
+                        {% endif %} 
+                    </span>                       
+                    <button class="btn-header" onclick="location.href='{% url 'mypage:mypage' %}'">마이페이지</button>
+                    <form action="{% url 'uauth:logout' %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-header">로그아웃</button>
+                    </form>
+                </div>
+            </header>
+            <main class="main-content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,251 @@
+{% extends 'my_app/base.html' %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'my_app/css/mypage/mypage.css' %}">
+
+    <div class="container">
+        <section class="section-box account-section">
+            <div class="profile-header">
+                <h2>내 계정</h2>
+                <p>계정 정보를 관리하고 업데이트하세요</p>
+            </div>
+            
+            <div class="profile-section-header">
+                <div class="profile-image-container">
+                    {% if user.profile_image %}
+                        <img class="profile-image" src="{{ user.profile_image }}" alt="{{ user.name }} 프로필">
+                    {% else %}
+                        <img class="profile-image" src="{{ user.profile_image }}" alt="기본 프로필">
+                    {% endif %}
+                </div>
+                <div id="edit-buttons">
+                   <label for="profile_image" class="upload-label">프로필 이미지 변경</label>
+                   <input type="file" id="profile_image" name="profile_image" accept="image/*" form="profile-form">
+
+                    <button id="edit-btn" class="edit-button" onclick="toggleEditMode()">편집</button>
+                    <button id="save-btn" form="profile-form" class="edit-button" type="submit" style="display:none;">저장</button>
+                </div>
+            </div>
+
+            <form id="profile-form" method="post" action="{% url 'mypage:mypage_edit' %}" data-rank="{{ user.rank }}" enctype="multipart/form-data" >
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="id">아이디</label>
+                    <input type="text" id="id" value="{{ user.id }}" disabled>
+                    <small>아이디는 변경할 수 없습니다</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="name">이름</label>
+                    <input type="text" id="name" name="name" value="{{ user.name }}" readonly>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="rank">직급</label>
+                        <input type="text" id="rank" name="rank" value="{{ user.get_rank_display }}" disabled>
+                        <small>직급은 변경할 수 없습니다</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="department">팀</label>
+                        <input type="text" id="department" name="department" value="{{ user.get_department_display|default_if_none:'' }}" disabled>
+                        <small>팀 변경 시, 관리자에게 문의하세요.</small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="email">이메일</label>
+                        <input type="email" id="email" name="email" value="{{ user.email }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="birthday">생년월일</label>
+                        <input type="date" id="birthday" name="birthday" value="{{ user.birthday|date:'Y-m-d' }}" readonly>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="gender-text">성별</label>
+                        <input type="text" id="gender-text" value="{{ user.get_gender_display }}" readonly>
+                        
+                        <select id="gender-select" name="gender" style="display:none;">
+                            {% for value, label in genders %}
+                                <option value="{{ value }}" {% if user.gender == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">전화번호</label>
+                        <input type="tel" id="phone" name="phone"
+                               value="{{ user.phone }}" readonly
+                               inputmode="numeric" placeholder="010-1234-5678"
+                               pattern="^010-\d{4}-\d{4}$" aria-describedby="phoneErr">
+                        <div id="phoneErr" class="error" style="margin-top:4px;"></div>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <section class="card-api-section">
+            <div class="chatbox-wrapper">
+                <h3 class="chatbox-title">내가 저장한 카드</h3>
+
+                <div class="section-box">
+                <h4>API 메인 챗봇</h4>
+                <ul class="item-list" id="apiCardsList">
+                    {% for card in api_cards %}
+                    <li data-card-id="{{ card.id }}">
+                        <span>{{ card.title }}</span>
+                        <div class="actions">
+                        <button onclick="openCardDetail('{% url 'mypage:card_detail' card.id %}')">자세히 보기</button>
+                        <a href="{% url 'main:main-chatbot' %}?session_id={{ card.session_id }}">
+                            <button>채팅 보러가기</button>
+                        </a>
+                        <button class="card-del" onclick="deleteCard({{ card.id }})">❌</button>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li>카드가 없습니다.</li>
+                    {% endfor %}
+                    {% if api_cards.has_other_pages %}
+                    <div class="pager">
+                        {% if api_cards.has_previous %}
+                        <a href="?api_page={{ api_cards.previous_page_number }}#apiCardsList">이전</a>
+                        {% endif %}
+                        <span>{{ api_cards.number }} / {{ api_cards.paginator.num_pages }}</span>
+                        {% if api_cards.has_next %}
+                        <a href="?api_page={{ api_cards.next_page_number }}#apiCardsList">다음</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </ul>
+            </div>
+
+                <div class="section-box">
+                <h4>사내문서 챗봇</h4>
+                <ul class="item-list" id="internalCardsList">
+                {% for card in internal_cards %}
+                    <li data-card-id="{{ card.id }}">
+                    <span>{{ card.title }}</span>
+                    <div class="actions">
+                        <button onclick="openCardDetail('{% url 'mypage:card_detail' card.id %}')">자세히 보기</button>
+                        <a href="{% url 'main:internal-docs' %}?session_id={{ card.session_id }}">
+                        <button>채팅 보러가기</button>
+                        </a>
+                        <button class="card-del" onclick="deleteCard({{ card.id }})">❌</button>
+                    </div>
+                    </li>
+                {% empty %}
+                    <li>카드가 없습니다.</li>
+                {% endfor %}
+                </ul>
+
+                {% if internal_cards.has_other_pages %}
+                <div class="pager">
+                    {% if internal_cards.has_previous %}
+                    <a href="?int_page={{ internal_cards.previous_page_number }}#internalCardsList">이전</a>
+                    {% endif %}
+                    <span>{{ internal_cards.number }} / {{ internal_cards.paginator.num_pages }}</span>
+                    {% if internal_cards.has_next %}
+                    <a href="?int_page={{ internal_cards.next_page_number }}#internalCardsList">다음</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+                </ul>
+                </div>
+
+            </div>
+
+            <div class="section-box">
+                <h3 class="chatbox-title" id="my-api-keys">내 API 키</h3>
+
+                <form method="post" action="{% url 'mypage:create_api_key' %}" class="api-key-form">
+                {% csrf_token %}
+                    <div class="input-container">
+                        <div class="api-key-group">
+                            <input type="text" name="api_key_name" id="api_key_name" placeholder="API 키 이름" required>
+                            <span id="api_key_message" class="api-key-message"></span>
+                        </div>
+
+                       <div class="value-group">
+                        <input type="text" name="api_key_value" id="api_key_value" placeholder="API 키 값" required>
+
+                        </div>
+ 
+                        <button type="submit" id="create_key_button" disabled>키 생성</button>
+                    </div>
+                </form>
+
+               <ul class="item-list" id="apiKeysList">
+                {% for key in api_keys %}
+                <li>
+                    <span>{{ key.name }}</span>
+                    <div class="value-group">
+                    <input type="password" class="api-value api-plain" value="{{ key.secret_key }}" disabled>
+                    <button type="button" class="btn-toggle-visibility">👁️</button>
+                    </div>
+                    <div class="actions">
+                    <button class="copy-button" onclick="copyApiKey(this)">복사하기</button>
+                    <form method="post" action="{% url 'mypage:api_key_delete' key.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="key_id" value="{{ key.id }}">
+                        <button type="submit" class="delete-button">❌</button>
+                    </form>
+                 </div>
+                </li>
+                {% empty %}
+                <li>등록된 API 키가 없습니다.</li>
+                {% endfor %}
+                </ul>
+
+                {% if api_keys.has_other_pages %}
+                <div class="pager">
+                    {% if api_keys.has_previous %}
+                    <a href="?key_page={{ api_keys.previous_page_number }}#my-api-keys" class="page-btn">이전</a>
+                    {% else %}
+                    <span class="page-btn disabled">이전</span>
+                    {% endif %}
+
+                    {% if api_keys.paginator.num_pages > 5 %}
+                        {% if api_keys.number > 3 %}
+                        <a href="?key_page=1#my-api-keys" class="page-num">1</a>
+                        <span class="page-ellipsis">...</span>
+                        {% endif %}
+                    {% endif %}
+
+                    {% for page_num in api_keys.paginator.page_range %}
+                        {% if forloop.counter > api_keys.number|add:-3 and forloop.counter < api_keys.number|add:3 %}
+                            {% if api_keys.number == page_num %}
+                            <span class="page-num active">{{ page_num }}</span>
+                            {% else %}
+                            <a href="?key_page={{ page_num }}#my-api-keys" class="page-num">{{ page_num }}</a>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if api_keys.paginator.num_pages > 5 %}
+                        {% if api_keys.number < api_keys.paginator.num_pages|add:-2 %}
+                        <span class="page-ellipsis">...</span>
+                        <a href="?key_page={{ api_keys.paginator.num_pages }}#my-api-keys" class="page-num">{{ api_keys.paginator.num_pages }}</a>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if api_keys.has_next %}
+                    <a href="?key_page={{ api_keys.next_page_number }}#my-api-keys" class="page-btn">다음</a>
+                    {% else %}
+                    <span class="page-btn disabled">다음</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <div id="mypageCtx" data-refresh-url="{% url 'mypage:mypage' %}"></div>
+
+    <script src="{% static 'my_app/js/mypage/mypage.js' %}"></script>
+{% endblock %}
