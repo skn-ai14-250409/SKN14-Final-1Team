@@ -278,8 +278,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 | **모니터링/출력** | log_every=10 steps, save_every=50 steps                                                                                   |
 | **전처리** | Qwen chat 템플릿, assistant 응답만 라벨링, 배치 최대 길이 패딩, 토큰 최대 8192                                                                 |
 
-
-![img.png](img.png)
+![img.png](image/finetunig_lora.png)
 
 #### **⚙️ 파인튜닝 학습 로그**
 
