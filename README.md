@@ -1,4 +1,5 @@
 # 🚀 SK네트웍스 Family AI 과정 14기 1팀 - Final Project
+<a id="toc-site"></a>
 ## 🔗 운영 사이트: [https://code-nova.dev](https://code-nova.dev)
 
 ## **❇️ 프로젝트명 : CodeNova**  
@@ -11,6 +12,21 @@ LLM 활용 내부 고객 업무 효율성 향상을 위한 API 전문 사내 개
 - 김준기 · 김재우 · 안윤지 · 이나경 · 이원지희 · 정민영
 
 ---
+
+## 📑 목차
+- [프로젝트 개요](#toc-overview)
+- [시장조사 및 BM](#BM)
+- [기술 스택](#toc-tech)
+- [시스템 아키텍처](#toc-arch)
+- [주요 구성요소](#toc-services)
+- [주요 기능](#toc-features)
+- [프로젝트 User-Flow](#toc-userflow)
+- [AI 모델링](#toc-aimodel)
+- [AI 모델 경쟁력 분석](#toc-competitive)
+- [사용 데이터](#toc-data)
+- [데이터 전처리 과정](#toc-preprocess)
+- [ERD](#toc-erd)
+
 
 ## 📌 프로젝트 개요
 API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요한 정보를 신속하게 찾기 어렵습니다.  
@@ -38,7 +54,9 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 
 ---
 
+<a id="BM"></a>
 ## 📊 시장 조사 및 BM
+
 ### 시장 규모
 - **글로벌 AI 소프트웨어 시장**: 2028년 6,788억 달러 전망  
 - **국내 AI 산업**: 2024년 6조 3,000억 원 (응용 소프트웨어 2조 6,700억 원, 최대 비중)
@@ -53,7 +71,11 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 
 ---
 
+
+
 ## ⚙️ 기술 스택
+
+<a id="toc-tech"></a>
 
 | 항목                  | 내용                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 |:--------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -65,6 +87,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 | **Embedding Model** | ![BGE-M3](https://img.shields.io/badge/BGE--M3-000000?style=for-the-badge&logo=huggingface&logoColor=white)                                                                                                                                                                                                                                                                                                                         |
 | **LLM Model**       | ![GPT-4](https://img.shields.io/badge/GPT--4-4B91FF?style=for-the-badge&logo=openai&logoColor=white) ![Qwen3-8B](https://img.shields.io/badge/Qwen3--8B%20(on%20RunPod%20+%20vLLM)-FF6F00?style=for-the-badge&logo=alibabacloud&logoColor=white) |
 | **Orchestration**   | ![LangGraph](https://img.shields.io/badge/LangGraph-1E90FF?style=for-the-badge&logo=graphviz&logoColor=white) ![LangChain](https://img.shields.io/badge/LangChain-2E8B57?style=for-the-badge&logo=chainlink&logoColor=white) |
+| **Evaluation**      | ![RAGAS](https://img.shields.io/badge/RAGAS-000000?style=for-the-badge&logo=python&logoColor=white) |
 | **Collaboration**   | ![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white) ![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white) ![Notion](https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white) ![Discord](https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white) |
 | **Development**     | ![VS Code](https://img.shields.io/badge/VS%20Code-007ACC?style=for-the-badge&logo=visual-studio-code&logoColor=white) ![PyCharm](https://img.shields.io/badge/PyCharm-000000?style=for-the-badge&logo=pycharm&logoColor=white) |
 
@@ -72,7 +95,9 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 
 ## ⚙️ 시스템 아키텍처
 
-> <img width="1100" alt="시스템 아키텍처" src="https://github.com/user-attachments/assets/05f357ed-9120-4b1b-a99c-e1e7af3b46a6" />
+<a id="toc-arch"></a>
+
+> ![architecture.png](image/architecture.png)
 >
 > 본 시스템은 Django 기반 웹 애플리케이션, FastAPI 서비스, LLM(OpenAI GPT-4), sLLM(Qwen3-8B 파인튜닝 모델)로 구성됩니다.  
 > 
@@ -83,6 +108,8 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 ---
 
 ### 🔹 주요 구성 요소
+
+<a id="toc-services"></a>
 
 1. **웹 애플리케이션 계층**
    - **Django (Gunicorn/Uvicorn)**: 메인 백엔드 프레임워크, OpenAI GPT-4 API 연동
@@ -110,7 +137,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 ---
 
 ## ✔️ 주요 기능
-
+<a id="toc-features"></a>
 ### **🌎 구글 API 전문 어시스턴트**
 
 - **OpenAI GPT-4 기반 멀티모달 챗봇**:
@@ -233,7 +260,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 ---
 
 ## ♒ 프로젝트 User-Flow
-
+<a id="toc-userflow"></a>
 ![img_2.png](image/userflow.png)
 
 ### 🧭 유저 플로우 정리
@@ -278,7 +305,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 ---
 
 ## 🔍 AI 모델링
-
+<a id="toc-aimodel"></a>
 
 ### ① 사내 문서 기반 RAG: Qwen 모델(LoRA 파인튜닝)
 
@@ -455,7 +482,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 ---
 
 ## 🏆 AI 모델 경쟁력 분석
-
+<a id="toc-competitive"></a>
 ### **📊 LangGraph RAG vs Perplexity 비교 평가**
 
 본 프로젝트에서 구축한 **LangGraph 기반 RAG 시스템**과 **Perplexity 모델**을 동일한 데이터셋으로 비교 평가한 결과, **우리 시스템이 Perplexity 대비 우수한 성능**을 보임을 확인했습니다.
@@ -511,6 +538,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 ---
 
 ## 📂 사용 데이터
+<a id="toc-data"></a>
 
 ### **🌐 외부 데이터**
 
@@ -551,6 +579,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 ---
 
 ## 🔄 데이터 전처리 과정
+<a id="toc-preprocess"></a>
 
 ### **📋 전처리 개요**
 
@@ -643,6 +672,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 ---
 
 ## 🔀 ERD
+<a id="toc-erd"></a>
 > 아래 ERD (Entity-Relationship Diagram)는 **사용자 관리**, **채팅 세션**, **카드 관리**, **메시지 기록** 등을 포함한 주요 테이블 구조를 보여줍니다. 각 테이블은 다음과 같이 연결됩니다:
 
 ![img.png](image/erd.png)
