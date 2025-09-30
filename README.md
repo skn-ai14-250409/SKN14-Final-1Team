@@ -72,9 +72,8 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 
 ## ⚙️ 시스템 아키텍처
 
-<img width="1100" alt="시스템 아키텍처" src="https://github.com/user-attachments/assets/05f357ed-9120-4b1b-a99c-e1e7af3b46a6" />
-
-
+> <img width="1100" alt="시스템 아키텍처" src="https://github.com/user-attachments/assets/05f357ed-9120-4b1b-a99c-e1e7af3b46a6" />
+>
 > 본 시스템은 Django 기반 웹 애플리케이션, FastAPI 서비스, LLM(OpenAI GPT-4), sLLM(Qwen3-8B 파인튜닝 모델)로 구성됩니다.  
 > 
 > 대부분의 애플리케이션은 **AWS Elastic Beanstalk** 환경에서 **Docker 컨테이너** 형태로 배포됩니다.  
@@ -129,14 +128,17 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 - **API 질문 분기 처리**:
   > 입력된 질문 유형에 따라 효율적으로 분기 처리합니다.  
   >
-  > - **API 관련 질문** → 문서 검색 + GPT-4 기반 응답
+  > ◆ **API 관련 질문** → 문서 검색 + GPT-4 기반 응답
+  > 
   > 
   > ![img.png](image/apichat1.png)
   >
-  > - **일상 대화** → 일반 대화 모드로 응답
+  > ◆ **일상 대화** → 일반 대화 모드로 응답
+  > 
   > 
   > ![img.png](image/apichat2.png)
-  > - **지원하지 않는 질문(예: GitFlow, 사내 업무 질문 등)** → "지원 범위 외 질문"으로 안내  
+  > ◆ **지원하지 않는 질문(예: GitFlow, 사내 업무 질문 등)** → "지원 범위 외 질문"으로 안내  
+  > 
   > 
   > ![img.png](image/apichat3.png)
 
@@ -185,11 +187,13 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
   > 
   > ![img.png](image/internal_chat_select.png)
   > 
-  > - 공손한 말투 예시
+  > ◆ 공손한 말투 예시
+  > 
   > 
   > ![img.png](image/internal_chat3.png)
   > 
-  > - 친구 말투 예시
+  > ◆ 친구 말투 예시
+  > 
   > 
   > ![img.png](image/internal_chat4.png)
 
