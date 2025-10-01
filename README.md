@@ -9,7 +9,15 @@ LLM 활용 내부 고객 업무 효율성 향상을 위한 API 전문 사내 개
 
 
 ## 🙌 팀원
-- 김준기 · 김재우 · 안윤지 · 이나경 · 이원지희 · 정민영
+
+|                                                         | 이름 | 역할 |
+|:-------------------------------------------------------:|:-----|:-----|
+|  <img src="images/profile_kim_joonki.png" width="150">  | **김준기** |  |
+|  <img src="images/profile_kim_jaewoo.png" width="150">  | **김재우** |  |
+|  <img src="images/profile_ahn_yoonji.png" width="150">  | **안윤지** |  |
+| <img src="images/profile_lee_nakyung.png" width="150">  | **이나경** |  |
+| <img src="images/profile_lee_wonjihee.png" width="150"> | **이원지희** |  |
+| <img src="images/profile_jung_minyoung.png" width="150"> | **정민영** |  |
 
 ---
 
@@ -27,6 +35,7 @@ LLM 활용 내부 고객 업무 효율성 향상을 위한 API 전문 사내 개
 - [사용 데이터](#toc-data)
 - [데이터 전처리 과정](#toc-preprocess)
 - [ERD](#toc-erd)
+- [팀원 회고](#toc-retrospective)
 
 
 ## 📌 프로젝트 개요
@@ -982,5 +991,19 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 | id | INT | 관계의 고유 식별자 | Primary Key |
 | comment_id | INT | '좋아요'를 받은 댓글 ID | FK → comment.id, NOT NULL |
 | user_id | VARCHAR(50) | '좋아요'를 누른 사용자 ID | FK → user.id, NOT NULL |
+
+---
+
+## 💭 팀원 한줄 회고
+<a id="toc-retrospective"></a>
+
+| 이름 | 회고 |
+|:-----|:-----|
+| **김준기** |  |
+| **김재우** |  |
+| **안윤지** |  |
+| **이나경** |  |
+| **이원지희** |  |
+| **정민영** |  |
 
 ---
