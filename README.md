@@ -10,14 +10,14 @@ LLM 활용 내부 고객 업무 효율성 향상을 위한 API 전문 사내 개
 
 ## 🙌 팀원
 
-|                                                         | 이름 | 역할 |
-|:-------------------------------------------------------:|:-----|:-----|
-|  <img src="images/profile_kim_joonki.png" width="150">  | **김준기** |  |
-|  <img src="images/profile_kim_jaewoo.png" width="150">  | **김재우** |  |
-|  <img src="images/profile_ahn_yoonji.png" width="150">  | **안윤지** |  |
-| <img src="images/profile_lee_nakyung.png" width="150">  | **이나경** |  |
-| <img src="images/profile_lee_wonjihee.png" width="150"> | **이원지희** |  |
-| <img src="images/profile_jung_minyoung.png" width="150"> | **정민영** |  |
+|                                                     | 이름 | 역할 | 담당 업무                                                           |
+|:---------------------------------------------------:|:-----|:-----|:----------------------------------------------------------------|
+|  <img src="images/profile_nakung.png" width="200">  | **이나경** | PM | 프로젝트 총 일정 관리, 문서 검색 기능, 검색 성능 평가, 최종 발표                         |
+|  <img src="images/profile_jungi.png" width="200">   | **김준기** | PM | CI/CD 및 배포 및 모니터링, 사내 내부 문서 FastAPI 설계, sLLM Finetuning         |
+| <img src="images/profile_minyoung.png" width="200"> | **정민영** | 팀원 | Langgraph 설계, sLLM Finetuning, Langgraph/sLLM 성능 테스트, README 작성 |
+|  <img src="images/profile_yungi.png" width="200">   | **안윤지** | 팀원 | 마이페이지 기능 개발, Langgraph 개선 및 성능 테스트, 프로젝트 리소스 관리                 |
+|  <img src="images/profile_jeehee.png" width="200">  | **이원지희** | 팀원 | 로그인/회원가입/승인대기/승인거부 페이지 개발                                       |
+|  <img src="images/profile_jaewoo.png" width="200">  | **김재우** | 팀원 | 웹페이지 템플릿(프론트엔드) 제작, 커뮤니티 페이지 개발                                 |
 
 ---
 
@@ -997,13 +997,13 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 ## 💭 팀원 한줄 회고
 <a id="toc-retrospective"></a>
 
-| 이름 | 회고 |
-|:-----|:-----|
-| **김준기** |  |
-| **김재우** |  |
-| **안윤지** |  |
-| **이나경** |  |
-| **이원지희** |  |
-| **정민영** |  |
+| 이름 | 회고                                                                                                      |
+|:-----|:--------------------------------------------------------------------------------------------------------|
+| **김준기** | 모델을 본인의 테스크에 맞게 파인튜닝하는 방법과 모델이 자체적으로 적절한 Fuction Tool Call를 어떻게 호출하는지 LLM의 내부구조에 대해 알 수 있는 좋은 프로젝트였습니다. |
+| **김재우** | 웹페이지의 프론트/백엔드와 DB연결 , AI 학습 등 많은 작업을 통해 6개월 동안 배웠던 것들을 적절하게 체화시킬 수 있어서 좋은 경험이었다고 생각한다.                  |
+| **안윤지** |                                                                                                         |
+| **이나경** |                                                                                                         |
+| **이원지희** | 이번 프로젝트를 통해 Django에서 로그인과 회원가입 기능이 어떤 흐름과 로직으로 구현되는지 직접 경험하며 이해할 수 있었다.                                 |
+| **정민영** |                                                                                                         |
 
 ---
