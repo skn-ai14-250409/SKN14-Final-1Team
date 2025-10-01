@@ -97,7 +97,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 
 <a id="toc-arch"></a>
 
-> ![architecture.png](image/architecture.png)
+> ![architecture.png](images/architecture.png)
 >
 > 본 시스템은 Django 기반 웹 애플리케이션, FastAPI 서비스, LLM(OpenAI GPT-4), sLLM(Qwen3-8B 파인튜닝 모델)로 구성됩니다.  
 > 
@@ -146,11 +146,11 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
   > 
   > 텍스트 입력뿐 아니라 **오류 코드 스니펫**이나 **API 관련 캡처 이미지**도 인식하여, **API 사용법 / 오류 해결법 / 예시 코드**를 함께 제공합니다.
   >
-  > ![apichat.png](image/apichat.png)
+  > ![apichat.png](images/apichat.png)
   >
   > 또한 **이전 대화 맥락**을 반영하여 연속적인 대화에서도 정확한 답변을 유지합니다.
   >
-  > ![apichat_history.png](image/apichat_history.png)
+  > ![apichat_history.png](images/apichat_history.png)
 
 - **API 질문 분기 처리**:
   > 입력된 질문 유형에 따라 효율적으로 분기 처리합니다.  
@@ -158,22 +158,22 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
   > ◆ **API 관련 질문** → 문서 검색 + GPT-4 기반 응답
   > 
   > 
-  > ![img.png](image/apichat1.png)
+  > ![img.png](images/apichat1.png)
   >
   > ◆ **일상 대화** → 일반 대화 모드로 응답
   > 
   > 
-  > ![img.png](image/apichat2.png)
+  > ![img.png](images/apichat2.png)
   > ◆ **지원하지 않는 질문(예: GitFlow, 사내 업무 질문 등)** → "지원 범위 외 질문"으로 안내  
   > 
   > 
-  > ![img.png](image/apichat3.png)
+  > ![img.png](images/apichat3.png)
 
 - **음성 입력 지원 (Whisper 연동)**:  
   > OpenAI **Whisper 모델**을 연동하여, 사용자의 **음성 입력을 실시간으로 텍스트 변환**하고  
   > 변환된 내용을 기반으로 질의응답을 수행합니다.
   > 
-  > ![img.png](image/apichat4.png)
+  > ![img.png](images/apichat4.png)
 
 - **구글 API 문서 검색 기능**:  
   > **유사도 기반 검색**을 통해 관련된 문서 원문을 빠르게 찾아 원문 링크를 보여줍니다.
@@ -182,7 +182,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
   > 
   > 또한 관련 원문 링크를 함께 제공하여, 세부 정보를 쉽게 확인할 수 있도록 지원합니다.
   > 
-  > ![img.png](image/api1.png)
+  > ![img.png](images/api1.png)
 
 ### **🧑‍💼 사내 문서 sLLM 챗봇**
 
@@ -200,29 +200,29 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
   > 
   > 아래는 프론트엔드팀원이 백엔드 문서에 접근할 수 없고, 프론트엔드 문서만 접근할 수 있는 실제 예시 이미지입니다.
   > 
-  > ![img.png](image/internal_chat1.png)
+  > ![img.png](images/internal_chat1.png)
 
 - **일상 대화 응답**:  
   > 사내 문서 검색 이외의 **일상 질문**에 대해서는, 파인튜닝된 **Qwen3-8B 모델 자체**의 대화 능력을 활용하여 응답합니다.
   > 
-  > ![img.png](image/internal_chat2.png)
+  > ![img.png](images/internal_chat2.png)
 
 - **커뮤니케이션 톤**:  
   > **사내 말투와 용어**를 반영해 조직 내부 커뮤니케이션에 맞는 톤과 스타일로 응답하며,  
   >
   > 사용자 선택에 따라 **공손한 말투**와 **친구 말투 톤** 모두 자연스럽게 지원합니다.
   > 
-  > ![img.png](image/internal_chat_select.png)
+  > ![img.png](images/internal_chat_select.png)
   > 
   > ◆ 공손한 말투 예시
   > 
   > 
-  > ![img.png](image/internal_chat3.png)
+  > ![img.png](images/internal_chat3.png)
   > 
   > ◆ 친구 말투 예시
   > 
   > 
-  > ![img.png](image/internal_chat4.png)
+  > ![img.png](images/internal_chat4.png)
 
 
 ---
@@ -232,22 +232,22 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 - **대화 카드 저장**:  
   > 팀 내에서 중요한 **코드 자산**이나 **API 사용 예시** 등을 **대화 카드**로 저장할 수 있습니다.
   > 
-  > ![img.png](image/card1.png)
+  > ![img.png](images/card1.png)
   > 
-  > ![img_1.png](image/card2.png)
+  > ![img_1.png](images/card2.png)
   > 
   > 저장된 카드는 **마이페이지에서 확인 가능**하며, **자세히 보기** 기능을 통해서 저장한 대화 내용을 확인할 수 있고, **채팅 보러가기** 기능을 통해 해당 카드가 속한 대화 세션으로 바로 이동할 수 있습니다.  
   > 
-  > ![img.png](image/card3.png)
+  > ![img.png](images/card3.png)
   > 
-  > ![img_1.png](image/card4.png)
+  > ![img_1.png](images/card4.png)
   > 
   > 이를 통해 팀 내 지식 관리와 코드 자산 공유가 촉진되어 업무 효율성을 높입니다.  
 
 - **API 키 관리**:  
   > API 키를 **저장, 수정, 삭제, 복사**할 수 있는 기능으로, 사용자는 자신의 API 키를 손쉽게 관리할 수 있습니다.
   > 
-  > ![img.png](image/apikey.png)
+  > ![img.png](imagesapikey.png)
 
 - **커뮤니티**:  
   > 사용자들이 **코드 예제, API 사용법, 문제 해결**뿐 아니라 **일상적인 주제**에 대해서도 자유롭게 의견을 나눌 수 있는 커뮤니티 기능을 제공합니다.
@@ -261,7 +261,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 
 ## ♒ 프로젝트 User-Flow
 <a id="toc-userflow"></a>
-![img_2.png](image/userflow.png)
+![img.png](images/userflow.png)
 
 ### 🧭 유저 플로우 정리
 
@@ -427,7 +427,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 
 ### 아키텍처/흐름
 
-<img src="image/langgraph1.png" alt="LangGraph 아키텍처/흐름" width="300" />
+<img src="images/langgraph1.png" alt="LangGraph 아키텍처/흐름" width="300" />
 
 | 항목 | 내용 |
 |---|---|
@@ -607,7 +607,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 
 - **예시 데이터:**
 
-![img.png](image/qa_sample.png)
+![img.png](images/qa_sample.png)
 
 ### **🏢 sLLM 파인튜닝용 데이터 전처리**
 
@@ -667,7 +667,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 - **[최종 학습 데이터셋 업로드 링크(허깅페이스)](https://huggingface.co/datasets/SKN14-Final-1Team/qwen-finetuning-data-ko-250919)**
 - **샘플 데이터:**
 
-![img.png](image/finetuning_data.png)
+![img.png](images/finetuning_data.png)
 
 ---
 
@@ -675,7 +675,7 @@ API 문서는 방대한 문서와 복잡한 구조로 인해 개발자가 필요
 <a id="toc-erd"></a>
 > 아래 ERD (Entity-Relationship Diagram)는 **사용자 관리**, **채팅 세션**, **카드 관리**, **메시지 기록** 등을 포함한 주요 테이블 구조를 보여줍니다. 각 테이블은 다음과 같이 연결됩니다:
 
-![img.png](image/erd.png)
+![img.png](images/erd.png)
 
 
 ### 데이터베이스 구조
