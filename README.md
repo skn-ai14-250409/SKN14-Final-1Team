@@ -2,6 +2,14 @@
 <a id="toc-site"></a>
 ## 🔗 운영 사이트: [https://code-nova.dev](https://code-nova.dev)
 
+### **🎫 게스트 계정 (체험용)**
+| 항목 | 정보 |
+|:-----|:-----|
+| **계정 ID** | `guest1` |
+| **비밀번호** | `guest1234@` |
+| **유효기간** | 2024년 10월 2일까지 |
+| **설명** | 미리 관리자가 승인해둔 체험용 계정입니다. |
+
 <a id="toc-demo"></a>
 ## 🎥 시연 영상
 [![시연 영상 썸네일](https://img.youtube.com/vi/fQ38bUQxsQo/hqdefault.jpg)](https://youtu.be/YZnAioNsNyo?si=UUYjFH3L-jXAsDGC)
